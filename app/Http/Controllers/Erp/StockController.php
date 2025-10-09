@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\BranchProductStock;
 use App\Models\Product;
 use App\Models\Warehouse;
+use App\Models\ProductVariationStock;
 use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
 
@@ -16,7 +17,7 @@ class StockController extends Controller
     {
         $branches = Branch::all();
         $warehouses = Warehouse::all();
-        $query = Product::with(['branchStock', 'warehouseStock', 'category']);
+        $query = Product::with(['branchStock', 'warehouseStock', 'category', 'variations.stocks']);
 
         // Filter by product name
         if ($request->filled('search')) {
@@ -132,60 +133,131 @@ class StockController extends Controller
 
     public function adjustStock(Request $request)
     {
+        // If a variation_id is provided, adjust variation stock; otherwise fall back to product-level stock
+        $isVariation = $request->filled('variation_id');
+
         if($request->location_type == 'branch')
         {
-            $branchStock = BranchProductStock::where('branch_id', $request->branch_id)->where('product_id', $request->product_id)->first();
-            if ($branchStock) {
-                if($request->type == 'stock_in')
-                {
-                    $branchStock->quantity += $request->quantity;
-                }else{
-                    if($branchStock->quantity > 0){
-                        $branchStock->quantity -= $request->quantity;
-                    }else{
-                        return response()->json(['success' => false, 'message' => 'Stock is already empty'], 400);
+            if ($isVariation) {
+                $stock = ProductVariationStock::where('variation_id', $request->variation_id)
+                    ->where('branch_id', $request->branch_id)
+                    ->whereNull('warehouse_id')
+                    ->first();
+
+                if ($stock) {
+                    if($request->type == 'stock_in') {
+                        $stock->quantity += $request->quantity;
+                    } else {
+                        if($stock->quantity >= $request->quantity){
+                            $stock->quantity -= $request->quantity;
+                        } else {
+                            return response()->json(['success' => false, 'message' => 'Insufficient variation stock'], 400);
+                        }
+                    }
+                    $stock->updated_by = auth()->id() ?? 1;
+                    $stock->last_updated_at = now();
+                    $stock->save();
+                } else {
+                    if($request->type == 'stock_in') {
+                        ProductVariationStock::create([
+                            'variation_id' => $request->variation_id,
+                            'branch_id' => $request->branch_id,
+                            'quantity' => $request->quantity,
+                            'updated_by' => auth()->id() ?? 1,
+                            'last_updated_at' => now(),
+                        ]);
+                    } else {
+                        return response()->json(['success' => false, 'message' => 'No variation stock to decrement for this branch.'], 400);
                     }
                 }
-                $branchStock->save();
             } else {
-                if($request->type == 'stock_in') {
-                    BranchProductStock::create([
-                        'branch_id' => $request->branch_id,
-                        'product_id' => $request->product_id,
-                        'quantity' => $request->quantity,
-                        'updated_by' => auth()->id() ?? 1,
-                        'last_updated_at' => now(),
-                    ]);
+                $branchStock = BranchProductStock::where('branch_id', $request->branch_id)->where('product_id', $request->product_id)->first();
+                if ($branchStock) {
+                    if($request->type == 'stock_in')
+                    {
+                        $branchStock->quantity += $request->quantity;
+                    }else{
+                        if($branchStock->quantity > 0){
+                            $branchStock->quantity -= $request->quantity;
+                        }else{
+                            return response()->json(['success' => false, 'message' => 'Stock is already empty'], 400);
+                        }
+                    }
+                    $branchStock->save();
                 } else {
-                    return response()->json(['success' => false, 'message' => 'No stock found for this branch and product. Cannot stock out.'], 400);
+                    if($request->type == 'stock_in') {
+                        BranchProductStock::create([
+                            'branch_id' => $request->branch_id,
+                            'product_id' => $request->product_id,
+                            'quantity' => $request->quantity,
+                            'updated_by' => auth()->id() ?? 1,
+                            'last_updated_at' => now(),
+                        ]);
+                    } else {
+                        return response()->json(['success' => false, 'message' => 'No stock found for this branch and product. Cannot stock out.'], 400);
+                    }
                 }
             }
         } else {
-            $warehouseStock = WarehouseProductStock::where('warehouse_id', $request->warehouse_id)->where('product_id', $request->product_id)->first();
-            if ($warehouseStock) {
-                if($request->type == 'stock_in')
-                {
-                    $warehouseStock->quantity += $request->quantity;
-                } else{
-                    if($warehouseStock->quantity > 0)
-                    {
-                        $warehouseStock->quantity -= $request->quantity;
-                    }else{
-                        return response()->json(['success' => false, 'message' => 'Stock is already empty'], 400);
+            if ($isVariation) {
+                $stock = ProductVariationStock::where('variation_id', $request->variation_id)
+                    ->where('warehouse_id', $request->warehouse_id)
+                    ->whereNull('branch_id')
+                    ->first();
+
+                if ($stock) {
+                    if($request->type == 'stock_in') {
+                        $stock->quantity += $request->quantity;
+                    } else {
+                        if($stock->quantity >= $request->quantity){
+                            $stock->quantity -= $request->quantity;
+                        } else {
+                            return response()->json(['success' => false, 'message' => 'Insufficient variation stock'], 400);
+                        }
+                    }
+                    $stock->updated_by = auth()->id() ?? 1;
+                    $stock->last_updated_at = now();
+                    $stock->save();
+                } else {
+                    if($request->type == 'stock_in') {
+                        ProductVariationStock::create([
+                            'variation_id' => $request->variation_id,
+                            'warehouse_id' => $request->warehouse_id,
+                            'quantity' => $request->quantity,
+                            'updated_by' => auth()->id() ?? 1,
+                            'last_updated_at' => now(),
+                        ]);
+                    } else {
+                        return response()->json(['success' => false, 'message' => 'No variation stock to decrement for this warehouse.'], 400);
                     }
                 }
-                $warehouseStock->save();
             } else {
-                if($request->type == 'stock_in') {
-                    WarehouseProductStock::create([
-                        'warehouse_id' => $request->warehouse_id,
-                        'product_id' => $request->product_id,
-                        'quantity' => $request->quantity,
-                        'updated_by' => auth()->id() ?? 1,
-                        'last_updated_at' => now(),
-                    ]);
+                $warehouseStock = WarehouseProductStock::where('warehouse_id', $request->warehouse_id)->where('product_id', $request->product_id)->first();
+                if ($warehouseStock) {
+                    if($request->type == 'stock_in')
+                    {
+                        $warehouseStock->quantity += $request->quantity;
+                    } else{
+                        if($warehouseStock->quantity > 0)
+                        {
+                            $warehouseStock->quantity -= $request->quantity;
+                        }else{
+                            return response()->json(['success' => false, 'message' => 'Stock is already empty'], 400);
+                        }
+                    }
+                    $warehouseStock->save();
                 } else {
-                    return response()->json(['success' => false, 'message' => 'No stock found for this warehouse and product. Cannot stock out.'], 400);
+                    if($request->type == 'stock_in') {
+                        WarehouseProductStock::create([
+                            'warehouse_id' => $request->warehouse_id,
+                            'product_id' => $request->product_id,
+                            'quantity' => $request->quantity,
+                            'updated_by' => auth()->id() ?? 1,
+                            'last_updated_at' => now(),
+                        ]);
+                    } else {
+                        return response()->json(['success' => false, 'message' => 'No stock found for this warehouse and product. Cannot stock out.'], 400);
+                    }
                 }
             }
         }

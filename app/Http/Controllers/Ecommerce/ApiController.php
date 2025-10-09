@@ -17,7 +17,7 @@ class ApiController extends Controller
             ->take(20)
             ->get();
 
-        // Attach is_wishlisted to each product
+        // Attach is_wishlisted and rating data to each product
         $products->transform(function ($product) use ($userId) {
             $product->is_wishlisted = false;
             if ($userId) {
@@ -25,6 +25,11 @@ class ApiController extends Controller
                     ->where('product_id', $product->id)
                     ->exists();
             }
+            
+            // Add rating data
+            $product->avg_rating = $product->averageRating();
+            $product->total_reviews = $product->totalReviews();
+            
             return $product;
         });
 

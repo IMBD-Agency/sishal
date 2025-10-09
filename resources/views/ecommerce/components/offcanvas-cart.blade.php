@@ -309,6 +309,8 @@
     var __cartBodyScrollY = 0;
     var __cartTouchMoveHandler = null;
     function renderCart(cartData) {
+        console.log('[CART] renderCart called with data:', cartData);
+        
         var cartItemsDiv = $('#cartItems');
         var emptyCartDiv = $('#emptyCart');
         var subtotalAmount = $('#subtotalAmount');
@@ -316,52 +318,66 @@
 
         cartItemsDiv.empty();
         if (!cartData.cart || cartData.cart.length === 0) {
+            console.log('[CART] No cart items, showing empty cart');
             cartItemsDiv.hide();
             emptyCartDiv.show();
             subtotalAmount.text('0.00৳');
             cartCount.text('0');
             return;
         }
+        
+        console.log('[CART] Rendering ' + cartData.cart.length + ' cart items');
         cartItemsDiv.show();
         emptyCartDiv.hide();
         var totalCount = 0;
+        
         $.each(cartData.cart, function(i, item) {
+            console.log('[CART] Rendering item:', item);
             totalCount += item.qty;
             cartItemsDiv.append(`
-                <div class="cart-item" data-id="${item.product_id}">
+                <div class="cart-item" data-cart-id="${item.cart_id}" data-product-id="${item.product_id}">
                     <div class="d-flex align-items-start">
                         <img src="/${item.image ? item.image : 'https://via.placeholder.com/64'}" class="cart-item-image" alt="${item.name}">
                         <div class="cart-item-details flex-grow-1">
                             <div class="cart-item-name">${item.name}</div>
                             <div class="cart-item-price">${(item.price * item.qty).toFixed(2)}৳</div>
                             <div class="quantity-controls">
-                                <button class="quantity-btn" onclick="decreaseQuantity(${item.product_id})" ${item.qty <= 1 ? 'disabled' : ''}>
+                                <button class="quantity-btn" onclick="decreaseQuantity(${item.cart_id})" ${item.qty <= 1 ? 'disabled' : ''}>
                                     <i class="fas fa-minus"></i>
                                 </button>
                                 <span class="quantity-display">${item.qty}</span>
-                                <button class="quantity-btn" onclick="increaseQuantity(${item.product_id})">
+                                <button class="quantity-btn" onclick="increaseQuantity(${item.cart_id})">
                                     <i class="fas fa-plus"></i>
                                 </button>
                             </div>
                         </div>
-                        <button class="delete-btn" onclick="removeItem(${item.product_id})">
+                        <button class="delete-btn" onclick="removeItem(${item.cart_id})">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             `);
         });
+        
         subtotalAmount.text(`${cartData.cart_total.toFixed(2)}৳`);
         cartCount.text(totalCount);
+        console.log('[CART] Cart rendered with total count:', totalCount);
     }
 
     function fetchCartData() {
-        $.get('/cart/list', function(data) {
+        console.log('[CART] fetchCartData called');
+        // Add cache-busting parameter to ensure fresh data
+        var timestamp = new Date().getTime();
+        $.get('/cart/list?t=' + timestamp, function(data) {
+            console.log('[CART] Received data from /cart/list:', data);
             renderCart(data);
+        }).fail(function(xhr, status, error) {
+            console.error('[CART] Error fetching cart data:', error);
         });
     }
 
     function openOffcanvasCart() {
+        console.log('[CART] openOffcanvasCart called');
         var overlay = document.getElementById('offcanvasCart');
         var panel = overlay.querySelector('.offcanvas-cart-panel');
         overlay.style.display = 'flex';
@@ -392,6 +408,8 @@
             }
         };
         document.addEventListener('touchmove', __cartTouchMoveHandler, { passive: false });
+        console.log('[CART] Fetching cart data on open');
+        // Force refresh cart data when opening
         fetchCartData();
     }
 
@@ -431,9 +449,9 @@
         }
     });
     
-    function increaseQuantity(productId) {
+    function increaseQuantity(cartId) {
         $.ajax({
-            url: '/cart/increase/' + productId,
+            url: '/cart/increase/' + cartId,
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -447,9 +465,9 @@
         });
     }
 
-    function decreaseQuantity(productId) {
+    function decreaseQuantity(cartId) {
         $.ajax({
-            url: '/cart/decrease/' + productId,
+            url: '/cart/decrease/' + cartId,
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -463,9 +481,9 @@
         });
     }
 
-    function removeItem(productId) {
+    function removeItem(cartId) {
         $.ajax({
-            url: '/cart/delete/' + productId,
+            url: '/cart/delete/' + cartId,
             type: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -479,14 +497,17 @@
         });
     }
 
-    function updateItemPrice(id, quantity) {
-        const item = document.querySelector(`[data-id="${id}"]`);
-        const priceElement = item.querySelector('.cart-item-price');
-        
-        // Sample prices - replace with your actual product prices
-        const prices = { 1: 29.99, 2: 9.99 };
-        const totalPrice = (prices[id] * quantity).toFixed(2);
-        priceElement.textContent = `$${totalPrice}`;
+    function updateItemPrice(cartId, quantity) {
+        const item = document.querySelector(`[data-cart-id="${cartId}"]`);
+        if (item) {
+            const priceElement = item.querySelector('.cart-item-price');
+            const productId = item.getAttribute('data-product-id');
+            
+            // Sample prices - replace with your actual product prices
+            const prices = { 1: 29.99, 2: 9.99 };
+            const totalPrice = (prices[productId] * quantity).toFixed(2);
+            priceElement.textContent = `$${totalPrice}`;
+        }
     }
 
     function updateSubtotal() {
@@ -503,8 +524,58 @@
     }
 
     function updateCartCount() {
-        const itemCount = document.querySelectorAll('.cart-item').length;
-        document.getElementById('cartCount').textContent = itemCount;
+        // Fetch actual cart count from server
+        $.get('/cart/qty-sum', function(data) {
+            if (data && data.qty_sum !== undefined) {
+                const count = data.qty_sum;
+                
+                // Update cart count in offcanvas cart
+                const cartCountEl = document.getElementById('cartCount');
+                if (cartCountEl) {
+                    cartCountEl.textContent = count;
+                }
+                
+                // Update cart count badges in navbar
+                const navCartCounts = document.querySelectorAll('.nav-cart-count');
+                navCartCounts.forEach(function(el) {
+                    el.textContent = count;
+                });
+                
+                // Update mobile cart count
+                const mobileCartCounts = document.querySelectorAll('.qi-badge.nav-cart-count');
+                mobileCartCounts.forEach(function(el) {
+                    el.textContent = count;
+                });
+            } else {
+                // Fallback to DOM count
+                const itemCount = document.querySelectorAll('.cart-item').length;
+                updateCartCountElements(itemCount);
+            }
+        }).fail(function() {
+            // Fallback to DOM count if request fails
+            const itemCount = document.querySelectorAll('.cart-item').length;
+            updateCartCountElements(itemCount);
+        });
+    }
+    
+    function updateCartCountElements(count) {
+        // Update cart count in offcanvas cart
+        const cartCountEl = document.getElementById('cartCount');
+        if (cartCountEl) {
+            cartCountEl.textContent = count;
+        }
+        
+        // Update cart count badges in navbar
+        const navCartCounts = document.querySelectorAll('.nav-cart-count');
+        navCartCounts.forEach(function(el) {
+            el.textContent = count;
+        });
+        
+        // Update mobile cart count
+        const mobileCartCounts = document.querySelectorAll('.qi-badge.nav-cart-count');
+        mobileCartCounts.forEach(function(el) {
+            el.textContent = count;
+        });
     }
 
     function checkEmptyCart() {
@@ -520,17 +591,24 @@
 
     // Close on overlay click
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('[CART] DOMContentLoaded - initializing cart');
+        
         // Ensure cart overlay is at top-level to avoid header stacking contexts
         var cartOverlay = document.getElementById('offcanvasCart');
         if (cartOverlay && cartOverlay.parentElement !== document.body) {
             document.body.appendChild(cartOverlay);
         }
+        
         const overlay = document.getElementById('offcanvasCart');
         overlay.addEventListener('click', function(e) {
             if (e.target === overlay) {
                 closeOffcanvasCart();
             }
         });
+        
+        // Initialize cart data on page load
+        console.log('[CART] Loading initial cart data');
+        fetchCartData();
     });
 
     // Close on Escape key

@@ -377,41 +377,74 @@ class PurchaseReturnController extends Controller
     {
         $returnedQty = $item->returned_qty;
         $productId = $item->product_id;
+        $variationId = $item->variation_id ?? null;
         $returnFromType = $item->return_from_type;
         $returnFromId = $item->return_from_id;
 
         switch ($returnFromType) {
             case 'branch':
-                $stock = BranchProductStock::where('branch_id', $returnFromId)
-                    ->where('product_id', $productId)
-                    ->first();
-                
-                if ($stock) {
-                    $stock->decrement('quantity', $returnedQty);
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('branch_id', $returnFromId)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    if ($stock) {
+                        $stock->decrement('quantity', $returnedQty);
+                    } else {
+                        \App\Models\ProductVariationStock::create([
+                            'variation_id' => $variationId,
+                            'branch_id' => $returnFromId,
+                            'quantity' => -$returnedQty
+                        ]);
+                    }
                 } else {
-                    // Create negative stock record if doesn't exist
-                    BranchProductStock::create([
-                        'branch_id' => $returnFromId,
-                        'product_id' => $productId,
-                        'quantity' => -$returnedQty
-                    ]);
+                    $stock = BranchProductStock::where('branch_id', $returnFromId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    
+                    if ($stock) {
+                        $stock->decrement('quantity', $returnedQty);
+                    } else {
+                        // Create negative stock record if doesn't exist
+                        BranchProductStock::create([
+                            'branch_id' => $returnFromId,
+                            'product_id' => $productId,
+                            'quantity' => -$returnedQty
+                        ]);
+                    }
                 }
                 break;
 
             case 'warehouse':
-                $stock = WarehouseProductStock::where('warehouse_id', $returnFromId)
-                    ->where('product_id', $productId)
-                    ->first();
-                
-                if ($stock) {
-                    $stock->decrement('quantity', $returnedQty);
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('warehouse_id', $returnFromId)
+                        ->whereNull('branch_id')
+                        ->first();
+                    if ($stock) {
+                        $stock->decrement('quantity', $returnedQty);
+                    } else {
+                        \App\Models\ProductVariationStock::create([
+                            'variation_id' => $variationId,
+                            'warehouse_id' => $returnFromId,
+                            'quantity' => -$returnedQty
+                        ]);
+                    }
                 } else {
-                    // Create negative stock record if doesn't exist
-                    WarehouseProductStock::create([
-                        'warehouse_id' => $returnFromId,
-                        'product_id' => $productId,
-                        'quantity' => -$returnedQty
-                    ]);
+                    $stock = WarehouseProductStock::where('warehouse_id', $returnFromId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    
+                    if ($stock) {
+                        $stock->decrement('quantity', $returnedQty);
+                    } else {
+                        // Create negative stock record if doesn't exist
+                        WarehouseProductStock::create([
+                            'warehouse_id' => $returnFromId,
+                            'product_id' => $productId,
+                            'quantity' => -$returnedQty
+                        ]);
+                    }
                 }
                 break;
 

@@ -33,6 +33,18 @@
                                     <a href="{{ route('product.details', $product->slug) }}" class="product-title"
                                         style="text-decoration: none;">{{ $product->name }}</a>
                                     <p class="product-description">{{$product->description ? $product->description : ''}}</p>
+                                    @php
+                                        $avgRating = round($product->averageRating());
+                                        $totalReviews = $product->totalReviews();
+                                    @endphp
+                                    <div class="product-meta" style="margin-top:6px;">
+                                        <div class="stars" aria-label="{{ $avgRating }} out of 5">
+                                            @for ($i = 1; $i <= 5; $i++)
+                                                <i class="fa{{ $i <= $avgRating ? 's' : 'r' }} fa-star"></i>
+                                            @endfor
+                                        </div>
+                                        <div class="sold">({{ $totalReviews }} reviews)</div>
+                                    </div>
 
                                     <div class="price">
                                         @if(isset($product->discount) && $product->discount > 0)

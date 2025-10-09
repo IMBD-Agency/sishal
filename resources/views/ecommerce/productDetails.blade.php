@@ -37,6 +37,22 @@
             background: #fafbfc;
         }
 
+        /* Variation Image Styles */
+        .variation-image-slide,
+        .variation-gallery-slide,
+        .variation-thumb-slide,
+        .variation-gallery-thumb-slide {
+            transition: opacity 0.3s ease;
+        }
+
+        .variation-image-slide img,
+        .variation-gallery-slide img {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+
+
         .product-gallery {
             max-width: 100%;
             width: 100%;
@@ -358,9 +374,17 @@
             box-shadow: 0 4px 12px rgba(0, 81, 44, 0.3);
         }
 
-        .btn-add-cart:hover {
+        .btn-add-cart:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(0, 81, 44, 0.4);
+        }
+
+        .btn-add-cart:disabled {
+            background: #e5e7eb !important;
+            color: #9ca3af !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+            box-shadow: none !important;
         }
 
         .btn-outline-custom {
@@ -1589,6 +1613,108 @@
             }
         }
 
+        /* Product Variations */
+        .variation-group {
+            margin-bottom: 20px;
+        }
+
+        .color-option, .size-option {
+            transition: all 0.2s ease;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none;
+			cursor: pointer;
+			position: relative;
+        }
+
+        .color-image-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-image-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .color-image-btn .color-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* Color Image Selection Styles */
+
+        .color-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .color-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1;
+            padding: 2px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            display: block;
+        }
+
+        .color-image-btn[style*="background-color: #ffffff"] .color-label,
+        .color-image-btn[style*="background-color: #f9fafb"] .color-label {
+            color: #333;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.7);
+        }
+
+        .color-image-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-image-btn.active {
+            transform: scale(1.15);
+            box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.5);
+            border: 2px solid #ff6a00 !important;
+        }
+
+        .color-option:hover, .size-option:hover {
+            border-color: #ff6a00 !important;
+        }
+
+        .color-option.active, .size-option.active {
+            border-color: #ff6a00 !important; /* orange */
+            box-shadow: 0 0 0 2px rgba(255,106,0,0.15);
+            background-color: #fff7f0 !important;
+            color: #222 !important;
+        }
+
+        .size-option {
+            min-width: 56px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            pointer-events: auto;
+        }
+
+        .variation-info {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+
         .custom-toast {
             min-width: 220px;
             max-width: 340px;
@@ -1797,29 +1923,63 @@
             <div class="col-lg-6 col-md-7 col-12" style="padding: 20px;">
                 <div class="product-gallery">
                     <div class="swiper main-swiper">
-                        <div class="swiper-wrapper">
-                            <div class="swiper-slide">
-                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="main-image">
+                        <div class="swiper-wrapper" id="main-swiper-wrapper">
+                            <!-- Main product image -->
+                            <div class="swiper-slide" data-image-type="product">
+                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="main-image" id="main-product-image">
                             </div>
+                            <!-- Product galleries -->
                             @foreach($product->galleries as $gallery)
-                                <div class="swiper-slide">
+                                <div class="swiper-slide" data-image-type="gallery">
                                     <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" class="main-image">
                                 </div>
                             @endforeach
+                            <!-- Variation images (hidden by default) -->
+                            @if($product->has_variations)
+                                @foreach($product->variations as $variation)
+                                    @if($variation->image)
+                                        <div class="swiper-slide variation-image-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation" style="display: none;">
+                                            <img src="{{ asset($variation->image) }}" alt="{{ $variation->name }}" class="main-image">
+                                        </div>
+                                    @endif
+                                    @foreach($variation->galleries as $gallery)
+                                        <div class="swiper-slide variation-gallery-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation-gallery" style="display: none;">
+                                            <img src="{{ asset($gallery->image) }}" alt="{{ $variation->name }}" class="main-image">
+                                        </div>
+                                    @endforeach
+                                @endforeach
+                            @endif
                         </div>
                         <div class="swiper-button-next"></div>
                         <div class="swiper-button-prev"></div>
                     </div>
                     <div class="swiper thumb-swiper mt-2">
-                        <div class="swiper-wrapper">
-                            <div class="swiper-slide">
+                        <div class="swiper-wrapper" id="thumb-swiper-wrapper">
+                            <!-- Main product image thumbnail -->
+                            <div class="swiper-slide" data-image-type="product">
                                 <img src="{{ asset($product->image) }}" alt="{{ $product->name }}">
                             </div>
+                            <!-- Product gallery thumbnails -->
                             @foreach($product->galleries as $gallery)
-                                <div class="swiper-slide">
+                                <div class="swiper-slide" data-image-type="gallery">
                                     <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}">
                                 </div>
                             @endforeach
+                            <!-- Variation image thumbnails (hidden by default) -->
+                            @if($product->has_variations)
+                                @foreach($product->variations as $variation)
+                                    @if($variation->image)
+                                        <div class="swiper-slide variation-thumb-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation" style="display: none;">
+                                            <img src="{{ asset($variation->image) }}" alt="{{ $variation->name }}">
+                                        </div>
+                                    @endif
+                                    @foreach($variation->galleries as $gallery)
+                                        <div class="swiper-slide variation-gallery-thumb-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation-gallery" style="display: none;">
+                                            <img src="{{ asset($gallery->image) }}" alt="{{ $variation->name }}">
+                                        </div>
+                                    @endforeach
+                                @endforeach
+                            @endif
                         </div>
                     </div>
                     
@@ -1855,6 +2015,622 @@
                     </div>
                     @endif
 
+                    @if($product->has_variations)
+                    @php
+                    $attributeGroups = [];
+                    $variationImages = []; // Map attribute value IDs to variation images
+                    
+                    foreach (($product->variations ?? []) as $variation) {
+                        foreach (($variation->combinations ?? []) as $comb) {
+                            if (!$comb->attribute || !$comb->attributeValue) { continue; }
+                            $attrId = $comb->attribute->id;
+                            $valId = $comb->attributeValue->id;
+                            $attributeGroups[$attrId]['name'] = $comb->attribute->name;
+                            
+                            // Use variation image if available, otherwise use attribute value image
+                            $imageToUse = $variation->image ? asset($variation->image) : ($comb->attributeValue->image ?? null);
+                            
+                            // Persist value label + optional image and color_code from backend
+                            $attributeGroups[$attrId]['values'][$valId] = [
+                                'label' => $comb->attributeValue->value,
+                                'image' => $imageToUse,
+                                'color_code' => $comb->attributeValue->color_code ?? null,
+                            ];
+                            
+                            // Store variation image for this attribute value
+                            if ($variation->image) {
+                                $variationImages[$valId] = asset($variation->image);
+                            }
+                        }
+                    }
+                    @endphp
+
+                    <div class="variation-section mt-3">
+                        <div class="alert alert-info mb-3" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Please select your preferred options below to add this item to cart.
+                        </div>
+                        @foreach($attributeGroups as $attrId => $group)
+                            <div class="variation-group">
+                                <div class="d-flex align-items-center mb-2">
+                                    <strong class="me-2">{{ $group['name'] }}:</strong>
+                                    <span class="text-muted small" data-selected-label="attr-{{ $attrId }}">Choose {{ $group['name'] }}</span>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2" data-attribute-id="{{ $attrId }}">
+                                    @foreach($group['values'] as $valId => $val)
+                                        @php
+                                            $isColor = strtolower($group['name']) === 'color';
+                                            $buttonClass = $isColor ? 'btn btn-sm color-option' : 'btn btn-sm size-option';
+                                            $label = is_array($val) ? ($val['label'] ?? (string)$val) : (string)$val;
+                                            $imgPath = is_array($val) ? ($val['image'] ?? null) : null;
+                                            $colorCode = is_array($val) ? ($val['color_code'] ?? null) : null;
+                                        @endphp
+                                        @if($isColor)
+                                            @if(!empty($imgPath))
+                                                <button type="button" class="{{ $buttonClass }} color-image-btn" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}">
+                                                    <img src="{{ asset($imgPath) }}" alt="{{ $label }}" class="color-image">
+                                                </button>
+                                            @elseif(!empty($colorCode))
+                                                <button type="button" class="{{ $buttonClass }} color-image-btn" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}" style="background-color: {{ $colorCode }};">
+                                                    <span class="color-label">{{ $label }}</span>
+                                                </button>
+                                            @else
+                                                <button type="button" class="{{ $buttonClass }} color-image-btn" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}">
+                                                    <span class="color-label">{{ $label }}</span>
+                                                </button>
+                                            @endif
+                                        @else
+                                            <button type="button" class="{{ $buttonClass }}" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}">{{ $label }}</button>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+
+                        <input type="hidden" id="selected-variation-id" value="">
+                        <div id="selected-attribute-values" style="display:none;"></div>
+
+                        <div class="variation-info p-3 mt-3 bg-light border rounded">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <div class="small text-muted">Selected Variation</div>
+                                    <div id="selected-variation-name" class="fw-semibold text-muted">Please select options above</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small text-muted">Price</div>
+                                    <div id="selected-variation-price" class="fw-semibold text-muted">—</div>
+                                </div>
+                            </div>
+                            <div class="mt-2 small text-muted" id="selected-variation-stock">Select your preferences to see availability</div>
+                        </div>
+                    </div>
+                    @endif
+
+                    <!-- Variation Scripts - Moved here for AJAX compatibility -->
+                        @if($product->has_variations)
+                        <script>
+                            console.log('[VARIATION] Variation script section reached');
+                            
+                            // Global error handler for querySelector errors
+                            window.addEventListener('error', function(e) {
+                                if (e.message && e.message.includes('querySelector') && e.message.includes('not a valid selector')) {
+                                    console.error('[VARIATION] querySelector Error Caught:', e.message);
+                                    console.error('[VARIATION] Error at:', e.filename, 'line:', e.lineno);
+                                    console.error('[VARIATION] Stack trace:', e.error ? e.error.stack : 'No stack trace');
+                                    
+                                    // Try to identify the problematic selector
+                                    var errorText = e.message;
+                                    var selectorMatch = errorText.match(/'([^']+)'/);
+                                    if (selectorMatch) {
+                                        console.error('[VARIATION] Problematic selector:', selectorMatch[1]);
+                                    }
+                                    
+                                    // Prevent the error from propagating
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    return true;
+                                }
+                            }, true);
+                            
+                            // Global querySelector wrapper to prevent invalid selector errors
+                            (function() {
+                                var originalQuerySelector = Document.prototype.querySelector;
+                                var originalQuerySelectorAll = Document.prototype.querySelectorAll;
+                                
+                                Document.prototype.querySelector = function(selector) {
+                                    if (!selector || selector === '' || selector === '#' || selector === 'undefined' || selector === 'null') {
+                                        console.warn('[VARIATION] Invalid selector prevented:', selector);
+                                        return null;
+                                    }
+                                    try {
+                                        return originalQuerySelector.call(this, selector);
+                                    } catch (e) {
+                                        console.error('[VARIATION] querySelector error caught:', e.message, 'selector:', selector);
+                                        return null;
+                                    }
+                                };
+                                
+                                Document.prototype.querySelectorAll = function(selector) {
+                                    if (!selector || selector === '' || selector === '#' || selector === 'undefined' || selector === 'null') {
+                                        console.warn('[VARIATION] Invalid selector prevented:', selector);
+                                        return [];
+                                    }
+                                    try {
+                                        return originalQuerySelectorAll.call(this, selector);
+                                    } catch (e) {
+                                        console.error('[VARIATION] querySelectorAll error caught:', e.message, 'selector:', selector);
+                                        return [];
+                                    }
+                                };
+                                
+                                // Also wrap Element.prototype methods
+                                var originalElementQuerySelector = Element.prototype.querySelector;
+                                var originalElementQuerySelectorAll = Element.prototype.querySelectorAll;
+                                
+                                Element.prototype.querySelector = function(selector) {
+                                    if (!selector || selector === '' || selector === '#' || selector === 'undefined' || selector === 'null') {
+                                        console.warn('[VARIATION] Invalid selector prevented:', selector);
+                                        return null;
+                                    }
+                                    try {
+                                        return originalElementQuerySelector.call(this, selector);
+                                    } catch (e) {
+                                        console.error('[VARIATION] Element querySelector error caught:', e.message, 'selector:', selector);
+                                        return null;
+                                    }
+                                };
+                                
+                                Element.prototype.querySelectorAll = function(selector) {
+                                    if (!selector || selector === '' || selector === '#' || selector === 'undefined' || selector === 'null') {
+                                        console.warn('[VARIATION] Invalid selector prevented:', selector);
+                                        return [];
+                                    }
+                                    try {
+                                        return originalElementQuerySelectorAll.call(this, selector);
+                                    } catch (e) {
+                                        console.error('[VARIATION] Element querySelectorAll error caught:', e.message, 'selector:', selector);
+                                        return [];
+                                    }
+                                };
+                            })();
+                        
+                        // IMMEDIATE TEST - Run variation logic right away
+                        console.log('[VARIATION] Running immediate test...');
+                        var testBtns = document.querySelectorAll('.color-option, .size-option, .color-image-btn');
+                        console.log('[VARIATION] Found ' + testBtns.length + ' variation buttons immediately');
+                        
+                        // Add immediate click listener
+                        document.addEventListener('click', function(e) {
+                            console.log('[VARIATION] IMMEDIATE CLICK DETECTED on:', e.target);
+                            if (e.target.classList.contains('color-option') || e.target.classList.contains('size-option') || e.target.classList.contains('color-image-btn')) {
+                                console.log('[VARIATION] IMMEDIATE: Variation button clicked!');
+                                alert('Variation button clicked: ' + e.target.textContent);
+                            }
+                        });
+                        
+                        function initializeVariationSelection() {
+                            console.log('[VARIATION] Initializing variation selection...');
+                            var hasVariations = @json($product->has_variations);
+                            console.log('[VARIATION] hasVariations =', hasVariations);
+                            if (!hasVariations) {
+                                console.log('[VARIATION] No variations found, skipping setup');
+                                return;
+                            }
+
+                            @php
+                                $__variationPayload = ($product->variations ?? collect())->map(function($v) use ($product) {
+                                    return [
+                                        'id' => $v->id,
+                                        'name' => $v->name,
+                                        'price' => (float) ($v->final_price ?? $v->price ?? $product->price),
+                                        'image' => $v->image ? asset($v->image) : null,
+                                        'galleries' => $v->galleries->map(function($g) {
+                                            return asset($g->image);
+                                        })->values()->all(),
+                                        'available_stock' => (int) ($v->available_stock ?? 0),
+                                        'attribute_value_ids' => $v->combinations->pluck('attribute_value_id')->values()->all(),
+                                    ];
+                                })->values()->all();
+                            @endphp
+                            var productVariations = @json($__variationPayload);
+                            console.log('[VARIATION] variations payload size =', Array.isArray(productVariations) ? productVariations.length : 'n/a');
+
+                            // Disable Add to Cart until a variation is selected
+                            var initialAddBtn = document.querySelector('.btn-add-cart');
+                            if (initialAddBtn) { 
+                                initialAddBtn.disabled = true; 
+                                console.log('[VARIATION] Add to Cart button disabled - no variation selected');
+                            }
+
+                            function updateHiddenSelectedValues(selectedMap) {
+                                var container = document.getElementById('selected-attribute-values');
+                                if (!container) return;
+                                container.innerHTML = '';
+                                Object.keys(selectedMap).forEach(function(attrId) {
+                                    // Validate attrId
+                                    if (!attrId || attrId === 'undefined' || attrId === 'null' || attrId === '' || attrId === '#') {
+                                        console.warn('[VARIATION] Invalid attrId in updateHiddenSelectedValues:', attrId);
+                                        return;
+                                    }
+                                    
+                                    var input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = 'attribute_value_ids[]';
+                                    input.value = selectedMap[attrId];
+                                    container.appendChild(input);
+                                });
+                            }
+
+                            function renderSelectionLabels(selectedMap) {
+                                Object.keys(selectedMap).forEach(function(attrId) {
+                                    // More robust validation
+                                    if (!attrId || attrId === 'undefined' || attrId === 'null' || attrId === '' || attrId === '#') {
+                                        console.warn('[VARIATION] Invalid attrId:', attrId);
+                                        return;
+                                    }
+                                    
+                                    // Additional validation - ensure attrId is a valid string/number
+                                    if (typeof attrId !== 'string' && typeof attrId !== 'number') {
+                                        console.warn('[VARIATION] attrId is not string/number:', typeof attrId, attrId);
+                                        return;
+                                    }
+                                    
+                                    // Sanitize attrId to prevent XSS and invalid selectors
+                                    var sanitizedAttrId = String(attrId).replace(/[^a-zA-Z0-9_-]/g, '');
+                                    if (!sanitizedAttrId) {
+                                        console.warn('[VARIATION] attrId became empty after sanitization:', attrId);
+                                        return;
+                                    }
+                                    
+                                    try {
+                                        var labelEl = document.querySelector('[data-selected-label="attr-' + sanitizedAttrId + '"]');
+                                        if (labelEl) {
+                                            var btn = document.querySelector('.size-option.active[data-attr-id="' + sanitizedAttrId + '"], .color-option.active[data-attr-id="' + sanitizedAttrId + '"], .color-image-btn.active[data-attr-id="' + sanitizedAttrId + '"]');
+                                            var label = btn ? (btn.getAttribute('data-label') || btn.textContent) : '';
+                                            if (label) { labelEl.textContent = label; }
+                                        }
+                                    } catch (e) {
+                                        console.error('[VARIATION] Error in renderSelectionLabels:', e, 'attrId:', attrId, 'sanitized:', sanitizedAttrId);
+                                    }
+                                });
+                            }
+
+                            function tryResolveVariation(selectedMap) {
+                                var selectedIds = Object.values(selectedMap).filter(Boolean).map(function(v){ return parseInt(v, 10); }).sort(function(a,b){return a-b;});
+                                console.log('[VARIATION] Trying to resolve with selected IDs:', selectedIds);
+                                var resolved = null;
+                                
+                                // First try exact match (all attributes selected)
+                                productVariations.forEach(function(v){
+                                    var ids = (v.attribute_value_ids || []).map(function(x){ return parseInt(x, 10); }).sort(function(a,b){return a-b;});
+                                    console.log('[VARIATION] Checking variation', v.id, 'with IDs:', ids);
+                                    if (ids.length && ids.length === selectedIds.length) {
+                                        var same = ids.length === selectedIds.length && ids.every(function(x, i){ return x === selectedIds[i]; });
+                                        if (same) { 
+                                            resolved = v; 
+                                            console.log('[VARIATION] Found exact matching variation:', v);
+                                        }
+                                    }
+                                });
+                                
+                                // If no exact match and we have selections, try partial match for image display
+                                if (!resolved && selectedIds.length > 0) {
+                                    console.log('[VARIATION] No exact match, trying partial match for image display...');
+                                    productVariations.forEach(function(v){
+                                        var ids = (v.attribute_value_ids || []).map(function(x){ return parseInt(x, 10); });
+                                        console.log('[VARIATION] Checking partial match for variation', v.id, 'with IDs:', ids);
+                                        
+                                        // Check if all selected IDs are present in this variation
+                                        var allSelectedMatch = selectedIds.every(function(selectedId) {
+                                            return ids.includes(selectedId);
+                                        });
+                                        
+                                        if (allSelectedMatch && ids.length > 0) {
+                                            resolved = v;
+                                            console.log('[VARIATION] Found partial matching variation for image display:', v);
+                                        }
+                                    });
+                                }
+                                
+                                console.log('[VARIATION] Resolution result:', resolved);
+                                return resolved;
+                            }
+
+                            function switchToVariationImages(variation) {
+                                console.log('[VARIATION] Switching to variation images for variation:', variation);
+                                
+                                // Hide all variation images first
+                                var allVariationSlides = document.querySelectorAll('.variation-image-slide, .variation-gallery-slide, .variation-thumb-slide, .variation-gallery-thumb-slide');
+                                allVariationSlides.forEach(function(slide) {
+                                    slide.style.display = 'none';
+                                });
+                                
+                                // Show product and gallery images by default
+                                var productSlides = document.querySelectorAll('[data-image-type="product"], [data-image-type="gallery"]');
+                                productSlides.forEach(function(slide) {
+                                    slide.style.display = 'block';
+                                });
+                                
+                                if (variation && variation.image) {
+                                    // Hide product images and show variation images
+                                    productSlides.forEach(function(slide) {
+                                        slide.style.display = 'none';
+                                    });
+                                    
+                                    // Show variation main image
+                                    var variationImageSlides = document.querySelectorAll('.variation-image-slide[data-variation-id="' + variation.id + '"]');
+                                    variationImageSlides.forEach(function(slide) {
+                                        slide.style.display = 'block';
+                                    });
+                                    
+                                    // Show variation gallery images
+                                    var variationGallerySlides = document.querySelectorAll('.variation-gallery-slide[data-variation-id="' + variation.id + '"]');
+                                    variationGallerySlides.forEach(function(slide) {
+                                        slide.style.display = 'block';
+                                    });
+                                    
+                                    // Show variation thumbnails
+                                    var variationThumbSlides = document.querySelectorAll('.variation-thumb-slide[data-variation-id="' + variation.id + '"]');
+                                    variationThumbSlides.forEach(function(slide) {
+                                        slide.style.display = 'block';
+                                    });
+                                    
+                                    var variationGalleryThumbSlides = document.querySelectorAll('.variation-gallery-thumb-slide[data-variation-id="' + variation.id + '"]');
+                                    variationGalleryThumbSlides.forEach(function(slide) {
+                                        slide.style.display = 'block';
+                                    });
+                                    
+                                    // Update Swiper if it exists
+                                    if (window.mainSwiper) {
+                                        window.mainSwiper.update();
+                                    }
+                                    if (window.thumbSwiper) {
+                                        window.thumbSwiper.update();
+                                    }
+                                    
+                                    console.log('[VARIATION] Switched to variation images for variation ID:', variation.id);
+                                } else {
+                                    // Show product images if no variation or no variation image
+                                    productSlides.forEach(function(slide) {
+                                        slide.style.display = 'block';
+                                    });
+                                    
+                                    // Update Swiper if it exists
+                                    if (window.mainSwiper) {
+                                        window.mainSwiper.update();
+                                    }
+                                    if (window.thumbSwiper) {
+                                        window.thumbSwiper.update();
+                                    }
+                                    
+                                    console.log('[VARIATION] Showing product images (no variation image)');
+                                }
+                            }
+
+
+                            var selectedMap = {};
+                            console.log('[VARIATION] Setting up click event listener...');
+                            document.addEventListener('click', function(e){
+                                console.log('[VARIATION] Click event triggered on:', e.target);
+                                
+                                // More robust button detection
+                                var btn = null;
+                                var target = e.target;
+                                
+                                // Check if the clicked element itself is a variation button
+                                if (target.classList.contains('size-option') || target.classList.contains('color-option') || target.classList.contains('color-image-btn')) {
+                                    btn = target;
+                                } else {
+                                    // Check if the clicked element is inside a variation button (including color image buttons)
+                                    var parent = target.parentElement;
+                                    while (parent && parent !== document.body) {
+                                        if (parent.classList.contains('size-option') || parent.classList.contains('color-option') || parent.classList.contains('color-image-btn')) {
+                                            btn = parent;
+                                            break;
+                                        }
+                                        parent = parent.parentElement;
+                                    }
+                                }
+                                
+                                console.log('[VARIATION] Found button:', btn);
+                                if (!btn) return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                var attrId = btn.getAttribute('data-attr-id');
+                                var valId = btn.getAttribute('data-value-id');
+                                
+                                // Validate attrId and valId
+                                if (!attrId || !valId || attrId === 'undefined' || attrId === 'null' || attrId === '' || attrId === '#') { 
+                                    console.warn('[VARIATION] click missing or invalid attrId/valId', {attrId: attrId, valId: valId}); 
+                                    return; 
+                                }
+                                
+                                // Additional validation for attrId
+                                if (typeof attrId !== 'string' && typeof attrId !== 'number') {
+                                    console.warn('[VARIATION] attrId is not string/number:', typeof attrId, attrId);
+                                    return;
+                                }
+
+                                console.log('[VARIATION] option clicked', {attrId: attrId, valId: valId, text: btn.textContent});
+
+                                // toggle selection per attribute
+                                var container = btn.closest('[data-attribute-id]');
+                                if (container) {
+                                    container.querySelectorAll('.size-option, .color-option, .color-image-btn').forEach(function(b){ b.classList.remove('active'); });
+                                }
+                                btn.classList.add('active');
+                                // Force visible active style in case of CSS overrides
+                                try {
+                                    btn.style.borderColor = '#ff6a00';
+                                    btn.style.boxShadow = '0 0 0 2px rgba(255,106,0,0.15)';
+                                    btn.style.backgroundColor = '#fff7f0';
+                                    btn.style.color = '#222';
+                                } catch(_) {}
+                                selectedMap[String(attrId)] = String(valId);
+                                console.log('[VARIATION] Updated selectedMap:', selectedMap);
+                                updateHiddenSelectedValues(selectedMap);
+                                renderSelectionLabels(selectedMap);
+
+                                var resolved = tryResolveVariation(selectedMap);
+                                console.log('[VARIATION] resolved =', resolved);
+                                var varIdEl = document.getElementById('selected-variation-id');
+                                var nameEl = document.getElementById('selected-variation-name');
+                                var priceEl = document.getElementById('selected-variation-price');
+                                var stockEl = document.getElementById('selected-variation-stock');
+                                var addBtn = document.querySelector('.btn-add-cart');
+                                if (resolved) {
+                                    if (varIdEl) {
+                                        varIdEl.value = resolved.id;
+                                        console.log('[VARIATION] Set variation ID to:', resolved.id);
+                                    }
+                                    if (nameEl) nameEl.textContent = resolved.name || 'Selected';
+                                    if (priceEl) priceEl.textContent = (resolved.price != null ? Number(resolved.price).toFixed(2) : '') + '৳';
+                                    if (stockEl) stockEl.textContent = resolved.available_stock > 0 ? ('In stock: ' + resolved.available_stock) : 'Out of stock';
+                                    if (addBtn) { addBtn.disabled = resolved.available_stock <= 0; console.log('[VARIATION] add-to-cart disabled =', addBtn.disabled); }
+                                    
+                                    // Switch to variation images
+                                    switchToVariationImages(resolved);
+                                    
+                                } else {
+                                    if (varIdEl) {
+                                        varIdEl.value = '';
+                                        console.log('[VARIATION] Cleared variation ID');
+                                    }
+                                    if (nameEl) nameEl.textContent = 'Please select options above';
+                                    if (priceEl) priceEl.textContent = '—';
+                                    if (stockEl) stockEl.textContent = 'Select your preferences to see availability';
+                                    if (addBtn) { addBtn.disabled = true; console.log('[VARIATION] add-to-cart disabled = true (no resolution)'); }
+                                    
+                                    // Show product images when no variation is selected
+                                    switchToVariationImages(null);
+                                }
+                            });
+
+                            // No auto-selection - customers must manually choose their variations
+                            
+                            // Debug: Check if variation buttons exist and add direct event listeners
+                            setTimeout(function() {
+                                var colorBtns = document.querySelectorAll('.color-option');
+                                var sizeBtns = document.querySelectorAll('.size-option');
+                                console.log('[VARIATION] Found ' + colorBtns.length + ' color buttons and ' + sizeBtns.length + ' size buttons');
+                                
+                                if (colorBtns.length === 0 && sizeBtns.length === 0) {
+                                    console.warn('[VARIATION] No variation buttons found in DOM!');
+                                    return;
+                                }
+                                
+                                // Add direct click event listeners to each button
+                                var allBtns = document.querySelectorAll('.color-option, .size-option, .color-image-btn');
+                                allBtns.forEach(function(btn, index) {
+                                    console.log('[VARIATION] Adding direct listener to button ' + index + ': ' + btn.textContent);
+                                    btn.addEventListener('click', function(e) {
+                                        console.log('[VARIATION] Direct click on button: ' + btn.textContent);
+                                        handleVariationClick(btn, e);
+                                    });
+                                });
+                            }, 1000);
+                            
+                            // Function to handle variation button clicks
+                            function handleVariationClick(btn, e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                var attrId = btn.getAttribute('data-attr-id');
+                                var valId = btn.getAttribute('data-value-id');
+                                console.log('[VARIATION] Button clicked - attrId: ' + attrId + ', valId: ' + valId + ', text: ' + btn.textContent);
+                                
+                                // Validate attrId and valId
+                                if (!attrId || !valId || attrId === 'undefined' || attrId === 'null' || attrId === '' || attrId === '#') {
+                                    console.warn('[VARIATION] Missing or invalid attrId or valId', {attrId: attrId, valId: valId});
+                                    return;
+                                }
+                                
+                                // Additional validation for attrId
+                                if (typeof attrId !== 'string' && typeof attrId !== 'number') {
+                                    console.warn('[VARIATION] attrId is not string/number:', typeof attrId, attrId);
+                                    return;
+                                }
+                                
+                                // Toggle selection per attribute
+                                var container = btn.closest('[data-attribute-id]');
+                                if (container) {
+                                    container.querySelectorAll('.size-option, .color-option, .color-image-btn').forEach(function(b){ 
+                                        b.classList.remove('active'); 
+                                    });
+                                }
+                                btn.classList.add('active');
+                                
+                                // Force visible active style
+                                btn.style.borderColor = '#ff6a00';
+                                btn.style.boxShadow = '0 0 0 2px rgba(255,106,0,0.15)';
+                                btn.style.backgroundColor = '#fff7f0';
+                                btn.style.color = '#222';
+                                
+                                selectedMap[String(attrId)] = String(valId);
+                                console.log('[VARIATION] Updated selectedMap:', selectedMap);
+                                updateHiddenSelectedValues(selectedMap);
+                                renderSelectionLabels(selectedMap);
+                                
+                                var resolved = tryResolveVariation(selectedMap);
+                                console.log('[VARIATION] resolved =', resolved);
+                                var varIdEl = document.getElementById('selected-variation-id');
+                                var nameEl = document.getElementById('selected-variation-name');
+                                var priceEl = document.getElementById('selected-variation-price');
+                                var stockEl = document.getElementById('selected-variation-stock');
+                                var addBtn = document.querySelector('.btn-add-cart');
+                                
+                                // Check if this is a complete match (all attributes selected)
+                                var allAttributeIds = Object.keys(selectedMap).length;
+                                var totalAttributes = document.querySelectorAll('[data-attribute-id]').length;
+                                var isCompleteMatch = allAttributeIds === totalAttributes;
+                                
+                                if (resolved) {
+                                    if (isCompleteMatch) {
+                                        // Complete match - show full variation details and enable add to cart
+                                        if (varIdEl) {
+                                            varIdEl.value = resolved.id;
+                                            console.log('[VARIATION] Set variation ID to:', resolved.id);
+                                        }
+                                        if (nameEl) nameEl.textContent = resolved.name || 'Selected';
+                                        if (priceEl) priceEl.textContent = (resolved.price != null ? Number(resolved.price).toFixed(2) : '') + '৳';
+                                        if (stockEl) stockEl.textContent = resolved.available_stock > 0 ? ('In stock: ' + resolved.available_stock) : 'Out of stock';
+                                        if (addBtn) { addBtn.disabled = resolved.available_stock <= 0; console.log('[VARIATION] add-to-cart disabled =', addBtn.disabled); }
+                                    } else {
+                                        // Partial match - show images but keep add to cart disabled
+                                        if (varIdEl) {
+                                            varIdEl.value = '';
+                                            console.log('[VARIATION] Partial match - cleared variation ID');
+                                        }
+                                        if (nameEl) nameEl.textContent = 'Please select all options';
+                                        if (priceEl) priceEl.textContent = '—';
+                                        if (stockEl) stockEl.textContent = 'Select all options to see price and availability';
+                                        if (addBtn) { addBtn.disabled = true; console.log('[VARIATION] add-to-cart disabled = true (partial match)'); }
+                                    }
+                                    
+                                    // Switch to variation images for both complete and partial matches
+                                    switchToVariationImages(resolved);
+                                    
+                                } else {
+                                    if (varIdEl) {
+                                        varIdEl.value = '';
+                                        console.log('[VARIATION] Cleared variation ID');
+                                    }
+                                    if (nameEl) nameEl.textContent = 'Please select options above';
+                                    if (priceEl) priceEl.textContent = '—';
+                                    if (stockEl) stockEl.textContent = 'Select your preferences to see availability';
+                                    if (addBtn) { addBtn.disabled = true; console.log('[VARIATION] add-to-cart disabled = true (no resolution)'); }
+                                    
+                                    // Show product images when no variation is selected
+                                    switchToVariationImages(null);
+                                }
+                            }
+                        }
+                        
+                        // Initialize immediately
+                        initializeVariationSelection();
+                    </script>
+                    @endif
+
                     <div class="quantity-selector align-items-center mt-4">
                         <label for="quantity">Quantity:</label>
                         <div class="input-group" style="width: 135px; flex-wrap: nowrap;">
@@ -1868,7 +2644,7 @@
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn-add-cart">
+                        <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}">
                             <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14"
                                 height="14">
                                 <path
@@ -2238,6 +3014,24 @@
         <img class="image-modal-content" id="modalImage">
     </div>
 
+    <script>
+        console.log('[PD] section-level script running');
+        (function retryInit(attempts){
+            if (typeof window.initializePageSpecificScripts === 'function') {
+                try {
+                    window.initializePageSpecificScripts();
+                    console.log('[PD] initializePageSpecificScripts invoked from section');
+                } catch(e) {
+                    console.error('[PD] init error', e);
+                }
+            } else if (attempts > 0) {
+                setTimeout(function(){ retryInit(attempts - 1); }, 150);
+            } else {
+                console.warn('[PD] initializer not found after retries');
+            }
+        })(30);
+    </script>
+
 @endsection
 
 <div id="toast-container"
@@ -2245,8 +3039,9 @@
 </div>
 
 @push('scripts')
-    
     <script>
+        console.log('[PD] productDetails scripts executing');
+        console.log('[PD] Script section loaded successfully');
         // Image modal removed per requirements; keep a no-op cleaner in case of legacy backdrops
         function removeStuckBackdrops(){
             try {
@@ -2427,36 +3222,6 @@
             if (value > 10) value = 10;
             input.value = value;
         }
-        $(function () {
-            $(document).on('click', '.btn-add-cart', function (e) {
-                e.preventDefault();
-                var btn = $(this);
-                var productId = {{ $product->id }};
-                var qty = parseInt($('#quantityInput').val()) || 1;
-                btn.prop('disabled', true);
-                $.ajax({
-                    url: '/cart/add-page/' + productId,
-                    type: 'POST',
-                    data: { qty: qty },
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function (data) {
-                        btn.prop('disabled', false);
-                        if (data.success) {
-                            if (typeof showToast === 'function') showToast('Added to cart!');
-                            if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
-                        } else {
-                            if (typeof showToast === 'function') showToast('Could not add to cart.', 'error');
-                        }
-                    },
-                    error: function () {
-                        btn.prop('disabled', false);
-                        if (typeof showToast === 'function') showToast('Could not add to cart.', 'error');
-                    }
-                });
-            });
-        });
 
         // Enhanced Related products slider
         if (document.querySelector('.related-swiper') && typeof Swiper !== 'undefined') {
@@ -2877,10 +3642,13 @@
             document.querySelector('.image-upload-area').style.display = 'block';
         }
 
-        // Add event listener for image input
-        document.getElementById('image').addEventListener('change', function() {
-            previewImage(this);
-        });
+		// Add event listener for image input (guard element existence on this page)
+		var imageInputEl = document.getElementById('image');
+		if (imageInputEl) {
+			imageInputEl.addEventListener('change', function() {
+				previewImage(this);
+			});
+		}
 
         // Image modal functionality
         function openImageModal(src) {
@@ -2901,5 +3669,112 @@
                 modal.style.display = 'none';
             }
         }
+
+
+        // Expose page-specific initializer so master layout can re-run after AJAX navigation
+        window.initializePageSpecificScripts = function(){
+            if (window.__productPageInitApplied) { return; }
+            window.__productPageInitApplied = true;
+            
+            // Initialize variation selection after AJAX navigation
+            if (typeof window.initializeVariationSelection === 'function') {
+                console.log('[VARIATION] Re-initializing variation selection after AJAX navigation');
+                window.initializeVariationSelection();
+            }
+
+            // Add to Cart handler (variation-aware)
+            document.addEventListener('click', function(e){
+                var btnEl = e.target.closest ? e.target.closest('.btn-add-cart') : null;
+                if (!btnEl) return;
+                e.preventDefault();
+                
+                // Get product ID from data attribute or fallback to PHP variable
+                var productId = btnEl.getAttribute('data-product-id') || {{ $product->id ?? 'null' }};
+                var productName = btnEl.getAttribute('data-product-name') || '{{ $product->name ?? "Unknown Product" }}';
+                
+                // Validate product ID
+                if (!productId || productId === 'null' || productId === '') {
+                    console.error('[CART] Invalid product ID:', productId);
+                    alert('Error: Invalid product ID. Please refresh the page and try again.');
+                    return;
+                }
+                
+                console.log('[CART] Adding product to cart:');
+                console.log('[CART] Product ID:', productId);
+                console.log('[CART] Product Name:', productName);
+                
+                var qtyInput = document.getElementById('quantityInput');
+                var qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : 1, 10) || 1;
+                btnEl.disabled = true;
+                var data = new URLSearchParams();
+                data.append('qty', qty.toString());
+
+                // Variation payload - detect variations robustly (DOM + server flag)
+                var hasVariations = @json($product->has_variations);
+                var hasVariationsDOM = !!document.getElementById('selected-variation-id') ||
+                    document.querySelectorAll('.color-option, .size-option, .color-image-btn, .variation-option').length > 0;
+                if (hasVariationsDOM) { hasVariations = true; }
+
+                var variationIdEl = document.getElementById('selected-variation-id');
+                var variationId = variationIdEl ? variationIdEl.value : '';
+                console.log('[CART] variationIdEl:', variationIdEl);
+                console.log('[CART] variationId:', variationId);
+
+                if (variationId) {
+                    // Always send variation_id if present (even if server flag says no variations)
+                    data.append('variation_id', variationId);
+                    console.log('[CART] Using variation_id:', variationId);
+                } else if (hasVariations) {
+                    // Require explicit selection
+                    showToast('Please select Color and Size before adding to cart.', 'error');
+                    btnEl.disabled = false;
+                    return;
+                } else {
+                    console.log('[CART] Product has no variations, skipping variation data');
+                }
+                var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                console.log('[CART] POST /cart/add-page/' + productId, Object.fromEntries(data));
+                fetch('/cart/add-page/' + productId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: data.toString()
+                }).then(function(res){
+                    console.log('[CART] Response status:', res.status);
+                    if (!res.ok) {
+                        throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+                    }
+                    return res.json().catch(function(){
+                        return { success:false, message:'Invalid JSON from server', status: res.status };
+                    });
+                }).then(function(response){
+                    console.log('[CART] response', response);
+                    if (response && response.success) {
+                        showToast((response.message || 'Product added to cart successfully!'), 'success');
+                        if (typeof updateCartCount === 'function') { updateCartCount(); }
+                        if (typeof updateCartQtyBadge === 'function') { updateCartQtyBadge(); }
+                    } else {
+                        showToast((response && response.message) || 'Failed to add product to cart', 'error');
+                    }
+                }).catch(function(error){
+                    console.error('[CART] network/error:', error);
+                    showToast('Failed to add product to cart: ' + error.message, 'error');
+                }).finally(function(){
+                    btnEl.disabled = false;
+                });
+            });
+        };
+
+        // Variation scripts moved to main content section for AJAX compatibility
+        // Run initializer immediately for normal loads
+        if (typeof window.initializePageSpecificScripts === 'function') {
+            try { window.initializePageSpecificScripts(); } catch (e) { console.error('Init error', e); }
+        }
     </script>
 @endpush
+
+
+

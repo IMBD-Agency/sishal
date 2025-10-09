@@ -46,8 +46,17 @@
                                     style="text-decoration: none;">{{ $wishlist->product->name }}</a>
                                 <p class="product-description">
                                     {{$wishlist->product->description ? $wishlist->product->description : ''}}</p>
-                                <div class="rating">
-                                    <i class="fas fa-star"></i> {{$wishlist->product->sales_count ?? 0}} sold
+                                @php
+                                    $avgRating = round($wishlist->product->averageRating());
+                                    $totalReviews = $wishlist->product->totalReviews();
+                                @endphp
+                                <div class="product-meta" style="margin-top:6px;">
+                                    <div class="stars" aria-label="{{ $avgRating }} out of 5">
+                                        @for ($i = 1; $i <= 5; $i++)
+                                            <i class="fa{{ $i <= $avgRating ? 's' : 'r' }} fa-star"></i>
+                                        @endfor
+                                    </div>
+                                    <div class="sold">({{ $totalReviews }} reviews)</div>
                                 </div>
                                 <div class="price">
                                     @if(isset($wishlist->product->discount) && $wishlist->product->discount > 0)

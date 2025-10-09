@@ -327,7 +327,6 @@
                 }
                 products.forEach(function (product) {
                     const rating = product.avg_rating ?? product.rating ?? 0;
-                    const sold = product.sold_count ?? product.total_sold ?? product.sold ?? 0;
                     const price = parseFloat(product.price || 0).toFixed(2);
                     const image = product.image ? product.image : '/default-product.png';
                     container.append(`
@@ -341,11 +340,9 @@
                                     </div>
                                     <div class="product-info">
                                         <a href="/product/${product.slug}" style="text-decoration: none" class="product-title">${product.name}</a>
-                                        ${ (rating > 0 || sold > 0) ? `
                                         <div class=\"product-meta\">
                                             <div class=\"stars\" aria-label=\"${rating} out of 5\">${Array.from({length:5}).map((_,i)=>`<i class=\\\"fa${i < Math.round(rating) ? 's' : 'r'} fa-star\\\"></i>`).join('')}</div>
-                                            <div class=\"sold\">${sold} Sold</div>
-                                        </div>` : '' }
+                                        </div>
                                         <div class="price">${price}৳</div>
                                         <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
                                             <button class="btn-add-cart" data-product-id="${product.id}"><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
@@ -422,19 +419,45 @@
             });
         });
 
+        // Safe modal initialization utility
+        function safeModalInit(modalId, options = {}) {
+            const modalElement = document.getElementById(modalId);
+            if (!modalElement) {
+                console.warn(`Modal element with id '${modalId}' not found`);
+                return null;
+            }
+            
+            try {
+                return new bootstrap.Modal(modalElement, options);
+            } catch (error) {
+                console.error(`Failed to initialize modal '${modalId}':`, error);
+                return null;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             var playBtn = document.getElementById('playVideoBtn');
-            var videoModal = new bootstrap.Modal(document.getElementById('videoModal'));
+            var videoModalElement = document.getElementById('videoModal');
             var youtubeVideo = document.getElementById('youtubeVideo');
             var YOUTUBE_URL = 'https://www.youtube.com/embed/np0FD080?autoplay=1'; // Replace YOUR_VIDEO_ID
 
-            playBtn.addEventListener('click', function () {
-                youtubeVideo.src = YOUTUBE_URL;
-                videoModal.show();
-            });
-            document.getElementById('videoModal').addEventListener('hidden.bs.modal', function () {
-                youtubeVideo.src = '';
-            });
+            // Only initialize modal if the elements exist
+            if (playBtn && videoModalElement && youtubeVideo) {
+                var videoModal = safeModalInit('videoModal');
+
+                if (videoModal) {
+                    playBtn.addEventListener('click', function () {
+                        youtubeVideo.src = YOUTUBE_URL;
+                        videoModal.show();
+                    });
+                    
+                    videoModalElement.addEventListener('hidden.bs.modal', function () {
+                        youtubeVideo.src = '';
+                    });
+                }
+            } else {
+                console.log('Video modal elements not found - modal functionality disabled');
+            }
         });
     </script>
     <style>

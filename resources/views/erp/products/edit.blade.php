@@ -109,6 +109,17 @@
                                         </select>
                                     </div>
 
+                                    <div class="col-md-6">
+                                        <div class="form-check mt-4">
+                                            <input class="form-check-input" type="checkbox" id="has_variations" name="has_variations" value="1" {{ old('has_variations', $product->has_variations) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="has_variations">Has variations (Color/Size)</label>
+                                        </div>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="manage_stock" name="manage_stock" value="1" {{ old('manage_stock', $product->manage_stock) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="manage_stock">Manage stock</label>
+                                        </div>
+                                    </div>
+
                                     <div class="col-md-12">
                                         <h3>Meta Information</h3>
                                     </div>

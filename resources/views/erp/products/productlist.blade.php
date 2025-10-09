@@ -29,7 +29,7 @@
                             <h6 class="card-title fw-bold mb-1">{{ $product->name ?? 'N/A' }} </h6>
                             <div class="mb-2 text-muted small">Category: {{ $product->category->name ?? 'N/A' }}</div>
                             <div class="mb-2 text-muted small">SKU: {{ $product->sku ?? 'N/A' }}</div>
-                            <div class="mb-2 text-muted small">Total Quantity: 500</div>
+                            <div class="mb-2 text-muted small">Total Quantity: {{ $product->total_variation_stock }}</div>
                             <div class="mb-2">
                                 <span class="fw-semibold text-success">{{ $product->discount ? $product->discount : $product->price }}৳</span>
                                 <span class="text-decoration-line-through text-muted ms-2">{{ $product->price ?? 'N/A' }}৳</span>
@@ -37,12 +37,13 @@
                             <div class="mt-auto d-flex justify-content-between align-items-center">
                                 <span class="badge bg-success">{{ $product->status == 'active' ? 'Active' : 'Inactive' }}</span>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('product.show', $product->id) }}" class="btn btn-sm btn-outline-success"><i class="fas fa-eye"></i></a>
-                                    <a href="{{ route('product.edit', $product->id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a>
+                                    <a href="{{ route('product.show', $product->id) }}" class="btn btn-sm btn-outline-success" title="View"><i class="fas fa-eye"></i></a>
+                                    <a href="{{ route('product.edit', $product->id) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
+                                    <a href="{{ route('erp.products.variations.index', $product->id) }}" class="btn btn-sm btn-outline-info" title="Manage Variations"><i class="fas fa-layer-group"></i></a>
                                     <form action="{{ route('product.delete', $product->id) }}" method="POST">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                                     </form>
                                 </div>
                             </div>

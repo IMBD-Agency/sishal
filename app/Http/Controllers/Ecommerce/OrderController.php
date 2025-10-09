@@ -30,8 +30,7 @@ class OrderController extends Controller
             if (!$product)
                 continue;
             $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
-            $total = $price * $cart->qty;
-            $cartTotal += $total;
+            $cartTotal += $price * $cart->qty;
         }
 
         $pageTitle = 'Checkout';
@@ -70,7 +69,7 @@ class OrderController extends Controller
         }
 
         $userId = auth()->id();
-        $carts = Cart::with('product')->where('user_id', $userId)->get();
+        $carts = Cart::with(['product','variation'])->where('user_id', $userId)->get();
         if ($carts->isEmpty()) {
             return response()->json(['success' => false, 'message' => 'Cart is empty.'], 400);
         }
@@ -84,11 +83,18 @@ class OrderController extends Controller
                 continue;
             }
 
-            $price = ($product->discount && $product->discount > 0) ? $product->discount : $product->price;
+            // Use variation price if set, else product price/discount
+            $price = null;
+            if ($cart->variation) {
+                $price = $cart->variation->price ?? ($product->discount && $product->discount > 0 ? $product->discount : $product->price);
+            } else {
+                $price = ($product->discount && $product->discount > 0) ? $product->discount : $product->price;
+            }
             $total = $price * $cart->qty;
             $subtotal += $total;
             $items[] = [
                 'product_id' => $product->id,
+                'variation_id' => $cart->variation_id,
                 'quantity' => $cart->qty,
                 'unit_price' => $price,
                 'total_price' => $total,
@@ -148,6 +154,7 @@ class OrderController extends Controller
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
@@ -155,6 +162,7 @@ class OrderController extends Controller
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],

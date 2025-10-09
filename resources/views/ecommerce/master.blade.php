@@ -616,7 +616,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // If already populated, do nothing
         if (container.children().length > 0) return;
+        
+        // Check if home page script has already loaded products with ratings
+        if (container.find('.product-meta .stars').length > 0) return;
+        
+        // Check if we're on home page and home script might be loading
+        if (window.location.pathname === '/' && container.length > 0) {
+            // Wait a bit for home page script to load first
+            setTimeout(function() {
+                if (container.find('.product-meta .stars').length === 0) {
+                    // Home script didn't load, so we load
+                    loadProductsFromMaster();
+                }
+            }, 100);
+            return;
+        }
 
+        // Load products from master layout
+        loadProductsFromMaster();
+    };
+    
+    // Separate function to load products from master layout
+    function loadProductsFromMaster() {
+        var container = window.jQuery ? window.jQuery('#mostSoldProductsContainer') : null;
+        if (!container || container.length === 0) return;
+        
         if (window.jQuery) {
             window.jQuery.get('/api/products/most-sold', function (products) {
                 container.empty();
@@ -626,7 +650,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 products.forEach(function (product) {
                     var rating = product.avg_rating ?? product.rating ?? 0;
-                    var sold = product.sold_count ?? product.total_sold ?? product.sold ?? 0;
                     var price = parseFloat(product.price || 0).toFixed(2);
                     var image = product.image ? product.image : '/default-product.png';
                     container.append('\
@@ -640,11 +663,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>\
                             <div class="product-info">\
                                 <a href="/product/' + product.slug + '" style="text-decoration: none" class="product-title">' + product.name + '</a>\
-                                ' + ((rating > 0 || sold > 0) ? '\
                                 <div class="product-meta">\
                                     <div class="stars" aria-label="' + rating + ' out of 5">' + Array.from({length:5}).map(function(_,i){return '<i class="fa' + (i < Math.round(rating) ? 's' : 'r') + ' fa-star"></i>';}).join('') + '</div>\
-                                    <div class="sold">' + sold + ' Sold</div>\
-                                </div>' : '') + '\
+                                </div>\
                                 <div class="price">' + price + '৳</div>\
                                 <div class="d-flex justify-content-between align-items-center gap-2 product-actions">\
                                     <button class="btn-add-cart" data-product-id="' + product.id + '"><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14"><path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path><circle cx="7" cy="22" r="2"></circle><circle cx="17" cy="22" r="2"></circle></svg> Add to Cart</button>\
@@ -721,6 +742,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Global cart count update function
+    window.updateCartQtyBadge = function() {
+        if (typeof updateCartCount === 'function') {
+            updateCartCount();
+        } else {
+            // Fallback: fetch cart count directly
+            fetch('/cart/qty-sum')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.qty_sum !== undefined) {
+                        const count = data.qty_sum;
+                        
+                        // Update cart count badges in navbar
+                        const navCartCounts = document.querySelectorAll('.nav-cart-count');
+                        navCartCounts.forEach(function(el) {
+                            el.textContent = count;
+                        });
+                        
+                        // Update mobile cart count
+                        const mobileCartCounts = document.querySelectorAll('.qi-badge.nav-cart-count');
+                        mobileCartCounts.forEach(function(el) {
+                            el.textContent = count;
+                        });
+                    }
+                })
+                .catch(function() {
+                    // Silent fail
+                });
+        }
+    };
     
     // Prevent any layout shifts that could cause vibration
     const preventVibration = () => {

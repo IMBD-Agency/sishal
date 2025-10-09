@@ -169,6 +169,9 @@
                     <li class="nav-item">
                         <a href="{{ route('reviews.index') }}" class="nav-link {{ request()->is('erp/reviews*') ? ' active' : '' }}">Reviews</a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('erp.variation-attributes.index') }}" class="nav-link {{ request()->is('erp/variation-attributes*') ? ' active' : '' }}">Variation Attributes</a>
+                    </li>
                 </ul>
             </div>
         </div>

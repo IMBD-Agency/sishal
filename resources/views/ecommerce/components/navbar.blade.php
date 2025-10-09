@@ -71,7 +71,13 @@
                                 <path d="M12.006,12.309c3.611-.021,5.555-1.971,5.622-5.671-.062-3.56-2.111-5.614-5.634-5.637-3.561,.022-5.622,2.17-5.622,5.637,0,3.571,2.062,5.651,5.634,5.672Zm-.012-9.309c2.437,.016,3.591,1.183,3.634,3.636-.047,2.559-1.133,3.657-3.622,3.672-2.495-.015-3.582-1.108-3.634-3.654,.05-2.511,1.171-3.639,3.622-3.654Z" fill="currentColor"/>
                                 <path d="M11.994,13.661c-5.328,.034-8.195,2.911-8.291,8.322-.01,.552,.43,1.008,.982,1.018,.516-.019,1.007-.43,1.018-.982,.076-4.311,2.08-6.331,6.291-6.357,4.168,.027,6.23,2.106,6.304,6.356,.01,.546,.456,.983,1,.983h.018c.552-.01,.992-.465,.983-1.017-.092-5.333-3.036-8.288-8.304-8.322Z" fill="currentColor"/>
                             </svg>
-                            <span class="login-text">Login</span>
+                            <span class="login-text">
+                                @auth
+                                    {{ Auth::user()->first_name ?? 'User' }}
+                                @else
+                                    Login
+                                @endauth
+                            </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
                             @guest
@@ -135,7 +141,13 @@
                     <span class="icon">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5Z" fill="currentColor"/></svg>
                     </span>
-                    <span class="text">{{ auth()->check() ? 'Profile' : 'Login' }}</span>
+                    <span class="text">
+                        @auth
+                            {{ Auth::user()->first_name ?? 'User' }}
+                        @else
+                            Login
+                        @endauth
+                    </span>
                     <span class="chev">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </span>

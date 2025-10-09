@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'image', 'status', 'meta_title', 'meta_description', 'meta_keywords'
+        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'image', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock'
     ];
 
     protected $casts = [
         'meta_keywords' => 'array',
+        'has_variations' => 'boolean',
+        'manage_stock' => 'boolean',
     ];
 
     public function galleries()
@@ -57,6 +59,182 @@ class Product extends Model
     public function totalReviews()
     {
         return $this->reviews()->approved()->count();
+    }
+
+    /**
+     * Get the product variations.
+     */
+    public function variations()
+    {
+        return $this->hasMany(ProductVariation::class);
+    }
+
+    /**
+     * Get active product variations.
+     */
+    public function activeVariations()
+    {
+        return $this->variations()->where('status', 'active');
+    }
+
+    /**
+     * Get the default variation.
+     */
+    public function defaultVariation()
+    {
+        return $this->variations()->where('is_default', true)->first();
+    }
+
+    /**
+     * Get the minimum price from variations.
+     */
+    public function getMinPriceAttribute()
+    {
+        if ($this->has_variations && $this->variations()->exists()) {
+            return $this->variations()->min('price') ?? $this->price;
+        }
+        return $this->price;
+    }
+
+    /**
+     * Get the maximum price from variations.
+     */
+    public function getMaxPriceAttribute()
+    {
+        if ($this->has_variations && $this->variations()->exists()) {
+            return $this->variations()->max('price') ?? $this->price;
+        }
+        return $this->price;
+    }
+
+    /**
+     * Get the price range for variations.
+     */
+    public function getPriceRangeAttribute()
+    {
+        if ($this->has_variations && $this->variations()->exists()) {
+            $minPrice = $this->min_price;
+            $maxPrice = $this->max_price;
+            
+            if ($minPrice == $maxPrice) {
+                return number_format($minPrice, 2);
+            }
+            
+            return number_format($minPrice, 2) . ' - ' . number_format($maxPrice, 2);
+        }
+        
+        return number_format($this->price, 2);
+    }
+
+    /**
+     * Get the total stock across all variations.
+     */
+    public function getTotalVariationStockAttribute()
+    {
+        if ($this->has_variations) {
+            return $this->variations()->with('stocks')->get()->sum(function($variation) {
+                return $variation->stocks->sum('quantity');
+            });
+        }
+        
+        // Use query builder instead of accessing loaded relationships directly
+        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
+        $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
+        
+        return $branchStock + $warehouseStock;
+    }
+
+    /**
+     * Check if product has stock.
+     */
+    public function hasStock()
+    {
+        if ($this->has_variations) {
+            return $this->variations()->whereHas('stocks', function($query) {
+                $query->where('quantity', '>', 0);
+            })->exists();
+        }
+        
+        // Use query builder instead of accessing loaded relationships directly
+        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
+        $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
+        
+        return $branchStock > 0 || $warehouseStock > 0;
+    }
+
+    /**
+     * Get variation by attribute values.
+     */
+    public function getVariationByAttributes($attributeValues)
+    {
+        if (!$this->has_variations) {
+            return null;
+        }
+
+        $variations = $this->variations()->with('combinations.attributeValue')->get();
+        
+        foreach ($variations as $variation) {
+            $variationAttributeValues = $variation->combinations->pluck('attributeValue.value')->sort()->toArray();
+            $requestedValues = collect($attributeValues)->sort()->toArray();
+            
+            if ($variationAttributeValues === $requestedValues) {
+                return $variation;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Find a variation by attribute value IDs (order independent).
+     */
+    public function getVariationByAttributeValueIds(array $attributeValueIds)
+    {
+        if (!$this->has_variations) {
+            return null;
+        }
+
+        $requestedIds = collect($attributeValueIds)->map(function($id){ return (int) $id; })->sort()->values()->all();
+
+        $variations = $this->variations()->with('combinations')->get();
+        foreach ($variations as $variation) {
+            $variationIds = $variation->combinations->pluck('attribute_value_id')->map(function($id){ return (int) $id; })->sort()->values()->all();
+            if ($variationIds === $requestedIds) {
+                return $variation;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get available attribute values for this product.
+     */
+    public function getAvailableAttributeValues()
+    {
+        if (!$this->has_variations) {
+            return collect();
+        }
+
+        $attributes = collect();
+        
+        $this->variations()->with('combinations.attribute', 'combinations.attributeValue')->get()->each(function($variation) use ($attributes) {
+            $variation->combinations->each(function($combination) use ($attributes) {
+                $attribute = $combination->attribute;
+                $value = $combination->attributeValue;
+                
+                if (!$attributes->has($attribute->id)) {
+                    $attributes->put($attribute->id, [
+                        'attribute' => $attribute,
+                        'values' => collect()
+                    ]);
+                }
+                
+                $attributes[$attribute->id]['values']->put($value->id, $value);
+            });
+        });
+        
+        return $attributes;
     }
 
 }

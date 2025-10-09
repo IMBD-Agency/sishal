@@ -66,6 +66,7 @@ class PurchaseController extends Controller
             'purchase_date' => 'required|date',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.variation_id' => 'nullable|integer',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
@@ -96,6 +97,7 @@ class PurchaseController extends Controller
                 PurchaseItem::create(attributes: [
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
                     'quantity'     => $item['quantity'],
                     'unit_price'   => $item['unit_price'],
                     'total_price'  => $item['quantity'] * $item['unit_price'],
@@ -181,20 +183,38 @@ class PurchaseController extends Controller
 
             if ($request->status === 'received') {
                 foreach ($purchase->items as $item) {
-                    if ($purchase->ship_location_type === 'branch') {
-                        $stock = \App\Models\BranchProductStock::firstOrNew([
-                            'branch_id' => $purchase->location_id,
-                            'product_id' => $item->product_id,
-                        ]);
-                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                        $stock->save();
-                    } elseif ($purchase->ship_location_type === 'warehouse') {
-                        $stock = \App\Models\WarehouseProductStock::firstOrNew([
-                            'warehouse_id' => $purchase->location_id,
-                            'product_id' => $item->product_id,
-                        ]);
-                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                        $stock->save();
+                    if ($item->variation_id) {
+                        if ($purchase->ship_location_type === 'branch') {
+                            $stock = \App\Models\ProductVariationStock::firstOrNew([
+                                'variation_id' => $item->variation_id,
+                                'branch_id' => $purchase->location_id,
+                            ]);
+                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->save();
+                        } elseif ($purchase->ship_location_type === 'warehouse') {
+                            $stock = \App\Models\ProductVariationStock::firstOrNew([
+                                'variation_id' => $item->variation_id,
+                                'warehouse_id' => $purchase->location_id,
+                            ]);
+                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->save();
+                        }
+                    } else {
+                        if ($purchase->ship_location_type === 'branch') {
+                            $stock = \App\Models\BranchProductStock::firstOrNew([
+                                'branch_id' => $purchase->location_id,
+                                'product_id' => $item->product_id,
+                            ]);
+                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->save();
+                        } elseif ($purchase->ship_location_type === 'warehouse') {
+                            $stock = \App\Models\WarehouseProductStock::firstOrNew([
+                                'warehouse_id' => $purchase->location_id,
+                                'product_id' => $item->product_id,
+                            ]);
+                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->save();
+                        }
                     }
                 }
             }
@@ -205,6 +225,7 @@ class PurchaseController extends Controller
             foreach ($request->items as $item) {
                 $purchase->items()->create([
                     'product_id'   => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
                     'quantity'     => $item['quantity'],
                     'unit_price'   => $item['unit_price'],
                     'total_price'  => $item['quantity'] * $item['unit_price'],
@@ -231,20 +252,38 @@ class PurchaseController extends Controller
 
         if ($request->status === 'received') {
             foreach ($purchase->items as $item) {
-                if ($purchase->ship_location_type === 'branch') {
-                    $stock = \App\Models\BranchProductStock::firstOrNew([
-                        'branch_id' => $purchase->location_id,
-                        'product_id' => $item->product_id,
-                    ]);
-                    $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                    $stock->save();
-                } elseif ($purchase->ship_location_type === 'warehouse') {
-                    $stock = \App\Models\WarehouseProductStock::firstOrNew([
-                        'warehouse_id' => $purchase->location_id,
-                        'product_id' => $item->product_id,
-                    ]);
-                    $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                    $stock->save();
+                if ($item->variation_id) {
+                    if ($purchase->ship_location_type === 'branch') {
+                        $stock = \App\Models\ProductVariationStock::firstOrNew([
+                            'variation_id' => $item->variation_id,
+                            'branch_id' => $purchase->location_id,
+                        ]);
+                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->save();
+                    } elseif ($purchase->ship_location_type === 'warehouse') {
+                        $stock = \App\Models\ProductVariationStock::firstOrNew([
+                            'variation_id' => $item->variation_id,
+                            'warehouse_id' => $purchase->location_id,
+                        ]);
+                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->save();
+                    }
+                } else {
+                    if ($purchase->ship_location_type === 'branch') {
+                        $stock = \App\Models\BranchProductStock::firstOrNew([
+                            'branch_id' => $purchase->location_id,
+                            'product_id' => $item->product_id,
+                        ]);
+                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->save();
+                    } elseif ($purchase->ship_location_type === 'warehouse') {
+                        $stock = \App\Models\WarehouseProductStock::firstOrNew([
+                            'warehouse_id' => $purchase->location_id,
+                            'product_id' => $item->product_id,
+                        ]);
+                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->save();
+                    }
                 }
             }
         }

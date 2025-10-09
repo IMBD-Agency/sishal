@@ -6,6 +6,9 @@ use App\Http\Controllers\Ecommerce\ServiceController;
 use App\Http\Controllers\Erp\DashboardController;
 use App\Http\Controllers\Erp\InvoiceController;
 use App\Http\Controllers\Erp\UserController;
+use App\Http\Controllers\Erp\ProductVariationController;
+use App\Http\Controllers\Erp\VariationAttributeController;
+use App\Http\Controllers\Erp\ProductVariationStockController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -233,6 +236,38 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::patch('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'update'])->name('product.update');
     Route::delete('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'destroy'])->name('product.delete');
     Route::get('/products/{id}/price', [\App\Http\Controllers\Erp\ProductController::class, 'getPrice']);
+
+    // Product Variations
+    Route::prefix('products/{productId}/variations')->group(function () {
+        Route::get('/', [ProductVariationController::class, 'index'])->name('erp.products.variations.index');
+        Route::get('/create', [ProductVariationController::class, 'create'])->name('erp.products.variations.create');
+        Route::post('/', [ProductVariationController::class, 'store'])->name('erp.products.variations.store');
+        Route::get('/{variationId}', [ProductVariationController::class, 'show'])->name('erp.products.variations.show');
+        Route::get('/{variationId}/edit', [ProductVariationController::class, 'edit'])->name('erp.products.variations.edit');
+        Route::put('/{variationId}', [ProductVariationController::class, 'update'])->name('erp.products.variations.update');
+        Route::delete('/{variationId}', [ProductVariationController::class, 'destroy'])->name('erp.products.variations.destroy');
+        Route::post('/{variationId}/toggle-status', [ProductVariationController::class, 'toggleStatus'])->name('erp.products.variations.toggle-status');
+        Route::get('/{variationId}/stock', [ProductVariationStockController::class, 'index'])->name('erp.products.variations.stock');
+        Route::post('/{variationId}/stock/branches', [ProductVariationStockController::class, 'addStockToBranches'])->name('erp.products.variations.stock.branches');
+        Route::post('/{variationId}/stock/warehouses', [ProductVariationStockController::class, 'addStockToWarehouses'])->name('erp.products.variations.stock.warehouses');
+        Route::post('/{variationId}/stock/adjust', [ProductVariationStockController::class, 'adjustStock'])->name('erp.products.variations.stock.adjust');
+        Route::get('/{variationId}/stock/levels', [ProductVariationStockController::class, 'getStockLevels'])->name('erp.products.variations.stock.levels');
+    });
+
+    // Variation Attributes
+    Route::prefix('variation-attributes')->group(function () {
+        Route::get('/', [VariationAttributeController::class, 'index'])->name('erp.variation-attributes.index');
+        Route::get('/create', [VariationAttributeController::class, 'create'])->name('erp.variation-attributes.create');
+        Route::post('/', [VariationAttributeController::class, 'store'])->name('erp.variation-attributes.store');
+        Route::get('/{id}', [VariationAttributeController::class, 'show'])->name('erp.variation-attributes.show');
+        Route::get('/{id}/edit', [VariationAttributeController::class, 'edit'])->name('erp.variation-attributes.edit');
+        Route::put('/{id}', [VariationAttributeController::class, 'update'])->name('erp.variation-attributes.update');
+        Route::delete('/{id}', [VariationAttributeController::class, 'destroy'])->name('erp.variation-attributes.destroy');
+        Route::post('/{id}/toggle-status', [VariationAttributeController::class, 'toggleStatus'])->name('erp.variation-attributes.toggle-status');
+    });
+
+    // AJAX routes for variation attributes
+    Route::get('/variation-attributes/{attributeId}/values', [ProductVariationController::class, 'getAttributeValues'])->name('erp.variation-attributes.values');
 
     // Stock
     Route::get('/product-stock', [\App\Http\Controllers\Erp\StockController::class, 'stocklist'])->name('productstock.list');
@@ -487,9 +522,9 @@ Route::post('/cart/add/{productId}', [App\Http\Controllers\Ecommerce\CartControl
 Route::post('/cart/add-page/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'addToCartByPage'])->name('cart.addByPage');
 Route::get('/cart/qty-sum', [App\Http\Controllers\Ecommerce\CartController::class, 'getCartQtySum'])->name('cart.qtySum');
 Route::get('/cart/list', [App\Http\Controllers\Ecommerce\CartController::class, 'getCartList'])->name('cart.list');
-Route::post('/cart/increase/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'increaseQuantity'])->name('cart.increase');
-Route::post('/cart/decrease/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'decreaseQuantity'])->name('cart.decrease');
-Route::delete('/cart/delete/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'deleteCartItem'])->name('cart.delete');
+Route::post('/cart/increase/{cartId}', [App\Http\Controllers\Ecommerce\CartController::class, 'increaseQuantity'])->name('cart.increase');
+Route::post('/cart/decrease/{cartId}', [App\Http\Controllers\Ecommerce\CartController::class, 'decreaseQuantity'])->name('cart.decrease');
+Route::delete('/cart/delete/{cartId}', [App\Http\Controllers\Ecommerce\CartController::class, 'deleteCartItem'])->name('cart.delete');
 Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'buyNow'])->name('buyNow');
 
 // Test Email Route (for development only)

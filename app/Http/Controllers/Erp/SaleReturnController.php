@@ -236,38 +236,73 @@ class SaleReturnController extends Controller
     {
         $qty = $item->returned_qty;
         $productId = $item->product_id;
+        $variationId = $item->variation_id ?? null;
         $toType = $saleReturn->return_to_type;
         $toId = $saleReturn->return_to_id;
 
         switch ($toType) {
             case 'branch':
-                $stock = \App\Models\BranchProductStock::where('branch_id', $toId)
-                    ->where('product_id', $productId)
-                    ->first();
-                if ($stock) {
-                    $stock->increment('quantity', $qty);
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('branch_id', $toId)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    if ($stock) {
+                        $stock->increment('quantity', $qty);
+                    } else {
+                        \App\Models\ProductVariationStock::create([
+                            'variation_id' => $variationId,
+                            'branch_id' => $toId,
+                            'quantity' => $qty,
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
                 } else {
-                    \App\Models\BranchProductStock::create([
-                        'branch_id' => $toId,
-                        'product_id' => $productId,
-                        'quantity' => $qty,
-                        'updated_by' => auth()->id()
-                    ]);
+                    $stock = \App\Models\BranchProductStock::where('branch_id', $toId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    if ($stock) {
+                        $stock->increment('quantity', $qty);
+                    } else {
+                        \App\Models\BranchProductStock::create([
+                            'branch_id' => $toId,
+                            'product_id' => $productId,
+                            'quantity' => $qty,
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
                 }
                 break;
             case 'warehouse':
-                $stock = \App\Models\WarehouseProductStock::where('warehouse_id', $toId)
-                    ->where('product_id', $productId)
-                    ->first();
-                if ($stock) {
-                    $stock->increment('quantity', $qty);
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('warehouse_id', $toId)
+                        ->whereNull('branch_id')
+                        ->first();
+                    if ($stock) {
+                        $stock->increment('quantity', $qty);
+                    } else {
+                        \App\Models\ProductVariationStock::create([
+                            'variation_id' => $variationId,
+                            'warehouse_id' => $toId,
+                            'quantity' => $qty,
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
                 } else {
-                    \App\Models\WarehouseProductStock::create([
-                        'warehouse_id' => $toId,
-                        'product_id' => $productId,
-                        'quantity' => $qty,
-                        'updated_by' => auth()->id()
-                    ]);
+                    $stock = \App\Models\WarehouseProductStock::where('warehouse_id', $toId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    if ($stock) {
+                        $stock->increment('quantity', $qty);
+                    } else {
+                        \App\Models\WarehouseProductStock::create([
+                            'warehouse_id' => $toId,
+                            'product_id' => $productId,
+                            'quantity' => $qty,
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
                 }
                 break;
             case 'employee':

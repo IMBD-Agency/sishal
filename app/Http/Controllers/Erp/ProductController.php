@@ -228,7 +228,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->with('category')->paginate(12)->withQueryString();
+        $products = $query->with(['category', 'variations.stocks', 'branchStock', 'warehouseStock'])->paginate(12)->withQueryString();
 
         return view('erp.products.productlist', compact('products'));
     }
@@ -263,6 +263,8 @@ class ProductController extends Controller
         ]);
 
         $data = $request->only(['name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data['has_variations'] = $request->boolean('has_variations');
+        $data['manage_stock'] = $request->boolean('manage_stock');
         
         // Handle meta_keywords array - convert to JSON string for storage
         if ($request->has('meta_keywords') && is_array($request->meta_keywords)) {

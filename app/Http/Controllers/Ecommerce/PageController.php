@@ -162,7 +162,15 @@ class PageController extends Controller
     public function productDetails($slug, Request $request)
     {
         try {
-            $product = Product::where('slug', $slug)->first();
+            $product = Product::with([
+                'variations.combinations.attribute', 
+                'variations.combinations.attributeValue',
+                'variations.stocks.branch',
+                'variations.stocks.warehouse',
+                'variations.galleries',
+                'branchStock',
+                'warehouseStock'
+            ])->where('slug', $slug)->first();
             
             if (!$product) {
                 abort(404, 'Product not found');

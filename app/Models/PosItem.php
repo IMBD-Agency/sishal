@@ -9,6 +9,7 @@ class PosItem extends Model
     protected $fillable = [
         'pos_sale_id',
         'product_id',
+        'variation_id',
         'quantity',
         'unit_price',
         'total_price',

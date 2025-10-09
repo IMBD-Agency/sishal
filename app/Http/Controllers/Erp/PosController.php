@@ -3,29 +3,27 @@
 namespace App\Http\Controllers\Erp;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SaleConfirmation;
+use App\Models\Balance;
 use App\Models\Branch;
 use App\Models\BranchProductStock;
+use App\Models\Customer;
 use App\Models\EmployeeProductStock;
+use App\Models\FinancialAccount;
+use App\Models\Invoice;
 use App\Models\InvoiceAddress;
 use App\Models\InvoiceItem;
-use App\Models\InvoiceTemplate;
 use App\Models\Payment;
 use App\Models\Pos;
 use App\Models\PosItem;
+use App\Models\Product;
 use App\Models\ProductServiceCategory;
-use App\Models\JournalEntry;
-use App\Models\Journal;
-use App\Models\ChartOfAccount;
-use App\Models\FinancialAccount;
-use App\Models\TechnicianStock;
+use App\Models\ProductVariationStock;
+use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\SaleConfirmation;
-use App\Models\Balance;
-use App\Models\Customer;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class PosController extends Controller
 {
@@ -116,27 +114,23 @@ class PosController extends Controller
             // --- Create Invoice ---
 
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
-            $invoiceNumber = $this->generateInvoiceNumber();
-            $invoice = \App\Models\Invoice::create([
-                'customer_id' => $pos->customer_id,
-                'template_id' => $invTemplate->id,
-                'operated_by' => $pos->sold_by,
-                'issue_date' => $pos->sale_date,
-                'due_date' => $pos->sale_date,
-                'send_date' => $pos->sale_date,
-                'subtotal' => $pos->subtotal,
-                'total_amount' => $pos->total_amount,
-                'discount_apply' => $pos->discount,
-                'paid_amount' => $request->paid_amount,
-                'due_amount' => $pos->total_amount - $request->paid_amount,
-                'status' => $request->paid_amount == $pos->total_amount ? 'paid' : ($request->paid_amount > 0 ? 'partial' : 'unpaid'),
-                'note' => $pos->notes,
-                'footer_text' => null,
-                'created_by' => $pos->sold_by,
-                'invoice_number' => $invoiceNumber,
-            ]);
-            $pos->invoice_id = $invoice->id;
-            $pos->save();
+            $invoice = new Invoice();
+            $invoice->invoice_number = $this->generateInvoiceNumber();
+            $invoice->template_id = $invTemplate?->id;
+            $invoice->customer_id = $pos->customer_id;
+            $invoice->operated_by = $pos->sold_by;
+            $invoice->issue_date = now()->toDateString();
+            $invoice->due_date = now()->toDateString();
+            $invoice->subtotal = $pos->sub_total;
+            $invoice->total_amount = $pos->total_amount;
+            $invoice->discount_apply = $pos->discount;
+            $invoice->paid_amount = 0;
+            $invoice->due_amount = $pos->total_amount;
+            $invoice->status = 'unpaid';
+            $invoice->note = $pos->notes;
+            $invoice->footer_text = $invTemplate?->footer_text;
+            $invoice->created_by = $pos->sold_by;
+            $invoice->save();
 
             // --- End Invoice ---
 
@@ -145,6 +139,7 @@ class PosController extends Controller
                 $createdItem = PosItem::create([
                     'pos_sale_id' => $pos->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
@@ -154,6 +149,7 @@ class PosController extends Controller
                 $invoiceItem = InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
@@ -179,7 +175,7 @@ class PosController extends Controller
 
             // Save payment if paid_amount > 0
             if ($request->paid_amount > 0) {
-                $payment = Payment::create([
+                Payment::create([
                     'payment_for' => 'pos',
                     'pos_id' => $pos->id,
                     'invoice_id' => $invoice->id,
@@ -223,15 +219,13 @@ class PosController extends Controller
                     Mail::to($pos->customer->email)->send(new SaleConfirmation($pos));
                 }
             } catch (\Exception $e) {
-                Log::error('Failed to send sale confirmation email: ' . $e->getMessage());
-                // Don't fail the sale creation if email fails
+                // swallow
             }
-            
-            return redirect()->back();
+
+            return response()->json(['success' => true, 'message' => 'Sale created successfully.', 'sale_id' => $pos->id]);
         } catch (\Exception $e) {
-            Log::error('POS Sale Error: ' . $e->getMessage());
             DB::rollBack();
-            return redirect()->back();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -436,12 +430,24 @@ class PosController extends Controller
                 $item->current_position_id = $pos->employee_id;
                 $item->save();
 
-                $branchStock = BranchProductStock::where('branch_id', $pos->branch_id)->where('product_id', $item->product_id)->first();
-                if ($branchStock) {
-                    $branchStock->quantity -= $item->quantity;
-                    if ($branchStock->quantity < 0)
-                        $branchStock->quantity = 0;
-                    $branchStock->save();
+                if ($item->variation_id) {
+                    $vStock = ProductVariationStock::where('variation_id', $item->variation_id)
+                        ->where('branch_id', $pos->branch_id)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    if ($vStock) {
+                        $vStock->quantity -= $item->quantity;
+                        if ($vStock->quantity < 0) $vStock->quantity = 0;
+                        $vStock->save();
+                    }
+                } else {
+                    $branchStock = BranchProductStock::where('branch_id', $pos->branch_id)->where('product_id', $item->product_id)->first();
+                    if ($branchStock) {
+                        $branchStock->quantity -= $item->quantity;
+                        if ($branchStock->quantity < 0)
+                            $branchStock->quantity = 0;
+                        $branchStock->save();
+                    }
                 }
 
                 $existTechStock = EmployeeProductStock::where('employee_id', $pos->employee_id)->where('product_id', $item->product_id)->first();
@@ -482,17 +488,36 @@ class PosController extends Controller
                 $item->current_position_id = $pos->branch_id;
                 $item->save();
 
-                $branchStock = BranchProductStock::where('branch_id', $pos->branch_id)->where('product_id', $item->product_id)->first();
-                if ($branchStock) {
-                    $branchStock->quantity += $item->quantity;
-                    $branchStock->save();
+                if ($item->variation_id) {
+                    $vStock = ProductVariationStock::where('variation_id', $item->variation_id)
+                        ->where('branch_id', $pos->branch_id)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    if ($vStock) {
+                        $vStock->quantity += $item->quantity;
+                        $vStock->save();
+                    } else {
+                        ProductVariationStock::create([
+                            'variation_id' => $item->variation_id,
+                            'branch_id' => $pos->branch_id,
+                            'quantity' => $item->quantity,
+                            'updated_by' => auth()->id() ?? 1,
+                            'last_updated_at' => now(),
+                        ]);
+                    }
                 } else {
-                    // Optionally create new branch stock
-                    $newBranchStock = new BranchProductStock();
-                    $newBranchStock->branch_id = $pos->branch_id;
-                    $newBranchStock->product_id = $item->product_id;
-                    $newBranchStock->quantity = $item->quantity;
-                    $newBranchStock->save();
+                    $branchStock = BranchProductStock::where('branch_id', $pos->branch_id)->where('product_id', $item->product_id)->first();
+                    if ($branchStock) {
+                        $branchStock->quantity += $item->quantity;
+                        $branchStock->save();
+                    } else {
+                        // Optionally create new branch stock
+                        $newBranchStock = new BranchProductStock();
+                        $newBranchStock->branch_id = $pos->branch_id;
+                        $newBranchStock->product_id = $item->product_id;
+                        $newBranchStock->quantity = $item->quantity;
+                        $newBranchStock->save();
+                    }
                 }
 
                 $existTechStock = EmployeeProductStock::where('employee_id', $pos->employee_id)->where('product_id', $item->product_id)->first();
