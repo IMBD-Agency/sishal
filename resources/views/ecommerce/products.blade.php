@@ -198,7 +198,7 @@
                                         @endif
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center gap-2">
-                                        <button class="btn-add-cart" data-product-id="{{ $product->id }}"><svg
+                                        <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}"><svg
                                                 xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff"
                                                 width="14" height="14">
                                                 <path
@@ -425,37 +425,13 @@
         document.addEventListener('DOMContentLoaded', function(){ if (typeof window.initProductsPage === 'function') window.initProductsPage(); });
         window.addEventListener('pageshow', function(){ if (typeof window.initProductsPage === 'function') window.initProductsPage(); });
 
-        // Delegated Add to Cart (works after AJAX)
-        document.addEventListener('click', function(e){
-            var btn = e.target && e.target.closest('.btn-add-cart');
-            if (!btn) return;
-            e.preventDefault();
-            var productId = btn.getAttribute('data-product-id');
-            btn.disabled = true;
-            fetch("{{ url('cart/add') }}/" + productId, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                btn.disabled = false;
-                if (data.success) {
-                    showToast('Added to cart!');
-                    if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
-                } else {
-                    showToast('Could not add to cart.', 'error');
-                }
-            })
-            .catch(() => {
-                btn.disabled = false;
-                showToast('Could not add to cart.', 'error');
-            });
-        });
+        // Remove any existing cart event listeners to prevent duplicates
+        if (window.__productsCartEventListener) {
+            document.removeEventListener('click', window.__productsCartEventListener);
+        }
+
+        // Cart functionality is now handled by global cart handler in master.blade.php
+        // No need for duplicate event listeners here
         document.addEventListener('click', function(e){
             var btn = e.target && e.target.closest('.wishlist-btn');
             if (!btn) return;

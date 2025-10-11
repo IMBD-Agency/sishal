@@ -21,7 +21,7 @@ class CheckBannerImages extends Command
      */
     protected $description = 'Check banner images and their URLs';
 
-    /**
+    /**;
      * Execute the console command.
      */
     public function handle()

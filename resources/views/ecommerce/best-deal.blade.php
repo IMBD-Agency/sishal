@@ -42,9 +42,9 @@
                                 @endif
                             </div>
                             <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                <button class="btn-add-cart" data-product-id="{{ $product->id }}">
+                                <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14"><path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path><circle cx="7" cy="22" r="2"></circle><circle cx="17" cy="22" r="2"></circle></svg>
-                                    Buy Now
+                                    Add to Cart
                                 </button>
                             </div>
                         </div>
@@ -57,39 +57,38 @@
             {{ $products->links('vendor.pagination.bootstrap-5') }}
         </div>
     </div>
+
+    <div id="toast-container"
+        style="position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+    </div>
 @endsection
 
 @push('scripts')
     <script>
-        $(document).on('click', '.btn-add-cart', function (e) {
-            e.preventDefault();
-            var btn = $(this);
-            var productId = btn.data('product-id');
-            btn.prop('disabled', true);
-            fetch("{{ url('cart/add') }}/" + productId, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
-            })
-                .then(response => response.json())
-                .then(data => {
-                    btn.prop('disabled', false);
-                    if (data.success) {
-                        if (typeof showToast === 'function') showToast('Added to cart!');
-                        if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
-                    } else {
-                        if (typeof showToast === 'function') showToast('Could not add to cart.', 'error');
-                    }
-                })
-                .catch(() => {
-                    btn.prop('disabled', false);
-                    if (typeof showToast === 'function') showToast('Could not add to cart.', 'error');
-                });
-        });
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast ' + type;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <span class="toast-icon">${type === 'error' ? '❌' : ''}</span>
+                    <span class="toast-message">${message}</span>
+                    <button class="toast-close" onclick="this.parentElement.parentElement.classList.add('hide'); setTimeout(()=>this.parentElement.parentElement.remove(), 400);">&times;</button>
+                </div>
+                <div class="toast-progress"></div>
+            `;
+            document.getElementById('toast-container').appendChild(toast);
+            // Animate progress bar
+            setTimeout(() => {
+                toast.querySelector('.toast-progress').style.width = '0%';
+            }, 10);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 400);
+            }, 2500);
+        }
+
+        // Cart functionality is now handled by global cart handler in master.blade.php
+        // No need for duplicate event listeners here
 
         $(document).on('click', '.wishlist-btn', function (e) {
             e.preventDefault();
@@ -110,6 +109,81 @@
             });
         });
     </script>
+    <style>
+        .custom-toast {
+            min-width: 220px;
+            max-width: 340px;
+            background: #fff;
+            color: #222;
+            padding: 0;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+            font-size: 16px;
+            opacity: 1;
+            transition: opacity 0.4s, transform 0.4s;
+            margin-left: auto;
+            margin-right: 0;
+            pointer-events: auto;
+            z-index: 9999;
+            overflow: hidden;
+            border-left: 5px solid #2196F3;
+            position: relative;
+        }
+
+        .custom-toast.error {
+            border-left-color: #e53935;
+        }
+
+        .custom-toast .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 18px 14px 16px;
+        }
+
+        .custom-toast .toast-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .custom-toast .toast-message {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .custom-toast .toast-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 22px;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: color 0.2s;
+        }
+
+        .custom-toast .toast-close:hover {
+            color: #e53935;
+        }
+
+        .custom-toast .toast-progress {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, #2196F3, #21cbf3);
+            transition: width 2.3s linear;
+        }
+
+        .custom-toast.error .toast-progress {
+            background: linear-gradient(90deg, #e53935, #ffb199);
+        }
+
+        .custom-toast.hide {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.98);
+        }
+    </style>
 @endpush
 
 

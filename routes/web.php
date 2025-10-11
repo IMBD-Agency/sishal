@@ -101,10 +101,6 @@ Route::get('/test-api/{id}', function($id) {
 });
 
 
-
-
-
-
 Route::middleware('auth')->group(function () {
     Route::post('/reviews', [\App\Http\Controllers\Ecommerce\ReviewController::class, 'store'])->name('reviews.store');
     Route::put('/reviews/{id}', [\App\Http\Controllers\Ecommerce\ReviewController::class, 'update'])->name('reviews.update');
@@ -151,6 +147,8 @@ Route::middleware('auth')->group(function () {
     // Order
     Route::post('/make-order', [OrderController::class, 'makeOrder'])->name('order.make');
     Route::post('/cancel-order/{orderId}', [OrderController::class, 'cancelOrder'])->name('order.cancel');
+    Route::delete('/delete-order/{orderId}', [OrderController::class, 'deleteOrder'])->name('order.delete');
+    Route::post('/reorder/{orderId}', [OrderController::class, 'reorder'])->name('order.reorder');
     Route::get('/order-success/{orderId}', [OrderController::class, 'orderSuccess'])->name('order.success');
     Route::get('/order-details/{orderNum}', [OrderController::class, 'show'])->name('order.details');
 

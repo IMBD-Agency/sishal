@@ -2,9 +2,28 @@
 
 @section('title', $pageTitle)
 
+@push('styles')
+<style>
+.categories-section .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a202c;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .categories-section .section-title {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+}
+</style>
+@endpush
+
 @section('main-section')
 <!-- Categories Grid Only -->
-<section class="categories-section py-4">
+<section class="categories-section py-5">
     <div class="container">
         <h2 class="section-title mb-4">All Categories</h2>
         <div class="row g-4">
@@ -37,5 +56,8 @@
         </div>
     </div>
 </section>
+
+<!-- Add bottom spacing to prevent footer from being too close -->
+<div class="bottom-spacing" style="height: 60px;"></div>
 @endsection
 

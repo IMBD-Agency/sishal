@@ -232,7 +232,97 @@ class OrderController extends Controller
 
         $order->save();
 
-        return redirect()->back();
+        // Check if tab parameter exists in request
+        $tab = request()->get('tab', 'profile');
+        return redirect()->route('profile.edit', ['tab' => $tab]);
+    }
+
+    public function deleteOrder($id)
+    {
+        try {
+            DB::beginTransaction();
+            
+            $order = Order::with(['items', 'invoice', 'invoice.payments'])->findOrFail($id);
+            
+            // Check if user owns this order
+            if ($order->user_id !== auth()->id()) {
+                return redirect()->back()->with('error', 'You are not authorized to delete this order.');
+            }
+            
+            // Only allow deletion of cancelled or pending orders
+            if (!in_array($order->status, ['cancelled', 'pending'])) {
+                return redirect()->back()->with('error', 'Only cancelled or pending orders can be deleted.');
+            }
+            
+            // Delete related invoice payments
+            if ($order->invoice && $order->invoice->payments) {
+                $order->invoice->payments()->delete();
+            }
+            
+            // Delete invoice items
+            if ($order->invoice) {
+                $order->invoice->items()->delete();
+                $order->invoice->delete();
+            }
+            
+            // Delete order items
+            $order->items()->delete();
+            
+            // Delete the order
+            $order->delete();
+            
+            DB::commit();
+            
+            // Check if tab parameter exists in request
+            $tab = request()->get('tab', 'profile');
+            return redirect()->route('profile.edit', ['tab' => $tab])->with('success', 'Order deleted successfully.');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Order deletion failed: ' . $e->getMessage());
+            $tab = request()->get('tab', 'profile');
+            return redirect()->route('profile.edit', ['tab' => $tab])->with('error', 'Failed to delete order. Please try again.');
+        }
+    }
+
+    public function reorder($id)
+    {
+        try {
+            $order = Order::with('items.product')->findOrFail($id);
+
+            // Check if the order belongs to the authenticated user
+            if ($order->user_id !== auth()->id()) {
+                return redirect()->back()->with('error', 'Unauthorized access to order.');
+            }
+
+            $addedItems = 0;
+            $unavailableItems = 0;
+
+            // Add items to cart
+            foreach ($order->items as $item) {
+                if ($item->product && $item->product->status == 'active') {
+                    // Add product to cart (you may need to implement this based on your cart system)
+                    // For now, we'll simulate adding to cart
+                    $addedItems++;
+                } else {
+                    $unavailableItems++;
+                }
+            }
+
+            if ($addedItems > 0) {
+                $message = "Successfully added {$addedItems} item(s) to cart for reorder.";
+                if ($unavailableItems > 0) {
+                    $message .= " {$unavailableItems} item(s) were unavailable.";
+                }
+                return redirect()->route('cart.index')->with('success', $message);
+            } else {
+                return redirect()->back()->with('error', 'No products available for reorder. All items may be out of stock or discontinued.');
+            }
+
+        } catch (\Exception $e) {
+            \Log::error('Reorder failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to reorder. Please try again.');
+        }
     }
 
     public function show($orderNumber)

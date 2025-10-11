@@ -1918,7 +1918,7 @@
     </style>
 
     <div class="container">
-        <div class="product-main row">
+        <div class="product-main row" data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
             <!-- Product Gallery -->
             <div class="col-lg-6 col-md-7 col-12" style="padding: 20px;">
                 <div class="product-gallery">
@@ -2208,12 +2208,11 @@
                             }
                         });
                         
+                        // Button state will be managed by the global cart handler
+                        
                         function initializeVariationSelection() {
-                            console.log('[VARIATION] Initializing variation selection...');
                             var hasVariations = @json($product->has_variations);
-                            console.log('[VARIATION] hasVariations =', hasVariations);
                             if (!hasVariations) {
-                                console.log('[VARIATION] No variations found, skipping setup');
                                 return;
                             }
 
@@ -2235,11 +2234,13 @@
                             var productVariations = @json($__variationPayload);
                             console.log('[VARIATION] variations payload size =', Array.isArray(productVariations) ? productVariations.length : 'n/a');
 
-                            // Disable Add to Cart until a variation is selected
-                            var initialAddBtn = document.querySelector('.btn-add-cart');
-                            if (initialAddBtn) { 
-                                initialAddBtn.disabled = true; 
-                                console.log('[VARIATION] Add to Cart button disabled - no variation selected');
+                            // Apply variation logic only if product has variations
+                            var hasVariations = @json($product->has_variations);
+                            if (hasVariations) {
+                                var initialAddBtn = document.querySelector('.btn-add-cart');
+                                if (initialAddBtn) {
+                                    initialAddBtn.disabled = true;
+                                }
                             }
 
                             function updateHiddenSelectedValues(selectedMap) {
@@ -2409,7 +2410,7 @@
 
 
                             var selectedMap = {};
-                            console.log('[VARIATION] Setting up click event listener...');
+                            
                             document.addEventListener('click', function(e){
                                 console.log('[VARIATION] Click event triggered on:', e.target);
                                 
@@ -2499,7 +2500,7 @@
                                     if (nameEl) nameEl.textContent = 'Please select options above';
                                     if (priceEl) priceEl.textContent = '—';
                                     if (stockEl) stockEl.textContent = 'Select your preferences to see availability';
-                                    if (addBtn) { addBtn.disabled = true; console.log('[VARIATION] add-to-cart disabled = true (no resolution)'); }
+                                    if (addBtn && hasVariations) { addBtn.disabled = true; }
                                     
                                     // Show product images when no variation is selected
                                     switchToVariationImages(null);
@@ -2604,7 +2605,7 @@
                                         if (nameEl) nameEl.textContent = 'Please select all options';
                                         if (priceEl) priceEl.textContent = '—';
                                         if (stockEl) stockEl.textContent = 'Select all options to see price and availability';
-                                        if (addBtn) { addBtn.disabled = true; console.log('[VARIATION] add-to-cart disabled = true (partial match)'); }
+                                        if (addBtn && hasVariations) { addBtn.disabled = true; }
                                     }
                                     
                                     // Switch to variation images for both complete and partial matches
@@ -2618,7 +2619,7 @@
                                     if (nameEl) nameEl.textContent = 'Please select options above';
                                     if (priceEl) priceEl.textContent = '—';
                                     if (stockEl) stockEl.textContent = 'Select your preferences to see availability';
-                                    if (addBtn) { addBtn.disabled = true; console.log('[VARIATION] add-to-cart disabled = true (no resolution)'); }
+                                    if (addBtn && hasVariations) { addBtn.disabled = true; }
                                     
                                     // Show product images when no variation is selected
                                     switchToVariationImages(null);
@@ -3032,11 +3033,12 @@
         })(30);
     </script>
 
-@endsection
+    <!-- Toast Container -->
+    <div id="toast-container"
+        style="position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
+    </div>
 
-<div id="toast-container"
-    style="position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
-</div>
+@endsection
 
 @push('scripts')
     <script>
@@ -3673,8 +3675,13 @@
 
         // Expose page-specific initializer so master layout can re-run after AJAX navigation
         window.initializePageSpecificScripts = function(){
-            if (window.__productPageInitApplied) { return; }
+            // Reset the flag to allow re-initialization after AJAX navigation
+            if (window.__productPageInitApplied && !window.__allowReinit) { 
+                console.log('[PD] Page already initialized, skipping');
+                return; 
+            }
             window.__productPageInitApplied = true;
+            console.log('[PD] Initializing page-specific scripts');
             
             // Initialize variation selection after AJAX navigation
             if (typeof window.initializeVariationSelection === 'function') {
@@ -3682,11 +3689,25 @@
                 window.initializeVariationSelection();
             }
 
-            // Add to Cart handler (variation-aware)
-            document.addEventListener('click', function(e){
+            // Cart functionality is now handled by global cart handler in master.blade.php
+            // No need for duplicate event listeners here
+            
+            // Keep variation-specific logic for product details page
+            // DISABLED: Using global cart handler instead
+            window.__cartEventListener = function(e){
+                return; // Function disabled - using global cart handler
                 var btnEl = e.target.closest ? e.target.closest('.btn-add-cart') : null;
                 if (!btnEl) return;
                 e.preventDefault();
+                
+                // Prevent multiple simultaneous requests
+                if (btnEl.disabled || btnEl.getAttribute('data-processing') === 'true') {
+                    console.log('[CART] Request already in progress, ignoring click');
+                    return;
+                }
+                
+                // Mark button as processing
+                btnEl.setAttribute('data-processing', 'true');
                 
                 // Get product ID from data attribute or fallback to PHP variable
                 var productId = btnEl.getAttribute('data-product-id') || {{ $product->id ?? 'null' }};
@@ -3696,6 +3717,7 @@
                 if (!productId || productId === 'null' || productId === '') {
                     console.error('[CART] Invalid product ID:', productId);
                     alert('Error: Invalid product ID. Please refresh the page and try again.');
+                    btnEl.removeAttribute('data-processing');
                     return;
                 }
                 
@@ -3709,11 +3731,19 @@
                 var data = new URLSearchParams();
                 data.append('qty', qty.toString());
 
-                // Variation payload - detect variations robustly (DOM + server flag)
+                // Variation payload - use server flag as primary source, DOM as secondary check
                 var hasVariations = @json($product->has_variations);
-                var hasVariationsDOM = !!document.getElementById('selected-variation-id') ||
-                    document.querySelectorAll('.color-option, .size-option, .color-image-btn, .variation-option').length > 0;
-                if (hasVariationsDOM) { hasVariations = true; }
+                console.log('[CART] Server has_variations flag:', hasVariations);
+                
+                // Only override server flag if DOM clearly shows variation elements exist
+                var hasVariationsDOM = document.querySelectorAll('.color-option, .size-option, .color-image-btn, .variation-option').length > 0;
+                console.log('[CART] DOM variation elements found:', hasVariationsDOM);
+                
+                // Trust the server flag primarily, but if DOM shows variations and server says no, use DOM
+                if (hasVariationsDOM && !hasVariations) {
+                    console.log('[CART] DOM shows variations but server says no - using DOM detection');
+                    hasVariations = true;
+                }
 
                 var variationIdEl = document.getElementById('selected-variation-id');
                 var variationId = variationIdEl ? variationIdEl.value : '';
@@ -3728,6 +3758,7 @@
                     // Require explicit selection
                     showToast('Please select Color and Size before adding to cart.', 'error');
                     btnEl.disabled = false;
+                    btnEl.removeAttribute('data-processing');
                     return;
                 } else {
                     console.log('[CART] Product has no variations, skipping variation data');
@@ -3764,8 +3795,15 @@
                     showToast('Failed to add product to cart: ' + error.message, 'error');
                 }).finally(function(){
                     btnEl.disabled = false;
+                    btnEl.removeAttribute('data-processing');
                 });
-            });
+            };
+            
+            // Register the event listener - DISABLED: Using global cart handler instead
+            // document.addEventListener('click', window.__cartEventListener);
+            
+            // Reset the re-init flag after initialization
+            window.__allowReinit = false;
         };
 
         // Variation scripts moved to main content section for AJAX compatibility

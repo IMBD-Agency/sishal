@@ -13,38 +13,61 @@ class CartController extends Controller
 {
     public function addToCartByCard($productId)
     {
-        $userId = Auth::check() ? Auth::user()->id : null;
-        $sessionId = session()->getId();
-
-        // Use user_id if authenticated, otherwise session_id
-        $cartQuery = Cart::where('product_id', $productId);
-        if ($userId) {
-            $cartQuery->where('user_id', $userId);
-        } else {
-            $cartQuery->where('session_id', $sessionId);
-        }
-        $existingCart = $cartQuery->first();
-
-        if ($existingCart) {
-            $existingCart->qty += 1;
-            $existingCart->save();
-        } else {
-            $cartData = [
-                'product_id' => $productId,
-                'qty' => 1,
-            ];
-            if ($userId) {
-                $cartData['user_id'] = $userId;
-            } else {
-                $cartData['session_id'] = $sessionId;
+        try {
+            // Validate product exists
+            $product = \App\Models\Product::find($productId);
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found'
+                ], 404);
             }
-            $existingCart = Cart::create($cartData);
-        }
 
-        return response()->json([
-            'success' => true,
-            'cart' => $existingCart
-        ]);
+            $userId = Auth::check() ? Auth::user()->id : null;
+            $sessionId = session()->getId();
+
+            // Use user_id if authenticated, otherwise session_id
+            $cartQuery = Cart::where('product_id', $productId);
+            if ($userId) {
+                $cartQuery->where('user_id', $userId);
+            } else {
+                $cartQuery->where('session_id', $sessionId);
+            }
+            $existingCart = $cartQuery->first();
+
+            if ($existingCart) {
+                $existingCart->qty += 1;
+                $existingCart->save();
+            } else {
+                $cartData = [
+                    'product_id' => $productId,
+                    'qty' => 1,
+                ];
+                if ($userId) {
+                    $cartData['user_id'] = $userId;
+                } else {
+                    $cartData['session_id'] = $sessionId;
+                }
+                $existingCart = Cart::create($cartData);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product added to cart successfully!',
+                'cart' => $existingCart
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error adding product to cart', [
+                'product_id' => $productId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add product to cart'
+            ], 500);
+        }
     }
 
     public function addToCartByPage($productId, Request $request)

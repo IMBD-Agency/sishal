@@ -53,26 +53,39 @@ a, button {
     user-select: none;
 }
 
-/* Minimal button interactions - barely noticeable */
-.btn, .nav-link, .tab-btn, .action-btn, .header-link {
+/* Global button and navigation stability - minimal interactions */
+.nav-link, .tab-btn, .action-btn, .header-link {
     transition: all 0.02s ease;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: transform;
 }
 
-.btn:hover, .nav-link:hover, .tab-btn:hover, .action-btn:hover, .header-link:hover {
+.nav-link:hover, .tab-btn:hover, .action-btn:hover, .header-link:hover {
     transform: translateY(-0.1px) translateZ(0);
     -webkit-transform: translateY(-0.1px) translateZ(0);
 }
 
-.btn:active, .nav-link:active, .tab-btn:active, .action-btn:active, .header-link:active {
+.nav-link:active, .tab-btn:active, .action-btn:active, .header-link:active {
     transform: translateY(0) translateZ(0);
     -webkit-transform: translateY(0) translateZ(0);
     transition: all 0.005s ease;
 }
 
-/* Specific navigation link fixes - minimal */
+/* Navigation layout stability */
+.nav-links {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-links .nav-item {
+    margin: 0;
+    padding: 0;
+}
+
 .nav-links .nav-link {
     position: relative;
     display: inline-block;
@@ -94,21 +107,7 @@ a, button {
     transition: all 0.005s ease;
 }
 
-/* Prevent layout shifts on navigation */
-.nav-links {
-    display: flex;
-    align-items: center;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.nav-links .nav-item {
-    margin: 0;
-    padding: 0;
-}
-
-/* Action buttons stability */
+/* Action buttons layout */
 .action-buttons {
     display: flex;
     align-items: center;
@@ -138,6 +137,193 @@ a, button {
     transform: translateY(0) translateZ(0);
     -webkit-transform: translateY(0) translateZ(0);
     transition: all 0.005s ease;
+}
+
+/* Categories Page Styles */
+.categories-section {
+    min-height: 60vh;
+    padding-top: 2rem !important;
+    padding-bottom: 3rem !important;
+}
+
+/* Section title styles are defined in individual page files to avoid conflicts */
+
+.category-tile {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.category-tile:hover {
+    transform: translateY(-4px);
+    text-decoration: none;
+}
+
+.tile-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.tile-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.tile-img {
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+}
+
+.tile-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.category-tile:hover .tile-img img {
+    transform: scale(1.05);
+}
+
+.placeholder-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e2e8f0;
+    color: #64748b;
+}
+
+.tile-title {
+    padding: 1rem;
+    font-weight: 600;
+    color: #1a202c;
+    text-align: center;
+    font-size: 0.9rem;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.no-categories {
+    padding: 3rem 1rem;
+    color: #64748b;
+}
+
+.no-categories svg {
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.no-categories h3 {
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+/* Footer Spacing */
+.footer {
+    margin-top: 2rem;
+    background: #1a202c;
+    color: white;
+    padding: 3rem 0 1rem;
+}
+
+.footer-logo img {
+    max-height: 50px;
+    margin-bottom: 1rem;
+}
+
+.footer-description {
+    color: #a0aec0;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.footer-title {
+    color: white;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-links a {
+    color: #a0aec0;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: white;
+}
+
+.social-links {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.social-links a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: #2d3748;
+    color: white;
+    border-radius: 50%;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.social-links a:hover {
+    background: #4a5568;
+    transform: translateY(-2px);
+}
+
+.footer-bottom {
+    border-top: 1px solid #2d3748;
+    padding-top: 1.5rem;
+    margin-top: 2rem;
+    color: #a0aec0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .categories-section {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+    
+    /* Section title responsive styles handled in individual page files */
+    
+    .tile-img {
+        height: 100px;
+    }
+    
+    .footer {
+        padding: 2rem 0 1rem;
+    }
 }
 </style>
 
@@ -311,6 +497,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update active navigation state
                 updateActiveNavigation(url);
                 
+                // Set flag to allow re-initialization after AJAX navigation
+                window.__allowReinit = true;
+                
                 // Re-initialize any page-specific scripts
                 reinitializePageScripts();
                 
@@ -412,6 +601,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Re-initialize tab functionality for product pages
         initializeTabFunctionality();
+        
+        // CRITICAL: Reset button states after AJAX navigation
+        document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
+            btn.disabled = false;
+            btn.removeAttribute('data-processing');
+        });
+        
+        // Apply correct button state based on current page
+        setTimeout(function() {
+            if (window.location.pathname.includes('/product/')) {
+                var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
+                var btn = document.querySelector('.btn-add-cart');
+                if (btn && hasVariations) {
+                    btn.disabled = true;
+                } else if (btn && !hasVariations) {
+                    btn.disabled = false;
+                }
+            }
+        }, 100);
         
         // Re-initialize any page-specific functionality
         if (typeof initializePageSpecificScripts === 'function') {
@@ -814,6 +1022,181 @@ document.addEventListener('DOMContentLoaded', function() {
     // Scroll to top when button is clicked
     scrollToTopBtn.addEventListener('click', function() {
         scrollToTop();
+    });
+    
+    // Global cart event handler to prevent duplicate listeners
+    window.globalCartHandler = function(e) {
+        var btn = e.target.closest('.btn-add-cart');
+        if (!btn) return;
+        
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Prevent multiple simultaneous requests
+        if (btn.disabled || btn.getAttribute('data-processing') === 'true') {
+            return;
+        }
+        
+        // Mark button as processing
+        btn.setAttribute('data-processing', 'true');
+        btn.disabled = true;
+        
+        var productId = btn.getAttribute('data-product-id');
+        var productName = btn.getAttribute('data-product-name') || 'Product';
+        
+        if (!productId) {
+            btn.disabled = false;
+            btn.removeAttribute('data-processing');
+            if (typeof showToast === 'function') showToast('Error: Product ID not found', 'error');
+            return;
+        }
+        
+        // Get quantity if available
+        var qtyInput = document.getElementById('quantityInput');
+        var qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+        
+        // Prepare data
+        var data = new URLSearchParams();
+        data.append('qty', qty.toString());
+        
+        // Get CSRF token
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+        
+        // Determine the correct endpoint based on current page
+        var endpoint = window.location.pathname.includes('/product/') ? 
+            '/cart/add-page/' + productId : 
+            '/cart/add/' + productId;
+            
+        // Handle variations for product details page
+        if (window.location.pathname.includes('/product/')) {
+            var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
+            if (hasVariations) {
+                var variationIdEl = document.getElementById('selected-variation-id');
+                var selectedVariationId = variationIdEl ? variationIdEl.value : null;
+                
+                if (!selectedVariationId) {
+                    if (typeof showToast === 'function') showToast('Please select product options before adding to cart', 'error');
+                    btn.disabled = false;
+                    btn.removeAttribute('data-processing');
+                    return;
+                }
+                
+                data.append('variation_id', selectedVariationId);
+            }
+        }
+        
+        // Function to re-enable button
+        var reEnableButton = function() {
+            btn.disabled = false;
+            btn.removeAttribute('data-processing');
+        };
+        
+        // Backup timeout to ensure button gets re-enabled even if everything fails
+        var backupTimeout = setTimeout(function() {
+            reEnableButton();
+        }, 5000); // 5 second backup timeout
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: data.toString()
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                if (typeof showToast === 'function') showToast(data.message || 'Product added to cart successfully!', 'success');
+                if (typeof updateCartCount === 'function') updateCartCount();
+                if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
+            } else {
+                if (typeof showToast === 'function') showToast(data.message || 'Failed to add product to cart', 'error');
+            }
+        })
+        .catch(error => {
+            if (typeof showToast === 'function') showToast('Failed to add product to cart', 'error');
+        })
+        .finally(() => {
+            clearTimeout(backupTimeout);
+            reEnableButton();
+        });
+    };
+    
+    // Remove any existing global cart listeners and add the new one
+    document.removeEventListener('click', window.globalCartHandler);
+    document.addEventListener('click', window.globalCartHandler);
+    
+    // Clean up any stuck buttons on page load (but preserve variation logic)
+    document.querySelectorAll('.btn-add-cart[data-processing="true"]').forEach(function(btn) {
+        btn.disabled = false;
+        btn.removeAttribute('data-processing');
+    });
+    
+    // Apply variation logic after cleanup - check actual page state
+    setTimeout(function() {
+        if (window.location.pathname.includes('/product/')) {
+            // Check if this product actually has variations by looking at the DOM
+            var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
+            var btn = document.querySelector('.btn-add-cart');
+            if (btn && hasVariations) {
+                btn.disabled = true;
+            } else if (btn && !hasVariations) {
+                btn.disabled = false;
+            }
+        }
+    }, 100);
+    
+    // Backup mechanism: Check for stuck buttons every 3 seconds
+    setInterval(function() {
+        var stuckButtons = document.querySelectorAll('.btn-add-cart[data-processing="true"]');
+        if (stuckButtons.length > 0) {
+            stuckButtons.forEach(function(btn) {
+                btn.disabled = false;
+                btn.removeAttribute('data-processing');
+            });
+            
+            // Re-apply variation logic after cleanup - check actual page state
+            if (window.location.pathname.includes('/product/')) {
+                var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
+                var btn = document.querySelector('.btn-add-cart');
+                if (btn && hasVariations) {
+                    btn.disabled = true;
+                } else if (btn && !hasVariations) {
+                    btn.disabled = false;
+                }
+            }
+        }
+    }, 3000);
+    
+    // Reset button states when page becomes visible (navigation between pages)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
+                btn.disabled = false;
+                btn.removeAttribute('data-processing');
+            });
+            
+            // Re-apply variation logic after reset - check actual page state
+            setTimeout(function() {
+                if (window.location.pathname.includes('/product/')) {
+                    var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
+                    var btn = document.querySelector('.btn-add-cart');
+                    if (btn && hasVariations) {
+                        btn.disabled = true;
+                    } else if (btn && !hasVariations) {
+                        btn.disabled = false;
+                    }
+                }
+            }, 50);
+        }
     });
 });
 </script>

@@ -19,7 +19,7 @@
         height: 80px;
         border-radius: 50%;
         object-fit: cover;
-        border: 3px solid #0da2e7;
+        border: 3px solid #00512C;
     }
     
     .card-simple {
@@ -43,32 +43,42 @@
     }
     
     .form-control-simple {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 0.5rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
         font-size: 14px;
+        width: 100%;
+        transition: all 0.3s ease;
+        background: #fff;
+    }
+    
+    .form-control-simple:hover {
+        border-color: #cbd5e1;
     }
     
     .form-control-simple:focus {
-        border-color: #0da2e7;
-        box-shadow: 0 0 0 0.2rem rgba(13, 162, 231, 0.25);
+        border-color: #00512C;
+        box-shadow: 0 0 0 0.2rem rgba(0, 81, 44, 0.25);
         outline: none;
     }
     
     .btn-simple {
-        background: #0da2e7;
-        border: 1px solid #0da2e7;
+        background: #00512C;
+        border: 1px solid #00512C;
         color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
     
     .btn-simple:hover {
-        background: #0b8cc7;
-        border-color: #0b8cc7;
+        background: #004124;
+        border-color: #004124;
         color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 81, 44, 0.3);
     }
     
     .btn-outline-simple {
@@ -86,10 +96,11 @@
     }
     
     .form-label-simple {
-        font-weight: 500;
-        color: #555;
-        margin-bottom: 0.25rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
         font-size: 14px;
+        display: block;
     }
     
     .nav-tabs-simple {
@@ -106,14 +117,14 @@
     }
     
     .nav-tabs-simple .nav-link:hover {
-        color: #0da2e7;
-        background: rgba(13, 162, 231, 0.1);
+        color: #00512C;
+        background: rgba(0, 81, 44, 0.1);
     }
     
     .nav-tabs-simple .nav-link.active {
-        color: #0da2e7;
+        color: #00512C;
         background: white;
-        border-bottom: 2px solid #0da2e7;
+        border-bottom: 2px solid #00512C;
     }
     
     .order-card-simple {
@@ -128,6 +139,92 @@
         color: #6c757d;
         font-size: 13px;
     }
+    
+    /* Form Section Styling */
+    .form-section {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .form-section-title {
+        color: #00512C;
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Improved spacing and alignment */
+    .row.g-4 > * {
+        padding: 0.75rem;
+    }
+    
+    .row.g-3 > * {
+        padding: 0.5rem;
+    }
+    
+    /* Better visual hierarchy */
+    .card-body-simple {
+        padding: 2rem;
+    }
+    
+    /* Enhanced card styling */
+    .card-simple {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Profile header improvements */
+    .profile-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 2.5rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-delete {
+        background: #dc2626;
+        border: 1px solid #dc2626;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .btn-delete:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+    
+    .btn-delete:disabled {
+        background: #9ca3af;
+        border-color: #9ca3af;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
 </style>
 
 <div class="container py-4">
@@ -136,7 +233,7 @@
         <div class="row align-items-center">
             <div class="col-md-8">
                 <div class="d-flex align-items-center">
-                    <img src="{{ $user->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->first_name . ' ' . $user->last_name) . '&background=0da2e7&color=fff&size=80' }}" 
+                    <img src="{{ $user->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->first_name . ' ' . $user->last_name) . '&background=00512C&color=fff&size=80' }}" 
                          alt="Profile Avatar" class="profile-avatar me-3">
                     <div>
                         <h3 class="mb-1">{{$user->first_name}} {{$user->last_name}}</h3>
@@ -156,20 +253,20 @@
             <div class="card-header p-0">
                 <ul class="nav nav-tabs-simple nav-fill" id="profileTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile"
-                            type="button" role="tab" aria-controls="profile" aria-selected="true">
+                        <button class="nav-link {{ request()->get('tab') == 'profile' || !request()->has('tab') ? 'active' : '' }}" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile"
+                            type="button" role="tab" aria-controls="profile" aria-selected="{{ request()->get('tab') == 'profile' || !request()->has('tab') ? 'true' : 'false' }}">
                             My Profile
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
-                            type="button" role="tab" aria-controls="security" aria-selected="false">
+                        <button class="nav-link {{ request()->get('tab') == 'security' ? 'active' : '' }}" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
+                            type="button" role="tab" aria-controls="security" aria-selected="{{ request()->get('tab') == 'security' ? 'true' : 'false' }}">
                             Security
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button"
-                            role="tab" aria-controls="orders" aria-selected="false">
+                        <button class="nav-link {{ request()->get('tab') == 'orders' ? 'active' : '' }}" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button"
+                            role="tab" aria-controls="orders" aria-selected="{{ request()->get('tab') == 'orders' ? 'true' : 'false' }}">
                             My Orders
                         </button>
                     </li>
@@ -180,61 +277,85 @@
             <div class="card-body-simple">
                 <div class="tab-content" id="profileTabContent">
                     <!-- My Profile Tab -->
-                    <div class="tab-pane fade show active" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-                        <form class="row g-3" action="{{ route('profile.update') }}" method="POST">
+                    <div class="tab-pane fade {{ request()->get('tab') == 'profile' || !request()->has('tab') ? 'show active' : '' }}" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                        <form class="row g-4" action="{{ route('profile.update') }}" method="POST">
                             @csrf
                             @method('PATCH')
-                            <div class="col-md-6">
-                                <h6 class="mb-3">Personal Information</h6>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="firstName" class="form-label-simple">First Name</label>
-                                        <input type="text" class="form-control-simple" id="firstName" name="first_name" value="{{ auth()->user()->first_name }}">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="lastName" class="form-label-simple">Last Name</label>
-                                        <input type="text" class="form-control-simple" id="lastName" name="last_name" value="{{ auth()->user()->last_name }}">
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="email" class="form-label-simple">Email Address</label>
-                                        <input type="email" class="form-control-simple" id="email" name="email" value="{{ auth()->user()->email }}">
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="phone" class="form-label-simple">Phone Number</label>
-                                        <input type="tel" class="form-control-simple" id="phone" name="phone" value="{{ optional(auth()->user()->customer)->phone }}" placeholder="+1 (555) 123-4567">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="mb-3">Address Information</h6>
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label for="street" class="form-label-simple">Street Address</label>
-                                        <input type="text" class="form-control-simple" id="street" name="address_1" value="{{ optional(auth()->user()->customer)->address_1 }}" placeholder="123 Main Street">
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="address_2" class="form-label-simple">Address Line 2</label>
-                                        <input type="text" class="form-control-simple" id="address_2" name="address_2" value="{{ optional(auth()->user()->customer)->address_2 }}" placeholder="Apartment, suite, unit, etc.">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="city" class="form-label-simple">City</label>
-                                        <input type="text" class="form-control-simple" id="city" name="city" value="{{ optional(auth()->user()->customer)->city }}">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="state" class="form-label-simple">State/Province</label>
-                                        <input type="text" class="form-control-simple" id="state" name="state" value="{{ optional(auth()->user()->customer)->state }}">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="zip" class="form-label-simple">ZIP/Postal Code</label>
-                                        <input type="text" class="form-control-simple" id="zip" name="zip_code" value="{{ optional(auth()->user()->customer)->zip_code }}">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="country" class="form-label-simple">Country</label>
-                                        <input type="text" class="form-control-simple" id="country" name="country" value="{{ optional(auth()->user()->customer)->country }}">
+                            <div class="col-lg-6">
+                                <div class="form-section">
+                                    <h6 class="form-section-title">Personal Information</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="firstName" class="form-label-simple">First Name</label>
+                                                <input type="text" class="form-control-simple" id="firstName" name="first_name" value="{{ auth()->user()->first_name }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="lastName" class="form-label-simple">Last Name</label>
+                                                <input type="text" class="form-control-simple" id="lastName" name="last_name" value="{{ auth()->user()->last_name }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-group">
+                                                <label for="email" class="form-label-simple">Email Address</label>
+                                                <input type="email" class="form-control-simple" id="email" name="email" value="{{ auth()->user()->email }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-group">
+                                                <label for="phone" class="form-label-simple">Phone Number</label>
+                                                <input type="tel" class="form-control-simple" id="phone" name="phone" value="{{ optional(auth()->user()->customer)->phone }}" placeholder="+1 (555) 123-4567">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-12 text-center pt-2">
+                            <div class="col-lg-6">
+                                <div class="form-section">
+                                    <h6 class="form-section-title">Address Information</h6>
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <div class="form-group">
+                                                <label for="street" class="form-label-simple">Street Address</label>
+                                                <input type="text" class="form-control-simple" id="street" name="address_1" value="{{ optional(auth()->user()->customer)->address_1 }}" placeholder="123 Main Street">
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-group">
+                                                <label for="address_2" class="form-label-simple">Address Line 2</label>
+                                                <input type="text" class="form-control-simple" id="address_2" name="address_2" value="{{ optional(auth()->user()->customer)->address_2 }}" placeholder="Apartment, suite, unit, etc.">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="city" class="form-label-simple">City</label>
+                                                <input type="text" class="form-control-simple" id="city" name="city" value="{{ optional(auth()->user()->customer)->city }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="state" class="form-label-simple">State/Province</label>
+                                                <input type="text" class="form-control-simple" id="state" name="state" value="{{ optional(auth()->user()->customer)->state }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="zip" class="form-label-simple">ZIP/Postal Code</label>
+                                                <input type="text" class="form-control-simple" id="zip" name="zip_code" value="{{ optional(auth()->user()->customer)->zip_code }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="country" class="form-label-simple">Country</label>
+                                                <input type="text" class="form-control-simple" id="country" name="country" value="{{ optional(auth()->user()->customer)->country }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 text-center pt-4">
                                 <button type="submit" class="btn-simple">
                                     Update Profile
                                 </button>
@@ -243,7 +364,7 @@
                     </div>
 
                     <!-- Security Tab -->
-                    <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+                    <div class="tab-pane fade {{ request()->get('tab') == 'security' ? 'show active' : '' }}" id="security" role="tabpanel" aria-labelledby="security-tab">
                         <div class="row justify-content-center">
                             <div class="col-lg-8">
                                 <h6 class="mb-3">Change Password</h6>
@@ -272,7 +393,7 @@
                     </div>
 
                     <!-- My Orders Tab -->
-                    <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
+                    <div class="tab-pane fade {{ request()->get('tab') == 'orders' ? 'show active' : '' }}" id="orders" role="tabpanel" aria-labelledby="orders-tab">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0">Order History</h6>
                             <select class="form-control-simple w-auto">
@@ -311,7 +432,7 @@
                                 <div class="col-md-4">
                                     <div class="d-flex align-items-center p-2 bg-light rounded">
                                         <div class="me-2">
-                                            @if($item->product)
+                                            @if($item->product && $item->product->image)
                                                 <img src="{{ asset($item->product->image) }}" alt="Product" class="rounded"
                                                     style="width: 40px; height: 40px; object-fit: cover;">
                                             @else
@@ -325,7 +446,7 @@
                                             @if($item->product)
                                                 <a href="{{ route('product.details', $item->product->slug) }}" class="d-block fw-semibold text-dark text-decoration-none small">{{ $item->product->name }}</a>
                                             @else
-                                                <span class="d-block fw-semibold text-muted small">Product Not Available</span>
+                                                <span class="d-block fw-semibold text-muted small">Product Deleted</span>
                                             @endif
                                             <small class="text-muted-simple">Qty: {{number_format($item->quantity,0)}}</small>
                                         </div>
@@ -339,14 +460,29 @@
                                 </a>
                                 <div class="d-flex gap-2">
                                     @if($order->status != 'pending' && $order->status != 'cancelled')
-                                    <button class="btn-simple btn-sm">
-                                        Reorder
-                                    </button>
+                                    <form action="{{ route('order.reorder', $order->id) }}?tab=orders" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn-simple btn-sm" title="Add all items from this order to cart">
+                                            <i class="fas fa-shopping-cart"></i>
+                                            Reorder
+                                        </button>
+                                    </form>
                                     @elseif($order->status != 'cancelled')
-                                    <form action="{{ route('order.cancel', $order->id) }}" method="POST" class="d-inline cancel-order-form">
+                                    <form action="{{ route('order.cancel', $order->id) }}?tab=orders" method="POST" class="d-inline cancel-order-form">
                                         @csrf
                                         <button type="button" class="btn-outline-simple btn-sm btn-cancel-order" data-bs-toggle="modal" data-bs-target="#cancelOrderModal" data-order-id="{{$order->id}}">
                                             Cancel
+                                        </button>
+                                    </form>
+                                    @endif
+                                    
+                                    @if(in_array($order->status, ['cancelled', 'pending']))
+                                    <form action="{{ route('order.delete', $order->id) }}?tab=orders" method="POST" class="d-inline delete-order-form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button" class="btn-delete btn-sm btn-delete-order" data-bs-toggle="modal" data-bs-target="#deleteOrderModal" data-order-id="{{$order->id}}" data-order-number="{{$order->order_number}}">
+                                            <i class="fas fa-trash"></i>
+                                            Delete
                                         </button>
                                     </form>
                                     @endif
@@ -365,7 +501,7 @@
 
                         @if($orders->count() > 0)
                         <div class="d-flex justify-content-center mt-3">
-                            {{ $orders->links('vendor.pagination.bootstrap-5') }}
+                            {{ $orders->appends(['tab' => 'orders'])->links('vendor.pagination.bootstrap-5') }}
                         </div>
                         @endif
                     </div>
@@ -395,21 +531,131 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteOrderModal" tabindex="-1" aria-labelledby="deleteOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteOrderModalLabel">Delete Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <p class="text-center">Are you sure you want to delete order <strong id="deleteOrderNumber"></strong>?</p>
+                    <p class="text-center text-muted small">This action cannot be undone and will permanently remove the order from your history.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-outline-simple" data-bs-dismiss="modal">No, Keep Order</button>
+                    <button type="button" class="btn-delete" id="confirmDeleteOrderBtn">Yes, Delete Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing order buttons...');
             let formToSubmit = null;
-            document.querySelectorAll('.btn-cancel-order').forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    formToSubmit = this.closest('form');
+            
+            // Function to activate tab
+            function activateTab(tabId) {
+                // Remove active class from all tabs
+                document.querySelectorAll('.nav-link').forEach(function(tab) {
+                    tab.classList.remove('active');
+                    tab.setAttribute('aria-selected', 'false');
+                });
+                
+                // Remove active class from all tab panes
+                document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                    pane.classList.remove('show', 'active');
+                });
+                
+                // Activate the specified tab
+                const targetTab = document.getElementById(tabId + '-tab');
+                const targetPane = document.getElementById(tabId);
+                
+                if (targetTab && targetPane) {
+                    targetTab.classList.add('active');
+                    targetTab.setAttribute('aria-selected', 'true');
+                    targetPane.classList.add('show', 'active');
+                }
+            }
+            
+            // Handle tab parameter from URL - with delay to ensure DOM is ready
+            setTimeout(function() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const activeTab = urlParams.get('tab');
+                
+                if (activeTab) {
+                    activateTab(activeTab);
+                }
+            }, 100);
+            
+            // Handle tab clicks to update URL
+            document.querySelectorAll('.nav-link').forEach(function(tab) {
+                tab.addEventListener('click', function(e) {
+                    const tabId = this.getAttribute('data-bs-target').replace('#', '');
+                    const url = new URL(window.location);
+                    url.searchParams.set('tab', tabId);
+                    window.history.pushState({}, '', url);
                 });
             });
-            document.getElementById('confirmCancelOrderBtn').addEventListener('click', function() {
-                if(formToSubmit) {
-                    formToSubmit.submit();
-                }
+            
+            // Cancel Order Modal
+            const cancelButtons = document.querySelectorAll('.btn-cancel-order');
+            console.log('Found cancel buttons:', cancelButtons.length);
+            
+            cancelButtons.forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    console.log('Cancel button clicked');
+                    e.preventDefault();
+                    formToSubmit = this.closest('form');
+                    console.log('Form to submit:', formToSubmit);
+                });
             });
+            
+            const confirmCancelBtn = document.getElementById('confirmCancelOrderBtn');
+            if (confirmCancelBtn) {
+                confirmCancelBtn.addEventListener('click', function() {
+                    console.log('Confirm cancel clicked');
+                    if(formToSubmit) {
+                        console.log('Submitting cancel form');
+                        formToSubmit.submit();
+                    }
+                });
+            }
+            
+            // Delete Order Modal
+            const deleteButtons = document.querySelectorAll('.btn-delete-order');
+            console.log('Found delete buttons:', deleteButtons.length);
+            
+            deleteButtons.forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    console.log('Delete button clicked');
+                    e.preventDefault();
+                    formToSubmit = this.closest('form');
+                    const orderNumber = this.getAttribute('data-order-number');
+                    const deleteOrderNumber = document.getElementById('deleteOrderNumber');
+                    if (deleteOrderNumber) {
+                        deleteOrderNumber.textContent = orderNumber;
+                    }
+                    console.log('Form to submit:', formToSubmit);
+                });
+            });
+            
+            const confirmDeleteBtn = document.getElementById('confirmDeleteOrderBtn');
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function() {
+                    console.log('Confirm delete clicked');
+                    if(formToSubmit) {
+                        console.log('Submitting delete form');
+                        formToSubmit.submit();
+                    }
+                });
+            }
         });
     </script>

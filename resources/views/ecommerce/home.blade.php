@@ -189,9 +189,9 @@
     </section> -->
 
 
-    <!-- <div id="toast-container"
+    <div id="toast-container"
         style="position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;">
-    </div> -->
+    </div>
 
     <!-- Video Modal -->
     <!-- <div class="modal fade" id="videoModal" tabindex="-1" aria-labelledby="videoModalLabel" aria-hidden="true">
@@ -345,7 +345,7 @@
                                         </div>
                                         <div class="price">${price}৳</div>
                                         <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                            <button class="btn-add-cart" data-product-id="${product.id}"><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
+                                            <button class="btn-add-cart" data-product-id="${product.id}" data-product-name="${product.name}"><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
                                 <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
                                 <circle cx="7" cy="22" r="2"></circle>
                                 <circle cx="17" cy="22" r="2"></circle>
@@ -368,36 +368,8 @@
                 if (href) window.location.href = href;
             });
 
-            // Add to Cart AJAX for dynamically loaded buttons
-            $(document).on('click', '.btn-add-cart', function (e) {
-                e.preventDefault();
-                var btn = $(this);
-                var productId = btn.data('product-id');
-                btn.prop('disabled', true);
-                fetch("{{ url('cart/add') }}/" + productId, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({})
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        btn.prop('disabled', false);
-                        if (data.success) {
-                            if (typeof showToast === 'function') showToast('Added to cart!');
-                            if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
-                        } else {
-                            if (typeof showToast === 'function') showToast('Could not add to cart.', 'error');
-                        }
-                    })
-                    .catch(() => {
-                        btn.prop('disabled', false);
-                        if (typeof showToast === 'function') showToast('Could not add to cart.', 'error');
-                    });
-            });
+            // Cart functionality is now handled by global cart handler in master.blade.php
+            // No need for duplicate event listeners here
 
             $(document).on('click', '.wishlist-btn', function (e) {
                 e.preventDefault();

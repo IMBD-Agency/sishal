@@ -72,7 +72,7 @@
                                         </span>
                                     @endif
                                 </div>
-                                <button class="btn-add-cart" data-product-id="{{ $wishlist->product->id }}"><svg
+                                <button class="btn-add-cart" data-product-id="{{ $wishlist->product->id }}" data-product-name="{{ $wishlist->product->name }}"><svg
                                         xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff"
                                         width="14" height="14">
                                         <path
@@ -189,36 +189,8 @@
                     setTimeout(() => toast.remove(), 400);
                 }, 2500);
             }
-            // Add to Cart AJAX
-            $(document).on('click', '.btn-add-cart', function (e) {
-                e.preventDefault();
-                var btn = $(this);
-                var productId = btn.data('product-id');
-                btn.prop('disabled', true);
-                fetch("{{ url('cart/add') }}/" + productId, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({})
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        btn.prop('disabled', false);
-                        if (data.success) {
-                            showToast('Added to cart!');
-                            if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
-                        } else {
-                            showToast('Could not add to cart.', 'error');
-                        }
-                    })
-                    .catch(() => {
-                        btn.prop('disabled', false);
-                        showToast('Could not add to cart.', 'error');
-                    });
-            });
+            // Cart functionality is now handled by global cart handler in master.blade.php
+            // No need for duplicate event listeners here
 
             // Remove from wishlist functionality
             document.querySelectorAll('.fa-heart').forEach(heart => {

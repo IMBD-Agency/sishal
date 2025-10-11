@@ -60,7 +60,7 @@
                                             </span>
                                         @endif
                                     </div>
-                                    <button class="btn-add-cart" data-product-id="{{ $product->id }}"><svg
+                                    <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}"><svg
                                             xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff"
                                             width="14" height="14">
                                             <path
