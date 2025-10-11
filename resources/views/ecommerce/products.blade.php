@@ -11,7 +11,7 @@
     <div class="container container-80 py-4">
         <div class="row">
             <!-- Sidebar Filters -->
-            <form id="filterForm" method="GET" class="col-md-3 mb-4">
+            <div id="filterForm" class="col-md-3 mb-4">
                 <div class="filter-card">
                     <div class="filter-header">
                         <h5 class="filter-title">
@@ -116,105 +116,28 @@
                         </div>
                     </div>
 
-                    <!-- Apply Filters Button -->
-                    <div class="filter-actions">
-                        <button type="submit" class="btn-apply-filters">
-                            <i class="fas fa-search me-2"></i>Apply Filters
-                        </button>
-                    </div>
                 </div>
-            </form>
+            </div>
 
             <!-- Product Grid -->
             <div class="col-md-9">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>Showing {{ $products->count() }} products</div>
+                    <div id="product-count">Showing {{ $products->count() }} products</div>
                     <div>
-                        <form id="sortForm" method="GET">
-                            @foreach(request()->except('sort') as $key => $value)
-                                @if(is_array($value))
-                                    @foreach($value as $v)
-                                        <input type="hidden" name="{{ $key }}[]" value="{{ $v }}">
-                                    @endforeach
-                                @else
-                                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-                                @endif
-                            @endforeach
-                            <select class="form-select form-select-sm" style="width:auto;display:inline-block;" name="sort"
-                                id="sortSelect">
-                                <option value="">Sort By</option>
-                                <option value="newest" {{ $selectedSort == 'newest' ? 'selected' : '' }}>Newest</option>
-                                <option value="featured" {{ $selectedSort == 'featured' ? 'selected' : '' }}>Featured</option>
-                                <option value="lowToHigh" {{ $selectedSort == 'lowToHigh' ? 'selected' : '' }}>Price: Low to
-                                    High</option>
-                                <option value="highToLow" {{ $selectedSort == 'highToLow' ? 'selected' : '' }}>Price: High to
-                                    Low</option>
-                            </select>
-                        </form>
+                        <select class="form-select form-select-sm" style="width:auto;display:inline-block;" name="sort"
+                            id="sortSelect">
+                            <option value="">Sort By</option>
+                            <option value="newest" {{ $selectedSort == 'newest' ? 'selected' : '' }}>Newest</option>
+                            <option value="featured" {{ $selectedSort == 'featured' ? 'selected' : '' }}>Featured</option>
+                            <option value="lowToHigh" {{ $selectedSort == 'lowToHigh' ? 'selected' : '' }}>Price: Low to
+                                High</option>
+                            <option value="highToLow" {{ $selectedSort == 'highToLow' ? 'selected' : '' }}>Price: High to
+                                Low</option>
+                        </select>
                     </div>
                 </div>
-                <div class="row g-4 mt-4">
-                    @foreach($products as $product)
-                        <div class="col-lg-3 col-md-6 mt-0 mb-4">
-                            <div class="product-card position-relative mb-0 h-100">
-                                <button class="wishlist-btn {{$product->is_wishlisted ? ' active' : ''}}"
-                                    data-product-id="{{ $product->id }}">
-                                    <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
-                                </button>
-                                <div class="product-image-container">
-                                    <img src="{{$product->image ? $product->image : '/default-product.png'}}"
-                                        class="product-image" style="width:100%;height:200px;object-fit:cover;"
-                                        alt="${product.name}">
-                                </div>
-                                <div class="product-info">
-                                    <a href="{{ route('product.details', $product->slug) }}" class="product-title"
-                                        style="text-decoration: none;">{{ $product->name }}</a>
-                                    <p class="product-description">{{$product->short_desc ? $product->short_desc : ''}}</p>
-                                    @php
-                                        $avgRating = round($product->averageRating());
-                                        $totalReviews = $product->totalReviews();
-                                    @endphp
-                                    <div class="product-meta" style="margin-top:6px;">
-                                        <div class="stars" aria-label="{{ $avgRating }} out of 5">
-                                            @for ($i = 1; $i <= 5; $i++)
-                                                <i class="fa{{ $i <= $avgRating ? 's' : 'r' }} fa-star"></i>
-                                            @endfor
-                                        </div>
-                                        <div class="sold">({{ $totalReviews }} reviews)</div>
-                                    </div>
-
-                                    <div class="price">
-                                        @if(isset($product->discount) && $product->discount > 0)
-                                            <span class="fw-bold text-primary">
-                                                {{ number_format($product->discount, 2) }}৳
-                                            </span>
-                                            <span class="text-muted text-decoration-line-through ms-2">
-                                                {{ number_format($product->price, 2) }}৳
-                                            </span>
-                                        @else
-                                            <span class="fw-bold text-primary">
-                                                {{ number_format($product->price, 2) }}৳
-                                            </span>
-                                        @endif
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center gap-2">
-                                        <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}"><svg
-                                                xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff"
-                                                width="14" height="14">
-                                                <path
-                                                    d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z">
-                                                </path>
-                                                <circle cx="7" cy="22" r="2"></circle>
-                                                <circle cx="17" cy="22" r="2"></circle>
-                                            </svg> Add to Cart</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-                <div class="d-flex justify-content-center mt-4">
-                    {{ $products->links('vendor.pagination.bootstrap-5') }}
+                <div id="products-container" class="row g-4 mt-4">
+                    @include('ecommerce.partials.product-grid', ['products' => $products])
                 </div>
             </div>
         </div>
@@ -247,6 +170,82 @@
                 setTimeout(() => toast.remove(), 400);
             }, 2500);
         }
+
+        // AJAX Filtering Function
+        function applyFilters() {
+            var formData = new FormData();
+            
+            // Get selected categories
+            var selectedCategories = [];
+            document.querySelectorAll('#filterForm input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
+                if (cb.value !== 'all') {
+                    selectedCategories.push(cb.value);
+                }
+            });
+            selectedCategories.forEach(function(cat) {
+                formData.append('categories[]', cat);
+            });
+            
+            // Get price range
+            var priceMin = document.getElementById('price_min') ? document.getElementById('price_min').value : '';
+            var priceMax = document.getElementById('price_max') ? document.getElementById('price_max').value : '';
+            if (priceMin) formData.append('price_min', priceMin);
+            if (priceMax) formData.append('price_max', priceMax);
+            
+            // Get selected ratings
+            document.querySelectorAll('#filterForm input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
+                formData.append('rating[]', cb.value);
+            });
+            
+            // Get sort option
+            var sortSelect = document.getElementById('sortSelect');
+            if (sortSelect && sortSelect.value) {
+                formData.append('sort', sortSelect.value);
+            }
+            
+            // Show loading state
+            var container = document.getElementById('products-container');
+            var countElement = document.getElementById('product-count');
+            if (container) {
+                container.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading products...</p></div>';
+            }
+            
+            // Make AJAX request
+            fetch('{{ route("products.filter") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (container) {
+                        container.innerHTML = data.html;
+                    }
+                    if (countElement) {
+                        if (data.count === 0) {
+                            countElement.textContent = 'No products found';
+                        } else {
+                            countElement.textContent = 'Showing ' + data.count + ' products';
+                        }
+                    }
+                } else {
+                    if (container) {
+                        container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Filter error:', error);
+                if (container) {
+                    container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                }
+            });
+        }
+
         // Enhanced filter functionality
         window.initProductsPage = function() {
             try {
@@ -285,10 +284,9 @@
                     });
                     
                     priceSlider.noUiSlider.on('change', function () {
-                        // Auto-submit on slider change
+                        // Auto-apply filters on slider change
                         setTimeout(function() {
-                            var form = document.getElementById('filterForm');
-                            if (form) form.submit();
+                            applyFilters();
                         }, 300);
                     });
                 }
@@ -348,10 +346,9 @@
                             allCategoryCheckbox.checked = true;
                         }
                         
-                        // Auto-submit on category change
+                        // Auto-apply filters on category change
                         setTimeout(function() {
-                            var form = document.getElementById('filterForm');
-                            if (form) form.submit();
+                            applyFilters();
                         }, 300);
                     });
                 });
@@ -360,10 +357,9 @@
                 var ratingCheckboxes = document.querySelectorAll('#filterForm input[type=checkbox][name="rating[]"]');
                 ratingCheckboxes.forEach(function (checkbox) {
                     checkbox.addEventListener('change', function () {
-                        // Auto-submit on rating change
+                        // Auto-apply filters on rating change
                         setTimeout(function() {
-                            var form = document.getElementById('filterForm');
-                            if (form) form.submit();
+                            applyFilters();
                         }, 300);
                     });
                 });
@@ -388,10 +384,8 @@
                             priceSlider.noUiSlider.set([0, maxProductPrice]);
                         }
                         
-                        // Clear URL parameters and reload
-                        var url = new URL(window.location);
-                        url.search = '';
-                        window.location.href = url.toString();
+                        // Apply filters with cleared values
+                        applyFilters();
                     });
                 }
 
@@ -399,8 +393,7 @@
                 var sortSelect = document.getElementById('sortSelect');
                 if (sortSelect) {
                     sortSelect.addEventListener('change', function () {
-                        var form = document.getElementById('sortForm');
-                        if (form) form.submit();
+                        applyFilters();
                     });
                 }
 
@@ -524,6 +517,104 @@
         .custom-toast.hide {
             opacity: 0;
             transform: translateY(-20px) scale(0.98);
+        }
+
+        /* No Products Found Styles */
+        .no-products-container {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #F3F0FF 0%, #E3F2FD 100%);
+            border-radius: 16px;
+            margin: 20px 0;
+            border: 1px solid #E3F2FD;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.1);
+        }
+
+        .no-products-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #8B5CF6 0%, #00512C 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+        }
+
+        .no-products-icon i {
+            font-size: 32px;
+            color: white;
+        }
+
+        .no-products-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00512C;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        .no-products-message {
+            font-size: 16px;
+            color: #6c757d;
+            margin-bottom: 24px;
+            line-height: 1.5;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .no-products-suggestion {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            border: 1px solid #E3F2FD;
+            box-shadow: 0 2px 10px rgba(0, 81, 44, 0.1);
+            font-size: 14px;
+            color: #00512C;
+            font-weight: 500;
+        }
+
+        .no-products-suggestion i {
+            color: #FCD34D;
+            font-size: 16px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .no-products-container {
+                padding: 40px 15px;
+                margin: 15px 0;
+            }
+
+            .no-products-icon {
+                width: 60px;
+                height: 60px;
+                margin-bottom: 20px;
+            }
+
+            .no-products-icon i {
+                font-size: 24px;
+            }
+
+            .no-products-title {
+                font-size: 24px;
+                margin-bottom: 12px;
+            }
+
+            .no-products-message {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+
+            .no-products-suggestion {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
         }
     </style>
 @endpush

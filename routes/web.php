@@ -16,6 +16,7 @@ Route::get('/', [PageController::class, 'index'])->name('home');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::get('/products', [PageController::class, 'products'])->name('product.archive');
+Route::post('/products/filter', [PageController::class, 'filterProducts'])->name('products.filter');
 Route::get('/product/{slug}', [PageController::class, 'productDetails'])->name('product.details');
 
 // Review routes

@@ -1,5 +1,11 @@
 @extends('ecommerce.master')
 
+@push('head')
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+@endpush
+
 @section('main-section')
     <!-- Product Details Content Section -->
     <style>
@@ -2769,9 +2775,11 @@
                                 </h4>
                                 <p class="review-form-subtitle">Help others by sharing your experience</p>
                             </div>
-                            <form id="review-form" class="review-form" enctype="multipart/form-data">
+                            <form id="review-form" class="review-form" enctype="multipart/form-data" data-product-id="{{ $product->id }}" data-page-slug="{{ $product->slug }}">
                                 @csrf
-                                <input type="hidden" name="product_id" value="{{ $product->id }}">
+                                <input type="hidden" name="product_id" value="{{ $product->id }}" id="product_id_input">
+                                <input type="hidden" name="page_slug" value="{{ $product->slug }}" id="page_slug_input">
+                                <input type="hidden" name="page_timestamp" value="{{ time() }}" id="page_timestamp_input">
                                 
                                 <div class="form-group">
                                     <label class="form-label required">Rating *</label>
@@ -3299,6 +3307,45 @@
 
             // Initialize page
             $(document).ready(function() {
+                // NUCLEAR CACHE PREVENTION - Force correct values
+                var correctProductId = {{ $product->id }};
+                var pageSlug = '{{ $product->slug }}';
+                var timestamp = new Date().getTime();
+                
+                // Clear any existing form data completely
+                $('#review-form')[0].reset();
+                
+                // Remove all existing hidden fields
+                $('#review-form input[type="hidden"]').remove();
+                
+                // Force correct values in ALL possible ways
+                $('input[name="product_id"]').val(correctProductId);
+                $('#product_id_input').val(correctProductId);
+                $('input[name="page_slug"]').val(pageSlug);
+                $('#page_slug_input').val(pageSlug);
+                $('input[name="page_timestamp"]').val(timestamp);
+                $('#page_timestamp_input').val(timestamp);
+                
+                // Update form attributes
+                $('#review-form').attr('data-product-id', correctProductId);
+                $('#review-form').attr('data-page-slug', pageSlug);
+                $('#review-form').attr('data-timestamp', timestamp);
+                
+                // Add fresh hidden fields dynamically
+                $('#review-form').append('<input type="hidden" name="product_id" value="' + correctProductId + '">');
+                $('#review-form').append('<input type="hidden" name="page_slug" value="' + pageSlug + '">');
+                $('#review-form').append('<input type="hidden" name="page_timestamp" value="' + timestamp + '">');
+                $('#review-form').append('<input type="hidden" name="page_verification" value="' + pageSlug + '">');
+                
+                console.log('=== AGGRESSIVE CACHE PREVENTION ===');
+                console.log('Page Product ID:', correctProductId);
+                console.log('Page Slug:', pageSlug);
+                console.log('Timestamp:', timestamp);
+                console.log('Form Product ID:', $('input[name="product_id"]').val());
+                console.log('Form Page Slug:', $('input[name="page_slug"]').val());
+                console.log('Form Timestamp:', $('input[name="page_timestamp"]').val());
+                console.log('=====================================');
+                
                 // Clear any existing reviews first
                 $('#reviews-list').empty();
                 $('#overall-rating').text('0.0');
@@ -3317,22 +3364,96 @@
                 
                 var formData = new FormData(this);
                 var rating = $('input[name="rating"]:checked').val();
+                var productId = $('input[name="product_id"]').val();
+                
+                console.log('=== REVIEW SUBMISSION DEBUG ===');
+                console.log('Current Product ID (from page):', {{ $product->id }});
+                console.log('Product ID from form:', productId);
+                console.log('Rating:', rating);
+                console.log('==============================');
                 
                 if (!rating) {
                     alert('Please select a rating');
                     return;
                 }
+                
+                // AGGRESSIVE VALIDATION - Check ALL values
+                var expectedProductId = {{ $product->id }};
+                var expectedSlug = '{{ $product->slug }}';
+                var currentTimestamp = new Date().getTime();
+                
+                console.log('=== FORM SUBMISSION VALIDATION ===');
+                console.log('Expected Product ID:', expectedProductId);
+                console.log('Expected Slug:', expectedSlug);
+                console.log('Current Timestamp:', currentTimestamp);
+                
+                // Force fresh values before validation
+                $('input[name="product_id"]').val(expectedProductId);
+                $('#product_id_input').val(expectedProductId);
+                $('input[name="page_slug"]').val(expectedSlug);
+                $('#page_slug_input').val(expectedSlug);
+                $('input[name="page_timestamp"]').val(currentTimestamp);
+                $('#page_timestamp_input').val(currentTimestamp);
+                
+                // Get fresh values after forcing
+                var actualProductId = $('input[name="product_id"]').val();
+                var actualSlug = $('input[name="page_slug"]').val();
+                var actualTimestamp = $('input[name="page_timestamp"]').val();
+                
+                console.log('Actual Product ID:', actualProductId);
+                console.log('Actual Slug:', actualSlug);
+                console.log('Actual Timestamp:', actualTimestamp);
+                
+                // Validate product ID
+                if (actualProductId != expectedProductId) {
+                    console.error('CRITICAL ERROR: Product ID mismatch!');
+                    console.error('Expected:', expectedProductId, 'Actual:', actualProductId);
+                    alert('Error: Product ID mismatch. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Validate page slug
+                if (actualSlug != expectedSlug) {
+                    console.error('CRITICAL ERROR: Page slug mismatch!');
+                    console.error('Expected:', expectedSlug, 'Actual:', actualSlug);
+                    alert('Error: Page verification failed. Please refresh the page and try again.');
+                    return;
+                }
+                
+                console.log('All validations passed!');
+                console.log('===============================');
+                
+                // Update productId for form submission
+                productId = actualProductId;
+
+                // BYPASS CACHED FORM DATA - Create fresh data object
+                var freshFormData = new FormData();
+                freshFormData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+                freshFormData.append('product_id', {{ $product->id }}); // Force correct product ID
+                freshFormData.append('page_slug', '{{ $product->slug }}'); // Force correct slug
+                freshFormData.append('page_timestamp', new Date().getTime()); // Fresh timestamp
+                freshFormData.append('page_verification', '{{ $product->slug }}'); // Force correct verification
+                freshFormData.append('rating', rating);
+                freshFormData.append('comment', comment);
+                
+                console.log('=== BYPASSING CACHED FORM DATA ===');
+                console.log('Fresh Product ID:', {{ $product->id }});
+                console.log('Fresh Page Slug:', '{{ $product->slug }}');
+                console.log('Fresh Rating:', rating);
+                console.log('Fresh Comment:', comment);
+                console.log('===================================');
 
                 $.ajax({
-                    url: '{{ route("reviews.store") }}',
+                    url: '{{ route("reviews.store") }}?t=' + new Date().getTime(),
                     type: 'POST',
-                    data: formData,
+                    data: freshFormData,
                     processData: false,
                     contentType: false,
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
+                        console.log('Review submission response:', response);
                         if (response.success) {
                             alert(response.message);
                             $('#review-form')[0].reset();
@@ -3349,7 +3470,7 @@
                 });
             });
 
-            // Load reviews function
+                // Load reviews function
             function loadReviews(page) {
                 page = page || 1;
                 if (isLoading) return;
@@ -3357,7 +3478,7 @@
 
                 var productId = {{ $product->id }};
                 var productName = '{{ $product->name }}';
-                var apiUrl = '{{ route("reviews.product", $product->id) }}';
+                var apiUrl = '{{ route("reviews.product", $product->id) }}?t=' + new Date().getTime();
                 
                 console.log('=== REVIEW DEBUG ===');
                 console.log('Product ID:', productId);
@@ -3368,13 +3489,17 @@
                 $.ajax({
                     url: apiUrl,
                     type: 'GET',
+                    cache: false, // Disable caching
                     data: { 
                         page: page,
                         _t: new Date().getTime() // Cache busting
                     },
-                    cache: false, // Disable caching
                     success: function(response) {
-                        console.log('API Response for', productName, ':', response);
+                        console.log('=== API RESPONSE DEBUG ===');
+                        console.log('Product Name:', productName);
+                        console.log('Product ID:', productId);
+                        console.log('Full API Response:', response);
+                        console.log('========================');
                         
                         // Verify the response is for the correct product
                         if (response.product_id && response.product_id != productId) {
@@ -3451,7 +3576,10 @@
                 }
 
                 if (reviews && reviews.length > 0) {
-                    console.log('Displaying reviews for product ID:', {{ $product->id }});
+                    console.log('=== DISPLAYING REVIEWS ===');
+                    console.log('Product ID:', {{ $product->id }});
+                    console.log('Reviews to display:', reviews.length);
+                    console.log('=======================');
                     reviews.forEach(function(review) {
                         console.log('Review belongs to product ID:', review.product_id, 'Current product ID:', {{ $product->id }});
                         

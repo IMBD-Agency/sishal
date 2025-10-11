@@ -13,6 +13,60 @@ class ReviewController extends Controller
 {
     public function store(Request $request)
     {
+        // Debug logging
+        \Log::info('=== REVIEW SUBMISSION DEBUG ===');
+        \Log::info('Received product_id: ' . $request->product_id);
+        \Log::info('All request data: ' . json_encode($request->all()));
+        \Log::info('==============================');
+        
+        // Additional validation: Ensure product exists and is active
+        $product = Product::find($request->product_id);
+        if (!$product) {
+            \Log::error('Review submission failed: Product not found for ID: ' . $request->product_id);
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found. Please refresh the page and try again.'
+            ], 404);
+        }
+        
+        if ($product->status !== 'active') {
+            \Log::error('Review submission failed: Product is not active for ID: ' . $request->product_id);
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot review inactive product.'
+            ], 422);
+        }
+        
+        // STRICT VALIDATION: Verify page verification
+        $expectedSlug = $product->slug;
+        
+        // Check page_slug field
+        if ($request->has('page_slug')) {
+            $providedSlug = $request->page_slug;
+            if ($expectedSlug !== $providedSlug) {
+                \Log::error('Review submission failed: Page slug mismatch. Expected: ' . $expectedSlug . ', Provided: ' . $providedSlug);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Page verification failed. Please refresh the page and try again.'
+                ], 422);
+            }
+        }
+        
+        // Check page_verification field (backup)
+        if ($request->has('page_verification')) {
+            $providedSlug = $request->page_verification;
+            if ($expectedSlug !== $providedSlug) {
+                \Log::error('Review submission failed: Page verification mismatch. Expected: ' . $expectedSlug . ', Provided: ' . $providedSlug);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Page verification failed. Please refresh the page and try again.'
+                ], 422);
+            }
+        }
+        
+        // Log successful validation
+        \Log::info('Review validation passed for Product ID: ' . $request->product_id . ' (' . $product->name . ')');
+        
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'rating' => 'required|integer|min:1|max:5',
@@ -53,12 +107,15 @@ class ReviewController extends Controller
             'rating' => $request->rating,
             'comment' => $request->comment,
             'image' => $imagePath,
-            'is_approved' => false // Reviews need approval by default
+            'is_approved' => true // Auto-approve reviews for immediate display
         ]);
+        
+        // Debug: Log the created review
+        \Log::info('Review created with ID: ' . $review->id . ' for product ID: ' . $review->product_id);
 
         return response()->json([
             'success' => true,
-            'message' => 'Review submitted successfully! It will be visible after approval.',
+            'message' => 'Review submitted successfully!',
             'review' => $review
         ]);
     }
@@ -96,12 +153,12 @@ class ReviewController extends Controller
             'rating' => $request->rating,
             'comment' => $request->comment,
             'image' => $imagePath,
-            'is_approved' => false // Reset approval status when updated
+            'is_approved' => true // Keep approved status when updated
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Review updated successfully! It will be visible after approval.',
+            'message' => 'Review updated successfully!',
             'review' => $review
         ]);
     }
@@ -159,9 +216,14 @@ class ReviewController extends Controller
                 'prev_page_url' => $reviews->previousPageUrl()
             ],
             'average_rating' => $product->averageRating() ?? 0,
-            'total_reviews' => $product->totalReviews()
+            'total_reviews' => $product->totalReviews(),
+            'debug_info' => [
+                'timestamp' => now()->toISOString(),
+                'cache_bust' => time()
+            ]
         ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
           ->header('Pragma', 'no-cache')
-          ->header('Expires', '0');
+          ->header('Expires', '0')
+          ->header('Last-Modified', gmdate('D, d M Y H:i:s') . ' GMT');
     }
 }

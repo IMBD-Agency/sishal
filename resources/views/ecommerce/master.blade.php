@@ -354,39 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 200);
     }
     
-    // AJAX Navigation System - Load only page content
-    function initializeAjaxNavigation() {
-        const navLinks = document.querySelectorAll('a[href]:not([href^="#"]):not([href^="javascript:"]):not([target="_blank"])');
-        if (navLinks.length === 0) {
-            console.log('No navigation links found for AJAX');
-            return;
-        }
-        
-    navLinks.forEach(link => {
-            if (link) {
-                link.removeEventListener('click', handleAjaxNavigation);
-                link.addEventListener('click', handleAjaxNavigation);
-            }
-        });
-    }
-    
-    function handleAjaxNavigation(e) {
-        // Only handle internal links
-        if (this.hostname === window.location.hostname) {
-            e.preventDefault();
-            
-            const url = this.href;
-            const title = this.textContent.trim();
-            
-            // Minimal transition before loading
-            // Avoid body transforms that can break position: fixed
-            document.body.style.transition = 'opacity 0.005s ease-out';
-            document.body.style.opacity = '1';
-            
-            // Load page content via AJAX
-            loadPageContent(url, title);
-        }
-    }
+    // AJAX Navigation System Removed - Using standard page navigation for better SEO
     
     function showPageLoader() {
         const loader = document.getElementById('page-loader');
@@ -407,121 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function loadPageContent(url, title) {
-        console.log('Loading page content for:', url); // Debug log
-        
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'text/html',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.text();
-        })
-        .then(html => {
-            console.log('Server response length:', html.length); // Debug log
-            console.log('Server response preview:', html.substring(0, 200)); // Debug log
-            
-            // Parse the HTML response
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // Extract only the main content from the response
-            // The server returns the full page, so we need to find the main content area
-            let mainContent = doc.querySelector('#main-content-container');
-            
-            // If not found, try to find the main content area
-            if (!mainContent) {
-                mainContent = doc.querySelector('main') || 
-                             doc.querySelector('.container') ||
-                             doc.body;
-            }
-            
-            console.log('Found main content:', mainContent); // Debug log
-            
-            if (mainContent) {
-                // Update the main content container
-                const container = document.getElementById('main-content-container');
-                if (container) {
-                    // If we found the #main-content-container, use its innerHTML directly
-                    if (mainContent.id === 'main-content-container') {
-                        container.innerHTML = mainContent.innerHTML;
-                    } else {
-                        // Otherwise, try to find the content inside
-                        const contentToUpdate = mainContent.querySelector('#main-content-container') || mainContent;
-                        container.innerHTML = contentToUpdate.innerHTML;
-                    }
-
-                        // Execute any inline scripts within the newly injected content
-                        // This ensures per-page scripts (e.g., home product loader) run after AJAX navigation
-                        (function executeScriptsInElement(rootEl){
-                            if (!rootEl) return;
-                            const scripts = Array.from(rootEl.querySelectorAll('script'));
-                            scripts.forEach(oldScript => {
-                                const newScript = document.createElement('script');
-                                // Copy attributes
-                                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                                if (oldScript.src) {
-                                    newScript.src = oldScript.src;
-                                } else {
-                                    newScript.text = oldScript.textContent;
-                                }
-                                // Replace in DOM to trigger execution
-                                oldScript.parentNode.replaceChild(newScript, oldScript);
-                            });
-                        })(container);
-                }
-                
-                // Update page title and meta tags
-                const newTitle = doc.querySelector('title');
-                if (newTitle) {
-                    document.title = newTitle.textContent;
-                }
-                
-                // Update meta description if present
-                const newMetaDesc = doc.querySelector('meta[name="description"]');
-                const currentMetaDesc = document.querySelector('meta[name="description"]');
-                if (newMetaDesc && currentMetaDesc) {
-                    currentMetaDesc.setAttribute('content', newMetaDesc.getAttribute('content'));
-                }
-                
-                // Update URL without page reload
-                history.pushState({}, title, url);
-                
-                // Update active navigation state
-                updateActiveNavigation(url);
-                
-                // Set flag to allow re-initialization after AJAX navigation
-                window.__allowReinit = true;
-                
-                // Re-initialize any page-specific scripts
-                reinitializePageScripts();
-                
-                // Ensure all styles are properly applied
-                ensureStylesLoaded();
-                
-                // Scroll to top of the page
-                scrollToTop();
-                
-                // Hide loader
-                hidePageLoader();
-            } else {
-                // Fallback: redirect to the page
-                window.location.href = url;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading page:', error);
-            // Fallback: redirect to the page
-            window.location.href = url;
-        });
-    }
+    // loadPageContent function removed - using standard page navigation
     
     function updateActiveNavigation(url) {
         // Remove active class from all nav items
@@ -593,44 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function reinitializePageScripts() {
-        // Re-initialize any scripts that need to run on new content
-        initializeAjaxNavigation();
-        ensureNavLinksWork();
-        ensureContactAboutWork();
-        
-        // Re-initialize tab functionality for product pages
-        initializeTabFunctionality();
-        
-        // CRITICAL: Reset button states after AJAX navigation
-        document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
-            btn.disabled = false;
-            btn.removeAttribute('data-processing');
-        });
-        
-        // Apply correct button state based on current page
-        setTimeout(function() {
-            if (window.location.pathname.includes('/product/')) {
-                var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
-                var btn = document.querySelector('.btn-add-cart');
-                if (btn && hasVariations) {
-                    btn.disabled = true;
-                } else if (btn && !hasVariations) {
-                    btn.disabled = false;
-                }
-            }
-        }, 100);
-        
-        // Re-initialize any page-specific functionality
-        if (typeof initializePageSpecificScripts === 'function') {
-            initializePageSpecificScripts();
-        }
-
-        // Ensure Home page product grid loads after AJAX navigation
-        if (typeof loadMostSoldProducts === 'function') {
-            loadMostSoldProducts();
-        }
-    }
+    // reinitializePageScripts function removed - no longer needed
     
     function ensureStylesLoaded() {
         // Force a reflow to ensure all styles are applied
@@ -667,15 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     }
     
-    // Initialize AJAX navigation
-    initializeAjaxNavigation();
-    
-    // Handle browser back/forward buttons
-    window.addEventListener('popstate', function(event) {
-        if (event.state) {
-            loadPageContent(window.location.href, document.title);
-        }
-    });
+    // AJAX navigation removed - using standard page navigation
     
     // Handle initial page load
     if (window.history.state === null) {
@@ -684,86 +493,13 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToTop();
     }
     
-    // Specific handling for navigation links to ensure consistency
-    function ensureNavLinksWork() {
-        const navLinks = document.querySelectorAll('.nav-links .nav-link');
-        if (navLinks.length === 0) {
-            console.log('No nav links found');
-            return;
-        }
-        
-        navLinks.forEach(link => {
-            if (link) {
-                // Remove any existing listeners to prevent duplicates
-                link.removeEventListener('click', handleNavLinkClick);
-                // Ensure each nav link has the transition effect
-                link.addEventListener('click', handleNavLinkClick);
-            }
-        });
-    }
+    // ensureNavLinksWork function removed - no longer needed
     
-    function handleNavLinkClick(e) {
-        // Minimal transition - barely visible
-        setTimeout(() => {
-            document.body.style.transition = 'opacity 0.01s ease-out';
-            document.body.style.opacity = '0.999';
-            
-            setTimeout(() => {
-                document.body.style.opacity = '1';
-                document.body.style.transition = 'opacity 0.01s ease-in';
-            }, 3);
-        }, 2);
-    }
+    // handleNavLinkClick function removed - no longer needed
     
-    // Apply specific nav link handling
-    ensureNavLinksWork();
+    // AJAX navigation calls removed - using standard page navigation
     
-    // Re-apply transitions if DOM changes (for dynamic content)
-    const navObserver = new MutationObserver(function(mutations) {
-        let shouldReapply = false;
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList') {
-                // Check if navigation elements were added/modified
-                const navElements = document.querySelectorAll('.nav-links, .nav-link');
-                if (navElements.length > 0) {
-                    shouldReapply = true;
-                }
-            }
-        });
-        if (shouldReapply) {
-            initializeAjaxNavigation();
-            ensureNavLinksWork();
-        }
-    });
-    
-    navObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-    
-    // Also re-apply on window load to catch any late-loading content
-    window.addEventListener('load', function() {
-        initializeAjaxNavigation();
-        ensureNavLinksWork();
-    });
-    
-    // Fallback: Re-apply every 2 seconds to ensure consistency
-    setInterval(function() {
-        ensureNavLinksWork();
-    }, 2000);
-    
-    // Additional fallback for Contact and About buttons specifically
-    function ensureContactAboutWork() {
-        const contactLink = document.querySelector('a[href*="contact"]');
-        const aboutLink = document.querySelector('a[href*="about"]');
-        
-        [contactLink, aboutLink].forEach(link => {
-            if (link) {
-                link.removeEventListener('click', handleNavLinkClick);
-                link.addEventListener('click', handleNavLinkClick);
-            }
-        });
-    }
+    // ensureContactAboutWork function removed - no longer needed
     
     function initializeTabFunctionality() {
         // Initialize tab functionality for product pages
@@ -811,8 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Apply specific handling for Contact and About
-    ensureContactAboutWork();
+    // Contact and About handling removed - using standard navigation
     
     // Initialize tab functionality on page load
     initializeTabFunctionality();
@@ -891,8 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attempt to load products on initial page load as well
     loadMostSoldProducts();
     
-    // Re-apply Contact and About handling periodically
-    setInterval(ensureContactAboutWork, 1000);
+    // Contact and About periodic handling removed
     
     // Re-apply tab functionality periodically
     setInterval(initializeTabFunctionality, 2000);
@@ -1196,6 +930,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }, 50);
+        }
+    });
+    
+    // Global product card click handler - make entire product card clickable
+    document.addEventListener('click', function(e) {
+        var productCard = e.target.closest('.product-card');
+        if (!productCard) return;
+        
+        // Don't trigger if clicking on interactive elements
+        var interactiveElements = ['A', 'BUTTON', 'SVG', 'PATH', 'FORM', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'];
+        if (interactiveElements.includes(e.target.tagName)) return;
+        
+        // Check if the card has a data-href attribute (for dynamically loaded products)
+        var href = productCard.getAttribute('data-href');
+        if (href) {
+            window.location.href = href;
+            return;
+        }
+        
+        // For static product cards, find the product title link
+        var titleLink = productCard.querySelector('.product-title');
+        if (titleLink && titleLink.href) {
+            window.location.href = titleLink.href;
         }
     });
 });

@@ -12,7 +12,7 @@
         <div class="row g-4 grid-5">
             @foreach($products as $product)
                 <div class="col-lg-3 col-md-4 col-sm-6">
-                    <div class="product-card position-relative h-100">
+                    <div class="product-card position-relative h-100" data-href="{{ route('product.details', $product->slug) }}">
                         <button class="wishlist-btn {{$product->is_wishlisted ? ' active' : ''}}" data-product-id="{{ $product->id }}">
                             <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                         </button>

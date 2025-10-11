@@ -35,28 +35,29 @@ class PageController extends Controller
             ->orderByDesc('created_at')
             ->take(4)
             ->get();
-        $bestDealProducts = Product::where('type','product')
+        $bestDealProducts = Product::with(['reviews'])->where('type','product')
             ->orderByDesc('discount')
             ->orderByDesc('created_at')
             ->take(10)
             ->get();
+            
         $vlogs = Vlog::where('is_active', 1)
             ->latest()
             ->take(4)
             ->get();
         
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.home', compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts'))->render();
-        }
-        
-        return view('ecommerce.home', compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts'));
+        $viewData = compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts');
+        $response = response()->view('ecommerce.home', $viewData);
+        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
+        return $response;
     }
 
     public function products(Request $request)
     {
         $categories = ProductServiceCategory::where('status','active')->get();
-        $query = Product::query();
+        $query = Product::with(['reviews']);
 
         // Get the highest price of all products
         $maxProductPrice = Product::max('price') ?? 0;
@@ -114,10 +115,16 @@ class PageController extends Controller
         // Check if we want to show categories view
         if ($request->get('view') === 'categories') {
             $pageTitle = 'Categories';
-            return view('ecommerce.categories', compact('pageTitle', 'categories'));
+            $viewData = compact('pageTitle', 'categories');
+            $response = response()->view('ecommerce.categories', $viewData);
+            $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+            $response->header('Pragma', 'no-cache');
+            $response->header('Expires', '0');
+            return $response;
         }
 
         $products = $query->where('type','product')->paginate(20)->appends($request->all());
+        
 
         // Add is_wishlisted property for each product
         $userId = Auth::id();
@@ -151,12 +158,12 @@ class PageController extends Controller
             'selectedRatings' => $request->rating ?? []
         ];
         
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.products', $viewData, compact('pageTitle'))->render();
-        }
-        
-        return view('ecommerce.products', $viewData, compact('pageTitle'));
+        $viewData['pageTitle'] = $pageTitle;
+        $response = response()->view('ecommerce.products', $viewData);
+        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
+        return $response;
     }
 
     public function productDetails($slug, Request $request)
@@ -205,11 +212,6 @@ class PageController extends Controller
                 ->take(8)
                 ->get();
 
-            // Handle AJAX requests - return only content
-            if ($request->ajax()) {
-                return view('ecommerce.productDetails', compact('product','relatedProducts','pageTitle'))->render();
-            }
-
             return view('ecommerce.productDetails', compact('product','relatedProducts','pageTitle'));
         } catch (\Exception $e) {
             Log::error('Product details error: ' . $e->getMessage());
@@ -220,20 +222,22 @@ class PageController extends Controller
     public function search(Request $request)
     {
         $search = $request->search;
-        $products = Product::where(function($query) use ($search) {
+        $products = Product::with(['reviews'])->where(function($query) use ($search) {
             $query->where('name', 'like', '%'.$search.'%')
                   ->orWhereHas('category', function($q) use ($search) {
                       $q->where('name', 'like', '%'.$search.'%');
                   });
         })->paginate(20);
+        
+        
         $pageTitle = 'Search Result';
         
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.searchresult',compact('products','search','pageTitle'))->render();
-        }
-        
-        return view('ecommerce.searchresult',compact('products','search','pageTitle'));
+        $viewData = compact('products','search','pageTitle');
+        $response = response()->view('ecommerce.searchresult', $viewData);
+        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
+        return $response;
     }
 
     public function services(Request $request)
@@ -241,11 +245,6 @@ class PageController extends Controller
         $pageTitle = 'Services';
         $categories = ProductServiceCategory::where('status','active')->get();
         $services = Product::where('type','service')->paginate(12);
-        
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.service',compact('pageTitle','services','categories'))->render();
-        }
         
         return view('ecommerce.service',compact('pageTitle','services','categories'));
     }
@@ -255,22 +254,12 @@ class PageController extends Controller
         $service = Product::where('slug',$slug)->first();
         $pageTitle = $service->name;
         
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.servicedetails',compact('service','pageTitle'))->render();
-        }
-        
         return view('ecommerce.servicedetails',compact('service','pageTitle'));
     }
 
     public function about(Request $request)
     {
         $pageTitle = 'About Us';
-        
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.about',compact('pageTitle'))->render();
-        }
         
         return view('ecommerce.about',compact('pageTitle'));
     }
@@ -279,11 +268,6 @@ class PageController extends Controller
     {
         $pageTitle = 'Contact Us';
         
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.contact',compact('pageTitle'))->render();
-        }
-        
         return view('ecommerce.contact',compact('pageTitle'));
     }
 
@@ -291,11 +275,6 @@ class PageController extends Controller
     {
         $page = \App\Models\AdditionalPage::where('slug',$slug)->where('is_active',1)->firstOrFail();
         $pageTitle = $page->title;
-        
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.additionalPage', compact('page','pageTitle'))->render();
-        }
         
         return view('ecommerce.additionalPage', compact('page','pageTitle'));
     }
@@ -314,11 +293,6 @@ class PageController extends Controller
 
         $vlogs = $query->paginate(12)->appends($request->all());
 
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.vlogs', compact('pageTitle','vlogs','sort'))->render();
-        }
-        
         return view('ecommerce.vlogs', compact('pageTitle','vlogs','sort'));
     }
 
@@ -327,23 +301,19 @@ class PageController extends Controller
         $pageTitle = 'Categories';
         $categories = ProductServiceCategory::where('status', 'active')->get();
         
-        // Handle AJAX requests - return only content
-        if ($request->ajax()) {
-            return view('ecommerce.categories', compact('pageTitle', 'categories'))->render();
-        }
-        
         return view('ecommerce.categories', compact('pageTitle', 'categories'));
     }
 
     public function bestDeals(Request $request)
     {
         $pageTitle = 'Best Deal';
-        $query = Product::query()->where('type', 'product');
+        $query = Product::with(['reviews'])->where('type', 'product');
 
         // Prioritize discounted products, then newest
         $query->orderByDesc('discount')->orderByDesc('created_at');
 
         $products = $query->paginate(20)->appends($request->all());
+        
 
         // Wishlist status mapping for logged-in user
         $userId = Auth::id();
@@ -358,10 +328,91 @@ class PageController extends Controller
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
         }
 
-        if ($request->ajax()) {
-            return view('ecommerce.best-deal', compact('pageTitle', 'products'))->render();
+        $viewData = compact('pageTitle', 'products');
+        $response = response()->view('ecommerce.best-deal', $viewData);
+        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
+        return $response;
+    }
+
+    public function filterProducts(Request $request)
+    {
+        $categories = ProductServiceCategory::where('status','active')->get();
+        
+        // Get max price for price range
+        $maxProductPrice = Product::max('price') ?? 1000;
+        
+        // Build query
+        $query = Product::with(['category', 'reviews'])
+            ->where('status', 'active')
+            ->where('type', 'product');
+
+        // Category filter
+        if ($request->filled('categories') && !in_array('all', $request->categories)) {
+            $query->whereIn('category_id', function($q) use ($request) {
+                $q->select('id')
+                  ->from('product_service_categories')
+                  ->whereIn('slug', $request->categories);
+            });
         }
 
-        return view('ecommerce.best-deal', compact('pageTitle', 'products'));
+        // Price range filter
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', $request->price_max);
+        }
+
+        // Rating filter
+        if ($request->filled('rating')) {
+            $query->whereHas('reviews', function($q) use ($request) {
+                $q->selectRaw('AVG(rating) as avg_rating')
+                  ->havingRaw('AVG(rating) >= ?', [min($request->rating)]);
+            });
+        }
+
+        // Sort
+        $sort = $request->sort;
+        switch ($sort) {
+            case 'newest':
+                $query->latest();
+                break;
+            case 'featured':
+                $query->where('is_featured', 1)->latest();
+                break;
+            case 'lowToHigh':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'highToLow':
+                $query->orderBy('price', 'desc');
+                break;
+            default:
+                $query->latest();
+        }
+
+        $products = $query->paginate(12)->appends($request->all());
+
+        // Add wishlist status
+        $wishlistedIds = [];
+        if (auth()->check()) {
+            $wishlistedIds = \App\Models\Wishlist::where('user_id', auth()->id())
+                ->pluck('product_id')->toArray();
+        }
+        foreach ($products as $product) {
+            $product->is_wishlisted = in_array($product->id, $wishlistedIds);
+        }
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'html' => view('ecommerce.partials.product-grid', compact('products'))->render(),
+                'count' => $products->count(),
+                'total' => $products->total()
+            ]);
+        }
+
+        return view('ecommerce.products', compact('products', 'categories', 'pageTitle'));
     }
 }

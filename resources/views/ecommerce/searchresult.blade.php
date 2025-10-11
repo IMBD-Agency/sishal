@@ -19,15 +19,15 @@
                 <div class="row g-4 mt-4">
                     @foreach($products as $product)
                         <div class="col-lg-3 col-md-6 mt-0 mb-4">
-                            <div class="product-card position-relative mb-0 h-100">
+                            <div class="product-card position-relative mb-0 h-100" data-href="{{ route('product.details', $product->slug) }}">
                                 <button class="wishlist-btn {{$product->is_wishlisted ? ' active' : ''}}"
                                     data-product-id="{{ $product->id }}">
                                     <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
                                     <img src="{{$product->image ? $product->image : '/default-product.png'}}"
-                                        class="product-image" style="width:100%;height:200px;object-fit:cover;"
-                                        alt="${product.name}">
+                                        class="product-image"
+                                        alt="{{ $product->name }}">
                                 </div>
                                 <div class="product-info">
                                     <a href="{{ route('product.details', $product->slug) }}" class="product-title"
