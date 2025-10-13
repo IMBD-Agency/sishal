@@ -20,5 +20,10 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'User',
             'email' => 'test@example.com',
         ]);
+
+        // Seed attributes for product specifications
+        $this->call([
+            AttributeSeeder::class,
+        ]);
     }
 }

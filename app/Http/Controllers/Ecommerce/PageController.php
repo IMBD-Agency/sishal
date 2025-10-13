@@ -183,7 +183,8 @@ class PageController extends Controller
                 'variations.stocks.warehouse',
                 'variations.galleries',
                 'branchStock',
-                'warehouseStock'
+                'warehouseStock',
+                'productAttributes'
             ])->where('slug', $slug)->first();
             
             if (!$product) {

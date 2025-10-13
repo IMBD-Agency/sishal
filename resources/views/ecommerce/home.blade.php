@@ -345,11 +345,11 @@
                                         </div>
                                         <div class="price">${price}৳</div>
                                         <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                            <button class="btn-add-cart" data-product-id="${product.id}" data-product-name="${product.name}"><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
+                                            <button class="btn-add-cart" data-product-id="${product.id}" data-product-name="${product.name}" data-has-stock="${product.has_stock ? 'true' : 'false'}" ${!product.has_stock ? 'disabled' : ''}><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
                                 <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
                                 <circle cx="7" cy="22" r="2"></circle>
                                 <circle cx="17" cy="22" r="2"></circle>
-                            </svg> Add to Cart</button>
+                            </svg> ${product.has_stock ? 'Add to Cart' : 'Out of Stock'}</button>
                                         </div>
                                     </div>
                                 </div>

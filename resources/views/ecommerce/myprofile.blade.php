@@ -455,7 +455,7 @@
                                 @endforeach
                             </div>
                             <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
-                                <a href="{{ route('order.details',$order->order_number) }}" class="btn-outline-simple btn-sm">
+                                <a href="{{ route('order.details', urlencode($order->order_number)) }}" class="btn-outline-simple btn-sm">
                                     View Details
                                 </a>
                                 <div class="d-flex gap-2">

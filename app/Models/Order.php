@@ -46,4 +46,9 @@ class Order extends Model
     {
         return $this->belongsTo(Employee::class, 'employee_id');
     }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'pos_id')->where('payment_for', 'order');
+    }
 }

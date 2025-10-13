@@ -94,7 +94,11 @@
                                     @endif
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center gap-2">
-                                    <button class="btn-add-cart" data-product-id="{{ $wishlist->product->id }}" data-product-name="{{ $wishlist->product->name }}"><svg
+                                    @php
+                                        $hasStock = $wishlist->product->hasStock();
+                                    @endphp
+                                    <button class="btn-add-cart" data-product-id="{{ $wishlist->product->id }}" data-product-name="{{ $wishlist->product->name }}" data-has-stock="{{ $hasStock ? 'true' : 'false' }}"
+                                            {{ !$hasStock ? 'disabled' : '' }}><svg
                                             xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff"
                                             width="14" height="14">
                                             <path
@@ -102,7 +106,7 @@
                                             </path>
                                             <circle cx="7" cy="22" r="2"></circle>
                                             <circle cx="17" cy="22" r="2"></circle>
-                                        </svg> Add to Cart</button>
+                                        </svg> {{ $hasStock ? 'Add to Cart' : 'Out of Stock' }}</button>
                                 </div>
                             </div>
                         </div>

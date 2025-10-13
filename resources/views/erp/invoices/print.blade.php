@@ -168,7 +168,6 @@
             <div class="company-info">
                 <div style="font-size: 22px; font-weight: bold; text-transform: uppercase;">
                     {{ $general_settings->site_title }}</div>
-                <div style="font-size: 13px; color: #007bff;">SK Corporation is a trusted name in pure water.</div>
             </div>
             <div>
                 <div class="invoice-title">INVOICE</div>
@@ -183,7 +182,7 @@
                 Email: <a style="color: black; text-decoration: none;"
                     href="mailto:{{ $general_settings->contact_email }}">{{ $general_settings->contact_email }}</a> <br>
                 Website: <a style="color: black; text-decoration: none;" target="_blank"
-                    href="https://www.skcorporationbd.com">www.skcorporationbd.com</a>
+                    href="https://sisalfashion.com/">https://sisalfashion.com</a>
             </div>
             <div class="barcode">
                 {!! $qrCodeSvg !!}
@@ -193,7 +192,7 @@
         <table class="info-table">
             <tr>
                 <td><strong>Customer Info.</strong></td>
-                <td style="text-align:right;"><strong>INVOICE #</strong> B SKC{{$invoice->invoice_number}}</td>
+                <td style="text-align:right;"><strong>INVOICE #</strong> B SF{{$invoice->invoice_number}}</td>
             </tr>
             <tr>
                 <td>{{@$invoice->customer->name}}</td>

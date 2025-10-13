@@ -2676,7 +2676,11 @@
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}">
+                        @php
+                            $hasStock = $product->hasStock();
+                        @endphp
+                        <button class="btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-has-stock="{{ $hasStock ? 'true' : 'false' }}"
+                                {{ !$hasStock ? 'disabled' : '' }}>
                             <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14"
                                 height="14">
                                 <path
@@ -2684,13 +2688,14 @@
                                 </path>
                                 <circle cx="7" cy="22" r="2"></circle>
                                 <circle cx="17" cy="22" r="2"></circle>
-                            </svg> Add to Cart
+                            </svg> {{ $hasStock ? 'Add to Cart' : 'Out of Stock' }}
                         </button>
 
                         <form action="{{ url('/buy-now') }}/{{ $product->id }}" method="POST">
                             @csrf
-                            <button type="submit" class="btn btn-outline-custom" style="white-space: nowrap; font-size: 14px;">
-                                Buy Now
+                            <button type="submit" class="btn btn-outline-custom" style="white-space: nowrap; font-size: 14px;" 
+                                    {{ !$hasStock ? 'disabled' : '' }}>
+                                {{ $hasStock ? 'Buy Now' : 'Out of Stock' }}
                             </button>
                         </form>
 
@@ -2730,52 +2735,25 @@
 
             <div id="specs" class="tab-content" style="display:none;">
                 <h3>Technical Specifications</h3>
-                <table class="specifications-table">
-                    <tr>
-                        <th>Specification</th>
-                        <th>Value</th>
-                    </tr>
-                    <tr>
-                        <td>Flow Rate</td>
-                        <td>75 GPD (Gallons Per Day)</td>
-                    </tr>
-                    <tr>
-                        <td>Voltage</td>
-                        <td>220V AC, 50Hz</td>
-                    </tr>
-                    <tr>
-                        <td>Power Consumption</td>
-                        <td>36W</td>
-                    </tr>
-                    <tr>
-                        <td>Operating Pressure</td>
-                        <td>80-100 PSI</td>
-                    </tr>
-                    <tr>
-                        <td>Inlet/Outlet Size</td>
-                        <td>1/4" Quick Connect</td>
-                    </tr>
-                    <tr>
-                        <td>Dimensions</td>
-                        <td>6.5" x 4.2" x 3.8"</td>
-                    </tr>
-                    <tr>
-                        <td>Weight</td>
-                        <td>2.1 lbs</td>
-                    </tr>
-                    <tr>
-                        <td>Material</td>
-                        <td>High-grade plastic housing with stainless steel components</td>
-                    </tr>
-                    <tr>
-                        <td>Operating Temperature</td>
-                        <td>5°C to 40°C</td>
-                    </tr>
-                    <tr>
-                        <td>Warranty</td>
-                        <td>1 Year Manufacturer Warranty</td>
-                    </tr>
-                </table>
+                @if($product->productAttributes && $product->productAttributes->count() > 0)
+                    <table class="specifications-table">
+                        <tr>
+                            <th>Specification</th>
+                            <th>Value</th>
+                        </tr>
+                        @foreach($product->productAttributes as $attribute)
+                            <tr>
+                                <td>{{ $attribute->name }}</td>
+                                <td>{{ $attribute->pivot->value }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
+                @else
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No specifications available for this product.
+                    </div>
+                @endif
             </div>
 
             <div id="reviews" class="tab-content">
@@ -3037,15 +3015,7 @@
             console.log('[QTY] Quantity updated to:', value);
         }
 
-        // Fallback quantity control with event delegation
-        document.addEventListener('click', function(e) {
-            if (e.target && e.target.matches('.quantity-btn')) {
-                e.preventDefault();
-                var delta = e.target.textContent === '+' ? 1 : -1;
-                console.log('[QTY] Quantity button clicked via delegation:', delta);
-                window.changeQuantity(delta);
-            }
-        });
+        // Quantity control is handled by inline onclick handlers on the buttons
 
         // Wishlist functionality
         function addToWishlist() {

@@ -613,4 +613,148 @@ class OrderController extends Controller
             $arFinancialAccount->save();
         }
     }
+
+    /**
+     * Delete an order with proper validation and safeguards
+     */
+    public function destroy($id)
+    {
+        // Check if user has permission to delete orders
+        if (!auth()->user()->hasPermissionTo('delete orders')) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'You do not have permission to delete orders.'
+            ], 403);
+        }
+
+        $order = Order::with(['items', 'invoice', 'payments'])->findOrFail($id);
+
+        // Check if order can be deleted based on status
+        $deletableStatuses = ['pending', 'cancelled'];
+        if (!in_array($order->status, $deletableStatuses)) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cannot delete order with status: ' . ucfirst($order->status) . '. Only pending or cancelled orders can be deleted.'
+            ], 400);
+        }
+
+        // Check if order has been shipped or delivered
+        if (in_array($order->status, ['shipping', 'shipped', 'delivered', 'received'])) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cannot delete order that has been shipped or delivered.'
+            ], 400);
+        }
+
+        // Check if order has payments (except for cancelled orders)
+        if ($order->status !== 'cancelled' && $order->payments && $order->payments->count() > 0) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cannot delete order with existing payments. Please process a refund first.'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Log the deletion for audit purposes
+            Log::info('Order deletion initiated', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'deleted_by' => auth()->id(),
+                'deleted_at' => now(),
+                'order_status' => $order->status,
+                'customer_name' => $order->name,
+                'customer_phone' => $order->phone
+            ]);
+
+            // Restore stock for each order item
+            foreach ($order->items as $item) {
+                $this->restoreStockForOrderItem($item);
+            }
+
+            // Delete related records
+            $order->items()->delete();
+            
+            // Delete invoice if exists and not paid
+            if ($order->invoice && $order->invoice->status !== 'paid') {
+                $order->invoice->items()->delete();
+                $order->invoice->addresses()->delete();
+                $order->invoice->delete();
+            }
+
+            // Delete payments
+            $order->payments()->delete();
+
+            // Delete the order
+            $order->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Order ' . $order->order_number . ' has been deleted successfully.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order deletion failed', [
+                'order_id' => $id,
+                'error' => $e->getMessage(),
+                'deleted_by' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to delete order. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Restore stock for an order item
+     */
+    private function restoreStockForOrderItem($item)
+    {
+        $productId = $item->product_id;
+        $quantity = $item->quantity;
+        $fromType = $item->current_position_type;
+        $fromId = $item->current_position_id;
+        $userId = auth()->id() ?? 1;
+
+        if (!$fromType || !$fromId) {
+            // If no stock source, add to warehouse stock (default)
+            $warehouseStock = WarehouseProductStock::firstOrCreate(
+                ['warehouse_id' => 1, 'product_id' => $productId], // Assuming warehouse ID 1 as default
+                ['quantity' => 0, 'updated_by' => $userId]
+            );
+            $warehouseStock->quantity += $quantity;
+            $warehouseStock->updated_by = $userId;
+            $warehouseStock->save();
+            return;
+        }
+
+        // Restore stock to original location
+        if ($fromType === 'branch') {
+            $stock = BranchProductStock::firstOrCreate(
+                ['branch_id' => $fromId, 'product_id' => $productId],
+                ['quantity' => 0, 'updated_by' => $userId]
+            );
+        } elseif ($fromType === 'warehouse') {
+            $stock = WarehouseProductStock::firstOrCreate(
+                ['warehouse_id' => $fromId, 'product_id' => $productId],
+                ['quantity' => 0, 'updated_by' => $userId]
+            );
+        } elseif ($fromType === 'employee') {
+            $stock = EmployeeProductStock::firstOrCreate(
+                ['employee_id' => $fromId, 'product_id' => $productId],
+                ['quantity' => 0, 'issued_by' => $userId, 'updated_by' => $userId]
+            );
+        } else {
+            return; // Unknown stock type
+        }
+
+        $stock->quantity += $quantity;
+        $stock->updated_by = $userId;
+        $stock->save();
+    }
 }

@@ -43,13 +43,6 @@
                                         <input type="text" class="form-control" id="sku" name="sku" required value="{{ old('sku', $product->sku) }}">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="type" class="form-label">Type <span class="text-danger">*</span></label>
-                                        <select class="form-select" id="type" name="type" required>
-                                            <option value="product" {{ old('type', $product->type) == 'product' ? 'selected' : '' }}>Product</option>
-                                            <option value="service" {{ old('type', $product->type) == 'service' ? 'selected' : '' }}>Service</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
                                         <label for="category_id" class="form-label">Category <span class="text-danger">*</span></label>
                                         <select class="form-select" id="category_id" name="category_id" required style="width: 100%">
                                             @if($product->category)
@@ -168,6 +161,61 @@
                                             <i class="fas fa-plus me-1"></i>Add Keyword
                                         </button>
                                     </div>
+
+                                    <!-- Product Attributes Section -->
+                                    <div class="col-md-12">
+                                        <h3>Product Specifications</h3>
+                                        <p class="text-muted">Add technical specifications and product attributes</p>
+                                        <div id="attributes-container">
+                                            @php
+                                                $existingAttributes = $product->productAttributes->keyBy('id');
+                                            @endphp
+                                            @if($existingAttributes->count() > 0)
+                                                @foreach($existingAttributes as $index => $attribute)
+                                                    <div class="attribute-row row g-2 mb-2">
+                                                        <div class="col-md-5">
+                                                            <select class="form-select attribute-select" name="attributes[{{ $index }}][attribute_id]">
+                                                                <option value="">Select Attribute</option>
+                                                                @foreach($attributes as $attr)
+                                                                    <option value="{{ $attr->id }}" {{ $attr->id == $attribute->id ? 'selected' : '' }}>{{ $attr->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-5">
+                                                            <input type="text" class="form-control" name="attributes[{{ $index }}][value]" placeholder="Enter value" value="{{ $attribute->pivot->value }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <button type="button" class="btn btn-outline-danger remove-attribute">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="attribute-row row g-2 mb-2">
+                                                    <div class="col-md-5">
+                                                        <select class="form-select attribute-select" name="attributes[0][attribute_id]">
+                                                            <option value="">Select Attribute</option>
+                                                            @foreach($attributes as $attribute)
+                                                                <option value="{{ $attribute->id }}">{{ $attribute->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-5">
+                                                        <input type="text" class="form-control" name="attributes[0][value]" placeholder="Enter value">
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <button type="button" class="btn btn-outline-danger remove-attribute" style="display: none;">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-attribute">
+                                            <i class="fas fa-plus me-1"></i>Add Specification
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="mt-4 d-flex justify-content-end">
                                     <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Update Product</button>
@@ -267,6 +315,78 @@ $(document).ready(function() {
     $(document).on('click', '.remove-keyword', function(){ if (keywordCount>1) { $(this).closest('.input-group').remove(); keywordCount--; updateRemoveButtons(); } });
     function updateRemoveButtons(){ const btns=$('.remove-keyword'); if (keywordCount<=1) btns.hide(); else btns.show(); }
     updateRemoveButtons();
+
+    // Attributes management
+    let attributeCount = {{ $existingAttributes->count() > 0 ? $existingAttributes->count() : 1 }};
+    $('#add-attribute').on('click', function(){
+        const attributeRow = `
+            <div class="attribute-row row g-2 mb-2">
+                <div class="col-md-5">
+                    <select class="form-select attribute-select" name="attributes[${attributeCount}][attribute_id]">
+                        <option value="">Select Attribute</option>
+                        @foreach($attributes as $attribute)
+                            <option value="{{ $attribute->id }}">{{ $attribute->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="attributes[${attributeCount}][value]" placeholder="Enter value">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger remove-attribute">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        $('#attributes-container').append(attributeRow);
+        attributeCount++;
+        updateAttributeRemoveButtons();
+    });
+
+    $(document).on('click', '.remove-attribute', function(){
+        if (attributeCount > 1) {
+            $(this).closest('.attribute-row').remove();
+            attributeCount--;
+            updateAttributeRemoveButtons();
+        }
+    });
+
+    function updateAttributeRemoveButtons(){
+        const btns = $('.remove-attribute');
+        if (attributeCount <= 1) btns.hide();
+        else btns.show();
+    }
+    updateAttributeRemoveButtons();
+
+    // Filter out empty attribute rows before form submission
+    $('form').on('submit', function(e) {
+        console.log('Form submitting...');
+        
+        // Remove only completely empty rows (both attribute_id and value are empty)
+        $('.attribute-row').each(function() {
+            const attributeId = $(this).find('select[name*="[attribute_id]"]').val();
+            const value = $(this).find('input[name*="[value]"]').val();
+            
+            console.log('Checking row:', {attributeId, value});
+            
+            // Only remove if both are completely empty
+            if ((!attributeId || attributeId === '') && (!value || value.trim() === '')) {
+                console.log('Removing completely empty row');
+                $(this).remove();
+            }
+        });
+        
+        // Log final form data
+        const formData = new FormData(this);
+        const attributes = [];
+        for (let [key, value] of formData.entries()) {
+            if (key.startsWith('attributes[')) {
+                attributes.push({key, value});
+            }
+        }
+        console.log('Final attributes being submitted:', attributes);
+    });
 });
 </script>
 @endpush

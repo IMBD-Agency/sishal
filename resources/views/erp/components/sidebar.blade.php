@@ -27,6 +27,7 @@
             </a>
         </div>
         @endcan
+        {{-- HRM System - Commented out
         <div class="nav-item">
             <a href="#" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#hrmSubmenu" aria-expanded="{{ request()->is('erp/employees*') ? 'true' : 'false' }}" aria-controls="hrmSubmenu">
                 <div class="d-flex align-items-center">
@@ -46,6 +47,8 @@
                 </ul>
             </div>
         </div>
+        --}}
+        {{-- 
         <div class="nav-item">
             <a href="#accountingSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? 'true' : 'false' }}" aria-controls="accountingSubmenu">
                 <div class="d-flex align-items-center">
@@ -122,6 +125,7 @@
                 <i class="fas fa-chevron-right"></i>
             </a>
         </div>
+       
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/user-role*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#userManagementSubMenu" aria-expanded="{{ (request()->is('erp/user-role*')) ? 'true' : 'false' }}" aria-controls="userManagementSubMenu">
                 <div class="d-flex align-items-center">
@@ -138,15 +142,16 @@
                 </ul>
             </div>
         </div>
+        --}}
         <div class="nav-item">
-            <a href="#" class="nav-link {{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#productsSubMenu" aria-expanded="{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*')) ? 'true' : 'false' }}" aria-controls="productsSubMenu">
+            <a href="#" class="nav-link {{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#productsSubMenu" aria-expanded="{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? 'true' : 'false' }}" aria-controls="productsSubMenu">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-box nav-icon"></i>
                     <span>Products System</span>
                 </div>
                 <i class="fas fa-chevron-down ms-auto"></i>
             </a>
-            <div class="collapse{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*')) ? ' show' : '' }}" id="productsSubMenu">
+            <div class="collapse{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? ' show' : '' }}" id="productsSubMenu">
                 <ul class="nav flex-column ms-4">
                     <li class="nav-item">
                         <a href="{{ route('category.list') }}" class="nav-link {{ request()->is('erp/categories*') ? ' active' : '' }}">Category</a>
@@ -157,9 +162,9 @@
                     <li class="nav-item">
                         <a href="{{ route('product.list') }}" class="nav-link {{ request()->is('erp/products*') ? ' active' : '' }}">Products</a>
                     </li>
-                    <li class="nav-item">
+                    <!-- <li class="nav-item">
                         <a href="" class="nav-link">Raw Material</a>
-                    </li>
+                    </li> -->
                     <li class="nav-item">
                         <a href="{{ route('attribute.list') }}" class="nav-link {{ request()->is('erp/attributes*') ? ' active' : '' }}">Attributes</a>
                     </li>
@@ -175,6 +180,7 @@
                 </ul>
             </div>
         </div>
+        
         <div class="nav-item">
             <a href="#posSubmenu" class="nav-link {{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/purchase-return*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/purchase-return*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? 'true' : 'false' }}" aria-controls="posSubmenu">
                 <div class="d-flex align-items-center">
@@ -226,6 +232,7 @@
                 </ul>
             </div>
         </div>
+        
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/order-list*') || request()->is('erp/order-return*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#ecommerceSubMenu" aria-expanded="{{ (request()->is('erp/order-list*') || request()->is('erp/order-return*')) ? 'true' : 'false' }}" aria-controls="productsSubMenu">
                 <div class="d-flex align-items-center">
@@ -245,14 +252,14 @@
                 </ul>
             </div>
         </div>
-        <div class="nav-item">
+        <!-- <div class="nav-item">
             <a href="{{ route('vlogging.index') }}" class="nav-link {{ request()->is('erp/vlogging*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-video nav-icon"></i>
                     <span>Vlogs</span>
                 </div>
             </a>
-        </div>
+        </div> -->
         <div class="nav-item">
             <a href="{{ route('additionalPages.index') }}" class="nav-link {{ request()->is('erp/additional-pages*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">

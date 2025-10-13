@@ -1,5 +1,7 @@
 @extends('ecommerce.master')
 
+
+
 @section('main-section')
 <style>
     .confirmation-container {
@@ -310,11 +312,15 @@
         
         <div class="order-details">
             <div class="order-number">Order Number</div>
-            <div class="order-id">#{{$orderId}}</div>
+            <div class="order-id">{{$orderId}}</div>
         </div>
         
         <div class="action-buttons">
-            <a href="/" class="modern-btn btn-primary-custom me-0">
+            <a href="{{ route('order.details', urlencode($orderId)) }}" class="modern-btn btn-primary-custom">
+                <i class="fas fa-receipt"></i>
+                View Order Details
+            </a>
+            <a href="/" class="modern-btn btn-outline-secondary-custom me-0">
                 <i class="fas fa-home"></i>
                 Continue Shopping
             </a>

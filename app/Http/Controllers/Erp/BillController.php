@@ -369,10 +369,10 @@ class BillController extends Controller
         $dateString = $today->format('dmy');
         $lastBill = PurchaseBill::latest()->first();
         if (!$lastBill) {
-            return "skp-{$dateString}01";
+            return "sfp-{$dateString}01";
         }
         $serialNumber = str_pad($lastBill->id + 1, 2, '0', STR_PAD_LEFT);
-        return "skp-{$dateString}{$serialNumber}";
+        return "sfp-{$dateString}{$serialNumber}";
     }
 
 }

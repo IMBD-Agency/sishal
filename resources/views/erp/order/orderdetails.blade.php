@@ -144,8 +144,8 @@
                         </div>
                     </div>
 
-                    <!-- Team Information -->
-                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <!-- Team Information - HIDDEN -->
+                    <div class="card border-0 shadow-sm rounded-4 mb-4" style="display: none;">
                         <div class="card-body p-4">
                             <div class="d-flex justify-content-between">
                                 <div class="d-flex align-items-center mb-3">
@@ -287,9 +287,9 @@
                                                         <button class="btn btn-sm btn-primary request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}">Request Stock</button>
                                                     @else
                                                         {{ $item->current_position_type == 'branch'
-                                                            ? $item->branch->name
+                                                            ? ($item->branch ? $item->branch->name : 'Unknown Branch')
                                                             : ($item->current_position_type == 'warehouse'
-                                                                ? $item->warehouse->name
+                                                                ? ($item->warehouse ? $item->warehouse->name : 'Unknown Warehouse')
                                                                 : (@$item->technician->user->first_name . ' ' . @$item->technician->user->last_name)
                                                               )
                                                         }}
@@ -478,7 +478,7 @@
                             <select name="received_by" id="received_by" class="form-select">
                                 <option value="">Select Receiver</option>
                                 @if ($order->employee)
-                                    <option value="{{ $order->employee->user->id }}">{{ $order->employee->user->first_name . ' ' . $order->employee->user->last_name }} (Technician)</option>
+                                    <option value="{{ $order->employee->user->id }}">{{ @$order->employee->user->first_name . ' ' . @$order->employee->user->last_name }} (Technician)</option>
                                 @endif
                             </select>
                         </div>
@@ -842,7 +842,7 @@
                 var form = $('#editAddressForm');
                 var data = form.serialize();
                 $.ajax({
-                    url: '{{ route('pos.add.address', ['invoiceId' => $order->invoice->id]) }}',
+                    url: '{{ route('pos.add.address', ['invoiceId' => @$order->invoice->id]) }}',
                     type: 'POST',
                     data: data,
                     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },

@@ -216,7 +216,9 @@ class OrderController extends Controller
                 // Don't fail the order creation if email fails
             }
             
-            return redirect()->route('order.success',$order->order_number);
+            // Ensure the order number is safe for URLs (avoid '#' fragment issues)
+            $encodedOrderNumber = urlencode($order->order_number);
+            return redirect()->route('order.success', $encodedOrderNumber);
         } catch (\Exception $e) {
             \Log::alert($e);
             DB::rollBack();
@@ -353,10 +355,10 @@ class OrderController extends Controller
         
         $lastOrder = Order::latest()->first();
         if (!$lastOrder) {
-            return "sko-{$dateString}01";
+            return "#sfo{$dateString}01";
         }
         $serialNumber = str_pad($lastOrder->id + 1, 2, '0', STR_PAD_LEFT);
         
-        return "sko-{$dateString}{$serialNumber}";
+        return "#sfo{$dateString}{$serialNumber}";
     }
 }

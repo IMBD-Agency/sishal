@@ -252,4 +252,24 @@ class Product extends Model
         return $attributes;
     }
 
+    /**
+     * Get the product attributes (specifications).
+     */
+    public function productAttributes()
+    {
+        return $this->belongsToMany(Attribute::class, 'product_attributes')
+                    ->withPivot('value')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get specifications as key-value pairs.
+     */
+    public function getSpecificationsAttribute()
+    {
+        return $this->productAttributes()->get()->mapWithKeys(function ($attribute) {
+            return [$attribute->name => $attribute->pivot->value];
+        });
+    }
+
 }

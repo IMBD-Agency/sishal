@@ -1273,10 +1273,10 @@ class PosController extends Controller
         
         $lastSale = Pos::latest()->first();
         if (!$lastSale) {
-            return "skp-{$dateString}01";
+            return "sfp-{$dateString}01";
         }
         $serialNumber = str_pad($lastSale->id + 1, 2, '0', STR_PAD_LEFT);
         
-        return "skp-{$dateString}{$serialNumber}";
+        return "sfp-{$dateString}{$serialNumber}";
     }
 }

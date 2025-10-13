@@ -91,6 +91,9 @@
                                     <th class="border-0">Subtotal</th>
                                     <th class="border-0">Discount</th>
                                     <th class="border-0">Total</th>
+                                    @can('delete orders')
+                                    <th class="border-0 text-center">Actions</th>
+                                    @endcan
                                 </tr>
                             </thead>
                             <tbody>
@@ -139,6 +142,29 @@
                                         <td>
                                             {{ $order->total }}৳
                                         </td>
+                                        @can('delete orders')
+                                        <td class="text-center">
+                                            @php
+                                                $canDelete = in_array($order->status, ['pending', 'cancelled']) && 
+                                                           !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
+                                                           (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled');
+                                            @endphp
+                                            @if($canDelete)
+                                                <button class="btn btn-sm btn-outline-danger delete-order-btn" 
+                                                        data-order-id="{{ $order->id }}" 
+                                                        data-order-number="{{ $order->order_number }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deleteOrderModal"
+                                                        title="Delete Order">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            @else
+                                                <span class="text-muted" title="Cannot delete this order">
+                                                    <i class="fas fa-lock"></i>
+                                                </span>
+                                            @endif
+                                        </td>
+                                        @endcan
                                     </tr>
                                 @empty   
                                 <tr>
@@ -159,4 +185,135 @@
             </div>
         </div>
     </div>
+
+    <!-- Delete Order Confirmation Modal -->
+    @can('delete orders')
+    <div class="modal fade" id="deleteOrderModal" tabindex="-1" aria-labelledby="deleteOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteOrderModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Order
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone!
+                    </div>
+                    <p>Are you sure you want to delete order <strong id="deleteOrderNumber"></strong>?</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> This will:
+                        <ul class="mb-0 mt-2">
+                            <li>Restore product stock to inventory</li>
+                            <li>Delete all order items and related data</li>
+                            <li>Remove associated invoices (if not paid)</li>
+                            <li>Delete payment records</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteOrderBtn">
+                        <i class="fas fa-trash me-1"></i>Yes, Delete Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endcan
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    // Delete Order Modal
+    let orderToDelete = null;
+    
+    $('.delete-order-btn').on('click', function() {
+        orderToDelete = {
+            id: $(this).data('order-id'),
+            number: $(this).data('order-number')
+        };
+        $('#deleteOrderNumber').text(orderToDelete.number);
+    });
+    
+    $('#confirmDeleteOrderBtn').on('click', function() {
+        if (!orderToDelete) return;
+        
+        const $btn = $(this);
+        const originalText = $btn.html();
+        
+        // Disable button and show loading
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Deleting...');
+        
+        $.ajax({
+            url: '{{ route("erp.order.delete", ":id") }}'.replace(':id', orderToDelete.id),
+            type: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    showAlert('success', response.message);
+                    
+                    // Close modal
+                    $('#deleteOrderModal').modal('hide');
+                    
+                    // Reload the page to refresh the order list
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showAlert('error', response.message || 'Failed to delete order');
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                let message = 'An error occurred while deleting the order';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+                showAlert('error', message);
+                $btn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // Reset modal when closed
+    $('#deleteOrderModal').on('hidden.bs.modal', function() {
+        orderToDelete = null;
+        $('#confirmDeleteOrderBtn').prop('disabled', false).html('<i class="fas fa-trash me-1"></i>Yes, Delete Order');
+    });
+    
+    // Alert function
+    function showAlert(type, message) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <i class="fas ${icon} me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Remove existing alerts
+        $('.alert').remove();
+        
+        // Add new alert at the top of the main content
+        $('.main-content').prepend(alertHtml);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+    }
+});
+</script>
+@endpush

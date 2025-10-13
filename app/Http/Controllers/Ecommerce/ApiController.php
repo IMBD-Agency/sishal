@@ -17,7 +17,7 @@ class ApiController extends Controller
             ->take(20)
             ->get();
 
-        // Attach is_wishlisted and rating data to each product
+        // Attach is_wishlisted, rating, and stock data to each product
         $products->transform(function ($product) use ($userId) {
             $product->is_wishlisted = false;
             if ($userId) {
@@ -26,6 +26,8 @@ class ApiController extends Controller
                     ->exists();
             }
             
+            // Add stock information
+            $product->has_stock = $product->hasStock();
             
             return $product;
         });

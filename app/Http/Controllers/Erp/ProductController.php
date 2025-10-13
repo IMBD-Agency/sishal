@@ -235,7 +235,8 @@ class ProductController extends Controller
 
     public function create()
     {
-        return view('erp.products.create');
+        $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
+        return view('erp.products.create', compact('attributes'));
     }
     
     public function store(Request $request)
@@ -246,7 +247,6 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|unique:products,slug',
-            'type' => 'required|in:product,service',
             'sku' => 'required|string|unique:products,sku',
             'short_desc' => 'nullable|string',
             'description' => 'nullable|string',
@@ -260,9 +260,13 @@ class ProductController extends Controller
             'status' => 'nullable|in:active,inactive',
             'meta_keywords' => 'nullable|array',
             'meta_keywords.*' => 'nullable|string|max:255',
+            'attributes' => 'nullable|array',
+            'attributes.*.attribute_id' => 'nullable|exists:attributes,id',
+            'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data['type'] = 'product'; // Always set type to product
         $data['has_variations'] = $request->boolean('has_variations');
         $data['manage_stock'] = $request->boolean('manage_stock');
         
@@ -296,6 +300,24 @@ class ProductController extends Controller
             }
         }
 
+        // Handle product attributes (specifications)
+        if ($request->has('attributes')) {
+            // Get attributes data properly
+            $attributesData = $request->get('attributes');
+            
+            foreach ($attributesData as $attributeData) {
+                // Check if both attribute_id and value are not empty
+                if (!empty($attributeData['attribute_id']) && 
+                    !empty($attributeData['value']) && 
+                    trim($attributeData['value']) !== '') {
+                    
+                    $product->productAttributes()->attach($attributeData['attribute_id'], [
+                        'value' => trim($attributeData['value'])
+                    ]);
+                }
+            }
+        }
+
         return redirect()->route('product.list')->with('success', 'Product created successfully!');
     }
 
@@ -314,8 +336,9 @@ class ProductController extends Controller
      */
     public function edit($id)
     {
-        $product = Product::with('category', 'galleries')->findOrFail($id);
-        return view('erp.products.edit', compact('product'));
+        $product = Product::with('category', 'galleries', 'productAttributes')->findOrFail($id);
+        $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
+        return view('erp.products.edit', compact('product', 'attributes'));
     }
 
     /**
@@ -330,7 +353,6 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'unique:products,slug,' . $product->id,
-            'type' => 'required|in:product,service',
             'sku' => 'required|string|unique:products,sku,' . $product->id,
             'short_desc' => 'nullable|string',
             'description' => 'nullable|string',
@@ -344,9 +366,13 @@ class ProductController extends Controller
             'status' => 'nullable|in:active,inactive',
             'meta_keywords' => 'nullable|array',
             'meta_keywords.*' => 'nullable|string|max:255',
+            'attributes' => 'nullable|array',
+            'attributes.*.attribute_id' => 'nullable|exists:attributes,id',
+            'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data['type'] = 'product'; // Always set type to product
         
         // Handle meta_keywords array - convert to JSON string for storage
         if ($request->has('meta_keywords') && is_array($request->meta_keywords)) {
@@ -381,6 +407,55 @@ class ProductController extends Controller
                 ]);
             }
         }
+
+        // Handle product attributes (specifications) - sync to replace existing
+        \Log::info('Attributes data received:', $request->get('attributes', []));
+        
+        // Always detach existing attributes first
+        $product->productAttributes()->detach();
+        \Log::info('Detached existing attributes for product:', ['product_id' => $product->id]);
+        
+        if ($request->has('attributes')) {
+            // Get attributes data properly
+            $attributesData = $request->get('attributes');
+            \Log::info('Processing attributes data:', $attributesData);
+            
+            foreach ($attributesData as $index => $attributeData) {
+                \Log::info("Processing attribute {$index}:", $attributeData);
+                
+                // Check if both attribute_id and value are not empty
+                if (!empty($attributeData['attribute_id']) && 
+                    !empty($attributeData['value']) && 
+                    trim($attributeData['value']) !== '') {
+                    
+                    \Log::info('Adding attribute to product:', [
+                        'product_id' => $product->id,
+                        'attribute_id' => $attributeData['attribute_id'],
+                        'value' => trim($attributeData['value'])
+                    ]);
+                    
+                    try {
+                        $result = $product->productAttributes()->attach($attributeData['attribute_id'], [
+                            'value' => trim($attributeData['value'])
+                        ]);
+                        \Log::info('Attribute attached successfully:', ['result' => $result]);
+                    } catch (\Exception $e) {
+                        \Log::error('Error attaching attribute:', [
+                            'error' => $e->getMessage(),
+                            'attribute_data' => $attributeData
+                        ]);
+                    }
+                } else {
+                    \Log::info('Skipping empty attribute:', $attributeData);
+                }
+            }
+        } else {
+            \Log::info('No attributes provided or not an array/object');
+        }
+        
+        // Check final state
+        $finalAttributes = $product->productAttributes()->get();
+        \Log::info('Final product attributes count:', ['count' => $finalAttributes->count()]);
 
         return redirect()->route('product.list')->with('success', 'Product updated successfully!');
     }

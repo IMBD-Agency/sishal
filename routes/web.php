@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PageController::class, 'index'])->name('home');
+Route::get('/', [PageController::class, 'index'])->name('ecommerce.home');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::get('/products', [PageController::class, 'products'])->name('product.archive');
@@ -327,6 +328,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/order/product-stocks/{productId}', [\App\Http\Controllers\Erp\OrderController::class, 'getProductStocks'])->name('order.productStocks');
     Route::post('/order/product-stock-add/{orderId}', [\App\Http\Controllers\Erp\OrderController::class, 'addStockToOrderItem'])->name('order.addStockToOrderItem');
     Route::post('/order/transfer-stock-to-employee/{orderItemId}', [\App\Http\Controllers\Erp\OrderController::class, 'transferStockToEmployee'])->name('order.transferStockToEmployee');
+    Route::delete('/order/{id}', [\App\Http\Controllers\Erp\OrderController::class, 'destroy'])->name('erp.order.delete');
 
 
     // Order Return
