@@ -70,6 +70,7 @@
     
     <!-- Removed Turbo CDN to fix JavaScript functionality issues -->
     @stack('styles')
+    @vite(['resources/js/app.js'])
 </head>
 
 <body>

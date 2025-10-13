@@ -6,7 +6,7 @@
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <h1 class="section-title text-start mb-2">Vlogs</h1>
-                    <p class="section-subtitle text-start mb-0">Watch our latest installs, tips and product highlights</p>
+                    <p class="section-subtitle text-start mb-0">Watch our latest product reviews, tips and guides</p>
                 </div>
                 <div class="col-lg-4 mt-3 mt-lg-0">
                     <form method="GET" class="d-flex justify-content-lg-end">

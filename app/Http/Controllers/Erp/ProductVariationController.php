@@ -117,9 +117,30 @@ class ProductVariationController extends Controller
         // Debug: Log the request data
         \Log::info('Variation Store Request Data:', $request->all());
         
+        // Preprocess input for validation: detect bulk mode and normalize name length
+        $valuesInputForDetection = $request->input('attribute_values', []);
+        $isAssociativeForDetection = array_keys((array) $valuesInputForDetection) !== range(0, count((array) $valuesInputForDetection) - 1);
+        $hasArraysForDetection = false;
+        if ($isAssociativeForDetection) {
+            foreach ($valuesInputForDetection as $v) {
+                if (is_array($v) && count($v) > 1) { $hasArraysForDetection = true; break; }
+            }
+        }
+
+        if ($isAssociativeForDetection && $hasArraysForDetection) {
+            // In bulk mode, we will auto-generate names; avoid validating an overly long provided name
+            $request->merge(['name' => null]);
+        } else {
+            // In single mode, if provided name is too long, truncate before validation
+            $providedName = (string) $request->input('name', '');
+            if (mb_strlen($providedName) > 255) {
+                $request->merge(['name' => \Illuminate\Support\Str::limit($providedName, 255, '')]);
+            }
+        }
+
         $request->validate([
             'sku' => 'required|string',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'price' => 'nullable|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
@@ -224,12 +245,14 @@ class ProductVariationController extends Controller
                     
                     // Generate variation name
                     $generatedName = $this->buildVariationName(array_values($combo));
+                    // Ensure name length does not exceed DB column limit
+                    $generatedName = \Illuminate\Support\Str::limit($generatedName, 255, '');
                     
                     // Create variation per combo
                     $variationData = [
                         'product_id' => $productId,
                         'sku' => $finalSku,
-                        'name' => $generatedName ?: $request->name,
+                        'name' => $generatedName !== '' ? $generatedName : (string) $request->name,
                         'price' => $request->price,
                         'cost' => $request->cost,
                         'discount' => $request->discount,
@@ -267,7 +290,8 @@ class ProductVariationController extends Controller
                 $variationData = [
                     'product_id' => $productId,
                     'sku' => $request->sku,
-                    'name' => $request->name,
+                    // name may be overwritten below by generated name; ensure <=255
+                    'name' => \Illuminate\Support\Str::limit((string) $request->name, 255, ''),
                     'price' => $request->price,
                     'cost' => $request->cost,
                     'discount' => $request->discount,
@@ -303,7 +327,7 @@ class ProductVariationController extends Controller
                 $valueIds = $isAssoc ? array_values($valuesInput) : array_values($valuesInput);
                 $generatedName = $this->buildVariationName($valueIds);
                 if ($generatedName !== '') {
-                    $variation->update(['name' => $generatedName]);
+                    $variation->update(['name' => \Illuminate\Support\Str::limit($generatedName, 255, '')]);
                 }
 
                 if ($request->hasFile('gallery')) {

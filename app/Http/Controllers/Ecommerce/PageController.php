@@ -29,7 +29,7 @@ class PageController extends Controller
         if (class_exists('App\\Models\\Banner')) {
             $banners = \App\Models\Banner::currentlyActive()->orderBy('sort_order', 'asc')->get();
         }
-        $featuredCategories = ProductServiceCategory::take(6)->get();
+        $featuredCategories = ProductServiceCategory::whereNull('parent_id')->get();
         $featuredServices = Product::where('type', 'service')
             ->where('status', 'active')
             ->orderByDesc('created_at')
@@ -177,14 +177,20 @@ class PageController extends Controller
             ]);
             
             $product = Product::with([
-                'variations.combinations.attribute', 
-                'variations.combinations.attributeValue',
-                'variations.stocks.branch',
-                'variations.stocks.warehouse',
-                'variations.galleries',
                 'branchStock',
                 'warehouseStock',
-                'productAttributes'
+                'productAttributes',
+                // Eager-load only active variations and their nested relations
+                'variations' => function($q) {
+                    $q->where('status', 'active')
+                      ->with([
+                          'combinations.attribute', 
+                          'combinations.attributeValue',
+                          'stocks.branch',
+                          'stocks.warehouse',
+                          'galleries',
+                      ]);
+                },
             ])->where('slug', $slug)->first();
             
             if (!$product) {

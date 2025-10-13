@@ -448,6 +448,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 });
 
 Route::get('/api/products/most-sold', [\App\Http\Controllers\Ecommerce\ApiController::class, 'mostSoldProducts']);
+Route::get('/api/products/new-arrivals', [\App\Http\Controllers\Ecommerce\ApiController::class, 'newArrivalsProducts']);
 Route::post('/cart/add/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'addToCartByCard'])->name('cart.addByCard');
 Route::post('/cart/add-page/{productId}', [App\Http\Controllers\Ecommerce\CartController::class, 'addToCartByPage'])->name('cart.addByPage');
 Route::get('/cart/qty-sum', [App\Http\Controllers\Ecommerce\CartController::class, 'getCartQtySum'])->name('cart.qtySum');

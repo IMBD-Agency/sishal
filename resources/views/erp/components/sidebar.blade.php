@@ -252,14 +252,14 @@
                 </ul>
             </div>
         </div>
-        <!-- <div class="nav-item">
+        <div class="nav-item">
             <a href="{{ route('vlogging.index') }}" class="nav-link {{ request()->is('erp/vlogging*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-video nav-icon"></i>
                     <span>Vlogs</span>
                 </div>
             </a>
-        </div> -->
+        </div> 
         <div class="nav-item">
             <a href="{{ route('additionalPages.index') }}" class="nav-link {{ request()->is('erp/additional-pages*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">

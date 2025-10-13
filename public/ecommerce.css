@@ -296,8 +296,8 @@ body {
 .login-btn svg { color: currentColor; }
 
 /* Make modals always appear above header/nav */
-.modal { z-index: 2000; }
-.modal-backdrop { z-index: 1990; }
+.modal { z-index: 3000; }
+.modal-backdrop { z-index: 2990; }
 
 /* Ensure account dropdown shows above nav borders */
 .dropdown-menu {
@@ -1389,7 +1389,7 @@ body {
 
 /* Top Selling Products */
 .top-products {
-    padding: 80px 0;
+    padding: 40px 0;
     background: white;
 }
 

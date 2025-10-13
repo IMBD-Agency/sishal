@@ -237,6 +237,12 @@ class OrderController extends Controller
         }
         $invoice->save();
 
+        // If invoice is fully paid, mark ecommerce order as approved
+        if ($invoice->status === 'paid' && $order && $order->status !== 'approved') {
+            $order->status = 'approved';
+            $order->save();
+        }
+
         // Create Journal Entry for Order Payment
         $this->createOrderPaymentJournalEntry($order, $request->amount, $request->account_id);
 

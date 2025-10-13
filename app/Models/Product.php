@@ -105,8 +105,8 @@ class Product extends Model
      */
     public function getMinPriceAttribute()
     {
-        if ($this->has_variations && $this->variations()->exists()) {
-            return $this->variations()->min('price') ?? $this->price;
+        if ($this->has_variations && $this->activeVariations()->exists()) {
+            return $this->activeVariations()->min('price') ?? $this->price;
         }
         return $this->price;
     }
@@ -116,8 +116,8 @@ class Product extends Model
      */
     public function getMaxPriceAttribute()
     {
-        if ($this->has_variations && $this->variations()->exists()) {
-            return $this->variations()->max('price') ?? $this->price;
+        if ($this->has_variations && $this->activeVariations()->exists()) {
+            return $this->activeVariations()->max('price') ?? $this->price;
         }
         return $this->price;
     }
@@ -147,7 +147,7 @@ class Product extends Model
     public function getTotalVariationStockAttribute()
     {
         if ($this->has_variations) {
-            return $this->variations()->with('stocks')->get()->sum(function($variation) {
+            return $this->activeVariations()->with('stocks')->get()->sum(function($variation) {
                 return $variation->stocks->sum('quantity');
             });
         }
@@ -165,7 +165,7 @@ class Product extends Model
     public function hasStock()
     {
         if ($this->has_variations) {
-            return $this->variations()->whereHas('stocks', function($query) {
+            return $this->activeVariations()->whereHas('stocks', function($query) {
                 $query->where('quantity', '>', 0);
             })->exists();
         }

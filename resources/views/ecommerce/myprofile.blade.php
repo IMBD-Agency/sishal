@@ -10,7 +10,7 @@
     .profile-header {
         background: white;
         border-bottom: 1px solid #e9ecef;
-        padding: 2rem 0;
+        padding: 2rem 20px; /* 20px left/right padding */
         margin-bottom: 2rem;
     }
     
@@ -94,6 +94,36 @@
         background: #6c757d;
         color: white;
     }
+
+    /* Action buttons on orders row */
+    .btn-view {
+        background: #ffffff;
+        color: #374151;
+        border: 1px solid #e5e7eb;
+        padding: 0.5rem 0.9rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    .btn-view:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+    .btn-cancel {
+        background: #ffffff;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+        padding: 0.5rem 0.9rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    .btn-cancel:hover { background: #f9fafb; }
+    .btn-delete-strong { background: #ef4444; color: #fff; border: 1px solid #ef4444; padding: 0.5rem 0.9rem; border-radius: 8px; font-weight: 700; }
+    .btn-delete-strong:hover { background: #dc2626; border-color: #dc2626; }
+
+    /* Ensure modals overlay everything on this page */
+    /* Force highest stacking to fix backdrop under header issue */
+    .modal.show { z-index: 4010 !important; }
+    .modal-backdrop.show { z-index: 4000 !important; }
     
     .form-label-simple {
         font-weight: 600;
@@ -133,6 +163,24 @@
         border-radius: 8px;
         padding: 1rem;
         margin-bottom: 1rem;
+    }
+    
+    /* Order item styling improvements */
+    .order-item {
+        gap: 0.75rem;
+        border: 1px solid #eef2f7;
+        background: #f9fafb;
+    }
+    .order-item:hover {
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+    }
+    .order-thumb {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
     
     .text-muted-simple {
@@ -191,7 +239,7 @@
     .profile-header {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         border-bottom: 1px solid #e2e8f0;
-        padding: 2.5rem 0;
+        padding: 2.5rem 20px; /* 20px left/right padding */
         margin-bottom: 2rem;
     }
     
@@ -224,6 +272,19 @@
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
+    }
+    
+    /* Fix Bootstrap badge positioning inside order cards (override global .badge) */
+    .order-card-simple .badge {
+        position: static;
+        top: auto;
+        right: auto;
+        min-width: auto;
+        height: auto;
+        border-radius: 0.375rem;
+        padding: 0.35rem 0.6rem;
+        line-height: 1;
+        display: inline-block;
     }
 </style>
 
@@ -415,29 +476,32 @@
                                 </div>
                                 <div class="text-end">
                                     <div class="h6 mb-1 fw-bold text-primary">{{$order->total}}৳</div>
-                                    <span class="badge 
-                                        {{ 
-                                            $order->status == 'pending' ? 'bg-secondary' : 
-                                            ($order->status == 'approved' ? 'bg-warning' : 
-                                            ($order->status == 'shipping' ? 'bg-info' : 
-                                            ($order->status == 'delivered' ? 'bg-success' : 
-                                            ($order->status == 'cancelled' ? 'bg-danger' : 'bg-secondary')))) 
-                                        }}">
-                                        {{ ucfirst($order->status) }}
+                                    @php
+                                        $displayStatus = ($order->invoice && $order->invoice->status === 'paid') ? 'paid' : $order->status;
+                                        $badgeClass = match($displayStatus) {
+                                            'paid' => 'bg-success',
+                                            'delivered' => 'bg-success',
+                                            'approved' => 'bg-warning',
+                                            'shipping' => 'bg-info',
+                                            'cancelled' => 'bg-danger',
+                                            default => 'bg-secondary'
+                                        };
+                                    @endphp
+                                    <span class="badge {{ $badgeClass }}">
+                                        {{ ucfirst($displayStatus) }}
                                     </span>
                                 </div>
                             </div>
                             <div class="row g-2">
                                 @foreach ($order->items as $item)
                                 <div class="col-md-4">
-                                    <div class="d-flex align-items-center p-2 bg-light rounded">
+                                    <div class="d-flex align-items-center p-2 rounded order-item">
                                         <div class="me-2">
                                             @if($item->product && $item->product->image)
-                                                <img src="{{ asset($item->product->image) }}" alt="Product" class="rounded"
-                                                    style="width: 40px; height: 40px; object-fit: cover;">
+                                                <img src="{{ asset($item->product->image) }}" alt="Product" class="order-thumb">
                                             @else
                                                 <div class="rounded d-flex align-items-center justify-content-center bg-white"
-                                                    style="width: 40px; height: 40px;">
+                                                    style="width: 48px; height: 48px;">
                                                     <i class="fas fa-image text-muted"></i>
                                                 </div>
                                             @endif
@@ -454,8 +518,8 @@
                                 </div>
                                 @endforeach
                             </div>
-                            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
-                                <a href="{{ route('order.details', urlencode($order->order_number)) }}" class="btn-outline-simple btn-sm">
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+                                <a href="{{ route('order.details', urlencode($order->order_number)) }}" class="btn-view btn-sm">
                                     View Details
                                 </a>
                                 <div class="d-flex gap-2">
@@ -470,7 +534,7 @@
                                     @elseif($order->status != 'cancelled')
                                     <form action="{{ route('order.cancel', $order->id) }}?tab=orders" method="POST" class="d-inline cancel-order-form">
                                         @csrf
-                                        <button type="button" class="btn-outline-simple btn-sm btn-cancel-order" data-bs-toggle="modal" data-bs-target="#cancelOrderModal" data-order-id="{{$order->id}}">
+                                        <button type="button" class="btn-cancel btn-sm btn-cancel-order" data-bs-toggle="modal" data-bs-target="#cancelOrderModal" data-order-id="{{$order->id}}">
                                             Cancel
                                         </button>
                                     </form>
@@ -480,7 +544,7 @@
                                     <form action="{{ route('order.delete', $order->id) }}?tab=orders" method="POST" class="d-inline delete-order-form">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="button" class="btn-delete btn-sm btn-delete-order" data-bs-toggle="modal" data-bs-target="#deleteOrderModal" data-order-id="{{$order->id}}" data-order-number="{{$order->order_number}}">
+                                        <button type="button" class="btn-delete-strong btn-sm btn-delete-order" data-bs-toggle="modal" data-bs-target="#deleteOrderModal" data-order-id="{{$order->id}}" data-order-number="{{$order->order_number}}">
                                             <i class="fas fa-trash"></i>
                                             Delete
                                         </button>
@@ -657,5 +721,22 @@
                     }
                 });
             }
+
+            // Ensure Bootstrap modals are appended to body to avoid clipping/z-index issues
+            const cancelModal = document.getElementById('cancelOrderModal');
+            const deleteModal = document.getElementById('deleteOrderModal');
+            ['cancelOrderModal','deleteOrderModal'].forEach(id => {
+                const modalEl = document.getElementById(id);
+                if (!modalEl) return;
+                modalEl.addEventListener('show.bs.modal', function (event) {
+                    document.body.appendChild(modalEl);
+                    // Make sure z-index is above any sticky headers
+                    modalEl.style.zIndex = '2000';
+                    const backdrops = document.getElementsByClassName('modal-backdrop');
+                    if (backdrops.length) {
+                        backdrops[backdrops.length - 1].style.zIndex = '1990';
+                    }
+                });
+            });
         });
     </script>

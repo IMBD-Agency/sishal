@@ -109,6 +109,9 @@ class OrderController extends Controller
         DB::beginTransaction();
         try {
             $orderNumber = $this->generateOrderNumber();
+            // Determine status based on payment method
+            $isInstantPaid = in_array($request->payment_method, ['online-payment', 'bank-transfer']);
+
             $order = Order::create([
                 'order_number' => $orderNumber,
                 'user_id' => $userId,
@@ -120,7 +123,7 @@ class OrderController extends Controller
                 'discount' => 0,
                 'delivery' => $shipping,
                 'total' => $total,
-                'status' => 'pending',
+                'status' => $isInstantPaid ? 'approved' : 'pending',
                 'payment_method' => $request->payment_method,
                 'notes' => $request->notes ?? null,
                 'created_by' => $userId
@@ -138,9 +141,9 @@ class OrderController extends Controller
                 'subtotal' => $subtotal,
                 'total_amount' => $total,
                 'discount_apply' => 0,
-                'paid_amount' => in_array($request->payment_method, ['online', 'bank']) ? $total : 0,
-                'due_amount' => in_array($request->payment_method, ['online', 'bank']) ? 0 : $total,
-                'status' => in_array($request->payment_method, ['online', 'bank']) ? 'paid' : 'unpaid',
+                'paid_amount' => $isInstantPaid ? $total : 0,
+                'due_amount' => $isInstantPaid ? 0 : $total,
+                'status' => $isInstantPaid ? 'paid' : 'unpaid',
                 'note' => $order->notes,
                 'footer_text' => null,
                 'created_by' => $userId,
@@ -185,7 +188,7 @@ class OrderController extends Controller
                 'shipping_zip_code' => $request->shipping_zip_code ?? $request->billing_zip_code,
             ]);
 
-            if (in_array($request->payment_method, ['online', 'bank'])) {
+            if ($isInstantPaid) {
                 Payment::create([
                     'payment_for' => 'order',
                     'invoice_id' => $invoice->id,

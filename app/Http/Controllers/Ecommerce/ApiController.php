@@ -28,7 +28,43 @@ class ApiController extends Controller
             
             // Add stock information
             $product->has_stock = $product->hasStock();
+            // Add rating information
+            if (method_exists($product, 'averageRating')) {
+                $product->avg_rating = $product->averageRating();
+            }
+            if (method_exists($product, 'totalReviews')) {
+                $product->total_reviews = $product->totalReviews();
+            }
             
+            return $product;
+        });
+
+        return response()->json($products);
+    }
+
+    public function newArrivalsProducts()
+    {
+        $userId = Auth::id();
+        $products = \App\Models\Product::with('category')
+            ->where('type','product')
+            ->orderByDesc('created_at')
+            ->take(20)
+            ->get();
+
+        $products->transform(function ($product) use ($userId) {
+            $product->is_wishlisted = false;
+            if ($userId) {
+                $product->is_wishlisted = Wishlist::where('user_id', $userId)
+                    ->where('product_id', $product->id)
+                    ->exists();
+            }
+            $product->has_stock = $product->hasStock();
+            if (method_exists($product, 'averageRating')) {
+                $product->avg_rating = $product->averageRating();
+            }
+            if (method_exists($product, 'totalReviews')) {
+                $product->total_reviews = $product->totalReviews();
+            }
             return $product;
         });
 
