@@ -37,6 +37,13 @@ body {
     -webkit-backface-visibility: hidden;
 }
 
+/* Sticky footer layout so pages with little content (e.g., empty wishlist)
+   keep the footer at the bottom without large blank space */
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; min-height: 100vh; }
+#main-content-container { flex: 1 0 auto; }
+.footer { margin-top: auto; }
+
 /* Smooth transitions without vibration */
 * {
     -webkit-tap-highlight-color: transparent;

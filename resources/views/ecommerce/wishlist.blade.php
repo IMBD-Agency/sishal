@@ -5,7 +5,7 @@
 @endphp
 
 @section('main-section')
-    <div class="container-fluid py-5" style="background-color: #f8f9fa;">
+    <div class="container-fluid py-3 wishlist-page" style="background-color: #f8f9fa;">
         <div class="container">
             <!-- Page Header -->
             <div class="row mb-5">
@@ -16,27 +16,27 @@
                             <p class="text-muted mb-0">Save your favorite water filtration products</p>
                         </div>
                         <div class="d-flex align-items-center">
-                            <span class="badge me-3"
-                                style="font-size: 14px; padding: 8px 16px; background: #0da2e71a; color: var(--primary-blue);">
-                                <i class="fas fa-heart me-1"></i> {{ $wishlists->count() }} {{ $wishlists->count() == 1 ? 'Item' : 'Items' }}
+                            <span class="wishlist-count-badge me-3">
+                                <i class="fas fa-heart me-1"></i>
+                                {{ $wishlists->count() }} {{ $wishlists->count() == 1 ? 'Item' : 'Items' }}
                             </span>
-                            <form action="{{ route('wishlist.removeAll') }}" method="post">
-                                @csrf
-                                @method('DELETE')
-
-                                <button type="submit" class="btn btn-sm"
-                                    style="background:rgba(231, 13, 13, 0.1); color: red;">
-                                    <i class="fas fa-trash me-1"></i> Clear All
-                                </button>
-                            </form>
+                            @if($wishlists->count() > 0)
+                                <form action="{{ route('wishlist.removeAll') }}" method="post">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-clear-all">
+                                        <i class="fas fa-trash me-1"></i> Clear All
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Wishlist Items -->
-            <div class="row">
-                @foreach ($wishlists as $wishlist)
+            <div class="row g-3 g-md-4">
+                @forelse ($wishlists as $wishlist)
 
                     <div class="col-lg-3 col-md-6 mt-0 mb-4">
                         <div class="product-card position-relative mb-0 h-100" data-href="{{ route('product.details', $wishlist->product->slug) }}">
@@ -111,30 +111,26 @@
                             </div>
                         </div>
                     </div>
-                @endforeach
-            </div>
-
-            <!-- Empty State (Hidden by default - show when wishlist is empty) -->
-            <div class="row d-none" id="emptyWishlist">
-                <div class="col-12">
-                    <div class="text-center py-5">
-                        <div class="mb-4">
-                            <i class="fas fa-heart" style="font-size: 4rem; color: #e9ecef;"></i>
+                @empty
+                    <div class="col-12">
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-heart" style="font-size: 4rem; color: #e9ecef;"></i>
+                            </div>
+                            <h4 class="mb-3" style="color: #6c757d;">Your Wishlist is Empty</h4>
+                            <p class="text-muted mb-4">Discover amazing water filtration products and add them to your wishlist</p>
+                            <a href="{{ route('product.archive') }}" class="btn btn-primary btn-lg"
+                                style="background: #20c997; border: none; padding: 12px 30px;">
+                                <i class="fas fa-shopping-bag me-2"></i>
+                                Continue Shopping
+                            </a>
                         </div>
-                        <h4 class="mb-3" style="color: #6c757d;">Your Wishlist is Empty</h4>
-                        <p class="text-muted mb-4">Discover amazing water filtration products and add them to your wishlist
-                        </p>
-                        <a href="{{ route('product.archive') }}" class="btn btn-primary btn-lg"
-                            style="background: #20c997; border: none; padding: 12px 30px;">
-                            <i class="fas fa-shopping-bag me-2"></i>
-                            Continue Shopping
-                        </a>
                     </div>
-                </div>
+                @endforelse
             </div>
 
             <!-- Action Buttons -->
-            <div class="row mt-4">
+            <div class="row mt-3 mb-0">
                 <div class="col-12">
                     <div class="d-flex justify-content-between align-items-center">
                         <a href="{{ route('product.archive') }}" class="btn btn-outline-primary">
@@ -153,6 +149,9 @@
 
     <!-- Custom CSS -->
     <style>
+        /* Layout tweaks */
+        .wishlist-page { padding-bottom: 12px; }
+        .product-card { background:#fff; border:1px solid #eef0f2; border-radius:14px; overflow:hidden; box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
         .card:hover {
             transform: translateY(-5px);
             transition: all 0.3s ease;
@@ -180,6 +179,45 @@
 
         .card:hover .card-img-top {
             transform: scale(1.05);
+        }
+
+        /* Product card image fixes to avoid odd padding/whitespace */
+        .product-image-container { position: relative; overflow: hidden; border-radius: 12px; background: transparent; }
+        .product-image { width: 100%; height: 260px; object-fit: cover; display: block; }
+        .product-info { padding: 14px 16px 16px; }
+        .product-title { display:block; margin-top: 6px; color:#222; font-weight:600; }
+        .product-wishlist-top { position:absolute; top:12px; right:12px; }
+
+        /* Badge + Clear button styling */
+        .wishlist-count-badge {
+            font-size: 13px;
+            padding: 6px 12px;
+            background: #e7f6ff;
+            color: #0d6efd;
+            border-radius: 999px;
+            line-height: 1;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-clear-all {
+            background: rgba(231, 13, 13, 0.08);
+            color: #e20d0d;
+            border: 1px solid rgba(226, 13, 13, 0.18);
+        }
+        .btn-clear-all:hover { background: rgba(231, 13, 13, 0.14); color: #b10a0a; }
+
+        /* Theme colored outline button (Continue Shopping) */
+        .wishlist-page .btn.btn-outline-primary {
+            border-color: var(--primary-blue) !important;
+            color: var(--primary-blue) !important;
+        }
+        .wishlist-page .btn.btn-outline-primary:hover,
+        .wishlist-page .btn.btn-outline-primary:focus {
+            background-color: var(--primary-blue) !important;
+            border-color: var(--primary-blue) !important;
+            color: #fff !important;
+            box-shadow: none;
         }
 
         @media (max-width: 768px) {
@@ -219,7 +257,7 @@
             // Cart functionality is now handled by global cart handler in master.blade.php
             // No need for duplicate event listeners here
 
-            // Remove from wishlist functionality
+            // Remove from wishlist functionality (client-side only UI update)
             document.querySelectorAll('.wishlist-btn, .product-wishlist-top').forEach(btn => {
                 btn.addEventListener('click', function (e) {
                     e.preventDefault();
@@ -236,9 +274,7 @@
                         }
 
                         // Show empty state if no items left
-                        if (itemCount === 0) {
-                            document.getElementById('emptyWishlist').classList.remove('d-none');
-                        }
+                        if (itemCount === 0) window.location.reload();
                     }
                 });
             });
@@ -254,20 +290,7 @@
                 });
             });
 
-            // Clear all functionality
-            document.querySelector('.btn-outline-danger').addEventListener('click', function () {
-                if (confirm('Are you sure you want to clear your entire wishlist?')) {
-                    document.querySelectorAll('.col-lg-3').forEach(item => item.remove());
-                    document.getElementById('emptyWishlist').classList.remove('d-none');
-                    this.closest('.d-flex').style.display = 'none';
-                    
-                    // Update badge count to 0
-                    const badge = document.querySelector('.badge');
-                    if (badge) {
-                        badge.innerHTML = '<i class="fas fa-heart me-1"></i> 0 Items';
-                    }
-                }
-            });
+            // No client-side clear-all binding; handled by form submit
         </script>
         <style>
             .custom-toast {
