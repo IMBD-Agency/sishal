@@ -12,7 +12,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Segoe UI', 'SegoeUI', 'Helvetica Neue', 'Helvetica', 'Arial', 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', ...defaultTheme.fontFamily.sans],
             },
         },
     },

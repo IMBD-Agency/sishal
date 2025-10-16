@@ -46,6 +46,14 @@
                                 <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
                             </select>
                         </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Position</label>
+                            <select class="form-select" name="position">
+                                <option value="">All Positions</option>
+                                <option value="hero" {{ request('position') == 'hero' ? 'selected' : '' }}>Hero</option>
+                                <option value="vlogs_bottom" {{ request('position') == 'vlogs_bottom' ? 'selected' : '' }}>Banner Ads</option>
+                            </select>
+                        </div>
                         
                         <div class="col-md-2">
                             <label class="form-label">&nbsp;</label>

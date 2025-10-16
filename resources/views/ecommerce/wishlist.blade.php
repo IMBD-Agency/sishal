@@ -263,19 +263,17 @@
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    if (confirm('Remove this item from your wishlist?')) {
-                        this.closest('.col-lg-3').remove();
+                    this.closest('.col-lg-3').remove();
 
-                        // Update item count
-                        const itemCount = document.querySelectorAll('.col-lg-3').length;
-                        const badge = document.querySelector('.badge');
-                        if (badge) {
-                            badge.innerHTML = `<i class="fas fa-heart me-1"></i> ${itemCount} ${itemCount === 1 ? 'Item' : 'Items'}`;
-                        }
-
-                        // Show empty state if no items left
-                        if (itemCount === 0) window.location.reload();
+                    // Update item count
+                    const itemCount = document.querySelectorAll('.col-lg-3').length;
+                    const badge = document.querySelector('.badge');
+                    if (badge) {
+                        badge.innerHTML = `<i class="fas fa-heart me-1"></i> ${itemCount} ${itemCount === 1 ? 'Item' : 'Items'}`;
                     }
+
+                    // Show empty state if no items left
+                    if (itemCount === 0) window.location.reload();
                 });
             });
 

@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Pos;
+use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\Branch;
+use App\Models\Review;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -101,22 +103,50 @@ class DashboardController extends Controller
 
     private function getStatistics($baseQuery, $startDate, $endDate, $range)
     {
-        $currentPeriodQuery = clone $baseQuery;
-        $currentPeriodQuery->whereBetween('sale_date', [$startDate, $endDate]);
+        // Get POS data
+        $currentPosQuery = clone $baseQuery;
+        $currentPosQuery->whereBetween('sale_date', [$startDate, $endDate]);
         
-        $previousPeriodQuery = clone $baseQuery;
+        $previousPosQuery = clone $baseQuery;
         $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
         $previousEndDate = $startDate->copy()->subDay();
-        $previousPeriodQuery->whereBetween('sale_date', [$previousStartDate, $previousEndDate]);
+        $previousPosQuery->whereBetween('sale_date', [$previousStartDate, $previousEndDate]);
 
-        // Current period stats
-        $currentSales = $currentPeriodQuery->sum('total_amount');
-        $currentOrders = $currentPeriodQuery->count();
+        // Get Online Order data
+        $currentOrderQuery = Order::query();
+        if (!Auth::user()->hasPermissionTo('manage global branches')) {
+            $currentOrderQuery->whereHas('invoice.pos', function($q) {
+                $q->where('branch_id', Auth::user()->employee->branch_id);
+            });
+        }
+        $currentOrderQuery->whereBetween('created_at', [$startDate, $endDate]);
+
+        $previousOrderQuery = Order::query();
+        if (!Auth::user()->hasPermissionTo('manage global branches')) {
+            $previousOrderQuery->whereHas('invoice.pos', function($q) {
+                $q->where('branch_id', Auth::user()->employee->branch_id);
+            });
+        }
+        $previousOrderQuery->whereBetween('created_at', [$previousStartDate, $previousEndDate]);
+
+        // Current period stats - combine POS and Online orders
+        $currentPosSales = $currentPosQuery->sum('total_amount');
+        $currentPosOrders = $currentPosQuery->count();
+        $currentOrderSales = $currentOrderQuery->sum('total');
+        $currentOrderOrders = $currentOrderQuery->count();
+        
+        $currentSales = $currentPosSales + $currentOrderSales;
+        $currentOrders = $currentPosOrders + $currentOrderOrders;
         $currentAvgOrder = $currentOrders > 0 ? $currentSales / $currentOrders : 0;
 
-        // Previous period stats
-        $previousSales = $previousPeriodQuery->sum('total_amount');
-        $previousOrders = $previousPeriodQuery->count();
+        // Previous period stats - combine POS and Online orders
+        $previousPosSales = $previousPosQuery->sum('total_amount');
+        $previousPosOrders = $previousPosQuery->count();
+        $previousOrderSales = $previousOrderQuery->sum('total');
+        $previousOrderOrders = $previousOrderQuery->count();
+        
+        $previousSales = $previousPosSales + $previousOrderSales;
+        $previousOrders = $previousPosOrders + $previousOrderOrders;
         $previousAvgOrder = $previousOrders > 0 ? $previousSales / $previousOrders : 0;
 
         // Calculate percentages
@@ -124,9 +154,10 @@ class DashboardController extends Controller
         $ordersPercentage = $previousOrders > 0 ? (($currentOrders - $previousOrders) / $previousOrders) * 100 : 0;
         $avgOrderPercentage = $previousAvgOrder > 0 ? (($currentAvgOrder - $previousAvgOrder) / $previousAvgOrder) * 100 : 0;
 
-        // Customer satisfaction (mock data for now)
-        $satisfaction = 4.7;
-        $satisfactionPercentage = 0.3;
+        // Customer satisfaction from real review data
+        $satisfactionData = $this->getCustomerSatisfaction($startDate, $endDate);
+        $satisfaction = $satisfactionData['rating'];
+        $satisfactionPercentage = $satisfactionData['percentage'];
 
         return [
             'totalSales' => [
@@ -170,27 +201,48 @@ class DashboardController extends Controller
 
     private function getSalesOverview($baseQuery, $startDate, $endDate, $range)
     {
-        $query = clone $baseQuery;
+        // Get POS data
+        $posQuery = clone $baseQuery;
+        
+        // Get Online Order data
+        $orderQuery = Order::query();
+        if (!Auth::user()->hasPermissionTo('manage global branches')) {
+            $orderQuery->whereHas('invoice.pos', function($q) {
+                $q->where('branch_id', Auth::user()->employee->branch_id);
+            });
+        }
         
         switch ($range) {
             case 'day':
-                $query->selectRaw('HOUR(sale_date) as period, SUM(total_amount) as total')
+                $posQuery->selectRaw('HOUR(sale_date) as period, SUM(total_amount) as total')
                       ->whereDate('sale_date', $startDate)
+                      ->groupBy('period')
+                      ->orderBy('period');
+                $orderQuery->selectRaw('HOUR(created_at) as period, SUM(total) as total')
+                      ->whereDate('created_at', $startDate)
                       ->groupBy('period')
                       ->orderBy('period');
                 // 0..23 hours
                 $labels = range(0, 23);
                 break;
             case 'week':
-                $query->selectRaw("DATE_FORMAT(sale_date, '%a') as period, DAYOFWEEK(sale_date) as sort_key, SUM(total_amount) as total")
+                $posQuery->selectRaw("DATE_FORMAT(sale_date, '%a') as period, DAYOFWEEK(sale_date) as sort_key, SUM(total_amount) as total")
                       ->whereBetween('sale_date', [$startDate, $endDate])
+                      ->groupBy('sort_key', 'period')
+                      ->orderBy('sort_key');
+                $orderQuery->selectRaw("DATE_FORMAT(created_at, '%a') as period, DAYOFWEEK(created_at) as sort_key, SUM(total) as total")
+                      ->whereBetween('created_at', [$startDate, $endDate])
                       ->groupBy('sort_key', 'period')
                       ->orderBy('sort_key');
                 $labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 break;
             case 'month':
-                $query->selectRaw('DATE(sale_date) as period, SUM(total_amount) as total')
+                $posQuery->selectRaw('DATE(sale_date) as period, SUM(total_amount) as total')
                       ->whereBetween('sale_date', [$startDate, $endDate])
+                      ->groupBy('period')
+                      ->orderBy('period');
+                $orderQuery->selectRaw('DATE(created_at) as period, SUM(total) as total')
+                      ->whereBetween('created_at', [$startDate, $endDate])
                       ->groupBy('period')
                       ->orderBy('period');
                 // Generate a label for each day in range
@@ -202,20 +254,30 @@ class DashboardController extends Controller
                 }
                 break;
             case 'year':
-                $query->selectRaw("DATE_FORMAT(sale_date, '%b') as period, MONTH(sale_date) as sort_key, SUM(total_amount) as total")
+                $posQuery->selectRaw("DATE_FORMAT(sale_date, '%b') as period, MONTH(sale_date) as sort_key, SUM(total_amount) as total")
                       ->whereBetween('sale_date', [$startDate, $endDate])
+                      ->groupBy('sort_key', 'period')
+                      ->orderBy('sort_key');
+                $orderQuery->selectRaw("DATE_FORMAT(created_at, '%b') as period, MONTH(created_at) as sort_key, SUM(total) as total")
+                      ->whereBetween('created_at', [$startDate, $endDate])
                       ->groupBy('sort_key', 'period')
                       ->orderBy('sort_key');
                 $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 break;
         }
 
-        $data = $query->get();
+        $posData = $posQuery->get();
+        $orderData = $orderQuery->get();
         $salesData = [];
         
         foreach ($labels as $label) {
-            $periodData = $data->firstWhere('period', $label);
-            $salesData[] = $periodData ? (float)$periodData->total : 0.0;
+            $posPeriodData = $posData->firstWhere('period', $label);
+            $orderPeriodData = $orderData->firstWhere('period', $label);
+            
+            $posTotal = $posPeriodData ? (float)$posPeriodData->total : 0.0;
+            $orderTotal = $orderPeriodData ? (float)$orderPeriodData->total : 0.0;
+            
+            $salesData[] = $posTotal + $orderTotal;
         }
 
         $totalSales = array_sum($salesData);
@@ -240,56 +302,112 @@ class DashboardController extends Controller
 
     private function getOrderStatus($baseQuery, $startDate, $endDate)
     {
-        $query = clone $baseQuery;
-        $query->whereBetween('sale_date', [$startDate, $endDate]);
+        // Get POS status data
+        $posQuery = clone $baseQuery;
+        $posQuery->whereBetween('sale_date', [$startDate, $endDate]);
+        $posStatuses = $posQuery->selectRaw('status, COUNT(*) as count')
+                               ->groupBy('status')
+                               ->get();
 
-        $statuses = $query->selectRaw('status, COUNT(*) as count')
-                         ->groupBy('status')
-                         ->get();
-        $pending = $statuses->where('status', 'pending')->first()->count ?? 0;
-        $delivered = $statuses->where('status', 'delivered')->first()->count ?? 0;
-        $shipping = $statuses->where('status', 'shipping')->first()->count ?? 0;
-        $cancelled = $statuses->where('status', 'cancelled')->first()->count ?? 0;
+        // Get Online Order status data
+        $orderQuery = Order::query();
+        if (!Auth::user()->hasPermissionTo('manage global branches')) {
+            $orderQuery->whereHas('invoice.pos', function($q) {
+                $q->where('branch_id', Auth::user()->employee->branch_id);
+            });
+        }
+        $orderQuery->whereBetween('created_at', [$startDate, $endDate]);
+        $orderStatuses = $orderQuery->selectRaw('status, COUNT(*) as count')
+                                   ->groupBy('status')
+                                   ->get();
+
+        // Combine status counts
+        $pending = ($posStatuses->where('status', 'pending')->first()->count ?? 0) + 
+                   ($orderStatuses->where('status', 'pending')->first()->count ?? 0);
+        $delivered = ($posStatuses->where('status', 'delivered')->first()->count ?? 0) + 
+                     ($orderStatuses->where('status', 'delivered')->first()->count ?? 0);
+        $shipping = ($posStatuses->where('status', 'shipping')->first()->count ?? 0) + 
+                    ($orderStatuses->where('status', 'shipping')->first()->count ?? 0);
+        $cancelled = ($posStatuses->where('status', 'cancelled')->first()->count ?? 0) + 
+                     ($orderStatuses->where('status', 'cancelled')->first()->count ?? 0);
+
+        // Add online order specific statuses
+        $approved = $orderStatuses->where('status', 'approved')->first()->count ?? 0;
+        $processing = $orderStatuses->where('status', 'processing')->first()->count ?? 0;
 
         return [
             'pending' => $pending,
             'delivered' => $delivered,
             'shipping' => $shipping,
             'cancelled' => $cancelled,
-            'total' => $pending + $delivered + $shipping + $cancelled
+            'approved' => $approved,
+            'processing' => $processing,
+            'total' => $pending + $delivered + $shipping + $cancelled + $approved + $processing
         ];
     }
 
     private function getTopSellingItems($baseQuery, $startDate, $endDate)
     {
-        // This would typically query from a sales_items or order_items table
-        // For now, returning mock data
-        return [
-            [
-                'name' => 'Margherita Pizza',
-                'category' => 'Italian Cuisine',
-                'sales' => 1424,
-                'percentage' => 12,
-                'icon' => 'fas fa-pizza-slice',
-                'color' => 'primary'
-            ],
-            [
-                'name' => 'Chicken Alfredo Pasta',
-                'category' => 'Italian Cuisine',
-                'sales' => 1216,
-                'percentage' => 8,
-                'icon' => 'fas fa-utensils',
-                'color' => 'success'
-            ],
-            [
-                'name' => 'Classic Burger',
-                'category' => 'American Cuisine',
-                'sales' => 1089,
-                'percentage' => 15,
-                'icon' => 'fas fa-hamburger',
-                'color' => 'warning'
-            ]
-        ];
+        try {
+            // Get real top selling items from actual sales data
+            $topSellingItems = DB::table('products')
+                ->leftJoin('pos_items', function($join) use ($startDate, $endDate) {
+                    $join->on('products.id', '=', 'pos_items.product_id')
+                         ->whereBetween('pos_items.created_at', [$startDate, $endDate]);
+                })
+                ->leftJoin('order_items', function($join) use ($startDate, $endDate) {
+                    $join->on('products.id', '=', 'order_items.product_id')
+                         ->whereBetween('order_items.created_at', [$startDate, $endDate]);
+                })
+                ->leftJoin('product_service_categories', 'products.category_id', '=', 'product_service_categories.id')
+                ->selectRaw('products.name, 
+                    product_service_categories.name as category_name,
+                    COALESCE(SUM(pos_items.quantity), 0) + COALESCE(SUM(order_items.quantity), 0) as total_sold,
+                    COALESCE(SUM(pos_items.total_price), 0) + COALESCE(SUM(order_items.total_price), 0) as total_revenue')
+                ->where('products.type', 'product')
+                ->where('products.status', 'active')
+                ->groupBy('products.id', 'products.name', 'product_service_categories.name')
+                ->orderByDesc('total_sold')
+                ->take(3)
+                ->get();
+
+            // Calculate total sales for percentage calculation
+            $totalSales = $topSellingItems->sum('total_sold');
+            
+            // Transform data with icons and colors
+            $colors = ['primary', 'success', 'warning', 'info', 'danger'];
+            $icons = ['fas fa-box', 'fas fa-shopping-cart', 'fas fa-star', 'fas fa-trophy', 'fas fa-fire'];
+            
+            return $topSellingItems->map(function ($item, $index) use ($totalSales, $colors, $icons) {
+                $percentage = $totalSales > 0 ? round(($item->total_sold / $totalSales) * 100, 1) : 0;
+                
+                return [
+                    'name' => $item->name,
+                    'category' => $item->category_name ?? 'Uncategorized',
+                    'sales' => $item->total_sold,
+                    'revenue' => number_format($item->total_revenue, 2),
+                    'percentage' => $percentage,
+                    'icon' => $icons[$index % count($icons)],
+                    'color' => $colors[$index % count($colors)]
+                ];
+            })->toArray();
+            
+        } catch (\Exception $e) {
+            \Log::error('Error getting top selling items: ' . $e->getMessage());
+            
+            // Return fallback data if there's an error
+            return [
+                [
+                    'name' => 'No Data Available',
+                    'category' => 'System',
+                    'sales' => 0,
+                    'revenue' => '0.00',
+                    'percentage' => 0,
+                    'icon' => 'fas fa-exclamation-triangle',
+                    'color' => 'secondary'
+                ]
+            ];
+        }
     }
 
     private function getLocationPerformance($startDate, $endDate)
@@ -350,6 +468,57 @@ class DashboardController extends Controller
             'labels' => $labels,
             'orders' => $orders,
             'sales' => $sales
+        ];
+    }
+
+    private function getCustomerSatisfaction($startDate, $endDate)
+    {
+        // Get reviews from the current period
+        $currentReviews = Review::where('is_approved', true)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+        // Get reviews from the previous period for comparison
+        $previousStartDate = $startDate->copy()->subWeek();
+        $previousEndDate = $startDate->copy()->subDay();
+        $previousReviews = Review::where('is_approved', true)
+            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
+            ->get();
+
+        // Calculate current period satisfaction
+        $currentRating = 0;
+        $currentCount = $currentReviews->count();
+        if ($currentCount > 0) {
+            $currentRating = $currentReviews->avg('rating');
+        }
+
+        // Calculate previous period satisfaction
+        $previousRating = 0;
+        $previousCount = $previousReviews->count();
+        if ($previousCount > 0) {
+            $previousRating = $previousReviews->avg('rating');
+        }
+
+        // If no reviews in current period, use overall average
+        if ($currentCount == 0) {
+            $overallReviews = Review::where('is_approved', true)->get();
+            $currentRating = $overallReviews->count() > 0 ? $overallReviews->avg('rating') : 0;
+            $currentCount = $overallReviews->count();
+        }
+
+        // Calculate percentage change
+        $percentage = 0;
+        if ($previousRating > 0) {
+            $percentage = (($currentRating - $previousRating) / $previousRating) * 100;
+        } elseif ($currentRating > 0) {
+            $percentage = 100; // New data, consider it as improvement
+        }
+
+        return [
+            'rating' => round($currentRating, 1),
+            'percentage' => round($percentage, 1),
+            'count' => $currentCount,
+            'trend' => $percentage >= 0 ? 'up' : 'down'
         ];
     }
 }

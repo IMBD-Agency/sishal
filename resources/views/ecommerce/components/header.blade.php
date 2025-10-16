@@ -71,6 +71,11 @@
     <!-- Removed Turbo CDN to fix JavaScript functionality issues -->
     @stack('styles')
     @vite(['resources/js/app.js'])
+    <style>
+        html, body {
+            font-family: 'Segoe UI', 'SegoeUI', 'Helvetica Neue', Helvetica, Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+        }
+    </style>
 </head>
 
 <body>

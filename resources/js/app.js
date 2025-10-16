@@ -4,9 +4,105 @@ import Alpine from 'alpinejs';
 import Splide from '@splidejs/splide';
 import '@splidejs/splide/css';
 
+// App.js loaded successfully
+
 window.Alpine = Alpine;
 
 Alpine.start();
+
+// Delegated wishlist toggle handler (use capture so inline stopPropagation doesn't block)
+document.addEventListener('click', async (event) => {
+    const button = event.target.closest('.wishlist-btn');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const productId = button.getAttribute('data-product-id');
+    if (!productId) return;
+
+    const icon = button.querySelector('i');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // Prevent double clicks during request
+    if (button.dataset.loading === 'true') return;
+    button.dataset.loading = 'true';
+    button.setAttribute('disabled', 'disabled');
+
+    try {
+        const response = await fetch(`/add-remove-wishlist/${productId}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+            },
+            body: JSON.stringify({}),
+        });
+
+        let result = null;
+        try { result = await response.json(); } catch (_) { /* ignore */ }
+
+        if (!response.ok) {
+            throw new Error(result?.message || `Wishlist update failed (${response.status})`);
+        }
+
+        // Decide whether this action resulted in an add or a removal
+        const wasActive = button.classList.contains('active') || (icon && icon.classList.contains('fas'));
+        let added;
+        if (typeof result?.added !== 'undefined') {
+            added = !!result.added;
+        } else if (typeof result?.message === 'string') {
+            const msg = result.message.toLowerCase();
+            if (msg.includes('remove')) {
+                added = false;
+            } else if (msg.includes('added')) {
+                added = true;
+            } else {
+                added = !wasActive;
+            }
+        } else if (typeof result?.success !== 'undefined') {
+            // Backend returns success for both add/remove; infer from current UI state
+            added = !wasActive;
+        } else {
+            added = !wasActive;
+        }
+
+        // Toggle UI state
+        if (icon) {
+            if (added) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                icon.classList.add('text-danger');
+                icon.classList.add('active');
+                button.classList.add('active');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.remove('text-danger');
+                icon.classList.add('far');
+                icon.classList.remove('active');
+                button.classList.remove('active');
+            }
+        }
+
+        // Show toast if available
+        if (typeof window.showToast === 'function') {
+            window.showToast(added ? 'Added to wishlist' : 'Removed from wishlist');
+        }
+        // Update wishlist count if helper exists
+        if (typeof window.updateWishlistCount === 'function') {
+            window.updateWishlistCount();
+        }
+    } catch (err) {
+        console.error(err);
+        if (typeof window.showToast === 'function') {
+            window.showToast('Could not update wishlist', 'error');
+        }
+    } finally {
+        delete button.dataset.loading;
+        button.removeAttribute('disabled');
+    }
+}, true);
 
 // Custom Banner Carousel (works without Bootstrap)
 function initCategorySplide() {
@@ -14,7 +110,7 @@ function initCategorySplide() {
         const categoryEl = document.getElementById('categorySplide');
         if (categoryEl && !categoryEl.__splideMounted) {
             const splide = new Splide(categoryEl, {
-                type: 'slide',
+                type: 'loop',
                 perPage: 4,
                 perMove: 1,
                 gap: '16px',
@@ -24,9 +120,14 @@ function initCategorySplide() {
                 flickPower: 300,
                 releaseWheel: true,
                 keyboard: 'focused',
+                autoplay: true,
+                interval: 2000,
+                pauseOnHover: true,
+                rewind: true,
                 breakpoints: {
                     1199: { perPage: 3 },
-                    767: { perPage: 2 }
+                    767: { perPage: 2 },
+                    575: { perPage: 2 }
                 }
             });
             splide.mount();
@@ -43,63 +144,354 @@ window.addEventListener('load', initCategorySplide);
 setTimeout(initCategorySplide, 0);
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Vlog Splide
+    (function initVlogSplide(){
+        const vlogEl = document.getElementById('vlogSplide');
+        if (!vlogEl || vlogEl.__splideMounted) return;
+        try {
+            const vlogSplide = new Splide(vlogEl, {
+                perPage: 2,
+                gap: '24px',
+                pagination: false,
+                arrows: true,
+                drag: false, // disable mouse/touch drag to avoid YouTube iframe conflicts
+                keyboard: 'focused',
+                breakpoints: {
+                    991: { perPage: 1, gap: '16px' }
+                }
+            });
+            vlogSplide.mount();
+            vlogEl.__splideMounted = true;
+        } catch (e) {
+            console.error('Failed to mount vlog Splide:', e);
+        }
+    })();
+
     // Build Top Selling Splide from API
     (function initMostSoldSplide(){
         const wrapper = document.getElementById('mostSoldSplide');
         const listEl = document.getElementById('mostSoldSplideList');
         const fallback = document.getElementById('mostSoldFallback');
+        
         if (!wrapper || !listEl) return;
-        fetch('/api/products/most-sold')
-            .then(r => r.json())
-            .then(products => {
-                if (!Array.isArray(products) || products.length === 0) {
-                    if (fallback) fallback.style.display = 'block';
-                    wrapper.style.display = 'none';
-                    return;
+        
+        // Add loading state
+        if (fallback) {
+            fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading top selling products...</p></div>';
+            fallback.style.display = 'block';
+        }
+        
+        const startTime = performance.now();
+        
+        fetch('/api/products/most-sold', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const endTime = performance.now();
+            const loadTime = Math.round(endTime - startTime);
+            
+            // Handle new API response format
+            const products = data.success ? data.data : data;
+            
+            if (!Array.isArray(products) || products.length === 0) {
+                if (fallback) {
+                    fallback.innerHTML = '<div class="col-12 text-center text-muted"><i class="fas fa-box-open fa-2x mb-3"></i><p>No top selling products found.</p></div>';
+                    fallback.style.display = 'block';
                 }
-                if (fallback) fallback.style.display = 'none';
-                listEl.innerHTML = products.map(product => {
-                    const rating = product.avg_rating ?? product.rating ?? 0;
+                if (wrapper) wrapper.style.display = 'none';
+                return;
+            }
+            
+            if (fallback) fallback.style.display = 'none';
+            
+            // Render products with improved error handling
+            listEl.innerHTML = products.map(product => {
+                try {
+                    const rating = product.avg_rating ?? 0;
                     const reviews = product.total_reviews ?? 0;
-                    const price = Number(product.price || 0).toFixed(2);
-                    const image = product.image ? product.image : '/default-product.png';
-                    const discounted = Number(product.discount || 0);
+                    const price = Number(product.price || 0);
+                    const discount = Number(product.discount || 0);
+                    const finalPrice = discount > 0 ? discount : price;
+                    const image = product.image || '/static/default-product.png';
+                    const hasStock = product.has_stock !== false;
+                    const isWishlisted = product.is_wishlisted === true;
+                    
                     return `
                         <li class="splide__slide">
                             <div class="product-card position-relative no-hover-border" data-href="/product/${product.slug}">
-                                <button class="wishlist-btn${product.is_wishlisted ? ' active' : ''}" data-product-id="${product.id}"><i class="${product.is_wishlisted ? 'fas text-danger' : 'far'} fa-heart"></i></button>
+                                <button class="wishlist-btn${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
+                                    <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
+                                </button>
                                 <div class="product-image-container">
-                                    <img src="${image}" class="product-image" alt="${product.name}">
-                                    <div class="rating-badge"><span>${(Math.round(rating*10)/10).toFixed(1)}</span><i class="fas fa-star star"></i><span>| ${reviews}</span></div>
+                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.src='/static/default-product.png'">
+                                    ${rating > 0 ? `<div class="rating-badge">
+                                        <span>${rating.toFixed(1)}</span>
+                                        <i class="fas fa-star star"></i>
+                                        <span>| ${reviews}</span>
+                                    </div>` : ''}
                                 </div>
                                 <div class="product-info">
-                                    <a href="/product/${product.slug}" style="text-decoration: none" class="product-title">${product.name}</a>
-                                    <div class="price">${discounted > 0 ? `<span class=\"fw-bold text-primary\">${discounted.toFixed(2)}৳</span><span class=\"old\">${price}৳</span>` : `<span class=\"fw-bold text-primary\">${price}৳</span>`}</div>
+                                    <a href="/product/${product.slug}" style="text-decoration: none" class="product-title" title="${product.name}">${product.name}</a>
+                                    <div class="price">
+                                        ${discount > 0 && discount < price ? 
+                                            `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span><span class="old">${price.toFixed(2)}৳</span>` : 
+                                            `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span>`
+                                        }
+                                    </div>
                                     <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                        <button class="btn-add-cart" data-product-id="${product.id}" data-product-name="${product.name}" data-has-stock="${product.has_stock ? 'true' : 'false'}" ${!product.has_stock ? 'disabled' : ''}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14"><path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path><circle cx="7" cy="22" r="2"></circle><circle cx="17" cy="22" r="2"></circle></svg> ${product.has_stock ? 'Add to Cart' : 'Out of Stock'}</button>
+                                        <button class="btn-add-cart ${!hasStock ? 'disabled' : ''}" 
+                                                data-product-id="${product.id}" 
+                                                data-product-name="${product.name}" 
+                                                data-has-stock="${hasStock}" 
+                                                ${!hasStock ? 'disabled title="Out of stock"' : 'title="Add to cart"'}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
+                                                <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
+                                                <circle cx="7" cy="22" r="2"></circle>
+                                                <circle cx="17" cy="22" r="2"></circle>
+                                            </svg> 
+                                            ${hasStock ? 'Add to Cart' : 'Out of Stock'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </li>`;
-                }).join('');
-                wrapper.style.visibility = 'visible';
-                const topSplide = new Splide(wrapper, {
-                    perPage: 4,
-                    gap: '16px',
-                    pagination: false,
-                    arrows: true,
-                    breakpoints: { 1199: { perPage: 3 }, 991: { perPage: 2 }, 575: { perPage: 1 } }
-                });
-                topSplide.mount();
-            })
-            .catch(() => {
+                } catch (error) {
+                    console.error('Error rendering product:', product, error);
+                    return ''; // Skip this product if there's an error
+                }
+            }).filter(html => html).join('');
+            
+            // Initialize Splide carousel
+            wrapper.style.visibility = 'visible';
+            const topSplide = new Splide(wrapper, {
+                type: 'loop',
+                perPage: 4,
+                gap: '16px',
+                pagination: false,
+                arrows: true,
+                lazyLoad: 'nearby',
+                autoplay: true,
+                interval: 3000,
+                pauseOnHover: true,
+                rewind: true,
+                breakpoints: { 
+                    1199: { perPage: 3 }, 
+                    991: { perPage: 2 }, 
+                    575: { perPage: 2 } 
+                }
+            });
+            topSplide.mount();
+            
+            // Log performance metrics
+            console.log(`Top selling products loaded in ${loadTime}ms`, {
+                productsCount: products.length,
+                loadTime: loadTime,
+                cached: data.meta?.cached || false
+            });
+            
+        })
+        .catch(error => {
+            console.error('Failed to load top selling products:', error);
+            
+            if (fallback) {
+                fallback.innerHTML = `
+                    <div class="col-12 text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Failed to load top selling products.</p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="location.reload()">
+                            <i class="fas fa-refresh me-1"></i>Retry
+                        </button>
+                    </div>
+                `;
+                fallback.style.display = 'block';
+            }
+            if (wrapper) wrapper.style.display = 'none';
+        });
+    })();
+
+    // Build New Arrivals Splide from API
+    (function initNewArrivalsSplide(){
+        const wrapper = document.getElementById('newArrivalsSplide');
+        const listEl = document.getElementById('newArrivalsSplideList');
+        const fallback = document.getElementById('newArrivalsFallback');
+
+        if (!wrapper || !listEl) return;
+
+        if (fallback) {
+            fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading new arrivals...</p></div>';
+            fallback.style.display = 'block';
+        }
+
+        const startTime = performance.now();
+
+        fetch('/api/products/new-arrivals', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const endTime = performance.now();
+            const loadTime = Math.round(endTime - startTime);
+
+            const products = data.success ? data.data : data;
+
+            if (!Array.isArray(products) || products.length === 0) {
                 if (fallback) {
-                    fallback.innerHTML = '<div class="col-12 text-center text-danger">Failed to load products.</div>';
+                    fallback.innerHTML = '<div class="col-12 text-center text-muted"><i class="fas fa-box-open fa-2x mb-3"></i><p>No new arrival products found.</p></div>';
                     fallback.style.display = 'block';
                 }
                 if (wrapper) wrapper.style.display = 'none';
+                return;
+            }
+
+            if (fallback) fallback.style.display = 'none';
+
+            listEl.innerHTML = products.map(product => {
+                try {
+                    const rating = product.avg_rating ?? product.rating ?? 0;
+                    const reviews = product.total_reviews ?? 0;
+                    const price = Number(product.price || 0);
+                    const discount = Number(product.discount || 0);
+                    const finalPrice = discount > 0 ? discount : price;
+                    const image = product.image || '/static/default-product.png';
+                    const hasStock = product.has_stock !== false;
+                    const isWishlisted = product.is_wishlisted === true;
+
+                    return `
+                        <li class=\"splide__slide\">
+                            <div class=\"product-card position-relative no-hover-border\" data-href=\"/product/${product.slug}\">
+                                <button class=\"wishlist-btn${isWishlisted ? ' active' : ''}\" data-product-id=\"${product.id}\" title=\"${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}\" type=\"button\" onclick=\"event.stopPropagation();\">
+                                    <i class=\"${isWishlisted ? 'fas text-danger' : 'far'} fa-heart\"></i>
+                                </button>
+                                <div class=\"product-image-container\">
+                                    <img src=\"${image}\" class=\"product-image\" alt=\"${product.name}\" loading=\"lazy\" onerror=\"this.src='/static/default-product.png'\">
+                                    ${rating > 0 ? `<div class=\"rating-badge\"><span>${rating.toFixed(1)}</span><i class=\"fas fa-star star\"></i><span>| ${reviews}</span></div>` : ''}
+                                </div>
+                                <div class=\"product-info\">
+                                    <a href=\"/product/${product.slug}\" style=\"text-decoration: none\" class=\"product-title\" title=\"${product.name}\">${product.name}</a>
+                                    <div class="price">
+                                        ${discount > 0 && discount < price ? 
+                                            `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span><span class="old">${price.toFixed(2)}৳</span>` : 
+                                            `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span>`
+                                        }
+                                    </div>
+                                    <div class=\"d-flex justify-content-between align-items-center gap-2 product-actions\">
+                                        <button class=\"btn-add-cart ${!hasStock ? 'disabled' : ''}\" 
+                                                data-product-id=\"${product.id}\" 
+                                                data-product-name=\"${product.name}\" 
+                                                data-has-stock=\"${hasStock}\" 
+                                                ${!hasStock ? 'disabled title="Out of stock"' : 'title="Add to cart"'}>
+                                            <svg xmlns=\"http://www.w3.org/2000/svg\" id=\"Outline\" viewBox=\"0 0 24 24\" fill=\"#fff\" width=\"14\" height=\"14\">
+                                                <path d=\"M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z\"></path>
+                                                <circle cx=\"7\" cy=\"22\" r=\"2\"></circle>
+                                                <circle cx=\"17\" cy=\"22\" r=\"2\"></circle>
+                                            </svg> 
+                                            ${hasStock ? 'Add to Cart' : 'Out of Stock'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>`;
+                } catch (error) {
+                    console.error('Error rendering new arrival product:', product, error);
+                    return '';
+                }
+            }).filter(html => html).join('');
+
+            wrapper.style.visibility = 'visible';
+            const naSplide = new Splide(wrapper, {
+                type: 'loop',
+                perPage: 4,
+                gap: '16px',
+                pagination: false,
+                arrows: true,
+                lazyLoad: 'nearby',
+                autoplay: true,
+                interval: 2500,
+                pauseOnHover: true,
+                rewind: true,
+                breakpoints: { 
+                    1199: { perPage: 3 }, 
+                    991: { perPage: 2 }, 
+                    575: { perPage: 2 } 
+                }
             });
+            naSplide.mount();
+
+            console.log(`New arrivals loaded in ${loadTime}ms`, { count: products.length });
+        })
+        .catch(error => {
+            console.error('Failed to load new arrivals:', error);
+            if (fallback) {
+                fallback.innerHTML = `
+                    <div class=\"col-12 text-center text-danger\">
+                        <i class=\"fas fa-exclamation-triangle fa-2x mb-3\"></i>
+                        <p>Failed to load new arrival products.</p>
+                        <button class=\"btn btn-outline-primary btn-sm\" onclick=\"location.reload()\">
+                            <i class=\"fas fa-refresh me-1\"></i>Retry
+                        </button>
+                    </div>
+                `;
+                fallback.style.display = 'block';
+            }
+            if (wrapper) wrapper.style.display = 'none';
+        });
+    })();
+
+    // Initialize Best Deals Splide (server-rendered list)
+    (function initBestDealsSplide(){
+        const wrapper = document.getElementById('bestDealsSplide');
+        const listEl = document.getElementById('bestDealsSplideList');
+        const fallback = document.getElementById('bestDealsFallback');
+
+        if (!wrapper || !listEl) return;
+
+        try {
+            // Hide fallback once DOM is ready; list is server-rendered
+            if (fallback) fallback.style.display = 'none';
+            wrapper.style.visibility = 'visible';
+
+            const dealsSplide = new Splide(wrapper, {
+                type: 'loop',
+                perPage: 4,
+                gap: '16px',
+                pagination: false,
+                arrows: true,
+                lazyLoad: 'nearby',
+                autoplay: true,
+                interval: 4500,
+                pauseOnHover: true,
+                rewind: true,
+                breakpoints: {
+                    1199: { perPage: 3 },
+                    991: { perPage: 2 },
+                    575: { perPage: 1 }
+                }
+            });
+            dealsSplide.mount();
+        } catch (e) {
+            console.error('Failed to mount best deals Splide:', e);
+            if (fallback) fallback.style.display = 'block';
+            if (wrapper) wrapper.style.display = 'none';
+        }
     })();
     // Init Hero Splide
     try {
@@ -110,10 +502,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 autoplay: true,
                 interval: 5000,
                 pauseOnHover: true,
-                arrows: true,
+                arrows: window.innerWidth > 768,
                 pagination: true,
                 drag: true,
                 rewind: true,
+                breakpoints: {
+                    768: {
+                        arrows: false
+                    }
+                }
             });
             hero.mount();
             heroEl.__splideMounted = true;
@@ -122,6 +519,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const carousel = document.getElementById('homeHeroCarousel');
     // old markup removed; keep code for backward compatibility on other pages
+    
+    if (!carousel) return; // Exit if carousel element doesn't exist
 
     const items = carousel.querySelectorAll('.carousel-item');
     const indicators = carousel.querySelectorAll('.carousel-indicators button');

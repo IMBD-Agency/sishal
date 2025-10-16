@@ -14,6 +14,7 @@ class Banner extends Model
         'description',
         'image',
         'status',
+        'position',
         'start_date',
         'end_date',
         'link_url',

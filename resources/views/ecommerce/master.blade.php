@@ -1134,18 +1134,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(e) {
         var productCard = e.target.closest('.product-card');
         if (!productCard) return;
-        
-        // Don't trigger if clicking on interactive elements
+
+        // Prevent navigation when clicking on wishlist/cart or other interactive UI inside the card
+        if (
+            e.target.closest('.wishlist-btn') ||
+            e.target.closest('.product-wishlist-top') ||
+            e.target.closest('.btn-add-cart') ||
+            e.target.closest('button') ||
+            e.target.closest('a')
+        ) {
+            return;
+        }
+
+        // Don't trigger if clicking on generic interactive elements
         var interactiveElements = ['A', 'BUTTON', 'SVG', 'PATH', 'FORM', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'];
         if (interactiveElements.includes(e.target.tagName)) return;
-        
+
         // Check if the card has a data-href attribute (for dynamically loaded products)
         var href = productCard.getAttribute('data-href');
         if (href) {
             window.location.href = href;
             return;
         }
-        
+
         // For static product cards, find the product title link
         var titleLink = productCard.querySelector('.product-title');
         if (titleLink && titleLink.href) {

@@ -26,8 +26,16 @@ class PageController extends Controller
             ->get();
         // Try loading banners if a model exists; otherwise provide empty array
         $banners = [];
+        $vlogBottomBanners = [];
         if (class_exists('App\\Models\\Banner')) {
-            $banners = \App\Models\Banner::currentlyActive()->orderBy('sort_order', 'asc')->get();
+            $banners = \App\Models\Banner::currentlyActive()
+                ->where('position','hero')
+                ->orderBy('sort_order', 'asc')
+                ->get();
+            $vlogBottomBanners = \App\Models\Banner::currentlyActive()
+                ->where('position','vlogs_bottom')
+                ->orderBy('sort_order','asc')
+                ->get();
         }
         $featuredCategories = ProductServiceCategory::whereNull('parent_id')->get();
         $featuredServices = Product::where('type', 'service')
@@ -46,7 +54,7 @@ class PageController extends Controller
             ->take(4)
             ->get();
         
-        $viewData = compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts');
+        $viewData = compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts','vlogBottomBanners');
         $response = response()->view('ecommerce.home', $viewData);
         $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         $response->header('Pragma', 'no-cache');

@@ -51,7 +51,18 @@
                                             @enderror
                                         </div>
                                     </div>
-                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="position" class="form-label">Position <span class="text-danger">*</span></label>
+                                            <select class="form-select @error('position') is-invalid @enderror" id="position" name="position" required>
+                                                <option value="hero" {{ old('position', $banner->position) == 'hero' ? 'selected' : '' }}>Hero</option>
+                                                <option value="vlogs_bottom" {{ old('position', $banner->position) == 'vlogs_bottom' ? 'selected' : '' }}>Banner Ads</option>
+                                            </select>
+                                            @error('position')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="mb-3">

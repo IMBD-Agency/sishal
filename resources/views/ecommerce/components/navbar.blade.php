@@ -253,16 +253,43 @@
             });
         }
 
-        // Mobile search toggle
-        function toggleSearchBar(){
+        // Mobile search toggle with focus and accessibility
+        function openSearchBar(){
             if(!searchBar) return;
-            var open = searchBar.classList.toggle('open');
-            if(open){ searchBar.removeAttribute('hidden'); } else { setTimeout(function(){ searchBar.setAttribute('hidden',''); }, 150); }
-            if(searchToggle){ searchToggle.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+            searchBar.removeAttribute('hidden');
+            if(!searchBar.classList.contains('open')){
+                searchBar.classList.add('open');
+            }
+            if(searchToggle){ searchToggle.setAttribute('aria-expanded','true'); }
+            // Focus input on next frame to ensure visibility
+            requestAnimationFrame(function(){
+                var input = searchBar.querySelector('.mobile-search-input');
+                if(input){ try { input.focus({ preventScroll: true }); } catch(_) { input.focus(); }
+                    if(input.select) { input.select(); }
+                }
+            });
+            // Keep header in view on small screens
+            try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(_) { window.scrollTo(0,0); }
+        }
+        function closeSearchBar(){
+            if(!searchBar) return;
+            searchBar.classList.remove('open');
+            if(searchToggle){ searchToggle.setAttribute('aria-expanded','false'); }
+            setTimeout(function(){ searchBar.setAttribute('hidden',''); }, 150);
         }
         if(searchToggle && searchBar){
-            searchToggle.addEventListener('click', function(){ toggleSearchBar(); });
+            searchToggle.addEventListener('click', function(){
+                if(searchBar.classList.contains('open')){ closeSearchBar(); } else { openSearchBar(); }
+            });
         }
+        // Close search when clicking outside
+        document.addEventListener('click', function(e){
+            if(!searchBar || !searchBar.classList.contains('open')) return;
+            if(e.target.closest('#mobileSearchBar') || e.target.closest('#mobileSearchToggle')) return;
+            closeSearchBar();
+        });
+        // Close on Escape
+        document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeSearchBar(); } });
     })();
 </script>
 <style>
