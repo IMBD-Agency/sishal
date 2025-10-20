@@ -27,7 +27,7 @@
             </a>
         </div>
         @endcan
-        {{-- HRM System - Commented out
+     
         <div class="nav-item">
             <a href="#" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#hrmSubmenu" aria-expanded="{{ request()->is('erp/employees*') ? 'true' : 'false' }}" aria-controls="hrmSubmenu">
                 <div class="d-flex align-items-center">
@@ -47,8 +47,8 @@
                 </ul>
             </div>
         </div>
-        --}}
-        {{-- 
+        
+       
         <div class="nav-item">
             <a href="#accountingSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? 'true' : 'false' }}" aria-controls="accountingSubmenu">
                 <div class="d-flex align-items-center">
@@ -142,7 +142,7 @@
                 </ul>
             </div>
         </div>
-        --}}
+        
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#productsSubMenu" aria-expanded="{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? 'true' : 'false' }}" aria-controls="productsSubMenu">
                 <div class="d-flex align-items-center">

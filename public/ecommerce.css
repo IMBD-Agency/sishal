@@ -37,7 +37,6 @@ header.modern-header{
     will-change: auto;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     /* Prevent any movement */
     margin: 0 !important;
 }
@@ -104,7 +103,6 @@ nav.main-nav{
         top: 0px !important;
         height: 80px;
         background: #fff !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     nav.main-nav {
         top: 64px !important;
