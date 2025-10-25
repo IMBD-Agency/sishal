@@ -16,6 +16,10 @@ class Payment extends Model
         'payment_method',
         'reference',
         'note',
+        'status',
+        'gateway_response',
+        'transaction_id',
+        'payment_reference',
     ];
 
     // Relationships

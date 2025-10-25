@@ -24,7 +24,10 @@ class Order extends Model
         'payment_method',
         'invoice_id',
         'notes',
-        'created_by'
+        'created_by',
+        'payment_status',
+        'payment_reference',
+        'payment_gateway_response'
     ];
 
     public function invoice()
@@ -50,5 +53,10 @@ class Order extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class, 'pos_id')->where('payment_for', 'order');
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class, 'order_id');
     }
 }

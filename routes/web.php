@@ -83,6 +83,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/order-success/{orderId}', [OrderController::class, 'orderSuccess'])->name('order.success');
     Route::get('/order-details/{orderNum}', [OrderController::class, 'show'])->name('order.details');
 
+    // Payment Routes
+    Route::post('/payment/initialize', [\App\Http\Controllers\PaymentController::class, 'initializePayment'])->name('payment.initialize');
+    Route::get('/payment/status/{tranId}', [\App\Http\Controllers\PaymentController::class, 'getPaymentStatus'])->name('payment.status');
+
     // Wishlist
     Route::get('/wishlists', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'index'])->name('wishlist.index');
     Route::get('/wishlist/count', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'wishlistCount'])->name('wihslist.count');
@@ -91,6 +95,16 @@ Route::middleware('auth')->group(function () {
 
     // Service
     Route::get('/requested-service/{service_number}', [ServiceController::class, 'show'])->name('service.request.show');
+});
+
+// Payment Routes (outside auth middleware for SSL Commerce callbacks)
+// These routes need to be excluded from CSRF protection for SSL Commerce callbacks
+Route::withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])->group(function () {
+    Route::get('/payment/ssl-form/{form_id}', [\App\Http\Controllers\PaymentController::class, 'showSslForm'])->name('payment.ssl-form');
+    Route::match(['get', 'post'], '/payment/success', [\App\Http\Controllers\PaymentController::class, 'paymentSuccess'])->name('payment.success');
+    Route::match(['get', 'post'], '/payment/failed', [\App\Http\Controllers\PaymentController::class, 'paymentFailed'])->name('payment.failed');
+    Route::match(['get', 'post'], '/payment/cancelled', [\App\Http\Controllers\PaymentController::class, 'paymentCancelled'])->name('payment.cancelled');
+    Route::post('/payment/ipn', [\App\Http\Controllers\PaymentController::class, 'handleIpn'])->name('payment.ipn');
 });
 
 Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {

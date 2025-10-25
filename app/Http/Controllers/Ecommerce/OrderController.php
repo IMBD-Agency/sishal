@@ -53,7 +53,7 @@ class OrderController extends Controller
             'shipping_state' => 'nullable|string',
             'shipping_zip_code' => 'nullable|string',
             'shipping_method' => 'required|in:standard,express,overnight',
-            'payment_method' => 'required|in:cash,online-payment,bank-transfer',
+            'payment_method' => 'required|in:cash,online-payment',
         ]);
 
         if ($validator->fails()) {
@@ -110,7 +110,7 @@ class OrderController extends Controller
         try {
             $orderNumber = $this->generateOrderNumber();
             // Determine status based on payment method
-            $isInstantPaid = in_array($request->payment_method, ['online-payment', 'bank-transfer']);
+            $isInstantPaid = in_array($request->payment_method, ['online-payment']);
 
             $order = Order::create([
                 'order_number' => $orderNumber,
@@ -219,12 +219,32 @@ class OrderController extends Controller
                 // Don't fail the order creation if email fails
             }
             
+            // Check if this is an AJAX request for online payment
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'total_amount' => $total,
+                    'message' => 'Order created successfully'
+                ]);
+            }
+            
             // Ensure the order number is safe for URLs (avoid '#' fragment issues)
             $encodedOrderNumber = urlencode($order->order_number);
             return redirect()->route('order.success', $encodedOrderNumber);
         } catch (\Exception $e) {
             \Log::alert($e);
             DB::rollBack();
+            
+            // Check if this is an AJAX request
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 500);
+            }
+            
             return redirect()->back()->with('error', $e->getMessage());
         }
     }

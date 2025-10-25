@@ -31,7 +31,7 @@
                         </div>
                     </div>
 
-                    <form class="row g-4" action="{{ route('order.make') }}" method="POST">
+                    <form class="row g-4" id="checkoutForm" action="{{ route('order.make') }}" method="POST">
                         @csrf
                         <!-- Left Column - Forms -->
                         <div class="col-lg-8">
@@ -193,31 +193,15 @@
                                                 <span>Online Payment</span>
                                             </label>
                                         </div>
-                                        <div class="payment-option">
-                                            <input type="radio" name="payment_method" id="bank" value="bank-transfer">
-                                            <label for="bank" class="payment-label">
-                                                <i class="fas fa-university"></i>
-                                                <span>Bank Transfer</span>
-                                            </label>
-                                        </div>
                                     </div>
                                     <div class="credit-card-form" id="onlinePaymentForm" style="display: none;">
-                                        
-                                    </div>
-                                    <div class="bank-transfer-info" id="bankTransferInfo" style="display: none;">
-                                        <div class="alert alert-info mt-3">
-                                            <strong>Bank Transfer Instructions:</strong><br>
-                                            Please transfer the total amount to the following bank account and upload your
-                                            payment slip.<br>
-                                            <ul class="mb-1 mt-2">
-                                                <li>Bank: Example Bank</li>
-                                                <li>Account Name: AquaPure Ltd.</li>
-                                                <li>Account Number: 1234567890</li>
-                                                <li>Branch: Main Branch</li>
-                                            </ul>
-                                            <label class="form-label mt-2">Upload Payment Slip:</label>
-                                            <input type="file" class="form-control modern-input"
-                                                accept="image/*,application/pdf">
+                                        <div class="ssl-commerce-payment">
+                                            <div class="payment-info">
+                                                <div class="alert alert-info">
+                                                    <i class="fas fa-shield-alt me-2"></i>
+                                                    <strong>Secure Payment:</strong> You will be redirected to SSL Commerce secure payment page to complete your transaction.
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -650,6 +634,41 @@
             box-shadow: var(--shadow-lg);
         }
 
+        /* SSL Commerce Payment Styles */
+        .ssl-commerce-payment {
+            margin-top: 1rem;
+        }
+
+        .payment-methods {
+            margin-top: 1rem;
+        }
+
+        .payment-method-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-light);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .payment-method-item:hover {
+            background: var(--light-blue);
+        }
+
+        .payment-method-item i {
+            font-size: 1.2rem;
+            color: var(--primary-blue);
+            margin-right: 0.75rem;
+            width: 20px;
+        }
+
+        .payment-method-item span {
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .progress-container {
@@ -673,63 +692,77 @@
     </style>
 
     <script>
-        // Card number formatting
-        document.addEventListener('DOMContentLoaded', function () {
-            const cardInput = document.querySelector('input[placeholder="1234 5678 9012 3456"]');
-            const expiryInput = document.querySelector('input[placeholder="MM/YY"]');
+        // Immediate test - should show in console right away
+        console.log('=== JAVASCRIPT TEST START ===');
+        console.log('JavaScript is loading...');
+        
+        try {
+            
+            // Card number formatting
+            document.addEventListener('DOMContentLoaded', function () {
+                console.log('First DOMContentLoaded listener executed');
+                const cardInput = document.querySelector('input[placeholder="1234 5678 9012 3456"]');
+                const expiryInput = document.querySelector('input[placeholder="MM/YY"]');
 
-            if (cardInput) {
-                cardInput.addEventListener('input', function (e) {
-                    let value = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
-                    let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
-                    if (formattedValue.length > 19) formattedValue = formattedValue.substr(0, 19);
-                    e.target.value = formattedValue;
+                if (cardInput) {
+                    cardInput.addEventListener('input', function (e) {
+                        let value = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
+                        let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+                        if (formattedValue.length > 19) formattedValue = formattedValue.substr(0, 19);
+                        e.target.value = formattedValue;
+                    });
+                }
+
+                if (expiryInput) {
+                    expiryInput.addEventListener('input', function (e) {
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value.length >= 2) {
+                            value = value.substring(0, 2) + '/' + value.substring(2, 4);
+                        }
+                        e.target.value = value;
+                    });
+                }
+
+                // Shipping method price update
+                const shippingOptions = document.querySelectorAll('input[name="shipping"]');
+                shippingOptions.forEach(option => {
+                    option.addEventListener('change', function () {
+                        updateShippingPrice(this.value);
+                    });
                 });
-            }
 
-            if (expiryInput) {
-                expiryInput.addEventListener('input', function (e) {
-                    let value = e.target.value.replace(/\D/g, '');
-                    if (value.length >= 2) {
-                        value = value.substring(0, 2) + '/' + value.substring(2, 4);
-                    }
-                    e.target.value = value;
+                // Payment method toggle
+                const paymentOptions = document.querySelectorAll('input[name="payment_method"]');
+                const creditCardForm = document.querySelector('.credit-card-form');
+
+                paymentOptions.forEach(option => {
+                    option.addEventListener('change', function () {
+                        if (this.value === 'online-payment') {
+                            if (creditCardForm) creditCardForm.style.display = 'block';
+                        } else {
+                            if (creditCardForm) creditCardForm.style.display = 'none';
+                        }
+                    });
                 });
-            }
 
-            // Shipping method price update
-            const shippingOptions = document.querySelectorAll('input[name="shipping"]');
-            shippingOptions.forEach(option => {
-                option.addEventListener('change', function () {
-                    updateShippingPrice(this.value);
+                // Billing address toggle
+                const sameAsBilling = document.getElementById('sameAsBilling');
+                const billingAddressSection = document.getElementById('billingAddressSection');
+                if (sameAsBilling && billingAddressSection) {
+                    sameAsBilling.addEventListener('change', function () {
+                        billingAddressSection.style.display = this.checked ? 'none' : '';
+                    });
+                }
+                // Payment method toggle (second listener)
+                document.querySelectorAll('input[name="payment_method"]').forEach(function (option) {
+                    option.addEventListener('change', function () {
+                        const onlineForm = document.getElementById('onlinePaymentForm');
+                        
+                        if (onlineForm) {
+                            onlineForm.style.display = (this.value === 'online-payment') ? '' : 'none';
+                        }
+                    });
                 });
-            });
-
-            // Payment method toggle
-            const paymentOptions = document.querySelectorAll('input[name="payment"]');
-            const creditCardForm = document.querySelector('.credit-card-form');
-
-            paymentOptions.forEach(option => {
-                option.addEventListener('change', function () {
-                    if (this.value === 'credit') {
-                        creditCardForm.style.display = 'block';
-                    } else {
-                        creditCardForm.style.display = 'none';
-                    }
-                });
-            });
-
-            // Billing address toggle
-            document.getElementById('sameAsBilling').addEventListener('change', function () {
-                document.getElementById('billingAddressSection').style.display = this.checked ? 'none' : '';
-            });
-            // Payment method toggle
-            document.querySelectorAll('input[name="payment"]').forEach(function (option) {
-                option.addEventListener('change', function () {
-                    document.getElementById('onlinePaymentForm').style.display = (this.value === 'online') ? '' : 'none';
-                    document.getElementById('bankTransferInfo').style.display = (this.value === 'bank') ? '' : 'none';
-                });
-            });
         });
 
         function updateShippingPrice(method) {
@@ -741,12 +774,235 @@
 
             const subtotal = {{ $cartTotal }};
             const tax = {{ $cartTotal * 0.05 }};
-            const shipping = prices[method];
+            const shipping = prices[method] || 60; // Default to 60 if method not found
             const total = subtotal + tax + shipping;
 
-            document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child').textContent = `${shipping.toFixed(2)}৳`;
-            document.querySelector('.total-row span:last-child').textContent = `${total.toFixed(2)}৳`;
-            document.querySelector('.btn-place-order').innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${total.toFixed(2)}৳`;
+            const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
+            const totalElement = document.querySelector('.total-row span:last-child');
+            const buttonElement = document.querySelector('.btn-place-order');
+            
+            if (shippingElement) shippingElement.textContent = `${shipping.toFixed(2)}৳`;
+            if (totalElement) totalElement.textContent = `${total.toFixed(2)}৳`;
+            if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${total.toFixed(2)}৳`;
+        }
+
+        // Handle form submission for SSL Commerce
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Second DOMContentLoaded listener executed - setting up form listener');
+            
+            const form = document.getElementById('checkoutForm');
+            if (!form) {
+                console.error('Checkout form not found!');
+                return;
+            }
+            
+            console.log('Form found, adding event listener');
+            
+            // Add click listener to submit button for debugging
+            const submitBtn = document.querySelector('.btn-place-order');
+            if (submitBtn) {
+                console.log('Submit button found, adding click listener');
+                submitBtn.addEventListener('click', function(e) {
+                    console.log('Submit button clicked!');
+                });
+            } else {
+                console.error('Submit button not found!');
+            }
+            
+            // Check payment method radio buttons
+            const paymentMethods = document.querySelectorAll('input[name="payment_method"]');
+            console.log('Found payment method radio buttons:', paymentMethods.length);
+            paymentMethods.forEach((radio, index) => {
+                console.log(`Payment method ${index}:`, radio.value, 'checked:', radio.checked);
+                radio.addEventListener('change', function() {
+                    console.log('Payment method changed to:', this.value);
+                });
+            });
+            
+            form.addEventListener('submit', function(e) {
+                console.log('Form submitted!');
+                const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+                
+                if (!paymentMethod) {
+                    console.error('No payment method selected!');
+                    return;
+                }
+                
+                console.log('Payment method:', paymentMethod.value);
+                
+                if (paymentMethod.value === 'online-payment') {
+                    console.log('Online payment selected, preventing default and initializing payment');
+                    e.preventDefault();
+                    initializeSSLCommercePayment();
+                } else {
+                    console.log('Other payment method selected, allowing default form submission');
+                }
+            });
+        });
+
+        function initializeSSLCommercePayment() {
+            console.log('=== PAYMENT INITIALIZATION START ===');
+            console.log('initializeSSLCommercePayment called');
+            
+            let formData;
+            let submitBtn;
+            let originalText;
+            
+            try {
+                const form = document.getElementById('checkoutForm');
+                if (!form) {
+                    console.error('Form not found in initializeSSLCommercePayment');
+                    return;
+                }
+                
+                formData = new FormData(form);
+                console.log('Form data prepared');
+                
+                // Show loading state
+                submitBtn = document.querySelector('.btn-place-order');
+                if (!submitBtn) {
+                    console.error('Submit button not found');
+                    return;
+                }
+                
+                originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                submitBtn.disabled = true;
+                console.log('Button state updated to loading');
+            } catch (error) {
+                console.error('Error in payment initialization setup:', error);
+                return;
+            }
+
+            // First create the order
+            console.log('Starting order creation request to:', '{{ route("order.make") }}');
+            
+            // Add timeout to fetch request
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            fetch('{{ route("order.make") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId); // Clear timeout since we got a response
+                console.log('Order creation response status:', response.status);
+                console.log('Order creation response headers:', response.headers);
+                console.log('Order creation response URL:', response.url);
+                
+                if (!response.ok) {
+                    console.error('Order creation failed with status:', response.status);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const contentType = response.headers.get('content-type');
+                console.log('Order creation response content-type:', contentType);
+                
+                if (!contentType || !contentType.includes('application/json')) {
+                    // Log the response text to see what we're getting
+                    console.log('Response is not JSON, getting text...');
+                    return response.text().then(text => {
+                        console.log('Non-JSON response text:', text);
+                        throw new Error('Response is not JSON');
+                    });
+                }
+                console.log('Response is JSON, parsing...');
+                return response.json();
+            })
+            .then(data => {
+                console.log('Order creation data:', data);
+                console.log('Order creation success:', data.success);
+                
+                if (data.success) {
+                    console.log('Order created successfully, initializing payment...');
+                    // Initialize SSL Commerce payment
+                    return fetch('{{ route("payment.initialize") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            order_id: data.order_id,
+                            amount: data.total_amount
+                        })
+                    });
+                } else {
+                    throw new Error(data.message || 'Order creation failed');
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON');
+                }
+                return response.json();
+            })
+            .then(paymentData => {
+                console.log('Payment initialization data:', paymentData);
+                console.log('Payment URL:', paymentData.payment_url);
+                console.log('Success:', paymentData.success);
+                
+                if (paymentData.success) {
+                    console.log('Payment successful, redirecting to:', paymentData.payment_url);
+                    console.log('Payment data:', JSON.stringify(paymentData, null, 2));
+                    
+                    if (paymentData.local_development) {
+                        // For local development, show success message and redirect
+                        alert('Payment completed successfully! (Local Development Mode)');
+                        window.location.href = paymentData.payment_url;
+                    } else {
+                        // Redirect directly to SSL Commerce gateway
+                        console.log('Redirecting to SSL Commerce gateway...');
+                        console.log('Gateway URL:', paymentData.payment_url);
+                        
+                        // Add a small delay to see the console messages
+                        setTimeout(() => {
+                            console.log('About to redirect to SSL Commerce gateway...');
+                            window.location.replace(paymentData.payment_url);
+                        }, 1000);
+                    }
+                } else {
+                    console.error('Payment failed:', paymentData.message);
+                    throw new Error(paymentData.message || 'Payment initialization failed');
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId); // Clear timeout in case of error
+                console.error('Error:', error);
+                console.error('Error details:', error);
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                
+                // Show more detailed error message
+                let errorMessage = 'Payment initialization failed: ' + error.message;
+                if (error.name === 'AbortError') {
+                    errorMessage = 'Request timed out. Please check your internet connection and try again.';
+                } else if (error.message.includes('Response is not JSON')) {
+                    errorMessage = 'Server returned an error page instead of payment data. Please check the server logs.';
+                } else if (error.message.includes('HTTP error')) {
+                    errorMessage = 'Server error occurred. Please try again or contact support.';
+                }
+                
+                console.error('Payment error:', errorMessage);
+                alert(errorMessage);
+                
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        }
+        } catch (error) {
+            console.error('JavaScript error in checkout page:', error);
         }
     </script>
 @endsection

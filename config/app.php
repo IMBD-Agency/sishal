@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | SSL Enabled
+    |--------------------------------------------------------------------------
+    |
+    | This value determines if SSL is enabled for the application.
+    | Set this to true when using HTTPS URLs for SSL Commerce integration.
+    |
+    */
+
+    'ssl_enabled' => (bool) env('APP_SSL_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
