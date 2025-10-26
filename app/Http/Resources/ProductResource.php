@@ -21,7 +21,7 @@ class ProductResource extends JsonResource
             'sku' => $this->sku,
             'price' => (float) $this->price,
             'discount' => (float) $this->discount,
-            'image' => $this->image ? asset($this->image) : asset('static/default-product.png'),
+            'image' => $this->image ? asset($this->image) : asset('static/default-product.jpg'),
             'short_desc' => $this->short_desc,
             'description' => $this->description,
             'status' => $this->status,

@@ -31,11 +31,7 @@ class PosController extends Controller
     {
         if(Auth::user()->hasPermissionTo('make sale')){
         $categories = ProductServiceCategory::all();
-        if(Auth::user()->hasPermissionTo('manage global branches')){
-            $branches = Branch::all();
-        }else{
-            $branches = Branch::where('id', Auth::user()->employee->branch_id)->get();
-        }
+        $branches = Branch::all();
         $bankAccounts = FinancialAccount::all();
         return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts'));
         }else{
@@ -884,10 +880,7 @@ class PosController extends Controller
             });
         }
 
-        // Branch filter (if user doesn't have global access)
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $query->where('branch_id', Auth::user()->employee->branch_id);
-        }
+        // Branch filter
 
         $sales = $query->get();
 
@@ -955,9 +948,6 @@ class PosController extends Controller
         }
 
         // Branch filter
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $query->where('branch_id', Auth::user()->employee->branch_id);
-        }
 
         $sales = $query->get();
         $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
@@ -1197,9 +1187,6 @@ class PosController extends Controller
         }
 
         // Branch filter
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $query->where('branch_id', Auth::user()->employee->branch_id);
-        }
 
         $sales = $query->get();
         $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];

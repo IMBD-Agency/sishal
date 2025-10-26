@@ -55,7 +55,7 @@
                                 <i class="fas text-danger fa-heart"></i>
                             </button>
                             <div class="product-image-container">
-                                <img src="{{$wishlist->product->image ? $wishlist->product->image : '/default-product.png'}}"
+                                <img src="{{$wishlist->product->image ? $wishlist->product->image : '/static/default-product.jpg'}}"
                                     class="product-image"
                                     alt="{{ $wishlist->product->name }}">
                             </div>

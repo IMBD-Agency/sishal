@@ -83,7 +83,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'delete banners', 'category' => 'Banner Management'],
             
             // Branch Management
-            ['name' => 'manage global branches', 'category' => 'Branch Management'],
             ['name' => 'create branch', 'category' => 'Branch Management'],
             ['name' => 'view branch details', 'category' => 'Branch Management'],
             ['name' => 'edit branch', 'category' => 'Branch Management'],

@@ -22,10 +22,6 @@ class DashboardController extends Controller
         $endDate = Carbon::now();
 
         $baseQuery = Pos::query();
-        
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $baseQuery->where('branch_id', Auth::user()->employee->branch_id);
-        }
 
         $stats = $this->getStatistics($baseQuery, $startDate, $endDate, $dateRange);
         $salesOverview = $this->getSalesOverview($baseQuery, $startDate, $endDate, $dateRange);
@@ -49,9 +45,6 @@ class DashboardController extends Controller
 
         // Base query with branch filter
         $baseQuery = Pos::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $baseQuery->where('branch_id', Auth::user()->employee->branch_id);
-        }
 
         // Get statistics
         $stats = $this->getStatistics($baseQuery, $startDate, $endDate, $dateRange);
@@ -114,19 +107,9 @@ class DashboardController extends Controller
 
         // Get Online Order data
         $currentOrderQuery = Order::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $currentOrderQuery->whereHas('invoice.pos', function($q) {
-                $q->where('branch_id', Auth::user()->employee->branch_id);
-            });
-        }
         $currentOrderQuery->whereBetween('created_at', [$startDate, $endDate]);
 
         $previousOrderQuery = Order::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $previousOrderQuery->whereHas('invoice.pos', function($q) {
-                $q->where('branch_id', Auth::user()->employee->branch_id);
-            });
-        }
         $previousOrderQuery->whereBetween('created_at', [$previousStartDate, $previousEndDate]);
 
         // Current period stats - combine POS and Online orders
@@ -206,11 +189,6 @@ class DashboardController extends Controller
         
         // Get Online Order data
         $orderQuery = Order::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $orderQuery->whereHas('invoice.pos', function($q) {
-                $q->where('branch_id', Auth::user()->employee->branch_id);
-            });
-        }
         
         switch ($range) {
             case 'day':
@@ -311,11 +289,6 @@ class DashboardController extends Controller
 
         // Get Online Order status data
         $orderQuery = Order::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $orderQuery->whereHas('invoice.pos', function($q) {
-                $q->where('branch_id', Auth::user()->employee->branch_id);
-            });
-        }
         $orderQuery->whereBetween('created_at', [$startDate, $endDate]);
         $orderStatuses = $orderQuery->selectRaw('status, COUNT(*) as count')
                                    ->groupBy('status')
@@ -413,9 +386,6 @@ class DashboardController extends Controller
     private function getLocationPerformance($startDate, $endDate)
     {
         $query = Pos::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $query->where('branch_id', Auth::user()->employee->branch_id);
-        }
 
         $locations = $query->join('branches', 'pos.branch_id', '=', 'branches.id')
                           ->selectRaw('branches.name, SUM(pos.total_amount) as total_sales')
@@ -433,11 +403,6 @@ class DashboardController extends Controller
     private function getCurrentInvoices()
     {
         $query = Invoice::query();
-        if (!Auth::user()->hasPermissionTo('manage global branches')) {
-            $query->whereHas('pos', function($q) {
-                $q->where('branch_id', Auth::user()->employee->branch_id);
-            });
-        }
 
         return $query->with(['pos.customer'])
                     ->latest()

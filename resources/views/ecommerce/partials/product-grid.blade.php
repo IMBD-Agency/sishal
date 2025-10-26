@@ -17,11 +17,11 @@
                     <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                 </button>
                 <div class="product-image-container">
-                    <img src="{{$product->image ? $product->image : '/default-product.png'}}"
+                    <img src="{{$product->image ? $product->image : '/static/default-product.jpg'}}"
                         class="product-image"
                         alt="{{ $product->name }}"
                         loading="lazy"
-                        onerror="this.src='/static/default-product.png'">
+                        onerror="this.style.display='none'">
                 </div>
                 <div class="product-info">
                     <a href="{{ route('product.details', $product->slug) }}" class="product-title"

@@ -17,17 +17,18 @@
                 </div>
             </a>
         </div>
-        @can('manage global branches')
+        @canany(['view branch list'])
         <div class="nav-item">
+            @can('view branch list')
             <a href="{{ route('branches.index') }}" class="nav-link {{ request()->is('erp/branches*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-code-branch nav-icon"></i>
                     <span>Branches</span>
                 </div>
             </a>
+            @endcan
         </div>
-        @endcan
-     
+        @endcanany
         <div class="nav-item">
             <a href="#" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#hrmSubmenu" aria-expanded="{{ request()->is('erp/employees*') ? 'true' : 'false' }}" aria-controls="hrmSubmenu">
                 <div class="d-flex align-items-center">
@@ -191,16 +192,12 @@
             </a>
             <div class="collapse{{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/purchase-return*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? ' show' : '' }}" id="posSubmenu">
                 <ul class="nav flex-column ms-4">
-                    @can('make sale')
                     <li class="nav-item">
                         <a href="{{ route('pos.add') }}" class="nav-link {{ request()->is('erp/pos/create') ? ' active' : '' }}">Add POS</a>
                     </li>
-                    @endcan
-                    @can('view sales')
                     <li class="nav-item">
                         <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">POS</a>
                     </li>
-                    @endcan
                     <li class="nav-item">
                         <a href="{{ route('saleReturn.list') }}" class="nav-link {{ request()->is('erp/sale-return*') ? ' active' : '' }}">Sale Return</a>
                     </li>
@@ -268,7 +265,6 @@
                 </div>
             </a>
         </div>
-        @can('view banners')
         <div class="nav-item">
             <a href="{{ route('banners.index') }}" class="nav-link {{ request()->is('erp/banners*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
@@ -277,8 +273,6 @@
                 </div>
             </a>
         </div>
-        @endcan
-        @can('view settings')
         <div class="nav-item">
             <a href="{{ route('settings.index') }}" class="nav-link {{ request()->is('erp/settings*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
@@ -287,6 +281,5 @@
                 </div>
             </a>
         </div>
-        @endcan
     </nav>
 </div> 

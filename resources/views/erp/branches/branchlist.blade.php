@@ -21,11 +21,11 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="btn-group me-2">
-            @can('create branch')
+        
                         <a href="{{ route('branches.create') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-plus me-2"></i>Add Branch
+                            <i class="fas fa-plus me-2"></i>Add Branchsdfdf
             </a>
-            @endcan
+         
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#reportModal">
                             <i class="fas fa-download me-2"></i>Export Report
                         </button>
@@ -85,7 +85,9 @@
                                     <th class="border-0">Contact Info</th>
                                     <th class="border-0">Manager</th>
                                     <th class="border-0 text-center">Status</th>
+                                    @canany(['edit branch', 'delete branch'])
                                     <th class="border-0">Actions</th>
+                                    @endcanany
                             </tr>
                         </thead>
                         <tbody>
@@ -312,11 +314,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${branch.status ? branch.status.charAt(0).toUpperCase() + branch.status.slice(1) : 'Active'}
                         </span>
                     </td>
+                    @canany(['edit branch', 'delete branch'])
                     <td>
                         @can('edit branch')
                         <a href="/erp/branches/${branch.id}/edit" class="btn btn-sm btn-warning me-1">Edit</a>
                         @endcan
                         @can('delete branch')
+                       
                         <form action="/erp/branches/${branch.id}" method="POST" style="display:inline-block;">
                             @csrf
                             @method('DELETE')
@@ -324,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </form>
                         @endcan
                     </td>
+                    @endcanany
                 `;
                 tbody.appendChild(row);
         });

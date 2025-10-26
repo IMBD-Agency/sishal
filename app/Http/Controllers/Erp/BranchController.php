@@ -16,11 +16,10 @@ class BranchController extends Controller
      */
     public function index()
     {
-        if(Auth::user()->hasPermissionTo('manage global branches')){
-            return view('erp.branches.branchlist');
-        }else{
-            return redirect()->route('erp.dashboard');
+        if (!Auth::user()->hasPermissionTo('view branch list')) {
+            abort(403, 'Unauthorized action.');
         }
+        return view('erp.branches.branchlist');
     }
 
     public function fetchBranches(Request $request)
@@ -48,12 +47,11 @@ class BranchController extends Controller
      */
     public function create()
     {
-        if(Auth::user()->hasPermissionTo('create branch')){
-            $users = User::where('is_admin', 1)->get();
-            return view('erp.branches.create', compact('users'));
-        }else{
-            return redirect()->route('erp.dashboard');
+        if (!Auth::user()->hasPermissionTo('create branch')) {
+            abort(403, 'Unauthorized action.');
         }
+        $users = User::where('is_admin', 1)->get();
+        return view('erp.branches.create', compact('users'));
     }
 
     /**

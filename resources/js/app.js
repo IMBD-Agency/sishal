@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const price = Number(product.price || 0);
                     const discount = Number(product.discount || 0);
                     const finalPrice = discount > 0 ? discount : price;
-                    const image = product.image || '/static/default-product.png';
+                    const image = product.image || '/static/default-product.jpg';
                     const hasStock = product.has_stock !== false;
                     const isWishlisted = product.is_wishlisted === true;
                     
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
-                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.src='/static/default-product.png'">
+                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.style.display='none'">
                                     ${rating > 0 ? `<div class="rating-badge">
                                         <span>${rating.toFixed(1)}</span>
                                         <i class="fas fa-star star"></i>
@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const price = Number(product.price || 0);
                     const discount = Number(product.discount || 0);
                     const finalPrice = discount > 0 ? discount : price;
-                    const image = product.image || '/static/default-product.png';
+                    const image = product.image || '/static/default-product.jpg';
                     const hasStock = product.has_stock !== false;
                     const isWishlisted = product.is_wishlisted === true;
 
@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class=\"${isWishlisted ? 'fas text-danger' : 'far'} fa-heart\"></i>
                                 </button>
                                 <div class=\"product-image-container\">
-                                    <img src=\"${image}\" class=\"product-image\" alt=\"${product.name}\" loading=\"lazy\" onerror=\"this.src='/static/default-product.png'\">
+                                    <img src=\"${image}\" class=\"product-image\" alt=\"${product.name}\" loading=\"lazy\" onerror=\"this.style.display='none'\">
                                     ${rating > 0 ? `<div class=\"rating-badge\"><span>${rating.toFixed(1)}</span><i class=\"fas fa-star star\"></i><span>| ${reviews}</span></div>` : ''}
                                 </div>
                                 <div class=\"product-info\">
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const price = Number(product.price || 0);
                     const discount = Number(product.discount || 0);
                     const finalPrice = discount > 0 ? discount : price;
-                    const image = product.image || '/static/default-product.png';
+                    const image = product.image || '/static/default-product.jpg';
                     const hasStock = product.has_stock !== false;
                     const isWishlisted = product.is_wishlisted === true;
                     
@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
-                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.src='/static/default-product.png'">
+                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.style.display='none'">
                                     ${rating > 0 ? `<div class="rating-badge">
                                         <span>${rating.toFixed(1)}</span>
                                         <i class="fas fa-star star"></i>

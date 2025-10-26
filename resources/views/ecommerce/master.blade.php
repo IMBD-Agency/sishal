@@ -587,7 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 products.forEach(function (product) {
                     var rating = product.avg_rating ?? product.rating ?? 0;
                     var price = parseFloat(product.price || 0).toFixed(2);
-                    var image = product.image ? product.image : '/default-product.png';
+                    var image = product.image ? product.image : '/static/default-product.jpg';
                     container.append('\
                     <div class="col-lg-3 col-md-6 mb-4">\
                         <div class="product-card position-relative" data-href="/product/' + product.slug + '">\

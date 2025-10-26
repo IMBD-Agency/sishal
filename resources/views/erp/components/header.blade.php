@@ -6,14 +6,10 @@
             </button>
             <div>
                 <h2 class="mb-1">
-                    @if(Auth::user()->hasPermissionTo('manage global branches'))
-                        Global Branch
+                    @if(Auth::user()->employee && Auth::user()->employee->branch)
+                        {{ Auth::user()->employee->branch->name }} Branch
                     @else
-                        @if(Auth::user()->employee && Auth::user()->employee->branch)
-                            {{ Auth::user()->employee->branch->name }} Branch
-                        @else
-                            No Branch
-                        @endif
+                        No Branch
                     @endif
                 </h2>
             </div>

@@ -17,7 +17,7 @@
                             <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                         </button>
                         <div class="product-image-container">
-                            <img src="{{ $product->image ?: '/default-product.png' }}" class="product-image" alt="{{ $product->name }}">
+                            <img src="{{ $product->image ?: '/static/default-product.jpg' }}" class="product-image" alt="{{ $product->name }}">
                         </div>
                         <div class="product-info">
                             <a href="{{ route('product.details', $product->slug) }}" class="product-title" style="text-decoration: none;">{{ $product->name }}</a>
