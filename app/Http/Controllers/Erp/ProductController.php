@@ -330,8 +330,58 @@ class ProductController extends Controller
      */
     public function show(string $id)
     {
-        $product = Product::with('category', 'galleries')->findOrFail($id);
-        return view('erp.products.show', compact('product'));
+        $product = Product::with([
+            'category', 
+            'galleries',
+            'branchStock.branch',
+            'warehouseStock.warehouse',
+            'saleItems.invoice'
+        ])->findOrFail($id);
+        
+        // Calculate units sold from POS items
+        $unitsSold = $product->saleItems->sum('quantity');
+        
+        // Get branch stock distribution
+        $branchStocks = $product->branchStock->map(function($stock) {
+            return [
+                'branch_name' => $stock->branch->name ?? 'Unknown Branch',
+                'quantity' => $stock->quantity,
+                'updated_at' => $stock->last_updated_at ?? $stock->updated_at
+            ];
+        });
+        
+        // Get warehouse stock distribution
+        $warehouseStocks = $product->warehouseStock->map(function($stock) {
+            return [
+                'warehouse_name' => $stock->warehouse->name ?? 'Unknown Warehouse',
+                'quantity' => $stock->quantity,
+                'updated_at' => $stock->last_updated_at ?? $stock->updated_at
+            ];
+        });
+        
+        // Get recent activity (recent sales)
+        $recentActivity = $product->saleItems()
+            ->with(['invoice'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'type' => 'sale',
+                    'description' => 'Order fulfilled',
+                    'details' => $item->quantity . ' units sold',
+                    'time' => $item->created_at->diffForHumans(),
+                    'date' => $item->created_at
+                ];
+            });
+        
+        return view('erp.products.show', compact(
+            'product', 
+            'unitsSold',
+            'branchStocks', 
+            'warehouseStocks', 
+            'recentActivity'
+        ));
     }
 
 
@@ -474,6 +524,10 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $product->delete();
+        
+        // Clear product cache after deleting product
+        $this->clearProductCache();
+        
         return redirect()->route('product.list')->with('success', 'Product deleted successfully!');
     }
 

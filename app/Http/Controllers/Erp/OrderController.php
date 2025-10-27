@@ -61,8 +61,29 @@ class OrderController extends Controller
 
     public function show($id)
     {
-        $order = Order::find($id);
+        $order = Order::with(['invoice.payments', 'items.product', 'employee.user', 'customer'])->find($id);
         $bankAccounts = \App\Models\FinancialAccount::all();
+        
+        // If AJAX request, return JSON
+        if (request()->ajax() || request()->expectsJson()) {
+            return response()->json([
+                'id' => $order->id,
+                'customer_id' => $order->customer_id,
+                'order_number' => $order->order_number,
+                'items' => $order->items->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product->name ?? 'N/A',
+                        'variation_id' => $item->variation_id,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'total_price' => $item->total_price
+                    ];
+                })
+            ]);
+        }
+        
         return view('erp.order.orderdetails',compact('order', 'bankAccounts'));
     }
 

@@ -10,6 +10,7 @@ use App\Models\BranchProductStock;
 use App\Models\Customer;
 use App\Models\EmployeeProductStock;
 use App\Models\FinancialAccount;
+use App\Models\GeneralSetting;
 use App\Models\Invoice;
 use App\Models\InvoiceAddress;
 use App\Models\InvoiceItem;
@@ -29,14 +30,10 @@ class PosController extends Controller
 {
     public function addPos()
     {
-        if(Auth::user()->hasPermissionTo('make sale')){
         $categories = ProductServiceCategory::all();
         $branches = Branch::all();
         $bankAccounts = FinancialAccount::all();
         return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts'));
-        }else{
-            return redirect()->route('erp.dashboard');
-        }
     }
 
     public function makeSale(Request $request)
@@ -110,6 +107,12 @@ class PosController extends Controller
             // --- Create Invoice ---
 
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
+            
+            // Calculate tax
+            $generalSettings = GeneralSetting::first();
+            $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
+            $tax = round($pos->sub_total * $taxRate, 2);
+            
             $invoice = new Invoice();
             $invoice->invoice_number = $this->generateInvoiceNumber();
             $invoice->template_id = $invTemplate?->id;
@@ -118,6 +121,7 @@ class PosController extends Controller
             $invoice->issue_date = now()->toDateString();
             $invoice->due_date = now()->toDateString();
             $invoice->subtotal = $pos->sub_total;
+            $invoice->tax = $tax;
             $invoice->total_amount = $pos->total_amount;
             $invoice->discount_apply = $pos->discount;
             $invoice->paid_amount = 0;
@@ -227,7 +231,6 @@ class PosController extends Controller
 
     public function index(Request $request)
     {
-        if(Auth::user()->hasPermissionTo('view sales')){
         $query = Pos::with(['customer', 'invoice', 'branch']);
 
         // Search by sale_number, customer name, phone, email
@@ -265,27 +268,20 @@ class PosController extends Controller
 
         $sales = $query->paginate(10)->withQueryString();
         return view('erp.pos.index', compact('sales'));
-        }else{
-            return redirect()->route('erp.dashboard');
-        }
     }
 
     public function show($id)
     {
-        if(Auth::user()->hasPermissionTo('view sale details')){
-            $pos = Pos::where('id', $id)
-                ->with(['customer', 'invoice', 'branch', 'invoice.invoiceAddress'])
-                ->first();
+        $pos = Pos::where('id', $id)
+            ->with(['customer', 'invoice', 'branch', 'invoice.invoiceAddress'])
+            ->first();
 
-            if (!$pos) {
-                return redirect()->route('pos.list')->with('error', 'Sale not found.');
-            }
-
-            $bankAccounts = FinancialAccount::all();
-            return view('erp.pos.show', compact('pos', 'bankAccounts'));
-        }else{
-            return redirect()->route('erp.dashboard');
+        if (!$pos) {
+            return redirect()->route('pos.list')->with('error', 'Sale not found.');
         }
+
+        $bankAccounts = FinancialAccount::all();
+        return view('erp.pos.show', compact('pos', 'bankAccounts'));
     }
 
     public function assignTechnician($saleId, $techId)
@@ -607,10 +603,15 @@ class PosController extends Controller
     // Add this function to generate a unique invoice number
     private function generateInvoiceNumber()
     {
+        $generalSettings = GeneralSetting::first();
+        $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
+        
         do {
             $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        } while (\App\Models\Invoice::where('invoice_number', $number)->exists());
-        return $number;
+            $fullNumber = $prefix . $number;
+        } while (\App\Models\Invoice::where('invoice_number', $fullNumber)->exists());
+        
+        return $fullNumber;
     }
 
 

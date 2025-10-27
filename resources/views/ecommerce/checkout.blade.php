@@ -137,36 +137,18 @@
                                 </div>
                                 <div class="section-body">
                                     <div class="shipping-options">
+                                        @foreach($shippingMethods as $index => $method)
                                         <div class="shipping-option">
-                                            <input type="radio" name="shipping" id="standard" value="standard" checked>
-                                            <label for="standard" class="shipping-label">
+                                            <input type="radio" name="shipping" id="shipping_{{ $method->id }}" value="{{ $method->id }}" {{ $index === 0 ? 'checked' : '' }}>
+                                            <label for="shipping_{{ $method->id }}" class="shipping-label">
                                                 <div class="shipping-info">
-                                                    <div class="shipping-name">Standard Shipping</div>
-                                                    <div class="shipping-desc">5-7 business days</div>
+                                                    <div class="shipping-name">{{ $method->name }}</div>
+                                                    <div class="shipping-desc">{{ $method->delivery_time ?? $method->description }}</div>
                                                 </div>
-                                                <div class="shipping-price">60৳</div>
+                                                <div class="shipping-price">{{ number_format($method->cost, 2) }}৳</div>
                                             </label>
                                         </div>
-                                        <div class="shipping-option">
-                                            <input type="radio" name="shipping" id="express" value="express">
-                                            <label for="express" class="shipping-label">
-                                                <div class="shipping-info">
-                                                    <div class="shipping-name">Express Shipping</div>
-                                                    <div class="shipping-desc">2-3 business days</div>
-                                                </div>
-                                                <div class="shipping-price">100৳</div>
-                                            </label>
-                                        </div>
-                                        <div class="shipping-option">
-                                            <input type="radio" name="shipping" id="overnight" value="overnight">
-                                            <label for="overnight" class="shipping-label">
-                                                <div class="shipping-info">
-                                                    <div class="shipping-name">Overnight Shipping</div>
-                                                    <div class="shipping-desc">Next business day</div>
-                                                </div>
-                                                <div class="shipping-price">120৳</div>
-                                            </label>
-                                        </div>
+                                        @endforeach
                                     </div>
                                 </div>
                             </div>
@@ -248,11 +230,11 @@
                                         </div>
                                         <div class="price-row">
                                             <span>Shipping</span>
-                                            <span>60৳</span>
+                                            <span>{{ $shippingMethods->first() ? number_format($shippingMethods->first()->cost, 2) : '0.00' }}৳</span>
                                         </div>
                                         <div class="price-row">
                                             <span>Tax</span>
-                                            <span>{{ $cartTotal * 0.05 }}৳</span>
+                                            <span>{{ $cartTotal * $taxRate }}৳</span>
                                         </div>
                                         <div class="price-row discount-row" style="display: none;">
                                             <span>Discount</span>
@@ -260,14 +242,14 @@
                                         </div>
                                         <div class="price-row total-row">
                                             <span>Total</span>
-                                            <span>{{$cartTotal + ($cartTotal * 0.05) + 60}}৳</span>
+                                            <span>{{$cartTotal + ($cartTotal * $taxRate) + ($shippingMethods->first() ? $shippingMethods->first()->cost : 0)}}৳</span>
                                         </div>
                                     </div>
 
                                     <!-- Place Order Button -->
                                     <button type="submit" class="btn btn-place-order w-100" style="background-color: var(--primary-blue); color: #fff;">
                                         <i class="fas fa-credit-card me-2"></i>
-                                        Place Order - {{$cartTotal + ($cartTotal * 0.05) + 60}}৳
+                                        Place Order - {{$cartTotal + ($cartTotal * $taxRate) + ($shippingMethods->first() ? $shippingMethods->first()->cost : 0)}}৳
                                     </button>
                                 </div>
                             </div>
@@ -766,15 +748,15 @@
         });
 
         function updateShippingPrice(method) {
-            const prices = {
-                'standard': 60,
-                'express': 100,
-                'overnight': 120
+            const shippingMethods = {
+                @foreach($shippingMethods as $method)
+                '{{ $method->id }}': {{ $method->cost }},
+                @endforeach
             };
 
             const subtotal = {{ $cartTotal }};
-            const tax = {{ $cartTotal * 0.05 }};
-            const shipping = prices[method] || 60; // Default to 60 if method not found
+            const tax = {{ $cartTotal * $taxRate }};
+            const shipping = shippingMethods[method] || 0; // Default to 0 if method not found
             const total = subtotal + tax + shipping;
 
             const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');

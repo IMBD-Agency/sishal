@@ -94,6 +94,7 @@
 
             <!-- Statistics Cards -->
             <div class="row g-4 mb-4">
+                {{-- Employee count card disabled for ecommerce only business
                 <div class="col-lg-3 col-md-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body text-center">
@@ -109,6 +110,7 @@
                         </div>
                     </div>
                 </div>
+                --}}
                 <div class="col-lg-3 col-md-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body text-center">
@@ -370,6 +372,7 @@
                     </div>
                 </div>
 
+                {{-- Branch Employees section disabled for ecommerce only business
                 <!-- Employees Table -->
                 <div class="col-xl-4">
                     <div class="card border-0 shadow-sm">
@@ -436,6 +439,7 @@
                         </div>
                     </div>
                 </div>
+                --}}
             </div>
 
             <!-- Recent Sales -->

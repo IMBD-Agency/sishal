@@ -10,6 +10,7 @@ class OrderReturnItem extends Model
         'order_return_id',
         'order_item_id',
         'product_id',
+        'variation_id',
         'returned_qty',
         'unit_price',
         'total_price',
@@ -19,5 +20,10 @@ class OrderReturnItem extends Model
     public function product()
     {
         return $this->belongsTo(\App\Models\Product::class);
+    }
+
+    public function variation()
+    {
+        return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
     }
 }

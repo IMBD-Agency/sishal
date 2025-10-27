@@ -21,14 +21,9 @@
                     <p class="text-muted mb-0">Manage invoice template information, contacts, and transactions efficiently.</p>
                 </div>
                 <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addTemplateModal">
-                            <i class="fas fa-plus me-2"></i>Add Template
-                        </a>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
-                    </div>
+                    <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addTemplateModal">
+                        <i class="fas fa-plus me-2"></i>Add Template
+                    </a>
                 </div>
             </div>
         </div>

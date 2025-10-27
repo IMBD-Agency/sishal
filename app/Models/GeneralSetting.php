@@ -14,6 +14,8 @@ class GeneralSetting extends Model
         'contact_email',
         'contact_phone',
         'contact_address',
+        'website_url',
+        'invoice_prefix',
         'support_image',
         'top_text',
         'footer_text',
@@ -30,5 +32,6 @@ class GeneralSetting extends Model
         'smtp_encryption',
         'smtp_from_address',
         'smtp_from_name',
+        'tax_rate',
     ];
 }

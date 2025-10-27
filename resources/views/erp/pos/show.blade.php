@@ -122,6 +122,7 @@
                     <!-- Team Information -->
                     <div class="card border-0 shadow-sm rounded-4 mb-4">
                         <div class="card-body p-4">
+                            {{-- Team/Technician section disabled for ecommerce only business
                             <div class="d-flex justify-content-between">
                                 <div class="d-flex align-items-center mb-3">
                                     <div class="bg-info bg-opacity-10 rounded-3 p-2 me-3">
@@ -150,6 +151,7 @@
                                         </div>
                                     </div>
                                 @endif
+                                --}}
                                 <div class="col-12">
                                     <div class="d-flex align-items-center p-3 bg-light rounded-3">
                                         <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3"
@@ -295,7 +297,11 @@
                                         <div
                                             class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                                             <span class="text-muted">Invoice Number</span>
-                                            <a href="{{ route('invoice.show',@$pos->invoice->id) }}" class="fw-bold" style="text-decoration: none;">{{ @$pos->invoice->invoice_number ?? '-' }}</a>
+                                            @if($pos->invoice && $pos->invoice->id)
+                                                <a href="{{ route('invoice.show', $pos->invoice->id) }}" class="fw-bold" style="text-decoration: none;">{{ $pos->invoice->invoice_number ?? '-' }}</a>
+                                            @else
+                                                <span class="fw-bold text-muted">-</span>
+                                            @endif
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <span class="text-muted">Status</span>
@@ -396,7 +402,7 @@
         </div>
     </div>
 
-    <!-- Technician Modal -->
+    {{-- Technician Modal disabled for ecommerce only business
     <div class="modal fade" id="assignTechnicianModal" tabindex="-1" aria-labelledby="assignTechnicianModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -416,6 +422,7 @@
             </div>
         </div>
     </div>
+    --}}
 
     <!-- Add Payment Modal -->
     <div class="modal fade" id="addPaymentModal" tabindex="-1" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
@@ -762,7 +769,8 @@
             });
             // Save Address
             $('#saveAddressBtn').on('click', function() {
-                var invoiceId = @json(@$pos->invoice->id);
+                @if($pos->invoice && $pos->invoice->id)
+                var invoiceId = @json($pos->invoice->id);
                 var form = $('#editAddressForm');
                 var data = form.serialize();
                 $.ajax({
@@ -780,6 +788,9 @@
                         alert(msg);
                     }
                 });
+                @else
+                alert('No invoice found for this POS. Cannot update address.');
+                @endif
             });
 
             // Copy billing to shipping

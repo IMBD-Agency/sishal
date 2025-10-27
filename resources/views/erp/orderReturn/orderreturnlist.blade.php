@@ -21,20 +21,29 @@
                     <p class="text-muted mb-0">Manage order return information, contacts, and transactions efficiently.</p>
                 </div>
                 <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <a href="{{ route('orderReturn.create') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-adjust me-2"></i>Add Order Return
-                        </a>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
-                    </div>
+                    <a href="{{ route('orderReturn.create') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-adjust me-2"></i>Add Order Return
+                    </a>
                 </div>
             </div>
         </div>
 
         @if(session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>Success!</strong> {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+        @if($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Error!</strong> Please check the following errors:
+                <ul class="mb-0 mt-2">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         @endif
         <div class="container-fluid px-4 py-4">
 
@@ -68,7 +77,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Purchase List</h5>
+                        <h5 class="fw-bold mb-0">Order Return List</h5>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -93,7 +102,16 @@
                                         <td>#{{ optional($return->order)->order_number }}</td>
                                         <td>{{ $return->return_date }}</td>
                                         <td>
-                                            <span class="badge bg-secondary status-badge" 
+                                            @php
+                                                $statusClasses = [
+                                                    'pending' => 'bg-warning',
+                                                    'approved' => 'bg-success',
+                                                    'rejected' => 'bg-danger',
+                                                    'processed' => 'bg-info'
+                                                ];
+                                                $badgeClass = $statusClasses[$return->status] ?? 'bg-secondary';
+                                            @endphp
+                                            <span class="badge {{ $badgeClass }} status-badge" 
                                                   data-id="{{ $return->id }}" 
                                                   data-status="{{ $return->status }}"
                                                   style="cursor:pointer;">
@@ -102,20 +120,41 @@
                                         </td>
                                         <td>{{ ucfirst($return->refund_type) }}</td>
                                         <td>
-                                            <a href="{{ route('orderReturn.show', $return->id) }}" class="btn btn-info btn-sm">View</a>
-                                            <a href="{{ route('orderReturn.edit', $return->id) }}" class="btn btn-warning btn-sm">Edit</a>
-                                            <form action="{{ route('orderReturn.delete', $return->id) }}" method="POST"
-                                                style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-danger btn-sm"
-                                                    onclick="return confirm('Are you sure?')">Delete</button>
-                                            </form>
+                                            <a href="{{ route('orderReturn.show', $return->id) }}" class="btn btn-info btn-sm" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            @if($return->status !== 'processed')
+                                                <a href="{{ route('orderReturn.edit', $return->id) }}" class="btn btn-warning btn-sm" title="Edit Return">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            @else
+                                                <button class="btn btn-warning btn-sm" disabled title="Cannot edit processed returns">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            @endif
+                                            @if($return->status === 'pending')
+                                                <form action="{{ route('orderReturn.delete', $return->id) }}" method="POST"
+                                                    style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-danger btn-sm" title="Delete Return"
+                                                        onclick="return confirm('Are you sure you want to delete this return?')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button class="btn btn-danger btn-sm" disabled title="Cannot delete non-pending returns">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted py-4">No sale returns found for the given criteria.</td>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                                            <p class="mb-0">No order returns found for the given criteria.</p>
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -125,7 +164,7 @@
                 <div class="card-footer bg-white border-0">
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="text-muted">
-                            Showing {{ $returns->firstItem() }} to {{ $returns->lastItem() }} of {{ $returns->total() }} sale returns
+                            Showing {{ $returns->firstItem() }} to {{ $returns->lastItem() }} of {{ $returns->total() }} order returns
                         </span>
                         {{ $returns->links('vendor.pagination.bootstrap-5') }}
                     </div>
@@ -142,11 +181,11 @@
     <div class="modal-content">
       <form id="statusForm">
         <div class="modal-header">
-          <h5 class="modal-title" id="statusModalLabel">Change Sale Return Status</h5>
+          <h5 class="modal-title" id="statusModalLabel">Change Order Return Status</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <input type="hidden" name="sale_return_id" id="modalSaleReturnId">
+          <input type="hidden" name="order_return_id" id="modalOrderReturnId">
           <div class="mb-3">
             <label for="currentStatus" class="form-label">Current Status</label>
             <input type="text" class="form-control" id="currentStatus" readonly>
@@ -159,6 +198,10 @@
               <option value="rejected">Rejected</option>
               <option value="processed">Processed</option>
             </select>
+          </div>
+          <div class="mb-3">
+            <label for="statusNotes" class="form-label">Notes (Optional)</label>
+            <textarea class="form-control" name="notes" id="statusNotes" rows="3" placeholder="Add any notes about this status change..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -179,7 +222,7 @@ $(document).ready(function() {
         const id = $(this).data('id');
         const status = $(this).data('status');
         selectedRow = $(this);
-        $('#modalSaleReturnId').val(id);
+        $('#modalOrderReturnId').val(id);
         $('#currentStatus').val(status.charAt(0).toUpperCase() + status.slice(1));
         $('#newStatus').val('');
         $('#statusNotes').val('');
@@ -188,7 +231,7 @@ $(document).ready(function() {
 
     $('#statusForm').on('submit', function(e) {
         e.preventDefault();
-        const id = $('#modalSaleReturnId').val();
+        const id = $('#modalOrderReturnId').val();
         const status = $('#newStatus').val();
         const notes = $('#statusNotes').val();
         if (!status) return;
@@ -203,15 +246,26 @@ $(document).ready(function() {
             success: function(res) {
                 $('#statusModal').modal('hide');
                 if(res.success) {
+                    // Update badge color and text
+                    const statusClasses = {
+                        'pending': 'bg-warning',
+                        'approved': 'bg-success',
+                        'rejected': 'bg-danger',
+                        'processed': 'bg-info'
+                    };
                     selectedRow.text(status.charAt(0).toUpperCase() + status.slice(1));
                     selectedRow.data('status', status);
-                    selectedRow.removeClass('bg-secondary bg-warning bg-success bg-danger bg-info');
-                    if(status === 'pending') selectedRow.addClass('bg-warning');
-                    else if(status === 'approved') selectedRow.addClass('bg-success');
-                    else if(status === 'rejected') selectedRow.addClass('bg-danger');
-                    else if(status === 'processed') selectedRow.addClass('bg-info');
+                    selectedRow.removeClass('bg-warning bg-success bg-danger bg-info bg-secondary');
+                    selectedRow.addClass(statusClasses[status] || 'bg-secondary');
+                    
+                    // Show success message
+                    const alertDiv = $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                        '<strong>Success!</strong> ' + res.message +
+                        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                        '</div>');
+                    $('.container-fluid').first().prepend(alertDiv);
+                    setTimeout(function() { alertDiv.fadeOut(); }, 5000);
                 }
-                // Optionally show a toast or alert
             },
             error: function(xhr) {
                 alert(xhr.responseJSON?.message || 'Failed to update status.');

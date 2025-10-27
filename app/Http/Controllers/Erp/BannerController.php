@@ -16,10 +16,6 @@ class BannerController extends Controller
      */
     public function index(Request $request)
     {
-        if (!Auth::user()->hasPermissionTo('view banners')) {
-            return redirect()->route('erp.dashboard')->with('error', 'You do not have permission to view banners.');
-        }
-
         $query = Banner::query();
 
         // Filter by status
@@ -49,10 +45,6 @@ class BannerController extends Controller
      */
     public function create()
     {
-        if (!Auth::user()->hasPermissionTo('create banners')) {
-            return redirect()->route('banners.index')->with('error', 'You do not have permission to create banners.');
-        }
-
         return view('erp.banners.create');
     }
 
@@ -61,10 +53,6 @@ class BannerController extends Controller
      */
     public function store(Request $request)
     {
-        if (!Auth::user()->hasPermissionTo('create banners')) {
-            return redirect()->route('banners.index')->with('error', 'You do not have permission to create banners.');
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -112,10 +100,6 @@ class BannerController extends Controller
      */
     public function edit(Banner $banner)
     {
-        if (!Auth::user()->hasPermissionTo('edit banners')) {
-            return redirect()->route('banners.index')->with('error', 'You do not have permission to edit banners.');
-        }
-
         return view('erp.banners.edit', compact('banner'));
     }
 
@@ -124,10 +108,6 @@ class BannerController extends Controller
      */
     public function update(Request $request, Banner $banner)
     {
-        if (!Auth::user()->hasPermissionTo('edit banners')) {
-            return redirect()->route('banners.index')->with('error', 'You do not have permission to edit banners.');
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -170,10 +150,6 @@ class BannerController extends Controller
      */
     public function destroy(Banner $banner)
     {
-        if (!Auth::user()->hasPermissionTo('delete banners')) {
-            return redirect()->route('banners.index')->with('error', 'You do not have permission to delete banners.');
-        }
-
         // Delete image if exists
         if ($banner->image) {
             Storage::disk('public')->delete($banner->image);

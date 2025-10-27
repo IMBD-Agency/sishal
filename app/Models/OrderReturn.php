@@ -44,4 +44,25 @@ class OrderReturn extends Model
     {
         return $this->belongsTo(\App\Models\Employee::class, 'return_to_id');
     }
+
+    // Accessor to get the destination name
+    public function getDestinationNameAttribute()
+    {
+        switch ($this->return_to_type) {
+            case 'branch':
+                $branch = \App\Models\Branch::find($this->return_to_id);
+                return $branch ? $branch->name : 'N/A';
+            case 'warehouse':
+                $warehouse = \App\Models\Warehouse::find($this->return_to_id);
+                return $warehouse ? $warehouse->name : 'N/A';
+            case 'employee':
+                $employee = \App\Models\Employee::with('user')->find($this->return_to_id);
+                if ($employee && $employee->user) {
+                    return $employee->user->first_name . ' ' . $employee->user->last_name;
+                }
+                return 'N/A';
+            default:
+                return 'N/A';
+        }
+    }
 }

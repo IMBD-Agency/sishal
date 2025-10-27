@@ -90,13 +90,9 @@ Use the banner display component in your Blade templates:
 - **End Date**: Banner expires at this date/time
 - If no dates are set, banner is active immediately (if status is active)
 
-## Permissions
+## Access Control
 
-The system includes the following permissions:
-- `view banners`: View banner management page
-- `create banners`: Create new banners
-- `edit banners`: Edit existing banners
-- `delete banners`: Delete banners
+The banner management system is accessible to all authenticated users without specific permission requirements.
 
 ## File Storage
 
@@ -126,7 +122,7 @@ Banner images are stored in `storage/app/public/banners/` and accessible via the
 
 - **Images not displaying**: Check if the storage link is created (`php artisan storage:link`)
 - **Banners not showing**: Verify banner status is "Active" and within date range
-- **Permission errors**: Ensure user has appropriate banner management permissions
+- **Access issues**: Ensure user is properly authenticated
 - **Upload errors**: Check file size (max 2MB) and format (JPEG, PNG, JPG, GIF, WebP)
 
 ## Future Enhancements

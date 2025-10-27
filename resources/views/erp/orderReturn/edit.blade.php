@@ -1,13 +1,13 @@
 @extends('erp.master')
 
-@section('title', 'Edit Sale Return')
+@section('title', 'Edit Order Return')
 
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <h2 class="mb-4">Edit Sale Return</h2>
+            <h2 class="mb-4">Edit Order Return</h2>
             @if ($errors->any())
                 <div class="alert alert-danger">
                     <ul>
@@ -108,7 +108,8 @@
                                             <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
                                         @endforeach
                                     </select>
-                                    <input type="hidden" name="items[{{ $i }}][sale_item_id]" class="sale-item-id" value="{{ $item->sale_item_id }}">
+                                    <input type="hidden" name="items[{{ $i }}][order_item_id]" class="order-item-id" value="{{ $item->order_item_id }}">
+                                    <input type="hidden" name="items[{{ $i }}][variation_id]" class="variation-id" value="{{ $item->variation_id }}">
                                 </td>
                                 <td><input type="number" name="items[{{ $i }}][returned_qty]" class="form-control returned_qty" min="1" value="{{ $item->returned_qty }}" required></td>
                                 <td><input type="number" name="items[{{ $i }}][unit_price]" class="form-control unit_price" min="1" value="{{ $item->unit_price }}" required></td>
@@ -121,7 +122,9 @@
                     <button type="button" class="btn btn-secondary btn-sm" id="addItemRow">Add Item</button>
                 </div>
                 <div class="mb-3 text-end">
-                    <button type="submit" class="btn btn-primary">Update Sale Return</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Order Return
+                    </button>
                 </div>
             </form>
         </div>
@@ -194,7 +197,8 @@
                                 <option value="{{ $product->id }}">{{ $product->name }}</option>
                             @endforeach
                         </select>
-                        <input type="hidden" name="items[${itemIndex}][sale_item_id]" class="sale-item-id">
+                        <input type="hidden" name="items[${itemIndex}][order_item_id]" class="order-item-id">
+                        <input type="hidden" name="items[${itemIndex}][variation_id]" class="variation-id">
                     </td>
                     <td><input type="number" name="items[${itemIndex}][returned_qty]" class="form-control returned_qty" min="1" required></td>
                     <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="1" required></td>

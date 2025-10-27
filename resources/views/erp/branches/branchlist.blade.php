@@ -21,11 +21,11 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="btn-group me-2">
-        
+                    @can('create branch')
                         <a href="{{ route('branches.create') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-plus me-2"></i>Add Branchsdfdf
-            </a>
-         
+                            <i class="fas fa-plus me-2"></i>Add Branchs
+                        </a>
+            @endcan
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#reportModal">
                             <i class="fas fa-download me-2"></i>Export Report
                         </button>
@@ -40,6 +40,7 @@
                 <form id="filterForm" class="row g-2 align-items-end">
                     <div class="col-md-3">
                         <label class="form-label">Search (Name, Location, Manager)</label>
+
                         <input type="text" class="form-control" name="name" placeholder="Branch Name, Location, or Manager" value="{{ request('name') }}">
                     </div>
                     <div class="col-md-2">
@@ -305,7 +306,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${branch.id}</td>
-                    <td><a href="/erp/branches/${branch.id}" class="fw-bold text-decoration-underline">${branch.name}</a></td>
+                    <td>
+                     @can('view branch details')
+                        <a href="/erp/branches/${branch.id}" class="fw-bold text-decoration-underline">${branch.name}</a>
+                        @else
+                        <span class="fw-bold">${branch.name}</span>
+                       @endcan
+                    </td>
                     <td>${branch.location || '-'}</td>
                     <td>${branch.contact_info || '-'}</td>
                     <td>${branch.manager ? branch.manager.first_name + ' ' + branch.manager.last_name : 'N/A'}</td>

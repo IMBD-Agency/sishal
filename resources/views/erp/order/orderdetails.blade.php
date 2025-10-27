@@ -147,40 +147,40 @@
                     <!-- Team Information - HIDDEN -->
                     <div class="card border-0 shadow-sm rounded-4 mb-4" style="display: none;">
                         <div class="card-body p-4">
-                            <div class="d-flex justify-content-between">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info bg-opacity-10 rounded-3 p-2 me-3">
-                                        <i class="fas fa-users text-info"></i>
-                                    </div>
-                                    <h5 class="card-title mb-0 fw-bold">Team</h5>
-                                </div>
-                                @if(!$order->employee)
-                                    <button class="btn btn-outline-primary py-1" style="height: max-content;"
-                                        id="addTechnicianBtn">Add Technician</button>
-                                @endif
+                    {{-- Team/Technician section disabled for ecommerce only business
+                    <div class="d-flex justify-content-between">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-info bg-opacity-10 rounded-3 p-2 me-3">
+                                <i class="fas fa-users text-info"></i>
                             </div>
-                            <div class="row g-3">
-                                @if($order->employee)
-                                    <div class="col-12">
-                                        <div class="d-flex align-items-center p-3 bg-light rounded-3 position-relative">
-                                            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
-                                                style="width: 40px; height: 40px;">
-                                                <i class="fas fa-tools text-white small"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-medium">{{ @$order->employee->user->first_name ?? '-' }}
-                                                    {{ @$order->employee->user->last_name ?? '' }}</div>
-                                                <small class="text-muted">Technician | {{@$order->employee->phone}}</small>
-                                            </div>
-                                            <button id="removeTechnicianBtn" class="btn btn-sm btn-outline-danger position-absolute" style="right: 20px;" data-order-id="{{ $order->id }}"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                    </div>
-                                @else
-                                <p class="text-gray text-center">No Technician Assigned</p>
-                                @endif
-                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Team</h5>
                         </div>
+                        @if(!$order->employee)
+                            <button class="btn btn-outline-primary py-1" style="height: max-content;"
+                                id="addTechnicianBtn">Add Technician</button>
+                        @endif
                     </div>
+                    <div class="row g-3">
+                        @if($order->employee)
+                            <div class="col-12">
+                                <div class="d-flex align-items-center p-3 bg-light rounded-3 position-relative">
+                                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
+                                        style="width: 40px; height: 40px;">
+                                        <i class="fas fa-tools text-white small"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-medium">{{ @$order->employee->user->first_name ?? '-' }}
+                                            {{ @$order->employee->user->last_name ?? '' }}</div>
+                                        <small class="text-muted">Technician | {{@$order->employee->phone}}</small>
+                                    </div>
+                                    <button id="removeTechnicianBtn" class="btn btn-sm btn-outline-danger position-absolute" style="right: 20px;" data-order-id="{{ $order->id }}"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                        @else
+                        <p class="text-gray text-center">No Technician Assigned</p>
+                        @endif
+                    </div>
+                    --}}
 
                     <!-- Customer Card -->
                     <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -190,7 +190,9 @@
                                     <i class="fas fa-user text-warning"></i>
                                 </div>
                                 <h5 class="card-title mb-0 fw-bold">Customer Information</h5>
-                                <button id="editAddressBtn" class="btn btn-sm btn-outline-primary ms-auto">Edit Address</button>
+                                @if($order->invoice?->id)
+                                    <button id="editAddressBtn" class="btn btn-sm btn-outline-primary ms-auto">Edit Address</button>
+                                @endif
                             </div>
                             <div class="customer-info">
                                 <div class="mb-3">
@@ -208,7 +210,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="small text-muted">Billing Address</label>
-                                    @php $billing = @$order->invoice->invoiceAddress ?? null; @endphp
+                                    @php $billing = $order->invoice?->invoiceAddress ?? null; @endphp
                                     <div class="small">
                                         @if($billing)
                                             {{ $billing->billing_address_1 }} {{ $billing->billing_address_2 }}<br>
@@ -326,30 +328,34 @@
                                         <div
                                             class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                                             <span class="text-muted">Invoice Number</span>
-                                            <a href="{{ route('invoice.show', @$order->invoice->id) }}" class="fw-bold" style="text-decoration: none;">{{ @$order->invoice->invoice_number ?? '-' }}</a>
+                                            @if($order->invoice && $order->invoice->id)
+                                                <a href="{{ route('invoice.show', $order->invoice->id) }}" class="fw-bold" style="text-decoration: none;">{{ $order->invoice->invoice_number ?? '-' }}</a>
+                                            @else
+                                                <span class="fw-bold text-muted">-</span>
+                                            @endif
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <span class="text-muted">Status</span>
                                             <span
-                                                class="badge bg-{{ @$order->invoice->status == 'unpaid' ? 'danger' : (@$order->invoice->status == 'paid' ? 'success' : (@$order->invoice->status == 'partial' ? 'warning' : 'secondary')) }} rounded-pill">
-                                                {{ ucfirst(@$order->invoice->status ?? '-') }}
+                                                class="badge bg-{{ $order->invoice?->status == 'unpaid' ? 'danger' : ($order->invoice?->status == 'paid' ? 'success' : ($order->invoice?->status == 'partial' ? 'warning' : 'secondary')) }} rounded-pill">
+                                                {{ ucfirst($order->invoice?->status ?? '-') }}
                                             </span>
                                         </div>
                                         <div class="bg-light rounded-3 p-3">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span class="text-muted">Total Amount</span>
                                                 <span
-                                                    class="fw-bold h6 mb-0">{{ number_format(@$order->invoice->total_amount ?? 0, 2) }}৳</span>
+                                                    class="fw-bold h6 mb-0">{{ number_format($order->invoice?->total_amount ?? 0, 2) }}৳</span>
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span class="text-success">Paid Amount</span>
                                                 <span
-                                                    class="text-success fw-bold">{{ number_format(@$order->invoice->paid_amount ?? 0, 2) }}৳</span>
+                                                    class="text-success fw-bold">{{ number_format($order->invoice?->paid_amount ?? 0, 2) }}৳</span>
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-danger">Due Amount</span>
                                                 <span
-                                                    class="text-danger fw-bold">{{ number_format(@$order->invoice->due_amount ?? 0, 2) }}৳</span>
+                                                    class="text-danger fw-bold">{{ number_format($order->invoice?->due_amount ?? 0, 2) }}৳</span>
                                             </div>
                                         </div>
                                     </div>
@@ -366,13 +372,13 @@
                                             <i class="fas fa-credit-card text-warning"></i>
                                         </div>
                                         <h5 class="card-title mb-0 fw-bold">Payment History</h5>
-                                        @if(@$order->invoice->status != 'paid')
+                                        @if($order->invoice?->status != 'paid')
                                             <button id="addPaymentBtn" class="btn btn-sm btn-outline-success ms-auto">Add
                                                 Payment</button>
                                         @endif
                                     </div>
                                     <div class="payments-list" style="max-height: 250px; overflow-y: auto;">
-                                        @forelse(@$order->invoice->payments as $payment)
+                                        @forelse($order->invoice?->payments ?? [] as $payment)
                                             <div class="payment-item p-3 mb-2 bg-light rounded-3">
                                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                                     <span class="fw-medium">{{ number_format($payment->amount, 2) }}৳</span>
@@ -427,7 +433,7 @@
         </div>
     </div>
 
-    <!-- Technician Modal -->
+    {{-- Technician Modal disabled for ecommerce only business
     <div class="modal fade" id="assignTechnicianModal" tabindex="-1" aria-labelledby="assignTechnicianModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -447,6 +453,7 @@
             </div>
         </div>
     </div>
+    --}}
 
     <!-- Add Payment Modal -->
     <div class="modal fade" id="addPaymentModal" tabindex="-1" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
@@ -460,8 +467,8 @@
                     <form id="addPaymentForm">
                         <div class="mb-3">
                             <label for="paymentAmount" class="form-label">Amount</label>
-                            <input type="number" max="{{ @$order->invoice->due_amount }}"
-                                value="{{ @$order->invoice->due_amount }}" class="form-control" id="paymentAmount"
+                            <input type="number" max="{{ $order->invoice?->due_amount ?? 0 }}"
+                                value="{{ $order->invoice?->due_amount ?? 0 }}" class="form-control" id="paymentAmount"
                                 name="amount" required>
                         </div>
                         <div class="mb-3">
@@ -649,6 +656,7 @@
             var currentOrderItemId = null;
             var currentPositionType = null;
             var currentPositionId = null;
+            {{-- Technician assignment code disabled for ecommerce only business
             // Open modal on button click
             $(document).on('click', '#addTechnicianBtn', function () {
                 $('#assignTechnicianModal').modal('show');
@@ -716,6 +724,7 @@
                     alert('Please select a technician.');
                 }
             });
+            --}}
 
             // Note edit logic
             $('#editNoteBtn').on('click', function () {
@@ -841,11 +850,18 @@
             });
             // Save Address
             $('#saveAddressBtn').on('click', function() {
-                var invoiceId = @json(@$order->invoice->id);
+                var invoiceId = @json($order->invoice?->id);
                 var form = $('#editAddressForm');
                 var data = form.serialize();
+                
+                // Check if invoice exists before making the request
+                if (!invoiceId) {
+                    alert('No invoice found for this order. Cannot save address.');
+                    return;
+                }
+                
                 $.ajax({
-                    url: '{{ route('pos.add.address', ['invoiceId' => @$order->invoice->id]) }}',
+                    url: '{{ $order->invoice?->id ? route('pos.add.address', ['invoiceId' => $order->invoice->id]) : '#' }}',
                     type: 'POST',
                     data: data,
                     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
@@ -918,6 +934,7 @@
                 });
             });
 
+            {{-- Remove technician button disabled for ecommerce only business
             $(document).on('click', '#removeTechnicianBtn', function () {
                 if (!confirm('Are you sure you want to remove the technician from this order?')) return;
                 var orderId = $(this).data('order-id');
@@ -939,6 +956,7 @@
                     }
                 });
             });
+            --}}
 
             $(document).on('click', '.request-stock-btn', function() {
                 var productId = $(this).data('product-id');

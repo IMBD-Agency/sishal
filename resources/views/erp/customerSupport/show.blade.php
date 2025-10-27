@@ -296,7 +296,11 @@
                                         <div
                                             class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                                             <span class="text-muted">Invoice Number</span>
-                                            <a href="{{ route('invoice.show',@$service->invoice->id) }}" class="fw-bold" style="text-decoration: none;">{{ @$service->invoice->invoice_number ?? '-' }}</a>
+                                            @if($service->invoice && $service->invoice->id)
+                                                <a href="{{ route('invoice.show', $service->invoice->id) }}" class="fw-bold" style="text-decoration: none;">{{ $service->invoice->invoice_number ?? '-' }}</a>
+                                            @else
+                                                <span class="fw-bold text-muted">-</span>
+                                            @endif
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <span class="text-muted">Status</span>

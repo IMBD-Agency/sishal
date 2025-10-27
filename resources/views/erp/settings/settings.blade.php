@@ -82,6 +82,27 @@
                                                 <input type="text" name="footer_text" class="form-control" placeholder="Copyright or footer message" value="{{ $settings->footer_text ?? '' }}">
                                                 <small class="text-muted">Appears in the website footer</small>
                                             </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium">
+                                                    <i class="fas fa-percentage me-2 text-warning"></i>Tax Rate (%)
+                                                </label>
+                                                <input type="number" name="tax_rate" class="form-control" placeholder="0.00" step="0.01" min="0" max="100" value="{{ $settings->tax_rate ?? '0.00' }}">
+                                                <small class="text-muted">Tax rate applied to orders</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium">
+                                                    <i class="fas fa-globe me-2 text-info"></i>Website URL
+                                                </label>
+                                                <input type="url" name="website_url" class="form-control" placeholder="https://yourwebsite.com" value="{{ $settings->website_url ?? '' }}">
+                                                <small class="text-muted">Your website URL for invoices</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium">
+                                                    <i class="fas fa-file-invoice me-2 text-primary"></i>Invoice Prefix
+                                                </label>
+                                                <input type="text" name="invoice_prefix" class="form-control" placeholder="INV" value="{{ $settings->invoice_prefix ?? 'INV' }}">
+                                                <small class="text-muted">Prefix for invoice numbers (e.g., INV, B SF)</small>
+                                            </div>
                                         </div>
                                     </div>
 

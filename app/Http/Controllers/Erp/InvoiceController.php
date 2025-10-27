@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
+use App\Models\GeneralSetting;
 use App\Models\Payment;
 use App\Models\Journal;
 use App\Models\ChartOfAccount;
@@ -164,11 +165,22 @@ class InvoiceController extends Controller
         \DB::beginTransaction();
         try {
             $invoiceNumber = $this->generateInvoiceNumber();
-            $totalAmount = collect($request->items)->sum(function($item) {
+            
+            // Calculate subtotal from items
+            $subtotal = collect($request->items)->sum(function($item) {
                 return $item['total_price'];
             });
+            
+            // Get tax rate from general settings
+            $generalSettings = GeneralSetting::first();
+            $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
+            $tax = round($subtotal * $taxRate, 2);
+            
+            // Calculate total amount including tax
+            $totalAmount = $subtotal + $tax - $request->input('discount_apply', 0);
             $paidAmount = $request->input('paid_amount', 0);
             $dueAmount = $totalAmount - $paidAmount;
+            
             $invoice = \App\Models\Invoice::create([
                 'invoice_number' => $invoiceNumber,
                 'template_id' => $request->template_id,
@@ -177,6 +189,8 @@ class InvoiceController extends Controller
                 'issue_date' => $request->issue_date,
                 'due_date' => $request->due_date,
                 'send_date' => $request->send_date,
+                'subtotal' => $subtotal,
+                'tax' => $tax,
                 'total_amount' => $totalAmount,
                 'discount_apply' => $request->input('discount_apply', 0),
                 'paid_amount' => $paidAmount,
@@ -276,13 +290,22 @@ class InvoiceController extends Controller
         \DB::beginTransaction();
         try {
             $invoice = Invoice::findOrFail($id);
-            $discount = $request->input('discount', 0);
+            
+            // Calculate subtotal from items
             $subtotal = collect($request->items)->sum(function($item) {
                 return $item['total_price'];
             });
-            $totalAmount = $subtotal; // If you have tax, add it here
+            
+            // Get tax rate from general settings
+            $generalSettings = GeneralSetting::first();
+            $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
+            $tax = round($subtotal * $taxRate, 2);
+            
+            // Calculate total amount including tax
+            $discount = $request->input('discount_apply', 0);
+            $totalAmount = $subtotal + $tax - $discount;
             $paidAmount = $invoice->paid_amount;
-            $dueAmount = $totalAmount - $discount - $paidAmount;
+            $dueAmount = $totalAmount - $paidAmount;
 
             $invoice->update([
                 'template_id' => $request->template_id,
@@ -292,6 +315,7 @@ class InvoiceController extends Controller
                 'due_date' => $request->due_date,
                 'send_date' => $request->send_date,
                 'subtotal' => $subtotal,
+                'tax' => $tax,
                 'total_amount' => $totalAmount,
                 'discount_apply' => $discount,
                 'due_amount' => $dueAmount,
@@ -527,8 +551,15 @@ class InvoiceController extends Controller
             return redirect()->route('invoice.print', ['invoice_number' => 'notfound'])->with('error', 'Invoice not found.');
         }
         $template = InvoiceTemplate::find($invoice->template_id);
+        $general_settings = GeneralSetting::first();
 
         $action = $request->action;
+
+        // Calculate tax if not already calculated
+        if (!$invoice->tax && $general_settings && $general_settings->tax_rate > 0) {
+            $taxRate = $general_settings->tax_rate / 100;
+            $invoice->tax = round($invoice->subtotal * $taxRate, 2);
+        }
 
         // Generate QR code as SVG (no imagick required)
         $printUrl = route('invoice.print', ['invoice_number' => $invoice->invoice_number]);
@@ -536,18 +567,23 @@ class InvoiceController extends Controller
 
         // PDF download logic
         if ($action == 'download') {
-            $pdf = Pdf::loadView('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg'));
+            $pdf = Pdf::loadView('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings'));
             return $pdf->download('invoice-'.$invoice->invoice_number.'.pdf');
         }
 
-        return view('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg'));
+        return view('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings'));
     }
 
     private function generateInvoiceNumber()
     {
+        $generalSettings = GeneralSetting::first();
+        $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
+        
         do {
             $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        } while (Invoice::where('invoice_number', $number)->exists());
-        return $number;
+            $fullNumber = $prefix . $number;
+        } while (Invoice::where('invoice_number', $fullNumber)->exists());
+        
+        return $fullNumber;
     }
 }

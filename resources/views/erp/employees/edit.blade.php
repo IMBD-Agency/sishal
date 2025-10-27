@@ -40,6 +40,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            {{-- Branch selection disabled for ecommerce only business
                             <div class="mb-3">
                                 <label for="branch_id" class="form-label">Branch</label>
                                 <select class="form-select @error('branch_id') is-invalid @enderror" id="branch_id" name="branch_id" style="width:100%">
@@ -51,6 +52,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            --}}
                             <div class="mb-3">
                                 <label for="role" class="form-label">Role</label>
                                 <select class="form-select @error('role') is-invalid @enderror" id="role" name="role" style="width:100%">
@@ -95,6 +97,7 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    {{-- Branch selection disabled for ecommerce only business
     $('#branch_id').select2({
         placeholder: 'Search for a branch',
         ajax: {
@@ -122,6 +125,7 @@ $(document).ready(function() {
         },
         minimumInputLength: 1
     });
+    --}}
 });
 </script>
 @endpush

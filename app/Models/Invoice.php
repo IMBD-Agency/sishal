@@ -19,6 +19,7 @@ class Invoice extends Model
         'discount_apply',
         'paid_amount',
         'due_amount',
+        'tax',
         'status',
         'note',
         'footer_text',

@@ -116,7 +116,8 @@ class BranchController extends Controller
                 'employees'
             ));
         }else{
-            return redirect()->route('erp.dashboard');
+            // return redirect()->route('erp.dashboard');
+            abort(403, 'Unauthorized action.');
         }
     }
 

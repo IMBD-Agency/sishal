@@ -123,16 +123,7 @@
                                         </div>
                                         <label class="form-label fw-semibold text-muted text-uppercase small">Return To</label>
                                         <p class="mb-0 fw-bold fs-5 text-dark">
-                                            {{ ucfirst($orderReturn->return_to_type) }}:
-                                            @if($orderReturn->return_to_type === 'branch' && $orderReturn->return_to_id)
-                                                {{ optional($orderReturn->branch)->name ?? 'N/A' }}
-                                            @elseif($orderReturn->return_to_type === 'warehouse' && $orderReturn->return_to_id)
-                                                {{ optional($orderReturn->warehouse)->name ?? 'N/A' }}
-                                            @elseif($orderReturn->return_to_type === 'employee' && $orderReturn->employee)
-                                                {{ $orderReturn->employee->user->first_name ?? '' }} {{ $orderReturn->employee->user->last_name ?? '' }}
-                                            @else
-                                                N/A
-                                            @endif
+                                            {{ ucfirst($orderReturn->return_to_type) }}: {{ $orderReturn->destination_name }}
                                         </p>
                                     </div>
                                 </div>

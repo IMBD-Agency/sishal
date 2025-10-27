@@ -22,11 +22,9 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="btn-group">
-                        @can('edit banners')
                         <a href="{{ route('banners.edit', $banner) }}" class="btn btn-primary">
                             <i class="fas fa-edit me-2"></i>Edit Banner
                         </a>
-                        @endcan
                         <a href="{{ route('banners.index') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Banners
                         </a>
@@ -215,7 +213,6 @@
                         </div>
                         <div class="card-body">
                             <div class="d-grid gap-2">
-                                @can('edit banners')
                                 <a href="{{ route('banners.edit', $banner) }}" class="btn btn-outline-primary">
                                     <i class="fas fa-edit me-2"></i>Edit Banner
                                 </a>
@@ -224,8 +221,6 @@
                                     <i class="fas fa-toggle-{{ $banner->status == 'active' ? 'off' : 'on' }} me-2"></i>
                                     {{ $banner->status == 'active' ? 'Deactivate' : 'Activate' }}
                                 </button>
-                                @endcan
-                                @can('delete banners')
                                 <form action="{{ route('banners.destroy', $banner) }}" method="POST" class="d-inline" 
                                       onsubmit="return confirm('Are you sure you want to delete this banner? This action cannot be undone.')">
                                     @csrf
@@ -234,7 +229,6 @@
                                         <i class="fas fa-trash me-2"></i>Delete Banner
                                     </button>
                                 </form>
-                                @endcan
                             </div>
                         </div>
                     </div>

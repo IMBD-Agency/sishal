@@ -68,19 +68,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'edit financial accounts', 'category' => 'Financial Management'],
             ['name' => 'delete financial accounts', 'category' => 'Financial Management'],
             
-            // Settings
-            ['name' => 'view settings', 'category' => 'Settings'],
-            ['name' => 'edit settings', 'category' => 'Settings'],
-            
             // Reports
             ['name' => 'view reports', 'category' => 'Reports'],
             ['name' => 'generate reports', 'category' => 'Reports'],
-            
-            // Banner Management
-            ['name' => 'view banners', 'category' => 'Banner Management'],
-            ['name' => 'create banners', 'category' => 'Banner Management'],
-            ['name' => 'edit banners', 'category' => 'Banner Management'],
-            ['name' => 'delete banners', 'category' => 'Banner Management'],
             
             // Branch Management
             ['name' => 'create branch', 'category' => 'Branch Management'],
@@ -88,11 +78,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'edit branch', 'category' => 'Branch Management'],
             ['name' => 'delete branch', 'category' => 'Branch Management'],
             
-            // POS Management
-            ['name' => 'make sale', 'category' => 'POS Management'],
-            ['name' => 'view sales', 'category' => 'POS Management'],
-            ['name' => 'edit sales', 'category' => 'POS Management'],
-            ['name' => 'delete sales', 'category' => 'POS Management'],
+            
         ];
 
         foreach ($permissions as $permission) {

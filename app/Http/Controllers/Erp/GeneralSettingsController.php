@@ -14,12 +14,8 @@ class GeneralSettingsController extends Controller
 {
     public function index()
     {
-        if(Auth::user()->hasPermissionTo('view settings')){
-            $settings = GeneralSetting::first();
-            return view('erp.settings.settings',compact('settings'));
-        }else{
-            return redirect()->route('erp.dashboard');
-        }
+        $settings = GeneralSetting::first();
+        return view('erp.settings.settings',compact('settings'));
     }
 
     public function storeUpdate(Request $request)
@@ -32,6 +28,8 @@ class GeneralSettingsController extends Controller
             'contact_email' => 'nullable|email|max:255',
             'contact_phone' => 'nullable|string|max:255',
             'contact_address' => 'nullable|string|max:255',
+            'website_url' => 'nullable|url|max:255',
+            'invoice_prefix' => 'nullable|string|max:10',
             'facebook_url' => 'nullable|string|max:255',
             'x_url' => 'nullable|string|max:255',
             'youtube_url' => 'nullable|string|max:255',
@@ -47,6 +45,7 @@ class GeneralSettingsController extends Controller
             'smtp_encryption' => 'nullable|string|in:tls,ssl,',
             'smtp_from_address' => 'nullable|email|max:255',
             'smtp_from_name' => 'nullable|string|max:255',
+            'tax_rate' => 'nullable|numeric|min:0|max:100',
         ]);
 
         // Get the settings row (create if not exists)

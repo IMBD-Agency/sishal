@@ -7,6 +7,7 @@ use App\Models\VariationAttribute;
 use App\Models\VariationAttributeValue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 
 class VariationAttributeController extends Controller
 {
@@ -172,6 +173,9 @@ class VariationAttributeController extends Controller
             $value->delete();
         }
 
+        // Clear product cache after updating variation attributes
+        $this->clearProductCache();
+
         return redirect()->route('erp.variation-attributes.index')
             ->with('success', 'Variation attribute updated successfully.');
     }
@@ -192,6 +196,9 @@ class VariationAttributeController extends Controller
         
         $attribute->delete();
         
+        // Clear product cache after deleting variation attributes
+        $this->clearProductCache();
+        
         return redirect()->route('erp.variation-attributes.index')
             ->with('success', 'Variation attribute deleted successfully.');
     }
@@ -206,9 +213,66 @@ class VariationAttributeController extends Controller
             'status' => $attribute->status === 'active' ? 'inactive' : 'active'
         ]);
         
+        // Clear product cache after toggling status
+        $this->clearProductCache();
+        
         return response()->json([
             'success' => true,
             'status' => $attribute->status
         ]);
+    }
+
+    /**
+     * Clear product-related cache
+     */
+    private function clearProductCache()
+    {
+        try {
+            // Clear product listing cache
+            $this->clearCachePattern('products_list_*');
+            
+            // Clear product details cache
+            $this->clearCachePattern('product_details_*');
+            
+            // Clear API cache
+            $this->clearCachePattern('top_selling_products_*');
+            $this->clearCachePattern('new_arrivals_products_*');
+            $this->clearCachePattern('best_deals_products_*');
+        } catch (\Exception $e) {
+            \Log::warning('Failed to clear product cache: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Clear cache by pattern
+     */
+    private function clearCachePattern($pattern)
+    {
+        try {
+            $store = Cache::getStore();
+            
+            // Check if we're using Redis cache driver
+            if (method_exists($store, 'getRedis')) {
+                // Redis-specific pattern clearing
+                $keys = $store->getRedis()->keys($pattern);
+                if (!empty($keys)) {
+                    $store->getRedis()->del($keys);
+                }
+            } else {
+                // For non-Redis drivers (database, file, array), we need to clear cache differently
+                // Since pattern matching isn't available, we'll clear the entire cache
+                // This is a fallback approach for database/file cache drivers
+                \Log::info("Clearing entire cache due to pattern matching not supported for current driver: " . get_class($store));
+                Cache::flush();
+            }
+        } catch (\Exception $e) {
+            // Fallback: try to clear individual cache entries or flush entire cache
+            \Log::warning("Could not clear cache pattern {$pattern}: " . $e->getMessage());
+            try {
+                Cache::flush();
+            } catch (\Exception $flushException) {
+                \Log::error("Failed to flush cache: " . $flushException->getMessage());
+            }
+        }
     }
 }

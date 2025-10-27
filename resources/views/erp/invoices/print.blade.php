@@ -1,3 +1,7 @@
+@php
+    // Include helper functions
+    require_once app_path('Helpers/NumberHelper.php');
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 
@@ -182,7 +186,7 @@
                 Email: <a style="color: black; text-decoration: none;"
                     href="mailto:{{ $general_settings->contact_email }}">{{ $general_settings->contact_email }}</a> <br>
                 Website: <a style="color: black; text-decoration: none;" target="_blank"
-                    href="https://sisalfashion.com/">https://sisalfashion.com</a>
+                    href="{{ $general_settings->website_url ?? '#' }}">{{ $general_settings->website_url ?? 'N/A' }}</a>
             </div>
             <div class="barcode">
                 {!! $qrCodeSvg !!}
@@ -192,7 +196,7 @@
         <table class="info-table">
             <tr>
                 <td><strong>Customer Info.</strong></td>
-                <td style="text-align:right;"><strong>INVOICE #</strong> B SF{{$invoice->invoice_number}}</td>
+                <td style="text-align:right;"><strong>INVOICE #</strong> {{$invoice->invoice_number}}</td>
             </tr>
             <tr>
                 <td>{{@$invoice->customer->name}}</td>
@@ -253,66 +257,39 @@
                     </tr>
                 @endif
                 @endforeach
-                
-                <tr>
-                    <td>{{$invoice->items->count() + 1}}</td>
-                    <td style="text-align:left;">Service Charge {{$invoice->service ? ': ('.@$invoice->service->productService->name.')' : ''}}</td>
-                    <td>1</td>
-                    <td>PCS</td>
-                    <td> {{$invoice->service ? @$invoice->service->service_fee : ''}}৳</td>
-                    <td>-</td>
-                    <td>{{$invoice->service ? @$invoice->service->service_fee : ''}}৳</td>
-                </tr>
-
-                @if(@$invoice->service->travel_fee > 0)
-                <tr>
-                    <td>{{$invoice->items->count() + 2}}</td>
-                    <td style="text-align:left;">Travel fee</td>
-                    <td>1</td>
-                    <td>PCS</td>
-                    <td> {{$invoice->service ? @$invoice->service->travel_fee : ''}}৳</td>
-                    <td>-</td>
-                    <td>{{$invoice->service ? @$invoice->service->travel_fee : ''}}৳</td>
-                </tr>
-                @endif
             </tbody>
         </table>
         <table class="summary-table">
             <tr>
                 <td>SUB TOTAL :</td>
-                <td>{{$invoice->subtotal}}৳</td>
+                <td>{{number_format($invoice->subtotal ?? 0, 2)}}৳</td>
             </tr>
             <tr>
                 <td>DIS. AMOUNT :</td>
-                <td>{{$invoice->discount_apply}}৳</td>
+                <td>{{number_format($invoice->discount_apply ?? 0, 2)}}৳</td>
             </tr>
             <tr>
-                <td>Vat :</td>
-                <td>{{$invoice->tax}}৳</td>
+                <td>VAT :</td>
+                <td>{{number_format($invoice->tax ?? 0, 2)}}৳</td>
             </tr>
             <tr>
                 <td>NET BILL :</td>
-                <td>{{$invoice->total_amount}}৳</td>
+                <td>{{number_format($invoice->total_amount ?? 0, 2)}}৳</td>
             </tr>
             <tr>
                 <td>ADVANCE :</td>
-                <td>{{$invoice->paid_amount}}৳</td>
+                <td>{{number_format($invoice->paid_amount ?? 0, 2)}}৳</td>
             </tr>
             <tr>
                 <td>DUE :</td>
-                <td>{{$invoice->due_amount}}৳</td>
+                <td>{{number_format($invoice->due_amount ?? 0, 2)}}৳</td>
             </tr>
         </table>
         <div style="clear:both;"></div>
-        <div class="inword" style="font-size: 12px;"><strong>IN-WORD :</strong></div>
+        <div class="inword" style="font-size: 12px;"><strong>IN-WORD :</strong> {{ numberToWords($invoice->total_amount ?? 0) }}</div>
         <div class="bill-note" style="font-size: 12px;"><strong>BILL NOTE :</strong> {{$invoice->note}}</div>
-        <div class="service-note" style="margin-top: 10px; font-size: 12px; font-weight: 700;">
-            Service Charge 300 Taka (In Dhaka City)..... Service Charge 500 Taka (Out of Dhaka City)........ For Any
-            Service Needs, Call : +8801958394757<br>
-            বিশেষ দ্রষ্টব্য: সকল যাতায়াত খরচ কাস্টমার বহন করবে ।
-        </div>
         <br>
-        <p style="margin-bottom: 0; font-size: 12px;"><b>- Payment Method :</b> {{@$invoice->payments->first()->payment_method}}</p>
+        <p style="margin-bottom: 0; font-size: 12px;"><b>- Payment Method :</b> {{ @$invoice->payments->first()->payment_method ?? 'Not specified' }}</p>
         <div class="footer">
             {!! $invoice->footer_text ?? $template->footer_note !!}
         </div>

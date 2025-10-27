@@ -21,20 +21,21 @@
                     <p class="text-muted mb-0">Monitor and manage stock levels across all locations</p>
                 </div>
                 <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <button class="btn btn-outline-primary" data-bs-toggle="modal"
-                            data-bs-target="#stockAdjustmentModal">
-                            <i class="fas fa-adjust me-2"></i>Stock Adjustment
-                        </button>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
-                    </div>
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal"
+                        data-bs-target="#stockAdjustmentModal">
+                        <i class="fas fa-adjust me-2"></i>Stock Adjustment
+                    </button>
                 </div>
             </div>
         </div>
 
-        <div class="container-fluid px-4 py-4"> 
+        <div class="container-fluid px-4 py-4">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
 
             <!-- Filters Section -->
             <div class="card border-0 shadow-sm mb-4">
@@ -107,7 +108,6 @@
                                     <th class="border-0 text-center">Total Stock</th>
                                     <th class="border-0 text-center">Branches</th>
                                     <th class="border-0 text-center">Warehouses</th>
-                                    <th class="border-0 text-center">Employee Inv.</th>
                                     <th class="border-0">Status</th>
                                 </tr>
                             </thead>
@@ -115,7 +115,7 @@
 
                                 @foreach ($productStocks as $stock)
 
-                                    <tr class="stock-row" data-product-id="1">
+                                    <tr class="stock-row" data-product-id="{{ $stock->id }}">
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <img src="{{ asset($stock->image) }}" alt="Product"
@@ -127,7 +127,7 @@
                                             </div>
                                         </td>
                                         <td><span class="font-monospace">{{$stock->sku}}</span></td>
-                                        <td><span class="badge bg-light text-dark">{{$stock->category->name}}</span></td>
+                                        <td><span class="badge bg-light text-dark">{{$stock->category->name ?? 'No Category'}}</span></td>
                                         <td class="text-center">
                                             <span class="h5 fw-bold text-primary">
                                                 {{ @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity') }}
@@ -150,14 +150,15 @@
                                             <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($stock->warehouseStock->map(function($ws) { return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; }))'>{{$stock->warehouseStock->count().' Warehouses'}}</button>
                                             @endif
                                         </td>
-                                        <td class="text-center">
-                                            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="collapse"
-                                                data-bs-target="#employees-1">
-                                                5 Employees
-                                            </button>
-                                        </td>
                                         <td>
-                                            <span class="badge bg-success">In Stock</span>
+                                            @php
+                                                $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity');
+                                            @endphp
+                                            @if($totalStock > 0)
+                                                <span class="badge bg-success">In Stock</span>
+                                            @else
+                                                <span class="badge bg-danger">Out of Stock</span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

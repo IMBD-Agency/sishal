@@ -47,6 +47,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            {{-- Manager field disabled for ecommerce only business
                             <div class="mb-3">
                                 <label for="manager_id" class="form-label">Manager</label>
                                 <select class="form-select @error('manager_id') is-invalid @enderror" id="manager_id" name="manager_id">
@@ -59,6 +60,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            --}}
                             <div class="mb-3">
                                 <label for="status" class="form-label">Status</label>
                                 <select class="form-select @error('status') is-invalid @enderror" id="status" name="status">

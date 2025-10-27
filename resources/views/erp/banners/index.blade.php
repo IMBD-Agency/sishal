@@ -20,11 +20,9 @@
                     <p class="text-muted mb-0">Manage banners, promotional content, and advertisements.</p>
                 </div>
                 <div class="col-md-4 text-end">
-                    @can('create banners')
                     <a href="{{ route('banners.create') }}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Add Banner
                     </a>
-                    @endcan
                 </div>
             </div>
         </div>
@@ -145,12 +143,9 @@
                                                     <a href="{{ route('banners.show', $banner) }}" class="btn btn-sm btn-outline-info" title="View">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
-                                                    @can('edit banners')
                                                     <a href="{{ route('banners.edit', $banner) }}" class="btn btn-sm btn-outline-primary" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    @endcan
-                                                    @can('delete banners')
                                                     <form action="{{ route('banners.destroy', $banner) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this banner?')">
                                                         @csrf
                                                         @method('DELETE')
@@ -158,7 +153,6 @@
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     </form>
-                                                    @endcan
                                                 </div>
                                             </td>
                                         </tr>
@@ -181,11 +175,9 @@
                             <i class="fas fa-image fa-3x text-muted mb-3"></i>
                             <h5 class="text-muted">No banners found</h5>
                             <p class="text-muted">Get started by creating your first banner.</p>
-                            @can('create banners')
                             <a href="{{ route('banners.create') }}" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>Add Banner
                             </a>
-                            @endcan
                         </div>
                     @endif
                 </div>

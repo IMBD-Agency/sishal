@@ -21,14 +21,9 @@
                     <p class="text-muted mb-0">Manage invoice information, contacts, and transactions efficiently.</p>
                 </div>
                 <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <a href="{{ route('invoice.create') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-plus me-2"></i>Add Invoice
-                        </a>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
-                    </div>
+                    <a href="{{ route('invoice.create') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-2"></i>Add Invoice
+                    </a>
                 </div>
             </div>
         </div>

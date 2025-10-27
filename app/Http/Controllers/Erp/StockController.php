@@ -133,6 +133,20 @@ class StockController extends Controller
 
     public function adjustStock(Request $request)
     {
+        $request->validate([
+            'location_type' => 'required|in:branch,warehouse',
+            'product_id' => 'required|exists:products,id',
+            'type' => 'required|in:stock_in,stock_out',
+            'quantity' => 'required|numeric|min:1',
+        ]);
+
+        // Validate location ID based on location type
+        if ($request->location_type == 'branch') {
+            $request->validate(['branch_id' => 'required|exists:branches,id']);
+        } else {
+            $request->validate(['warehouse_id' => 'required|exists:warehouses,id']);
+        }
+
         // If a variation_id is provided, adjust variation stock; otherwise fall back to product-level stock
         $isVariation = $request->filled('variation_id');
 
@@ -261,6 +275,7 @@ class StockController extends Controller
                 }
             }
         }
-        return redirect()->back();
+        
+        return redirect()->back()->with('success', 'Stock adjusted successfully.');
     }
 }

@@ -33,8 +33,15 @@ class OrderController extends Controller
             $cartTotal += $price * $cart->qty;
         }
 
+        // Get tax rate from general settings
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $taxRate = $generalSetting ? ($generalSetting->tax_rate / 100) : 0.00; // Default to 0% if not set
+
+        // Get shipping methods
+        $shippingMethods = \App\Models\ShippingMethod::active()->ordered()->get();
+
         $pageTitle = 'Checkout';
-        return view('ecommerce.checkout', compact('carts', 'cartTotal', 'pageTitle'));
+        return view('ecommerce.checkout', compact('carts', 'cartTotal', 'taxRate', 'shippingMethods', 'pageTitle'));
     }
 
     public function makeOrder(Request $request)
@@ -101,9 +108,15 @@ class OrderController extends Controller
             ];
         }
 
-        $tax = round($subtotal * 0.05, 2);
-        $shippingMap = ['standard' => 60, 'express' => 100, 'overnight' => 120];
-        $shipping = $shippingMap[$request->shipping_method] ?? 60;
+        // Get tax rate from general settings
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $taxRate = $generalSetting ? ($generalSetting->tax_rate / 100) : 0.00; // Default to 0% if not set
+        
+        $tax = round($subtotal * $taxRate, 2);
+        
+        // Get shipping method from database
+        $shippingMethod = \App\Models\ShippingMethod::find($request->shipping_method);
+        $shipping = $shippingMethod ? $shippingMethod->cost : 0;
         $total = $subtotal + $tax + $shipping;
 
         DB::beginTransaction();
@@ -139,6 +152,7 @@ class OrderController extends Controller
                 'due_date' => now()->toDateString(),
                 'send_date' => now()->toDateString(),
                 'subtotal' => $subtotal,
+                'tax' => $tax,
                 'total_amount' => $total,
                 'discount_apply' => 0,
                 'paid_amount' => $isInstantPaid ? $total : 0,
@@ -319,10 +333,15 @@ class OrderController extends Controller
 
     private function generateInvoiceNumber()
     {
+        $generalSettings = \App\Models\GeneralSetting::first();
+        $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
+        
         do {
             $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        } while (Invoice::where('invoice_number', $number)->exists());
-        return $number;
+            $fullNumber = $prefix . $number;
+        } while (Invoice::where('invoice_number', $fullNumber)->exists());
+        
+        return $fullNumber;
     }
 
     public function orderSuccess(string $orderId)

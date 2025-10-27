@@ -65,8 +65,9 @@ Route::middleware('auth')->group(function () {
 
 
 Route::middleware('auth')->group(function () {
-    Route::get('/request-service', [ServiceController::class, 'request'])->name('service.request');
-    Route::post('/request-service', [ServiceController::class, 'submitRequest'])->name('service.request.submit');
+    // Service functionality disabled - commented out
+    // Route::get('/request-service', [ServiceController::class, 'request'])->name('service.request');
+    // Route::post('/request-service', [ServiceController::class, 'submitRequest'])->name('service.request.submit');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::post('/profile/filter-orders', [ProfileController::class, 'filterOrders'])->name('profile.filter.orders');
@@ -93,8 +94,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/add-remove-wishlist/{productId}', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'addToWishlist'])->name('wishlist.add');
     Route::delete('/remove-wishlis', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'removeAllWishlist'])->name('wishlist.removeAll');
 
-    // Service
-    Route::get('/requested-service/{service_number}', [ServiceController::class, 'show'])->name('service.request.show');
+    // Service functionality disabled - commented out
+    // Route::get('/requested-service/{service_number}', [ServiceController::class, 'show'])->name('service.request.show');
 });
 
 // Payment Routes (outside auth middleware for SSL Commerce callbacks)
@@ -332,6 +333,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Order
     Route::get('/order-list', [\App\Http\Controllers\Erp\OrderController::class, 'index'])->name('order.list');
     Route::get('/order/search', [\App\Http\Controllers\Erp\OrderController::class, 'orderSearch'])->name('order.search');
+    Route::get('/order/{id}/details', [\App\Http\Controllers\Erp\OrderController::class, 'show'])->name('order.details.api');
     Route::get('/order-list/{id}', [\App\Http\Controllers\Erp\OrderController::class, 'show'])->name('order.show');
     Route::post('/order/set-estimated-delivery/{id}', [\App\Http\Controllers\Erp\OrderController::class, 'setEstimatedDelivery'])->name('order.setEstimatedDelivery');
     Route::post('/order/update-estimated-delivery/{id}', [\App\Http\Controllers\Erp\OrderController::class, 'updateEstimatedDelivery'])->name('order.updateEstimatedDelivery');
@@ -356,23 +358,23 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/order-return/{id}', [\App\Http\Controllers\Erp\OrderReturnController::class, 'destroy'])->name('orderReturn.delete');
     Route::post('/order-return/{id}/update-status', [\App\Http\Controllers\Erp\OrderReturnController::class, 'updateReturnStatus'])->name('orderReturn.updateStatus');
 
-    // Customer Services
-    Route::get('/customer-services/search', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'search'])->name('customerService.search');
-    Route::get('/customer-services', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'index'])->name('customerService.list');
-    Route::get('/customer-services/create', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'create'])->name('customerService.create');
-    Route::post('/customer-services/store', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'store'])->name('service.store');
-    Route::get('/customer-services/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'show'])->name('customerService.show');
-    Route::post('/customer-services/update-technician/{id}/{employee_id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateTechnician'])->name('customerService.updateTechnician');
-    Route::post('/customer-services/remove-technician/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'deleteTechnician'])->name('customerService.deleteTechnician');
-    Route::post('/customer-services/product-stock-add/{serviceId}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addStockToServiceItem'])->name('customerService.addStockToServiceItem');
-    Route::post('/customer-services/transfer-stock-to-employee/{serviceId}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'transferStockToEmployee'])->name('customerService.transferStockToEmployee');
-    Route::post('/customer-services/add-payment/{serviceId}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addPayment'])->name('customerService.add.payment');
-    Route::post('/customer-services/update-note/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateNote'])->name('customerService.updateNote');
-    Route::post('/customer-services/add-address/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addAddress'])->name('customerService.addAddress');
-    Route::post('/customer-services/update-status/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateStatus'])->name('customerService.updateStatus');
-    Route::post('/customer-services/add-extra-part', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addExtraPart'])->name('customerService.addExtraPart');
-    Route::post('/customer-services/delete-extra-part', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'deleteExtraPart'])->name('customerService.deleteExtraPart');
-    Route::post('/customer-services/update-service-fees', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateServiceFees'])->name('customerService.updateServiceFees');
+    // Customer Services functionality disabled - commented out
+    // Route::get('/customer-services/search', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'search'])->name('customerService.search');
+    // Route::get('/customer-services', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'index'])->name('customerService.list');
+    // Route::get('/customer-services/create', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'create'])->name('customerService.create');
+    // Route::post('/customer-services/store', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'store'])->name('service.store');
+    // Route::get('/customer-services/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'show'])->name('customerService.show');
+    // Route::post('/customer-services/update-technician/{id}/{employee_id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateTechnician'])->name('customerService.updateTechnician');
+    // Route::post('/customer-services/remove-technician/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'deleteTechnician'])->name('customerService.deleteTechnician');
+    // Route::post('/customer-services/product-stock-add/{serviceId}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addStockToServiceItem'])->name('customerService.addStockToServiceItem');
+    // Route::post('/customer-services/transfer-stock-to-employee/{serviceId}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'transferStockToEmployee'])->name('customerService.transferStockToEmployee');
+    // Route::post('/customer-services/add-payment/{serviceId}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addPayment'])->name('customerService.add.payment');
+    // Route::post('/customer-services/update-note/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateNote'])->name('customerService.updateNote');
+    // Route::post('/customer-services/add-address/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addAddress'])->name('customerService.addAddress');
+    // Route::post('/customer-services/update-status/{id}', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateStatus'])->name('customerService.updateStatus');
+    // Route::post('/customer-services/add-extra-part', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'addExtraPart'])->name('customerService.addExtraPart');
+    // Route::post('/customer-services/delete-extra-part', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'deleteExtraPart'])->name('customerService.deleteExtraPart');
+    // Route::post('/customer-services/update-service-fees', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateServiceFees'])->name('customerService.updateServiceFees');
 
     // Double Entry
     Route::get('/account-type', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'accountType'])->name('account-type.list');
@@ -461,6 +463,9 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/settings', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'storeUpdate'])->name('settings.update');
     Route::post('/admin/test-smtp', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'testSmtp'])->name('admin.test.smtp');
+    
+    // Shipping Methods
+    Route::resource('shipping-methods', \App\Http\Controllers\Erp\ShippingMethodController::class);
 });
 
 Route::get('/api/products/most-sold', [\App\Http\Controllers\Ecommerce\ApiController::class, 'mostSoldProducts']);

@@ -42,37 +42,22 @@
                     <li class="nav-item">
                         <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">Employee Setup</a>
                     </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">Payroll Setup</a>
-                    </li>
+                
                 </ul>
             </div>
         </div>
         
        
         <div class="nav-item">
-            <a href="#accountingSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? 'true' : 'false' }}" aria-controls="accountingSubmenu">
+            <a href="#accountingSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? 'true' : 'false' }}" aria-controls="accountingSubmenu">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-calculator nav-icon"></i>
                     <span>Accounting System</span>
                 </div>
                 <i class="fas fa-chevron-down ms-auto"></i>
             </a>
-            <div class="collapse{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') ||  request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' show' : '' }}" id="accountingSubmenu">
+            <div class="collapse{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' show' : '' }}" id="accountingSubmenu">
                 <ul class="nav flex-column ms-4">
-                    <li class="nav-item">
-                        <a href="#salesSubmenu" class="nav-link {{ (request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? 'true' : 'false' }}" aria-controls="salesSubmenu">
-                            <span>Sales</span>
-                            <i class="fas fa-chevron-down ms-auto"></i>
-                        </a>
-                        <div class="collapse{{ (request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? ' show' : '' }}" id="salesSubmenu">
-                            <ul class="nav flex-column ms-3">
-                                <li class="nav-item"><a href="{{ route('customers.list') }}" class="nav-link {{ request()->is('erp/customers*') ? ' active' : '' }}">Customer</a></li>
-                                <li class="nav-item"><a href="{{ route('invoice.list') }}" class="nav-link {{ request()->is('erp/invoices*') ? ' active' : '' }}">Invoice</a></li>
-                                <li class="nav-item"><a href="{{ route('invoice.template.list') }}" class="nav-link {{ request()->is('erp/invoice-templates*') ? ' active' : '' }}">Invoice Template</a></li>
-                            </ul>
-                        </div>
-                    </li>
                     <li class="nav-item">
                         <a href="#purchasesSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*')) ? 'true' : 'false' }}" aria-controls="purchasesSubmenu">
                             <span>Purchases</span>
@@ -117,15 +102,7 @@
                 </ul>
             </div>
         </div>
-        <div class="nav-item">
-            <a href="#" class="nav-link">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-phone nav-icon"></i>
-                    <span>CRM System</span>
-                </div>
-                <i class="fas fa-chevron-right"></i>
-            </a>
-        </div>
+
        
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/user-role*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#userManagementSubMenu" aria-expanded="{{ (request()->is('erp/user-role*')) ? 'true' : 'false' }}" aria-controls="userManagementSubMenu">
@@ -213,6 +190,7 @@
                 </ul>
             </div>
         </div>
+        {{-- Service functionality disabled - commented out
         <div class="nav-item">
             <a href="#" class="nav-link {{ request()->is('erp/customer-services*') ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#serviceSubMenu" aria-expanded="{{ request()->is('erp/customer-services*') ? 'true' : 'false' }}" aria-controls="productsSubMenu">
                 <div class="d-flex align-items-center">
@@ -229,17 +207,31 @@
                 </ul>
             </div>
         </div>
+        --}}
         
         <div class="nav-item">
-            <a href="#" class="nav-link {{ (request()->is('erp/order-list*') || request()->is('erp/order-return*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#ecommerceSubMenu" aria-expanded="{{ (request()->is('erp/order-list*') || request()->is('erp/order-return*')) ? 'true' : 'false' }}" aria-controls="productsSubMenu">
+            <a href="#" class="nav-link {{ (request()->is('erp/order-list*') || request()->is('erp/order-return*') || request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#ecommerceSubMenu" aria-expanded="{{ (request()->is('erp/order-list*') || request()->is('erp/order-return*') || request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? 'true' : 'false' }}" aria-controls="ecommerceSubMenu">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-shopping-cart nav-icon"></i>
                     <span>Ecommerce</span>
                 </div>
                 <i class="fas fa-chevron-down ms-auto"></i>
             </a>
-            <div class="collapse{{ (request()->is('erp/order-list*') || request()->is('erp/order-return*')) ? ' show' : '' }}" id="ecommerceSubMenu">
+            <div class="collapse{{ (request()->is('erp/order-list*') || request()->is('erp/order-return*') || request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? ' show' : '' }}" id="ecommerceSubMenu">
                 <ul class="nav flex-column ms-4">
+                    <li class="nav-item">
+                        <a href="#salesSubmenu" class="nav-link {{ (request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? 'true' : 'false' }}" aria-controls="salesSubmenu">
+                            <span>Sales</span>
+                            <i class="fas fa-chevron-down ms-auto"></i>
+                        </a>
+                        <div class="collapse{{ (request()->is('erp/customers*') || request()->is('erp/invoices*') || request()->is('erp/invoice-templates*')) ? ' show' : '' }}" id="salesSubmenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item"><a href="{{ route('customers.list') }}" class="nav-link {{ request()->is('erp/customers*') ? ' active' : '' }}">Customer</a></li>
+                                <li class="nav-item"><a href="{{ route('invoice.list') }}" class="nav-link {{ request()->is('erp/invoices*') ? ' active' : '' }}">Invoice</a></li>
+                                <li class="nav-item"><a href="{{ route('invoice.template.list') }}" class="nav-link {{ request()->is('erp/invoice-templates*') ? ' active' : '' }}">Invoice Template</a></li>
+                            </ul>
+                        </div>
+                    </li>
                     <li class="nav-item">
                         <a href="{{ route('order.list') }}" class="nav-link {{ request()->is('erp/order-list*') ? ' active' : '' }}">Order</a>
                     </li>
@@ -278,6 +270,14 @@
                 <div class="d-flex align-items-center">
                     <i class="fas fa-cog nav-icon"></i>
                     <span>Settings</span>
+                </div>
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('shipping-methods.index') }}" class="nav-link {{ request()->is('erp/shipping-methods*') ? ' active' : '' }}">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-shipping-fast nav-icon"></i>
+                    <span>Shipping Methods</span>
                 </div>
             </a>
         </div>

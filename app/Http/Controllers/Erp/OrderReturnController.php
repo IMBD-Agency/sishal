@@ -78,6 +78,12 @@ class OrderReturnController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.reason' => 'nullable|string',
         ]);
+
+        // Validate return quantities against order if order_id is provided
+        if ($request->order_id) {
+            $this->validateReturnQuantities($request->order_id, $request->items);
+        }
+
         $data = $request->except(['items', 'status']);
         $data['status'] = 'pending';
         $orderReturn = OrderReturn::create($data);
@@ -86,6 +92,7 @@ class OrderReturnController extends Controller
                 'order_return_id' => $orderReturn->id,
                 'order_item_id' => $item['order_item_id'] ?? null,
                 'product_id' => $item['product_id'],
+                'variation_id' => $item['variation_id'] ?? null,
                 'returned_qty' => $item['returned_qty'],
                 'unit_price' => $item['unit_price'],
                 'total_price' => $item['returned_qty'] * $item['unit_price'],
@@ -134,7 +141,19 @@ class OrderReturnController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.reason' => 'nullable|string',
         ]);
+
         $orderReturn = OrderReturn::findOrFail($id);
+
+        // Prevent editing if already processed
+        if ($orderReturn->status === 'processed') {
+            return redirect()->back()->withErrors(['error' => 'Cannot edit a processed return.']);
+        }
+
+        // Validate return quantities against order if order_id is provided
+        if ($request->order_id) {
+            $this->validateReturnQuantities($request->order_id, $request->items, $id);
+        }
+
         $orderReturn->update($request->except(['items', 'status']));
         // Remove old items
         $orderReturn->items()->delete();
@@ -144,6 +163,7 @@ class OrderReturnController extends Controller
                 'order_return_id' => $orderReturn->id,
                 'order_item_id' => $item['order_item_id'] ?? null,
                 'product_id' => $item['product_id'],
+                'variation_id' => $item['variation_id'] ?? null,
                 'returned_qty' => $item['returned_qty'],
                 'unit_price' => $item['unit_price'],
                 'total_price' => $item['returned_qty'] * $item['unit_price'],
@@ -196,6 +216,11 @@ class OrderReturnController extends Controller
                 foreach ($orderReturn->items as $item) {
                     $this->addStockForReturnItem($orderReturn, $item);
                 }
+                
+                // Track who processed and when
+                $orderReturn->processed_by = auth()->id();
+                $orderReturn->processed_at = now();
+                $orderReturn->save();
             }
 
             DB::commit();
@@ -228,13 +253,13 @@ class OrderReturnController extends Controller
     /**
      * Add returned quantity to the selected stock (branch, warehouse, or employee)
      */
-    private function addStockForReturnItem($saleReturn, $item)
+    private function addStockForReturnItem($orderReturn, $item)
     {
         $qty = $item->returned_qty;
         $productId = $item->product_id;
         $variationId = $item->variation_id ?? null;
-        $toType = $saleReturn->return_to_type;
-        $toId = $saleReturn->return_to_id;
+        $toType = $orderReturn->return_to_type;
+        $toId = $orderReturn->return_to_id;
 
         switch ($toType) {
             case 'branch':
@@ -318,6 +343,55 @@ class OrderReturnController extends Controller
                 break;
             default:
                 throw new \Exception("Invalid return_to_type: {$toType}");
+        }
+    }
+
+    /**
+     * Validate return quantities against original order
+     */
+    private function validateReturnQuantities($orderId, $items, $excludeReturnId = null)
+    {
+        $order = Order::with('items')->findOrFail($orderId);
+
+        foreach ($items as $item) {
+            $productId = $item['product_id'];
+            $variationId = $item['variation_id'] ?? null;
+            $returnedQty = (float) $item['returned_qty'];
+
+            // Find matching order item
+            $orderItem = $order->items()->where('product_id', $productId)
+                ->when($variationId, function($q) use ($variationId) {
+                    $q->where('variation_id', $variationId);
+                })
+                ->first();
+
+            if (!$orderItem) {
+                throw new \Exception("Product not found in the original order.");
+            }
+
+            // Check if there are existing returns for this order
+            $existingReturns = OrderReturn::where('order_id', $orderId)
+                ->when($excludeReturnId, function($q) use ($excludeReturnId) {
+                    $q->where('id', '!=', $excludeReturnId);
+                })
+                ->whereIn('status', ['pending', 'approved', 'processed'])
+                ->get();
+
+            $totalReturnedQty = 0;
+            foreach ($existingReturns as $return) {
+                $returnItems = $return->items()->where('product_id', $productId)
+                    ->when($variationId, function($q) use ($variationId) {
+                        $q->where('variation_id', $variationId);
+                    })
+                    ->sum('returned_qty');
+                $totalReturnedQty += $returnItems;
+            }
+
+            $availableQty = (float) $orderItem->quantity - $totalReturnedQty;
+
+            if ($returnedQty > $availableQty) {
+                throw new \Exception("Cannot return quantity greater than available. Available: {$availableQty}, Requested: {$returnedQty}");
+            }
         }
     }
 }
