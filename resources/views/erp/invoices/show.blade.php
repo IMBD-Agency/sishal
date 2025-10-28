@@ -31,7 +31,7 @@
                                         <div>
                                             <small class="text-muted d-block">Date</small>
                                             <span
-                                                class="fw-medium">{{ $invoice->date ?? $invoice->created_at->format('M d, Y') }}</span>
+                                                class="fw-medium">{{ $invoice->issue_date ? date('M d, Y', strtotime($invoice->issue_date)) : ($invoice->created_at?->format('M d, Y') ?? '-') }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -41,8 +41,8 @@
                                         <div>
                                             <small class="text-muted d-block">Status</small>
                                             <span
-                                                class="badge {{ $invoice->status === 'Paid' ? 'bg-success' : 'bg-warning' }} rounded-pill">
-                                                {{ $invoice->status ?? 'Pending' }}
+                                                class="badge {{ ($invoice->status ?? 'unpaid') === 'paid' ? 'bg-success' : (($invoice->status ?? 'unpaid') === 'partial' ? 'bg-warning' : 'bg-secondary') }} rounded-pill">
+                                                {{ ucfirst($invoice->status ?? 'unpaid') }}
                                             </span>
                                         </div>
                                     </div>
@@ -82,11 +82,21 @@
                                             <i class="fas fa-envelope me-1"></i>
                                             {{ @$invoice->customer->email }}
                                         </p>
+                                    @elseif(@$billing->billing_address_1)
+                                        <p class="mb-1 text-muted small">
+                                            <i class="fas fa-envelope me-1"></i>
+                                            {{ @$invoice->email ?? '-' }}
+                                        </p>
                                     @endif
                                     @if(@$invoice->customer->phone)
                                         <p class="mb-0 text-muted small">
                                             <i class="fas fa-phone me-1"></i>
                                             {{ @$invoice->customer->phone }}
+                                        </p>
+                                    @elseif(@$billing->billing_address_1)
+                                        <p class="mb-0 text-muted small">
+                                            <i class="fas fa-phone me-1"></i>
+                                            {{ @$invoice->phone ?? '-' }}
                                         </p>
                                     @endif
                                 </div>
@@ -237,7 +247,7 @@
                                             <tr>
                                                 <td class="px-4 py-3 text-muted">{{ $loop->iteration }}</td>
                                                 <td class="px-4 py-3">
-                                                    {{ $payment->date ?? ($payment->created_at->format('M d, Y') ?? '-') }}</td>
+                                                    {{ $payment->payment_date ?? ($payment->created_at?->format('M d, Y') ?? '-') }}</td>
                                                 <td class="px-4 py-3">
                                                     <span
                                                         class="badge bg-light text-dark">{{ $payment->payment_method ?? '-' }}</span>
@@ -281,7 +291,7 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="text-muted">Tax</span>
-                                <span class="fw-medium">${{ number_format($invoice->tax ?? 0, 2) }}৳</span>
+                                <span class="fw-medium">{{ number_format($invoice->tax ?? 0, 2) }}৳</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="text-muted">Discount</span>

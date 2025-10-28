@@ -61,4 +61,28 @@ class UserRoleController extends Controller
 
         return redirect()->route('userRole.index')->with('success', 'Role updated successfully!');
     }
+
+    public function destroy($id)
+    {
+        if (!auth()->user()->hasPermissionTo('delete user role')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $role = Role::findOrFail($id);
+        
+        // Prevent deletion of Admin role
+        if ($role->name === 'Admin') {
+            return redirect()->route('userRole.index')->with('error', 'Cannot delete the Admin role.');
+        }
+        
+        // Check if role is assigned to any users
+        $usersWithRole = \App\Models\User::role($role->name)->count();
+        if ($usersWithRole > 0) {
+            return redirect()->route('userRole.index')->with('error', 'Cannot delete role that is assigned to users. Please reassign users first.');
+        }
+        
+        $role->delete();
+        
+        return redirect()->route('userRole.index')->with('success', 'Role deleted successfully!');
+    }
 }

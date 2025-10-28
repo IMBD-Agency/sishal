@@ -226,45 +226,9 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/stock-transfer', [\App\Http\Controllers\Erp\StockTransferController::class, 'store'])->name('stocktransfer.store');
     Route::patch('/stock-transfer/{id}/status', [\App\Http\Controllers\Erp\StockTransferController::class, 'updateStatus'])->name('stocktransfer.status');
 
-    // Supplier
-    Route::get('/supplier', [\App\Http\Controllers\Erp\SupplierController::class, 'index'])->name('supplier.list');
-    Route::get('/supplier/{id}', [\App\Http\Controllers\Erp\SupplierController::class, 'show'])->name('supplier.show');
-    Route::post('/suppliers', [\App\Http\Controllers\Erp\SupplierController::class, 'store'])->name('supplier.store');
-    Route::patch('/suppliers/{id}', [\App\Http\Controllers\Erp\SupplierController::class, 'update'])->name('supplier.update');
-    Route::delete('/suppliers/{id}', [\App\Http\Controllers\Erp\SupplierController::class, 'delete'])->name('supplier.delete');
-    Route::get('/suppliers/search', [\App\Http\Controllers\Erp\SupplierController::class, 'supplierSearch'])->name('supplier.search');
 
-    // Purchase
-    Route::get('/purchases/search', [\App\Http\Controllers\Erp\PurchaseController::class, 'searchPurchase'])->name('purchase.search');
-    Route::get('/purchase-products/search/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'getItemByPurchase'])->name('purchaseitem.search');
-    Route::get('/purchases', [\App\Http\Controllers\Erp\PurchaseController::class, 'index'])->name('purchase.list');
-    Route::get('/purchases/create', [\App\Http\Controllers\Erp\PurchaseController::class, 'create'])->name('purchase.create');
-    Route::post('/purchases/store', [\App\Http\Controllers\Erp\PurchaseController::class, 'store'])->name('purchase.store');
-    Route::get('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'show'])->name('purchase.show');
-    Route::get('/purchases/{id}/edit', [\App\Http\Controllers\Erp\PurchaseController::class, 'edit'])->name('purchase.edit');
-    Route::post('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'update'])->name('purchase.update');
-    Route::post('/purchases/{id}/status', [\App\Http\Controllers\Erp\PurchaseController::class, 'updateStatus'])->name('purchase.updateStatus');
-    Route::post('/purchases/{id}/delete', [\App\Http\Controllers\Erp\PurchaseController::class, 'delete'])->name('purchase.delete');
 
-    // Bill
-    Route::get('/bills', [\App\Http\Controllers\Erp\BillController::class, 'index'])->name('bill.list');
-    Route::get('/bills/create', [\App\Http\Controllers\Erp\BillController::class, 'create'])->name('bill.create');
-    Route::post('/bills/store', [\App\Http\Controllers\Erp\BillController::class, 'store'])->name('bill.store');
-    Route::get('/bills/{id}', [\App\Http\Controllers\Erp\BillController::class, 'show'])->name('bill.show');
-    Route::get('/bills/{id}/edit', [\App\Http\Controllers\Erp\BillController::class, 'edit'])->name('bill.edit');
-    Route::post('/bills/{id}/update', [\App\Http\Controllers\Erp\BillController::class, 'update'])->name('bill.update');
-    Route::post('/bills/{id}/delete', [\App\Http\Controllers\Erp\BillController::class, 'delete'])->name('bill.delete');
-    Route::post('/bills/{id}/add-payment', [\App\Http\Controllers\Erp\BillController::class, 'addPayment'])->name('bill.addPayment');
 
-    // Purchase Return
-    Route::get('/purchase-return/searchbytype/{productId}/{fromId}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getStockByType'])->name('purchaseReturn.getStockByType');
-    Route::get('/purchase-return', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'index'])->name('purchaseReturn.list');
-    Route::get('/purchase-return/create', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'create'])->name('purchaseReturn.create');
-    Route::get('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'show'])->name('purchaseReturn.show');
-    Route::get('/purchase-return/{id}/edit', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'edit'])->name('purchaseReturn.edit');
-    Route::put('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'update'])->name('purchaseReturn.update');
-    Route::post('/purchase-return/store', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'store'])->name('purchaseReturn.store');
-    Route::post('/purchase-return/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'updateReturnStatus'])->name('purchaseReturn.updateStatus');
 
     // Sale Return
     Route::get('/sale-return', [\App\Http\Controllers\Erp\SaleReturnController::class, 'index'])->name('saleReturn.list');
@@ -375,64 +339,17 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Route::post('/customer-services/delete-extra-part', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'deleteExtraPart'])->name('customerService.deleteExtraPart');
     // Route::post('/customer-services/update-service-fees', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'updateServiceFees'])->name('customerService.updateServiceFees');
 
-    // Double Entry
-    Route::get('/account-type', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'accountType'])->name('account-type.list');
-    Route::post('/account-type', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'accountTypeStore'])->name('account-type.store');
-    Route::put('/account-type/{id}', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'accountTypeUpdate'])->name('account-type.update');
-    Route::delete('/account-type/{id}', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'accountTypeDelete'])->name('account-type.delete');
-    Route::get('/account-type/{typeId}/sub-types', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'getSubTypesByType'])->name('account-type.sub-types');
-    Route::get('/chart-of-account', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'list'])->name('chart-of-account.list');
-    Route::post('/chart-of-account', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'store'])->name('chart-of-account.store');
-    Route::put('/chart-of-account/{id}', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'update'])->name('chart-of-account.update');
-    Route::delete('/chart-of-account/{id}', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'destroy'])->name('chart-of-account.delete');
-    Route::post('/chart-of-account/parent', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'storeParent'])->name('chart-of-account.parent.store');
-    Route::put('/chart-of-account/parent/{id}', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'updateParent'])->name('chart-of-account.parent.update');
-    Route::delete('/chart-of-account/parent/{id}', [\App\Http\Controllers\Erp\ChartOfAccountController::class, 'destroyParent'])->name('chart-of-account.parent.delete');
-
-    // Financial Accounts
-    Route::get('/financial-accounts', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'list'])->name('financial-accounts.list');
-    Route::post('/financial-accounts', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'store'])->name('financial-accounts.store');
-    Route::put('/financial-accounts/{id}', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'update'])->name('financial-accounts.update');
-    Route::delete('/financial-accounts/{id}', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'destroy'])->name('financial-accounts.delete');
-
-    // Journal
-    Route::get('/journal', [\App\Http\Controllers\Erp\JournalController::class, 'list'])->name('journal.list');
-    Route::get('/journal/{id}', [\App\Http\Controllers\Erp\JournalController::class, 'show'])->name('journal.show');
-    Route::get('/journal/{id}/entries', [\App\Http\Controllers\Erp\JournalController::class, 'getEntries'])->name('journal.entries');
-    Route::post('/journal', [\App\Http\Controllers\Erp\JournalController::class, 'store'])->name('journal.store');
-    Route::put('/journal/{id}', [\App\Http\Controllers\Erp\JournalController::class, 'update'])->name('journal.update');
-    Route::delete('/journal/{id}', [\App\Http\Controllers\Erp\JournalController::class, 'destroy'])->name('journal.delete');
-
-    // Journal Entry Management
-    Route::get('/journal-entry/{id}', [\App\Http\Controllers\Erp\JournalController::class, 'getEntry'])->name('journal.entry.show');
-    Route::post('/journal/{journalId}/entry', [\App\Http\Controllers\Erp\JournalController::class, 'storeEntry'])->name('journal.entry.store');
-    Route::put('/journal-entry/{id}', [\App\Http\Controllers\Erp\JournalController::class, 'updateEntry'])->name('journal.entry.update');
-    Route::delete('/journal-entry/{id}', [\App\Http\Controllers\Erp\JournalController::class, 'destroyEntry'])->name('journal.entry.delete');
-
-    // Transfer
-    Route::get('/transfer', [\App\Http\Controllers\Erp\TransferController::class, 'list'])->name('transfer.list');
-    Route::post('/transfer', [\App\Http\Controllers\Erp\TransferController::class, 'store'])->name('transfer.store');
-    Route::post('/transfer/with-journal', [\App\Http\Controllers\Erp\TransferController::class, 'storeWithJournal'])->name('transfer.storeWithJournal');
-    Route::get('/transfer/existing-journals', [\App\Http\Controllers\Erp\TransferController::class, 'getExistingJournals'])->name('transfer.existingJournals');
-
-    // Ledger
-    Route::get('/ledger', [\App\Http\Controllers\Erp\LedgerController::class, 'index'])->name('ledger.index');
-    Route::get('/ledger/{id}', [\App\Http\Controllers\Erp\LedgerController::class, 'show'])->name('ledger.show');
-    Route::get('/ledger/account/{accountId}', [\App\Http\Controllers\Erp\LedgerController::class, 'accountLedger'])->name('ledger.account');
-
-    // Balance Sheet
-    Route::get('/balance-sheet', [\App\Http\Controllers\Erp\BalanceSheetController::class, 'index'])->name('balanceSheet.index');
-
-    // Profit & Loss
-    Route::get('/profit-loss', [\App\Http\Controllers\Erp\ProfitLossController::class, 'index'])->name('profitLoss.index');
-
-    // Profit & Loss
-    Route::get('/profit-and-loss', [\App\Http\Controllers\Erp\ProfitLossController::class, 'index'])->name('profitAndLoss.index');
+    // Simple Accounting Routes
+    Route::get('/simple-accounting/sales-summary', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'salesSummary'])->name('simple-accounting.sales-summary');
+    Route::get('/simple-accounting/profit-report', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'profitReport'])->name('simple-accounting.profit-report');
+    Route::get('/simple-accounting/top-products', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'topProducts'])->name('simple-accounting.top-products');
+    Route::get('/simple-accounting/stock-value', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'stockValue'])->name('simple-accounting.stock-value');
 
     // User Role
     Route::get('/user-role', [\App\Http\Controllers\Erp\UserRoleController::class, 'index'])->name('userRole.index');
     Route::post('/user-role', [\App\Http\Controllers\Erp\UserRoleController::class, 'store'])->name('userRole.store');
     Route::put('/user-role/{id}', [\App\Http\Controllers\Erp\UserRoleController::class, 'update'])->name('userRole.update');
+    Route::delete('/user-role/{id}', [\App\Http\Controllers\Erp\UserRoleController::class, 'destroy'])->name('userRole.destroy');
 
     // Vlogging
     Route::get('/vlogging', [\App\Http\Controllers\Erp\VloggingController::class, 'index'])->name('vlogging.index');

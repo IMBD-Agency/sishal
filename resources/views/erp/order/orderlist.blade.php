@@ -43,10 +43,7 @@
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Estimated Date</label>
-                        <input type="date" name="estimated_delivery_date" class="form-control" value="{{ request('estimated_delivery_date') }}">
-                    </div>
+                    
                     <div class="col-md-2">
                         <label class="form-label">Bill Status</label>
                         <select name="bill_status" class="form-select">
@@ -78,7 +75,6 @@
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th class="border-0">Order ID</th>
-                                    <th class="border-0">Estimated Date</th>
                                     <th class="border-0">Customer</th>
                                     <th class="border-0">Phone</th>
                                     <th class="border-0 text-center">Status</th>
@@ -95,9 +91,6 @@
                                 @forelse ($orders as $order)
                                     <tr>
                                         <td><a href="{{ route('order.show',$order->id) }}" class="btn btn-outline-primary">{{ $order->order_number ?? '-' }}</a></td>
-                                        <td>
-                                            {{ $order->estimated_delivery_date ? \Carbon\Carbon::parse($order->estimated_delivery_date)->format('d-m-Y') : '-' }}
-                                        </td>
                                         <td>{{@$order->name}}</td>
                                         <td>{{@$order->phone}}</td>
                                         <td class="text-center">

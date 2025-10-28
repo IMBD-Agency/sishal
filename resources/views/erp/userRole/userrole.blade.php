@@ -82,6 +82,20 @@
         </div>
         <!-- User Role Table -->
         <div class="container-fluid px-4 py-4">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+            
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+            
             <div class="card">
                 <div class="card-body">
                     <div class="table-responsive">
@@ -104,7 +118,11 @@
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-primary" onclick="openEditModal({{ $role->id }}, '{{ $role->name }}', [{{ $role->permissions->pluck('id')->implode(',') }}])">Edit</button>
-                                            <a href="#" class="btn btn-danger">Delete</a>
+                                            <form action="{{ route('userRole.destroy', $role->id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this role?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-danger">Delete</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 @endforeach

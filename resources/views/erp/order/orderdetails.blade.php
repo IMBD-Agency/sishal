@@ -121,23 +121,6 @@
                                             <span class="text-muted small">Order Date</span>
                                             <span>{{ $order->created_at ? \Carbon\Carbon::parse($order->created_at)->format('d M Y') : '-' }}</span>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="text-muted small">Estimated Delivery</span>
-                                            <span
-                                                class="small">
-                                                @if ($order->estimated_delivery_date)
-                                                    {{ \Carbon\Carbon::parse($order->estimated_delivery_date)->format('d M Y') }}
-                                                    {{ $order->estimated_delivery_time ? '(' . \Carbon\Carbon::parse($order->estimated_delivery_time)->format('h:i A') . ')' : '' }}
-                                                    <button id="edit-estimated-delivery-btn" type="button" class="btn btn-sm btn-outline-secondary ms-1" data-bs-toggle="modal" data-bs-target="#estimatedDeliveryModal" style="padding:2px 6px; font-size:14px;">
-                                                        <i class="fas fa-pen"></i>
-                                                    </button>
-                                                @else
-                                                    <button id="add-estimated-delivery-btn" type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#estimatedDeliveryModal" style="padding:2px 6px; font-size:14px;">
-                                                        +
-                                                    </button>
-                                                @endif
-                                            </span>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -547,33 +530,7 @@
     </div>
     @endif
 
-    <!-- Bootstrap Modal for adding estimated delivery date/time -->
-    <div class="modal fade" id="estimatedDeliveryModal" tabindex="-1" aria-labelledby="estimatedDeliveryModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="estimatedDeliveryModalLabel">Set Estimated Delivery</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="estimatedDeliveryForm">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="estimated_delivery_date" class="form-label">Date</label>
-                            <input type="date" class="form-control" id="estimated_delivery_date" name="estimated_delivery_date" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="estimated_delivery_time" class="form-label">Time</label>
-                            <input type="time" class="form-control" id="estimated_delivery_time" name="estimated_delivery_time" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- Request Stock Modal -->
     <div class="modal fade" id="requestStockModal" tabindex="-1" aria-labelledby="requestStockModalLabel" aria-hidden="true">
@@ -887,52 +844,7 @@
                 $("#shipping_zip_code").val($('input[name="billing_zip_code"]').val());
             });
 
-            // Clear modal fields when opened
-            $('#estimatedDeliveryModal').on('show.bs.modal', function () {
-                $('#estimated_delivery_date').val('');
-                $('#estimated_delivery_time').val('');
-            });
-
-            // Add/Edit modal logic
-            $('#estimatedDeliveryModal').on('show.bs.modal', function (event) {
-                var button = $(event.relatedTarget);
-                var mode = button && button.attr('id') === 'edit-estimated-delivery-btn' ? 'edit' : 'add';
-                if (mode === 'edit') {
-                    // Pre-fill with current values
-                    $('#estimated_delivery_date').val(@json($order->estimated_delivery_date));
-                    $('#estimated_delivery_time').val(@json($order->estimated_delivery_time));
-                } else {
-                    $('#estimated_delivery_date').val('');
-                    $('#estimated_delivery_time').val('');
-                }
-            });
-
-            $('#estimatedDeliveryForm').on('submit', function(e) {
-                e.preventDefault();
-                var orderId = @json($order->id);
-                var form = $(this);
-                var data = form.serialize();
-                $.ajax({
-                    url: '/erp/order/set-estimated-delivery/' + orderId,
-                    type: 'POST',
-                    data: data,
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    success: function(response) {
-                        if (response.success) {
-                            var modal = bootstrap.Modal.getInstance(document.getElementById('estimatedDeliveryModal'));
-                            if (modal) modal.hide();
-                            location.reload();
-                        } else {
-                            alert(response.message || 'Failed to set estimated delivery date/time.');
-                        }
-                    },
-                    error: function(xhr) {
-                        let msg = 'Failed to set estimated delivery date/time.';
-                        if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                        alert(msg);
-                    }
-                });
-            });
+            
 
             {{-- Remove technician button disabled for ecommerce only business
             $(document).on('click', '#removeTechnicianBtn', function () {

@@ -31,79 +31,32 @@
         @endcanany
         @canany(['view employee list'])
         <div class="nav-item">
-            <a href="#" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#hrmSubmenu" aria-expanded="{{ request()->is('erp/employees*') ? 'true' : 'false' }}" aria-controls="hrmSubmenu">
+            <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-users nav-icon"></i>
-                    <span>HRM System</span>
+                    <span>Employee Setup</span>
                 </div>
-                <i class="fas fa-chevron-down ms-auto"></i>
             </a>
-            <div class="collapse{{ request()->is('erp/employees*') ? ' show' : '' }}" id="hrmSubmenu">
-                <ul class="nav flex-column ms-4">
-                    <li class="nav-item">
-                        <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">Employee Setup</a>
-                    </li>
-                
-                </ul>
-            </div>
         </div>
         @endcanany
-       {{--
+        {{-- Simple Accounting Menu --}}
         <div class="nav-item">
-            <a href="#accountingSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? 'true' : 'false' }}" aria-controls="accountingSubmenu">
+            <a href="#simpleAccountingSubmenu" class="nav-link {{ (request()->is('erp/simple-accounting*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/simple-accounting*')) ? 'true' : 'false' }}" aria-controls="simpleAccountingSubmenu">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-calculator nav-icon"></i>
-                    <span>Accounting System</span>
+                    <span>Accounting</span>
                 </div>
                 <i class="fas fa-chevron-down ms-auto"></i>
             </a>
-            <div class="collapse{{ (request()->is('erp/supplier*') || request()->is('erp/bills*') || request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/financial-accounts*') || request()->is('erp/journal*') || request()->is('erp/transfer*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' show' : '' }}" id="accountingSubmenu">
+            <div class="collapse{{ (request()->is('erp/simple-accounting*')) ? ' show' : '' }}" id="simpleAccountingSubmenu">
                 <ul class="nav flex-column ms-4">
-                    <li class="nav-item">
-                        <a href="#purchasesSubmenu" class="nav-link {{ (request()->is('erp/supplier*') || request()->is('erp/bills*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/supplier*') || request()->is('erp/bills*')) ? 'true' : 'false' }}" aria-controls="purchasesSubmenu">
-                            <span>Purchases</span>
-                            <i class="fas fa-chevron-down ms-auto"></i>
-                        </a>
-                        <div class="collapse{{ (request()->is('erp/supplier*') || request()->is('erp/bills*')) ? ' show' : '' }}" id="purchasesSubmenu">
-                            <ul class="nav flex-column ms-3">
-                                <li class="nav-item"><a href="{{ route('supplier.list') }}" class="nav-link {{ request()->is('erp/supplier*') ? ' active' : '' }}">Suppliers</a></li>
-                                <li class="nav-item"><a href="{{ route('bill.list') }}" class="nav-link {{ request()->is('erp/bills*') ? ' active' : '' }}">Bill</a></li>
-                            </ul>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#financialAccountsSubmenu" class="nav-link {{ (request()->is('erp/financial-accounts*') || request()->is('erp/transfer*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/financial-accounts*') || request()->is('erp/transfer*')) ? 'true' : 'false' }}" aria-controls="financialAccountsSubmenu">
-                            <span>Financial Accounts</span>
-                            <i class="fas fa-chevron-down ms-auto"></i>
-                        </a>
-                        <div class="collapse{{ (request()->is('erp/financial-accounts*') || request()->is('erp/transfer*')) ? ' show' : '' }}" id="financialAccountsSubmenu">
-                            <ul class="nav flex-column ms-3">
-                                <li class="nav-item"><a href="{{ route('financial-accounts.list') }}" class="nav-link {{ request()->is('erp/financial-accounts*') ? ' active' : '' }}">Accounts</a></li>
-                                <li class="nav-item"><a href="{{ route('transfer.list') }}" class="nav-link {{ request()->is('erp/transfer*') ? ' active' : '' }}">Transfer</a></li>
-                            </ul>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#doubleEntrySubmenu" class="nav-link {{ (request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/journal*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/journal*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? 'true' : 'false' }}" aria-controls="doubleEntrySubmenu">
-                            <span>Double Entry</span>
-                            <i class="fas fa-chevron-down ms-auto"></i>
-                        </a>
-                        <div class="collapse{{ (request()->is('erp/account-type*') || request()->is('erp/chart-of-account*') || request()->is('erp/journal*') || request()->is('erp/ledger*') || request()->is('erp/balance-sheet*') || request()->is('erp/profit-and-loss*')) ? ' show' : '' }}" id="doubleEntrySubmenu">
-                            <ul class="nav flex-column ms-3">
-                                <li class="nav-item"><a href="{{ route('account-type.list') }}" class="nav-link {{ request()->is('erp/account-type*') ? ' active' : '' }}">Account Type</a></li>
-                                <li class="nav-item"><a href="{{ route('chart-of-account.list') }}" class="nav-link {{ request()->is('erp/chart-of-account*') ? ' active' : '' }}">Chart of Account</a></li>
-                                <li class="nav-item"><a href="{{ route('journal.list') }}" class="nav-link {{ request()->is('erp/journal*') ? ' active' : '' }}">Journal Account</a></li>
-                                <li class="nav-item"><a href="{{ route('ledger.index') }}" class="nav-link {{ request()->is('erp/ledger*') ? ' active' : '' }}">Ledger Summary</a></li>
-                                <li class="nav-item"><a href="{{ route('balanceSheet.index') }}" class="nav-link {{ request()->is('erp/balance-sheet*') ? ' active' : '' }}">Balance Sheet</a></li>
-                                <li class="nav-item"><a href="{{ route('profitAndLoss.index') }}" class="nav-link {{ request()->is('erp/profit-and-loss*') ? ' active' : '' }}">Profit & Loss</a></li>
-                                <li class="nav-item"><a href="#" class="nav-link">Trial Balance</a></li>
-                            </ul>
-                        </div>
-                    </li>
+                    <li class="nav-item"><a href="{{ route('simple-accounting.sales-summary') }}" class="nav-link {{ request()->is('erp/simple-accounting/sales-summary*') ? ' active' : '' }}">Sales Summary</a></li>
+                    <li class="nav-item"><a href="{{ route('simple-accounting.profit-report') }}" class="nav-link {{ request()->is('erp/simple-accounting/profit-report*') ? ' active' : '' }}">Profit Report</a></li>
+                    <li class="nav-item"><a href="{{ route('simple-accounting.top-products') }}" class="nav-link {{ request()->is('erp/simple-accounting/top-products*') ? ' active' : '' }}">Top Products</a></li>
+                    <li class="nav-item"><a href="{{ route('simple-accounting.stock-value') }}" class="nav-link {{ request()->is('erp/simple-accounting/stock-value*') ? ' active' : '' }}">Stock Value</a></li>
                 </ul>
             </div>
         </div>
---}}
         @canany(['view list user role'])
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/user-role*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#userManagementSubMenu" aria-expanded="{{ (request()->is('erp/user-role*')) ? 'true' : 'false' }}" aria-controls="userManagementSubMenu">
@@ -122,7 +75,7 @@
             </div>
         </div>
       @endcanany
-        @canany(['view products list'])
+        @canany(['view products list', 'view product category list', 'view subcategory list', 'view product stock list', 'view variation list', 'view attribute list', 'view review list'])
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#productsSubMenu" aria-expanded="{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? 'true' : 'false' }}" aria-controls="productsSubMenu">
                 <div class="d-flex align-items-center">
@@ -133,7 +86,7 @@
             </a>
             <div class="collapse{{ (request()->is('erp/categories*') || request()->is('erp/products*') || request()->is('erp/product-stock*') || request()->is('erp/attributes*') || request()->is('erp/subcategories*') || request()->is('erp/reviews*') || request()->is('erp/variation-attributes*')) ? ' show' : '' }}" id="productsSubMenu">
                 <ul class="nav flex-column ms-4">
-                    @canany(['view product category list'])
+                    @canany(['view category list'])
                     <li class="nav-item">
                         <a href="{{ route('category.list') }}" class="nav-link {{ request()->is('erp/categories*') ? ' active' : '' }}">Category</a>
                     </li>
@@ -264,7 +217,7 @@
             </div>
         </div>
         @endcanany
-        @canany(['view vlog list'])
+        @canany(['view list vlog'])
         <div class="nav-item">
             <a href="{{ route('vlogging.index') }}" class="nav-link {{ request()->is('erp/vlogging*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">

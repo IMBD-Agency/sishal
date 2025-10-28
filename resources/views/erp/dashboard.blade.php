@@ -25,7 +25,7 @@
                             <div>
                                 <p class="text-muted mb-1">Total Revenue</p>
                                 <h3 class="mb-1"><span id="stat-total-sales">{{ $stats['totalSales']['value'] ?? '0.00' }}</span>৳</h3>
-                                <small id="stat-total-sales-pct" class="{{ ($stats['totalSales']['percentage'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">{{ ($stats['totalSales']['percentage'] ?? 0) >= 0 ? '+' : '' }}{{ $stats['totalSales']['percentage'] ?? 0 }}% vs prev</small>
+                                
                             </div>
                             <div class="stats-icon green">
                                 <i class="fas fa-dollar-sign"></i>
@@ -39,7 +39,7 @@
                             <div>
                                 <p class="text-muted mb-1">Total Orders</p>
                                 <h3 class="mb-1" id="stat-total-orders">{{ $stats['totalOrders']['value'] ?? 0 }}</h3>
-                                <small id="stat-total-orders-pct" class="{{ ($stats['totalOrders']['percentage'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">{{ ($stats['totalOrders']['percentage'] ?? 0) >= 0 ? '+' : '' }}{{ $stats['totalOrders']['percentage'] ?? 0 }}% vs prev</small>
+                                
                             </div>
                             <div class="stats-icon blue">
                                 <i class="fas fa-users"></i>
@@ -53,7 +53,7 @@
                             <div>
                                 <p class="text-muted mb-1">Avg. Order</p>
                                 <h3 class="mb-1"><span id="stat-avg-order">{{ $stats['averageOrder']['value'] ?? '0.00' }}</span>৳</h3>
-                                <small id="stat-avg-order-pct" class="{{ ($stats['averageOrder']['percentage'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">{{ ($stats['averageOrder']['percentage'] ?? 0) >= 0 ? '+' : '' }}{{ $stats['averageOrder']['percentage'] ?? 0 }}% vs prev</small>
+                                
                             </div>
                             <div class="stats-icon orange">
                                 <i class="fas fa-shopping-bag"></i>

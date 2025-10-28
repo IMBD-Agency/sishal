@@ -83,8 +83,6 @@ class BranchController extends Controller
             $warehouses_count = $branch->warehouses->count();
             $products_count = $branch->branchProductStocks->count();
             
-            // Calculate revenue from POS sales
-            $revenue = $branch->pos->where('status', '!=', 'cancelled')->sum('total_amount');
             
             // Get recent sales (last 10)
             $recent_sales = $branch->pos()
@@ -110,7 +108,6 @@ class BranchController extends Controller
                 'products_count', 
                 'employees_count', 
                 'warehouses_count',
-                'revenue',
                 'recent_sales',
                 'branch_products',
                 'employees'

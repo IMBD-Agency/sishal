@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
+use App\Models\Customer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -122,8 +123,9 @@ class OrderController extends Controller
         DB::beginTransaction();
         try {
             $orderNumber = $this->generateOrderNumber();
-            // Determine status based on payment method
-            $isInstantPaid = in_array($request->payment_method, ['online-payment']);
+            // For online-payment, treat as paid immediately after successful checkout; COD remains unpaid
+            $isOnlinePayment = $request->payment_method === 'online-payment';
+            $isInstantPaid = $isOnlinePayment;
 
             $order = Order::create([
                 'order_number' => $orderNumber,
@@ -144,8 +146,27 @@ class OrderController extends Controller
 
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
             $invoiceNumber = $this->generateInvoiceNumber();
+
+            // Find or create a Customer for the logged-in user
+            $customer = Customer::firstOrCreate(
+                [
+                    'user_id' => $userId,
+                ],
+                [
+                    'name' => trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: 'Customer',
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'created_by' => $userId,
+                    'is_active' => 1,
+                ]
+            );
+            // Update details if changed
+            $customer->name = trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: ($customer->name ?? 'Customer');
+            $customer->email = $request->email ?? $customer->email;
+            $customer->phone = $request->phone ?? $customer->phone;
+            $customer->save();
             $invoice = Invoice::create([
-                'customer_id' => $order->user_id,
+                'customer_id' => $customer->id,
                 'template_id' => $invTemplate ? $invTemplate->id : null,
                 'operated_by' => $userId,
                 'issue_date' => now()->toDateString(),
@@ -202,16 +223,8 @@ class OrderController extends Controller
                 'shipping_zip_code' => $request->shipping_zip_code ?? $request->billing_zip_code,
             ]);
 
-            if ($isInstantPaid) {
-                Payment::create([
-                    'payment_for' => 'order',
-                    'invoice_id' => $invoice->id,
-                    'payment_date' => now()->toDateString(),
-                    'amount' => $total,
-                    'payment_method' => $request->payment_method,
-                    'note' => $order->notes,
-                ]);
-            }
+            // Do not create a payment record here; the gateway callback will create it for online payments,
+            // and COD will be recorded when cash is actually received.
 
             Cart::where('user_id', $userId)->delete();
 
@@ -220,7 +233,7 @@ class OrderController extends Controller
             Balance::create([
                 'source_type' => 'customer',
                 'source_id' => $order->user_id,
-                'balance' => $order->total - $request->paid_amount,
+                'balance' => $isInstantPaid ? 0 : $order->total,
                 'description' => 'Order Sale',
                 'reference' => $order->order_number,
             ]);

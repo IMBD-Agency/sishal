@@ -1051,13 +1051,27 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            /* Keep buttons compact and inline on mobile */
             .messenger-buttons {
-                flex-direction: column;
+                flex-direction: row;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+                gap: 12px;
             }
-            
+
             .messenger-btn {
-                min-width: auto;
-                width: 100%;
+                width: 44px;
+                height: 44px;
+                padding: 10px;
+                border-radius: 50%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .messenger-btn {
+                width: 40px;
+                height: 40px;
+                padding: 9px;
             }
         }
 

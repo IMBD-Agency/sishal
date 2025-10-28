@@ -9,7 +9,6 @@ use App\Models\Branch;
 use App\Models\BranchProductStock;
 use App\Models\Customer;
 use App\Models\EmployeeProductStock;
-use App\Models\FinancialAccount;
 use App\Models\GeneralSetting;
 use App\Models\Invoice;
 use App\Models\InvoiceAddress;
@@ -32,7 +31,7 @@ class PosController extends Controller
     {
         $categories = ProductServiceCategory::all();
         $branches = Branch::all();
-        $bankAccounts = FinancialAccount::all();
+        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
         return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts'));
     }
 
@@ -186,13 +185,18 @@ class PosController extends Controller
                     'reference' => null,
                     'note' => $request->notes,
                 ]);
-
-                // Create Journal Entry for POS Payment
-                $this->createPosPaymentJournalEntry($pos, $request->paid_amount, $request->account_id);
-
-                $account = FinancialAccount::find($request->account_id);
-                $account->balance += $request->paid_amount;
-                $account->save();
+                // Update invoice paid/due/status for upfront payment
+                $invoice->paid_amount = ($invoice->paid_amount ?? 0) + $request->paid_amount;
+                $invoice->due_amount = max(0, ($invoice->total_amount ?? 0) - $invoice->paid_amount);
+                if ($invoice->paid_amount >= ($invoice->total_amount ?? 0)) {
+                    $invoice->status = 'paid';
+                    $invoice->due_amount = 0;
+                } elseif ($invoice->paid_amount > 0) {
+                    $invoice->status = 'partial';
+                } else {
+                    $invoice->status = 'unpaid';
+                }
+                $invoice->save();
 
                 Balance::create([
                     'source_type' => 'customer',
@@ -280,7 +284,7 @@ class PosController extends Controller
             return redirect()->route('pos.list')->with('error', 'Sale not found.');
         }
 
-        $bankAccounts = FinancialAccount::all();
+        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
         return view('erp.pos.show', compact('pos', 'bankAccounts'));
     }
 
@@ -350,8 +354,6 @@ class PosController extends Controller
         }
         $invoice->save();
 
-        // Create Journal Entry for POS Payment
-        $this->createPosPaymentJournalEntry($pos, $request->amount, $request->account_id);
 
         if($request->payment_method == 'cash' && $pos->customer_id)
         {
@@ -391,13 +393,6 @@ class PosController extends Controller
                     'reference' => $pos->sale_number,
                 ]);
             }
-        }
-
-        if($request->account_id)
-        {
-            $account = FinancialAccount::find($request->account_id);
-            $account->balance += $request->amount;
-            $account->save();
         }
 
         return response()->json(['success' => true, 'message' => 'Payment added successfully.']);
@@ -615,240 +610,6 @@ class PosController extends Controller
     }
 
 
-
-    /**
-     * Create Journal Entry for POS Sale
-     */
-    private function createPosJournalEntry($pos, $totalAmount, $paidAmount, $accountId = null)
-    {
-        try {
-            // Find or create a journal for this date
-            $journal = Journal::where('entry_date', $pos->sale_date)
-                ->where('type', 'Receipt')
-                ->where('description', 'like', '%POS Sale%')
-                ->first();
-
-            if (!$journal) {
-                $journal = new Journal();
-                $journal->type = 'Receipt'; // Using 'Receipt' which is allowed in the enum
-                $journal->entry_date = $pos->sale_date;
-                $journal->description = 'POS Sale - ' . $pos->sale_number;
-                $journal->created_by = auth()->id();
-                $journal->updated_by = auth()->id(); // Add the missing updated_by field
-                $journal->save();
-            }
-
-            // Get default accounts (you may need to adjust these based on your chart of accounts)
-            $cashAccount = ChartOfAccount::where('name', 'like', '%cash%')->orWhere('name', 'like', '%bank%')->first();
-            $salesAccount = ChartOfAccount::where('name', 'like', '%sales%')->orWhere('name', 'like', '%revenue%')->orWhere('name', 'like', '%income%')->first();
-            $accountsReceivableAccount = ChartOfAccount::where('name', 'like', '%accounts receivable%')->orWhere('name', 'like', '%debtors%')->orWhere('name', 'like', '%receivable%')->first();
-
-            // Log what accounts we found for debugging
-            Log::info('POS Journal Entry - Found accounts:', [
-                'cash' => $cashAccount ? $cashAccount->name : 'NOT FOUND',
-                'sales' => $salesAccount ? $salesAccount->name : 'NOT FOUND',
-                'receivable' => $accountsReceivableAccount ? $accountsReceivableAccount->name : 'NOT FOUND'
-            ]);
-
-            // Log all available accounts for debugging
-            $allAccounts = ChartOfAccount::all();
-            Log::info('All available chart of accounts:', $allAccounts->pluck('name', 'id')->toArray());
-
-            if (!$cashAccount || !$salesAccount || !$accountsReceivableAccount) {
-                Log::warning('Required accounts not found for POS journal entry. Creating basic entry.');
-                // Create basic entry without specific accounts
-                $this->createBasicPosJournalEntry($journal, $pos, $totalAmount, $paidAmount);
-                return;
-            }
-
-            // Create journal entries
-            if ($paidAmount > 0) {
-                // Debit Cash/Bank Account
-                $this->createJournalEntry($journal->id, $cashAccount->id, $paidAmount, 0, 'Cash received for POS sale ' . $pos->sale_number);
-            }
-
-            if ($totalAmount > $paidAmount) {
-                // Debit Accounts Receivable for unpaid amount
-                $this->createJournalEntry($journal->id, $accountsReceivableAccount->id, $totalAmount - $paidAmount, 0, 'Accounts receivable for POS sale ' . $pos->sale_number);
-            }
-
-            // Credit Sales Account
-            $this->createJournalEntry($journal->id, $salesAccount->id, 0, $totalAmount, 'Sales revenue for POS sale ' . $pos->sale_number);
-
-            // Update financial account balances if they exist
-            $this->updateFinancialAccountBalances($cashAccount, $salesAccount, $accountsReceivableAccount, $paidAmount, $totalAmount);
-
-            Log::info('POS Journal Entry created successfully for sale: ' . $pos->sale_number);
-
-        } catch (\Exception $e) {
-            Log::error('Error creating POS journal entry: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Create basic journal entry when specific accounts are not found
-     */
-    private function createBasicPosJournalEntry($journal, $pos, $totalAmount, $paidAmount)
-    {
-        // Try to find any available accounts to use
-        $anyAccount = ChartOfAccount::first();
-
-        if (!$anyAccount) {
-            Log::error('No chart of accounts found. Cannot create journal entries.');
-            return;
-        }
-
-        // Create a simple entry with the first available account
-        if ($paidAmount > 0) {
-            $this->createJournalEntry($journal->id, $anyAccount->id, $paidAmount, 0, 'Cash received for POS sale ' . $pos->sale_number);
-        }
-
-        $this->createJournalEntry($journal->id, $anyAccount->id, 0, $totalAmount, 'Sales revenue for POS sale ' . $pos->sale_number);
-
-    }
-
-    /**
-     * Create individual journal entry
-     */
-    private function createJournalEntry($journalId, $chartOfAccountId, $debit, $credit, $memo)
-    {
-        $entry = new JournalEntry();
-        $entry->journal_id = $journalId;
-        $entry->chart_of_account_id = $chartOfAccountId;
-        $entry->debit = $debit;
-        $entry->credit = $credit;
-        $entry->memo = $memo;
-        $entry->created_by = auth()->id(); // Add missing created_by field
-        $entry->updated_by = auth()->id(); // Add missing updated_by field
-        $entry->save();
-    }
-
-    /**
-     * Update financial account balances
-     */
-    private function updateFinancialAccountBalances($cashAccount, $salesAccount, $accountsReceivableAccount, $paidAmount, $totalAmount)
-    {
-        // Update cash account balance
-        if ($paidAmount > 0) {
-            $cashFinancialAccount = FinancialAccount::where('account_id', $cashAccount->id)->first();
-            if ($cashFinancialAccount) {
-                $cashFinancialAccount->balance += $paidAmount;
-                $cashFinancialAccount->save();
-            }
-        }
-
-        // Update accounts receivable balance
-        if ($totalAmount > $paidAmount) {
-            $arFinancialAccount = FinancialAccount::where('account_id', $accountsReceivableAccount->id)->first();
-            if ($arFinancialAccount) {
-                $arFinancialAccount->balance += ($totalAmount - $paidAmount);
-                $arFinancialAccount->save();
-            }
-        }
-
-        // Note: Sales account balance is typically not updated as it's an income account
-        // and its balance is calculated from journal entries
-    }
-
-    /**
-     * Create Journal Entry for POS Payment (following InvoiceController pattern)
-     */
-    private function createPosPaymentJournalEntry($pos, $amount, $accountId = null)
-    {
-        try {
-            // Find or create a journal for this date
-            $journal = Journal::where('entry_date', now()->toDateString())
-                ->where('type', 'Receipt')
-                ->where('description', 'like', '%POS Payment%')
-                ->first();
-
-            if (!$journal) {
-                $journal = new Journal();
-                $journal->type = 'Receipt'; // Using 'Receipt' which is allowed in the enum
-                $journal->entry_date = now()->toDateString();
-                $journal->description = 'POS Payment - ' . $pos->sale_number;
-                $journal->created_by = auth()->id();
-                $journal->updated_by = auth()->id();
-                $journal->save();
-            }
-
-            // Get default accounts (you may need to adjust these based on your chart of accounts)
-            $cashAccount = ChartOfAccount::where('name', 'like', '%cash%')->orWhere('name', 'like', '%bank%')->first();
-            $accountsReceivableAccount = ChartOfAccount::where('name', 'like', '%accounts receivable%')->orWhere('name', 'like', '%debtors%')->orWhere('name', 'like', '%receivable%')->first();
-
-            // Log what accounts we found for debugging
-            Log::info('POS Payment Journal Entry - Found accounts:', [
-                'cash' => $cashAccount ? $cashAccount->name : 'NOT FOUND',
-                'receivable' => $accountsReceivableAccount ? $accountsReceivableAccount->name : 'NOT FOUND'
-            ]);
-
-            // Log all available accounts for debugging
-            $allAccounts = ChartOfAccount::all();
-            Log::info('All available chart of accounts:', $allAccounts->pluck('name', 'id')->toArray());
-
-            if (!$cashAccount || !$accountsReceivableAccount) {
-                Log::warning('Required accounts not found for POS payment journal entry. Creating basic entry.');
-                // Create basic entry without specific accounts
-                $this->createBasicPosPaymentJournalEntry($journal, $pos, $amount);
-                return;
-            }
-
-            // Create journal entries for POS payment
-            // Debit Cash/Bank Account (money received)
-            $this->createJournalEntry($journal->id, $cashAccount->id, $amount, 0, 'Cash received for POS payment ' . $pos->sale_number);
-
-            // Credit Accounts Receivable (reducing the receivable)
-            $this->createJournalEntry($journal->id, $accountsReceivableAccount->id, 0, $amount, 'Accounts receivable reduced for POS ' . $pos->sale_number);
-
-            // Update financial account balances if they exist
-            $this->updatePosPaymentFinancialAccountBalances($cashAccount, $accountsReceivableAccount, $amount);
-
-            Log::info('POS Payment Journal Entry created successfully for sale: ' . $pos->sale_number);
-
-        } catch (\Exception $e) {
-            Log::error('Error creating POS payment journal entry: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Create basic journal entry when specific accounts are not found for POS payment
-     */
-    private function createBasicPosPaymentJournalEntry($journal, $pos, $amount)
-    {
-        // Try to find any available accounts to use
-        $anyAccount = ChartOfAccount::first();
-
-        if (!$anyAccount) {
-            Log::error('No chart of accounts found. Cannot create journal entries.');
-            return;
-        }
-
-        // Create a simple entry with the first available account
-        $this->createJournalEntry($journal->id, $anyAccount->id, $amount, 0, 'Cash received for POS payment ' . $pos->sale_number);
-        $this->createJournalEntry($journal->id, $anyAccount->id, 0, $amount, 'Accounts receivable reduced for POS ' . $pos->sale_number);
-
-
-    }
-
-    /**
-     * Update financial account balances for POS payments
-     */
-    private function updatePosPaymentFinancialAccountBalances($cashAccount, $accountsReceivableAccount, $amount)
-    {
-        // Update cash account balance (money received)
-        $cashFinancialAccount = FinancialAccount::where('account_id', $cashAccount->id)->first();
-        if ($cashFinancialAccount) {
-            $cashFinancialAccount->balance += $amount;
-            $cashFinancialAccount->save();
-        }
-
-        // Update accounts receivable balance (reducing the receivable)
-        $arFinancialAccount = FinancialAccount::where('account_id', $accountsReceivableAccount->id)->first();
-        if ($arFinancialAccount) {
-            $arFinancialAccount->balance -= $amount; // Reduce receivable
-            $arFinancialAccount->save();
-        }
-    }
 
     /**
      * Get report data for the modal

@@ -8,10 +8,6 @@ use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
 use App\Models\GeneralSetting;
 use App\Models\Payment;
-use App\Models\Journal;
-use App\Models\ChartOfAccount;
-use App\Models\FinancialAccount;
-use App\Models\JournalEntry;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -386,8 +382,8 @@ class InvoiceController extends Controller
     public function show($id)
     {
         $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items')->find($id);
-        $bankAccounts = \App\Models\FinancialAccount::all();
-        return view('erp.invoices.show',compact('invoice', 'bankAccounts'));
+        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
+        return view('erp.invoices.show', compact('invoice', 'bankAccounts'));
     }
 
     public function addPayment($invId, Request $request)
@@ -426,127 +422,7 @@ class InvoiceController extends Controller
         }
         $invoice->save();
 
-        // Create Journal Entry for Invoice Payment
-        $this->createInvoiceJournalEntry($invoice, $request->amount, $request->account_id);
-
-        $account = FinancialAccount::find($request->account_id);
-        $account->balance += $request->amount;
-        $account->save();
-
         return response()->json(['success' => true, 'message' => 'Payment added successfully.']);
-    }
-
-    private function createInvoiceJournalEntry($invoice, $amount, $accountId = null)
-    {
-        try {
-            // Find or create a journal for this date
-            $journal = Journal::where('entry_date', now()->toDateString())
-                ->where('type', 'Receipt')
-                ->where('description', 'like', '%Invoice Payment%')
-                ->first();
-
-            if (!$journal) {
-                $journal = new Journal();
-                $journal->type = 'Receipt'; // Using 'Receipt' which is allowed in the enum
-                $journal->entry_date = now()->toDateString();
-                $journal->description = 'Invoice Payment - ' . $invoice->invoice_number;
-                $journal->created_by = auth()->id();
-                $journal->updated_by = auth()->id();
-                $journal->save();
-            }
-
-            // Get default accounts (you may need to adjust these based on your chart of accounts)
-            $cashAccount = ChartOfAccount::where('name', 'like', '%cash%')->orWhere('name', 'like', '%bank%')->first();
-            $accountsReceivableAccount = ChartOfAccount::where('name', 'like', '%accounts receivable%')->orWhere('name', 'like', '%debtors%')->orWhere('name', 'like', '%receivable%')->first();
-
-            // Log what accounts we found for debugging
-            Log::info('Invoice Payment Journal Entry - Found accounts:', [
-                'cash' => $cashAccount ? $cashAccount->name : 'NOT FOUND',
-                'receivable' => $accountsReceivableAccount ? $accountsReceivableAccount->name : 'NOT FOUND'
-            ]);
-
-            // Log all available accounts for debugging
-            $allAccounts = ChartOfAccount::all();
-            Log::info('All available chart of accounts:', $allAccounts->pluck('name', 'id')->toArray());
-
-            if (!$cashAccount || !$accountsReceivableAccount) {
-                Log::warning('Required accounts not found for Invoice payment journal entry. Creating basic entry.');
-                // Create basic entry without specific accounts
-                $this->createBasicInvoiceJournalEntry($journal, $invoice, $amount);
-                return;
-            }
-
-            // Create journal entries for invoice payment
-            // Debit Cash/Bank Account (money received)
-            $this->createJournalEntry($journal->id, $cashAccount->id, $amount, 0, 'Cash received for invoice payment ' . $invoice->invoice_number);
-
-            // Credit Accounts Receivable (reducing the receivable)
-            $this->createJournalEntry($journal->id, $accountsReceivableAccount->id, 0, $amount, 'Accounts receivable reduced for invoice ' . $invoice->invoice_number);
-
-            // Update financial account balances if they exist
-            $this->updateInvoiceFinancialAccountBalances($cashAccount, $accountsReceivableAccount, $amount);
-
-            Log::info('Invoice Payment Journal Entry created successfully for invoice: ' . $invoice->invoice_number);
-
-        } catch (\Exception $e) {
-            Log::error('Error creating Invoice payment journal entry: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Create basic journal entry when specific accounts are not found
-     */
-    private function createBasicInvoiceJournalEntry($journal, $invoice, $amount)
-    {
-        // Try to find any available accounts to use
-        $anyAccount = ChartOfAccount::first();
-        
-        if (!$anyAccount) {
-            Log::error('No chart of accounts found. Cannot create journal entries.');
-            return;
-        }
-
-        // Create a simple entry with the first available account
-        $this->createJournalEntry($journal->id, $anyAccount->id, $amount, 0, 'Cash received for invoice payment ' . $invoice->invoice_number);
-        $this->createJournalEntry($journal->id, $anyAccount->id, 0, $amount, 'Accounts receivable reduced for invoice ' . $invoice->invoice_number);
-        
-        Log::warning('Created basic invoice journal entries using fallback account: ' . $anyAccount->name);
-    }
-
-    /**
-     * Create individual journal entry
-     */
-    private function createJournalEntry($journalId, $chartOfAccountId, $debit, $credit, $memo)
-    {
-        $entry = new JournalEntry();
-        $entry->journal_id = $journalId;
-        $entry->chart_of_account_id = $chartOfAccountId;
-        $entry->debit = $debit;
-        $entry->credit = $credit;
-        $entry->memo = $memo;
-        $entry->created_by = auth()->id(); // Add missing created_by field
-        $entry->updated_by = auth()->id(); // Add missing updated_by field
-        $entry->save();
-    }
-
-    /**
-     * Update financial account balances for invoice payments
-     */
-    private function updateInvoiceFinancialAccountBalances($cashAccount, $accountsReceivableAccount, $amount)
-    {
-        // Update cash account balance (money received)
-        $cashFinancialAccount = \App\Models\FinancialAccount::where('account_id', $cashAccount->id)->first();
-        if ($cashFinancialAccount) {
-            $cashFinancialAccount->balance += $amount;
-            $cashFinancialAccount->save();
-        }
-
-        // Update accounts receivable balance (reducing the receivable)
-        $arFinancialAccount = \App\Models\FinancialAccount::where('account_id', $accountsReceivableAccount->id)->first();
-        if ($arFinancialAccount) {
-            $arFinancialAccount->balance -= $amount; // Reduce receivable
-            $arFinancialAccount->save();
-        }
     }
 
     public function print(Request $request, $invoice_number)

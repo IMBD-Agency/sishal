@@ -107,12 +107,7 @@
                                             <span class="text-muted small">Branch</span>
                                             <span>{{ $pos->branch->name ?? '-' }}</span>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="text-muted small">Estimated Delivery</span>
-                                            <span
-                                                class="small">{{ $pos->estimated_delivery_date ? \Carbon\Carbon::parse($pos->estimated_delivery_date)->format('d M Y') : '-' }}
-                                                {{ $pos->estimated_delivery_time ? '(' . $pos->estimated_delivery_time . ')' : '' }}</span>
-                                        </div>
+                                        
                                     </div>
                                 </div>
                             </div>

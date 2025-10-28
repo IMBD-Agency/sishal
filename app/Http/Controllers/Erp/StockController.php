@@ -19,7 +19,9 @@ class StockController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $branches = Branch::all();
-        $warehouses = Warehouse::all();
+        // Show only warehouses that are actually assigned to a branch
+        // Only list warehouses whose parent branch still exists
+        $warehouses = Warehouse::whereHas('branch')->get();
         $query = Product::with(['branchStock', 'warehouseStock', 'category', 'variations.stocks']);
 
         // Filter by product name

@@ -12,10 +12,6 @@ use App\Models\BranchProductStock;
 use App\Models\WarehouseProductStock;
 use App\Models\EmployeeProductStock;
 use App\Models\OrderItem;
-use App\Models\Journal;
-use App\Models\ChartOfAccount;
-use App\Models\FinancialAccount;
-use App\Models\JournalEntry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -65,7 +61,6 @@ class OrderController extends Controller
     public function show($id)
     {
         $order = Order::with(['invoice.payments', 'items.product', 'employee.user', 'customer'])->find($id);
-        $bankAccounts = \App\Models\FinancialAccount::all();
         
         // If AJAX request, return JSON
         if (request()->ajax() || request()->expectsJson()) {
@@ -87,7 +82,8 @@ class OrderController extends Controller
             ]);
         }
         
-        return view('erp.order.orderdetails',compact('order', 'bankAccounts'));
+        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
+        return view('erp.order.orderdetails', compact('order', 'bankAccounts'));
     }
 
     public function setEstimatedDelivery(Request $request, $id)
@@ -244,36 +240,82 @@ class OrderController extends Controller
                         $item->current_position_id = null;
                         $item->save();
                     } else {
-                        // For e-commerce orders without specific stock source,
-                        // we'll deduct from a default warehouse (ID 1) or create one
-                        $defaultWarehouseId = 1; // You can change this to your preferred default warehouse
-                        
-                        $fromStock = WarehouseProductStock::where('warehouse_id', $defaultWarehouseId)
-                            ->where('product_id', $productId)
-                            ->lockForUpdate()
-                            ->first();
+                        // For e-commerce orders without a specific stock source,
+                        // try to deduct from any available stock. Priority:
+                        // 1) Variation-level stocks (if variation_id present) across warehouses/branches
+                        // 2) Product-level warehouse stocks (any warehouse)
+                        // 3) Product-level branch stocks (any branch)
 
-                        if (!$fromStock) {
-                            // Create default warehouse stock if it doesn't exist
-                            $fromStock = WarehouseProductStock::create([
-                                'warehouse_id' => $defaultWarehouseId,
-                                'product_id' => $productId,
-                                'quantity' => 0,
-                                'updated_by' => auth()->id() ?? 1
-                            ]);
+                        $deducted = false;
+
+                        // 1) Variation-level stock
+                        if (!empty($item->variation_id)) {
+                            // Try warehouses first
+                            $variationWarehouseStock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                                ->whereNotNull('warehouse_id')
+                                ->where('quantity', '>=', $qty)
+                                ->lockForUpdate()
+                                ->orderByDesc('quantity')
+                                ->first();
+
+                            if ($variationWarehouseStock) {
+                                $variationWarehouseStock->quantity -= $qty;
+                                $variationWarehouseStock->save();
+                                $deducted = true;
+                            } else {
+                                // Try branches
+                                $variationBranchStock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                                    ->whereNotNull('branch_id')
+                                    ->where('quantity', '>=', $qty)
+                                    ->lockForUpdate()
+                                    ->orderByDesc('quantity')
+                                    ->first();
+
+                                if ($variationBranchStock) {
+                                    $variationBranchStock->quantity -= $qty;
+                                    $variationBranchStock->save();
+                                    $deducted = true;
+                                }
+                            }
                         }
 
-                        if ($fromStock->quantity < $qty) {
+                        // 2) Product-level warehouse stock (any warehouse)
+                        if (!$deducted) {
+                            $anyWarehouseStock = WarehouseProductStock::where('product_id', $productId)
+                                ->where('quantity', '>=', $qty)
+                                ->lockForUpdate()
+                                ->orderByDesc('quantity')
+                                ->first();
+
+                            if ($anyWarehouseStock) {
+                                $anyWarehouseStock->quantity -= $qty;
+                                $anyWarehouseStock->save();
+                                $deducted = true;
+                            }
+                        }
+
+                        // 3) Product-level branch stock (any branch)
+                        if (!$deducted) {
+                            $anyBranchStock = BranchProductStock::where('product_id', $productId)
+                                ->where('quantity', '>=', $qty)
+                                ->lockForUpdate()
+                                ->orderByDesc('quantity')
+                                ->first();
+
+                            if ($anyBranchStock) {
+                                $anyBranchStock->quantity -= $qty;
+                                $anyBranchStock->save();
+                                $deducted = true;
+                            }
+                        }
+
+                        if (!$deducted) {
                             $productName = $item->product ? $item->product->name : 'Product ID: ' . $item->product_id;
                             return response()->json([
-                                'success' => false, 
-                                'message' => "Insufficient stock for '{$productName}'. Required: {$qty}, Available: {$fromStock->quantity}. Please add stock to warehouse before shipping."
+                                'success' => false,
+                                'message' => "Insufficient stock for '{$productName}'. Required: {$qty}. No available stock found across warehouses/branches."
                             ]);
                         }
-
-                        // Deduct from default warehouse stock
-                        $fromStock->quantity -= $qty;
-                        $fromStock->save();
 
                         // Mark item as shipped
                         $item->current_position_type = null;
@@ -364,9 +406,6 @@ class OrderController extends Controller
             $order->save();
         }
 
-        // Create Journal Entry for Order Payment
-        $this->createOrderPaymentJournalEntry($order, $request->amount, $request->account_id);
-
         if($request->payment_method == 'cash' && $order->customer_id)
         {
             $balance = Balance::where('source_type', 'customer')->where('source_id', $order->customer_id)->first();
@@ -405,13 +444,6 @@ class OrderController extends Controller
                     'reference' => $order->order_number,
                 ]);
             }
-        }
-
-        if($request->account_id)
-        {
-            $account = FinancialAccount::find($request->account_id);
-            $account->balance += $request->amount;
-            $account->save();
         }
 
         return response()->json(['success' => true, 'message' => 'Payment added successfully.']);
@@ -623,122 +655,6 @@ class OrderController extends Controller
             ];
         });
         return response()->json($results);
-    }
-
-    /**
-     * Create Journal Entry for Order Payment (following InvoiceController pattern)
-     */
-    private function createOrderPaymentJournalEntry($order, $amount, $accountId = null)
-    {
-        try {
-            // Find or create a journal for this date
-            $journal = Journal::where('entry_date', now()->toDateString())
-                ->where('type', 'Receipt')
-                ->where('description', 'like', '%Order Payment%')
-                ->first();
-
-            if (!$journal) {
-                $journal = new Journal();
-                $journal->type = 'Receipt'; // Using 'Receipt' which is allowed in the enum
-                $journal->entry_date = now()->toDateString();
-                $journal->description = 'Order Payment - ' . $order->order_number;
-                $journal->created_by = auth()->id();
-                $journal->updated_by = auth()->id();
-                $journal->save();
-            }
-
-            // Get default accounts (you may need to adjust these based on your chart of accounts)
-            $cashAccount = ChartOfAccount::where('name', 'like', '%cash%')->orWhere('name', 'like', '%bank%')->first();
-            $accountsReceivableAccount = ChartOfAccount::where('name', 'like', '%accounts receivable%')->orWhere('name', 'like', '%debtors%')->orWhere('name', 'like', '%receivable%')->first();
-
-            // Log what accounts we found for debugging
-            Log::info('Order Payment Journal Entry - Found accounts:', [
-                'cash' => $cashAccount ? $cashAccount->name : 'NOT FOUND',
-                'receivable' => $accountsReceivableAccount ? $accountsReceivableAccount->name : 'NOT FOUND'
-            ]);
-
-            // Log all available accounts for debugging
-            $allAccounts = ChartOfAccount::all();
-            Log::info('All available chart of accounts:', $allAccounts->pluck('name', 'id')->toArray());
-
-            if (!$cashAccount || !$accountsReceivableAccount) {
-                Log::warning('Required accounts not found for Order payment journal entry. Creating basic entry.');
-                // Create basic entry without specific accounts
-                $this->createBasicOrderPaymentJournalEntry($journal, $order, $amount);
-                return;
-            }
-
-            // Create journal entries for Order payment
-            // Debit Cash/Bank Account (money received)
-            $this->createJournalEntry($journal->id, $cashAccount->id, $amount, 0, 'Cash received for Order payment ' . $order->order_number);
-
-            // Credit Accounts Receivable (reducing the receivable)
-            $this->createJournalEntry($journal->id, $accountsReceivableAccount->id, 0, $amount, 'Accounts receivable reduced for Order ' . $order->order_number);
-
-            // Update financial account balances if they exist
-            $this->updateOrderPaymentFinancialAccountBalances($cashAccount, $accountsReceivableAccount, $amount);
-
-            Log::info('Order Payment Journal Entry created successfully for order: ' . $order->order_number);
-
-        } catch (\Exception $e) {
-            Log::error('Error creating Order payment journal entry: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Create basic journal entry when specific accounts are not found for Order payment
-     */
-    private function createBasicOrderPaymentJournalEntry($journal, $order, $amount)
-    {
-        // Try to find any available accounts to use
-        $anyAccount = ChartOfAccount::first();
-        
-        if (!$anyAccount) {
-            Log::error('No chart of accounts found. Cannot create journal entries.');
-            return;
-        }
-
-        // Create a simple entry with the first available account
-        $this->createJournalEntry($journal->id, $anyAccount->id, $amount, 0, 'Cash received for Order payment ' . $order->order_number);
-        $this->createJournalEntry($journal->id, $anyAccount->id, 0, $amount, 'Accounts receivable reduced for Order ' . $order->order_number);
-        
-        Log::warning('Created basic Order payment journal entries using fallback account: ' . $anyAccount->name);
-    }
-
-    /**
-     * Create individual journal entry
-     */
-    private function createJournalEntry($journalId, $chartOfAccountId, $debit, $credit, $memo)
-    {
-        $entry = new JournalEntry();
-        $entry->journal_id = $journalId;
-        $entry->chart_of_account_id = $chartOfAccountId;
-        $entry->debit = $debit;
-        $entry->credit = $credit;
-        $entry->memo = $memo;
-        $entry->created_by = auth()->id(); // Add missing created_by field
-        $entry->updated_by = auth()->id(); // Add missing updated_by field
-        $entry->save();
-    }
-
-    /**
-     * Update financial account balances for Order payments
-     */
-    private function updateOrderPaymentFinancialAccountBalances($cashAccount, $accountsReceivableAccount, $amount)
-    {
-        // Update cash account balance (money received)
-        $cashFinancialAccount = FinancialAccount::where('account_id', $cashAccount->id)->first();
-        if ($cashFinancialAccount) {
-            $cashFinancialAccount->balance += $amount;
-            $cashFinancialAccount->save();
-        }
-
-        // Update accounts receivable balance (reducing the receivable)
-        $arFinancialAccount = FinancialAccount::where('account_id', $accountsReceivableAccount->id)->first();
-        if ($arFinancialAccount) {
-            $arFinancialAccount->balance -= $amount; // Reduce receivable
-            $arFinancialAccount->save();
-        }
     }
 
     /**

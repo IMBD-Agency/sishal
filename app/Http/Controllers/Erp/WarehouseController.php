@@ -47,10 +47,6 @@ class WarehouseController extends Controller
         $products_count = $warehouse->warehouseProductStocks->count();
         $employees_count = $warehouse->branch ? $warehouse->branch->employees->count() : 0;
         
-        // Calculate total stock value
-        $total_stock_value = $warehouse->warehouseProductStocks->sum(function($stock) {
-            return $stock->quantity * ($stock->product->cost ?? 0);
-        });
 
         // Get recent products (last 10)
         $recent_products = $warehouse->warehouseProductStocks()
@@ -73,7 +69,6 @@ class WarehouseController extends Controller
             'warehouse',
             'products_count',
             'employees_count',
-            'total_stock_value',
             'recent_products',
             'employees'
         ));
@@ -92,16 +87,22 @@ class WarehouseController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $warehouse = Warehouse::find($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'required|string|max:255',
+            'manager_id' => 'nullable|exists:users,id',
+            'branch_id' => 'required|exists:branches,id'
+        ]);
 
-        $warehouse->name = $request->name;
-        $warehouse->location = $request->location;
-        $warehouse->manager_id = $request->manager_id;
-        $warehouse->branch_id = $request->branch_id;
+        $warehouse = Warehouse::find($id);
+        $warehouse->name = $validated['name'];
+        $warehouse->location = $validated['location'];
+        $warehouse->manager_id = $validated['manager_id'] ?? null;
+        $warehouse->branch_id = $validated['branch_id'];
 
         $warehouse->save();
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Warehouse updated successfully!');
     }
 
     /**
@@ -118,15 +119,20 @@ class WarehouseController extends Controller
 
     public function storeWarehousePerBranch(Request $request, $branchId)
     {
-        $warehouse = new Warehouse();
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'required|string|max:255',
+            'manager_id' => 'nullable|exists:users,id'
+        ]);
 
-        $warehouse->name = $request->name;
-        $warehouse->location = $request->location;
-        $warehouse->manager_id = $request->manager_id;
+        $warehouse = new Warehouse();
+        $warehouse->name = $validated['name'];
+        $warehouse->location = $validated['location'];
+        $warehouse->manager_id = $validated['manager_id'] ?? null;
         $warehouse->branch_id = $branchId;
 
         $warehouse->save();
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Warehouse created successfully!');
     }
 }
