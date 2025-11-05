@@ -71,63 +71,7 @@
                                         <div class="list-group-item text-center text-muted">No Subcategory Found...</div>
                                     @endforelse
                                 </div>
-                                @foreach ($subcategories as $subcategory)
-                                    <!-- Edit Modal (available for mobile) -->
-                                    <div class="modal fade" id="editSubcategoryModal{{ $subcategory->id }}" tabindex="-1" aria-labelledby="editSubcategoryModalLabel{{ $subcategory->id }}" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-primary text-white">
-                                                    <h5 class="modal-title" id="editSubcategoryModalLabel{{ $subcategory->id }}"><i class="fas fa-layer-group me-2"></i>Edit Subcategory</h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form action="{{ route('subcategory.update', $subcategory->id) }}" method="POST" enctype="multipart/form-data">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <div class="modal-body">
-                                                        <div class="mb-3">
-                                                            <label for="edit_subcategory_name_{{ $subcategory->id }}" class="form-label">Name <span class="text-danger">*</span></label>
-                                                            <input type="text" class="form-control" id="edit_subcategory_name_{{ $subcategory->id }}" name="name" value="{{ $subcategory->name }}" required>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label for="edit_subcategory_parent_{{ $subcategory->id }}" class="form-label">Category <span class="text-danger">*</span></label>
-                                                            <select class="form-select" id="edit_subcategory_parent_{{ $subcategory->id }}" name="parent_id" required>
-                                                                @foreach($parentCategories as $pc)
-                                                                    <option value="{{ $pc->id }}" @if($subcategory->parent_id == $pc->id) selected @endif>{{ $pc->name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label for="edit_subcategory_slug_{{ $subcategory->id }}" class="form-label">Slug <span class="text-danger">*</span></label>
-                                                            <input type="text" class="form-control" id="edit_subcategory_slug_{{ $subcategory->id }}" name="slug" value="{{ $subcategory->slug ?? '' }}" required>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label for="edit_subcategory_description_{{ $subcategory->id }}" class="form-label">Description</label>
-                                                            <textarea class="form-control" id="edit_subcategory_description_{{ $subcategory->id }}" name="description" rows="2">{{ $subcategory->description }}</textarea>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label for="edit_subcategory_image_{{ $subcategory->id }}" class="form-label">Image</label>
-                                                            <input class="form-control" type="file" id="edit_subcategory_image_{{ $subcategory->id }}" name="image" accept="image/*">
-                                                            @if($subcategory->image)
-                                                                <img src="{{ asset($subcategory->image) }}" width="100" class="mt-2 rounded" />
-                                                            @endif
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label for="edit_subcategory_status_{{ $subcategory->id }}" class="form-label">Status</label>
-                                                            <select class="form-select" id="edit_subcategory_status_{{ $subcategory->id }}" name="status">
-                                                                <option value="active" @if($subcategory->status == 'active') selected @endif>Active</option>
-                                                                <option value="inactive" @if($subcategory->status == 'inactive') selected @endif>Inactive</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
+                                {{-- Edit modals are rendered globally at the bottom to avoid layout issues --}}
                             </div>
                             <!-- Desktop table -->
                             <div class="table-responsive d-none d-md-block">
@@ -178,60 +122,7 @@
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     </form>
-                                                    <div class="modal fade" id="editSubcategoryModal{{ $subcategory->id }}" tabindex="-1" aria-labelledby="editSubcategoryModalLabel{{ $subcategory->id }}" aria-hidden="true">
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header bg-primary text-white">
-                                                                    <h5 class="modal-title" id="editSubcategoryModalLabel{{ $subcategory->id }}"><i class="fas fa-layer-group me-2"></i>Edit Subcategory</h5>
-                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                                </div>
-                                                                <form action="{{ route('subcategory.update', $subcategory->id) }}" method="POST" enctype="multipart/form-data">
-                                                                    @csrf
-                                                                    @method('PATCH')
-                                                                    <div class="modal-body">
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_subcategory_name_{{ $subcategory->id }}" class="form-label">Name <span class="text-danger">*</span></label>
-                                                                            <input type="text" class="form-control" id="edit_subcategory_name_{{ $subcategory->id }}" name="name" value="{{ $subcategory->name }}" required>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_subcategory_parent_{{ $subcategory->id }}" class="form-label">Category <span class="text-danger">*</span></label>
-                                                                            <select class="form-select" id="edit_subcategory_parent_{{ $subcategory->id }}" name="parent_id" required>
-                                                                                @foreach($parentCategories as $pc)
-                                                                                    <option value="{{ $pc->id }}" @if($subcategory->parent_id == $pc->id) selected @endif>{{ $pc->name }}</option>
-                                                                                @endforeach
-                                                                            </select>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_subcategory_slug_{{ $subcategory->id }}" class="form-label">Slug <span class="text-danger">*</span></label>
-                                                                            <input type="text" class="form-control" id="edit_subcategory_slug_{{ $subcategory->id }}" name="slug" value="{{ $subcategory->slug ?? '' }}" required>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_subcategory_description_{{ $subcategory->id }}" class="form-label">Description</label>
-                                                                            <textarea class="form-control" id="edit_subcategory_description_{{ $subcategory->id }}" name="description" rows="2">{{ $subcategory->description }}</textarea>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_subcategory_image_{{ $subcategory->id }}" class="form-label">Image</label>
-                                                                            <input class="form-control" type="file" id="edit_subcategory_image_{{ $subcategory->id }}" name="image" accept="image/*">
-                                                                            @if($subcategory->image)
-                                                                                <img src="{{ asset($subcategory->image) }}" width="100" class="mt-2 rounded" />
-                                                                            @endif
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_subcategory_status_{{ $subcategory->id }}" class="form-label">Status</label>
-                                                                            <select class="form-select" id="edit_subcategory_status_{{ $subcategory->id }}" name="status">
-                                                                                <option value="active" @if($subcategory->status == 'active') selected @endif>Active</option>
-                                                                                <option value="inactive" @if($subcategory->status == 'inactive') selected @endif>Inactive</option>
-                                                                            </select>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="modal-footer">
-                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
-                                                                    </div>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    {{-- Edit modals are rendered globally at the bottom to avoid layout issues --}}
                                                 </td>
                                             </tr>
                                         @empty
@@ -252,6 +143,63 @@
         </div>
     </div>
 
+    {{-- Global Edit Modals (outside tables/lists to avoid overflow/transform issues) --}}
+    @foreach ($subcategories as $subcategory)
+        <div class="modal fade" id="editSubcategoryModal{{ $subcategory->id }}" tabindex="-1" aria-labelledby="editSubcategoryModalLabel{{ $subcategory->id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="editSubcategoryModalLabel{{ $subcategory->id }}"><i class="fas fa-layer-group me-2"></i>Edit Subcategory</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="{{ route('subcategory.update', $subcategory->id) }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        @method('PATCH')
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="edit_subcategory_name_{{ $subcategory->id }}" class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit_subcategory_name_{{ $subcategory->id }}" name="name" value="{{ $subcategory->name }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_subcategory_parent_{{ $subcategory->id }}" class="form-label">Category <span class="text-danger">*</span></label>
+                                <select class="form-select" id="edit_subcategory_parent_{{ $subcategory->id }}" name="parent_id" required>
+                                    @foreach($parentCategories as $pc)
+                                        <option value="{{ $pc->id }}" @if($subcategory->parent_id == $pc->id) selected @endif>{{ $pc->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_subcategory_slug_{{ $subcategory->id }}" class="form-label">Slug <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit_subcategory_slug_{{ $subcategory->id }}" name="slug" value="{{ $subcategory->slug ?? '' }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_subcategory_description_{{ $subcategory->id }}" class="form-label">Description</label>
+                                <textarea class="form-control" id="edit_subcategory_description_{{ $subcategory->id }}" name="description" rows="2">{{ $subcategory->description }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_subcategory_image_{{ $subcategory->id }}" class="form-label">Image</label>
+                                <input class="form-control" type="file" id="edit_subcategory_image_{{ $subcategory->id }}" name="image" accept="image/*">
+                                @if($subcategory->image)
+                                    <img src="{{ asset($subcategory->image) }}" width="100" class="mt-2 rounded" />
+                                @endif
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_subcategory_status_{{ $subcategory->id }}" class="form-label">Status</label>
+                                <select class="form-select" id="edit_subcategory_status_{{ $subcategory->id }}" name="status">
+                                    <option value="active" @if($subcategory->status == 'active') selected @endif>Active</option>
+                                    <option value="inactive" @if($subcategory->status == 'inactive') selected @endif>Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endforeach
     <div class="modal fade" id="addSubcategoryModal" tabindex="-1" aria-labelledby="addSubcategoryModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
