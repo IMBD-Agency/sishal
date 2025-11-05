@@ -1,90 +1,43 @@
 @extends('ecommerce.master')
 
 @section('main-section')
-    <!-- Home: Left Category + Right Banner Slider -->
-    <section class="home-hero py-4">
-        <div class="container">
-            <div class="row g-3 align-items-stretch">
-                <!-- Left Category Menu -->
-                <div class="col-lg-3">
-                    <div class="category-menu">
-                        <div class="menu-header">Category Menu</div>
-                        <ul class="menu-list">
-                            @foreach(($categories ?? []) as $category)
-                            <li class="menu-item">
-                                <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="menu-link">
-                                    <span class="menu-icon menu-thumb">
-                                        @if(!empty($category->image))
-                                            <img src="{{ asset($category->image) }}" alt="{{ $category->name }}">
-                                        @else
-                                            <img src="https://via.placeholder.com/36x36?text=\u00A0" alt="placeholder">
-                                        @endif
-                                    </span>
-                                    <span class="menu-text">{{ $category->name }}</span>
-                                    @php $children = $category->children ?? ($category->subcategories ?? collect()); @endphp
-                                    @if(!empty($children) && count($children))
-                                        <span class="arrow">›</span>
-                                    @endif
-                                </a>
-                                @if(!empty($children) && count($children))
-                                <div class="submenu">
-                                    @foreach($children as $child)
-                                    <a href="{{ route('product.archive') }}?category={{ $child->slug }}" class="submenu-link">
-                                        <span class="submenu-thumb">
-                                            @if(!empty($child->image))
-                                                <img src="{{ asset($child->image) }}" alt="{{ $child->name }}">
-                                            @else
-                                                <img src="https://via.placeholder.com/28x28?text=\u00A0" alt="placeholder">
-                                            @endif
-                                        </span>
-                                        <span class="submenu-text">{{ $child->name }}</span>
+    <!-- Home: Full Width Banner Slider -->
+    <section class="home-hero">
+        <div class="container-fluid px-0">
+            <!-- Full Width Banner Slider (admin managed) -->
+            <div id="heroSplide" class="splide splide-hero" aria-label="Hero Banners">
+                <div class="splide__track">
+                    <ul class="splide__list">
+                        @if(!empty($banners) && count($banners) > 0)
+                            @foreach($banners as $banner)
+                            <li class="splide__slide">
+                                @if($banner->link_url)
+                                    <a href="{{ $banner->link_url }}" target="_blank" class="d-block w-100 h-100">
+                                        <img src="{{ $banner->image_url }}" alt="{{ $banner->title }}" class="hero-slide-img">
                                     </a>
-                                    @endforeach
+                                @else
+                                    <img src="{{ $banner->image_url }}" alt="{{ $banner->title }}" class="hero-slide-img">
+                                @endif
+                                @if($banner->title || $banner->description)
+                                <div class="hero-caption d-none d-md-block">
+                                    @if($banner->title)
+                                    <h5>{{ $banner->title }}</h5>
+                                    @endif
+                                    @if($banner->description)
+                                    <p>{{ $banner->description }}</p>
+                                    @endif
+                                    @if($banner->link_url && $banner->link_text)
+                                    <a href="{{ $banner->link_url }}" target="_blank" class="btn btn-primary btn-sm">{{ $banner->link_text }}</a>
+                                    @endif
                                 </div>
                                 @endif
                             </li>
                             @endforeach
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Right Banner Slider (admin managed) -->
-                <div class="col-lg-9">
-                    <div id="heroSplide" class="splide splide-hero" aria-label="Hero Banners">
-                        <div class="splide__track">
-                            <ul class="splide__list">
-                                @if(!empty($banners) && count($banners) > 0)
-                                    @foreach($banners as $banner)
-                                    <li class="splide__slide">
-                                        @if($banner->link_url)
-                                            <a href="{{ $banner->link_url }}" target="_blank" class="d-block w-100 h-100">
-                                                <img src="{{ $banner->image_url }}" alt="{{ $banner->title }}" class="hero-slide-img">
-                                            </a>
-                                        @else
-                                            <img src="{{ $banner->image_url }}" alt="{{ $banner->title }}" class="hero-slide-img">
-                                        @endif
-                                        @if($banner->title || $banner->description)
-                                        <div class="hero-caption d-none d-md-block">
-                                            @if($banner->title)
-                                            <h5>{{ $banner->title }}</h5>
-                                            @endif
-                                            @if($banner->description)
-                                            <p>{{ $banner->description }}</p>
-                                            @endif
-                                            @if($banner->link_url && $banner->link_text)
-                                            <a href="{{ $banner->link_url }}" target="_blank" class="btn btn-primary btn-sm">{{ $banner->link_text }}</a>
-                                            @endif
-                                        </div>
-                                        @endif
-                                    </li>
-                                    @endforeach
-                                @else
-                                    <li class="splide__slide"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1800&auto=format&fit=crop" alt="fallback-1" class="hero-slide-img"></li>
-                                    <li class="splide__slide"><img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1800&auto=format&fit=crop" alt="fallback-2" class="hero-slide-img"></li>
-                                @endif
-                            </ul>
-                        </div>
-                    </div>
+                        @else
+                            <li class="splide__slide"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1800&auto=format&fit=crop" alt="fallback-1" class="hero-slide-img"></li>
+                            <li class="splide__slide"><img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1800&auto=format&fit=crop" alt="fallback-2" class="hero-slide-img"></li>
+                        @endif
+                    </ul>
                 </div>
             </div>
         </div>
@@ -117,6 +70,27 @@
         </div>
     </section>
 
+  <!-- New Arrivals Products (carousel like Top Selling) -->
+  <section class="top-products">
+        <div class="container">
+            <div class="section-header section-header--fancy">
+                <h2 class="section-title">New Arrivals</h2>
+                <a href="{{ route('product.archive', ['sort' => 'newest']) }}" class="section-see-all">View All</a>
+            </div>
+
+            <div id="newArrivalsSplide" class="splide" aria-label="New Arrivals" style="visibility:hidden;">
+                <div class="splide__track">
+                    <ul class="splide__list" id="newArrivalsSplideList">
+                        <!-- Slides will be injected here -->
+                    </ul>
+                </div>
+            </div>
+            <div id="newArrivalsFallback" class="row product-grid">
+                <div class="col-12 text-center text-muted">Loading new arrivals...</div>
+            </div>
+        </div>
+    </section>
+
     <!-- Top Selling Products -->
     <section class="top-products">
         <div class="container">
@@ -138,26 +112,7 @@
         </div>
     </section>
   
-    <!-- New Arrivals Products (carousel like Top Selling) -->
-    <section class="top-products">
-        <div class="container">
-            <div class="section-header section-header--fancy">
-                <h2 class="section-title">New Arrivals</h2>
-                <a href="{{ route('product.archive', ['sort' => 'newest']) }}" class="section-see-all">View All</a>
-            </div>
-
-            <div id="newArrivalsSplide" class="splide" aria-label="New Arrivals" style="visibility:hidden;">
-                <div class="splide__track">
-                    <ul class="splide__list" id="newArrivalsSplideList">
-                        <!-- Slides will be injected here -->
-                    </ul>
-                </div>
-            </div>
-            <div id="newArrivalsFallback" class="row product-grid">
-                <div class="col-12 text-center text-muted">Loading new arrivals...</div>
-            </div>
-        </div>
-    </section>
+  
 
 	<!-- Latest Vlogs Carousel (Splide) -->
 	<section class="home-vlogs">
@@ -328,18 +283,18 @@
         .popular-categories #categorySplide .splide__slide { list-style: none !important; padding: 0 8px; }
         /* Ensure Splide arrows render above content */
         .popular-categories #categorySplide .splide__arrows { z-index: 3; }
-        /* Hero splide */
+        /* Hero splide - Full Width */
         .splide-hero .splide__list, .splide-hero .splide__slide { height: 100%; }
-        .splide-hero { border-radius: 16px; overflow: hidden; }
-        @media (max-width: 768px) {
+        .splide-hero { border-radius: 0; overflow: hidden; }
+        .home-hero { padding: 0 !important; padding-top: 0 !important; }
+        .home-hero .container-fluid { padding: 0 !important; }
+        .hero-slide-img { width: 100%; height: 640px; object-fit: cover; object-position: center; display: block; }
+        @media (max-width: 767.98px) { 
+            .hero-slide-img { height: 300px; object-fit: cover; object-position: center; }
             .splide-hero { border-radius: 0 !important; }
         }
-        .hero-slide-img { width: 100%; height: 460px; object-fit: cover; display: block; }
-        @media (max-width: 767.98px) { .hero-slide-img { height: 300px; } }
-        .splide-hero .splide__arrow { background: rgba(255,255,255,0.9); width: 40px; height: 40px; box-shadow: 0 4px 18px rgba(0,0,0,0.12); }
-        @media (max-width: 768px) {
-            .splide-hero .splide__arrows { display: none !important; }
-        }
+        .splide-hero .splide__arrow { display: none !important; }
+        .splide-hero .splide__arrows { display: none !important; }
         .splide-hero .splide__pagination__page.is-active { background: #111827; }
         .hero-caption { position: absolute; left: 24px; bottom: 24px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.3); }
         /* Top selling carousel spacing - prevent layout shifts */

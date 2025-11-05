@@ -1,6 +1,6 @@
 @if($products->count() > 0)
     @foreach($products as $product)
-        <div class="col-lg-3 col-md-6 mt-0 mb-4">
+        <div class="col-lg-3 col-md-6 col-6 mt-0 mb-3 mb-md-4">
             <div class="product-card position-relative mb-0 h-100" data-href="{{ route('product.details', $product->slug) }}">
                 <!-- Top Wishlist Button -->
                 <button class="product-wishlist-top {{$product->is_wishlisted ? ' active' : ''}}"

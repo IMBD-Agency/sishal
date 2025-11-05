@@ -272,6 +272,18 @@
                 <td>VAT :</td>
                 <td>{{number_format($invoice->tax ?? 0, 2)}}৳</td>
             </tr>
+            @php $onlineDelivery = isset($order) ? ($order->delivery ?? 0) : 0; @endphp
+            @if(($onlineDelivery ?? 0) > 0)
+            <tr>
+                <td>DELIVERY :</td>
+                <td>{{ number_format($onlineDelivery, 2) }}৳</td>
+            </tr>
+            @elseif(optional($invoice->pos)->delivery && optional($invoice->pos)->delivery > 0)
+            <tr>
+                <td>DELIVERY :</td>
+                <td>{{ number_format($invoice->pos->delivery, 2) }}৳</td>
+            </tr>
+            @endif
             <tr>
                 <td>NET BILL :</td>
                 <td>{{number_format($invoice->total_amount ?? 0, 2)}}৳</td>

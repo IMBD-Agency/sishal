@@ -24,9 +24,11 @@
                     @endif
 
                     <div class="result-actions">
+                        @auth
                         <a href="{{ route('order.details', $orderNumber ?? '') }}" class="btn btn-primary">
                             <i class="fas fa-eye me-2"></i>View Order Details
                         </a>
+                        @endauth
                         <a href="{{ route('ecommerce.home') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-home me-2"></i>Continue Shopping
                         </a>

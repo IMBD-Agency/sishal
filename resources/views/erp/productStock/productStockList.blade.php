@@ -98,7 +98,39 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+                    <!-- Mobile list -->
+                    <div class="d-md-none">
+                        <div class="list-group list-group-flush">
+                            @foreach ($productStocks as $stock)
+                                @php $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity'); @endphp
+                                <div class="list-group-item">
+                                    <div class="d-flex align-items-center">
+                                        <img src="{{ asset($stock->image) }}" alt="Product" class="rounded me-3" style="width: 48px; height: 48px; object-fit: cover;">
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold">{{ $stock->name }}</div>
+                                            <div class="small text-muted">SKU: {{ $stock->sku }} • {{ $stock->category->name ?? 'No Category' }}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold text-primary">{{ $totalStock }}</div>
+                                            <small class="text-muted">units</small>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-outline-info add-branch-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">Add to branch</button>
+                                        <button class="btn btn-sm btn-outline-success add-warehouse-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">Add to warehouse</button>
+                                        @if($stock->branchStock->count() > 0)
+                                            <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($stock->branchStock->map(function($bs) { return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; }))'>{{ $stock->branchStock->count().' Locations' }}</button>
+                                        @endif
+                                        @if($stock->warehouseStock && $stock->warehouseStock->count() > 0)
+                                            <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($stock->warehouseStock->map(function($ws) { return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; }))'>{{ $stock->warehouseStock->count().' Warehouses' }}</button>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    <!-- Desktop table -->
+                    <div class="table-responsive d-none d-md-block">
                         <table class="table table-hover align-middle mb-0" id="stockTable">
                             <thead class="table-light sticky-top">
                                 <tr>

@@ -47,9 +47,10 @@ nav.main-nav{
     right: 0 !important;
     z-index: 14800; /* Above category submenu (10000) */
     margin: 0 auto;
-    border-bottom: 1px solid #e9e9e9;
-    border-radius: 0 0 10px 10px;
-    height: 56px;
+    /* border-bottom: 1px solid #e9e9e9; */
+    /* border-radius: 0 0 10px 10px; */
+    height: auto;
+    padding: 0; /* remove extra padding as requested */
     /* Prevent header shake - force consistency */
     transform: none;
     will-change: auto;
@@ -57,8 +58,11 @@ nav.main-nav{
     -webkit-backface-visibility: hidden;
 }
 #main-content-container{
+    /* top bar (32px) + header (90px) + nav (56px) */
     margin-top: 178px;
 }
+
+/* ---- Navigation underline handled by core rule above; no overrides needed ---- */
 
 /* Header stack wrapper */
 #header-stack { position: relative; display: block; width: 100%; }
@@ -584,15 +588,8 @@ body {
 }
 
 .nav-item.active .nav-link::after {
-    content: '';
-    position: absolute;
-    bottom: 0; /* keep underline above the container border */
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--teal-primary);
-    border-radius: 2px 2px 0 0;
-    z-index: 1;
+    /* Remove active underline to avoid flicker */
+    content: none;
 }
 
 .main-nav .nav-link:hover,

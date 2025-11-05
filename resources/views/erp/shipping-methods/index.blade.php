@@ -7,8 +7,8 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <div class="container-fluid py-4">
-            <div class="row justify-content-center">
-                <div class="col-12 col-xl-10">
+            <div class="row">
+                <div class="col-12">
                     <!-- Page Header -->
                     <div class="d-flex align-items-center justify-content-between mb-4">
                         <div>

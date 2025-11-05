@@ -7,8 +7,8 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <div class="container-fluid py-4">
-            <div class="row justify-content-center">
-                <div class="col-12 col-xl-8">
+            <div class="row">
+                <div class="col-12">
                     <!-- Page Header -->
                     <div class="d-flex align-items-center justify-content-between mb-4">
                         <div>
@@ -108,6 +108,67 @@
                                             <label class="form-check-label">Active (visible to customers)</label>
                                         </div>
                                     </div>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label fw-medium">
+                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>Available Cities
+                                        </label>
+                                        <small class="d-block text-muted mb-2">Select cities where this shipping method is available. Leave empty to make it available for all cities.</small>
+                                        
+                                        <!-- City Search Box -->
+                                        <div class="mb-3">
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="city_search_filter" 
+                                                   placeholder="Search cities by name, state, or country...">
+                                            <div class="d-flex gap-2 mt-2">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllCities()">
+                                                    <i class="fas fa-check-square"></i> Select All Visible
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllCities()">
+                                                    <i class="fas fa-square"></i> Deselect All
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="city-selection-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem;">
+                                            @foreach($cities as $city)
+                                            <div class="form-check mb-2 city-item" data-city-name="{{ strtolower($city->name) }}" data-city-state="{{ strtolower($city->state ?? '') }}" data-city-country="{{ strtolower($city->country ?? '') }}">
+                                                <input class="form-check-input city-checkbox" type="checkbox" name="cities[]" 
+                                                       value="{{ $city->id }}" id="city_{{ $city->id }}"
+                                                       {{ in_array($city->id, old('cities', $shippingMethod->cities->pluck('id')->toArray())) ? 'checked' : '' }}
+                                                       onchange="toggleCityCost({{ $city->id }})">
+                                                <label class="form-check-label w-100" for="city_{{ $city->id }}">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span>{{ $city->display_name }}</span>
+                                                        <div class="city-cost-input-wrapper" id="cost_wrapper_{{ $city->id }}" style="display: none; width: 150px;">
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" 
+                                                                       class="form-control city-cost-input" 
+                                                                       name="city_costs[{{ $city->id }}]" 
+                                                                       id="city_cost_{{ $city->id }}"
+                                                                       placeholder="Override cost" 
+                                                                       step="0.01" 
+                                                                       min="0"
+                                                                       value="{{ old("city_costs.{$city->id}", $shippingMethod->cities->where('id', $city->id)->first()->pivot->cost_override ?? '') }}">
+                                                                <span class="input-group-text">৳</span>
+                                                            </div>
+                                                            <small class="text-muted">Leave empty to use default cost</small>
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            @endforeach
+                                        </div>
+                                        <small class="text-muted d-block mt-2">
+                                            <i class="fas fa-info-circle"></i> 
+                                            <span id="selected_cities_count">0</span> city(s) selected. 
+                                            <span id="visible_cities_count">{{ count($cities) }}</span> visible.
+                                        </small>
+                                        @error('cities')
+                                            <div class="text-danger small">{{ $message }}</div>
+                                        @enderror
+                                    </div>
                                 </div>
                                 
                                 <div class="row mt-4">
@@ -129,4 +190,78 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function toggleCityCost(cityId) {
+            const checkbox = document.getElementById('city_' + cityId);
+            const costWrapper = document.getElementById('cost_wrapper_' + cityId);
+            if (checkbox.checked) {
+                costWrapper.style.display = 'block';
+            } else {
+                costWrapper.style.display = 'none';
+                document.getElementById('city_cost_' + cityId).value = '';
+            }
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const selected = document.querySelectorAll('.city-checkbox:checked').length;
+            const visible = document.querySelectorAll('.city-item:not([style*="display: none"])').length;
+            document.getElementById('selected_cities_count').textContent = selected;
+            document.getElementById('visible_cities_count').textContent = visible;
+        }
+
+        function selectAllCities() {
+            document.querySelectorAll('.city-item:not([style*="display: none"]) .city-checkbox').forEach(checkbox => {
+                if (!checkbox.checked) {
+                    checkbox.checked = true;
+                    toggleCityCost(checkbox.value);
+                }
+            });
+        }
+
+        function deselectAllCities() {
+            document.querySelectorAll('.city-checkbox').forEach(checkbox => {
+                if (checkbox.checked) {
+                    checkbox.checked = false;
+                    toggleCityCost(checkbox.value);
+                }
+            });
+        }
+
+        // City search filter
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('city_search_filter');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+                    const cityItems = document.querySelectorAll('.city-item');
+                    
+                    cityItems.forEach(item => {
+                        const cityName = item.getAttribute('data-city-name');
+                        const cityState = item.getAttribute('data-city-state');
+                        const cityCountry = item.getAttribute('data-city-country');
+                        
+                        if (searchTerm === '' || 
+                            cityName.includes(searchTerm) || 
+                            cityState.includes(searchTerm) || 
+                            cityCountry.includes(searchTerm)) {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    updateSelectedCount();
+                });
+            }
+
+            // Initialize on page load
+            document.querySelectorAll('.city-checkbox').forEach(checkbox => {
+                const cityId = checkbox.value;
+                toggleCityCost(cityId);
+            });
+            
+            updateSelectedCount();
+        });
+    </script>
 @endsection

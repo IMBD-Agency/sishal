@@ -6,9 +6,9 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <div class="container py-4">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
+        <div class="container-fluid py-4">
+            <div class="row">
+                <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-primary text-white">
                             <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Create New Product</h5>

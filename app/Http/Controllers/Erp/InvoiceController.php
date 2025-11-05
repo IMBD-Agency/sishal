@@ -383,7 +383,8 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items')->find($id);
         $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
-        return view('erp.invoices.show', compact('invoice', 'bankAccounts'));
+        $order = \App\Models\Order::where('invoice_id', $invoice?->id)->first();
+        return view('erp.invoices.show', compact('invoice', 'bankAccounts', 'order'));
     }
 
     public function addPayment($invId, Request $request)
@@ -434,6 +435,8 @@ class InvoiceController extends Controller
         }
         $template = InvoiceTemplate::find($invoice->template_id);
         $general_settings = GeneralSetting::first();
+        // Fetch related online order (if any) for delivery amount visibility in print view
+        $order = \App\Models\Order::where('invoice_id', $invoice?->id)->first();
 
         $action = $request->action;
 
@@ -449,11 +452,11 @@ class InvoiceController extends Controller
 
         // PDF download logic
         if ($action == 'download') {
-            $pdf = Pdf::loadView('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+            $pdf = Pdf::loadView('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings', 'order'));
             return $pdf->download('invoice-'.$invoice->invoice_number.'.pdf');
         }
 
-        return view('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+        return view('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings', 'order'));
     }
 
     private function generateInvoiceNumber()

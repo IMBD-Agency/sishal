@@ -21,13 +21,13 @@
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
                         <h3 class="card-title mb-0">Review Management</h3>
-                        <div class="card-tools">
-                            <a href="{{ route('reviews.index', ['status' => 'pending']) }}" class="btn btn-warning btn-sm me-2">
+                        <div class="card-tools d-flex flex-wrap gap-2">
+                            <a href="{{ route('reviews.index', ['status' => 'pending']) }}" class="btn btn-warning btn-sm">
                                 <i class="fas fa-clock"></i> Pending Reviews
                             </a>
-                            <a href="{{ route('reviews.index', ['status' => 'approved']) }}" class="btn btn-success btn-sm me-2">
+                            <a href="{{ route('reviews.index', ['status' => 'approved']) }}" class="btn btn-success btn-sm">
                                 <i class="fas fa-check"></i> Approved Reviews
                             </a>
                             <a href="{{ route('reviews.index', ['status' => 'featured']) }}" class="btn btn-info btn-sm">
@@ -37,17 +37,15 @@
                     </div>
                     <div class="card-body">
                         <!-- Filters -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <form method="GET" action="{{ route('reviews.index') }}" class="d-flex">
-                                    <input type="text" name="search" class="form-control me-2" placeholder="Search reviews..." value="{{ request('search') }}">
-                                    <button class="btn btn-outline-secondary" type="submit">
-                                        <i class="fas fa-search"></i>
-                                    </button>
+                        <div class="row g-2 g-md-3 mb-4">
+                            <div class="col-12 col-md-4">
+                                <form method="GET" action="{{ route('reviews.index') }}" class="d-flex flex-column flex-sm-row gap-2">
+                                    <input type="text" name="search" class="form-control" placeholder="Search reviews..." value="{{ request('search') }}">
+                                    <button class="btn btn-outline-secondary w-auto" type="submit"><i class="fas fa-search"></i></button>
                                 </form>
                             </div>
-                            <div class="col-md-2">
-                                <select class="form-control" id="product-filter" onchange="filterByProduct()">
+                            <div class="col-6 col-md-2">
+                                <select class="form-select" id="product-filter" onchange="filterByProduct()">
                                     <option value="">All Products</option>
                                     @foreach($products as $product)
                                         <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>
@@ -56,8 +54,8 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <select class="form-control" id="rating-filter" onchange="filterByRating()">
+                            <div class="col-6 col-md-2">
+                                <select class="form-select" id="rating-filter" onchange="filterByRating()">
                                     <option value="">All Ratings</option>
                                     <option value="5" {{ request('rating') == '5' ? 'selected' : '' }}>5 Stars</option>
                                     <option value="4" {{ request('rating') == '4' ? 'selected' : '' }}>4 Stars</option>
@@ -66,15 +64,15 @@
                                     <option value="1" {{ request('rating') == '1' ? 'selected' : '' }}>1 Star</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <select class="form-control" id="status-filter" onchange="filterByStatus()">
+                            <div class="col-6 col-md-2">
+                                <select class="form-select" id="status-filter" onchange="filterByStatus()">
                                     <option value="">All Status</option>
                                     <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
                                     <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
                                     <option value="featured" {{ request('status') == 'featured' ? 'selected' : '' }}>Featured</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-6 col-md-2">
                                 <button class="btn btn-primary w-100" id="bulk-action-btn" disabled onclick="toggleBulkActions()">
                                     <i class="fas fa-tasks"></i> Bulk Actions
                                 </button>
@@ -99,8 +97,47 @@
                             </div>
                         </div>
 
+                        <!-- Mobile list -->
+                        <div class="d-md-none">
+                            <div class="list-group list-group-flush">
+                                @forelse($reviews as $review)
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start gap-2">
+                                            <div class="fw-semibold">{{ $review->product ? Str::limit($review->product->name, 48) : 'Deleted Product' }}</div>
+                                            <span class="badge {{ $review->is_approved ? 'bg-success' : 'bg-warning' }} flex-shrink-0">{{ $review->is_approved ? 'Approved' : 'Pending' }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1">
+                                            <div class="me-2">
+                                                @for($i = 1; $i <= 5; $i++)
+                                                    @if($i <= $review->rating)
+                                                        <i class="fas fa-star text-warning"></i>
+                                                    @else
+                                                        <i class="far fa-star text-muted"></i>
+                                                    @endif
+                                                @endfor
+                                            </div>
+                                            <small class="text-muted ms-auto">{{ $review->formatted_date }}</small>
+                                        </div>
+                                        <div class="small text-muted mt-1">{{ Str::limit($review->comment, 120) }}</div>
+                                        <div class="mt-2 d-flex flex-wrap gap-2">
+                                            <a href="{{ route('reviews.show', $review->id) }}" class="btn btn-sm btn-outline-info">View</a>
+                                            @if(!$review->is_approved)
+                                                <button class="btn btn-sm btn-success" onclick="approveReview({{ $review->id }})">Approve</button>
+                                            @else
+                                                <button class="btn btn-sm btn-warning" onclick="rejectReview({{ $review->id }})">Reject</button>
+                                            @endif
+                                            <button class="btn btn-sm btn-{{ $review->is_featured ? 'warning' : 'primary' }}" onclick="toggleFeatured({{ $review->id }})">{{ $review->is_featured ? 'Unfeature' : 'Feature' }}</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteReview({{ $review->id }})">Delete</button>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="list-group-item text-center text-muted">No reviews found</div>
+                                @endforelse
+                            </div>
+                        </div>
+
                         <!-- Reviews Table -->
-                        <div class="table-responsive">
+                        <div class="table-responsive d-none d-md-block">
                             <table class="table table-bordered table-striped">
                                 <thead class="table-dark">
                                     <tr>

@@ -345,7 +345,7 @@
 
     /* Header */
     .drawer-header {
-        background: linear-gradient(135deg, #0d6efd 0%, #0ea5e9 100%);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color) 100%);
         color: white;
         padding: 24px;
         position: relative;

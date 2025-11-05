@@ -7,9 +7,9 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
 
-        <div class="container">
+        <div class="container-fluid py-4">
             <div class="row">
-                <div class="col-12 my-4">
+                <div class="col-12">
                     <div class="card border w-100 shadow-sm">
                         <div class="card-header bg-white py-3">
                             <div class="d-flex justify-content-between align-items-center">
@@ -37,7 +37,100 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
+                            <!-- Mobile list -->
+                            <div class="d-md-none">
+                                <div class="list-group list-group-flush">
+                                    @forelse ($subcategories as $idx => $subcategory)
+                                        <div class="list-group-item">
+                                            <div class="d-flex align-items-center">
+                                                @if($subcategory->image)
+                                                    <img src="{{ asset($subcategory->image) }}" width="44" height="44" class="rounded me-2" style="object-fit:cover" />
+                                                @else
+                                                    <div class="rounded bg-light me-2" style="width:44px;height:44px;"></div>
+                                                @endif
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold">{{ $subcategory->name }}</div>
+                                                    <div class="small text-muted">{{ $subcategory->parent?->name }} • #{{ $subcategories->firstItem() + $idx }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="form-check form-switch m-0">
+                                                        <input class="form-check-input" type="checkbox" data-update-url="{{ route('subcategory.update', $subcategory->id) }}" {{ $subcategory->status == 'active' ? 'checked' : '' }} onchange="toggleSubStatus(this, '{{ route('subcategory.update', $subcategory->id) }}')">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2 d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editSubcategoryModal{{ $subcategory->id }}">Edit</button>
+                                                <form action="{{ route('subcategory.delete', $subcategory->id) }}" method="POST" onsubmit="return confirm('Delete this subcategory?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="list-group-item text-center text-muted">No Subcategory Found...</div>
+                                    @endforelse
+                                </div>
+                                @foreach ($subcategories as $subcategory)
+                                    <!-- Edit Modal (available for mobile) -->
+                                    <div class="modal fade" id="editSubcategoryModal{{ $subcategory->id }}" tabindex="-1" aria-labelledby="editSubcategoryModalLabel{{ $subcategory->id }}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title" id="editSubcategoryModalLabel{{ $subcategory->id }}"><i class="fas fa-layer-group me-2"></i>Edit Subcategory</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ route('subcategory.update', $subcategory->id) }}" method="POST" enctype="multipart/form-data">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label for="edit_subcategory_name_{{ $subcategory->id }}" class="form-label">Name <span class="text-danger">*</span></label>
+                                                            <input type="text" class="form-control" id="edit_subcategory_name_{{ $subcategory->id }}" name="name" value="{{ $subcategory->name }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_subcategory_parent_{{ $subcategory->id }}" class="form-label">Category <span class="text-danger">*</span></label>
+                                                            <select class="form-select" id="edit_subcategory_parent_{{ $subcategory->id }}" name="parent_id" required>
+                                                                @foreach($parentCategories as $pc)
+                                                                    <option value="{{ $pc->id }}" @if($subcategory->parent_id == $pc->id) selected @endif>{{ $pc->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_subcategory_slug_{{ $subcategory->id }}" class="form-label">Slug <span class="text-danger">*</span></label>
+                                                            <input type="text" class="form-control" id="edit_subcategory_slug_{{ $subcategory->id }}" name="slug" value="{{ $subcategory->slug ?? '' }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_subcategory_description_{{ $subcategory->id }}" class="form-label">Description</label>
+                                                            <textarea class="form-control" id="edit_subcategory_description_{{ $subcategory->id }}" name="description" rows="2">{{ $subcategory->description }}</textarea>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_subcategory_image_{{ $subcategory->id }}" class="form-label">Image</label>
+                                                            <input class="form-control" type="file" id="edit_subcategory_image_{{ $subcategory->id }}" name="image" accept="image/*">
+                                                            @if($subcategory->image)
+                                                                <img src="{{ asset($subcategory->image) }}" width="100" class="mt-2 rounded" />
+                                                            @endif
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_subcategory_status_{{ $subcategory->id }}" class="form-label">Status</label>
+                                                            <select class="form-select" id="edit_subcategory_status_{{ $subcategory->id }}" name="status">
+                                                                <option value="active" @if($subcategory->status == 'active') selected @endif>Active</option>
+                                                                <option value="inactive" @if($subcategory->status == 'inactive') selected @endif>Inactive</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <!-- Desktop table -->
+                            <div class="table-responsive d-none d-md-block">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>

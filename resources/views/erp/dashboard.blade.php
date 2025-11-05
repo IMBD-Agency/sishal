@@ -6,8 +6,8 @@
     @include('erp.components.sidebar')
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
-        <div class="container-fluid p-4">
-            <div class="d-flex justify-content-end mb-3">
+        <div class="container-fluid p-3 p-md-4">
+            <div class="d-flex flex-column flex-sm-row justify-content-sm-end align-items-stretch align-items-sm-center gap-2 mb-3">
                 <form method="GET">
                     <select id="range-select" name="range" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
                         <option value="week" {{ ($range ?? 'week')==='week' ? 'selected' : '' }}>Last 7 days</option>
@@ -18,8 +18,8 @@
                 </form>
             </div>
             <!-- Stats Cards -->
-            <div class="row mb-4">
-                <div class="col-xl-3 col-md-6 mb-4">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4 mb-4">
+                <div class="col">
                     <div class="stats-card">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -33,7 +33,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6 mb-4">
+                <div class="col">
                     <div class="stats-card">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -47,7 +47,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6 mb-4">
+                <div class="col">
                     <div class="stats-card">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -61,7 +61,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6 mb-4">
+                <div class="col">
                     <div class="stats-card">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -78,7 +78,7 @@
             </div>
             <!-- Charts and Activities Row -->
             <div class="row mb-4">
-                <div class="col-lg-8 mb-4">
+                <div class="col-12 col-lg-8 mb-4">
                     <div class="card card-custom">
                         <div class="card-header bg-white">
                             <div class="d-flex justify-content-between align-items-center">
@@ -86,21 +86,25 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <canvas id="chart-revenue" class="w-100" style="max-height: 320px;"></canvas>
+                            <div class="ratio ratio-16x9">
+                                <canvas id="chart-revenue" class="w-100"></canvas>
+                            </div>
                             <div class="mt-3 small text-muted">
                                 Total: <span id="revenue-total">{{ $salesOverview['totalSales'] ?? '0.00' }}</span>৳ • Avg: <span id="revenue-avg">{{ $salesOverview['average'] ?? '0.00' }}</span>৳ • Peak: <span id="revenue-peak">{{ $salesOverview['peakDay'] ?? 'N/A' }}</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-4 mb-4">
+                <div class="col-12 col-lg-4 mb-4">
                     <div class="card card-custom">
                         <div class="card-header bg-white">
                             <h5 class="mb-0">Order Status</h5>
                         </div>
                         <div class="card-body">
                             @if(($orderStatus['total'] ?? 0) > 0)
-                                <canvas id="chart-status" class="w-100" style="max-height: 240px;"></canvas>
+                                <div class="ratio ratio-1x1">
+                                    <canvas id="chart-status" class="w-100"></canvas>
+                                </div>
                             @else
                                 <div class="text-center text-muted py-4">No order data for selected range</div>
                             @endif
@@ -108,7 +112,7 @@
                     </div>
                 </div>
             </div>
-            <!-- Data Table -->
+            <!-- Recent Invoices -->
             <div class="card card-custom">
                 <div class="card-header bg-white">
                     <div class="d-flex justify-content-between align-items-center">
@@ -117,23 +121,44 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-custom mb-0">
+                    <!-- Mobile list (xs-sm) -->
+                    <div class="d-md-none">
+                        <div class="list-group list-group-flush" id="list-invoices">
+                            @forelse(($currentInvoices ?? []) as $inv)
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="fw-semibold">{{ $inv['id'] }}</div>
+                                    <div class="text-end fw-semibold">{{ $inv['amount'] }}৳</div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <div class="text-muted small text-truncate" style="max-width: 65%">{{ $inv['customer'] }}</div>
+                                    <span class="badge badge-status {{ strtolower($inv['status'])==='completed' ? 'bg-success' : (in_array(strtolower($inv['status']),['pending','in_progress']) ? 'bg-warning' : 'bg-secondary') }}">{{ strtolower($inv['status']) }}</span>
+                                </div>
+                            </div>
+                            @empty
+                            <div class="list-group-item text-center text-muted">No data</div>
+                            @endforelse
+                        </div>
+                    </div>
+
+                    <!-- Table (md and up) -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-custom mb-0 align-middle">
                             <thead>
-                                <tr>
-                                    <th>Invoice</th>
+                                <tr class="small text-uppercase">
+                                    <th class="text-nowrap">Invoice</th>
                                     <th>Customer</th>
-                                    <th>Status</th>
-                                    <th>Amount</th>
+                                    <th class="text-nowrap">Status</th>
+                                    <th class="text-end text-nowrap">Amount</th>
                                 </tr>
                             </thead>
                             <tbody id="table-invoices">
                                 @forelse(($currentInvoices ?? []) as $inv)
                                 <tr>
-                                    <td class="fw-bold">{{ $inv['id'] }}</td>
-                                    <td>{{ $inv['customer'] }}</td>
-                                    <td><span class="badge badge-status {{ strtolower($inv['status'])==='completed' ? 'bg-success' : (in_array(strtolower($inv['status']),['pending','in_progress']) ? 'bg-warning' : 'bg-secondary') }}">{{ $inv['status'] }}</span></td>
-                                    <td>{{ $inv['amount'] }}৳</td>
+                                    <td class="fw-bold text-nowrap">{{ $inv['id'] }}</td>
+                                    <td class="text-truncate" style="max-width: 240px">{{ $inv['customer'] }}</td>
+                                    <td class="text-nowrap"><span class="badge badge-status {{ strtolower($inv['status'])==='completed' ? 'bg-success' : (in_array(strtolower($inv['status']),['pending','in_progress']) ? 'bg-warning' : 'bg-secondary') }}">{{ $inv['status'] }}</span></td>
+                                    <td class="text-end text-nowrap">{{ $inv['amount'] }}৳</td>
                                 </tr>
                                 @empty
                                 <tr><td colspan="4" class="text-center text-muted">No data</td></tr>

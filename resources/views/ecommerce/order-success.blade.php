@@ -316,10 +316,12 @@
         </div>
         
         <div class="action-buttons">
+            @auth
             <a href="{{ route('order.details', urlencode($orderId)) }}" class="modern-btn btn-primary-custom">
                 <i class="fas fa-receipt"></i>
                 View Order Details
             </a>
+            @endauth
             <a href="/" class="modern-btn btn-outline-secondary-custom me-0">
                 <i class="fas fa-home"></i>
                 Continue Shopping

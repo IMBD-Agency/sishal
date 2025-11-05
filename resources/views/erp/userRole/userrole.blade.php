@@ -25,9 +25,9 @@
 }
 
 .permission-tabs .nav-tabs .nav-link.active {
-    color: #0d6efd;
+    color: var(--primary-color);
     background-color: transparent;
-    border-bottom: 3px solid #0d6efd;
+    border-bottom: 3px solid var(--primary-color);
 }
 
 .permission-tabs .tab-content {
@@ -59,7 +59,7 @@
         <!-- Header Section -->
         <div class="container-fluid px-4 py-3 bg-white border-bottom">
             <div class="row align-items-center">
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-2">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}"
@@ -70,8 +70,8 @@
                     <h2 class="fw-bold mb-0">User Role</h2>
                     <p class="text-muted mb-0">Manage user roles and permissions.</p>
                 </div>
-                <div class="col-md-6 text-end">
-                    <div class="btn-group me-2">
+                <div class="col-12 col-md-6 mt-3 mt-md-0 text-md-end">
+                    <div class="d-flex flex-wrap gap-2 justify-content-md-end">
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
                             data-bs-target="#addUserRoleModal">
                             <i class="fas fa-plus me-2"></i>Add User Role
@@ -98,8 +98,41 @@
             
             <div class="card">
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
+                    <!-- Mobile list -->
+                    <div class="d-md-none">
+                        <div class="list-group list-group-flush">
+                            @forelse ($roles as $role)
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="fw-semibold">{{ $role->name }}</div>
+                                        <span class="badge bg-secondary">{{ $role->permissions->count() }} perms</span>
+                                    </div>
+                                    <div class="mt-2 d-flex flex-wrap gap-1">
+                                        @foreach ($role->permissions->take(4) as $permission)
+                                            <span class="badge text-primary" style="font-size:12px; background-color:rgba(var(--primary-rgb), 0.12); border:1px solid var(--primary-color); text-transform:capitalize;">{{ $permission->name }}</span>
+                                        @endforeach
+                                        @if($role->permissions->count() > 4)
+                                            <span class="badge bg-light text-muted">+{{ $role->permissions->count() - 4 }} more</span>
+                                        @endif
+                                    </div>
+                                    <div class="mt-2 d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="openEditModal({{ $role->id }}, '{{ $role->name }}', [{{ $role->permissions->pluck('id')->implode(',') }}])">Edit</button>
+                                        <form action="{{ route('userRole.destroy', $role->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this role?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="list-group-item text-center text-muted">No roles found</div>
+                            @endforelse
+                        </div>
+                    </div>
+
+                    <!-- Desktop table -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-bordered align-middle">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -113,7 +146,7 @@
                                         <td>{{ $role->name }}</td>
                                         <td>
                                             @foreach ($role->permissions as $permission)
-                                                <span class="badge text-primary mb-1" style="font-size: 14px; text-transform: capitalize; background-color:rgba(13, 109, 253, 0.20); border: 1px solid #0d6efd;">{{ $permission->name }}</span>
+                                                <span class="badge text-primary mb-1" style="font-size: 14px; text-transform: capitalize; background-color:rgba(var(--primary-rgb), 0.20); border: 1px solid var(--primary-color);">{{ $permission->name }}</span>
                                             @endforeach
                                         </td>
                                         <td>
@@ -327,14 +360,14 @@
         
         <style>
             .nav-tabs .nav-link.active {
-                color: #0d6efd !important;
+                color: var(--primary-color) !important;
                 background-color:rgba(13, 109, 253, 0.25)  !important;
-                border-bottom: 3px solid #0d6efd !important;
+                border-bottom: 3px solid var(--primary-color) !important;
             }
             .nav-tabs .nav-link:hover {
-                color: #0d6efd !important;
-                border-color: #0d6efd !important;
-                border-bottom: 3px solid #0d6efd !important;
+                color: var(--primary-color) !important;
+                border-color: var(--primary-color) !important;
+                border-bottom: 3px solid var(--primary-color) !important;
             }
         </style>
 

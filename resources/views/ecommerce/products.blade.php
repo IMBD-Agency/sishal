@@ -1,17 +1,17 @@
 @extends('ecommerce.master')
 
 @section('main-section')
-    <section class="featured-categories pb-3 pt-5">
+    <section class="featured-categories pb-2 pb-md-3 pt-3 pt-md-5">
         <div class="container container-80 featured-plain">
-            <h2 class="section-title text-start">Our Products</h2>
+            <h2 class="section-title text-start mb-0">Our Products</h2>
             
         </div>
     </section>
 
-    <div class="container container-80 py-4">
+    <div class="container container-80 py-2 py-md-4">
         <div class="row">
-            <!-- Sidebar Filters -->
-            <div id="filterForm" class="col-md-3 mb-4">
+            <!-- Sidebar Filters (hidden on mobile) -->
+            <div id="filterFormDesktop" class="col-md-3 mb-4 d-none d-md-block">
                 <div class="filter-card">
                     <div class="filter-header">
                         <h5 class="filter-title">
@@ -120,11 +120,14 @@
             </div>
 
             <!-- Product Grid -->
-            <div class="col-md-9">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div id="product-count">Showing {{ $products->count() }} products</div>
-                    <div>
-                        <select class="form-select form-select-sm" style="width:auto;display:inline-block;" name="sort"
+            <div class="col-md-9 col-12">
+                <div class="d-flex flex-column flex-md-row justify-content-end align-items-start align-items-md-center mb-3 gap-2">
+                    <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
+                        <!-- Mobile filter toggle -->
+                        <button class="btn btn-outline-secondary d-md-none flex-shrink-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas">
+                            <i class="fas fa-filter me-1"></i> Filters
+                        </button>
+                        <select class="form-select form-select-sm flex-grow-1 flex-md-grow-0" style="width:auto;display:inline-block;min-width:140px;" name="sort"
                             id="sortSelect">
                             <option value="">Sort By</option>
                             <option value="newest" {{ $selectedSort == 'newest' ? 'selected' : '' }}>Newest</option>
@@ -136,8 +139,125 @@
                         </select>
                     </div>
                 </div>
-                <div id="products-container" class="row g-4 mt-4">
+                <div id="products-container" class="row g-2 g-md-4 mt-2 mt-md-4">
                     @include('ecommerce.partials.product-grid', ['products' => $products])
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Offcanvas Filters -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="filtersOffcanvas" aria-labelledby="filtersOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="filtersOffcanvasLabel"><i class="fas fa-filter me-2"></i>Filters</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div id="filterForm" class="">
+                <div class="filter-card">
+                    <div class="filter-header">
+                        <h5 class="filter-title">
+                            <i class="fas fa-filter me-2"></i>Filters
+                        </h5>
+                        <button type="button" class="btn-clear-filters" id="clearFilters">
+                            <i class="fas fa-times"></i> Clear All
+                        </button>
+                    </div>
+                    
+                    <!-- Category Filter -->
+                    <div class="filter-section">
+                        <div class="filter-section-header" data-bs-toggle="collapse" data-bs-target="#categoryFilterMobile" aria-expanded="true">
+                            <h6 class="filter-section-title">
+                                <i class="fas fa-tags me-2"></i>Category
+                            </h6>
+                            <i class="fas fa-chevron-down filter-chevron"></i>
+                        </div>
+                        <div class="collapse show" id="categoryFilterMobile">
+                            <div class="filter-options">
+                                <div class="filter-option">
+                                    <input class="filter-checkbox" type="checkbox" name="categories[]" id="catAllMobile" value="all" {{ empty($selectedCategories) ? 'checked' : '' }}>
+                                    <label class="filter-label" for="catAllMobile">
+                                        <span class="checkmark"></span>
+                                        <span class="label-text">All Categories</span>
+                                    </label>
+                                </div>
+                                @foreach ($categories as $category)
+                                    <div class="filter-option">
+                                        <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $category->slug }}-m"
+                                            value="{{ $category->slug }}" {{ in_array($category->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
+                                        <label class="filter-label" for="{{ $category->slug }}-m">
+                                            <span class="checkmark"></span>
+                                            <span class="label-text">{{ $category->name }}</span>
+                                        </label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price Range Filter -->
+                    <div class="filter-section">
+                        <div class="filter-section-header" data-bs-toggle="collapse" data-bs-target="#priceFilterMobile" aria-expanded="true">
+                            <h6 class="filter-section-title">
+                                <i class="fas fa-dollar-sign me-2"></i>Price Range
+                            </h6>
+                            <i class="fas fa-chevron-down filter-chevron"></i>
+                        </div>
+                        <div class="collapse show" id="priceFilterMobile">
+                            <div class="price-filter-container">
+                                <div class="price-inputs">
+                                    <div class="price-input-group">
+                                        <label class="price-label">Min</label>
+                                        <input type="number" class="price-input" id="priceMinInputMobile" 
+                                               value="{{ $priceMin }}" min="0" max="{{ $maxProductPrice }}">
+                                    </div>
+                                    <div class="price-separator">-</div>
+                                    <div class="price-input-group">
+                                        <label class="price-label">Max</label>
+                                        <input type="number" class="price-input" id="priceMaxInputMobile" 
+                                               value="{{ $priceMax }}" min="0" max="{{ $maxProductPrice }}">
+                                    </div>
+                                </div>
+                                <div id="price-slider-mobile" class="price-slider"></div>
+                                <input type="hidden" name="price_min" id="price_min_mobile" value="{{ $priceMin }}">
+                                <input type="hidden" name="price_max" id="price_max_mobile" value="{{ $priceMax }}">
+                                <div class="price-display">
+                                    <span id="priceMinValueMobile">{{ number_format($priceMin) }}৳</span>
+                                    <span class="price-separator">to</span>
+                                    <span id="priceMaxValueMobile">{{ number_format($priceMax) }}৳</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rating Filter -->
+                    <div class="filter-section">
+                        <div class="filter-section-header" data-bs-toggle="collapse" data-bs-target="#ratingFilterMobile" aria-expanded="true">
+                            <h6 class="filter-section-title">
+                                <i class="fas fa-star me-2"></i>Customer Rating
+                            </h6>
+                            <i class="fas fa-chevron-down filter-chevron"></i>
+                        </div>
+                        <div class="collapse show" id="ratingFilterMobile">
+                            <div class="filter-options">
+                                @for ($i = 5; $i >= 1; $i--)
+                                    <div class="filter-option">
+                                        <input class="filter-checkbox" type="checkbox" name="rating[]" id="ratingM{{ $i }}" value="{{ $i }}" {{ in_array($i, $selectedRatings ?? []) ? 'checked' : '' }}>
+                                        <label class="filter-label rating-label" for="ratingM{{ $i }}">
+                                            <span class="checkmark"></span>
+                                            <div class="rating-stars">
+                                                @for ($j = 1; $j <= 5; $j++)
+                                                    <i class="fa{{ $j <= $i ? 's' : 'r' }} fa-star {{ $j <= $i ? 'text-warning' : 'text-muted' }}"></i>
+                                                @endfor
+                                            </div>
+                                            <span class="label-text">& up</span>
+                                        </label>
+                                    </div>
+                                @endfor
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -172,12 +292,23 @@
         }
 
         // AJAX Filtering Function
+        function getActiveFilterRoot(){
+            var desktop = document.getElementById('filterFormDesktop');
+            var mobile = document.getElementById('filterForm');
+            // Prefer the visible container
+            if (desktop && desktop.offsetParent !== null) return desktop;
+            if (mobile && mobile.offsetParent !== null) return mobile;
+            return desktop || mobile;
+        }
+
         function applyFilters() {
             var formData = new FormData();
+            var filterRoot = getActiveFilterRoot();
+            if (!filterRoot) return;
             
             // Get selected categories
             var selectedCategories = [];
-            document.querySelectorAll('#filterForm input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
+            filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
                 if (cb.value !== 'all') {
                     selectedCategories.push(cb.value);
                 }
@@ -186,14 +317,16 @@
                 formData.append('categories[]', cat);
             });
             
-            // Get price range
-            var priceMin = document.getElementById('price_min') ? document.getElementById('price_min').value : '';
-            var priceMax = document.getElementById('price_max') ? document.getElementById('price_max').value : '';
+            // Get price range - check both mobile and desktop versions
+            var priceMinEl = filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile');
+            var priceMaxEl = filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile');
+            var priceMin = priceMinEl ? priceMinEl.value : '';
+            var priceMax = priceMaxEl ? priceMaxEl.value : '';
             if (priceMin) formData.append('price_min', priceMin);
             if (priceMax) formData.append('price_max', priceMax);
             
             // Get selected ratings
-            document.querySelectorAll('#filterForm input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
+            filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
                 formData.append('rating[]', cb.value);
             });
             
@@ -205,7 +338,6 @@
             
             // Show loading state
             var container = document.getElementById('products-container');
-            var countElement = document.getElementById('product-count');
             if (container) {
                 container.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading products...</p></div>';
             }
@@ -225,13 +357,7 @@
                     if (container) {
                         container.innerHTML = data.html;
                     }
-                    if (countElement) {
-                        if (data.count === 0) {
-                            countElement.textContent = 'No products found';
-                        } else {
-                            countElement.textContent = 'Showing ' + data.count + ' products';
-                        }
-                    }
+                    
                 } else {
                     if (container) {
                         container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
@@ -249,15 +375,17 @@
         // Enhanced filter functionality
         window.initProductsPage = function() {
             try {
-                // Initialize price slider
-                var priceSlider = document.getElementById('price-slider');
-                if (priceSlider && !priceSlider.noUiSlider && window.noUiSlider) {
-                    var minValue = document.getElementById('priceMinValue');
-                    var maxValue = document.getElementById('priceMaxValue');
-                    var priceMinInput = document.getElementById('price_min');
-                    var priceMaxInput = document.getElementById('price_max');
-                    var priceMinDirectInput = document.getElementById('priceMinInput');
-                    var priceMaxDirectInput = document.getElementById('priceMaxInput');
+                function initFilterRoot(filterRoot){
+                    if (!filterRoot) return;
+                    // Initialize price slider - check for both desktop and mobile IDs
+                    var priceSlider = filterRoot.querySelector('#price-slider') || filterRoot.querySelector('#price-slider-mobile');
+                    if (priceSlider && !priceSlider.noUiSlider && window.noUiSlider) {
+                        var minValue = filterRoot.querySelector('#priceMinValue') || filterRoot.querySelector('#priceMinValueMobile');
+                        var maxValue = filterRoot.querySelector('#priceMaxValue') || filterRoot.querySelector('#priceMaxValueMobile');
+                        var priceMinInput = filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile');
+                        var priceMaxInput = filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile');
+                        var priceMinDirectInput = filterRoot.querySelector('#priceMinInput') || filterRoot.querySelector('#priceMinInputMobile');
+                        var priceMaxDirectInput = filterRoot.querySelector('#priceMaxInput') || filterRoot.querySelector('#priceMaxInputMobile');
                     var maxProductPrice = {{ $maxProductPrice }};
                     
                     window.noUiSlider.create(priceSlider, {
@@ -289,19 +417,20 @@
                             applyFilters();
                         }, 300);
                     });
-                }
+                    }
 
                 // Price input synchronization
-                var priceMinDirectInput = document.getElementById('priceMinInput');
-                var priceMaxDirectInput = document.getElementById('priceMaxInput');
+                var priceMinDirectInput = filterRoot.querySelector('#priceMinInput') || filterRoot.querySelector('#priceMinInputMobile');
+                var priceMaxDirectInput = filterRoot.querySelector('#priceMaxInput') || filterRoot.querySelector('#priceMaxInputMobile');
                 
                 if (priceMinDirectInput) {
                     priceMinDirectInput.addEventListener('change', function() {
                         var value = Math.max(0, Math.min(parseInt(this.value) || 0, {{ $maxProductPrice }}));
                         this.value = value;
-                        if (priceSlider && priceSlider.noUiSlider) {
-                            var currentValues = priceSlider.noUiSlider.get();
-                            priceSlider.noUiSlider.set([value, currentValues[1]]);
+                        var slider = filterRoot.querySelector('#price-slider') || filterRoot.querySelector('#price-slider-mobile');
+                        if (slider && slider.noUiSlider) {
+                            var currentValues = slider.noUiSlider.get();
+                            slider.noUiSlider.set([value, currentValues[1]]);
                         }
                     });
                 }
@@ -310,16 +439,17 @@
                     priceMaxDirectInput.addEventListener('change', function() {
                         var value = Math.max(0, Math.min(parseInt(this.value) || 0, {{ $maxProductPrice }}));
                         this.value = value;
-                        if (priceSlider && priceSlider.noUiSlider) {
-                            var currentValues = priceSlider.noUiSlider.get();
-                            priceSlider.noUiSlider.set([currentValues[0], value]);
+                        var slider = filterRoot.querySelector('#price-slider') || filterRoot.querySelector('#price-slider-mobile');
+                        if (slider && slider.noUiSlider) {
+                            var currentValues = slider.noUiSlider.get();
+                            slider.noUiSlider.set([currentValues[0], value]);
                         }
                     });
                 }
 
                 // Enhanced category checkboxes with "All" logic
-                var categoryCheckboxes = document.querySelectorAll('#filterForm input[type=checkbox][name="categories[]"]');
-                var allCategoryCheckbox = document.getElementById('catAll');
+                var categoryCheckboxes = filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]');
+                var allCategoryCheckbox = filterRoot.querySelector('#catAll, #catAllMobile');
                 
                 categoryCheckboxes.forEach(function (checkbox) {
                     checkbox.addEventListener('change', function () {
@@ -354,7 +484,7 @@
                 });
 
                 // Rating checkboxes
-                var ratingCheckboxes = document.querySelectorAll('#filterForm input[type=checkbox][name="rating[]"]');
+                var ratingCheckboxes = filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]');
                 ratingCheckboxes.forEach(function (checkbox) {
                     checkbox.addEventListener('change', function () {
                         // Auto-apply filters on rating change
@@ -365,11 +495,11 @@
                 });
 
                 // Clear filters functionality
-                var clearFiltersBtn = document.getElementById('clearFilters');
-                if (clearFiltersBtn) {
+                var clearFiltersBtns = filterRoot.querySelectorAll('#clearFilters, .btn-clear-filters');
+                clearFiltersBtns.forEach(function(clearFiltersBtn){
                     clearFiltersBtn.addEventListener('click', function() {
                         // Uncheck all checkboxes
-                        document.querySelectorAll('#filterForm input[type=checkbox]').forEach(function(cb) {
+                        filterRoot.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
                             cb.checked = false;
                         });
                         
@@ -380,14 +510,15 @@
                         
                         // Reset price range
                         var maxProductPrice = {{ $maxProductPrice }};
-                        if (priceSlider && priceSlider.noUiSlider) {
-                            priceSlider.noUiSlider.set([0, maxProductPrice]);
+                        var slider = filterRoot.querySelector('#price-slider') || filterRoot.querySelector('#price-slider-mobile');
+                        if (slider && slider.noUiSlider) {
+                            slider.noUiSlider.set([0, maxProductPrice]);
                         }
                         
                         // Apply filters with cleared values
                         applyFilters();
                     });
-                }
+                });
 
                 // Sort select
                 var sortSelect = document.getElementById('sortSelect');
@@ -398,7 +529,7 @@
                 }
 
                 // Collapsible filter sections
-                var filterHeaders = document.querySelectorAll('.filter-section-header');
+                var filterHeaders = filterRoot.querySelectorAll('.filter-section-header');
                 filterHeaders.forEach(function(header) {
                     header.addEventListener('click', function() {
                         var chevron = this.querySelector('.filter-chevron');
@@ -412,7 +543,12 @@
                         }
                     });
                 });
-
+                }
+                // Initialize both desktop and mobile filter containers (if present)
+                initFilterRoot(document.getElementById('filterFormDesktop'));
+                initFilterRoot(document.getElementById('filterForm'));
+                
+                // Minimal: no extra sync logic necessary
             } catch(error) {
                 console.error('Error initializing products page:', error);
             }
@@ -628,5 +764,19 @@
                 font-size: 13px;
             }
         }
+        
+        /* Offcanvas width - leave space for backdrop */
+        #filtersOffcanvas.offcanvas-start {
+            width: 85%;
+            max-width: 320px;
+        }
+        
+        @media (max-width: 576px) {
+            #filtersOffcanvas.offcanvas-start {
+                width: 80%;
+                max-width: 300px;
+            }
+        }
+        
     </style>
 @endpush

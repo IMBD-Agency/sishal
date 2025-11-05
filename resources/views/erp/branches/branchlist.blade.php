@@ -9,7 +9,7 @@
         <!-- Header Section -->
         <div class="container-fluid px-4 py-3 bg-white border-bottom">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-12 col-md-8">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-2">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
@@ -19,8 +19,8 @@
                     <h2 class="fw-bold mb-0">Branch List</h2>
                     <p class="text-muted mb-0">Manage branch information, locations, and staff efficiently.</p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
+                <div class="col-12 col-md-4 mt-3 mt-md-0 text-md-end">
+                    <div class="d-flex flex-wrap gap-2 justify-content-md-end">
                     @can('create branch')
                         <a href="{{ route('branches.create') }}" class="btn btn-outline-primary">
                             <i class="fas fa-plus me-2"></i>Add Branchs
@@ -38,12 +38,12 @@
 
             <div class="mb-3">
                 <form id="filterForm" class="row g-2 align-items-end">
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-3">
                         <label class="form-label">Search (Name, Location, Manager)</label>
 
                         <input type="text" class="form-control" name="name" placeholder="Branch Name, Location, or Manager" value="{{ request('name') }}">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Status</label>
                         <select class="form-select" name="status">
                             <option value="">All Statuses</option>
@@ -51,18 +51,18 @@
                             <option value="inactive">Inactive</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Location</label>
                         <input type="text" class="form-control" name="location" placeholder="City or Area" value="{{ request('location') }}">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Manager</label>
                         <input type="text" class="form-control" name="manager" placeholder="Manager Name" value="{{ request('manager') }}">
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-6 col-md-1">
                         <button type="submit" class="btn btn-primary w-100">Filter</button>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-6 col-md-1">
                         <button type="button" class="btn btn-secondary w-100" id="resetFilter">Reset</button>
                     </div>
                 </form>
@@ -76,7 +76,14 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                <div class="table-responsive">
+                <!-- Mobile list -->
+                <div class="d-md-none">
+                    <div class="list-group list-group-flush" id="branchesListMobile">
+                        <!-- Mobile items injected by JS -->
+                    </div>
+                </div>
+                <!-- Desktop table -->
+                <div class="table-responsive d-none d-md-block">
                         <table class="table table-hover align-middle mb-0" id="branchesTable">
                             <thead class="table-light sticky-top">
                                 <tr>
@@ -299,10 +306,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function renderBranchesTable(branches) {
         const tbody = document.querySelector('#branchesTable tbody');
-        tbody.innerHTML = '';
+        const mobileList = document.getElementById('branchesListMobile');
+        if (tbody) tbody.innerHTML = '';
+        if (mobileList) mobileList.innerHTML = '';
         
         if (branches.data && branches.data.length > 0) {
         branches.data.forEach(function(branch) {
+                // Desktop row
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${branch.id}</td>
@@ -337,10 +347,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     @endcanany
                 `;
-                tbody.appendChild(row);
+                if (tbody) tbody.appendChild(row);
+
+                // Mobile item
+                if (mobileList) {
+                    const item = document.createElement('div');
+                    item.className = 'list-group-item';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            @can('view branch details')
+                            <a href="/erp/branches/${branch.id}" class="fw-semibold text-decoration-underline">${branch.name}</a>
+                            @else
+                            <div class="fw-semibold">${branch.name}</div>
+                            @endcan
+                            <span class="badge ${getStatusBadgeClass(branch.status)}">${branch.status ? branch.status : 'active'}</span>
+                        </div>
+                        <div class="small text-muted mt-1">#${branch.id} • ${branch.location || 'N/A'}</div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="small">${branch.contact_info || '-'}</div>
+                            <div class="small text-muted">${branch.manager ? (branch.manager.first_name + ' ' + branch.manager.last_name) : 'No Manager'}</div>
+                        </div>
+                        @canany(['edit branch', 'delete branch'])
+                        <div class="mt-2 d-flex gap-2">
+                            @can('edit branch')
+                            <a href="/erp/branches/${branch.id}/edit" class="btn btn-sm btn-warning">Edit</a>
+                            @endcan
+                            @can('delete branch')
+                            <form action="/erp/branches/${branch.id}" method="POST">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this branch?')">Delete</button>
+                            </form>
+                            @endcan
+                        </div>
+                        @endcanany
+                    `;
+                    mobileList.appendChild(item);
+                }
         });
         } else {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No branches found</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center">No branches found</td></tr>';
+            if (mobileList) mobileList.innerHTML = '<div class="list-group-item text-center text-muted">No branches found</div>';
         }
         
         renderPagination(branches);

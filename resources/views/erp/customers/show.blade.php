@@ -560,13 +560,13 @@
         }
         
         .nav-tabs .nav-link.active {
-            color: #0d6efd !important;
+            color: var(--primary-color) !important;
             background-color: transparent;
-            border-bottom: 2px solid #0d6efd;
+            border-bottom: 2px solid var(--primary-color);
         }
         
         .nav-tabs .nav-link:hover {
-            color: #0d6efd;
+            color: var(--primary-color);
             border-color: transparent;
         }
         
@@ -595,8 +595,8 @@
         }
         
         .btn-outline-primary:hover {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
         }
         
         .form-label {

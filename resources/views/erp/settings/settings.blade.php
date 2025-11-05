@@ -7,8 +7,8 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <div class="container-fluid py-4">
-            <div class="row justify-content-center">
-                <div class="col-12 col-xl-10">
+            <div class="row">
+                <div class="col-12">
                     <!-- Page Header -->
                     <div class="d-flex align-items-center justify-content-between mb-4">
                         <div>
@@ -375,8 +375,8 @@
 
         .nav-tabs-modern .nav-link.active {
             background: #fff;
-            color: #0d6efd !important;
-            border-bottom: 2px solid #0d6efd !important;
+            color: var(--primary-color) !important;
+            border-bottom: 2px solid var(--primary-color) !important;
         }
 
         .upload-area {
@@ -385,7 +385,7 @@
         }
 
         .upload-area:hover {
-            border-color: #0d6efd !important;
+            border-color: var(--primary-color) !important;
             background: #f8f9ff;
         }
 

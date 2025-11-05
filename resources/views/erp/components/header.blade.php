@@ -49,4 +49,58 @@
             </div>
         </div>
     </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var toggleBtn = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('sidebar');
+    // Create overlay for mobile close behavior
+    var overlay = document.getElementById('sidebarOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'sidebarOverlay';
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('show');
+        overlay.classList.remove('active');
+    }
+
+    function openSidebar() {
+        sidebar.classList.add('show');
+        overlay.classList.add('active');
+    }
+
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function () {
+            if (sidebar.classList.contains('show')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+    }
+
+    // Close when clicking overlay or pressing ESC
+    overlay.addEventListener('click', closeSidebar);
+    document.addEventListener('keyup', function (e) {
+        if (e.key === 'Escape') closeSidebar();
+    });
+
+    // Close after navigating via sidebar links (mobile UX),
+    // but DO NOT close when toggling collapsible parent menus
+    sidebar.querySelectorAll('.nav-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            var isCollapseToggle = this.getAttribute('data-bs-toggle') === 'collapse' || this.getAttribute('data-bs-target');
+            var href = this.getAttribute('href') || '';
+            if (isCollapseToggle || href === '#' || href.startsWith('#')) {
+                // keep sidebar open for menu expansion
+                return;
+            }
+            closeSidebar();
+        });
+    });
+});
+</script>
 </div>

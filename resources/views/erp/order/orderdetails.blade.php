@@ -10,7 +10,7 @@
         <!-- Header Section -->
         <div class="container-fluid px-4 py-4">
             <div class="row align-items-center mb-4">
-                <div class="col-md-8">
+                <div class="col-12 col-md-8">
                     <div class="d-flex align-items-center gap-3">
                         <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center"
                             style="width: 48px; height: 48px;">
@@ -22,8 +22,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 text-end">
-                    <a href="{{ route('order.list') }}" class="btn btn-outline-primary px-4 py-2 rounded-pill">
+                <div class="col-12 col-md-4 mt-3 mt-md-0 text-md-end">
+                    <a href="{{ route('order.list') }}" class="btn btn-outline-primary px-4 py-2 rounded-pill w-100 w-md-auto">
                         <i class="fas fa-arrow-left me-2"></i>Back
                     </a>
                 </div>
@@ -121,6 +121,12 @@
                                             <span class="text-muted small">Order Date</span>
                                             <span>{{ $order->created_at ? \Carbon\Carbon::parse($order->created_at)->format('d M Y') : '-' }}</span>
                                         </div>
+                                        @if(!empty($order->notes))
+                                        <div class="mt-2">
+                                            <span class="text-muted small d-block mb-1">Customer Note</span>
+                                            <div class="border rounded-3 p-2 bg-white">{{ $order->notes }}</div>
+                                        </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -234,7 +240,56 @@
                                 </div>
                                 <h5 class="card-title mb-0 fw-bold">Order Items</h5>
                             </div>
-                            <div class="table-responsive">
+                            <!-- Mobile items list -->
+                            <div class="d-md-none">
+                                <div class="list-group list-group-flush">
+                                    @foreach($order->items as $item)
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                                <div>
+                                                    <div class="fw-semibold">{{ @$item->product->name ?? '-' }}</div>
+                                                    <div class="small text-muted">SKU: {{ @$item->product->sku ?? '-' }}</div>
+                                                </div>
+                                                <span class="badge bg-primary flex-shrink-0">Qty: {{ $item->quantity }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mt-1">
+                                                <div class="small text-muted">Unit: {{ number_format($item->unit_price, 2) }}৳</div>
+                                                <div class="fw-bold">{{ number_format($item->total_price, 2) }}৳</div>
+                                            </div>
+                                            <div class="mt-2 small">
+                                                @if($order->status == 'delivered')
+                                                    <span class="badge bg-success">Delivered</span>
+                                                @elseif($order->status == 'shipping' || $order->status == 'cancelled')
+                                                    <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
+                                                @elseif(is_null($item->current_position_type))
+                                                    <button class="btn btn-sm btn-primary request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}">Request Stock</button>
+                                                @else
+                                                    <div>
+                                                        <span class="text-muted">Currently at:</span>
+                                                        {{ $item->current_position_type == 'branch'
+                                                            ? ($item->branch ? $item->branch->name : 'Unknown Branch')
+                                                            : ($item->current_position_type == 'warehouse'
+                                                                ? ($item->warehouse ? $item->warehouse->name : 'Unknown Warehouse')
+                                                                : (@$item->technician->user->first_name . ' ' . @$item->technician->user->last_name)
+                                                              )
+                                                        }}
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-1">
+                                                        @if(@$item->current_position_id != $order->employee_id)
+                                                        <a href="#" class="small request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Change Stock</a>
+                                                        <span class="text-muted">|</span>
+                                                        <a href="#" class="small transfer-to-employee-link" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Transfer To Employee</a>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- Desktop table -->
+                            <div class="table-responsive d-none d-md-block">
                                 <table class="table table-hover">
                                     <thead class="table-light">
                                         <tr>

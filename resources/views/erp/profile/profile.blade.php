@@ -3,134 +3,20 @@
 @section('title', 'Profile Settings')
 
 @push('styles')
-<style>
-    .profile-page {
-        background: #f8f9fa;
-        min-height: 100vh;
-    }
-    
-    .profile-header {
-        background: white;
-        border-bottom: 1px solid #e9ecef;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    .profile-avatar {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid #0da2e7;
-    }
-    
-    .card-simple {
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        margin-bottom: 1.5rem;
-    }
-    
-    .card-header-simple {
-        background: #f8f9fa;
-        border-bottom: 1px solid #e9ecef;
-        padding: 1rem 1.5rem;
-        font-weight: 600;
-        color: #333;
-    }
-    
-    .card-body-simple {
-        padding: 1.5rem;
-    }
-    
-    .form-control-simple {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 0.5rem 0.75rem;
-        font-size: 14px;
-    }
-    
-    .form-control-simple:focus {
-        border-color: #0da2e7;
-        box-shadow: 0 0 0 0.2rem rgba(13, 162, 231, 0.25);
-        outline: none;
-    }
-    
-    .btn-simple {
-        background: #0da2e7;
-        border: 1px solid #0da2e7;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: 500;
-    }
-    
-    .btn-simple:hover {
-        background: #0b8cc7;
-        border-color: #0b8cc7;
-        color: white;
-    }
-    
-    .btn-outline-simple {
-        background: transparent;
-        border: 1px solid #6c757d;
-        color: #6c757d;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-    
-    .btn-outline-simple:hover {
-        background: #6c757d;
-        color: white;
-    }
-    
-    .form-label-simple {
-        font-weight: 500;
-        color: #555;
-        margin-bottom: 0.25rem;
-        font-size: 14px;
-    }
-    
-    .activity-item-simple {
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #f1f3f4;
-    }
-    
-    .activity-item-simple:last-child {
-        border-bottom: none;
-    }
-    
-    .text-muted-simple {
-        color: #6c757d;
-        font-size: 13px;
-    }
-    
-    .password-strength {
-        height: 3px;
-        border-radius: 2px;
-        margin-top: 5px;
-    }
-    
-    .strength-weak { background: #dc3545; }
-    .strength-medium { background: #ffc107; }
-    .strength-strong { background: #28a745; }
-</style>
+<!-- Profile styles are now in public/erp.css -->
 @endpush
 
 @section('body')
 @include('erp.components.sidebar')
 <div class="main-content" id="mainContent">
     @include('erp.components.header')
-    <div class="container py-4">
+    <div class="container-fluid py-4">
         <!-- Simple Profile Header -->
         <div class="profile-header">
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <div class="d-flex align-items-center">
-                        <img src="{{ Auth::user()->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->first_name . ' ' . Auth::user()->last_name) . '&background=0da2e7&color=fff&size=80' }}" 
+                        <img src="{{ Auth::user()->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->first_name . ' ' . Auth::user()->last_name) . '&background=198754&color=fff&size=80' }}" 
                              alt="Profile Avatar" class="profile-avatar me-3">
                         <div>
                             <h3 class="mb-1">{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h3>
@@ -451,20 +337,7 @@ function resetForm() {
 }
 
 // Avatar upload (placeholder - requires backend implementation)
-document.getElementById('avatarInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('avatarPreview').src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-document.querySelector('.avatar-upload').addEventListener('click', function() {
-    document.getElementById('avatarInput').click();
-});
+// Avatar upload handlers were removed to avoid errors until backend support is added
 
 // Auto-dismiss alerts after 5 seconds
 setTimeout(function() {

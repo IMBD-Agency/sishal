@@ -86,3 +86,4 @@ class UserRoleController extends Controller
         return redirect()->route('userRole.index')->with('success', 'Role deleted successfully!');
     }
 }
+

@@ -21,26 +21,69 @@ class SalesAnalyticsService
     {
         $startDate = now()->subDays($days);
         
-        return Product::select('products.*')
-            ->leftJoin('pos_items', function($join) use ($startDate) {
-                $join->on('products.id', '=', 'pos_items.product_id')
-                     ->where('pos_items.created_at', '>=', $startDate);
-            })
-            ->leftJoin('order_items', function($join) use ($startDate) {
-                $join->on('products.id', '=', 'order_items.product_id')
-                     ->where('order_items.created_at', '>=', $startDate);
-            })
-            ->selectRaw('products.*, 
-                COALESCE(SUM(pos_items.quantity), 0) + COALESCE(SUM(order_items.quantity), 0) as total_sold,
-                COALESCE(SUM(pos_items.total_price), 0) + COALESCE(SUM(order_items.total_price), 0) as total_revenue')
-            ->where('products.type', 'product')
-            ->where('products.status', 'active')
-            ->groupBy('products.id')
-            ->orderByDesc('total_sold')
-            ->orderByDesc('total_revenue')
-            ->orderByDesc('products.created_at') // Tertiary sort for consistency
-            ->take($limit)
-            ->get();
+        return Product::select([
+            'products.id',
+            'products.name', 
+            'products.slug',
+            'products.sku',
+            'products.price',
+            'products.discount',
+            'products.image',
+            'products.short_desc',
+            'products.description',
+            'products.status',
+            'products.has_variations',
+            'products.manage_stock',
+            'products.created_at',
+            'products.updated_at',
+            'products.category_id',
+            'products.type',
+            'products.cost',
+            'products.meta_title',
+            'products.meta_description',
+            'products.meta_keywords'
+        ])
+        ->leftJoin('pos_items', function($join) use ($startDate) {
+            $join->on('products.id', '=', 'pos_items.product_id')
+                 ->where('pos_items.created_at', '>=', $startDate);
+        })
+        ->leftJoin('order_items', function($join) use ($startDate) {
+            $join->on('products.id', '=', 'order_items.product_id')
+                 ->where('order_items.created_at', '>=', $startDate);
+        })
+        ->selectRaw('
+            COALESCE(SUM(pos_items.quantity), 0) + COALESCE(SUM(order_items.quantity), 0) as total_sold,
+            COALESCE(SUM(pos_items.total_price), 0) + COALESCE(SUM(order_items.total_price), 0) as total_revenue
+        ')
+        ->where('products.type', 'product')
+        ->where('products.status', 'active')
+        ->groupBy([
+            'products.id',
+            'products.name', 
+            'products.slug',
+            'products.sku',
+            'products.price',
+            'products.discount',
+            'products.image',
+            'products.short_desc',
+            'products.description',
+            'products.status',
+            'products.has_variations',
+            'products.manage_stock',
+            'products.created_at',
+            'products.updated_at',
+            'products.category_id',
+            'products.type',
+            'products.cost',
+            'products.meta_title',
+            'products.meta_description',
+            'products.meta_keywords'
+        ])
+        ->orderByDesc('total_sold')
+        ->orderByDesc('total_revenue')
+        ->orderByDesc('products.created_at') // Tertiary sort for consistency
+        ->take($limit)
+        ->get();
     }
 
     /**

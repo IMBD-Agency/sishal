@@ -8,6 +8,7 @@ use App\Models\GeneralSetting;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Cache;
 use App\Models\AdditionalPage;
+use App\Models\ProductServiceCategory;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,8 +35,19 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         $additionalPages = AdditionalPage::where('is_active', 1)->select('id', 'title', 'slug', 'positioned_at')->get();
+        
+        // Share categories globally for navigation menu
+        $navCategories = ProductServiceCategory::whereNull('parent_id')
+            ->where('status', 'active')
+            ->with(['children' => function($q) {
+                $q->where('status', 'active')->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
+        
         View::share('general_settings', $generalSettings);
         View::share('additional_pages', $additionalPages);
+        View::share('nav_categories', $navCategories);
         // Blade directives for roles and permissions
         \Blade::directive('role', function ($role) {
             return "<?php if(auth()->check() && auth()->user()->hasRole({$role})): ?>";

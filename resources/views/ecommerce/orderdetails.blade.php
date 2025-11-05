@@ -309,12 +309,7 @@
                         </div>
                         <div class="text-end">
                             <div class="order-total">Total: {{ number_format($order->total, 2) }}৳</div>
-                            <div class="mt-2">
-                                <a href="#" class="print-btn" onclick="window.print()">
-                                    <i class="fas fa-print"></i>
-                                    Print Invoice
-                                </a>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>

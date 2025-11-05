@@ -154,19 +154,38 @@
                                 <h6 class="mb-0 fw-semibold">Sales Representative</h6>
                             </div>
                             <div class="text-muted">
+                                @php $salesman = optional($invoice->salesman); @endphp
                                 <div class="fw-medium text-dark">
-                                    {{ $invoice->salesman->first_name . ' ' . $invoice->salesman->last_name ?? '-' }}</div>
-                                @if($invoice->salesman->email)
-                                    <small class="d-block">{{ $invoice->salesman->email }}</small>
+                                    {{ trim(($salesman->first_name ?? '') . ' ' . ($salesman->last_name ?? '')) ?: 'System' }}
+                                </div>
+                                @if($salesman->email)
+                                    <small class="d-block">{{ $salesman->email }}</small>
                                 @endif
-                                @if($invoice->salesman->phone)
-                                    <small class="d-block">{{ $invoice->salesman->phone }}</small>
+                                @if($salesman->phone)
+                                    <small class="d-block">{{ $salesman->phone }}</small>
                                 @endif
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Customer Note -->
+            @if(!empty($invoice->note))
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white border-0 p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-secondary bg-opacity-10 rounded-circle px-2 py-1 me-3">
+                            <i class="fas fa-sticky-note text-secondary"></i>
+                        </div>
+                        <h5 class="mb-0 fw-semibold">Customer Note</h5>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-muted">{{ $invoice->note }}</div>
+                </div>
+            </div>
+            @endif
 
             <!-- Invoice Items -->
             <div class="card shadow-sm border-0 mb-4">
@@ -298,6 +317,18 @@
                                 <span
                                     class="fw-medium text-success">-{{ number_format($invoice->discount_apply ?? 0, 2) }}৳</span>
                             </div>
+                            @php $onlineDelivery = isset($order) ? ($order->delivery ?? 0) : 0; @endphp
+                            @if(($onlineDelivery ?? 0) > 0)
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Delivery</span>
+                                <span class="fw-medium">{{ number_format($onlineDelivery, 2) }}৳</span>
+                            </div>
+                            @elseif(optional($invoice->pos)->delivery && optional($invoice->pos)->delivery > 0)
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Delivery</span>
+                                <span class="fw-medium">{{ number_format($invoice->pos->delivery, 2) }}৳</span>
+                            </div>
+                            @endif
                             <hr class="my-3">
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <span class="h5 mb-0 fw-bold">Total Amount</span>
@@ -313,6 +344,7 @@
                                 <span
                                     class="fw-medium text-danger">{{ number_format($invoice->due_amount ?? 0, 2) }}৳</span>
                             </div>
+
 
                             <!-- Action Buttons -->
                             <div class="d-grid gap-2">

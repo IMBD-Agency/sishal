@@ -25,7 +25,8 @@ class ShippingMethodController extends Controller
      */
     public function create()
     {
-        return view('erp.shipping-methods.create');
+        $cities = \App\Models\City::active()->ordered()->get();
+        return view('erp.shipping-methods.create', compact('cities'));
     }
 
     /**
@@ -41,9 +42,28 @@ class ShippingMethodController extends Controller
             'estimated_days_max' => 'nullable|integer|min:1|gte:estimated_days_min',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
+            'cities' => 'nullable|array',
+            'cities.*' => 'exists:cities,id',
+            'city_costs' => 'nullable|array',
+            'city_costs.*' => 'nullable|numeric|min:0',
         ]);
 
-        ShippingMethod::create($validated);
+        $shippingMethod = ShippingMethod::create($validated);
+
+        // Sync cities with cost overrides
+        if ($request->has('cities')) {
+            $citiesData = [];
+            foreach ($request->cities as $index => $cityId) {
+                $costOverride = isset($request->city_costs[$cityId]) && $request->city_costs[$cityId] 
+                    ? $request->city_costs[$cityId] 
+                    : null;
+                $citiesData[$cityId] = ['cost_override' => $costOverride];
+            }
+            $shippingMethod->cities()->sync($citiesData);
+        } else {
+            // If no cities selected, remove all city restrictions
+            $shippingMethod->cities()->detach();
+        }
 
         return redirect()->route('shipping-methods.index')->with('success', 'Shipping method created successfully!');
     }
@@ -61,7 +81,9 @@ class ShippingMethodController extends Controller
      */
     public function edit(ShippingMethod $shippingMethod)
     {
-        return view('erp.shipping-methods.edit', compact('shippingMethod'));
+        $cities = \App\Models\City::active()->ordered()->get();
+        $shippingMethod->load('cities');
+        return view('erp.shipping-methods.edit', compact('shippingMethod', 'cities'));
     }
 
     /**
@@ -77,9 +99,28 @@ class ShippingMethodController extends Controller
             'estimated_days_max' => 'nullable|integer|min:1|gte:estimated_days_min',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
+            'cities' => 'nullable|array',
+            'cities.*' => 'exists:cities,id',
+            'city_costs' => 'nullable|array',
+            'city_costs.*' => 'nullable|numeric|min:0',
         ]);
 
         $shippingMethod->update($validated);
+
+        // Sync cities with cost overrides
+        if ($request->has('cities')) {
+            $citiesData = [];
+            foreach ($request->cities as $index => $cityId) {
+                $costOverride = isset($request->city_costs[$cityId]) && $request->city_costs[$cityId] 
+                    ? $request->city_costs[$cityId] 
+                    : null;
+                $citiesData[$cityId] = ['cost_override' => $costOverride];
+            }
+            $shippingMethod->cities()->sync($citiesData);
+        } else {
+            // If no cities selected, remove all city restrictions
+            $shippingMethod->cities()->detach();
+        }
 
         return redirect()->route('shipping-methods.index')->with('success', 'Shipping method updated successfully!');
     }

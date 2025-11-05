@@ -12,7 +12,7 @@ use App\Http\Controllers\Erp\ProductVariationStockController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [PageController::class, 'index'])->name('home');
+// Route::get('/', [PageController::class, 'index'])->name('home');
 Route::get('/', [PageController::class, 'index'])->name('ecommerce.home');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
@@ -74,19 +74,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Checkout
-    Route::get('/checkout', [OrderController::class, 'checkoutPage'])->name('checkout');
-
-    // Order
-    Route::post('/make-order', [OrderController::class, 'makeOrder'])->name('order.make');
+    // Order management (auth-only)
     Route::post('/cancel-order/{orderId}', [OrderController::class, 'cancelOrder'])->name('order.cancel');
     Route::delete('/delete-order/{orderId}', [OrderController::class, 'deleteOrder'])->name('order.delete');
-    Route::get('/order-success/{orderId}', [OrderController::class, 'orderSuccess'])->name('order.success');
-    Route::get('/order-details/{orderNum}', [OrderController::class, 'show'])->name('order.details');
-
-    // Payment Routes
-    Route::post('/payment/initialize', [\App\Http\Controllers\PaymentController::class, 'initializePayment'])->name('payment.initialize');
-    Route::get('/payment/status/{tranId}', [\App\Http\Controllers\PaymentController::class, 'getPaymentStatus'])->name('payment.status');
 
     // Wishlist
     Route::get('/wishlists', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'index'])->name('wishlist.index');
@@ -97,6 +87,19 @@ Route::middleware('auth')->group(function () {
     // Service functionality disabled - commented out
     // Route::get('/requested-service/{service_number}', [ServiceController::class, 'show'])->name('service.request.show');
 });
+// Guest-accessible Checkout and Order routes
+Route::get('/checkout', [OrderController::class, 'checkoutPage'])->name('checkout');
+Route::post('/make-order', [OrderController::class, 'makeOrder'])->name('order.make');
+Route::get('/order-success/{orderId}', [OrderController::class, 'orderSuccess'])->name('order.success');
+Route::get('/order-details/{orderNum}', [OrderController::class, 'show'])->name('order.details');
+
+// City and Shipping API routes
+Route::get('/api/cities/search', [OrderController::class, 'searchCities'])->name('api.cities.search');
+Route::get('/api/shipping-methods/city', [OrderController::class, 'getShippingMethodsForCity'])->name('api.shipping.methods.city');
+
+// Payment initialization and status should be accessible to guests
+Route::post('/payment/initialize', [\App\Http\Controllers\PaymentController::class, 'initializePayment'])->name('payment.initialize');
+Route::get('/payment/status/{tranId}', [\App\Http\Controllers\PaymentController::class, 'getPaymentStatus'])->name('payment.status');
 
 // Payment Routes (outside auth middleware for SSL Commerce callbacks)
 // These routes need to be excluded from CSRF protection for SSL Commerce callbacks

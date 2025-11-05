@@ -111,7 +111,7 @@ function initCategorySplide() {
         if (categoryEl && !categoryEl.__splideMounted) {
             const splide = new Splide(categoryEl, {
                 type: 'loop',
-                perPage: 4,
+                perPage: 3,
                 perMove: 1,
                 gap: '16px',
                 pagination: false,
@@ -269,29 +269,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }).filter(html => html).join('');
             
+            // If we have fewer products than perPage, duplicate them to enable looping
+            const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+            if (products.length > 0 && products.length < perPage * 2) {
+                const originalHtml = listEl.innerHTML;
+                const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                listEl.innerHTML = originalHtml.repeat(timesToRepeat);
+            }
+            
             // Initialize Splide carousel - optimized to prevent shake
+            // Set visibility first, then wait for next frame before initializing
             wrapper.style.visibility = 'visible';
-            const topSplide = new Splide(wrapper, {
-                type: 'loop',
-                perPage: 4,
-                gap: '16px',
-                pagination: false,
-                arrows: true,
-                lazyLoad: 'nearby',
-                autoplay: false,
-                interval: 3000,
-                pauseOnHover: true,
-                rewind: true,
-                // Optimize for stability
-                speed: 400,
-                easing: 'ease',
-                breakpoints: { 
-                    1199: { perPage: 3 }, 
-                    991: { perPage: 2 }, 
-                    575: { perPage: 2 } 
+            requestAnimationFrame(() => {
+                const actualSlideCount = listEl.querySelectorAll('.splide__slide').length;
+                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const canLoop = actualSlideCount >= perPage * 2;
+                
+                console.log('Top Selling - Original Products:', products.length, 'Total Slides:', actualSlideCount, 'PerPage:', perPage, 'CanLoop:', canLoop);
+                
+                const topSplide = new Splide(wrapper, {
+                    type: 'loop',
+                    perPage: perPage,
+                    gap: '16px',
+                    pagination: false,
+                    arrows: true,
+                    autoplay: canLoop,
+                    interval: 1500,
+                    pauseOnHover: true,
+                    rewind: true,
+                    speed: 400,
+                    easing: 'ease',
+                    breakpoints: { 
+                        1199: { perPage: 3 }, 
+                        991: { perPage: 2 }, 
+                        575: { perPage: 2 } 
+                    }
+                });
+                topSplide.mount();
+                
+                // Force autoplay if we have enough slides
+                if (canLoop && topSplide.Components && topSplide.Components.Autoplay) {
+                    topSplide.Components.Autoplay.play();
+                    console.log('Top Selling autoplay enabled and started');
                 }
             });
-            topSplide.mount();
             
             // Log performance metrics
             console.log(`Top selling products loaded in ${loadTime}ms`, {
@@ -416,26 +437,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     return '';
                 }
             }).filter(html => html).join('');
+            
+            // If we have fewer products than perPage, duplicate them to enable looping
+            const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+            if (products.length > 0 && products.length < perPage * 2) {
+                const originalHtml = listEl.innerHTML;
+                const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                listEl.innerHTML = originalHtml.repeat(timesToRepeat);
+            }
 
             wrapper.style.visibility = 'visible';
-            const naSplide = new Splide(wrapper, {
-                type: 'loop',
-                perPage: 4,
-                gap: '16px',
-                pagination: false,
-                arrows: true,
-                lazyLoad: 'nearby',
-                autoplay: false,
-                interval: 2500,
-                pauseOnHover: true,
-                rewind: true,
-                breakpoints: { 
-                    1199: { perPage: 3 }, 
-                    991: { perPage: 2 }, 
-                    575: { perPage: 2 } 
+            requestAnimationFrame(() => {
+                const actualSlideCount = listEl.querySelectorAll('.splide__slide').length;
+                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const canLoop = actualSlideCount >= perPage * 2;
+                
+                console.log('New Arrivals - Original Products:', products.length, 'Total Slides:', actualSlideCount, 'PerPage:', perPage, 'CanLoop:', canLoop);
+                
+                const naSplide = new Splide(wrapper, {
+                    type: 'loop',
+                    perPage: perPage,
+                    gap: '16px',
+                    pagination: false,
+                    arrows: true,
+                    autoplay: canLoop,
+                    interval: 2500,
+                    pauseOnHover: true,
+                    rewind: true,
+                    breakpoints: { 
+                        1199: { perPage: 3 }, 
+                        991: { perPage: 2 }, 
+                        575: { perPage: 2 } 
+                    }
+                });
+                naSplide.mount();
+                
+                // Force autoplay if we have enough slides
+                if (canLoop && naSplide.Components && naSplide.Components.Autoplay) {
+                    naSplide.Components.Autoplay.play();
+                    console.log('New Arrivals autoplay enabled and started');
                 }
             });
-            naSplide.mount();
 
             console.log(`New arrivals loaded in ${loadTime}ms`, { count: products.length });
         })
@@ -561,29 +603,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }).filter(html => html).join('');
             
+            // If we have fewer products than perPage, duplicate them to enable looping
+            const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+            if (products.length > 0 && products.length < perPage * 2) {
+                const originalHtml = listEl.innerHTML;
+                const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                listEl.innerHTML = originalHtml.repeat(timesToRepeat);
+            }
+            
             // Initialize Splide carousel
             wrapper.style.visibility = 'visible';
-            const dealsSplide = new Splide(wrapper, {
-                type: 'loop',
-                perPage: 4,
-                gap: '16px',
-                pagination: false,
-                arrows: true,
-                drag: true,
-                flickPower: 300,
-                releaseWheel: true,
-                keyboard: 'focused',
-                autoplay: false,
-                interval: 4500,
-                pauseOnHover: true,
-                rewind: true,
-                breakpoints: { 
-                    1199: { perPage: 3 }, 
-                    991: { perPage: 2 }, 
-                    575: { perPage: 2 } 
+            requestAnimationFrame(() => {
+                const actualSlideCount = listEl.querySelectorAll('.splide__slide').length;
+                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const canLoop = actualSlideCount >= perPage * 2;
+                
+                console.log('Best Deals - Original Products:', products.length, 'Total Slides:', actualSlideCount, 'PerPage:', perPage, 'CanLoop:', canLoop);
+                
+                const dealsSplide = new Splide(wrapper, {
+                    type: 'loop',
+                    perPage: perPage,
+                    gap: '16px',
+                    pagination: false,
+                    arrows: true,
+                    drag: true,
+                    autoplay: canLoop,
+                    interval: 4500,
+                    pauseOnHover: true,
+                    rewind: true,
+                    breakpoints: { 
+                        1199: { perPage: 3 }, 
+                        991: { perPage: 2 }, 
+                        575: { perPage: 2 } 
+                    }
+                });
+                dealsSplide.mount();
+                
+                // Force autoplay if we have enough slides
+                if (canLoop && dealsSplide.Components && dealsSplide.Components.Autoplay) {
+                    dealsSplide.Components.Autoplay.play();
+                    console.log('Best Deals autoplay enabled and started');
                 }
             });
-            dealsSplide.mount();
             
             console.log(`Best deals loaded in ${loadTime}ms`, { count: products.length });
             

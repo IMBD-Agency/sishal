@@ -6,17 +6,19 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <div class="container py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <form class="d-flex gap-2" method="GET" action="">
+        <div class="container-fluid py-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mb-4">
+                <form class="d-flex flex-column flex-sm-row gap-2" method="GET" action="">
                     <input type="search" name="search" class="form-control" placeholder="Search products..." value="{{ request('search') }}">
                     <select class="form-select" id="category_id" name="category_id" style="max-width: 180px; width: 100%; height: 38px;">
                         <option value="">All Categories</option>
                     </select>
-                    <button class="btn btn-outline-primary" type="submit"><i class="fas fa-search"></i></button>
-                    <a href="{{ route('product.list') }}" class="btn btn-outline-primary" style="display: flex; white-space: nowrap; align-items: center;"><i class="fas fa-sync me-1"></i>Reset Filter</a>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" type="submit"><i class="fas fa-search"></i></button>
+                        <a href="{{ route('product.list') }}" class="btn btn-outline-primary" style="display: flex; white-space: nowrap; align-items: center;"><i class="fas fa-sync me-1"></i>Reset Filter</a>
+                    </div>
                 </form>
-                <a href="{{ route('product.create') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Product</a>
+                <a href="{{ route('product.create') }}" class="btn btn-primary align-self-md-center"><i class="fas fa-plus me-1"></i>Add Product</a>
             </div>
 
             <div class="row g-4">

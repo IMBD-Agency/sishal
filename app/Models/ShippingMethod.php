@@ -48,4 +48,40 @@ class ShippingMethod extends Model
         }
         return null;
     }
+
+    /**
+     * Get cities for this shipping method
+     */
+    public function cities()
+    {
+        return $this->belongsToMany(City::class, 'shipping_method_cities')
+            ->withPivot('cost_override')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get shipping cost for a specific city
+     * Returns override cost if set, otherwise default cost
+     */
+    public function getCostForCity($cityId)
+    {
+        if (!$cityId) {
+            return $this->cost;
+        }
+        
+        $pivot = $this->cities()->where('cities.id', $cityId)->first();
+        return $pivot && $pivot->pivot->cost_override !== null 
+            ? $pivot->pivot->cost_override 
+            : $this->cost;
+    }
+
+    /**
+     * Scope for shipping methods available in a city
+     */
+    public function scopeForCity($query, $cityId)
+    {
+        return $query->whereHas('cities', function($q) use ($cityId) {
+            $q->where('cities.id', $cityId);
+        })->orWhereDoesntHave('cities'); // Include methods without city restrictions
+    }
 }

@@ -103,28 +103,45 @@
 <!-- Main Navigation -->
 <nav class="main-nav">
     <div class="container">
-        <div class="row align-items-center">
-            <!-- Category label aligned with left sidebar (desktop only) -->
-            <div class="col-lg-3 d-none d-lg-block">
-                <div class="nav-category-label"></div>
-            </div>
+        <div class="row align-items-center g-0">
             <!-- Navigation Links -->
-            <div class="col-lg-6 col-md-7">
+            <div class="col-12">
                 <ul class="nav-links">
-                    <li class="nav-item {{ request()->is('/') ? 'active' : '' }}"><a href="/" class="nav-link">Home</a></li>
+                    <li class="nav-item {{ request()->is('/') ? 'active' : '' }}"><a href="/" class="nav-link">HOME</a></li>
                     
-                    <li class="nav-item {{ request()->is('products*') ? 'active' : '' }}"><a href="{{ route('product.archive') }}" class="nav-link">Products</a></li>
-                    <li class="nav-item {{ request()->is('best-deal') ? 'active' : '' }}"><a href="{{ route('best.deal') }}" class="nav-link">Best Deal</a></li>
-                    <li class="nav-item {{ request()->is('contact*') ? 'active' : '' }}"><a href="{{ route('contact') }}" class="nav-link">Contact</a></li>
+                    <!-- Categories with Simple Dropdowns -->
+                    @if(isset($nav_categories) && $nav_categories->count() > 0)
+                        @foreach($nav_categories as $category)
+                        <li class="nav-item nav-item-dropdown">
+                            <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="nav-link">
+                                {{ strtoupper($category->name) }}
+                                @php $children = $category->children ?? ($category->subcategories ?? collect()); @endphp
+                                @if($children->count() > 0)
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="margin-left: 4px; vertical-align: middle;"><path d="M12 15.5l-5-5h10z"/></svg>
+                                @endif
+                            </a>
+                            @php $children = $category->children ?? ($category->subcategories ?? collect()); @endphp
+                            @if($children->count() > 0)
+                            <ul class="dropdown-menu simple-dropdown">
+                                @foreach($children as $child)
+                                <li>
+                                    <a href="{{ route('product.archive') }}?category={{ $child->slug }}" class="subcategory-link">{{ strtoupper($child->name) }}</a>
+                                </li>
+                                @endforeach
+                            </ul>
+                            @endif
+                        </li>
+                        @endforeach
+                    @endif
+                    
+                    <li class="nav-item {{ request()->is('best-deal') ? 'active' : '' }}"><a href="{{ route('best.deal') }}" class="nav-link">BEST DEAL</a></li>
+                    <li class="nav-item {{ request()->is('contact*') ? 'active' : '' }}"><a href="{{ route('contact') }}" class="nav-link">CONTACT</a></li>
                     @foreach($additional_pages as $page)
                     @if($page->positioned_at == 'navbar')
-                    <li class="nav-item {{ request()->is('page/' . $page->slug) ? 'active' : '' }}"><a href="{{ route('additionalPage.show', $page->slug) }}" class="nav-link">{{ $page->title }}</a></li>
+                    <li class="nav-item {{ request()->is('page/' . $page->slug) ? 'active' : '' }}"><a href="{{ route('additionalPage.show', $page->slug) }}" class="nav-link">{{ strtoupper($page->title) }}</a></li>
                     @endif
                     @endforeach
                 </ul>
-            </div>
-            <!-- Right actions align to the end -->
-            <div class="col-lg-3 d-none d-lg-block">
             </div>
         </div>
         <!-- Mobile overlay & side drawer -->
@@ -173,17 +190,53 @@
                 <nav class="drawer-links">
                     <a href="/" class="drawer-link {{ request()->is('/') ? 'active' : '' }}">Home</a>
                     
-                    <a href="{{ route('product.archive') }}" class="drawer-link {{ request()->is('products*') ? 'active' : '' }}">Products</a>
-                    <a href="{{ route('best.deal') }}" class="drawer-link {{ request()->is('best-deal') ? 'active' : '' }}">Best Deal</a>
-                    <a href="{{ route('contact') }}" class="drawer-link {{ request()->is('contact*') ? 'active' : '' }}">Contact</a>
-                    @foreach($additional_pages as $page)
-                        @if($page->positioned_at == 'navbar')
-                        <a href="{{ route('additionalPage.show', $page->slug) }}" class="drawer-link {{ request()->is('page/' . $page->slug) ? 'active' : '' }}">{{ $page->title }}</a>
-                        @endif
-                    @endforeach
+                    @if(isset($nav_categories) && $nav_categories->count() > 0)
+                    <div class="drawer-categories">
+                        <div class="drawer-category-header">Categories</div>
+                        @foreach($nav_categories as $idx => $category)
+                        @php $children = $category->children ?? ($category->subcategories ?? collect()); $hasChildren = $children->count() > 0; @endphp
+                        <div class="drawer-cat{{ $hasChildren ? ' has-children' : '' }}">
+                            <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="drawer-link drawer-category-link">
+                                <span class="dc-text">{{ strtoupper($category->name) }}</span>
+                            </a>
+                            @if($hasChildren)
+                            <button class="drawer-toggle" type="button" aria-label="Toggle subcategories" aria-expanded="false">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <div class="drawer-subcategories" hidden>
+                                @foreach($children as $child)
+                                <a href="{{ route('product.archive') }}?category={{ $child->slug }}" class="drawer-link drawer-subcategory-link">
+                                    {{ strtoupper($child->name) }}
+                                </a>
+                                @endforeach
+                            </div>
+                            @endif
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                    
+                    <!-- Products link removed for mobile drawer -->
+                    <!-- Best Deal and Contact hidden on mobile drawer as requested -->
+                        @foreach($additional_pages as $page)
+                            @php $titleLower = strtolower($page->title ?? ''); @endphp
+                            @if($page->positioned_at == 'navbar' && $titleLower !== 'products' && ($page->slug ?? '') !== 'products')
+                            <a href="{{ route('additionalPage.show', $page->slug) }}" class="drawer-link {{ request()->is('page/' . $page->slug) ? 'active' : '' }}">{{ $page->title }}</a>
+                            @endif
+                        @endforeach
                 </nav>
             </div>
-        </aside>
+                <!-- Slide-in subcategory panel -->
+                <div class="mobile-subpanel" id="mobileSubpanel" hidden aria-hidden="true">
+                    <div class="subpanel-header">
+                        <button class="subpanel-back" id="mobileSubpanelBack" aria-label="Back">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                        <div class="subpanel-title" id="mobileSubpanelTitle">Categories</div>
+                    </div>
+                    <div class="subpanel-body" id="mobileSubpanelBody"></div>
+                </div>
+            </aside>
     </div>
 </nav>
 <!-- end header-stack -->
@@ -241,17 +294,105 @@
         if(toggle && drawer){
             toggle.addEventListener('click', function(){ openDrawer(); });
         }
-        if(overlay){ overlay.addEventListener('click', function(){ closeDrawer(); }); }
+        if(overlay){ overlay.addEventListener('click', function(){
+            // If subpanel is open, close only the subpanel; otherwise close entire drawer
+            var subPanelEl = document.getElementById('mobileSubpanel');
+            if(subPanelEl && !subPanelEl.hasAttribute('hidden')){
+                subPanelEl.classList.remove('open');
+                setTimeout(function(){ subPanelEl.setAttribute('hidden',''); }, 300);
+                return;
+            }
+            closeDrawer();
+        }); }
         if(closeBtn){ closeBtn.addEventListener('click', function(){ closeDrawer(); }); }
         document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeDrawer(); } });
 
         // Close drawer slowly when any link or button inside is clicked
         if(drawer){
             drawer.addEventListener('click', function(e){
+                // Back button inside subpanel should only close subpanel (not the drawer)
+                var backBtn = e.target.closest('#mobileSubpanelBack');
+                if(backBtn){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var panelOnly = document.getElementById('mobileSubpanel');
+                    if(panelOnly){
+                        panelOnly.classList.remove('open');
+                        setTimeout(function(){ panelOnly.setAttribute('hidden',''); }, 300);
+                    }
+                    return;
+                }
+                // Chevron should open the sliding subpanel (not expand inline)
+                var toggleBtn = e.target.closest('.drawer-toggle');
+                if(toggleBtn){
+                    e.preventDefault();
+                    var cat = toggleBtn.closest('.drawer-cat');
+                    if(!cat) return;
+                    var catLink = cat.querySelector('.drawer-category-link');
+                    var title = catLink && catLink.querySelector('.dc-text') ? catLink.querySelector('.dc-text').textContent.trim() : (catLink ? catLink.textContent.trim() : '');
+                    var sub = cat.querySelector('.drawer-subcategories');
+                    var panel = document.getElementById('mobileSubpanel');
+                    var panelBody = document.getElementById('mobileSubpanelBody');
+                    var panelTitle = document.getElementById('mobileSubpanelTitle');
+                    if(panel && panelBody && sub){
+                        panelTitle && (panelTitle.textContent = title);
+                        panelBody.innerHTML = sub.innerHTML;
+                        panel.removeAttribute('hidden');
+                        requestAnimationFrame(function(){ panel.classList.add('open'); });
+                    }
+                    return;
+                }
+                // Open subpanel when tapping a category that has children
+                var catLink = e.target.closest('.drawer-category-link');
+                if(catLink){
+                    var catWrap = catLink.closest('.drawer-cat');
+                    if(catWrap && catWrap.classList.contains('has-children')){
+                        e.preventDefault();
+                        var title = catLink.querySelector('.dc-text') ? catLink.querySelector('.dc-text').textContent.trim() : catLink.textContent.trim();
+                        var sub = catWrap.querySelector('.drawer-subcategories');
+                        var panel = document.getElementById('mobileSubpanel');
+                        var panelBody = document.getElementById('mobileSubpanelBody');
+                        var panelTitle = document.getElementById('mobileSubpanelTitle');
+                        if(panel && panelBody && sub){
+                            panelTitle && (panelTitle.textContent = title);
+                            panelBody.innerHTML = sub.innerHTML;
+                            panel.removeAttribute('hidden');
+                            requestAnimationFrame(function(){ panel.classList.add('open'); });
+                            return;
+                        }
+                    }
+                }
                 var interactive = e.target.closest('a, button');
                 if(interactive){ closeDrawer(); }
             });
         }
+
+        // Subpanel back handler
+        var subBack = document.getElementById('mobileSubpanelBack');
+        var subPanel = document.getElementById('mobileSubpanel');
+        if(subBack && subPanel){
+            subBack.addEventListener('click', function(){
+                subPanel.classList.remove('open');
+                setTimeout(function(){ subPanel.setAttribute('hidden',''); }, 300);
+            });
+        }
+
+        // Close subpanel when clicking outside of it
+        document.addEventListener('click', function(e){
+            if(!subPanel || subPanel.hasAttribute('hidden')) return;
+            if(e.target.closest('#mobileSubpanel')) return;
+            // clicks on toggle or category link should be handled by drawer listener
+            if(e.target.closest('.drawer-toggle') || e.target.closest('.drawer-category-link')) return;
+            subPanel.classList.remove('open');
+            setTimeout(function(){ subPanel.setAttribute('hidden',''); }, 300);
+        });
+        // Close on Escape as well
+        document.addEventListener('keydown', function(e){
+            if(e.key === 'Escape' && subPanel && !subPanel.hasAttribute('hidden')){
+                subPanel.classList.remove('open');
+                setTimeout(function(){ subPanel.setAttribute('hidden',''); }, 300);
+            }
+        });
 
         // Mobile search toggle with focus and accessibility
         function openSearchBar(){
@@ -294,8 +435,231 @@
     })();
 </script>
 <style>
+/* Navigation Styling - Clean and Simple Like Reference */
+.main-nav {
+    background: #fff;
+}
+
+.main-nav .container {
+    padding: 0;
+    max-width: 100%;
+}
+
+.main-nav .row {
+    margin: 0;
+}
+
+.main-nav .nav-links {
+    display: flex !important;
+    align-items: center;
+    justify-content: center !important;
+    gap: 0 !important;
+    list-style: none;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    flex-wrap: nowrap;
+}
+
+.main-nav .nav-item {
+    margin: 0 !important;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.main-nav .nav-link {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 20px !important;
+    text-decoration: none;
+    color: #374151 !important;
+    font-weight: 500;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    position: relative;
+}
+
+.main-nav .nav-link:hover {
+    color: #059669 !important;
+}
+
+.main-nav .nav-item.active .nav-link {
+    color: #059669 !important;
+    border-bottom: none !important;
+}
+
+.main-nav .nav-item.active .nav-link::after,
+.main-nav .nav-link::after {
+    display: none !important;
+    content: none !important;
+    border-bottom: none !important;
+    background: none !important;
+    height: 0 !important;
+}
+
+.main-nav .nav-link svg {
+    margin-left: 6px;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.main-nav .nav-item-dropdown:hover .nav-link svg {
+    transform: rotate(180deg);
+}
+
 @media (max-width: 992px) {
     .main-nav .nav-links, .main-nav .nav-category-label { display: none !important; }
+}
+
+/* Simple Category Dropdown Styles - Like Reference Image */
+.main-nav .nav-item-dropdown {
+    position: relative;
+}
+
+.main-nav .nav-item-dropdown:hover .nav-link {
+    color: #059669 !important;
+}
+
+.main-nav .nav-item-dropdown .simple-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 0;
+    margin-top: 0;
+    z-index: 1000;
+    display: none;
+    list-style: none;
+}
+
+.main-nav .nav-item-dropdown:hover .simple-dropdown {
+    display: block;
+}
+
+.main-nav .nav-item-dropdown .simple-dropdown:hover {
+    display: block;
+}
+
+.main-nav .nav-item-dropdown .simple-dropdown li {
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px dotted #e5e7eb;
+}
+
+.main-nav .nav-item-dropdown .simple-dropdown li:last-child {
+    border-bottom: none;
+}
+
+.main-nav .nav-item-dropdown .simple-dropdown .subcategory-link {
+    display: block;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+}
+
+.main-nav .nav-item-dropdown .simple-dropdown .subcategory-link:hover {
+    background: #f9fafb;
+    color: #059669;
+}
+
+/* Mobile Drawer Categories */
+.drawer-categories {
+    margin: 12px 0 4px 0;
+}
+
+.drawer-category-header {
+    display: none; /* hide 'Categories' title on mobile */
+}
+
+.drawer-category-link {
+    padding: 12px 16px 12px 20px;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+
+.drawer-cat { position: relative; }
+.drawer-cat.has-children .drawer-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: #9ca3af; border-radius: 6px;
+}
+.drawer-cat.open .drawer-toggle { color: #059669; }
+.drawer-cat .drawer-toggle:hover { background: #f3f4f6; }
+.drawer-cat.open .drawer-toggle svg { transform: rotate(90deg); transition: transform .2s ease; }
+.drawer-subcategories { padding-left: 0; margin-left: 0; border-left: 2px solid #f3f4f6; }
+
+.drawer-subcategories {
+    padding-left: 6px;
+    margin: 0 0 6px 0;
+    display: none !important; /* never open inline on mobile */
+}
+
+.drawer-subcategory-link {
+    padding: 10px 16px 10px 28px;
+    font-size: 13px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+
+/* Drawer link visual improvements */
+.drawer-links .drawer-link {
+    display: block;
+    padding: 12px 16px;
+    color: #374151;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    font-size: 13px;
+}
+.drawer-links .drawer-link:last-child { border-bottom: none; }
+.drawer-links .drawer-link:hover { background: #f9fafb; color: #059669; }
+.drawer-links .drawer-link.active { color: #059669; }
+
+/* Subpanel styles */
+.mobile-subpanel {
+    position: fixed; inset: 0 0 0 auto; width: 100%; max-width: 88%; background: #fff; z-index: 17000;
+    transform: translateX(100%); transition: transform .3s ease;
+    box-shadow: -12px 0 30px rgba(0,0,0,.08);
+}
+.mobile-subpanel.open { transform: translateX(0); }
+.mobile-subpanel .subpanel-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #e5e7eb; }
+.mobile-subpanel .subpanel-title { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: .3px; }
+.mobile-subpanel .subpanel-body { padding: 6px 0; }
+.mobile-subpanel .subpanel-body .drawer-link { border-bottom: none; font-size: 13px; }
+.subpanel-back { border: none; background: transparent; padding: 6px; border-radius: 6px; color: #6b7280; }
+.subpanel-back:hover { background: #f3f4f6; }
+
+@media (max-width: 991.98px) {
+    .main-nav .nav-item-dropdown .simple-dropdown {
+        position: static;
+        display: block;
+        box-shadow: none;
+        border: none;
+        margin-top: 0;
+    }
+    
+    .main-nav .nav-item-dropdown .simple-dropdown li {
+        border-bottom: 1px solid #e5e7eb;
+    }
 }
 </style>
 @include('ecommerce.components.offcanvas-cart')

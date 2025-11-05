@@ -31,6 +31,22 @@
                         </div>
                     </div>
 
+                    {{-- Error Messages --}}
+                    @if(session('error'))
+                    <div class="alert alert-danger">
+                        {{ session('error') }}
+                    </div>
+                    @endif
+                    @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+
                     <form class="row g-4" id="checkoutForm" action="{{ route('order.make') }}" method="POST">
                         @csrf
                         <!-- Left Column - Forms -->
@@ -46,37 +62,42 @@
                                         <div class="row g-3">
                                             <div class="col-md-6">
                                                 <label class="form-label">First Name *</label>
-                                                <input type="text" class="form-control modern-input" name="first_name" value="{{ auth()->user()->first_name }}" required>
+                                                <input type="text" class="form-control modern-input" name="first_name" value="{{ optional(auth()->user())->first_name }}" required>
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label">Last Name *</label>
-                                                <input type="text" class="form-control modern-input" name="last_name" value="{{ auth()->user()->last_name }}" required>
+                                                <label class="form-label">Last Name</label>
+                                                <input type="text" class="form-control modern-input" name="last_name" value="{{ optional(auth()->user())->last_name }}">
                                             </div>
                                             <div class="col-12">
-                                                <label class="form-label">Email Address *</label>
-                                                <input type="email" class="form-control modern-input" name="email" value="{{ auth()->user()->email }}" required>
+                                                <label class="form-label">Email Address</label>
+                                                <input type="email" class="form-control modern-input" name="email" value="{{ optional(auth()->user())->email }}">
                                             </div>
                                             <div class="col-12">
                                                 <label class="form-label">Phone Number *</label>
-                                                <input type="tel" class="form-control modern-input" name="phone" value="{{ optional(auth()->user()->customer)->phone }}" required>
+                                                <input type="tel" class="form-control modern-input" name="phone" value="{{ optional(optional(auth()->user())->customer)->phone }}" required>
                                             </div>
                                             <h5 class="mt-3"><i class="fas fa-file-invoice me-2"></i>Billing Address</h5>
                                             <div class="col-12">
                                                 <label class="form-label">Address *</label>
-                                                <input type="text" class="form-control modern-input" name="billing_address_1" value="{{ optional(auth()->user()->customer)->address_1 }}" required>
+                                                <input type="text" class="form-control modern-input" name="billing_address_1" value="{{ optional(optional(auth()->user())->customer)->address_1 }}" required>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label">City *</label>
-                                                <input type="text" class="form-control modern-input" name="billing_city" value="{{ optional(auth()->user()->customer)->city }}" required>
+                                                <div class="city-select-wrapper">
+                                                    <input type="text" 
+                                                           class="form-control modern-input city-search-input" 
+                                                           id="billing_city_search" 
+                                                           placeholder="Search and select city..." 
+                                                           autocomplete="off"
+                                                           value="{{ optional(optional(auth()->user())->customer)->city }}"
+                                                           required>
+                                                    <input type="hidden" name="billing_city_id" id="billing_city_id" value="">
+                                                    <input type="hidden" name="billing_city" id="billing_city" value="{{ optional(optional(auth()->user())->customer)->city }}">
+                                                    <div class="city-dropdown" id="billing_city_dropdown" style="display: none;"></div>
+                                                </div>
                                             </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">State *</label>
-                                                <input type="text" class="form-control modern-input" name="billing_state" value="{{ optional(auth()->user()->customer)->state }}" required>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">ZIP Code *</label>
-                                                <input type="text" class="form-control modern-input" name="billing_zip_code" value="{{ optional(auth()->user()->customer)->zip_code }}" required>
-                                            </div>
+                                            <input type="hidden" name="billing_state" value="">
+                                            <input type="hidden" name="billing_zip_code" value="">
                                             <input type="hidden" name="billing_address_2" value="">
                                             <input type="hidden" name="billing_country" value="">
                                             <input type="hidden" name="shipping_address_2" value="">
@@ -98,7 +119,7 @@
                                                     <input type="text" class="form-control modern-input" name="shipping_first_name">
                                                 </div>
                                                 <div class="col-md-6">
-                                                    <label class="form-label">Last Name *</label>
+                                                    <label class="form-label">Last Name</label>
                                                     <input type="text" class="form-control modern-input" name="shipping_last_name">
                                                 </div>
                                                 <div class="col-12">
@@ -111,19 +132,23 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label">City *</label>
-                                                    <input type="text" class="form-control modern-input" name="shipping_city" value="">
+                                                    <div class="city-select-wrapper">
+                                                        <input type="text" 
+                                                               class="form-control modern-input city-search-input" 
+                                                               id="shipping_city_search" 
+                                                               placeholder="Search and select city..." 
+                                                               autocomplete="off"
+                                                               value="">
+                                                        <input type="hidden" name="shipping_city_id" id="shipping_city_id" value="">
+                                                        <input type="hidden" name="shipping_city" id="shipping_city" value="">
+                                                        <div class="city-dropdown" id="shipping_city_dropdown" style="display: none;"></div>
+                                                    </div>
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label">State *</label>
-                                                    <input type="text" class="form-control modern-input" name="shipping_state" value="">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label">ZIP Code *</label>
-                                                    <input type="text" class="form-control modern-input" name="shipping_zip_code" value="">
-                                                </div>
+                                                <input type="hidden" name="shipping_state" value="">
+                                                <input type="hidden" name="shipping_zip_code" value="">
                                             </div>
                                         </div>
-                                        <input type="hidden" name="shipping_method" id="shippingMethodInput" value="standard">
+                                        {{-- removed hidden shipping method; using radio inputs below --}}
                                         {{-- <input type="hidden" name="payment_method" id="paymentMethodInput" value="cod"> --}}
                                     </div>
                                 </div>
@@ -139,7 +164,7 @@
                                     <div class="shipping-options">
                                         @foreach($shippingMethods as $index => $method)
                                         <div class="shipping-option">
-                                            <input type="radio" name="shipping" id="shipping_{{ $method->id }}" value="{{ $method->id }}" {{ $index === 0 ? 'checked' : '' }}>
+                                            <input type="radio" name="shipping_method" id="shipping_{{ $method->id }}" value="{{ $method->id }}" {{ $index === 0 ? 'checked' : '' }}>
                                             <label for="shipping_{{ $method->id }}" class="shipping-label">
                                                 <div class="shipping-info">
                                                     <div class="shipping-name">{{ $method->name }}</div>
@@ -168,6 +193,8 @@
                                                 <span>Cash on Delivery</span>
                                             </label>
                                         </div>
+                                        {{-- Temporarily hidden: Online Payment option --}}
+                                        {{--
                                         <div class="payment-option">
                                             <input type="radio" name="payment_method" id="online" value="online-payment">
                                             <label for="online" class="payment-label">
@@ -175,7 +202,10 @@
                                                 <span>Online Payment</span>
                                             </label>
                                         </div>
+                                        --}}
                                     </div>
+                                    {{-- Temporarily hidden: Online payment form --}}
+                                    {{--
                                     <div class="credit-card-form" id="onlinePaymentForm" style="display: none;">
                                         <div class="ssl-commerce-payment">
                                             <div class="payment-info">
@@ -186,8 +216,23 @@
                                             </div>
                                         </div>
                                     </div>
+                                    --}}
                                 </div>
                             </div>
+
+                    <!-- Order Note -->
+                    <div class="checkout-section">
+                        <div class="section-header">
+                            <h4><i class="fas fa-sticky-note me-2"></i>Order Note (Optional)</h4>
+                            <p class="text-muted">Any special instructions for your order</p>
+                        </div>
+                        <div class="section-body">
+                            <div class="mb-3">
+                                <label class="form-label">Note</label>
+                                <textarea name="notes" class="form-control modern-input" rows="3" placeholder="e.g., Please call before delivery, leave at reception, etc.">{{ old('notes') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
                         </div>
 
                         <!-- Right Column - Order Summary -->
@@ -348,7 +393,8 @@
             box-shadow: var(--shadow-md);
             margin-bottom: 2rem;
             border: 1px solid var(--border-color);
-            overflow: hidden;
+            /* Allow dropdowns to escape the section */
+            overflow: visible;
         }
 
         .section-header {
@@ -651,6 +697,74 @@
             color: var(--text-dark);
         }
 
+        /* City Search Dropdown Styles */
+        .city-select-wrapper {
+            position: relative;
+            /* Ensure new stacking context above section content */
+            z-index: 2;
+        }
+
+        .city-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid var(--primary-blue);
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            /* Sit above sticky order summary and other elements */
+            z-index: 9999;
+            box-shadow: var(--shadow-lg);
+            margin-top: -2px;
+        }
+
+        .city-dropdown-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .city-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .city-dropdown-item:hover {
+            background: var(--light-blue);
+        }
+
+        .city-dropdown-item.active {
+            background: var(--light-blue);
+            font-weight: 600;
+        }
+
+        .city-dropdown-item .city-name {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .city-dropdown-item .city-location {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 0.25rem;
+        }
+
+        .city-dropdown-empty {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        .city-dropdown-loading {
+            padding: 1rem;
+            text-align: center;
+            color: var(--primary-blue);
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .progress-container {
@@ -705,8 +819,188 @@
                     });
                 }
 
-                // Shipping method price update
-                const shippingOptions = document.querySelectorAll('input[name="shipping"]');
+                // City Search Functionality
+                let citySearchTimeout;
+                let selectedCityId = null;
+                let isBillingCity = true; // Track which city field is active
+
+                function initCitySearch(inputId, dropdownId, cityIdInputId, cityNameInputId, isBilling = true) {
+                    const input = document.getElementById(inputId);
+                    const dropdown = document.getElementById(dropdownId);
+                    const cityIdInput = document.getElementById(cityIdInputId);
+                    const cityNameInput = document.getElementById(cityNameInputId);
+
+                    if (!input || !dropdown) return;
+
+                    // Search cities on input
+                    input.addEventListener('input', function() {
+                        const query = this.value.trim();
+                        
+                        clearTimeout(citySearchTimeout);
+                        
+                        if (query.length < 2) {
+                            dropdown.style.display = 'none';
+                            cityIdInput.value = '';
+                            selectedCityId = null;
+                            if (isBilling) {
+                                updateShippingMethods(null);
+                            }
+                            return;
+                        }
+
+                        dropdown.innerHTML = '<div class="city-dropdown-loading">Searching...</div>';
+                        dropdown.style.display = 'block';
+
+                        citySearchTimeout = setTimeout(() => {
+                            fetch(`{{ route('api.cities.search') }}?q=${encodeURIComponent(query)}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.cities && data.cities.length > 0) {
+                                        dropdown.innerHTML = data.cities.map(city => `
+                                            <div class="city-dropdown-item" data-city-id="${city.id}" data-city-name="${city.display_name}">
+                                                <div class="city-name">${city.name}</div>
+                                                <div class="city-location">${city.display_name}</div>
+                                            </div>
+                                        `).join('');
+
+                                        // Add click handlers
+                                        dropdown.querySelectorAll('.city-dropdown-item').forEach(item => {
+                                            item.addEventListener('click', function() {
+                                                const cityId = this.getAttribute('data-city-id');
+                                                const cityName = this.getAttribute('data-city-name');
+                                                input.value = cityName;
+                                                cityIdInput.value = cityId;
+                                                cityNameInput.value = cityName.split(',')[0]; // Just city name
+                                                dropdown.style.display = 'none';
+                                                selectedCityId = cityId;
+                                                
+                                                // Update shipping methods when city is selected (use billing city, fallback to shipping city)
+                                                if (isBilling) {
+                                                    updateShippingMethods(cityId);
+                                                } else {
+                                                    // If shipping city is selected and billing city is not set, use shipping city
+                                                    const billingCityId = document.getElementById('billing_city_id').value;
+                                                    if (!billingCityId) {
+                                                        updateShippingMethods(cityId);
+                                                    }
+                                                }
+                                            });
+                                        });
+                                    } else {
+                                        dropdown.innerHTML = '<div class="city-dropdown-empty">No cities found</div>';
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('City search error:', error);
+                                    dropdown.innerHTML = '<div class="city-dropdown-empty">Error searching cities</div>';
+                                });
+                        }, 300);
+                    });
+
+                    // Hide dropdown when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+
+                    // Focus handling
+                    input.addEventListener('focus', function() {
+                        if (this.value.trim().length >= 2 && dropdown.innerHTML && !dropdown.innerHTML.includes('Searching')) {
+                            dropdown.style.display = 'block';
+                        }
+                    });
+                }
+
+                // Initialize city search for billing and shipping
+                initCitySearch('billing_city_search', 'billing_city_dropdown', 'billing_city_id', 'billing_city', true);
+                initCitySearch('shipping_city_search', 'shipping_city_dropdown', 'shipping_city_id', 'shipping_city', false);
+
+                // Update shipping methods based on city
+                function updateShippingMethods(cityId) {
+                    const url = cityId 
+                        ? `{{ route('api.shipping.methods.city') }}?city_id=${cityId}`
+                        : `{{ route('api.shipping.methods.city') }}`;
+
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.shipping_methods && data.shipping_methods.length > 0) {
+                                // Update shipping options
+                                const shippingOptionsContainer = document.querySelector('.shipping-options');
+                                if (shippingOptionsContainer) {
+                                    shippingOptionsContainer.innerHTML = data.shipping_methods.map((method, index) => `
+                                        <div class="shipping-option">
+                                            <input type="radio" name="shipping_method" id="shipping_${method.id}" value="${method.id}" ${index === 0 ? 'checked' : ''}>
+                                            <label for="shipping_${method.id}" class="shipping-label">
+                                                <div class="shipping-info">
+                                                    <div class="shipping-name">${method.name}</div>
+                                                    <div class="shipping-desc">${method.delivery_time || method.description || ''}</div>
+                                                </div>
+                                                <div class="shipping-price">${method.formatted_cost}৳</div>
+                                            </label>
+                                        </div>
+                                    `).join('');
+
+                                    // Re-attach event listeners
+                                    document.querySelectorAll('input[name="shipping_method"]').forEach(option => {
+                                        option.addEventListener('change', function() {
+                                            updateShippingPrice(this.value, data.summary);
+                                        });
+                                    });
+                                }
+
+                                // Update order summary
+                                updateOrderSummary(data.summary);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching shipping methods:', error);
+                        });
+                }
+
+                // Update shipping method price
+                function updateShippingPrice(methodId, summary = null) {
+                    if (summary) {
+                        updateOrderSummary(summary);
+                        return;
+                    }
+
+                    // Fallback: get from current shipping methods data
+                    const selectedMethod = document.querySelector(`input[name="shipping_method"]:checked`);
+                    if (selectedMethod) {
+                        const methodCost = parseFloat(selectedMethod.closest('.shipping-option').querySelector('.shipping-price').textContent.replace(/[৳,]/g, ''));
+                        const subtotal = {{ $cartTotal }};
+                        const tax = {{ $cartTotal * $taxRate }};
+                        const shipping = methodCost || 0;
+                        const total = subtotal + tax + shipping;
+
+                        updateOrderSummary({
+                            subtotal: subtotal,
+                            tax: tax,
+                            shipping: shipping,
+                            total: total,
+                            formatted_subtotal: subtotal.toFixed(2),
+                            formatted_tax: tax.toFixed(2),
+                            formatted_shipping: shipping.toFixed(2),
+                            formatted_total: total.toFixed(2)
+                        });
+                    }
+                }
+
+                // Update order summary
+                function updateOrderSummary(summary) {
+                    const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
+                    const totalElement = document.querySelector('.total-row span:last-child');
+                    const buttonElement = document.querySelector('.btn-place-order');
+                    
+                    if (shippingElement) shippingElement.textContent = `${summary.formatted_shipping}৳`;
+                    if (totalElement) totalElement.textContent = `${summary.formatted_total}৳`;
+                    if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${summary.formatted_total}৳`;
+                }
+
+                // Shipping method price update (original - keep for compatibility)
+                const shippingOptions = document.querySelectorAll('input[name="shipping_method"]');
                 shippingOptions.forEach(option => {
                     option.addEventListener('change', function () {
                         updateShippingPrice(this.value);
@@ -733,6 +1027,21 @@
                 if (sameAsBilling && billingAddressSection) {
                     sameAsBilling.addEventListener('change', function () {
                         billingAddressSection.style.display = this.checked ? 'none' : '';
+                        
+                        // If checked, sync shipping city with billing city
+                        if (this.checked) {
+                            const billingCityId = document.getElementById('billing_city_id').value;
+                            const billingCityName = document.getElementById('billing_city').value;
+                            const billingCitySearch = document.getElementById('billing_city_search').value;
+                            
+                            if (billingCityId) {
+                                document.getElementById('shipping_city_id').value = billingCityId;
+                                document.getElementById('shipping_city').value = billingCityName;
+                                document.getElementById('shipping_city_search').value = billingCitySearch;
+                                // Update shipping methods based on billing city
+                                updateShippingMethods(billingCityId);
+                            }
+                        }
                     });
                 }
                 // Payment method toggle (second listener)

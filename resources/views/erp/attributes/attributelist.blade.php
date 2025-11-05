@@ -256,8 +256,8 @@
             text-decoration: none;
         }
         .pagination .page-item.active .page-link {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
             color: white;
         }
         .pagination .page-item.disabled .page-link {

@@ -538,7 +538,18 @@ class PageController extends Controller
         $maxProductPrice = Product::max('price') ?? 1000;
         
         // Build query
-        $query = Product::with(['category'])
+        $query = Product::with([
+                'category',
+                'reviews' => function($q) { 
+                    $q->where('is_approved', true); 
+                },
+                'branchStock',
+                'warehouseStock',
+                'variations' => function($q) {
+                    $q->where('status', 'active');
+                },
+                'variations.stocks'
+            ])
             ->where('status', 'active')
             ->where('type', 'product');
 
@@ -592,14 +603,36 @@ class PageController extends Controller
 
         $products = $query->paginate(12)->appends($request->all());
 
-        // Add wishlist status
+        // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
+        $userId = Auth::id();
         $wishlistedIds = [];
-        if (auth()->check()) {
-            $wishlistedIds = \App\Models\Wishlist::where('user_id', auth()->id())
-                ->pluck('product_id')->toArray();
+        if ($userId) {
+            $wishlistedIds = Wishlist::where('user_id', $userId)
+                ->whereIn('product_id', $products->pluck('id'))
+                ->pluck('product_id')
+                ->toArray();
         }
+        
         foreach ($products as $product) {
+            // Add wishlist status
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
+            
+            // Pre-calculate ratings and reviews (avoid N+1 queries)
+            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+            $product->total_reviews = $product->reviews->count();
+            
+            // Pre-calculate stock status (avoid N+1 queries)
+            if ($product->has_variations) {
+                // For products with variations, check if any active variation has stock
+                $product->has_stock = $product->variations->contains(function($variation) {
+                    return $variation->stocks->sum('quantity') > 0;
+                });
+            } else {
+                // For products without variations, check branch and warehouse stock
+                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+            }
         }
 
         if ($request->ajax()) {

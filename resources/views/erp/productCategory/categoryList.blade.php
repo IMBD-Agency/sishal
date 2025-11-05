@@ -8,17 +8,17 @@
 
         @include('erp.components.header')
 
-        <div class="container">
+        <div class="container-fluid py-4">
             <div class="row">
-                <div class="col-12 my-4">
+                <div class="col-12">
                     <div class="card border w-100 shadow-sm">
                         <div class="card-header bg-white py-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="fw-bold mb-0">
                                     <i class="fas fa-box text-primary me-2"></i>Category List
                                 </h5>
-                                <div class="d-flex gap-2">
-                                    <form action="" method="GET" class="d-flex align-items-center gap-2">
+                                <div class="d-flex flex-column flex-sm-row gap-2">
+                                    <form action="" method="GET" class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
                                         <input type="search" name="search" class="form-control form-control-sm"
                                             placeholder="Search categories..." value="{{ request('search') }}"
                                             style="width: 220px;">
@@ -37,7 +37,127 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
+                            <!-- Mobile list -->
+                            <div class="d-md-none">
+                                <div class="list-group list-group-flush">
+                                    @forelse ($categories as $idx => $category)
+                                        <div class="list-group-item">
+                                            <div class="d-flex align-items-center">
+                                                @if($category->image)
+                                                    <img src="{{ asset($category->image) }}" width="44" height="44" class="rounded me-2" style="object-fit:cover" />
+                                                @else
+                                                    <div class="rounded bg-light me-2" style="width:44px;height:44px;"></div>
+                                                @endif
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold">{{ $category->name }}</div>
+                                                    <div class="small text-muted">#{{ $categories->firstItem() + $idx }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="form-check form-switch m-0">
+                                                        <input class="form-check-input" type="checkbox" data-update-url="{{ route('category.update', $category->id) }}" {{ $category->status == 'active' ? 'checked' : '' }} onchange="toggleStatus(this, '{{ route('category.update', $category->id) }}')">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2 d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCategoryModal{{ $category->id }}">Edit</button>
+                                                <form action="{{ route('category.delete', $category->id) }}" method="POST" onsubmit="return confirm('Delete this category?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="list-group-item text-center text-muted">No Category Found...</div>
+                                    @endforelse
+                                </div>
+                                @foreach ($categories as $category)
+                                    <!-- Edit Modal (duplicated for mobile availability) -->
+                                    <div class="modal fade" id="editCategoryModal{{ $category->id }}"
+                                        tabindex="-1"
+                                        aria-labelledby="editCategoryModalLabel{{ $category->id }}"
+                                        aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title"
+                                                        id="editCategoryModalLabel{{ $category->id }}"><i
+                                                            class="fas fa-layer-group me-2"></i>Edit Category
+                                                    </h5>
+                                                    <button type="button" class="btn-close btn-close-white"
+                                                        data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ route('category.update', $category->id) }}"
+                                                    method="POST" enctype="multipart/form-data">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label for="edit_category_name_{{ $category->id }}"
+                                                                class="form-label">Category Name <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" class="form-control"
+                                                                id="edit_category_name_{{ $category->id }}"
+                                                                name="name" value="{{ $category->name }}"
+                                                                required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_category_slug_{{ $category->id }}" class="form-label">Slug <span class="text-danger">*</span></label>
+                                                            <input type="text" class="form-control" id="edit_category_slug_{{ $category->id }}" name="slug" value="{{ $category->slug ?? '' }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label
+                                                                for="edit_category_description_{{ $category->id }}"
+                                                                class="form-label">Description</label>
+                                                            <textarea class="form-control"
+                                                                id="edit_category_description_{{ $category->id }}"
+                                                                name="description"
+                                                                rows="2">{{ $category->description }}</textarea>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="edit_category_image_{{ $category->id }}"
+                                                                class="form-label">Category Image</label>
+                                                            <input class="form-control" type="file"
+                                                                id="edit_category_image_{{ $category->id }}"
+                                                                name="image" accept="image/*">
+                                                            @if($category->image)
+                                                                <img src="{{ asset($category->image) }}"
+                                                                    width="100px" class="mt-2 rounded" />
+                                                            @endif
+                                                            <small class="form-text text-muted">Supported: jpeg,
+                                                                png, jpg, gif, svg. Max size: 2MB.</small>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label
+                                                                for="edit_category_status_{{ $category->id }}"
+                                                                class="form-label">Status</label>
+                                                            <select class="form-select"
+                                                                id="edit_category_status_{{ $category->id }}"
+                                                                name="status">
+                                                                <option value="active"
+                                                                    @if($category->status == 'active') selected
+                                                                    @endif>Active</option>
+                                                                <option value="inactive"
+                                                                    @if($category->status == 'inactive') selected
+                                                                    @endif>Inactive</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary"><i
+                                                                class="fas fa-save me-1"></i>Update
+                                                            Category</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <!-- Desktop table -->
+                            <div class="table-responsive d-none d-md-block">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>

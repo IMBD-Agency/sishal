@@ -98,7 +98,7 @@
                                     <tr>
                                         <td><a href="{{ route('invoice.show',$invoice->id) }}" class="btn btn-outline-primary">#{{ $invoice->invoice_number }}</a></td>
                                         <td>{{ optional($invoice->customer)->name ?? 'Walk-in-Customer' }}</td>
-                                        <td>{{ optional($invoice->salesman) ? $invoice->salesman->first_name . ' ' . $invoice->salesman->last_name : '' }}</td>
+                                        <td>{{ trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System' }}</td>
                                         <td>{{ $invoice->issue_date }}</td>
                                         <td>{{ $invoice->due_date }}</td>
                                         <td>

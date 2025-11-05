@@ -23,7 +23,15 @@ class OrderController extends Controller
 {
     public function checkoutPage()
     {
-        $carts = Cart::where('user_id', auth()->id())->get();
+        $userId = auth()->id();
+        $sessionId = session()->getId();
+        $carts = Cart::with(['product','variation'])
+            ->when($userId, function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            }, function($q) use ($sessionId) {
+                $q->whereNull('user_id')->where('session_id', $sessionId);
+            })
+            ->get();
         $cartTotal = 0;
 
         foreach ($carts as $cart) {
@@ -47,20 +55,25 @@ class OrderController extends Controller
 
     public function makeOrder(Request $request)
     {
+        $userId = auth()->id();
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string',
-            'last_name' => 'required|string',
+            'last_name' => 'nullable|string',
             'email' => 'nullable|email',
             'phone' => 'required|string',
             'billing_address_1' => 'required|string',
             'billing_city' => 'required|string',
-            'billing_state' => 'required|string',
-            'billing_zip_code' => 'required|string',
+            'billing_city_id' => 'nullable|exists:cities,id',
+            'billing_state' => 'nullable|string',
+            'billing_zip_code' => 'nullable|string',
             'shipping_address_1' => 'nullable|string',
             'shipping_city' => 'nullable|string',
+            'shipping_city_id' => 'nullable|exists:cities,id',
             'shipping_state' => 'nullable|string',
             'shipping_zip_code' => 'nullable|string',
-            'shipping_method' => 'required|in:standard,express,overnight',
+            // Keep existing validation; UI may post enum or id depending on implementation
+            'shipping_method' => 'required',
             'payment_method' => 'required|in:cash,online-payment',
         ]);
 
@@ -76,10 +89,25 @@ class OrderController extends Controller
             ], 422);
         }
 
-        $userId = auth()->id();
-        $carts = Cart::with(['product','variation'])->where('user_id', $userId)->get();
+        $sessionId = session()->getId();
+        $carts = Cart::with(['product','variation'])
+            ->when($userId, function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            }, function($q) use ($sessionId) {
+                $q->whereNull('user_id')->where('session_id', $sessionId);
+            })
+            ->get();
         if ($carts->isEmpty()) {
-            return response()->json(['success' => false, 'message' => 'Cart is empty.'], 400);
+            // For AJAX requests, return a validation-style response
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your cart is empty. Please add products before placing an order.',
+                    'errors' => [ 'cart' => ['Your cart is empty.'] ]
+                ], 422);
+            }
+            // For normal form submissions, redirect back with an error flash message
+            return redirect()->back()->with('error', 'Your cart is empty. Please add products before placing an order.');
         }
 
         $subtotal = 0;
@@ -115,8 +143,10 @@ class OrderController extends Controller
         
         $tax = round($subtotal * $taxRate, 2);
         
-        // Get shipping method from database
-        $shippingMethod = \App\Models\ShippingMethod::find($request->shipping_method);
+        // Determine shipping cost (accept id or enum name)
+        $shippingMethod = is_numeric($request->shipping_method)
+            ? \App\Models\ShippingMethod::find($request->shipping_method)
+            : \App\Models\ShippingMethod::where('name', $request->shipping_method)->first();
         $shipping = $shippingMethod ? $shippingMethod->cost : 0;
         $total = $subtotal + $tax + $shipping;
 
@@ -129,7 +159,7 @@ class OrderController extends Controller
 
             $order = Order::create([
                 'order_number' => $orderNumber,
-                'user_id' => $userId,
+                'user_id' => $userId ?? 0,
                 'name' => $request->first_name. ' '.$request->last_name,
                 'email' => $request->email,
                 'phone' => $request->phone,
@@ -141,34 +171,46 @@ class OrderController extends Controller
                 'status' => $isInstantPaid ? 'approved' : 'pending',
                 'payment_method' => $request->payment_method,
                 'notes' => $request->notes ?? null,
-                'created_by' => $userId
+                'created_by' => $userId ?? 0
             ]);
 
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
             $invoiceNumber = $this->generateInvoiceNumber();
 
-            // Find or create a Customer for the logged-in user
-            $customer = Customer::firstOrCreate(
-                [
-                    'user_id' => $userId,
-                ],
-                [
-                    'name' => trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: 'Customer',
-                    'email' => $request->email,
-                    'phone' => $request->phone,
-                    'created_by' => $userId,
-                    'is_active' => 1,
-                ]
-            );
-            // Update details if changed
-            $customer->name = trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: ($customer->name ?? 'Customer');
-            $customer->email = $request->email ?? $customer->email;
-            $customer->phone = $request->phone ?? $customer->phone;
-            $customer->save();
+            // Resolve or create Customer (guest or logged-in)
+            if ($userId) {
+                $customer = Customer::firstOrCreate(
+                    [ 'user_id' => $userId ],
+                    [
+                        'name' => trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: 'Customer',
+                        'email' => $request->email,
+                        'phone' => $request->phone,
+                        'created_by' => $userId,
+                        'is_active' => 1,
+                    ]
+                );
+                $customer->name = trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: ($customer->name ?? 'Customer');
+                $customer->email = $request->email ?? $customer->email;
+                $customer->phone = $request->phone ?? $customer->phone;
+                $customer->save();
+            } else {
+                // Guest: match by email or phone if possible
+                $customer = Customer::firstOrCreate(
+                    [
+                        'email' => $request->email,
+                        'phone' => $request->phone,
+                    ],
+                    [
+                        'name' => trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: 'Customer',
+                        'created_by' => 0,
+                        'is_active' => 1,
+                    ]
+                );
+            }
             $invoice = Invoice::create([
                 'customer_id' => $customer->id,
                 'template_id' => $invTemplate ? $invTemplate->id : null,
-                'operated_by' => $userId,
+                'operated_by' => $userId ?? 0,
                 'issue_date' => now()->toDateString(),
                 'due_date' => now()->toDateString(),
                 'send_date' => now()->toDateString(),
@@ -181,7 +223,7 @@ class OrderController extends Controller
                 'status' => $isInstantPaid ? 'paid' : 'unpaid',
                 'note' => $order->notes,
                 'footer_text' => null,
-                'created_by' => $userId,
+                'created_by' => $userId ?? 0,
                 'invoice_number' => $invoiceNumber,
             ]);
 
@@ -212,24 +254,27 @@ class OrderController extends Controller
                 'billing_address_1' => $request->billing_address_1,
                 'billing_address_2' => $request->billing_address_2 ?? null,
                 'billing_city' => $request->billing_city,
-                'billing_state' => $request->billing_state,
+                'billing_state' => $request->billing_state ?? null,
                 'billing_country' => $request->billing_country ?? null,
-                'billing_zip_code' => $request->billing_zip_code,
+                'billing_zip_code' => $request->billing_zip_code ?? null,
                 'shipping_address_1' => $request->shipping_address_1 ?? $request->billing_address_1,
                 'shipping_address_2' => $request->shipping_address_2 ?? $request->billing_address_2 ?? null,
                 'shipping_city' => $request->shipping_city ?? $request->billing_city,
-                'shipping_state' => $request->shipping_state ?? $request->billing_state,
+                'shipping_state' => $request->shipping_state ?? $request->billing_state ?? null,
                 'shipping_country' => $request->shipping_country ?? $request->billing_country ?? null,
-                'shipping_zip_code' => $request->shipping_zip_code ?? $request->billing_zip_code,
+                'shipping_zip_code' => $request->shipping_zip_code ?? $request->billing_zip_code ?? null,
             ]);
 
             // Do not create a payment record here; the gateway callback will create it for online payments,
             // and COD will be recorded when cash is actually received.
 
-            Cart::where('user_id', $userId)->delete();
-
-            DB::commit();
-
+            // Clear cart for this user or guest session
+            if ($userId) {
+                Cart::where('user_id', $userId)->delete();
+            } else {
+                Cart::whereNull('user_id')->where('session_id', $sessionId)->delete();
+            }
+            
             Balance::create([
                 'source_type' => 'customer',
                 'source_id' => $order->user_id,
@@ -237,6 +282,8 @@ class OrderController extends Controller
                 'description' => 'Order Sale',
                 'reference' => $order->order_number,
             ]);
+
+            DB::commit();
             
             // Send Order Confirmation Email
             try {
@@ -259,6 +306,9 @@ class OrderController extends Controller
             
             // Ensure the order number is safe for URLs (avoid '#' fragment issues)
             $encodedOrderNumber = urlencode($order->order_number);
+     
+            
+            
             return redirect()->route('order.success', $encodedOrderNumber);
         } catch (\Exception $e) {
             \Log::alert($e);
@@ -375,5 +425,105 @@ class OrderController extends Controller
         $serialNumber = str_pad($lastOrder->id + 1, 2, '0', STR_PAD_LEFT);
         
         return "#sfo{$dateString}{$serialNumber}";
+    }
+
+    /**
+     * Search cities API endpoint
+     */
+    public function searchCities(Request $request)
+    {
+        $query = $request->get('q', '');
+        
+        if (strlen($query) < 2) {
+            return response()->json(['cities' => []]);
+        }
+
+        $cities = \App\Models\City::active()
+            ->search($query)
+            ->ordered()
+            ->limit(50)
+            ->get()
+            ->map(function($city) {
+                return [
+                    'id' => $city->id,
+                    'name' => $city->name,
+                    'display_name' => $city->display_name,
+                    'country' => $city->country,
+                    'state' => $city->state,
+                ];
+            });
+
+        return response()->json(['cities' => $cities]);
+    }
+
+    /**
+     * Get shipping methods for a city
+     */
+    public function getShippingMethodsForCity(Request $request)
+    {
+        $cityId = $request->get('city_id');
+        
+        if (!$cityId) {
+            // Return all active shipping methods if no city selected
+            $methods = \App\Models\ShippingMethod::active()->ordered()->get();
+        } else {
+            // Get methods available for this city
+            $methods = \App\Models\ShippingMethod::active()
+                ->forCity($cityId)
+                ->ordered()
+                ->get();
+        }
+
+        $cartTotal = 0;
+        $userId = auth()->id();
+        $sessionId = session()->getId();
+        $carts = Cart::with(['product','variation'])
+            ->when($userId, function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            }, function($q) use ($sessionId) {
+                $q->whereNull('user_id')->where('session_id', $sessionId);
+            })
+            ->get();
+
+        foreach ($carts as $cart) {
+            $product = $cart->product;
+            if (!$product) continue;
+            $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
+            $cartTotal += $price * $cart->qty;
+        }
+
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $taxRate = $generalSetting ? ($generalSetting->tax_rate / 100) : 0.00;
+
+        $shippingMethods = $methods->map(function($method) use ($cityId) {
+            $cost = $cityId ? $method->getCostForCity($cityId) : $method->cost;
+            return [
+                'id' => $method->id,
+                'name' => $method->name,
+                'description' => $method->description,
+                'delivery_time' => $method->delivery_time,
+                'cost' => (float) $cost,
+                'formatted_cost' => number_format($cost, 2),
+            ];
+        });
+
+        $tax = round($cartTotal * $taxRate, 2);
+        $selectedShipping = $shippingMethods->first();
+        $shippingCost = $selectedShipping ? $selectedShipping['cost'] : 0;
+        $total = $cartTotal + $tax + $shippingCost;
+
+        return response()->json([
+            'shipping_methods' => $shippingMethods,
+            'summary' => [
+                'subtotal' => $cartTotal,
+                'tax' => $tax,
+                'shipping' => $shippingCost,
+                'total' => $total,
+                'formatted_subtotal' => number_format($cartTotal, 2),
+                'formatted_tax' => number_format($tax, 2),
+                'formatted_shipping' => number_format($shippingCost, 2),
+                'formatted_total' => number_format($total, 2),
+            ]
+        ]);
     }
 }
