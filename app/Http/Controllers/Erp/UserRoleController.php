@@ -70,9 +70,9 @@ class UserRoleController extends Controller
 
         $role = Role::findOrFail($id);
         
-        // Prevent deletion of Admin role
-        if ($role->name === 'Admin') {
-            return redirect()->route('userRole.index')->with('error', 'Cannot delete the Admin role.');
+        // Prevent deletion of SuperAdmin role
+        if ($role->name === 'SuperAdmin') {
+            return redirect()->route('userRole.index')->with('error', 'Cannot delete the SuperAdmin role.');
         }
         
         // Check if role is assigned to any users
