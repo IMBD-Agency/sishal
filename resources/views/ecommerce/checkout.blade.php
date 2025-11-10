@@ -261,10 +261,12 @@
                                     <!-- Promo Code -->
                                     <div class="promo-code-section">
                                         <div class="input-group">
-                                            <input type="text" class="form-control modern-input"
-                                                placeholder="Enter promo code">
-                                            <button class="btn btn-outline-primary" type="button">Apply</button>
+                                            <input type="text" class="form-control modern-input" id="coupon_code"
+                                                name="coupon_code" placeholder="Enter promo code" style="text-transform: uppercase;">
+                                            <button class="btn btn-outline-primary" type="button" id="applyCouponBtn">Apply</button>
                                         </div>
+                                        <div id="couponMessage" class="mt-2" style="display: none;"></div>
+                                        <input type="hidden" id="applied_coupon_discount" name="applied_coupon_discount" value="0">
                                     </div>
 
                                     <!-- Price Breakdown -->
@@ -281,9 +283,9 @@
                                             <span>Tax</span>
                                             <span>{{ $cartTotal * $taxRate }}৳</span>
                                         </div>
-                                        <div class="price-row discount-row" style="display: none;">
-                                            <span>Discount</span>
-                                            <span class="text-success">-10.00৳</span>
+                                        <div class="price-row discount-row" id="couponDiscountRow" style="display: none;">
+                                            <span>Coupon Discount</span>
+                                            <span class="text-success" id="couponDiscountAmount">-0.00৳</span>
                                         </div>
                                         <div class="price-row total-row">
                                             <span>Total</span>
@@ -1056,6 +1058,141 @@
                 });
         });
 
+        // Coupon validation and application
+        let appliedCouponDiscount = 0;
+        
+        document.getElementById('applyCouponBtn').addEventListener('click', function() {
+            const couponCode = document.getElementById('coupon_code').value.trim().toUpperCase();
+            const messageDiv = document.getElementById('couponMessage');
+            const applyBtn = this;
+            
+            if (!couponCode) {
+                messageDiv.className = 'mt-2 alert alert-warning';
+                messageDiv.textContent = 'Please enter a coupon code.';
+                messageDiv.style.display = 'block';
+                return;
+            }
+            
+            // Get current shipping cost
+            const selectedShipping = document.querySelector('input[name="shipping_method"]:checked');
+            let shippingCost = 0;
+            if (selectedShipping) {
+                const shippingPriceEl = selectedShipping.closest('.shipping-option')?.querySelector('.shipping-price');
+                if (shippingPriceEl) {
+                    shippingCost = parseFloat(shippingPriceEl.textContent.replace(/[৳,]/g, '')) || 0;
+                }
+            }
+            
+            applyBtn.disabled = true;
+            applyBtn.textContent = 'Validating...';
+            
+            fetch('{{ route("api.coupons.validate") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    coupon_code: couponCode,
+                    shipping_cost: shippingCost
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    appliedCouponDiscount = parseFloat(data.discount) || 0;
+                    document.getElementById('applied_coupon_discount').value = appliedCouponDiscount;
+                    
+                    // Show discount row
+                    const discountRow = document.getElementById('couponDiscountRow');
+                    const discountAmount = document.getElementById('couponDiscountAmount');
+                    discountRow.style.display = 'flex';
+                    discountAmount.textContent = `-${data.formatted_discount}৳`;
+                    
+                    // Update total
+                    updateTotalWithCoupon(data);
+                    
+                    // Show success message
+                    messageDiv.className = 'mt-2 alert alert-success';
+                    messageDiv.textContent = data.message;
+                    messageDiv.style.display = 'block';
+                    
+                    // Disable input and button
+                    document.getElementById('coupon_code').disabled = true;
+                    applyBtn.textContent = 'Applied';
+                    applyBtn.disabled = true;
+                } else {
+                    appliedCouponDiscount = 0;
+                    document.getElementById('applied_coupon_discount').value = 0;
+                    
+                    // Hide discount row
+                    document.getElementById('couponDiscountRow').style.display = 'none';
+                    
+                    // Update total without coupon
+                    updateTotalWithoutCoupon();
+                    
+                    // Show error message
+                    messageDiv.className = 'mt-2 alert alert-danger';
+                    messageDiv.textContent = data.message;
+                    messageDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.className = 'mt-2 alert alert-danger';
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.style.display = 'block';
+            })
+            .finally(() => {
+                applyBtn.disabled = false;
+                if (appliedCouponDiscount === 0) {
+                    applyBtn.textContent = 'Apply';
+                }
+            });
+        });
+        
+        // Uppercase coupon code on input
+        document.getElementById('coupon_code').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+        
+        function updateTotalWithCoupon(data) {
+            const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
+            const totalElement = document.querySelector('.total-row span:last-child');
+            const buttonElement = document.querySelector('.btn-place-order');
+            
+            // Update shipping display if free delivery is enabled
+            if (data.free_delivery && shippingElement) {
+                shippingElement.textContent = `${data.formatted_shipping}৳`;
+                shippingElement.classList.add('text-success');
+            } else if (shippingElement) {
+                shippingElement.classList.remove('text-success');
+            }
+            
+            if (totalElement) totalElement.textContent = `${data.formatted_total}৳`;
+            if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${data.formatted_total}৳`;
+        }
+        
+        function updateTotalWithoutCoupon() {
+            const subtotal = {{ $cartTotal }};
+            const tax = {{ $cartTotal * $taxRate }};
+            const selectedShipping = document.querySelector('input[name="shipping_method"]:checked');
+            let shipping = 0;
+            if (selectedShipping) {
+                const shippingPriceEl = selectedShipping.closest('.shipping-option')?.querySelector('.shipping-price');
+                if (shippingPriceEl) {
+                    shipping = parseFloat(shippingPriceEl.textContent.replace(/[৳,]/g, '')) || 0;
+                }
+            }
+            const total = subtotal + tax + shipping;
+            
+            const totalElement = document.querySelector('.total-row span:last-child');
+            const buttonElement = document.querySelector('.btn-place-order');
+            
+            if (totalElement) totalElement.textContent = `${total.toFixed(2)}৳`;
+            if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${total.toFixed(2)}৳`;
+        }
+
         function updateShippingPrice(method) {
             const shippingMethods = {
                 @foreach($shippingMethods as $method)
@@ -1066,7 +1203,7 @@
             const subtotal = {{ $cartTotal }};
             const tax = {{ $cartTotal * $taxRate }};
             const shipping = shippingMethods[method] || 0; // Default to 0 if method not found
-            const total = subtotal + tax + shipping;
+            const total = subtotal + tax + shipping - appliedCouponDiscount;
 
             const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
             const totalElement = document.querySelector('.total-row span:last-child');

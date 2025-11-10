@@ -60,7 +60,8 @@ class OrderController extends Controller
 
     public function show($id)
     {
-        $order = Order::with(['invoice.payments', 'items.product', 'employee.user', 'customer'])->find($id);
+        // Load order with variation relationship to ensure variation_id is available
+        $order = Order::with(['invoice.payments', 'items.product', 'items.variation', 'employee.user', 'customer'])->find($id);
         
         // If AJAX request, return JSON
         if (request()->ajax() || request()->expectsJson()) {
@@ -73,7 +74,9 @@ class OrderController extends Controller
                         'id' => $item->id,
                         'product_id' => $item->product_id,
                         'product_name' => $item->product->name ?? 'N/A',
-                        'variation_id' => $item->variation_id,
+                        'variation_id' => $item->variation_id, // CRITICAL: This must be included
+                        'variation_name' => $item->variation ? $item->variation->name : null,
+                        'variation_sku' => $item->variation ? $item->variation->sku : null,
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'total_price' => $item->total_price
@@ -119,7 +122,8 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        $order = Order::with('items')->findOrFail($id);
+        // Load order with items, products, and variations to ensure variation_id is available
+        $order = Order::with(['items.product', 'items.product.variations', 'items.variation'])->findOrFail($id);
 
         if ($request->status === 'shipping') {
             // For e-commerce orders, we need to manage stock but don't require technician
@@ -192,42 +196,84 @@ class OrderController extends Controller
                     $item->save();
                 }
             } else {
-                // E-commerce order: stock deduction from defined sources
+                // E-commerce order: stock deduction from warehouses ONLY (not branches)
                 foreach ($order->items as $item) {
                     $productId = $item->product_id;
                     $qty = $item->quantity;
+                    $variationId = $item->variation_id;
+
+                    // Log order item details for debugging
+                    \Log::info('Processing order item for shipping', [
+                        'order_item_id' => $item->id,
+                        'product_id' => $productId,
+                        'variation_id' => $variationId,
+                        'quantity' => $qty,
+                        'has_current_position' => !!(($item->current_position_type && $item->current_position_id))
+                    ]);
 
                     // Check if item has stock source defined
                     if ($item->current_position_type && $item->current_position_id) {
-                        // Use defined stock source (branch, warehouse, or employee)
+                        // Use defined stock source (warehouse only for ecommerce orders)
                         $fromType = $item->current_position_type;
                         $fromId = $item->current_position_id;
+                        $product = $item->product;
 
-                        if ($fromType === 'branch') {
-                            $fromStock = BranchProductStock::where('branch_id', $fromId)
-                                ->where('product_id', $productId)
+                        // For ecommerce orders, only allow warehouse as stock source
+                        if ($fromType !== 'warehouse') {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Ecommerce orders can only deduct stock from warehouses. Please select a warehouse as the stock source for item ID {$item->id}."
+                            ], 400);
+                        }
+
+                        $fromStock = null;
+                        
+                        // CRITICAL: For products with variations, we MUST use variation-level stock
+                        // Do not fall back to product-level stock if variation_id is set
+                        if ($variationId && $variationId > 0) {
+                            $fromStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                                ->where('warehouse_id', $fromId)
+                                ->whereNull('branch_id')
                                 ->lockForUpdate()
                                 ->first();
-                        } elseif ($fromType === 'warehouse') {
+                            
+                            // If variation stock not found but variation_id is set, this is an error
+                            if (!$fromStock && $product && $product->has_variations) {
+                                $variation = \App\Models\ProductVariation::find($variationId);
+                                $variationName = $variation ? ($variation->name ?? $variation->sku) : 'Variation ID: ' . $variationId;
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => "No stock available for variation '{$variationName}' at warehouse ID {$fromId}. Please add stock for this specific variation."
+                                ], 400);
+                            }
+                        }
+                        
+                        // Only check product-level stock if no variation_id is set (product without variations)
+                        if (!$fromStock && (!$variationId || !$product || !$product->has_variations)) {
                             $fromStock = WarehouseProductStock::where('warehouse_id', $fromId)
                                 ->where('product_id', $productId)
                                 ->lockForUpdate()
                                 ->first();
-                        } elseif ($fromType === 'employee') {
-                            $fromStock = EmployeeProductStock::where('employee_id', $fromId)
-                                ->where('product_id', $productId)
-                                ->lockForUpdate()
-                                ->first();
-                        } else {
-                            return response()->json(['success' => false, 'message' => 'Invalid stock source for item: ' . $item->id]);
                         }
 
                         if (!$fromStock || $fromStock->quantity < $qty) {
-                            $productName = $item->product ? $item->product->name : 'Product ID: ' . $item->product_id;
+                            // Build error message with variation info if available
+                            $itemName = 'Product ID: ' . $productId;
+                            if ($variationId && $variationId > 0) {
+                                $variation = \App\Models\ProductVariation::find($variationId);
+                                if ($variation) {
+                                    $itemName = $variation->sku . ' (' . ($variation->name ?? ($product ? $product->name : 'Unknown') ?? 'Unknown') . ')';
+                                } else {
+                                    $itemName = $product ? $product->name : 'Product ID: ' . $productId;
+                                }
+                            } elseif ($product) {
+                                $itemName = $product->name ?? 'Product ID: ' . $productId;
+                            }
+                            
                             $availableQty = $fromStock ? $fromStock->quantity : 0;
                             return response()->json([
                                 'success' => false, 
-                                'message' => "Insufficient stock for '{$productName}'. Required: {$qty}, Available: {$availableQty}. Please add stock before shipping."
+                                'message' => "Insufficient stock for '{$itemName}' at warehouse. Required: {$qty}, Available: {$availableQty}. Please add stock before shipping."
                             ]);
                         }
 
@@ -241,18 +287,62 @@ class OrderController extends Controller
                         $item->save();
                     } else {
                         // For e-commerce orders without a specific stock source,
-                        // try to deduct from any available stock. Priority:
-                        // 1) Variation-level stocks (if variation_id present) across warehouses/branches
+                        // try to deduct from warehouses ONLY. Priority:
+                        // 1) Variation-level warehouse stocks (if variation_id present)
                         // 2) Product-level warehouse stocks (any warehouse)
-                        // 3) Product-level branch stocks (any branch)
 
                         $deducted = false;
+                        $product = $item->product;
+                        $variation = $item->variation; // Use loaded relationship
+                        
+                        // Load product with variations if not already loaded
+                        if (!$product) {
+                            $product = \App\Models\Product::with('variations')->find($productId);
+                        }
+                        
+                        // CRITICAL: Use the variation_id from the order item - this is the EXACT variation that was ordered
+                        // DO NOT fallback to default variation or first variation - this causes wrong stock deduction
+                        if (!$variationId && $product && $product->has_variations) {
+                            \Log::error('Order item missing variation_id for product with variations - CANNOT SHIP', [
+                                'order_item_id' => $item->id,
+                                'product_id' => $productId,
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'product_name' => $product->name,
+                                'product_sku' => $product->sku,
+                                'item_variation_id' => $item->variation_id,
+                                'item_data' => $item->toArray()
+                            ]);
+                            
+                            // DO NOT auto-assign variation - this causes wrong stock deduction
+                            // The variation_id MUST be set when the order is created
+                            // If it's missing, the order cannot be shipped until it's manually corrected
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Cannot ship order item: Product '{$product->name}' (SKU: {$product->sku}) has variations but no variation was specified in the order. The variation_id is missing from order item ID {$item->id}. Please edit the order to specify the correct variation before shipping."
+                            ], 400);
+                        }
 
-                        // 1) Variation-level stock
-                        if (!empty($item->variation_id)) {
-                            // Try warehouses first
-                            $variationWarehouseStock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                        // 1) Variation-level warehouse stock ONLY (check if product has variations or variation_id is set)
+                        // IMPORTANT: Only deduct from the EXACT variation_id, never fallback to other variations
+                        if ($variationId && $variationId > 0) {
+                            // Verify the variation exists and belongs to this product
+                            $variation = \App\Models\ProductVariation::where('id', $variationId)
+                                ->where('product_id', $productId)
+                                ->first();
+                            
+                            if (!$variation) {
+                                \Log::warning('Variation ID mismatch', [
+                                    'variation_id' => $variationId,
+                                    'product_id' => $productId,
+                                    'order_item_id' => $item->id
+                                ]);
+                            }
+                            
+                            // Try warehouses ONLY - for this specific variation
+                            $variationWarehouseStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
                                 ->whereNotNull('warehouse_id')
+                                ->whereNull('branch_id')
                                 ->where('quantity', '>=', $qty)
                                 ->lockForUpdate()
                                 ->orderByDesc('quantity')
@@ -262,25 +352,17 @@ class OrderController extends Controller
                                 $variationWarehouseStock->quantity -= $qty;
                                 $variationWarehouseStock->save();
                                 $deducted = true;
-                            } else {
-                                // Try branches
-                                $variationBranchStock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
-                                    ->whereNotNull('branch_id')
-                                    ->where('quantity', '>=', $qty)
-                                    ->lockForUpdate()
-                                    ->orderByDesc('quantity')
-                                    ->first();
-
-                                if ($variationBranchStock) {
-                                    $variationBranchStock->quantity -= $qty;
-                                    $variationBranchStock->save();
-                                    $deducted = true;
-                                }
+                                \Log::info('Stock deducted from variation warehouse', [
+                                    'variation_id' => $variationId,
+                                    'warehouse_id' => $variationWarehouseStock->warehouse_id,
+                                    'quantity_deducted' => $qty,
+                                    'remaining_quantity' => $variationWarehouseStock->quantity
+                                ]);
                             }
                         }
 
-                        // 2) Product-level warehouse stock (any warehouse)
-                        if (!$deducted) {
+                        // 2) Product-level warehouse stock (any warehouse) - only if product doesn't have variations
+                        if (!$deducted && (!$product || !$product->has_variations)) {
                             $anyWarehouseStock = WarehouseProductStock::where('product_id', $productId)
                                 ->where('quantity', '>=', $qty)
                                 ->lockForUpdate()
@@ -294,26 +376,18 @@ class OrderController extends Controller
                             }
                         }
 
-                        // 3) Product-level branch stock (any branch)
                         if (!$deducted) {
-                            $anyBranchStock = BranchProductStock::where('product_id', $productId)
-                                ->where('quantity', '>=', $qty)
-                                ->lockForUpdate()
-                                ->orderByDesc('quantity')
-                                ->first();
-
-                            if ($anyBranchStock) {
-                                $anyBranchStock->quantity -= $qty;
-                                $anyBranchStock->save();
-                                $deducted = true;
+                            // Build error message with variation info if available
+                            $itemName = 'Product ID: ' . $productId;
+                            if ($variation) {
+                                $itemName = $variation->sku . ' (' . ($variation->name ?? $product->name ?? 'Unknown') . ')';
+                            } elseif ($product) {
+                                $itemName = $product->name ?? 'Product ID: ' . $productId;
                             }
-                        }
-
-                        if (!$deducted) {
-                            $productName = $item->product ? $item->product->name : 'Product ID: ' . $item->product_id;
+                            
                             return response()->json([
                                 'success' => false,
-                                'message' => "Insufficient stock for '{$productName}'. Required: {$qty}. No available stock found across warehouses/branches."
+                                'message' => "Insufficient stock for '{$itemName}'. Required: {$qty}. No available stock found in warehouses. Ecommerce orders can only deduct from warehouses, not branches."
                             ]);
                         }
 
@@ -490,62 +564,109 @@ class OrderController extends Controller
         }
     }
 
-    public function getProductStocks($productId)
+    public function getProductStocks($productId, Request $request)
     {
-        // Branch stocks
-        $branchStocks = BranchProductStock::with('branch')
-            ->where('product_id', $productId)
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(function($stock) {
-                return [
-                    'type' => 'branch',
-                    'location' => $stock->branch->name ?? 'Unknown Branch',
-                    'quantity' => $stock->quantity,
-                    'branch_id' => $stock->branch_id,
-                ];
-            });
+        // Check if this is for an ecommerce order (no employee_id means ecommerce order)
+        $isEcommerceOrder = false;
+        $orderItemId = $request->get('order_item_id');
+        
+        if ($orderItemId) {
+            $orderItem = OrderItem::with('order')->find($orderItemId);
+            if ($orderItem && $orderItem->order) {
+                // Ecommerce orders typically don't have employee_id assigned
+                // Service orders have employee_id and use branches
+                $isEcommerceOrder = !$orderItem->order->employee_id;
+            }
+        }
 
-        // Warehouse stocks
-        $warehouseStocks = WarehouseProductStock::with('warehouse')
-            ->where('product_id', $productId)
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(function($stock) {
-                return [
-                    'type' => 'warehouse',
-                    'location' => $stock->warehouse->name ?? 'Unknown Warehouse',
-                    'quantity' => $stock->quantity,
-                    'warehouse_id' => $stock->warehouse_id,
-                ];
-            });
+        $allStocks = collect();
 
-        // Employee stocks
-        $employeeStocks = EmployeeProductStock::with(['employee.user'])
-            ->where('product_id', $productId)
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(function($stock) {
-                return [
-                    'type' => 'employee',
-                    'location' => $stock->employee->user->first_name . ' ' . $stock->employee->user->last_name,
-                    'quantity' => $stock->quantity,
-                    'employee_id' => $stock->employee_id,
-                ];
-            });
+        // For ecommerce orders, only show warehouse stocks
+        if ($isEcommerceOrder) {
+            // Warehouse stocks only
+            $warehouseStocks = WarehouseProductStock::with('warehouse')
+                ->where('product_id', $productId)
+                ->where('quantity', '>', 0)
+                ->get()
+                ->map(function($stock) {
+                    return [
+                        'type' => 'warehouse',
+                        'location' => $stock->warehouse->name ?? 'Unknown Warehouse',
+                        'quantity' => $stock->quantity,
+                        'warehouse_id' => $stock->warehouse_id,
+                    ];
+                });
+            $allStocks = $warehouseStocks;
+        } else {
+            // For service orders, show all stock types
+            // Branch stocks
+            $branchStocks = BranchProductStock::with('branch')
+                ->where('product_id', $productId)
+                ->where('quantity', '>', 0)
+                ->get()
+                ->map(function($stock) {
+                    return [
+                        'type' => 'branch',
+                        'location' => $stock->branch->name ?? 'Unknown Branch',
+                        'quantity' => $stock->quantity,
+                        'branch_id' => $stock->branch_id,
+                    ];
+                });
 
-        // Merge all stocks
-        $allStocks = $branchStocks->concat($warehouseStocks)->concat($employeeStocks)->values();
+            // Warehouse stocks
+            $warehouseStocks = WarehouseProductStock::with('warehouse')
+                ->where('product_id', $productId)
+                ->where('quantity', '>', 0)
+                ->get()
+                ->map(function($stock) {
+                    return [
+                        'type' => 'warehouse',
+                        'location' => $stock->warehouse->name ?? 'Unknown Warehouse',
+                        'quantity' => $stock->quantity,
+                        'warehouse_id' => $stock->warehouse_id,
+                    ];
+                });
+
+            // Employee stocks
+            $employeeStocks = EmployeeProductStock::with(['employee.user'])
+                ->where('product_id', $productId)
+                ->where('quantity', '>', 0)
+                ->get()
+                ->map(function($stock) {
+                    return [
+                        'type' => 'employee',
+                        'location' => $stock->employee->user->first_name . ' ' . $stock->employee->user->last_name,
+                        'quantity' => $stock->quantity,
+                        'employee_id' => $stock->employee_id,
+                    ];
+                });
+
+            // Merge all stocks
+            $allStocks = $branchStocks->concat($warehouseStocks)->concat($employeeStocks);
+        }
 
         return response()->json([
             'success' => true,
-            'stocks' => $allStocks,
+            'stocks' => $allStocks->values(),
         ]);
     }
 
     public function addStockToOrderItem(Request $request, $id)
     {
-        $orderItem = OrderItem::find($id);
+        $orderItem = OrderItem::with('order')->find($id);
+        
+        if (!$orderItem) {
+            return response()->json(['success' => false, 'message' => 'Order item not found.'], 404);
+        }
+
+        // For ecommerce orders, only allow warehouse as stock source
+        $isEcommerceOrder = !$orderItem->order->employee_id;
+        if ($isEcommerceOrder && $request->current_position_type !== 'warehouse') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ecommerce orders can only use warehouse stock. Please select a warehouse.'
+            ], 400);
+        }
 
         $orderItem->current_position_type = $request->current_position_type;
         $orderItem->current_position_id = $request->current_position_id;

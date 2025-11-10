@@ -143,13 +143,18 @@ class PageController extends Controller
 
         // Optimize query with eager loading to prevent N+1 queries
         $products = $query->where('type','product')
+            ->where('status', 'active')
             ->with([
                 'category',
                 'reviews' => function($q) { 
                     $q->where('is_approved', true); 
                 },
                 'branchStock',
-                'warehouseStock'
+                'warehouseStock',
+                'variations' => function($q) {
+                    $q->where('status', 'active');
+                },
+                'variations.stocks'
             ])
             ->paginate(20)->appends($request->all());
         
@@ -172,9 +177,36 @@ class PageController extends Controller
             $product->total_reviews = $product->reviews->count();
             
             // Pre-calculate stock status (avoid N+1 queries)
-            $branchStock = $product->branchStock->sum('quantity') ?? 0;
-            $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-            $product->has_stock = ($branchStock + $warehouseStock) > 0;
+            // Check if product has variations - if so, check variation stocks
+            if ($product->has_variations) {
+                // For products with variations, check if any active variation has stock
+                $product->has_stock = false;
+                if ($product->variations && $product->variations->isNotEmpty()) {
+                    foreach ($product->variations as $variation) {
+                        // Check if variation has stocks loaded
+                        if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
+                            // Use loaded relationship collection
+                            $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                            if ($totalQuantity > 0) {
+                                $product->has_stock = true;
+                                break; // Found at least one variation with stock, no need to check further
+                            }
+                        } else {
+                            // Fallback: use query builder if relationship not loaded
+                            $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                            if ($totalQuantity > 0) {
+                                $product->has_stock = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // For products without variations, check branch and warehouse stock
+                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+            }
         }
 
         // Handle selected categories for both array and single category
@@ -624,9 +656,27 @@ class PageController extends Controller
             // Pre-calculate stock status (avoid N+1 queries)
             if ($product->has_variations) {
                 // For products with variations, check if any active variation has stock
-                $product->has_stock = $product->variations->contains(function($variation) {
-                    return $variation->stocks->sum('quantity') > 0;
-                });
+                $product->has_stock = false;
+                if ($product->variations && $product->variations->isNotEmpty()) {
+                    foreach ($product->variations as $variation) {
+                        // Check if variation has stocks loaded
+                        if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
+                            // Use loaded relationship collection
+                            $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                            if ($totalQuantity > 0) {
+                                $product->has_stock = true;
+                                break; // Found at least one variation with stock, no need to check further
+                            }
+                        } else {
+                            // Fallback: use query builder if relationship not loaded
+                            $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                            if ($totalQuantity > 0) {
+                                $product->has_stock = true;
+                                break;
+                            }
+                        }
+                    }
+                }
             } else {
                 // For products without variations, check branch and warehouse stock
                 $branchStock = $product->branchStock->sum('quantity') ?? 0;

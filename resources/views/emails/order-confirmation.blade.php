@@ -209,7 +209,7 @@
             <!-- Order Number -->
             <div class="order-number">
                 <h2>Order #{{ $order->order_number }}</h2>
-                <p>Placed on {{ \Carbon\Carbon::parse($order->created_at)->format('F j, Y \a\t g:i A') }}</p>
+                <p>Placed on {{ \Carbon\Carbon::parse($order->created_at)->format('F j, Y') }}</p>
             </div>
             
             <!-- Customer Information -->

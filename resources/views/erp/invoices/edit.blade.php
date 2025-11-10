@@ -178,6 +178,10 @@
                                                             <select name="items[{{ $i }}][product_id]" class="form-select product-select" required style="width:100%">
                                                                 <option value="{{ $item->product_id }}" selected>{{ $item->product->name ?? '' }}</option>
                                                             </select>
+                                                            <input type="hidden" name="items[{{ $i }}][variation_id]" value="{{ $item->variation_id ?? '' }}">
+                                                            @if($item->variation)
+                                                                <small class="text-muted d-block mt-1">Variation: {{ $item->variation->name ?? $item->variation->sku }}</small>
+                                                            @endif
                                                         </td>
                                                         <td>
                                                             <input type="number" name="items[{{ $i }}][quantity]" class="form-control item-qty" value="{{ $item->quantity }}" required>

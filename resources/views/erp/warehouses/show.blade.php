@@ -21,6 +21,8 @@
                                 <small class="text-muted">Location: {{ $warehouse->location }}</small>
                                 @if($warehouse->branch)
                                     <br><small class="text-info">Branch: {{ $warehouse->branch->name }}</small>
+                                @else
+                                    <br><small class="text-secondary">Ecommerce Warehouse (No Branch)</small>
                                 @endif
                             </div>
                         </div>
@@ -122,44 +124,66 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($recent_products as $stock)
+                                            @foreach($recent_products as $stockItem)
+                                                @php
+                                                    $product = $stockItem['product'] ?? null;
+                                                    $quantity = $stockItem['quantity'] ?? 0;
+                                                    $stockType = $stockItem['stock_type'] ?? 'product';
+                                                @endphp
                                                 <tr>
                                                     <td class="border-0 py-3">
                                                         <div class="d-flex align-items-center">
                                                             <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
-                                                                @if($stock->product && $stock->product->image)
-                                                                    <img src="{{ asset($stock->product->image) }}" alt="{{ $stock->product->name }}" class="rounded" style="width: 40px; height: 40px; object-fit: cover;">
+                                                                @if($product && $product->image)
+                                                                    <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="rounded" style="width: 40px; height: 40px; object-fit: cover;">
                                                                 @else
                                                                     <i class="fas fa-box text-primary"></i>
                                                                 @endif
                                                             </div>
                                                             <div>
-                                                                <h6 class="mb-0 fw-semibold">{{ $stock->product->name ?? 'Unknown Product' }}</h6>
-                                                                <small class="text-muted">ID: #{{ $stock->product->id ?? 'N/A' }}</small>
+                                                                <h6 class="mb-0 fw-semibold">{{ $product->name ?? 'Unknown Product' }}</h6>
+                                                                <small class="text-muted">ID: #{{ $product->id ?? 'N/A' }}</small>
+                                                                @if($stockType === 'variation')
+                                                                    <br><small class="text-info"><i class="fas fa-layer-group"></i> Variation Product</small>
+                                                                @endif
                                                             </div>
                                                         </div>
                                                     </td>
                                                     <td class="border-0 py-3">
-                                                        <code class="bg-light px-2 py-1 rounded">{{ $stock->product->sku ?? 'N/A' }}</code>
+                                                        <code class="bg-light px-2 py-1 rounded">{{ $product->sku ?? 'N/A' }}</code>
                                                     </td>
                                                     <td class="border-0 py-3">
-                                                        <span class="fw-semibold text-success">৳{{ number_format(($stock->product->discount && $stock->product->discount > 0) ? $stock->product->discount : ($stock->product->price ?? 0), 2) }}</span>
+                                                        <span class="fw-semibold text-success">৳{{ number_format(($product->discount && $product->discount > 0) ? $product->discount : ($product->price ?? 0), 2) }}</span>
                                                     </td>
                                                     <td class="border-0 py-3">
-                                                        <span class="fw-semibold">৳{{ number_format($stock->product->cost ?? 0, 2) }}</span>
+                                                        <span class="fw-semibold">৳{{ number_format($product->cost ?? 0, 2) }}</span>
                                                     </td>
                                                     <td class="border-0 py-3">
                                                         <span class="badge bg-info bg-opacity-25 text-info">
-                                                            {{ $stock->product->category->name ?? 'No Category' }}
+                                                            {{ $product->category->name ?? 'No Category' }}
                                                         </span>
                                                     </td>
                                                     <td class="border-0 py-3">
-                                                        <span class="badge bg-{{ $stock->quantity > 0 ? 'success' : 'danger' }} bg-opacity-25 text-{{ $stock->quantity > 0 ? 'success' : 'danger' }}">
-                                                            {{ $stock->quantity }} {{ $stock->quantity == 1 ? 'unit' : 'units' }}
-                                                        </span>
+                                                        @if($quantity < 0)
+                                                            <span class="badge bg-danger bg-opacity-25 text-danger" title="Negative stock: This usually occurs when items are returned to supplier or stock is adjusted below zero. Please add stock to correct this.">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i>{{ $quantity }} {{ $quantity == 1 ? 'unit' : 'units' }}
+                                                            </span>
+                                                        @elseif($quantity == 0)
+                                                            <span class="badge bg-warning bg-opacity-25 text-warning">
+                                                                {{ $quantity }} {{ $quantity == 1 ? 'unit' : 'units' }}
+                                                            </span>
+                                                        @else
+                                                            <span class="badge bg-success bg-opacity-25 text-success">
+                                                                {{ $quantity }} {{ $quantity == 1 ? 'unit' : 'units' }}
+                                                            </span>
+                                                        @endif
                                                     </td>
                                                     <td class="border-0 py-3">
-                                                        <span class="fw-semibold text-primary">৳{{ number_format($stock->quantity * (($stock->product->cost ?? null) !== null ? $stock->product->cost : ($stock->product->price ?? 0)), 2) }}</span>
+                                                        @if($quantity < 0)
+                                                            <span class="fw-semibold text-danger">৳{{ number_format($quantity * (($product->cost ?? null) !== null ? $product->cost : ($product->price ?? 0)), 2) }}</span>
+                                                        @else
+                                                            <span class="fw-semibold text-primary">৳{{ number_format($quantity * (($product->cost ?? null) !== null ? $product->cost : ($product->price ?? 0)), 2) }}</span>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach

@@ -91,6 +91,13 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label fw-medium">
+                                                    <i class="fas fa-money-bill-wave me-2 text-danger"></i>COD Percentage (%)
+                                                </label>
+                                                <input type="number" name="cod_percentage" class="form-control" placeholder="0.00" step="0.01" min="0" max="100" value="{{ $settings->cod_percentage ?? '0.00' }}">
+                                                <small class="text-muted">Percentage reduction applied to Cash on Delivery orders (reduces order total and affects accounting)</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium">
                                                     <i class="fas fa-globe me-2 text-info"></i>Website URL
                                                 </label>
                                                 <input type="url" name="website_url" class="form-control" placeholder="https://yourwebsite.com" value="{{ $settings->website_url ?? '' }}">

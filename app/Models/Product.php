@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'image', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock'
+        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock'
     ];
 
     protected $casts = [
@@ -270,6 +270,63 @@ class Product extends Model
         return $this->productAttributes()->get()->mapWithKeys(function ($attribute) {
             return [$attribute->name => $attribute->pivot->value];
         });
+    }
+
+    /**
+     * Get the effective price considering bulk discounts
+     */
+    public function getEffectivePriceAttribute()
+    {
+        // If product has a direct discount, use that
+        if ($this->discount && $this->discount > 0) {
+            return $this->discount;
+        }
+
+        // Check for applicable bulk discounts
+        $bulkDiscount = $this->getApplicableBulkDiscount();
+        
+        if ($bulkDiscount) {
+            return $bulkDiscount->calculateDiscountedPrice($this->price);
+        }
+
+        // Return original price if no discounts apply
+        return $this->price;
+    }
+
+    /**
+     * Get applicable bulk discount for this product
+     */
+    public function getApplicableBulkDiscount()
+    {
+        $validDiscounts = \App\Models\BulkDiscount::valid()->get();
+        
+        foreach ($validDiscounts as $discount) {
+            if ($discount->appliesToProduct($this->id)) {
+                return $discount;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Check if product has any discount (direct or bulk)
+     */
+    public function hasDiscount(): bool
+    {
+        if ($this->discount && $this->discount > 0) {
+            return true;
+        }
+
+        return $this->getApplicableBulkDiscount() !== null;
+    }
+
+    /**
+     * Get the original price (before any discounts)
+     */
+    public function getOriginalPriceAttribute()
+    {
+        return $this->price;
     }
 
 }

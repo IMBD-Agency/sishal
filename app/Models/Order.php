@@ -27,7 +27,9 @@ class Order extends Model
         'created_by',
         'payment_status',
         'payment_reference',
-        'payment_gateway_response'
+        'payment_gateway_response',
+        'coupon_id',
+        'coupon_discount',
     ];
 
     public function invoice()
@@ -58,5 +60,13 @@ class Order extends Model
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class, 'order_id');
+    }
+
+    /**
+     * Get the coupon used in this order
+     */
+    public function coupon()
+    {
+        return $this->belongsTo(Coupon::class);
     }
 }

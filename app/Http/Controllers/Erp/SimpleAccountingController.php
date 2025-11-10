@@ -131,13 +131,19 @@ class SimpleAccountingController extends Controller
             ->where('status', '!=', 'cancelled')
             ->get();
 
-        $orderRevenue = $orders->sum('total');
+        // Calculate revenue excluding delivery charges (only product prices)
+        $orderRevenue = $orders->sum(function($order) {
+            return $order->total - ($order->delivery ?? 0);
+        });
         $orderCount = $orders->count();
 
         // Get POS data
         $posSales = Pos::whereBetween('sale_date', [$startDate, $endDate])->get();
         
-        $posRevenue = $posSales->sum('total_amount');
+        // Calculate revenue excluding delivery charges (only product prices)
+        $posRevenue = $posSales->sum(function($pos) {
+            return $pos->total_amount - ($pos->delivery ?? 0);
+        });
         $posCount = $posSales->count();
 
         return [

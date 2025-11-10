@@ -16,11 +16,13 @@ class SmtpConfigService
         
         if ($settings && $settings->smtp_host) {
             Config::set([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.transport' => 'smtp',
                 'mail.mailers.smtp.host' => $settings->smtp_host,
                 'mail.mailers.smtp.port' => $settings->smtp_port ?? 587,
+                'mail.mailers.smtp.encryption' => $settings->smtp_encryption ?: 'tls',
                 'mail.mailers.smtp.username' => $settings->smtp_username,
                 'mail.mailers.smtp.password' => $settings->smtp_password,
-                'mail.mailers.smtp.encryption' => $settings->smtp_encryption ?: null,
                 'mail.from.address' => $settings->smtp_from_address ?: $settings->smtp_username,
                 'mail.from.name' => $settings->smtp_from_name ?: config('app.name'),
             ]);

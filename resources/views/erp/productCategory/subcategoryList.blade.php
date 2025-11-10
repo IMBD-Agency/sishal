@@ -164,7 +164,7 @@
                                 <label for="edit_subcategory_parent_{{ $subcategory->id }}" class="form-label">Category <span class="text-danger">*</span></label>
                                 <select class="form-select" id="edit_subcategory_parent_{{ $subcategory->id }}" name="parent_id" required>
                                     @foreach($parentCategories as $pc)
-                                        <option value="{{ $pc->id }}" @if($subcategory->parent_id == $pc->id) selected @endif>{{ $pc->name }}</option>
+                                        <option value="{{ $pc->id }}" data-slug="{{ $pc->slug }}" @if($subcategory->parent_id == $pc->id) selected @endif>{{ $pc->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -218,7 +218,7 @@
                             <label for="subcategory_parent_id" class="form-label">Category <span class="text-danger">*</span></label>
                             <select class="form-select" id="subcategory_parent_id" name="parent_id" required>
                                 @foreach($parentCategories as $pc)
-                                    <option value="{{ $pc->id }}">{{ $pc->name }}</option>
+                                    <option value="{{ $pc->id }}" data-slug="{{ $pc->slug }}">{{ $pc->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -294,21 +294,56 @@ function toggleSubStatus(checkboxEl, urlFromBlade) {
 function slugify(text) {
     return text.toString().toLowerCase().trim().replace(/[\s\W-]+/g, '-').replace(/^-+|-+$/g, '');
 }
+
+function generateSubcategorySlug(nameInput, parentSelect, slugInput) {
+    if (!nameInput || !parentSelect || !slugInput) return;
+    
+    const name = nameInput.value.trim();
+    const parentOption = parentSelect.options[parentSelect.selectedIndex];
+    const parentSlug = parentOption ? parentOption.getAttribute('data-slug') : '';
+    
+    if (name) {
+        const subcategorySlug = slugify(name);
+        if (parentSlug) {
+            slugInput.value = parentSlug + '-' + subcategorySlug;
+        } else {
+            slugInput.value = subcategorySlug;
+        }
+    } else {
+        slugInput.value = '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Create subcategory form
     const nameInput = document.getElementById('subcategory_name');
+    const parentSelect = document.getElementById('subcategory_parent_id');
     const slugInput = document.getElementById('subcategory_slug');
-    if (nameInput && slugInput) {
+    
+    if (nameInput && parentSelect && slugInput) {
         nameInput.addEventListener('input', function() {
-            slugInput.value = slugify(nameInput.value);
+            generateSubcategorySlug(nameInput, parentSelect, slugInput);
+        });
+        
+        parentSelect.addEventListener('change', function() {
+            generateSubcategorySlug(nameInput, parentSelect, slugInput);
         });
     }
+    
+    // Edit subcategory forms
     @foreach ($subcategories as $subcategory)
         (function() {
             const editName = document.getElementById('edit_subcategory_name_{{ $subcategory->id }}');
+            const editParent = document.getElementById('edit_subcategory_parent_{{ $subcategory->id }}');
             const editSlug = document.getElementById('edit_subcategory_slug_{{ $subcategory->id }}');
-            if (editName && editSlug) {
+            
+            if (editName && editParent && editSlug) {
                 editName.addEventListener('input', function() {
-                    editSlug.value = slugify(editName.value);
+                    generateSubcategorySlug(editName, editParent, editSlug);
+                });
+                
+                editParent.addEventListener('change', function() {
+                    generateSubcategorySlug(editName, editParent, editSlug);
                 });
             }
         })();

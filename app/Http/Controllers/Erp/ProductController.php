@@ -54,7 +54,7 @@ class ProductController extends Controller
             $query->where('parent_id', $request->parent_id);
         }
         $subcategories = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
-        $parentCategories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get(['id','name']);
+        $parentCategories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get(['id','name','slug']);
         return view('erp.productCategory.subcategoryList', compact('subcategories', 'parentCategories'));
     }
 
@@ -62,7 +62,12 @@ class ProductController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|unique:product_service_categories,slug',
+            'slug' => [
+                'required',
+                Rule::unique('product_service_categories', 'slug')->where(function ($query) use ($request) {
+                    return $query->where('parent_id', $request->parent_id);
+                })
+            ],
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
@@ -93,7 +98,13 @@ class ProductController extends Controller
         }
         $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => [Rule::unique('product_service_categories', 'slug')->ignore($subcategory->id)],
+            'slug' => [
+                Rule::unique('product_service_categories', 'slug')
+                    ->ignore($subcategory->id)
+                    ->where(function ($query) use ($request) {
+                        return $query->where('parent_id', $request->parent_id);
+                    })
+            ],
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
@@ -271,6 +282,7 @@ class ProductController extends Controller
             'discount' => 'nullable|numeric',
             'cost' => 'required|numeric',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'size_chart' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'gallery' => 'nullable',
             'gallery.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'status' => 'nullable|in:active,inactive',
@@ -301,6 +313,14 @@ class ProductController extends Controller
             $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
             $image->move(public_path('uploads/products'), $imageName);
             $data['image'] = 'uploads/products/' . $imageName;
+        }
+
+        // Handle size chart image upload
+        if ($request->hasFile('size_chart')) {
+            $sizeChart = $request->file('size_chart');
+            $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
+            $sizeChart->move(public_path('uploads/products'), $sizeChartName);
+            $data['size_chart'] = 'uploads/products/' . $sizeChartName;
         }
 
         $product = Product::create($data);
@@ -405,7 +425,7 @@ class ProductController extends Controller
      */
     public function edit($id)
     {
-        $product = Product::with('category', 'galleries', 'productAttributes')->findOrFail($id);
+        $product = Product::with('category.parent', 'galleries', 'productAttributes')->findOrFail($id);
         $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
         return view('erp.products.edit', compact('product', 'attributes'));
     }
@@ -430,6 +450,7 @@ class ProductController extends Controller
             'discount' => 'nullable|numeric',
             'cost' => 'required|numeric',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'size_chart' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'gallery' => 'nullable',
             'gallery.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
@@ -462,6 +483,18 @@ class ProductController extends Controller
             $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
             $image->move(public_path('uploads/products'), $imageName);
             $data['image'] = 'uploads/products/' . $imageName;
+        }
+
+        // Handle size chart image upload
+        if ($request->hasFile('size_chart')) {
+            // Delete old size chart if exists
+            if ($product->size_chart && file_exists(public_path($product->size_chart))) {
+                @unlink(public_path($product->size_chart));
+            }
+            $sizeChart = $request->file('size_chart');
+            $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
+            $sizeChart->move(public_path('uploads/products'), $sizeChartName);
+            $data['size_chart'] = 'uploads/products/' . $sizeChartName;
         }
 
         $product->update($data);
@@ -549,15 +582,32 @@ class ProductController extends Controller
     public function searchCategory(Request $request)
     {
         $q = $request->q;
-        $query = ProductServiceCategory::query();
+        $query = ProductServiceCategory::with('parent');
         if ($q) {
-            $query->where('name', 'like', "%$q%")
-                  ->orWhere('description', 'like', "%$q%")
-                  ->orWhere('status', 'like', "%$q%")
-                  ;
+            $query->where(function($qry) use ($q) {
+                $qry->where('name', 'like', "%$q%")
+                    ->orWhere('description', 'like', "%$q%")
+                    ->orWhere('status', 'like', "%$q%");
+            });
         }
-        $categories = $query->orderBy('name')->limit(20)->get(['id', 'name']);
-        return response()->json($categories);
+        $categories = $query->orderBy('name')->limit(20)->get(['id', 'name', 'parent_id']);
+        
+        // Format categories with parent information for subcategories
+        $formatted = $categories->map(function($category) {
+            $displayName = $category->name;
+            if ($category->parent_id && $category->parent) {
+                $displayName = $category->parent->name . ' > ' . $category->name;
+            }
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'display_name' => $displayName,
+                'parent_id' => $category->parent_id,
+                'parent_name' => $category->parent ? $category->parent->name : null
+            ];
+        });
+        
+        return response()->json($formatted);
     }
 
     /**
@@ -599,8 +649,33 @@ class ProductController extends Controller
                   ->orWhere('sku', 'like', "%$q%")
                   ;
         }
-        $products = $query->orderBy('name')->limit(20)->get(['id', 'name']);
+        $products = $query->orderBy('name')->limit(20)->get(['id', 'name', 'sku', 'has_variations']);
         return response()->json($products);
+    }
+
+    public function getProductVariations($productId)
+    {
+        $product = Product::with(['variations.combinations.attribute', 'variations.combinations.attributeValue'])
+            ->findOrFail($productId);
+        
+        if (!$product->has_variations) {
+            return response()->json([]);
+        }
+        
+        $variations = $product->variations()->where('status', 'active')->get()->map(function($variation) use ($product) {
+            $attributes = $variation->combinations->map(function($combination) {
+                return $combination->attributeValue->value ?? '';
+            })->filter()->implode(' - ');
+            
+            return [
+                'id' => $variation->id,
+                'name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
+                'display_name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
+                'sku' => $variation->sku,
+            ];
+        });
+        
+        return response()->json($variations);
     }
 
     public function getPrice($id)

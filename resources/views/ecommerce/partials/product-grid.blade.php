@@ -43,16 +43,21 @@
                     </div>
 
                     <div class="price">
-                        @if(isset($product->discount) && $product->discount > 0)
+                        @php
+                            $effectivePrice = $product->effective_price;
+                            $originalPrice = $product->original_price;
+                            $hasDiscount = $product->hasDiscount();
+                        @endphp
+                        @if($hasDiscount && $effectivePrice < $originalPrice)
                             <span class="fw-bold text-primary">
-                                {{ number_format($product->discount, 2) }}৳
+                                {{ number_format($effectivePrice, 2) }}৳
                             </span>
                             <span class="text-muted text-decoration-line-through ms-2">
-                                {{ number_format($product->price, 2) }}৳
+                                {{ number_format($originalPrice, 2) }}৳
                             </span>
                         @else
                             <span class="fw-bold text-primary">
-                                {{ number_format($product->price, 2) }}৳
+                                {{ number_format($originalPrice, 2) }}৳
                             </span>
                         @endif
                     </div>

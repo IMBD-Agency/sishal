@@ -228,7 +228,14 @@ class ProductVariationController extends Controller
         // Custom validation for files with special characters
         $this->validateFiles($request);
         
-        $request->validate([
+        // Get required attributes for validation
+        $requiredAttributes = VariationAttribute::where('is_required', true)
+            ->where('status', 'active')
+            ->pluck('id')
+            ->toArray();
+        
+        // Build validation rules dynamically
+        $validationRules = [
             'sku' => 'required|string',
             'name' => 'nullable|string|max:255',
             'price' => 'nullable|numeric|min:0',
@@ -236,9 +243,54 @@ class ProductVariationController extends Controller
             'discount' => 'nullable|numeric|min:0',
             'is_default' => 'boolean',
             'status' => 'required|in:active,inactive',
-            'attributes' => 'required|array',
-            'attribute_values' => 'required|array',
-        ]);
+            'attributes' => 'array',
+            'attribute_values' => 'array',
+        ];
+        
+        // Add required validation for required attributes
+        if (!empty($requiredAttributes)) {
+            $attributesInput = $request->input('attributes', []);
+            $valuesInput = $request->input('attribute_values', []);
+            $isAssociative = array_keys($valuesInput) !== range(0, count($valuesInput) - 1);
+            
+            // Validate that all required attributes have values
+            foreach ($requiredAttributes as $requiredAttrId) {
+                $hasValue = false;
+                
+                if ($isAssociative) {
+                    // Check if required attribute has a value
+                    if (isset($valuesInput[$requiredAttrId])) {
+                        $value = $valuesInput[$requiredAttrId];
+                        if (is_array($value)) {
+                            $hasValue = !empty(array_filter($value, fn($v) => !empty($v)));
+                        } else {
+                            $hasValue = !empty($value);
+                        }
+                    }
+                } else {
+                    // Check if required attribute is in the attributes array and has a corresponding value
+                    $attrIndex = array_search($requiredAttrId, $attributesInput);
+                    if ($attrIndex !== false && isset($valuesInput[$attrIndex])) {
+                        $value = $valuesInput[$attrIndex];
+                        if (is_array($value)) {
+                            $hasValue = !empty(array_filter($value, fn($v) => !empty($v)));
+                        } else {
+                            $hasValue = !empty($value);
+                        }
+                    }
+                }
+                
+                if (!$hasValue) {
+                    $attribute = VariationAttribute::find($requiredAttrId);
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []),
+                        ['attribute_values' => "The {$attribute->name} attribute is required."]
+                    );
+                }
+            }
+        }
+        
+        $request->validate($validationRules);
 
         // Check for potential SKU conflicts before processing
         $attributesInput = $request->input('attributes', []);
@@ -467,26 +519,51 @@ class ProductVariationController extends Controller
                 $isAssoc = $isAssociative;
                 if ($isAssoc) {
                     foreach ($valuesInput as $attributeId => $attributeValueId) {
-                        if (!$attributeId || !$attributeValueId) { continue; }
-                        ProductVariationCombination::create([
-                            'variation_id' => $variation->id,
-                            'attribute_id' => (int) $attributeId,
-                            'attribute_value_id' => (int) $attributeValueId,
-                        ]);
+                        if (!$attributeId) { continue; }
+                        // Handle both single value and array of values
+                        $valueIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                        foreach ($valueIds as $valId) {
+                            if (!$valId || $valId === '') { continue; }
+                            ProductVariationCombination::create([
+                                'variation_id' => $variation->id,
+                                'attribute_id' => (int) $attributeId,
+                                'attribute_value_id' => (int) $valId,
+                            ]);
+                        }
                     }
                 } else {
                     foreach ($attributesInput as $index => $attributeId) {
                         $attributeValueId = $valuesInput[$index] ?? null;
                         if (!$attributeId || !$attributeValueId) { continue; }
-                        ProductVariationCombination::create([
-                            'variation_id' => $variation->id,
-                            'attribute_id' => (int) $attributeId,
-                            'attribute_value_id' => (int) $attributeValueId,
-                        ]);
+                        // Handle both single value and array of values
+                        $valueIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                        foreach ($valueIds as $valId) {
+                            if (!$valId || $valId === '') { continue; }
+                            ProductVariationCombination::create([
+                                'variation_id' => $variation->id,
+                                'attribute_id' => (int) $attributeId,
+                                'attribute_value_id' => (int) $valId,
+                            ]);
+                        }
                     }
                 }
 
-                $valueIds = $isAssoc ? array_values($valuesInput) : array_values($valuesInput);
+                // Collect all value IDs for name generation (filter out empty values)
+                $valueIds = [];
+                if ($isAssoc) {
+                    foreach ($valuesInput as $attributeId => $attributeValueId) {
+                        if (!$attributeId) { continue; }
+                        $valIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                        $valueIds = array_merge($valueIds, array_filter($valIds, fn($v) => !empty($v)));
+                    }
+                } else {
+                    foreach ($attributesInput as $index => $attributeId) {
+                        $attributeValueId = $valuesInput[$index] ?? null;
+                        if (!$attributeId || !$attributeValueId) { continue; }
+                        $valIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                        $valueIds = array_merge($valueIds, array_filter($valIds, fn($v) => !empty($v)));
+                    }
+                }
                 $generatedName = $this->buildVariationName($valueIds);
                 if ($generatedName !== '') {
                     $variation->update(['name' => \Illuminate\Support\Str::limit($generatedName, 255, '')]);
@@ -615,7 +692,14 @@ class ProductVariationController extends Controller
         // Custom validation for files with special characters
         $this->validateFiles($request);
         
-        $request->validate([
+        // Get required attributes for validation
+        $requiredAttributes = VariationAttribute::where('is_required', true)
+            ->where('status', 'active')
+            ->pluck('id')
+            ->toArray();
+        
+        // Build validation rules dynamically
+        $validationRules = [
             'sku' => 'required|string|unique:product_variations,sku,' . $variationId,
             'name' => 'required|string|max:255',
             'price' => 'nullable|numeric|min:0',
@@ -623,9 +707,54 @@ class ProductVariationController extends Controller
             'discount' => 'nullable|numeric|min:0',
             'is_default' => 'boolean',
             'status' => 'required|in:active,inactive',
-            'attributes' => 'required|array',
-            'attribute_values' => 'required|array',
-        ]);
+            'attributes' => 'array',
+            'attribute_values' => 'array',
+        ];
+        
+        // Add required validation for required attributes
+        if (!empty($requiredAttributes)) {
+            $attributesInput = $request->input('attributes', []);
+            $valuesInput = $request->input('attribute_values', []);
+            $isAssociative = array_keys($valuesInput) !== range(0, count($valuesInput) - 1);
+            
+            // Validate that all required attributes have values
+            foreach ($requiredAttributes as $requiredAttrId) {
+                $hasValue = false;
+                
+                if ($isAssociative) {
+                    // Check if required attribute has a value
+                    if (isset($valuesInput[$requiredAttrId])) {
+                        $value = $valuesInput[$requiredAttrId];
+                        if (is_array($value)) {
+                            $hasValue = !empty(array_filter($value, fn($v) => !empty($v)));
+                        } else {
+                            $hasValue = !empty($value);
+                        }
+                    }
+                } else {
+                    // Check if required attribute is in the attributes array and has a corresponding value
+                    $attrIndex = array_search($requiredAttrId, $attributesInput);
+                    if ($attrIndex !== false && isset($valuesInput[$attrIndex])) {
+                        $value = $valuesInput[$attrIndex];
+                        if (is_array($value)) {
+                            $hasValue = !empty(array_filter($value, fn($v) => !empty($v)));
+                        } else {
+                            $hasValue = !empty($value);
+                        }
+                    }
+                }
+                
+                if (!$hasValue) {
+                    $attribute = VariationAttribute::find($requiredAttrId);
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []),
+                        ['attribute_values' => "The {$attribute->name} attribute is required."]
+                    );
+                }
+            }
+        }
+        
+        $request->validate($validationRules);
 
         DB::beginTransaction();
         
@@ -672,27 +801,52 @@ class ProductVariationController extends Controller
             $isAssoc = array_keys($valuesInput) !== range(0, count($valuesInput) - 1);
             if ($isAssoc) {
                 foreach ($valuesInput as $attributeId => $attributeValueId) {
-                    if (!$attributeId || !$attributeValueId) { continue; }
-                    ProductVariationCombination::create([
-                        'variation_id' => $variation->id,
-                        'attribute_id' => (int) $attributeId,
-                        'attribute_value_id' => (int) $attributeValueId,
-                    ]);
+                    if (!$attributeId) { continue; }
+                    // Handle both single value and array of values
+                    $valueIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                    foreach ($valueIds as $valId) {
+                        if (!$valId || $valId === '') { continue; }
+                        ProductVariationCombination::create([
+                            'variation_id' => $variation->id,
+                            'attribute_id' => (int) $attributeId,
+                            'attribute_value_id' => (int) $valId,
+                        ]);
+                    }
                 }
             } else {
                 foreach ($attributesInput as $index => $attributeId) {
                     $attributeValueId = $valuesInput[$index] ?? null;
                     if (!$attributeId || !$attributeValueId) { continue; }
-                    ProductVariationCombination::create([
-                        'variation_id' => $variation->id,
-                        'attribute_id' => (int) $attributeId,
-                        'attribute_value_id' => (int) $attributeValueId,
-                    ]);
+                    // Handle both single value and array of values
+                    $valueIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                    foreach ($valueIds as $valId) {
+                        if (!$valId || $valId === '') { continue; }
+                        ProductVariationCombination::create([
+                            'variation_id' => $variation->id,
+                            'attribute_id' => (int) $attributeId,
+                            'attribute_value_id' => (int) $valId,
+                        ]);
+                    }
                 }
             }
 
             // Overwrite variation name with auto-generated name from the saved combinations
-            $valueIds = $isAssoc ? array_values($valuesInput) : array_values($valuesInput);
+            // Collect all value IDs for name generation (filter out empty values)
+            $valueIds = [];
+            if ($isAssoc) {
+                foreach ($valuesInput as $attributeId => $attributeValueId) {
+                    if (!$attributeId) { continue; }
+                    $valIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                    $valueIds = array_merge($valueIds, array_filter($valIds, fn($v) => !empty($v)));
+                }
+            } else {
+                foreach ($attributesInput as $index => $attributeId) {
+                    $attributeValueId = $valuesInput[$index] ?? null;
+                    if (!$attributeId || !$attributeValueId) { continue; }
+                    $valIds = is_array($attributeValueId) ? $attributeValueId : [$attributeValueId];
+                    $valueIds = array_merge($valueIds, array_filter($valIds, fn($v) => !empty($v)));
+                }
+            }
             $generatedName = $this->buildVariationName($valueIds);
             if ($generatedName !== '') {
                 $variation->update(['name' => $generatedName]);

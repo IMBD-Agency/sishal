@@ -113,20 +113,36 @@ class DashboardController extends Controller
         $previousOrderQuery->whereBetween('created_at', [$previousStartDate, $previousEndDate]);
 
         // Current period stats - combine POS and Online orders
-        $currentPosSales = $currentPosQuery->sum('total_amount');
-        $currentPosOrders = $currentPosQuery->count();
-        $currentOrderSales = $currentOrderQuery->sum('total');
-        $currentOrderOrders = $currentOrderQuery->count();
+        // Exclude delivery charges from accounting (only product prices)
+        $currentPosData = $currentPosQuery->get();
+        $currentPosSales = $currentPosData->sum(function($pos) {
+            return $pos->total_amount - ($pos->delivery ?? 0);
+        });
+        $currentPosOrders = $currentPosData->count();
+        
+        $currentOrderData = $currentOrderQuery->get();
+        $currentOrderSales = $currentOrderData->sum(function($order) {
+            return $order->total - ($order->delivery ?? 0);
+        });
+        $currentOrderOrders = $currentOrderData->count();
         
         $currentSales = $currentPosSales + $currentOrderSales;
         $currentOrders = $currentPosOrders + $currentOrderOrders;
         $currentAvgOrder = $currentOrders > 0 ? $currentSales / $currentOrders : 0;
 
         // Previous period stats - combine POS and Online orders
-        $previousPosSales = $previousPosQuery->sum('total_amount');
-        $previousPosOrders = $previousPosQuery->count();
-        $previousOrderSales = $previousOrderQuery->sum('total');
-        $previousOrderOrders = $previousOrderQuery->count();
+        // Exclude delivery charges from accounting (only product prices)
+        $previousPosData = $previousPosQuery->get();
+        $previousPosSales = $previousPosData->sum(function($pos) {
+            return $pos->total_amount - ($pos->delivery ?? 0);
+        });
+        $previousPosOrders = $previousPosData->count();
+        
+        $previousOrderData = $previousOrderQuery->get();
+        $previousOrderSales = $previousOrderData->sum(function($order) {
+            return $order->total - ($order->delivery ?? 0);
+        });
+        $previousOrderOrders = $previousOrderData->count();
         
         $previousSales = $previousPosSales + $previousOrderSales;
         $previousOrders = $previousPosOrders + $previousOrderOrders;
@@ -192,11 +208,11 @@ class DashboardController extends Controller
         
         switch ($range) {
             case 'day':
-                $posQuery->selectRaw('HOUR(sale_date) as period, SUM(total_amount) as total')
+                $posQuery->selectRaw('HOUR(sale_date) as period, SUM(total_amount - COALESCE(delivery, 0)) as total')
                       ->whereDate('sale_date', $startDate)
                       ->groupBy('period')
                       ->orderBy('period');
-                $orderQuery->selectRaw('HOUR(created_at) as period, SUM(total) as total')
+                $orderQuery->selectRaw('HOUR(created_at) as period, SUM(total - COALESCE(delivery, 0)) as total')
                       ->whereDate('created_at', $startDate)
                       ->groupBy('period')
                       ->orderBy('period');
@@ -204,22 +220,22 @@ class DashboardController extends Controller
                 $labels = range(0, 23);
                 break;
             case 'week':
-                $posQuery->selectRaw("DATE_FORMAT(sale_date, '%a') as period, DAYOFWEEK(sale_date) as sort_key, SUM(total_amount) as total")
+                $posQuery->selectRaw("DATE_FORMAT(sale_date, '%a') as period, DAYOFWEEK(sale_date) as sort_key, SUM(total_amount - COALESCE(delivery, 0)) as total")
                       ->whereBetween('sale_date', [$startDate, $endDate])
                       ->groupBy('sort_key', 'period')
                       ->orderBy('sort_key');
-                $orderQuery->selectRaw("DATE_FORMAT(created_at, '%a') as period, DAYOFWEEK(created_at) as sort_key, SUM(total) as total")
+                $orderQuery->selectRaw("DATE_FORMAT(created_at, '%a') as period, DAYOFWEEK(created_at) as sort_key, SUM(total - COALESCE(delivery, 0)) as total")
                       ->whereBetween('created_at', [$startDate, $endDate])
                       ->groupBy('sort_key', 'period')
                       ->orderBy('sort_key');
                 $labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 break;
             case 'month':
-                $posQuery->selectRaw('DATE(sale_date) as period, SUM(total_amount) as total')
+                $posQuery->selectRaw('DATE(sale_date) as period, SUM(total_amount - COALESCE(delivery, 0)) as total')
                       ->whereBetween('sale_date', [$startDate, $endDate])
                       ->groupBy('period')
                       ->orderBy('period');
-                $orderQuery->selectRaw('DATE(created_at) as period, SUM(total) as total')
+                $orderQuery->selectRaw('DATE(created_at) as period, SUM(total - COALESCE(delivery, 0)) as total')
                       ->whereBetween('created_at', [$startDate, $endDate])
                       ->groupBy('period')
                       ->orderBy('period');
@@ -232,11 +248,11 @@ class DashboardController extends Controller
                 }
                 break;
             case 'year':
-                $posQuery->selectRaw("DATE_FORMAT(sale_date, '%b') as period, MONTH(sale_date) as sort_key, SUM(total_amount) as total")
+                $posQuery->selectRaw("DATE_FORMAT(sale_date, '%b') as period, MONTH(sale_date) as sort_key, SUM(total_amount - COALESCE(delivery, 0)) as total")
                       ->whereBetween('sale_date', [$startDate, $endDate])
                       ->groupBy('sort_key', 'period')
                       ->orderBy('sort_key');
-                $orderQuery->selectRaw("DATE_FORMAT(created_at, '%b') as period, MONTH(created_at) as sort_key, SUM(total) as total")
+                $orderQuery->selectRaw("DATE_FORMAT(created_at, '%b') as period, MONTH(created_at) as sort_key, SUM(total - COALESCE(delivery, 0)) as total")
                       ->whereBetween('created_at', [$startDate, $endDate])
                       ->groupBy('sort_key', 'period')
                       ->orderBy('sort_key');
@@ -388,7 +404,7 @@ class DashboardController extends Controller
         $query = Pos::query();
 
         $locations = $query->join('branches', 'pos.branch_id', '=', 'branches.id')
-                          ->selectRaw('branches.name, SUM(pos.total_amount) as total_sales')
+                          ->selectRaw('branches.name, SUM(pos.total_amount - COALESCE(pos.delivery, 0)) as total_sales')
                           ->whereBetween('pos.sale_date', [$startDate, $endDate])
                           ->groupBy('branches.id', 'branches.name')
                           ->orderBy('total_sales', 'desc')

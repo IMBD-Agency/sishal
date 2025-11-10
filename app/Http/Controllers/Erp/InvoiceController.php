@@ -148,6 +148,7 @@ class InvoiceController extends Controller
             'footer_text' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
@@ -206,6 +207,7 @@ class InvoiceController extends Controller
                 \App\Models\InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
@@ -273,6 +275,7 @@ class InvoiceController extends Controller
             'footer_text' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
@@ -330,6 +333,7 @@ class InvoiceController extends Controller
                 \App\Models\InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['unit_price'] * $item['quantity'],
@@ -374,14 +378,14 @@ class InvoiceController extends Controller
 
     public function edit($id)
     {
-        $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product'])->findOrFail($id);
+        $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product', 'items.variation'])->findOrFail($id);
         $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
         return view('erp.invoices.edit', compact('invoice', 'templates'));
     }
 
     public function show($id)
     {
-        $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items')->find($id);
+        $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items.product','items.variation')->find($id);
         $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
         $order = \App\Models\Order::where('invoice_id', $invoice?->id)->first();
         return view('erp.invoices.show', compact('invoice', 'bankAccounts', 'order'));
@@ -428,7 +432,7 @@ class InvoiceController extends Controller
 
     public function print(Request $request, $invoice_number)
     {
-        $invoice = Invoice::where('invoice_number', $invoice_number)->first();
+        $invoice = Invoice::with('items.product', 'items.variation')->where('invoice_number', $invoice_number)->first();
         if(!$invoice)
         {
             return redirect()->route('invoice.print', ['invoice_number' => 'notfound'])->with('error', 'Invoice not found.');

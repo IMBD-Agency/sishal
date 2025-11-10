@@ -29,6 +29,14 @@
             @endcan
         </div>
         @endcanany
+        <div class="nav-item">
+            <a href="{{ route('warehouses.index') }}" class="nav-link {{ request()->is('erp/warehouses*') ? ' active' : '' }}">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-warehouse nav-icon"></i>
+                    <span>Warehouses</span>
+                </div>
+            </a>
+        </div>
         @canany(['view employee list'])
         <div class="nav-item">
             <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">
@@ -217,6 +225,26 @@
             </div>
         </div>
         @endcanany
+        
+        {{-- Coupons - No permission check, accessible to all admins --}}
+        <div class="nav-item">
+            <a href="{{ route('coupons.index') }}" class="nav-link {{ request()->is('erp/coupons*') ? ' active' : '' }}">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-ticket-alt nav-icon"></i>
+                    <span>Coupons</span>
+                </div>
+            </a>
+        </div>
+        
+        {{-- Bulk Discounts - No permission check, accessible to all admins --}}
+        <div class="nav-item">
+            <a href="{{ route('bulk-discounts.index') }}" class="nav-link {{ request()->is('erp/bulk-discounts*') ? ' active' : '' }}">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-percent nav-icon"></i>
+                    <span>Bulk Discounts</span>
+                </div>
+            </a>
+        </div>
         @canany(['view list vlog'])
         <div class="nav-item">
             <a href="{{ route('vlogging.index') }}" class="nav-link {{ request()->is('erp/vlogging*') ? ' active' : '' }}">

@@ -98,7 +98,7 @@ $(document).ready(function() {
             processResults: function(data) {
                 return {
                     results: data.map(function(cat) {
-                        return { id: cat.id, text: cat.name };
+                        return { id: cat.id, text: cat.display_name || cat.name };
                     })
                 };
             },
@@ -117,7 +117,7 @@ $(document).ready(function() {
         }).then(function(data) {
             var option = data.find(function(cat) { return cat.id == selectedCategory; });
             if(option) {
-                var newOption = new Option(option.name, option.id, true, true);
+                var newOption = new Option(option.display_name || option.name, option.id, true, true);
                 $('#category_id').append(newOption).trigger('change');
             }
         });

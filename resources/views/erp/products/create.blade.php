@@ -75,6 +75,11 @@
                                         <small class="form-text text-muted">Supported: jpeg, png, jpg, gif, svg. Max size: 2MB.</small>
                                     </div>
                                     <div class="col-md-6">
+                                        <label for="size_chart" class="form-label">Size Chart Image</label>
+                                        <input class="form-control" type="file" id="size_chart" name="size_chart" accept="image/*">
+                                        <small class="form-text text-muted">Upload a size chart image that will be displayed on the product details page. Supported: jpeg, png, jpg, gif, svg. Max size: 2MB.</small>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label for="gallery" class="form-label">Gallery Images</label>
                                         <input class="form-control" type="file" id="gallery" name="gallery[]" accept="image/*" multiple>
                                         <small class="form-text text-muted">You can select multiple images.</small>
@@ -186,7 +191,16 @@ $(document).ready(function() {
             dataType: 'json',
             delay: 250,
             data: function(params) { return { q: params.term }; },
-            processResults: function(data) { return { results: data.map(function(cat){ return { id: cat.id, text: cat.name }; }) }; },
+            processResults: function(data) { 
+                return { 
+                    results: data.map(function(cat){ 
+                        return { 
+                            id: cat.id, 
+                            text: cat.display_name || cat.name 
+                        }; 
+                    }) 
+                }; 
+            },
             cache: true
         },
         minimumInputLength: 1

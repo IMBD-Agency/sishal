@@ -20,9 +20,8 @@ class ProductVariationStockController extends Controller
         $product = Product::findOrFail($productId);
         $variation = ProductVariation::with(['stocks.branch', 'stocks.warehouse'])->findOrFail($variationId);
         $branches = Branch::all();
-        // Only list warehouses tied to a branch to avoid phantom entries
-        // Only list warehouses whose parent branch still exists
-        $warehouses = Warehouse::whereHas('branch')->get();
+        // Show all warehouses (both ecommerce-only and branch-linked warehouses)
+        $warehouses = Warehouse::all();
         
         return view('erp.products.variations.stock', compact('product', 'variation', 'branches', 'warehouses'));
     }

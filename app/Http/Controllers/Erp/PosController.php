@@ -142,6 +142,7 @@ class PosController extends Controller
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
+                    'current_position_type' => 'branch', // Explicitly set to branch for POS orders
                     'current_position_id' => $request->branch_id
                 ]);
 

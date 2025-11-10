@@ -214,11 +214,123 @@
         </div>
     </div>
     @endcan
+
+    <!-- Update Status Modal -->
+    <div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="updateStatusModalLabel">
+                        <i class="fas fa-edit me-2"></i>Update Order Status
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateStatusForm">
+                        <input type="hidden" id="orderId" name="order_id">
+                        <div class="mb-3">
+                            <label for="newStatus" class="form-label">Select New Status</label>
+                            <select class="form-select" id="newStatus" name="status" required>
+                                <option value="">-- Select Status --</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="shipping">Shipping</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <small>Changing status to "Shipping" will automatically deduct stock from inventory.</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="confirmUpdateStatusBtn">
+                        <i class="fas fa-save me-1"></i>Update Status
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Update Status Modal
+    let orderToUpdate = null;
+    
+    $('.update-status-btn').on('click', function() {
+        orderToUpdate = {
+            id: $(this).data('id'),
+            status: $(this).data('status')
+        };
+        $('#orderId').val(orderToUpdate.id);
+        $('#newStatus').val(orderToUpdate.status);
+    });
+    
+    $('#confirmUpdateStatusBtn').on('click', function() {
+        const orderId = $('#orderId').val();
+        const newStatus = $('#newStatus').val();
+        
+        if (!orderId || !newStatus) {
+            showAlert('error', 'Please select a status');
+            return;
+        }
+        
+        const $btn = $(this);
+        const originalText = $btn.html();
+        
+        // Disable button and show loading
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Updating...');
+        
+        $.ajax({
+            url: '{{ route("order.updateStatus", ":id") }}'.replace(':id', orderId),
+            type: 'POST',
+            data: {
+                status: newStatus,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    showAlert('success', response.message);
+                    
+                    // Close modal
+                    $('#updateStatusModal').modal('hide');
+                    
+                    // Reload the page to refresh the order list
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showAlert('error', response.message || 'Failed to update status');
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                let message = 'An error occurred while updating the status';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+                showAlert('error', message);
+                $btn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // Reset modal when closed
+    $('#updateStatusModal').on('hidden.bs.modal', function() {
+        orderToUpdate = null;
+        $('#orderId').val('');
+        $('#newStatus').val('');
+        $('#confirmUpdateStatusBtn').prop('disabled', false).html('<i class="fas fa-save me-1"></i>Update Status');
+    });
+    
     // Delete Order Modal
     let orderToDelete = null;
     

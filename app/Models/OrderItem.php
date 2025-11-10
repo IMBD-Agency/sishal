@@ -27,6 +27,11 @@ class OrderItem extends Model
         return $this->belongsTo(\App\Models\Product::class, 'product_id');
     }
 
+    public function variation()
+    {
+        return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
+    }
+
     public function branch()
     {
         return $this->belongsTo(\App\Models\Branch::class, 'current_position_id');

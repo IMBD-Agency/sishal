@@ -21,6 +21,13 @@ class OrderConfirmation extends Mailable
      */
     public function __construct(Order $order)
     {
+        // Load necessary relationships for the email template
+        $order->loadMissing([
+            'items.product',
+            'items.variation',
+            'invoice.invoiceAddress'
+        ]);
+        
         $this->order = $order;
     }
 
@@ -54,6 +61,7 @@ class OrderConfirmation extends Mailable
      */
     public function attachments(): array
     {
+        // Customer email does not need PDF attachment
         return [];
     }
 } 

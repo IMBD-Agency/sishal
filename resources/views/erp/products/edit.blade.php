@@ -46,7 +46,13 @@
                                         <label for="category_id" class="form-label">Category <span class="text-danger">*</span></label>
                                         <select class="form-select" id="category_id" name="category_id" required style="width: 100%">
                                             @if($product->category)
-                                                <option value="{{ $product->category->id }}" selected>{{ $product->category->name }}</option>
+                                                @php
+                                                    $displayName = $product->category->name;
+                                                    if($product->category->parent_id && $product->category->parent) {
+                                                        $displayName = $product->category->parent->name . ' > ' . $product->category->name;
+                                                    }
+                                                @endphp
+                                                <option value="{{ $product->category->id }}" selected>{{ $displayName }}</option>
                                             @endif
                                         </select>
                                     </div>
@@ -80,6 +86,16 @@
                                         @endif
                                         <input class="form-control" type="file" id="image" name="image" accept="image/*">
                                         <small class="form-text text-muted">Supported: jpeg, png, jpg, gif, svg. Max size: 2MB.</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="size_chart" class="form-label">Size Chart Image</label>
+                                        @if($product->size_chart)
+                                            <div class="mb-2">
+                                                <img src="{{ asset($product->size_chart) }}" alt="Current Size Chart" style="max-width: 120px; max-height: 120px;">
+                                            </div>
+                                        @endif
+                                        <input class="form-control" type="file" id="size_chart" name="size_chart" accept="image/*">
+                                        <small class="form-text text-muted">Upload a size chart image that will be displayed on the product details page. Supported: jpeg, png, jpg, gif, svg. Max size: 2MB.</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="gallery" class="form-label">Gallery Images</label>
@@ -265,7 +281,16 @@ $(document).ready(function() {
             dataType: 'json',
             delay: 250,
             data: function(params) { return { q: params.term }; },
-            processResults: function(data) { return { results: data.map(function(cat){ return { id: cat.id, text: cat.name }; }) }; },
+            processResults: function(data) { 
+                return { 
+                    results: data.map(function(cat){ 
+                        return { 
+                            id: cat.id, 
+                            text: cat.display_name || cat.name 
+                        }; 
+                    }) 
+                }; 
+            },
             cache: true
         },
         minimumInputLength: 1

@@ -215,6 +215,11 @@
                                         <td class="px-4 py-3 text-muted">{{ $loop->iteration }}</td>
                                         <td class="px-4 py-3">
                                             <div class="fw-medium text-dark">{{ $item->product->name ?? '-' }}</div>
+                                            @if($item->variation)
+                                                <div class="small text-muted mt-1">
+                                                    <span class="badge bg-info-subtle text-info">Variation: {{ $item->variation->name ?? $item->variation->sku }}</span>
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-3 text-center">
                                             <span class="badge bg-light text-dark rounded-pill">{{ $item->quantity }}</span>

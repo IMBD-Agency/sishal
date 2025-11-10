@@ -77,6 +77,7 @@ class OrderReturnController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.returned_qty' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.reason' => 'nullable|string',
@@ -107,7 +108,7 @@ class OrderReturnController extends Controller
 
     public function show($id)
     {
-        $orderReturn = OrderReturn::with(['items.product', 'employee.user'])->findOrFail($id);
+        $orderReturn = OrderReturn::with(['items.product', 'items.variation', 'employee.user'])->findOrFail($id);
         return view('erp.orderReturn.show', compact('orderReturn'));
     }
 
@@ -140,6 +141,7 @@ class OrderReturnController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.returned_qty' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.reason' => 'nullable|string',
@@ -216,7 +218,35 @@ class OrderReturnController extends Controller
 
             // If status is being processed, adjust stock (add returned qty)
             if ($newStatus === 'processed') {
+                // Refresh items to ensure we have latest data including variation_id
+                $orderReturn->refresh();
+                $orderReturn->load('items');
+                
                 foreach ($orderReturn->items as $item) {
+                    // Refresh item to ensure we have latest data
+                    $item->refresh();
+                    
+                    // Log item details before processing
+                    \Log::info('Processing return item', [
+                        'item_id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'variation_id' => $item->variation_id,
+                        'returned_qty' => $item->returned_qty,
+                        'return_to_type' => $orderReturn->return_to_type,
+                        'return_to_id' => $orderReturn->return_to_id
+                    ]);
+                    
+                    // Verify variation_id is set if product has variations
+                    if ($item->product_id) {
+                        $product = \App\Models\Product::find($item->product_id);
+                        if ($product && $product->has_variations && !$item->variation_id) {
+                            \Log::warning('Product has variations but variation_id is missing in return item', [
+                                'item_id' => $item->id,
+                                'product_id' => $item->product_id
+                            ]);
+                        }
+                    }
+                    
                     $this->addStockForReturnItem($orderReturn, $item);
                 }
                 
@@ -264,21 +294,39 @@ class OrderReturnController extends Controller
         $toType = $orderReturn->return_to_type;
         $toId = $orderReturn->return_to_id;
 
+        // Log for debugging
+        \Log::info('Adding stock for return item', [
+            'product_id' => $productId,
+            'variation_id' => $variationId,
+            'quantity' => $qty,
+            'return_to_type' => $toType,
+            'return_to_id' => $toId
+        ]);
+
         switch ($toType) {
             case 'branch':
-                if ($variationId) {
+                if ($variationId && $variationId > 0) {
                     $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
                         ->where('branch_id', $toId)
                         ->whereNull('warehouse_id')
                         ->first();
                     if ($stock) {
                         $stock->increment('quantity', $qty);
+                        \Log::info('Variation stock incremented in branch', [
+                            'stock_id' => $stock->id,
+                            'new_quantity' => $stock->quantity
+                        ]);
                     } else {
-                        \App\Models\ProductVariationStock::create([
+                        $newStock = \App\Models\ProductVariationStock::create([
                             'variation_id' => $variationId,
                             'branch_id' => $toId,
                             'quantity' => $qty,
-                            'updated_by' => auth()->id()
+                            'updated_by' => auth()->id(),
+                            'last_updated_at' => now()
+                        ]);
+                        \Log::info('New variation stock created in branch', [
+                            'stock_id' => $newStock->id,
+                            'quantity' => $newStock->quantity
                         ]);
                     }
                 } else {
@@ -287,30 +335,48 @@ class OrderReturnController extends Controller
                         ->first();
                     if ($stock) {
                         $stock->increment('quantity', $qty);
+                        \Log::info('Product stock incremented in branch', [
+                            'stock_id' => $stock->id,
+                            'new_quantity' => $stock->quantity
+                        ]);
                     } else {
-                        \App\Models\BranchProductStock::create([
+                        $newStock = \App\Models\BranchProductStock::create([
                             'branch_id' => $toId,
                             'product_id' => $productId,
                             'quantity' => $qty,
-                            'updated_by' => auth()->id()
+                            'updated_by' => auth()->id(),
+                            'last_updated_at' => now()
+                        ]);
+                        \Log::info('New product stock created in branch', [
+                            'stock_id' => $newStock->id,
+                            'quantity' => $newStock->quantity
                         ]);
                     }
                 }
                 break;
             case 'warehouse':
-                if ($variationId) {
+                if ($variationId && $variationId > 0) {
                     $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
                         ->where('warehouse_id', $toId)
                         ->whereNull('branch_id')
                         ->first();
                     if ($stock) {
                         $stock->increment('quantity', $qty);
+                        \Log::info('Variation stock incremented in warehouse', [
+                            'stock_id' => $stock->id,
+                            'new_quantity' => $stock->quantity
+                        ]);
                     } else {
-                        \App\Models\ProductVariationStock::create([
+                        $newStock = \App\Models\ProductVariationStock::create([
                             'variation_id' => $variationId,
                             'warehouse_id' => $toId,
                             'quantity' => $qty,
-                            'updated_by' => auth()->id()
+                            'updated_by' => auth()->id(),
+                            'last_updated_at' => now()
+                        ]);
+                        \Log::info('New variation stock created in warehouse', [
+                            'stock_id' => $newStock->id,
+                            'quantity' => $newStock->quantity
                         ]);
                     }
                 } else {
@@ -319,28 +385,46 @@ class OrderReturnController extends Controller
                         ->first();
                     if ($stock) {
                         $stock->increment('quantity', $qty);
+                        \Log::info('Product stock incremented in warehouse', [
+                            'stock_id' => $stock->id,
+                            'new_quantity' => $stock->quantity
+                        ]);
                     } else {
-                        \App\Models\WarehouseProductStock::create([
+                        $newStock = \App\Models\WarehouseProductStock::create([
                             'warehouse_id' => $toId,
                             'product_id' => $productId,
                             'quantity' => $qty,
-                            'updated_by' => auth()->id()
+                            'updated_by' => auth()->id(),
+                            'last_updated_at' => now()
+                        ]);
+                        \Log::info('New product stock created in warehouse', [
+                            'stock_id' => $newStock->id,
+                            'quantity' => $newStock->quantity
                         ]);
                     }
                 }
                 break;
             case 'employee':
+                // Note: Employee stock doesn't support variations currently
                 $stock = \App\Models\EmployeeProductStock::where('employee_id', $toId)
                     ->where('product_id', $productId)
                     ->first();
                 if ($stock) {
                     $stock->increment('quantity', $qty);
+                    \Log::info('Product stock incremented for employee', [
+                        'stock_id' => $stock->id,
+                        'new_quantity' => $stock->quantity
+                    ]);
                 } else {
-                    \App\Models\EmployeeProductStock::create([
+                    $newStock = \App\Models\EmployeeProductStock::create([
                         'employee_id' => $toId,
                         'product_id' => $productId,
                         'quantity' => $qty,
                         'issued_by' => auth()->id()
+                    ]);
+                    \Log::info('New product stock created for employee', [
+                        'stock_id' => $newStock->id,
+                        'quantity' => $newStock->quantity
                     ]);
                 }
                 break;

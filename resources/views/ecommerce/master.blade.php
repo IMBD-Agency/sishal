@@ -1008,19 +1008,38 @@ document.addEventListener('DOMContentLoaded', function() {
             
         // Handle variations for product details page
         if (window.location.pathname.includes('/product/')) {
-            var hasVariations = document.querySelector('[data-has-variations="true"]') !== null;
+            // Check for variations - multiple ways to detect
+            var hasVariations = document.querySelector('[data-has-variations="true"]') !== null ||
+                                document.querySelector('[data-has-variations="1"]') !== null ||
+                                document.querySelector('.color-option, .size-option, .variation-option').length > 0;
+            
             if (hasVariations) {
                 var variationIdEl = document.getElementById('selected-variation-id');
                 var selectedVariationId = variationIdEl ? variationIdEl.value : null;
                 
-                if (!selectedVariationId) {
-                    if (typeof showToast === 'function') showToast('Please select product options before adding to cart', 'error');
+                // Debug logging
+                console.log('[CART] Product has variations, checking selection:', {
+                    hasVariations: hasVariations,
+                    variationIdEl: variationIdEl,
+                    selectedVariationId: selectedVariationId,
+                    elementValue: variationIdEl ? variationIdEl.value : 'element not found'
+                });
+                
+                if (!selectedVariationId || selectedVariationId === '' || selectedVariationId === '0') {
+                    console.error('[CART] Variation not selected!', {
+                        variationIdEl: variationIdEl,
+                        value: variationIdEl ? variationIdEl.value : 'N/A'
+                    });
+                    if (typeof showToast === 'function') showToast('Please select product options (Color/Size) before adding to cart', 'error');
                     btn.disabled = false;
                     btn.removeAttribute('data-processing');
                     return;
                 }
                 
                 data.append('variation_id', selectedVariationId);
+                console.log('[CART] Added variation_id to request:', selectedVariationId);
+            } else {
+                console.log('[CART] Product has no variations, skipping variation_id');
             }
         }
         

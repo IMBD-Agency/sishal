@@ -102,7 +102,86 @@
                     <div class="d-md-none">
                         <div class="list-group list-group-flush">
                             @foreach ($productStocks as $stock)
-                                @php $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity'); @endphp
+                                @php
+                                    // Calculate total stock including variations
+                                    if ($stock->has_variations && $stock->variations) {
+                                        // Sum all variation stocks
+                                        $variationBranchStock = 0;
+                                        $variationWarehouseStock = 0;
+                                        foreach ($stock->variations as $variation) {
+                                            if ($variation->stocks) {
+                                                foreach ($variation->stocks as $vStock) {
+                                                    if ($vStock->branch_id) {
+                                                        $variationBranchStock += $vStock->quantity;
+                                                    }
+                                                    if ($vStock->warehouse_id) {
+                                                        $variationWarehouseStock += $vStock->quantity;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        $totalStock = $variationBranchStock + $variationWarehouseStock;
+                                        
+                                        // Aggregate branch and warehouse stock from variations
+                                        $branchStockData = [];
+                                        $warehouseStockData = [];
+                                        $hasNegativeStock = false;
+                                        $negativeLocations = [];
+                                        foreach ($stock->variations as $variation) {
+                                            if ($variation->stocks) {
+                                                foreach ($variation->stocks as $vStock) {
+                                                    if ($vStock->branch_id && $vStock->branch) {
+                                                        $branchName = $vStock->branch->name ?? 'Unknown Branch';
+                                                        if (!isset($branchStockData[$branchName])) {
+                                                            $branchStockData[$branchName] = 0;
+                                                        }
+                                                        $branchStockData[$branchName] += $vStock->quantity;
+                                                        if ($vStock->quantity < 0) {
+                                                            $hasNegativeStock = true;
+                                                            $negativeLocations[] = $branchName . ': ' . $vStock->quantity . ' units';
+                                                        }
+                                                    }
+                                                    if ($vStock->warehouse_id && $vStock->warehouse) {
+                                                        $warehouseName = $vStock->warehouse->name ?? 'Unknown Warehouse';
+                                                        if (!isset($warehouseStockData[$warehouseName])) {
+                                                            $warehouseStockData[$warehouseName] = 0;
+                                                        }
+                                                        $warehouseStockData[$warehouseName] += $vStock->quantity;
+                                                        if ($vStock->quantity < 0) {
+                                                            $hasNegativeStock = true;
+                                                            $negativeLocations[] = $warehouseName . ': ' . $vStock->quantity . ' units';
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Direct product stock
+                                        $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity');
+                                        $branchStockData = $stock->branchStock->map(function($bs) { 
+                                            return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; 
+                                        })->toArray();
+                                        $warehouseStockData = $stock->warehouseStock->map(function($ws) { 
+                                            return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; 
+                                        })->toArray();
+                                        
+                                        // Check for negative stock in any location
+                                        $hasNegativeStock = false;
+                                        $negativeLocations = [];
+                                        foreach ($stock->branchStock as $bs) {
+                                            if ($bs->quantity < 0) {
+                                                $hasNegativeStock = true;
+                                                $negativeLocations[] = ($bs->branch->name ?? 'Unknown Branch') . ': ' . $bs->quantity . ' units';
+                                            }
+                                        }
+                                        foreach ($stock->warehouseStock as $ws) {
+                                            if ($ws->quantity < 0) {
+                                                $hasNegativeStock = true;
+                                                $negativeLocations[] = ($ws->warehouse->name ?? 'Unknown Warehouse') . ': ' . $ws->quantity . ' units';
+                                            }
+                                        }
+                                    }
+                                @endphp
                                 <div class="list-group-item">
                                     <div class="d-flex align-items-center">
                                         <img src="{{ asset($stock->image) }}" alt="Product" class="rounded me-3" style="width: 48px; height: 48px; object-fit: cover;">
@@ -111,18 +190,44 @@
                                             <div class="small text-muted">SKU: {{ $stock->sku }} • {{ $stock->category->name ?? 'No Category' }}</div>
                                         </div>
                                         <div class="text-end">
-                                            <div class="fw-bold text-primary">{{ $totalStock }}</div>
+                                            <div class="d-flex align-items-center justify-content-end gap-1">
+                                                <div class="fw-bold text-primary">{{ $totalStock }}</div>
+                                                @if(isset($hasNegativeStock) && $hasNegativeStock)
+                                                    <i class="fas fa-exclamation-triangle text-danger" 
+                                                       title="Warning: Negative stock in some locations: {{ implode(', ', $negativeLocations) }}" 
+                                                       data-bs-toggle="tooltip"></i>
+                                                @endif
+                                            </div>
                                             <small class="text-muted">units</small>
+                                            @if(isset($hasNegativeStock) && $hasNegativeStock)
+                                                <small class="text-danger d-block" style="font-size: 0.65rem;">
+                                                    <i class="fas fa-info-circle"></i> Negative stock detected
+                                                </small>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="mt-2 d-flex flex-wrap gap-2">
+                                        @if(!$stock->has_variations)
                                         <button class="btn btn-sm btn-outline-info add-branch-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">Add to branch</button>
                                         <button class="btn btn-sm btn-outline-success add-warehouse-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">Add to warehouse</button>
-                                        @if($stock->branchStock->count() > 0)
-                                            <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($stock->branchStock->map(function($bs) { return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; }))'>{{ $stock->branchStock->count().' Locations' }}</button>
                                         @endif
-                                        @if($stock->warehouseStock && $stock->warehouseStock->count() > 0)
-                                            <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($stock->warehouseStock->map(function($ws) { return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; }))'>{{ $stock->warehouseStock->count().' Warehouses' }}</button>
+                                        @if(!empty($branchStockData))
+                                            @php
+                                                $branchStockArray = [];
+                                                foreach ($branchStockData as $name => $qty) {
+                                                    $branchStockArray[] = ["branch_name" => $name, "quantity" => $qty];
+                                                }
+                                            @endphp
+                                            <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($branchStockArray)'>{{ count($branchStockData).' Locations' }}</button>
+                                        @endif
+                                        @if(!empty($warehouseStockData))
+                                            @php
+                                                $warehouseStockArray = [];
+                                                foreach ($warehouseStockData as $name => $qty) {
+                                                    $warehouseStockArray[] = ["warehouse_name" => $name, "quantity" => $qty];
+                                                }
+                                            @endphp
+                                            <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($warehouseStockArray)'>{{ count($warehouseStockData).' Warehouses' }}</button>
                                         @endif
                                     </div>
                                 </div>
@@ -146,7 +251,86 @@
                             <tbody id="stockTableBody">
 
                                 @foreach ($productStocks as $stock)
-
+                                    @php
+                                        // Calculate total stock including variations
+                                        if ($stock->has_variations && $stock->variations) {
+                                            // Sum all variation stocks
+                                            $variationBranchStock = 0;
+                                            $variationWarehouseStock = 0;
+                                            foreach ($stock->variations as $variation) {
+                                                if ($variation->stocks) {
+                                                    foreach ($variation->stocks as $vStock) {
+                                                        if ($vStock->branch_id) {
+                                                            $variationBranchStock += $vStock->quantity;
+                                                        }
+                                                        if ($vStock->warehouse_id) {
+                                                            $variationWarehouseStock += $vStock->quantity;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            $totalStock = $variationBranchStock + $variationWarehouseStock;
+                                            
+                                            // Aggregate branch and warehouse stock from variations
+                                            $branchStockData = [];
+                                            $warehouseStockData = [];
+                                            $hasNegativeStock = false;
+                                            $negativeLocations = [];
+                                            foreach ($stock->variations as $variation) {
+                                                if ($variation->stocks) {
+                                                    foreach ($variation->stocks as $vStock) {
+                                                        if ($vStock->branch_id && $vStock->branch) {
+                                                            $branchName = $vStock->branch->name ?? 'Unknown Branch';
+                                                            if (!isset($branchStockData[$branchName])) {
+                                                                $branchStockData[$branchName] = 0;
+                                                            }
+                                                            $branchStockData[$branchName] += $vStock->quantity;
+                                                            if ($vStock->quantity < 0) {
+                                                                $hasNegativeStock = true;
+                                                                $negativeLocations[] = $branchName . ': ' . $vStock->quantity . ' units';
+                                                            }
+                                                        }
+                                                        if ($vStock->warehouse_id && $vStock->warehouse) {
+                                                            $warehouseName = $vStock->warehouse->name ?? 'Unknown Warehouse';
+                                                            if (!isset($warehouseStockData[$warehouseName])) {
+                                                                $warehouseStockData[$warehouseName] = 0;
+                                                            }
+                                                            $warehouseStockData[$warehouseName] += $vStock->quantity;
+                                                            if ($vStock->quantity < 0) {
+                                                                $hasNegativeStock = true;
+                                                                $negativeLocations[] = $warehouseName . ': ' . $vStock->quantity . ' units';
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            // Direct product stock
+                                            $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity');
+                                            $branchStockData = $stock->branchStock->map(function($bs) { 
+                                                return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; 
+                                            })->toArray();
+                                            $warehouseStockData = $stock->warehouseStock->map(function($ws) { 
+                                                return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; 
+                                            })->toArray();
+                                            
+                                            // Check for negative stock in any location
+                                            $hasNegativeStock = false;
+                                            $negativeLocations = [];
+                                            foreach ($stock->branchStock as $bs) {
+                                                if ($bs->quantity < 0) {
+                                                    $hasNegativeStock = true;
+                                                    $negativeLocations[] = ($bs->branch->name ?? 'Unknown Branch') . ': ' . $bs->quantity . ' units';
+                                                }
+                                            }
+                                            foreach ($stock->warehouseStock as $ws) {
+                                                if ($ws->quantity < 0) {
+                                                    $hasNegativeStock = true;
+                                                    $negativeLocations[] = ($ws->warehouse->name ?? 'Unknown Warehouse') . ': ' . $ws->quantity . ' units';
+                                                }
+                                            }
+                                        }
+                                    @endphp
                                     <tr class="stock-row" data-product-id="{{ $stock->id }}">
                                         <td>
                                             <div class="d-flex align-items-center">
@@ -161,31 +345,56 @@
                                         <td><span class="font-monospace">{{$stock->sku}}</span></td>
                                         <td><span class="badge bg-light text-dark">{{$stock->category->name ?? 'No Category'}}</span></td>
                                         <td class="text-center">
-                                            <span class="h5 fw-bold text-primary">
-                                                {{ @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity') }}
-                                            </span>
+                                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                                <span class="h5 fw-bold text-primary">
+                                                    {{ $totalStock }}
+                                                </span>
+                                                @if(isset($hasNegativeStock) && $hasNegativeStock)
+                                                    <i class="fas fa-exclamation-triangle text-danger" 
+                                                       title="Warning: Negative stock detected in some locations: {{ implode(', ', $negativeLocations) }}. Total shown is sum of all locations." 
+                                                       data-bs-toggle="tooltip"></i>
+                                                @endif
+                                            </div>
                                             <small class="text-muted d-block">units</small>
+                                            @if(isset($hasNegativeStock) && $hasNegativeStock)
+                                                <small class="text-danger d-block" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-info-circle"></i> Some locations have negative stock
+                                                </small>
+                                            @endif
                                         </td>
                                         <td class="text-center">
+                                            @if(!$stock->has_variations)
                                             <button class="btn btn-sm btn-outline-info add-branch-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">
                                                 Add stock to branch
                                             </button>
-                                            @if($stock->branchStock->count() > 0)
-                                            <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($stock->branchStock->map(function($bs) { return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; }))'>{{$stock->branchStock->count().' Locations'}}</button>
+                                            @endif
+                                            @if(!empty($branchStockData))
+                                                @php
+                                                    $branchStockArray = [];
+                                                    foreach ($branchStockData as $name => $qty) {
+                                                        $branchStockArray[] = ["branch_name" => $name, "quantity" => $qty];
+                                                    }
+                                                @endphp
+                                                <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($branchStockArray)'>{{ count($branchStockData).' Locations' }}</button>
                                             @endif
                                         </td>
                                         <td class="text-center">
-                                            <button class="btn btn-sm btn-outline-success add-warehouse-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">
-                                                Add stock to warehouse
-                                            </button>
-                                            @if($stock->warehouseStock && $stock->warehouseStock->count() > 0)
-                                            <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($stock->warehouseStock->map(function($ws) { return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; }))'>{{$stock->warehouseStock->count().' Warehouses'}}</button>
+                                            @if(!$stock->has_variations)
+                                                <button class="btn btn-sm btn-outline-success add-warehouse-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">
+                                                    Add stock to warehouse
+                                                </button>
+                                            @endif
+                                            @if(!empty($warehouseStockData))
+                                                @php
+                                                    $warehouseStockArray = [];
+                                                    foreach ($warehouseStockData as $name => $qty) {
+                                                        $warehouseStockArray[] = ["warehouse_name" => $name, "quantity" => $qty];
+                                                    }
+                                                @endphp
+                                                <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($warehouseStockArray)'>{{ count($warehouseStockData).' Warehouses' }}</button>
                                             @endif
                                         </td>
                                         <td>
-                                            @php
-                                                $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity');
-                                            @endphp
                                             @if($totalStock > 0)
                                                 <span class="badge bg-success">In Stock</span>
                                             @else
@@ -654,7 +863,7 @@ $(document).ready(function() {
             processResults: function(data) {
                 return {
                     results: data.map(function(item) {
-                        return { id: item.id, text: item.name };
+                        return { id: item.id, text: item.display_name || item.name };
                     })
                 };
             },
@@ -662,6 +871,7 @@ $(document).ready(function() {
         },
         width: 'resolve',
     });
+   
     // Set the selected category if present in the query string
     var selectedCategory = '{{ request('category_id') }}';
     if(selectedCategory) {
@@ -673,7 +883,7 @@ $(document).ready(function() {
         }).then(function(data) {
             var option = data.find(function(cat) { return cat.id == selectedCategory; });
             if(option) {
-                var newOption = new Option(option.name, option.id, true, true);
+                var newOption = new Option(option.display_name || option.name, option.id, true, true);
                 $('#categoryFilter').append(newOption).trigger('change');
             }
         });

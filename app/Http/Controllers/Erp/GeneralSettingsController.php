@@ -49,6 +49,7 @@ class GeneralSettingsController extends Controller
             'smtp_from_address' => 'nullable|email|max:255',
             'smtp_from_name' => 'nullable|string|max:255',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
+            'cod_percentage' => 'nullable|numeric|min:0|max:100',
         ]);
 
         // Get the settings row (create if not exists)

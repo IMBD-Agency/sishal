@@ -1,12 +1,8 @@
 <!-- Top Bar -->
 <div class="top-bar">
-    <div class="container">
-        <div class="row">
-            <div class="col-12 text-center">
-                {{ $general_settings->top_text }}
-            </div>
-        </div>
-    </div>
+    <marquee behavior="scroll" direction="left" scrollamount="3" onmouseover="this.stop();" onmouseout="this.start();">
+        {{ $general_settings->top_text }}
+    </marquee>
 </div>
 
 <!-- Header Section -->

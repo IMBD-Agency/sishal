@@ -115,20 +115,28 @@
                                             <div id="attribute-combinations">
                                                 @foreach($attributes as $index => $attribute)
                                                     @php($selectedCombo = $variation->combinations->firstWhere('attribute_id', $attribute->id))
-                                                    <div class="mb-3 attribute-row" data-attribute-id="{{ $attribute->id }}">
-                                                        <label class="form-label">{{ $attribute->name }} <span class="text-danger">*</span></label>
-                                                        <select class="form-select attribute-select" name="attribute_values[]" required>
-                                                            <option value="">Select {{ $attribute->name }}</option>
-                                                @foreach($attribute->values as $value)
+                                                    <div class="mb-3 attribute-row" data-attribute-id="{{ $attribute->id }}" data-is-required="{{ $attribute->is_required ? '1' : '0' }}">
+                                                        <label class="form-label">{{ $attribute->name }} @if($attribute->is_required)<span class="text-danger">*</span>@endif</label>
+                                                        <select class="form-select attribute-select" name="attribute_values[{{ $attribute->id }}][]" multiple{{ $attribute->is_required ? ' required' : '' }}>
+                                                            @foreach($attribute->activeValues as $value)
                                                                 <option value="{{ $value->id }}"
                                                                         data-attribute-id="{{ $attribute->id }}"
                                                                         data-value-id="{{ $value->id }}"
                                                                         data-color-code="{{ $value->color_code }}"
-                                                                        {{ (string) old('attribute_values.' . $index, optional($selectedCombo)->attribute_value_id) === (string) $value->id ? 'selected' : '' }}>
+                                                                        {{ (string) old('attribute_values.' . $attribute->id . '.0', optional($selectedCombo)->attribute_value_id) === (string) $value->id ? 'selected' : '' }}>
                                                                     {{ $value->value }}
+                                                                    @if($attribute->is_color && $value->color_code)
+                                                                        <span class="color-indicator" 
+                                                                              style="background-color: {{ $value->color_code }}; 
+                                                                                     width: 12px; height: 12px; 
+                                                                                     display: inline-block; 
+                                                                                     border-radius: 50%; 
+                                                                                     margin-left: 5px;"></span>
+                                                                    @endif
                                                                 </option>
                                                             @endforeach
                                                         </select>
+                                                        <small class="text-muted">Tip: Hold Ctrl/Cmd to select multiple {{ strtolower($attribute->name) }} values to auto-generate combinations.</small>
                                                         <input type="hidden" name="attributes[]" value="{{ $attribute->id }}">
                                                     </div>
                                                 @endforeach

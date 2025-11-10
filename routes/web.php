@@ -92,10 +92,12 @@ Route::get('/checkout', [OrderController::class, 'checkoutPage'])->name('checkou
 Route::post('/make-order', [OrderController::class, 'makeOrder'])->name('order.make');
 Route::get('/order-success/{orderId}', [OrderController::class, 'orderSuccess'])->name('order.success');
 Route::get('/order-details/{orderNum}', [OrderController::class, 'show'])->name('order.details');
+Route::get('/order/{orderNumber}/invoice/download', [OrderController::class, 'downloadInvoice'])->name('order.invoice.download');
 
 // City and Shipping API routes
 Route::get('/api/cities/search', [OrderController::class, 'searchCities'])->name('api.cities.search');
 Route::get('/api/shipping-methods/city', [OrderController::class, 'getShippingMethodsForCity'])->name('api.shipping.methods.city');
+Route::post('/api/coupons/validate', [OrderController::class, 'validateCoupon'])->name('api.coupons.validate');
 
 // Payment initialization and status should be accessible to guests
 Route::post('/payment/initialize', [\App\Http\Controllers\PaymentController::class, 'initializePayment'])->name('payment.initialize');
@@ -132,6 +134,14 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('warehouses', \App\Http\Controllers\Erp\WarehouseController::class);
     Route::resource('materials', \App\Http\Controllers\Erp\MaterialController::class);
     Route::resource('banners', \App\Http\Controllers\Erp\BannerController::class);
+    
+    // Coupon Management
+    Route::resource('coupons', \App\Http\Controllers\Erp\CouponController::class);
+    Route::patch('/coupons/{coupon}/toggle-status', [\App\Http\Controllers\Erp\CouponController::class, 'toggleStatus'])->name('coupons.toggle-status');
+    
+    // Bulk Discount Management
+    Route::resource('bulk-discounts', \App\Http\Controllers\Erp\BulkDiscountController::class);
+    Route::patch('/bulk-discounts/{bulkDiscount}/toggle-status', [\App\Http\Controllers\Erp\BulkDiscountController::class, 'toggleStatus'])->name('bulk-discounts.toggle-status');
     
     // Review Management
     Route::get('/reviews', [\App\Http\Controllers\Erp\ReviewController::class, 'index'])->name('reviews.index');
@@ -184,6 +194,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::patch('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'update'])->name('product.update');
     Route::delete('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'destroy'])->name('product.delete');
     Route::get('/products/{id}/price', [\App\Http\Controllers\Erp\ProductController::class, 'getPrice']);
+    Route::get('/products/{productId}/variations-list', [\App\Http\Controllers\Erp\ProductController::class, 'getProductVariations'])->name('products.variations.list');
 
     // Product Variations
     Route::prefix('products/{productId}/variations')->group(function () {

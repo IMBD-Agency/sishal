@@ -151,7 +151,7 @@
     <style>
         /* Layout tweaks */
         .wishlist-page { padding-bottom: 12px; }
-        .product-card { background:#fff; border:1px solid #eef0f2; border-radius:14px; overflow:hidden; box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+        .product-card { background:#fff; border:1px solid #eef0f2; border-radius:8px; overflow:hidden; box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
         .card:hover {
             transition: all 0.3s ease;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
@@ -181,7 +181,7 @@
         }
 
         /* Product card image fixes to avoid odd padding/whitespace */
-        .product-image-container { position: relative; overflow: hidden; border-radius: 12px; background: transparent; }
+        .product-image-container { position: relative; overflow: hidden; border-radius: 8px; background: transparent; }
         .product-image { width: 100%; height: 260px; object-fit: cover; display: block; }
         .product-info { padding: 14px 16px 16px; }
         .product-title { display:block; margin-top: 6px; color:#222; font-weight:600; }

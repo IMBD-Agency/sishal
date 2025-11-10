@@ -12,9 +12,7 @@
     z-index: 15000; /* Above category submenu (10000) */
     height: 32px;
     line-height: 32px;
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
     /* Prevent header shake - force consistency */
     transform: none;
     will-change: auto;
@@ -23,6 +21,20 @@
     /* Prevent any movement */
     margin: 0 !important;
     padding: 0 !important;
+    background: #00512C; /* Dark green background */
+    color: #fff;
+}
+
+/* Marquee styling */
+.top-bar marquee {
+    display: block;
+    width: 100%;
+    height: 100%;
+    line-height: 32px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
 }
 header.modern-header{
     position: fixed !important;
@@ -184,6 +196,11 @@ nav.main-nav * {
     /* Ensure consistent rendering */
     backface-visibility: visible;
     -webkit-backface-visibility: visible;
+}
+
+/* Exception: Allow marquee to work */
+.top-bar marquee {
+    transform: none !important;
 }
 
 /* Force header elements to maintain position */
@@ -924,7 +941,6 @@ body {
         margin-left: 0;
         margin-right: 0;
     }
-    
 }
 
 @media (max-width: 768px) {
@@ -1685,7 +1701,7 @@ body {
 
 .product-card {
     background: #fff;
-    border-radius: 14px;
+    border-radius: 8px;
     overflow: hidden;
     border: 1px solid #E5E7EB;
     box-shadow: 0 6px 16px rgba(0,0,0,.06);
@@ -2190,11 +2206,7 @@ turbo-progress-bar {
         display: none !important;
     }
     
-    /* Hero slider mobile improvements */
-    .hero-slide-img {
-        height: 250px !important;
-        object-fit: cover;
-    }
+    /* Hero slider mobile improvements - removed duplicate, using consolidated styles below */
     
     .splide-hero {
         border-radius: 0 !important;
@@ -2443,9 +2455,7 @@ turbo-progress-bar {
         padding: 10px 0 !important;
     }
     
-    .hero-slide-img {
-        height: 200px !important;
-    }
+    /* Hero slider extra small - removed duplicate, using consolidated styles below */
     
     .splide-hero {
         border-radius: 0 !important;
@@ -3198,9 +3208,22 @@ turbo-progress-bar {
     box-shadow: 0 20px 40px rgba(0,0,0,0.08);
 }
 
+/* Hero Banner Image - Consolidated styles to avoid conflicts */
 .hero-slide-img {
-    height: 480px;
+    width: 100%;
+    /* height: 640px; */
     object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Laptop screens (993px - 1024px) */
+@media (max-width: 1024px) and (min-width: 993px) {
+    .hero-slide-img {
+        /* height: 300px; */
+        object-fit: cover;
+        object-position: center;
+    }
 }
 
 /* Show controls for this specific carousel (we hid bootstrap ones globally) */
@@ -3342,10 +3365,12 @@ turbo-progress-bar {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Responsive carousel adjustments */
+/* Tablet screens (769px - 992px) */
 @media (max-width: 992px) {
     .hero-slide-img { 
-        height: 320px; 
+        height: 400px;
+        object-fit: cover;
+        object-position: center;
     }
     
     .hero-carousel .carousel-control-prev,
@@ -3378,9 +3403,21 @@ turbo-progress-bar {
     }
 }
 
+/* Mobile screens (577px - 768px) */
+@media (max-width: 768px) {
+    .hero-slide-img { 
+        height: 300px;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+/* Small mobile screens (max-width: 576px) */
 @media (max-width: 576px) {
     .hero-slide-img { 
-        height: 220px; 
+        height: 140px;
+        object-fit: cover;
+        object-position: center;
     }
     
     .hero-carousel .carousel-control-prev,

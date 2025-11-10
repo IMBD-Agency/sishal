@@ -248,7 +248,16 @@
                                             <div class="d-flex justify-content-between align-items-start gap-2">
                                                 <div>
                                                     <div class="fw-semibold">{{ @$item->product->name ?? '-' }}</div>
-                                                    <div class="small text-muted">SKU: {{ @$item->product->sku ?? '-' }}</div>
+                                                    @if($item->variation)
+                                                        <div class="small text-muted">SKU: {{ $item->variation->sku ?? '-' }}</div>
+                                                        @if($item->variation->name)
+                                                            <div class="small text-muted mt-1">
+                                                                <span class="badge bg-info-subtle text-info">Variation: {{ $item->variation->name }}</span>
+                                                            </div>
+                                                        @endif
+                                                    @else
+                                                        <div class="small text-muted">SKU: {{ @$item->product->sku ?? '-' }}</div>
+                                                    @endif
                                                 </div>
                                                 <span class="badge bg-primary flex-shrink-0">Qty: {{ $item->quantity }}</span>
                                             </div>
@@ -277,8 +286,10 @@
                                                     <div class="d-flex flex-wrap gap-2 mt-1">
                                                         @if(@$item->current_position_id != $order->employee_id)
                                                         <a href="#" class="small request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Change Stock</a>
+                                                        @if($order->employee_id)
                                                         <span class="text-muted">|</span>
                                                         <a href="#" class="small transfer-to-employee-link" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Transfer To Employee</a>
+                                                        @endif
                                                         @endif
                                                     </div>
                                                 @endif
@@ -306,10 +317,18 @@
                                             <tr>
                                                 <td class="border-0 py-3">
                                                     <div class="fw-medium">{{ @$item->product->name ?? '-' }}</div>
+                                                    @if($item->variation && $item->variation->name)
+                                                        <div class="small text-muted mt-1">
+                                                            <span class="badge bg-info-subtle text-info">Variation: {{ $item->variation->name }}</span>
+                                                        </div>
+                                                    @endif
                                                 </td>
                                                 <td class="border-0 py-3">
-                                                    <span
-                                                        class="badge bg-light text-dark">{{ @$item->product->sku ?? '-' }}</span>
+                                                    @if($item->variation)
+                                                        <span class="badge bg-light text-dark">{{ $item->variation->sku ?? '-' }}</span>
+                                                    @else
+                                                        <span class="badge bg-light text-dark">{{ @$item->product->sku ?? '-' }}</span>
+                                                    @endif
                                                 </td>
                                                 <td class="border-0 py-3 text-center">
                                                     <span class="badge bg-primary">{{ $item->quantity }}</span>
@@ -336,8 +355,10 @@
                                                         <div class="d-flex gap-2 fw-normal justify-content-end" style="font-size: 10px;">
                                                             @if(@$item->current_position_id != $order->employee_id)
                                                             <a href="#" class="request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Change Stock</a>
+                                                            @if($order->employee_id)
                                                             |
                                                             <a href="#" class="transfer-to-employee-link" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Transfer To Employee</a>
+                                                            @endif
                                                             @endif
                                                         </div>
                                                     @endif
@@ -935,6 +956,9 @@
                 $.ajax({
                     url: '/erp/order/product-stocks/' + productId,
                     type: 'GET',
+                    data: {
+                        order_item_id: currentOrderItemId
+                    },
                     success: function(response) {
                         if (response.success && response.stocks.length > 0) {
                             var html = '<ul class="list-group">';

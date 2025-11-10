@@ -235,8 +235,8 @@
             will-change: auto;
         }
         #bestDealsSplide .splide__slide { padding: 0px; position: relative; }
-        #bestDealsSplide .product-card { padding: 0 !important; border-radius: 10px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
-        #bestDealsSplide .product-image-container { position: relative; height: 300px; border-radius: 12px 12px 0 0; overflow: hidden; }
+        #bestDealsSplide .product-card { padding: 0 !important; border-radius: 6px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
+        #bestDealsSplide .product-image-container { position: relative; height: 300px; border-radius: 6px 6px 0 0; overflow: hidden; }
         #bestDealsSplide .product-image { width: 100%; height: 100%; object-fit: cover; display: block; }
         #bestDealsSplide .rating-badge { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 6px; }
         #bestDealsSplide .rating-badge .star { color: #f59e0b; }
@@ -288,11 +288,7 @@
         .splide-hero { border-radius: 0; overflow: hidden; }
         .home-hero { padding: 0 !important; padding-top: 0 !important; }
         .home-hero .container-fluid { padding: 0 !important; }
-        .hero-slide-img { width: 100%; height: 640px; object-fit: cover; object-position: center; display: block; }
-        @media (max-width: 767.98px) { 
-            .hero-slide-img { height: 300px; object-fit: cover; object-position: center; }
-            .splide-hero { border-radius: 0 !important; }
-        }
+        /* Hero slide image styles are now in ecommerce.css to avoid conflicts */
         .splide-hero .splide__arrow { display: none !important; }
         .splide-hero .splide__arrows { display: none !important; }
         .splide-hero .splide__pagination__page.is-active { background: #111827; }
@@ -307,8 +303,8 @@
         }
         #mostSoldSplide .splide__slide { padding: 0 0px; box-shadow: 2px 2px 10px rgba(0,0,0,0.06); position: relative; }
         /* Make top selling cards a bit smaller and ensure icons/ratings show */
-        #mostSoldSplide .product-card { padding: 0 !important; border-radius: 10px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
-        #mostSoldSplide .product-image-container { position: relative; height: 300px; border-radius: 12px 12px 0 0; overflow: hidden; }
+        #mostSoldSplide .product-card { padding: 0 !important; border-radius: 6px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
+        #mostSoldSplide .product-image-container { position: relative; height: 300px; border-radius: 6px 6px 0 0; overflow: hidden; }
         #mostSoldSplide .product-image { width: 100%; height: 100%; object-fit: cover; display: block; }
         #mostSoldSplide .rating-badge { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 6px; }
         #mostSoldSplide .rating-badge .star { color: #f59e0b; }
@@ -337,8 +333,8 @@
             will-change: auto;
         }
         #newArrivalsSplide .splide__slide { padding: 0px; position: relative; }
-        #newArrivalsSplide .product-card { padding: 0 !important; border-radius: 10px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
-        #newArrivalsSplide .product-image-container { position: relative; height: 300px; border-radius: 12px 12px 0 0; overflow: hidden; }
+        #newArrivalsSplide .product-card { padding: 0 !important; border-radius: 6px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
+        #newArrivalsSplide .product-image-container { position: relative; height: 300px; border-radius: 6px 6px 0 0; overflow: hidden; }
         #newArrivalsSplide .product-image { width: 100%; height: 100%; object-fit: cover; display: block; }
         #newArrivalsSplide .rating-badge { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 6px; }
         #newArrivalsSplide .rating-badge .star { color: #f59e0b; }

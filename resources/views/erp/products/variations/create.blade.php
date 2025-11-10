@@ -122,9 +122,14 @@
                                         @if($attributes->count() > 0)
                                             <div id="attribute-combinations">
                                                 @foreach($attributes as $index => $attribute)
-                                                    <div class="mb-3 attribute-row" data-attribute-id="{{ $attribute->id }}">
-                                                        <label class="form-label">{{ $attribute->name }} <span class="text-danger">*</span></label>
-                                                        <select class="form-select attribute-select" name="attribute_values[{{ $attribute->id }}][]" multiple required>
+                                                    <div class="mb-3 attribute-row" data-attribute-id="{{ $attribute->id }}" data-is-required="{{ $attribute->is_required ? '1' : '0' }}">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <label class="form-label mb-0">{{ $attribute->name }} @if($attribute->is_required)<span class="text-danger">*</span>@endif</label>
+                                                            <button type="button" class="btn btn-sm btn-outline-primary select-all-btn" data-attribute-id="{{ $attribute->id }}">
+                                                                <i class="fas fa-check-square me-1"></i> Select All
+                                                            </button>
+                                                        </div>
+                                                        <select class="form-select attribute-select" name="attribute_values[{{ $attribute->id }}][]" multiple{{ $attribute->is_required ? ' required' : '' }}>
                                                             @foreach($attribute->activeValues as $value)
                                                                 <option value="{{ $value->id }}" 
                                                                         data-attribute-id="{{ $attribute->id }}"
@@ -208,11 +213,49 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Handle attribute selection
+    // Handle "Select All" button click
+    $('.select-all-btn').on('click', function() {
+        const attributeId = $(this).data('attribute-id');
+        const $select = $(`.attribute-select[name="attribute_values[${attributeId}][]"]`);
+        const $btn = $(this);
+        
+        // Check if all options are already selected
+        const allOptions = $select.find('option');
+        const selectedOptions = $select.find('option:selected');
+        
+        if (allOptions.length === selectedOptions.length) {
+            // Deselect all
+            $select.find('option').prop('selected', false);
+            $btn.html('<i class="fas fa-check-square me-1"></i> Select All');
+            $btn.removeClass('btn-primary').addClass('btn-outline-primary');
+        } else {
+            // Select all
+            $select.find('option').prop('selected', true);
+            $btn.html('<i class="fas fa-square me-1"></i> Deselect All');
+            $btn.removeClass('btn-outline-primary').addClass('btn-primary');
+        }
+        
+        // Trigger change event to update previews
+        $select.trigger('change');
+    });
+    
+    // Handle attribute selection and update button state
     $('.attribute-select').on('change', function() {
-        const selectedOption = $(this).find('option:selected');
-        const attributeId = selectedOption.data('attribute-id');
-        const valueId = selectedOption.val();
+        const $select = $(this);
+        const attributeId = $select.closest('.attribute-row').data('attribute-id');
+        const $btn = $(`.select-all-btn[data-attribute-id="${attributeId}"]`);
+        
+        // Update button state
+        const allOptions = $select.find('option');
+        const selectedOptions = $select.find('option:selected');
+        
+        if (allOptions.length === selectedOptions.length && allOptions.length > 0) {
+            $btn.html('<i class="fas fa-square me-1"></i> Deselect All');
+            $btn.removeClass('btn-outline-primary').addClass('btn-primary');
+        } else {
+            $btn.html('<i class="fas fa-check-square me-1"></i> Select All');
+            $btn.removeClass('btn-primary').addClass('btn-outline-primary');
+        }
         
         // Update variation name preview
         updateVariationNamePreview();
@@ -300,7 +343,10 @@ $(document).ready(function() {
         // Check if all required fields are filled
         let isValid = true;
         $('.attribute-select').each(function() {
-            if (!$(this).val()) {
+            const $row = $(this).closest('.attribute-row');
+            const isRequired = $row.data('is-required') === 1 || $row.data('is-required') === '1';
+            
+            if (isRequired && !$(this).val()) {
                 isValid = false;
                 $(this).addClass('is-invalid');
             } else {
@@ -343,6 +389,21 @@ $(document).ready(function() {
             $('#sku').val(productSku + '-' + skuSuffix);
         }
     }
+    
+    // Initialize button states on page load
+    $('.attribute-select').each(function() {
+        const $select = $(this);
+        const attributeId = $select.closest('.attribute-row').data('attribute-id');
+        const $btn = $(`.select-all-btn[data-attribute-id="${attributeId}"]`);
+        
+        const allOptions = $select.find('option');
+        const selectedOptions = $select.find('option:selected');
+        
+        if (allOptions.length === selectedOptions.length && allOptions.length > 0) {
+            $btn.html('<i class="fas fa-square me-1"></i> Deselect All');
+            $btn.removeClass('btn-outline-primary').addClass('btn-primary');
+        }
+    });
     
     // Initialize on page load
     updateVariationNamePreview();

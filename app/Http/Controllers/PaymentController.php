@@ -354,6 +354,13 @@ class PaymentController extends Controller
 
                 return redirect()->route('order.success', $order->order_number ?? '')
                     ->with('success', 'Payment completed successfully!');
+
+                    // $encodedOrderNumber = urlencode($order->order_number);
+                            
+                    // return redirect(url('/order-success/' . $encodedOrderNumber));
+
+
+
             } else {
                 return redirect()->route('payment.failed')
                     ->with('error', 'Payment verification failed.');
