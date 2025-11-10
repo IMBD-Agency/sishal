@@ -33,7 +33,17 @@ class UserRoleController extends Controller
         $role = Role::create(['name' => $request->name]);
 
         if ($request->has('permissions')) {
-            $role->syncPermissions($request->permissions);
+            // Validate that all permissions exist before syncing
+            $permissionNames = $request->permissions;
+            $existingPermissions = Permission::whereIn('name', $permissionNames)
+                ->where('guard_name', 'web')
+                ->pluck('name')
+                ->toArray();
+            
+            // Only sync permissions that exist
+            if (!empty($existingPermissions)) {
+                $role->syncPermissions($existingPermissions);
+            }
         }
 
         return redirect()->route('userRole.index')->with('success', 'Role created successfully!');
