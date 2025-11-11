@@ -356,6 +356,8 @@
                 if (data.success) {
                     if (container) {
                         container.innerHTML = data.html;
+                        // Re-initialize pagination handlers after content update
+                        initPaginationHandlers();
                     }
                     
                 } else {
@@ -369,6 +371,106 @@
                 if (container) {
                     container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
                 }
+            });
+        }
+
+        // Handle pagination clicks - convert GET to AJAX POST
+        function initPaginationHandlers() {
+            var container = document.getElementById('products-container');
+            if (!container) return;
+            
+            // Find all pagination links
+            var paginationLinks = container.querySelectorAll('.pagination a.page-link');
+            paginationLinks.forEach(function(link) {
+                // Remove existing listeners by cloning
+                var newLink = link.cloneNode(true);
+                link.parentNode.replaceChild(newLink, link);
+                
+                // Add click handler - only intercept if link points to /products/filter
+                newLink.addEventListener('click', function(e) {
+                    var url = new URL(this.href);
+                    // Only intercept if the URL contains /products/filter
+                    if (!url.pathname.includes('/products/filter')) {
+                        // Let normal navigation happen for regular /products links
+                        return true;
+                    }
+                    
+                    e.preventDefault();
+                    var page = url.searchParams.get('page') || 1;
+                    
+                    // Get current filter state
+                    var formData = new FormData();
+                    var filterRoot = getActiveFilterRoot();
+                    if (filterRoot) {
+                        // Get selected categories
+                        var selectedCategories = [];
+                        filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
+                            if (cb.value !== 'all') {
+                                selectedCategories.push(cb.value);
+                            }
+                        });
+                        selectedCategories.forEach(function(cat) {
+                            formData.append('categories[]', cat);
+                        });
+                        
+                        // Get price range
+                        var priceMinEl = filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile');
+                        var priceMaxEl = filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile');
+                        var priceMin = priceMinEl ? priceMinEl.value : '';
+                        var priceMax = priceMaxEl ? priceMaxEl.value : '';
+                        if (priceMin) formData.append('price_min', priceMin);
+                        if (priceMax) formData.append('price_max', priceMax);
+                        
+                        // Get selected ratings
+                        filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
+                            formData.append('rating[]', cb.value);
+                        });
+                        
+                        // Get sort option
+                        var sortSelect = document.getElementById('sortSelect');
+                        if (sortSelect && sortSelect.value) {
+                            formData.append('sort', sortSelect.value);
+                        }
+                    }
+                    
+                    // Add page number
+                    formData.append('page', page);
+                    
+                    // Show loading state
+                    if (container) {
+                        container.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading products...</p></div>';
+                    }
+                    
+                    // Make AJAX request
+                    fetch('{{ route("products.filter") }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (container) {
+                                container.innerHTML = data.html;
+                                // Re-initialize pagination handlers after content update
+                                initPaginationHandlers();
+                            }
+                        } else {
+                            if (container) {
+                                container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Pagination error:', error);
+                        if (container) {
+                            container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                        }
+                    });
+                });
             });
         }
 
@@ -547,6 +649,9 @@
                 // Initialize both desktop and mobile filter containers (if present)
                 initFilterRoot(document.getElementById('filterFormDesktop'));
                 initFilterRoot(document.getElementById('filterForm'));
+                
+                // Initialize pagination handlers
+                initPaginationHandlers();
                 
                 // Minimal: no extra sync logic necessary
             } catch(error) {

@@ -18,7 +18,7 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
 Route::get('/products', [PageController::class, 'products'])->name('product.archive');
-Route::post('/products/filter', [PageController::class, 'filterProducts'])->name('products.filter');
+Route::match(['get', 'post'], '/products/filter', [PageController::class, 'filterProducts'])->name('products.filter');
 Route::get('/product/{slug}', [PageController::class, 'productDetails'])->name('product.details');
 
 // Review API Routes
