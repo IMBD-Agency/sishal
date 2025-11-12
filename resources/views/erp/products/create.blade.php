@@ -50,13 +50,21 @@
                                     </div>
                                     <div class="col-md-12">
                                         <label for="short_desc" class="form-label">Short Description</label>
-                                        <textarea class="form-control" id="short_desc" name="short_desc" rows="3">{{ old('short_desc') }}</textarea>
+                                        <div class="ckeditor-wrapper">
+                                            <textarea name="short_desc" id="short_desc" class="form-control" rows="10">{{ old('short_desc') }}</textarea>
+                                        </div>
+                                        <small class="text-muted">You can paste tables from Google Docs or Word - they will be preserved automatically.</small>
                                     </div>
 
                                     <div class="col-md-12">
                                         <label for="description" class="form-label">Description</label>
                                         <input type="hidden" name="description" id="description_input" value="{{ old('description') }}">
                                         <div id="quill_description_create" style="height: 220px; background: #fff;" class="border"></div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label for="features" class="form-label">Features</label>
+                                        <input type="hidden" name="features" id="features_input" value="{{ old('features') }}">
+                                        <div id="quill_features_create" style="height: 220px; background: #fff;" class="border"></div>
                                     </div>
                                     <div class="col-md-4">
                                         <label for="price" class="form-label">Price <span class="text-danger">*</span></label>
@@ -166,6 +174,152 @@
             display: flex !important;
             align-items: center !important;
         }
+        /* Ensure tables display properly in Quill editor */
+        #quill_short_desc_create .ql-editor table,
+        #quill_short_desc_edit .ql-editor table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+        #quill_short_desc_create .ql-editor table td,
+        #quill_short_desc_create .ql-editor table th,
+        #quill_short_desc_edit .ql-editor table td,
+        #quill_short_desc_edit .ql-editor table th {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        #quill_short_desc_create .ql-editor table th,
+        #quill_short_desc_edit .ql-editor table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        /* CKEditor Wrapper */
+        .ckeditor-wrapper {
+            width: 100%;
+            position: relative;
+        }
+        
+        /* CKEditor Responsive Styles for Mobile */
+        .ck-editor {
+            max-width: 100%;
+        }
+        
+        .ck-editor__editable {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        /* CKEditor will replace the textarea automatically */
+        
+        /* Mobile Responsive - CKEditor */
+        @media (max-width: 768px) {
+            /* Wrapper adjustments */
+            .ckeditor-wrapper {
+                margin: 0 -15px;
+                padding: 0 15px;
+            }
+            
+            /* Make editor container responsive */
+            .ck.ck-editor {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+            }
+            
+            /* Adjust toolbar for mobile */
+            .ck.ck-toolbar {
+                flex-wrap: wrap !important;
+                padding: 8px 4px !important;
+            }
+            
+            .ck.ck-toolbar .ck-toolbar__separator {
+                margin: 4px 2px !important;
+            }
+            
+            .ck.ck-button {
+                min-width: 32px !important;
+                padding: 4px 6px !important;
+                font-size: 12px !important;
+            }
+            
+            /* Make editor content area responsive */
+            .ck.ck-editor__editable {
+                min-height: 250px !important;
+                max-height: 500px !important;
+                padding: 12px !important;
+                font-size: 16px !important; /* Prevents zoom on iOS */
+            }
+            
+            /* Responsive tables in editor */
+            .ck.ck-editor__editable table {
+                width: 100% !important;
+                display: block !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            .ck.ck-editor__editable table td,
+            .ck.ck-editor__editable table th {
+                padding: 6px 8px !important;
+                font-size: 14px !important;
+                white-space: nowrap !important;
+                min-width: 80px !important;
+            }
+            
+            /* Table wrapper for horizontal scroll */
+            .ck.ck-editor__editable > table {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Adjust form label and help text */
+            .form-label {
+                font-size: 14px !important;
+            }
+            
+            .text-muted {
+                font-size: 12px !important;
+            }
+            
+            /* Table properties dropdown responsive */
+            .ck.ck-dropdown__panel {
+                max-width: 90vw !important;
+                left: 5vw !important;
+            }
+        }
+        
+        /* Extra small devices */
+        @media (max-width: 576px) {
+            .ck.ck-editor__editable {
+                min-height: 200px !important;
+                padding: 10px !important;
+                font-size: 16px !important;
+            }
+            
+            .ck.ck-toolbar {
+                padding: 6px 2px !important;
+            }
+            
+            .ck.ck-button {
+                min-width: 28px !important;
+                padding: 3px 4px !important;
+            }
+            
+            .ck.ck-editor__editable table td,
+            .ck.ck-editor__editable table th {
+                padding: 4px 6px !important;
+                font-size: 12px !important;
+                min-width: 60px !important;
+            }
+        }
+        
+        /* Ensure tables are scrollable on mobile in the editor */
+        .ck.ck-editor__editable {
+            overflow-x: auto;
+        }
     </style>
 @endsection
 
@@ -175,6 +329,8 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<!-- CKEditor 5 - Free, no API key needed, excellent table support -->
+<script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
 <script>
 function slugify(text) {
     return text
@@ -208,8 +364,83 @@ $(document).ready(function() {
     });
     $('#name').on('input', function(){ $('#slug').val(slugify($(this).val())); });
 
-    // Quill init for Description only
+    // CKEditor 5 - Free, no API key, excellent table support
+    // Detect mobile device
+    var isMobile = window.innerWidth <= 768;
+    
+    ClassicEditor
+        .create(document.querySelector('#short_desc'), {
+            toolbar: {
+                items: isMobile ? [
+                    // Compact toolbar for mobile
+                    'heading', '|',
+                    'bold', 'italic', '|',
+                    'bulletedList', 'numberedList', '|',
+                    'insertTable', '|',
+                    'undo', 'redo'
+                ] : [
+                    // Full toolbar for desktop
+                    'heading', '|',
+                    'bold', 'italic', 'underline', '|',
+                    'bulletedList', 'numberedList', '|',
+                    'alignment', '|',
+                    'insertTable', '|',
+                    'link', 'blockQuote', '|',
+                    'undo', 'redo'
+                ],
+                shouldNotGroupWhenFull: true
+            },
+            table: {
+                contentToolbar: [
+                    'tableColumn', 'tableRow', 'mergeTableCells',
+                    'tableProperties', 'tableCellProperties'
+                ]
+            },
+            heading: {
+                options: [
+                    { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                    { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+                    { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+                    { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
+                ]
+            },
+            // CKEditor automatically handles pasting from Google Docs/Word
+            // Remove excessive styles but keep structure
+            removePlugins: ['Title'],
+            // Custom styles for tables
+            htmlSupport: {
+                allow: [
+                    {
+                        name: /.*/,
+                        attributes: true,
+                        classes: true,
+                        styles: true
+                    }
+                ]
+            }
+        })
+        .then(editor => {
+            // Store editor instance for form submission
+            window.shortDescEditor = editor;
+            
+            // CKEditor 5 automatically handles Google Docs/Word pasting with pasteFromOffice plugin
+            // No additional cleanup needed - it's built-in!
+        })
+        .catch(error => {
+            console.error('Error initializing CKEditor:', error);
+        });
+    
+    // Sync editor content with textarea on form submit
     var form = document.querySelector('#mainContent form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            if (window.shortDescEditor) {
+                document.getElementById('short_desc').value = window.shortDescEditor.getData();
+            }
+        });
+    }
+
+    // Quill init for Description only
     var quill = new Quill('#quill_description_create', {
         theme: 'snow',
         modules: { toolbar: [[{ header: [1,2,3,false] }], ['bold','italic','underline','strike'], [{ list:'ordered' }, { list:'bullet' }], [{ align: [] }], ['link','blockquote','code-block','image'], ['clean']] }
@@ -224,6 +455,23 @@ $(document).ready(function() {
     // Also sync on submit as a final safety
     form.addEventListener('submit', function(){
         document.getElementById('description_input').value = quill.root.innerHTML;
+    });
+
+    // Quill init for Features
+    var quillFeatures = new Quill('#quill_features_create', {
+        theme: 'snow',
+        modules: { toolbar: [[{ header: [1,2,3,false] }], ['bold','italic','underline','strike'], [{ list:'ordered' }, { list:'bullet' }], [{ align: [] }], ['link','blockquote','code-block','image'], ['clean']] }
+    });
+    var initialFeatures = document.getElementById('features_input').value || '';
+    if (initialFeatures) { document.querySelector('#quill_features_create .ql-editor').innerHTML = initialFeatures; }
+    
+    // Keep hidden input in sync on every change
+    quillFeatures.on('text-change', function(){
+        document.getElementById('features_input').value = quillFeatures.root.innerHTML;
+    });
+    // Also sync on submit as a final safety
+    form.addEventListener('submit', function(){
+        document.getElementById('features_input').value = quillFeatures.root.innerHTML;
     });
 
     // Keywords add/remove

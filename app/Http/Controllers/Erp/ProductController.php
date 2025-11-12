@@ -280,6 +280,7 @@ class ProductController extends Controller
             'sku' => 'required|string|unique:products,sku',
             'short_desc' => 'nullable|string',
             'description' => 'nullable|string',
+            'features' => 'nullable|string',
             'category_id' => 'required|exists:product_service_categories,id',
             'price' => 'required|numeric',
             'discount' => 'nullable|numeric',
@@ -296,7 +297,7 @@ class ProductController extends Controller
             'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
         $data['type'] = 'product'; // Always set type to product
         $data['has_variations'] = $request->boolean('has_variations');
         $data['manage_stock'] = $request->boolean('manage_stock');
@@ -448,6 +449,7 @@ class ProductController extends Controller
             'sku' => 'required|string|unique:products,sku,' . $product->id,
             'short_desc' => 'nullable|string',
             'description' => 'nullable|string',
+            'features' => 'nullable|string',
             'category_id' => 'required|exists:product_service_categories,id',
             'price' => 'required|numeric',
             'discount' => 'nullable|numeric',
@@ -464,7 +466,7 @@ class ProductController extends Controller
             'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
         $data['type'] = 'product'; // Always set type to product
         
         // Handle meta_keywords array - convert to JSON string for storage

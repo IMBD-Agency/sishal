@@ -372,6 +372,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+            position: relative;
+            cursor: zoom-in;
+        }
+
+        .gallery-modal-image-container.zoomed {
+            cursor: move;
         }
 
         .gallery-modal-image {
@@ -380,6 +387,41 @@
             object-fit: contain;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .gallery-modal-image-container.zoomed .gallery-modal-image {
+            transition: transform 0.1s ease-out;
+        }
+
+        .gallery-zoom-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20002;
+            display: flex;
+            gap: 10px;
+        }
+
+        .gallery-zoom-btn {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .gallery-zoom-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
         }
 
         .gallery-modal-thumbs {
@@ -2837,6 +2879,220 @@
         .size-chart-img:hover {
             opacity: 0.9;
         }
+        /* Base styles for product short description */
+        .product-short-desc {
+            font-size: 18px;
+            line-height: 1.65;
+            color: #1f2937;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .product-short-desc p {
+            margin-bottom: 14px;
+        }
+
+        .product-short-desc ul,
+        .product-short-desc ol {
+            margin-bottom: 14px;
+        }
+
+        .product-short-desc img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Table styles in product short description */
+        .product-short-desc table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+        }
+        .product-short-desc table td,
+        .product-short-desc table th {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .product-short-desc table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .product-short-desc table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        /* Mobile Responsive Styles for Short Description */
+        @media (max-width: 768px) {
+            .product-short-desc {
+                font-size: 16px !important;
+                line-height: 1.6 !important;
+                padding: 0 4px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+
+            .product-short-desc p {
+                margin-bottom: 12px;
+            }
+
+            .product-short-desc ul,
+            .product-short-desc ol {
+                padding-left: 20px;
+                margin-bottom: 12px;
+            }
+
+            .product-short-desc li {
+                margin-bottom: 6px;
+            }
+
+            /* Make tables scrollable on mobile */
+            .product-short-desc table {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 12px 0;
+                font-size: 14px;
+                border: none;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .product-short-desc table td,
+            .product-short-desc table th {
+                border: 1px solid #ddd;
+                padding: 6px 8px;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+
+            /* Remove double borders on mobile */
+            .product-short-desc table td:first-child,
+            .product-short-desc table th:first-child {
+                border-left: 1px solid #ddd;
+            }
+
+            .product-short-desc table td:last-child,
+            .product-short-desc table th:last-child {
+                border-right: 1px solid #ddd;
+            }
+
+            .product-short-desc img {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .product-short-desc {
+                font-size: 15px !important;
+                line-height: 1.55 !important;
+                padding: 0 2px;
+            }
+
+            .product-short-desc table {
+                font-size: 13px;
+                margin: 10px 0;
+                border: none;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .product-short-desc table td,
+            .product-short-desc table th {
+                border: 1px solid #ddd;
+                padding: 5px 6px;
+                font-size: 12px;
+            }
+
+            .product-short-desc table td:first-child,
+            .product-short-desc table th:first-child {
+                border-left: 1px solid #ddd;
+            }
+
+            .product-short-desc table td:last-child,
+            .product-short-desc table th:last-child {
+                border-right: 1px solid #ddd;
+            }
+
+            .product-short-desc ul,
+            .product-short-desc ol {
+                padding-left: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .product-short-desc {
+                font-size: 14px !important;
+                line-height: 1.5 !important;
+                margin-bottom: 16px !important;
+            }
+
+            .product-short-desc table {
+                font-size: 12px;
+                margin: 8px 0;
+                border: none;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .product-short-desc table td,
+            .product-short-desc table th {
+                border: 1px solid #ddd;
+                padding: 4px 5px;
+                font-size: 11px;
+            }
+
+            .product-short-desc table td:first-child,
+            .product-short-desc table th:first-child {
+                border-left: 1px solid #ddd;
+            }
+
+            .product-short-desc table td:last-child,
+            .product-short-desc table th:last-child {
+                border-right: 1px solid #ddd;
+            }
+
+            .product-short-desc p {
+                margin-bottom: 10px;
+            }
+
+            .product-short-desc ul,
+            .product-short-desc ol {
+                padding-left: 16px;
+                margin-bottom: 10px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .product-short-desc {
+                font-size: 13px !important;
+            }
+
+            .product-short-desc table {
+                border: none;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .product-short-desc table td,
+            .product-short-desc table th {
+                border: 1px solid #ddd;
+                padding: 3px 4px;
+                font-size: 10px;
+            }
+
+            .product-short-desc table td:first-child,
+            .product-short-desc table th:first-child {
+                border-left: 1px solid #ddd;
+            }
+
+            .product-short-desc table td:last-child,
+            .product-short-desc table th:last-child {
+                border-right: 1px solid #ddd;
+            }
+        }
     </style>
 
     <div class="container">
@@ -2951,7 +3207,9 @@
                     </div>
 
                     @if (!empty($product->short_desc))
-                    <p class="mt-2 mb-3" style="color:#4b5563; font-size:18px; font-weight: 600; color:black; line-height:1.65;">{!! nl2br(e($product->short_desc)) !!}</p>
+                    <div class="mt-2 mb-3 product-short-desc" style="color:#1f2937; font-weight: 600;">
+                        {!! $product->short_desc !!}
+                    </div>
                     @endif
 
                     @if($product->size_chart)
@@ -3829,6 +4087,7 @@
         <div class="product-tabs">
             <div class="tab-nav">
                 <button class="tab-btn active" data-tab="description" type="button">Description</button>
+                <button class="tab-btn" data-tab="features" type="button">Features</button>
                 <button class="tab-btn" data-tab="specs" type="button">Specifications</button>
                 <button class="tab-btn" data-tab="reviews" type="button">Reviews</button>
             </div>
@@ -3836,6 +4095,13 @@
             <div id="description" class="tab-content active">
                 <h3>Product Description</h3>
                 {!! $product->description !!}
+            </div>
+
+            <div id="features" class="tab-content" style="display:none;">
+                <h3>Product Features</h3>
+                @if($product->features)
+                    {!! $product->features !!}
+                @endif
             </div>
 
             <div id="specs" class="tab-content" style="display:none;">
@@ -4563,6 +4829,10 @@
             var modal = document.getElementById('galleryModal');
             var closeBtn = document.querySelector('.gallery-close');
             var modalImage = document.getElementById('galleryModalImage');
+            var imageContainer = document.querySelector('.gallery-modal-image-container');
+            
+            // Initialize zoom functionality
+            initImageZoomInModal(modalImage, imageContainer);
             
             // Close modal
             closeBtn.addEventListener('click', closeGalleryModal);
@@ -4580,11 +4850,233 @@
             });
         }
 
+        // Image zoom functionality for gallery modal
+        function initImageZoomInModal(image, container) {
+            if (!image || !container) return;
+            
+            // Skip if already initialized
+            if (image._zoomInitialized) {
+                return;
+            }
+            image._zoomInitialized = true;
+            
+            let isZoomed = false;
+            let currentScale = 1;
+            let currentTranslateX = 0;
+            let currentTranslateY = 0;
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let initialTranslateX = 0;
+            let initialTranslateY = 0;
+            const minScale = 1;
+            const maxScale = 5;
+            const zoomStep = 0.5;
+            
+            // Reset zoom when image changes
+            function resetZoom() {
+                isZoomed = false;
+                currentScale = 1;
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+                container.classList.remove('zoomed');
+                updateTransform();
+            }
+            
+            // Update image transform
+            function updateTransform() {
+                image.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentScale})`;
+            }
+            
+            // Zoom in/out
+            function zoom(scale) {
+                currentScale = Math.max(minScale, Math.min(maxScale, scale));
+                isZoomed = currentScale > 1;
+                container.classList.toggle('zoomed', isZoomed);
+                
+                // Center image if zooming out to 1x
+                if (currentScale === 1) {
+                    currentTranslateX = 0;
+                    currentTranslateY = 0;
+                }
+                
+                updateTransform();
+            }
+            
+            // Click to zoom
+            image.addEventListener('click', function(e) {
+                if (isDragging) {
+                    isDragging = false;
+                    return;
+                }
+                
+                if (!isZoomed) {
+                    // Zoom in
+                    const rect = container.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const xPercent = (x / rect.width) * 100;
+                    const yPercent = (y / rect.height) * 100;
+                    
+                    currentScale = 2.5;
+                    isZoomed = true;
+                    container.classList.add('zoomed');
+                    
+                    // Adjust translate to zoom into click point
+                    const imageRect = image.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const offsetX = (x - containerRect.width / 2) * (currentScale - 1);
+                    const offsetY = (y - containerRect.height / 2) * (currentScale - 1);
+                    currentTranslateX = -offsetX;
+                    currentTranslateY = -offsetY;
+                    
+                    updateTransform();
+                } else {
+                    // Zoom out
+                    resetZoom();
+                }
+            });
+            
+            // Mouse wheel zoom
+            container.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -zoomStep : zoomStep;
+                const newScale = currentScale + delta;
+                zoom(newScale);
+            }, { passive: false });
+            
+            // Drag to pan when zoomed
+            image.addEventListener('mousedown', function(e) {
+                if (isZoomed) {
+                    isDragging = true;
+                    startX = e.clientX - currentTranslateX;
+                    startY = e.clientY - currentTranslateY;
+                    initialTranslateX = currentTranslateX;
+                    initialTranslateY = currentTranslateY;
+                }
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging && isZoomed) {
+                    currentTranslateX = e.clientX - startX;
+                    currentTranslateY = e.clientY - startY;
+                    
+                    // Constrain panning to image bounds
+                    const imageRect = image.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const scaledWidth = imageRect.width / currentScale;
+                    const scaledHeight = imageRect.height / currentScale;
+                    
+                    const maxX = (scaledWidth - containerRect.width) / 2;
+                    const maxY = (scaledHeight - containerRect.height) / 2;
+                    
+                    currentTranslateX = Math.max(-maxX, Math.min(maxX, currentTranslateX));
+                    currentTranslateY = Math.max(-maxY, Math.min(maxY, currentTranslateY));
+                    
+                    updateTransform();
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+            });
+            
+            // Touch support for mobile
+            let touchStartDistance = 0;
+            let touchStartScale = 1;
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let lastTouchX = 0;
+            let lastTouchY = 0;
+            
+            container.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1) {
+                    // Single touch - pan
+                    if (isZoomed) {
+                        touchStartX = e.touches[0].clientX - currentTranslateX;
+                        touchStartY = e.touches[0].clientY - currentTranslateY;
+                        lastTouchX = e.touches[0].clientX;
+                        lastTouchY = e.touches[0].clientY;
+                    }
+                } else if (e.touches.length === 2) {
+                    // Pinch zoom
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    touchStartDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    touchStartScale = currentScale;
+                }
+            });
+            
+            container.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                
+                if (e.touches.length === 1 && isZoomed) {
+                    // Pan
+                    const touch = e.touches[0];
+                    currentTranslateX = touch.clientX - touchStartX;
+                    currentTranslateY = touch.clientY - touchStartY;
+                    
+                    // Constrain panning
+                    const imageRect = image.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const scaledWidth = imageRect.width / currentScale;
+                    const scaledHeight = imageRect.height / currentScale;
+                    
+                    const maxX = (scaledWidth - containerRect.width) / 2;
+                    const maxY = (scaledHeight - containerRect.height) / 2;
+                    
+                    currentTranslateX = Math.max(-maxX, Math.min(maxX, currentTranslateX));
+                    currentTranslateY = Math.max(-maxY, Math.min(maxY, currentTranslateY));
+                    
+                    updateTransform();
+                } else if (e.touches.length === 2) {
+                    // Pinch zoom
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const currentDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    
+                    const scale = touchStartScale * (currentDistance / touchStartDistance);
+                    zoom(scale);
+                }
+            }, { passive: false });
+            
+            // Reset zoom when image src changes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+                        resetZoom();
+                    }
+                });
+            });
+            
+            observer.observe(image, { attributes: true });
+            
+            // Store reset function for external use
+            image._resetZoom = resetZoom;
+        }
+
         // Open gallery modal
         function openGalleryModal(src, alt) {
             var modal = document.getElementById('galleryModal');
             var modalImage = document.getElementById('galleryModalImage');
+            var imageContainer = document.querySelector('.gallery-modal-image-container');
             var thumbsContainer = document.querySelector('.gallery-modal-thumbs');
+            
+            // Initialize zoom if not already initialized
+            if (modalImage && imageContainer && !modalImage._zoomInitialized) {
+                initImageZoomInModal(modalImage, imageContainer);
+            }
+            
+            // Reset zoom if image was previously zoomed
+            if (modalImage && modalImage._resetZoom) {
+                modalImage._resetZoom();
+            }
             
             modalImage.src = src;
             modalImage.alt = alt;
@@ -4634,6 +5126,11 @@
                 
                 // Add click event to thumbnail
                 thumbDiv.addEventListener('click', function() {
+                    // Reset zoom when switching images
+                    if (modalImage._resetZoom) {
+                        modalImage._resetZoom();
+                    }
+                    
                     modalImage.src = imageData.src;
                     modalImage.alt = imageData.alt;
                     
@@ -4649,6 +5146,13 @@
         // Close gallery modal
         function closeGalleryModal() {
             var modal = document.getElementById('galleryModal');
+            var modalImage = document.getElementById('galleryModalImage');
+            
+            // Reset zoom when closing modal
+            if (modalImage && modalImage._resetZoom) {
+                modalImage._resetZoom();
+            }
+            
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
         }
