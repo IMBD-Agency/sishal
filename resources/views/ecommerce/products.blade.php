@@ -40,13 +40,37 @@
                                     </label>
                                 </div>
                                 @foreach ($categories as $category)
-                                    <div class="filter-option">
-                                        <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $category->slug }}"
-                                            value="{{ $category->slug }}" {{ in_array($category->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
-                                        <label class="filter-label" for="{{ $category->slug }}">
-                                            <span class="checkmark"></span>
-                                            <span class="label-text">{{ $category->name }}</span>
-                                        </label>
+                                    <div class="category-parent-wrapper">
+                                        <div class="filter-option category-parent">
+                                            <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $category->slug }}"
+                                                value="{{ $category->slug }}" {{ in_array($category->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
+                                            <label class="filter-label" for="{{ $category->slug }}">
+                                                <span class="checkmark"></span>
+                                                <span class="label-text">{{ $category->name }}</span>
+                                            </label>
+                                            @if($category->children->count() > 0)
+                                                <div class="category-expand-area" data-target="subcat-{{ $category->id }}" role="button" tabindex="0">
+                                                    <span class="category-count-badge">{{ $category->children->count() }}</span>
+                                                    <button type="button" class="category-toggle-btn" data-target="subcat-{{ $category->id }}" aria-label="Toggle subcategories">
+                                                        <i class="fas fa-chevron-right"></i>
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @if($category->children->count() > 0)
+                                            <div class="category-children collapse" id="subcat-{{ $category->id }}">
+                                                @foreach ($category->children as $subcategory)
+                                                    <div class="filter-option category-child">
+                                                        <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $subcategory->slug }}"
+                                                            value="{{ $subcategory->slug }}" {{ in_array($subcategory->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
+                                                        <label class="filter-label" for="{{ $subcategory->slug }}">
+                                                            <span class="checkmark"></span>
+                                                            <span class="label-text">{{ $subcategory->name }}</span>
+                                                        </label>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -182,13 +206,37 @@
                                     </label>
                                 </div>
                                 @foreach ($categories as $category)
-                                    <div class="filter-option">
-                                        <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $category->slug }}-m"
-                                            value="{{ $category->slug }}" {{ in_array($category->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
-                                        <label class="filter-label" for="{{ $category->slug }}-m">
-                                            <span class="checkmark"></span>
-                                            <span class="label-text">{{ $category->name }}</span>
-                                        </label>
+                                    <div class="category-parent-wrapper">
+                                        <div class="filter-option category-parent">
+                                            <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $category->slug }}-m"
+                                                value="{{ $category->slug }}" {{ in_array($category->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
+                                            <label class="filter-label" for="{{ $category->slug }}-m">
+                                                <span class="checkmark"></span>
+                                                <span class="label-text">{{ $category->name }}</span>
+                                            </label>
+                                            @if($category->children->count() > 0)
+                                                <div class="category-expand-area" data-target="subcat-{{ $category->id }}-m" role="button" tabindex="0">
+                                                    <span class="category-count-badge">{{ $category->children->count() }}</span>
+                                                    <button type="button" class="category-toggle-btn" data-target="subcat-{{ $category->id }}-m" aria-label="Toggle subcategories">
+                                                        <i class="fas fa-chevron-right"></i>
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @if($category->children->count() > 0)
+                                            <div class="category-children collapse" id="subcat-{{ $category->id }}-m">
+                                                @foreach ($category->children as $subcategory)
+                                                    <div class="filter-option category-child">
+                                                        <input class="filter-checkbox" type="checkbox" name="categories[]" id="{{ $subcategory->slug }}-m"
+                                                            value="{{ $subcategory->slug }}" {{ in_array($subcategory->slug, $selectedCategories ?? []) ? 'checked' : '' }}>
+                                                        <label class="filter-label" for="{{ $subcategory->slug }}-m">
+                                                            <span class="checkmark"></span>
+                                                            <span class="label-text">{{ $subcategory->name }}</span>
+                                                        </label>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -645,6 +693,139 @@
                         }
                     });
                 });
+                
+                // Category toggle functionality - make entire expand area clickable
+                function toggleCategory(expandArea) {
+                    var targetId = expandArea.getAttribute('data-target');
+                    var targetElement = filterRoot.querySelector('#' + targetId);
+                    var toggleBtn = expandArea.querySelector('.category-toggle-btn');
+                    var icon = toggleBtn ? toggleBtn.querySelector('i') : null;
+                    
+                    if (targetElement) {
+                        var isExpanded = !targetElement.classList.contains('collapse');
+                        if (isExpanded) {
+                            // Collapse
+                            targetElement.style.maxHeight = targetElement.scrollHeight + 'px';
+                            // Force reflow
+                            targetElement.offsetHeight;
+                            targetElement.classList.add('collapse');
+                            targetElement.style.maxHeight = '0';
+                            if (icon) {
+                                icon.classList.remove('fa-chevron-down');
+                                icon.classList.add('fa-chevron-right');
+                            }
+                            expandArea.classList.remove('expanded');
+                        } else {
+                            // Expand
+                            targetElement.classList.remove('collapse');
+                            // Set initial height to 0, then animate to full height
+                            targetElement.style.maxHeight = '0';
+                            // Force reflow
+                            targetElement.offsetHeight;
+                            // Set to full height for animation
+                            targetElement.style.maxHeight = targetElement.scrollHeight + 'px';
+                            if (icon) {
+                                icon.classList.remove('fa-chevron-right');
+                                icon.classList.add('fa-chevron-down');
+                            }
+                            expandArea.classList.add('expanded');
+                            
+                            // After animation completes, set to auto for dynamic content
+                            setTimeout(function() {
+                                if (!targetElement.classList.contains('collapse')) {
+                                    targetElement.style.maxHeight = 'none';
+                                }
+                            }, 300);
+                        }
+                    }
+                }
+                
+                var categoryExpandAreas = filterRoot.querySelectorAll('.category-expand-area');
+                categoryExpandAreas.forEach(function(expandArea) {
+                    // Remove existing listeners by cloning
+                    var newExpandArea = expandArea.cloneNode(true);
+                    expandArea.parentNode.replaceChild(newExpandArea, expandArea);
+                    
+                    // Click handler for expand area
+                    newExpandArea.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleCategory(this);
+                    });
+                    
+                    // Keyboard support
+                    newExpandArea.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleCategory(this);
+                        }
+                    });
+                });
+                
+                // Auto-expand parent categories if any of their children are selected
+                var childCheckboxes = filterRoot.querySelectorAll('.category-child input[type=checkbox]');
+                var hasExpandedAny = false;
+                childCheckboxes.forEach(function(checkbox) {
+                    if (checkbox.checked) {
+                        var parentWrapper = checkbox.closest('.category-parent-wrapper');
+                        if (parentWrapper) {
+                            var childrenDiv = parentWrapper.querySelector('.category-children');
+                            var expandArea = parentWrapper.querySelector('.category-expand-area');
+                            if (childrenDiv && expandArea) {
+                                childrenDiv.classList.remove('collapse');
+                                // Use setTimeout to ensure DOM is ready for scrollHeight calculation
+                                setTimeout(function() {
+                                    childrenDiv.style.maxHeight = childrenDiv.scrollHeight + 'px';
+                                }, 10);
+                                var toggleBtn = expandArea.querySelector('.category-toggle-btn');
+                                var icon = toggleBtn ? toggleBtn.querySelector('i') : null;
+                                if (icon) {
+                                    icon.classList.remove('fa-chevron-right');
+                                    icon.classList.add('fa-chevron-down');
+                                }
+                                expandArea.classList.add('expanded');
+                                hasExpandedAny = true;
+                            }
+                        }
+                    }
+                });
+                
+                // Initialize max-height for all non-collapsed children (for smooth animations)
+                setTimeout(function() {
+                    var allChildrenDivs = filterRoot.querySelectorAll('.category-children:not(.collapse)');
+                    allChildrenDivs.forEach(function(childrenDiv) {
+                        if (!childrenDiv.style.maxHeight || childrenDiv.style.maxHeight === '0px') {
+                            childrenDiv.style.maxHeight = childrenDiv.scrollHeight + 'px';
+                        }
+                    });
+                }, 50);
+                
+                // Highlight parent categories that have selected children
+                function updateParentCategoryHighlight() {
+                    var parentWrappers = filterRoot.querySelectorAll('.category-parent-wrapper');
+                    parentWrappers.forEach(function(wrapper) {
+                        var childCheckboxes = wrapper.querySelectorAll('.category-child input[type=checkbox]');
+                        var hasSelectedChild = Array.from(childCheckboxes).some(function(cb) { return cb.checked; });
+                        var parentOption = wrapper.querySelector('.category-parent');
+                        if (hasSelectedChild) {
+                            parentOption.classList.add('has-selected-child');
+                        } else {
+                            parentOption.classList.remove('has-selected-child');
+                        }
+                    });
+                }
+                
+                // Update highlight on checkbox changes
+                var allCategoryCheckboxes = filterRoot.querySelectorAll('.category-parent-wrapper input[type=checkbox]');
+                allCategoryCheckboxes.forEach(function(checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        setTimeout(updateParentCategoryHighlight, 100);
+                    });
+                });
+                
+                // Initial highlight update
+                updateParentCategoryHighlight();
                 }
                 // Initialize both desktop and mobile filter containers (if present)
                 initFilterRoot(document.getElementById('filterFormDesktop'));
@@ -880,6 +1061,166 @@
             #filtersOffcanvas.offcanvas-start {
                 width: 80%;
                 max-width: 300px;
+            }
+        }
+        
+        /* Category Hierarchy Styles */
+        .category-parent-wrapper {
+            margin-bottom: 6px;
+        }
+        
+        .category-parent {
+            position: relative;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            border-radius: 6px;
+            padding: 2px 0;
+        }
+        
+        .category-parent:hover {
+            background-color: rgba(0, 81, 44, 0.03);
+        }
+        
+        .category-parent.has-selected-child {
+            background-color: rgba(0, 81, 44, 0.08);
+        }
+        
+        .category-parent.has-selected-child .label-text {
+            font-weight: 600;
+            color: #00512C;
+        }
+        
+        .category-expand-area {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .category-expand-area:hover {
+            background-color: rgba(0, 81, 44, 0.1);
+        }
+        
+        .category-expand-area:focus {
+            outline: 2px solid #00512C;
+            outline-offset: 2px;
+        }
+        
+        .category-expand-area.expanded {
+            background-color: rgba(0, 81, 44, 0.08);
+        }
+        
+        .category-count-badge {
+            background: linear-gradient(135deg, #00512C 0%, #008751 100%);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .category-toggle-btn {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            color: #6c757d;
+            transition: color 0.2s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        
+        .category-toggle-btn:hover {
+            color: #00512C;
+        }
+        
+        .category-toggle-btn:focus {
+            outline: none;
+        }
+        
+        .category-toggle-btn i {
+            font-size: 11px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .category-toggle-btn i.fa-chevron-down {
+            transform: rotate(90deg);
+        }
+        
+        .category-children {
+            margin-left: 24px;
+            margin-top: 6px;
+            padding-left: 12px;
+            border-left: 2px solid #e0e7ef;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.3s ease, padding-top 0.3s ease, padding-bottom 0.3s ease;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        
+        .category-children.collapse {
+            max-height: 0 !important;
+            margin-top: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        
+        .category-children:not(.collapse) {
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+        
+        .category-child {
+            margin-bottom: 4px;
+            padding-left: 4px;
+            transition: background-color 0.2s ease;
+            border-radius: 4px;
+        }
+        
+        .category-child:hover {
+            background-color: rgba(0, 81, 44, 0.04);
+        }
+        
+        .category-child .label-text {
+            font-size: 14px;
+            color: #495057;
+            font-weight: 400;
+        }
+        
+        .category-child input[type=checkbox]:checked + .filter-label .label-text {
+            color: #00512C;
+            font-weight: 500;
+        }
+        
+        /* Smooth animation for expanding/collapsing */
+        @media (prefers-reduced-motion: no-preference) {
+            .category-children {
+                transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                           margin-top 0.3s ease, 
+                           padding-top 0.3s ease, 
+                           padding-bottom 0.3s ease,
+                           opacity 0.2s ease;
+            }
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            .category-children {
+                transition: none;
             }
         }
         

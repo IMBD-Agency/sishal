@@ -63,7 +63,7 @@
                                 <a href="{{ route('product.details', $wishlist->product->slug) }}" class="product-title"
                                     style="text-decoration: none;">{{ $wishlist->product->name }}</a>
                                 <p class="product-description">
-                                    {{$wishlist->product->short_desc ? $wishlist->product->short_desc : ($wishlist->product->description ? Str::limit($wishlist->product->description, 80) : '')}}</p>
+                                    {!! $wishlist->product->short_desc ? nl2br(e($wishlist->product->short_desc)) : ($wishlist->product->description ? nl2br(e(Str::limit($wishlist->product->description, 80))) : '') !!}</p>
                                 <div class="product-meta" style="margin-top:6px;">
                                     @php
                                         $avgRating = $wishlist->product->averageRating();

@@ -52,6 +52,7 @@
                                         <label for="short_desc" class="form-label">Short Description</label>
                                         <textarea class="form-control" id="short_desc" name="short_desc" rows="3">{{ old('short_desc') }}</textarea>
                                     </div>
+
                                     <div class="col-md-12">
                                         <label for="description" class="form-label">Description</label>
                                         <input type="hidden" name="description" id="description_input" value="{{ old('description') }}">

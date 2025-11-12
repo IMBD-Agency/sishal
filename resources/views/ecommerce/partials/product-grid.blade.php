@@ -26,7 +26,7 @@
                 <div class="product-info">
                     <a href="{{ route('product.details', $product->slug) }}" class="product-title"
                         style="text-decoration: none;">{{ $product->name }}</a>
-                    <p class="product-description">{{$product->short_desc ? $product->short_desc : ''}}</p>
+                    <p class="product-description">{!! $product->short_desc ? nl2br(e($product->short_desc)) : '' !!}</p>
                     <div class="product-meta" style="margin-top:6px;">
                         @php
                             $avgRating = $product->avg_rating ?? 0;

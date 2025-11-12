@@ -251,7 +251,10 @@ class ProductController extends Controller
                 });
             }
     
-            $products = $query->with(['category', 'variations.stocks', 'branchStock', 'warehouseStock'])->paginate(12)->withQueryString();
+            $products = $query->with(['category', 'variations.stocks', 'branchStock', 'warehouseStock'])
+                ->latest()
+                ->paginate(12)
+                ->withQueryString();
     
             return view('erp.products.productlist', compact('products'));
         }

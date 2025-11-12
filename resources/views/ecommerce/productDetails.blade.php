@@ -1678,76 +1678,68 @@
         }
 
 
-        /* Related Products - Enhanced Design */
-        .related-products {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            padding: 50px 0 10px 0;
-            position: relative;
+        /* Related Products Splide Carousel - Matching New Arrivals */
+        #relatedProductsSplide { 
+            background:rgb(253, 253, 253);  
+            padding: 14px 0px;
             overflow: hidden;
         }
-
-        .related-products::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #00512C, #10B981, #3B82F6);
+        #relatedProductsSplide .splide__track {
+            overflow: hidden;
         }
-
-        .related-products-header {
-            text-align: center;
-            margin-bottom: 40px;
+        #relatedProductsSplide .splide__slide { 
+            padding: 0px; 
             position: relative;
         }
-
-        .related-products h2 {
-            font-size: 36px;
-            font-weight: 800;
-            color: #1a202c;
-            margin-bottom: 16px;
-            position: relative;
-            display: inline-block;
+        /* Ensure visible slides are actually visible */
+        #relatedProductsSplide .splide__slide.is-visible,
+        #relatedProductsSplide .splide__slide.is-active,
+        #relatedProductsSplide .splide__slide.is-next,
+        #relatedProductsSplide .splide__slide.is-prev {
+            opacity: 1 !important;
+            visibility: visible !important;
         }
-
-        .related-products h2::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 4px;
-            background: linear-gradient(90deg, #00512C, #10B981);
-            border-radius: 2px;
+        /* Ensure product cards inside visible slides are visible */
+        #relatedProductsSplide .splide__slide.is-visible .product-card,
+        #relatedProductsSplide .splide__slide.is-active .product-card,
+        #relatedProductsSplide .splide__slide.is-next .product-card,
+        #relatedProductsSplide .splide__slide.is-prev .product-card {
+            opacity: 1 !important;
+            visibility: visible !important;
         }
-
-        .related-products-subtitle {
-            font-size: 18px;
-            color: #64748b;
-            margin-bottom: 0;
+        #relatedProductsSplide .product-card { padding: 0 !important; border-radius: 6px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
+        #relatedProductsSplide .product-image-container { position: relative; height: 300px; border-radius: 6px 6px 0 0; overflow: hidden; }
+        #relatedProductsSplide .product-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+        #relatedProductsSplide .rating-badge { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 6px; }
+        #relatedProductsSplide .rating-badge .star { color: #f59e0b; }
+        #relatedProductsSplide .product-title { font-size: 18px; line-height: 1.4; margin-top: 10px; margin-bottom: 2px; color:rgb(25, 30, 39); font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        #relatedProductsSplide .price { font-size: 18px; font-weight: 700; margin-top: 2px; }
+        #relatedProductsSplide .price .fw-bold { color: #059669; }
+        #relatedProductsSplide .price .old { font-size: 14px; color: #9ca3af !important; text-decoration: line-through !important; margin-left: 8px; font-weight: 500; }
+        #relatedProductsSplide .product-info { padding: 10px 12px 12px; }
+        #relatedProductsSplide .wishlist-btn { position: absolute; top: 10px; right: 10px; z-index: 10; pointer-events: auto; cursor: pointer; background: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        #relatedProductsSplide .wishlist-btn i { pointer-events: none; font-size: 16px; }
+        #relatedProductsSplide .product-actions { margin-top: 6px; }
+        #relatedProductsSplide .btn-add-cart { padding: 6px 10px; font-size: 12px; }
+        
+        /* remove hover border if any framework styles apply */
+        #relatedProductsSplide .product-card.no-hover-border:hover { border-color: transparent !important; border: none !important; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+        
+        @media (max-width: 991.98px) { 
+            #relatedProductsSplide .product-image-container { height: 180px; } 
         }
-
-        .related-products-container {
-            position: relative;
-            padding: 0;
-        }
-
-        .related-swiper {
-            padding: 20px 10px 5px 10px;
-            overflow: visible;
-            height: auto !important;
-        }
-
-        .related-swiper .swiper-slide {
-            width: auto;
-            height: auto;
-            margin-right: 0;
-        }
-
-        .related-swiper .swiper-wrapper {
-            height: auto !important;
+        
+        @media (max-width: 768px) {
+            #relatedProductsSplide { padding: 15px 0px; }
+            #relatedProductsSplide .product-image-container { height: 160px; }
+            #relatedProductsSplide .product-title { font-size: 14px; line-height: 1.3; margin-top: 8px; }
+            #relatedProductsSplide .price { font-size: 14px; }
+            #relatedProductsSplide .price .old { font-size: 12px; }
+            #relatedProductsSplide .product-info { padding: 8px 10px 10px; }
+            #relatedProductsSplide .wishlist-btn { width: 30px; height: 30px; top: 8px; right: 8px; }
+            #relatedProductsSplide .wishlist-btn i { font-size: 14px; }
+            #relatedProductsSplide .btn-add-cart { padding: 5px 8px; font-size: 11px; }
+            #relatedProductsSplide .rating-badge { font-size: 10px; padding: 3px 6px; left: 8px; bottom: 8px; }
         }
 
         .related-product-card {
@@ -2488,7 +2480,7 @@
             }
 
             .size-chart-img {
-                max-width: 180px;
+                max-width: 220px;
                 max-height: 180px;
             }
 
@@ -2959,7 +2951,7 @@
                     </div>
 
                     @if (!empty($product->short_desc))
-                    <p class="mt-2 mb-3" style="color:#4b5563; font-size:13px; line-height:1.65;">{{ $product->short_desc }}</p>
+                    <p class="mt-2 mb-3" style="color:#4b5563; font-size:18px; font-weight: 600; color:black; line-height:1.65;">{!! nl2br(e($product->short_desc)) !!}</p>
                     @endif
 
                     @if($product->size_chart)
@@ -4006,104 +3998,84 @@
 
     <!-- Related Products Section -->
     @if(isset($relatedProducts) && count($relatedProducts))
-        <div class="related-products">
+        <section class="top-products">
             <div class="container">
-                <div class="related-products-header">
-                    <h2>You Might Also Like</h2>
-                    <p class="related-products-subtitle">Discover more amazing products</p>
+                <div class="section-header section-header--fancy">
+                    <h2 class="section-title">You Might Also Like</h2>
                 </div>
-                
-                <div class="related-products-container">
-                    <div class="swiper related-swiper">
-                        <div class="swiper-wrapper">
+
+                <div id="relatedProductsSplide" class="splide" aria-label="You Might Also Like">
+                    <div class="splide__track">
+                        <ul class="splide__list" id="relatedProductsSplideList">
                             @foreach($relatedProducts as $product)
-                                <div class="swiper-slide">
-                                    <div class="related-product-card">
-                                        <!-- Wishlist Button -->
-                                        <button class="product-wishlist-top {{$product->is_wishlisted ? ' active' : ''}}" 
-                                                onclick="event.stopPropagation(); toggleWishlist({{ $product->id }});"
-                                                data-product-id="{{ $product->id }}"
-                                                title="{{$product->is_wishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}}">
-                                            <i class="{{ $product->is_wishlisted ? 'fas' : 'far' }} fa-heart"></i>
+                                <li class="splide__slide">
+                                    <div class="product-card position-relative no-hover-border" data-href="{{ route('product.details', $product->slug) }}">
+                                        <button class="wishlist-btn{{ $product->is_wishlisted ? ' active' : '' }}" 
+                                                data-product-id="{{ $product->id }}" 
+                                                title="{{ $product->is_wishlisted ? 'Remove from wishlist' : 'Add to wishlist' }}" 
+                                                type="button" 
+                                                onclick="event.stopPropagation();">
+                                            <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                                         </button>
-                                        
-                                        <div class="related-product-image-container">
+                                        <div class="product-image-container">
                                             <img src="{{ asset($product->image) }}" 
-                                                 class="related-product-image" 
-                                                 alt="{{ $product->name }}"
-                                                 loading="lazy">
+                                                 class="product-image" 
+                                                 alt="{{ $product->name }}" 
+                                                 loading="lazy" 
+                                                 onerror="this.style.display='none'">
+                                            @php
+                                                $avgRating = $product->averageRating() ?? 0;
+                                                $reviews = $product->totalReviews() ?? 0;
+                                            @endphp
+                                            @if($avgRating > 0)
+                                                <div class="rating-badge">
+                                                    <span>{{ number_format($avgRating, 1) }}</span>
+                                                    <i class="fas fa-star star"></i>
+                                                    <span>| {{ $reviews }}</span>
+                                                </div>
+                                            @endif
                                         </div>
-                                        
-                                        <div class="related-product-content">
+                                        <div class="product-info">
                                             <a href="{{ route('product.details', $product->slug) }}" 
-                                               class="related-product-title">
+                                               style="text-decoration: none" 
+                                               class="product-title" 
+                                               title="{{ $product->name }}">
                                                 {{ $product->name }}
                                             </a>
-                                            
-                                            <p class="related-product-description">
-                                                {{ Str::limit(strip_tags($product->short_desc ?? $product->description), 100) }}
-                                            </p>
-                                            
-                                            <!-- Rating Display -->
-                                            <div class="related-product-rating">
-                                                <div class="related-product-stars">
-                                                    @php
-                                                        $avgRating = $product->averageRating() ?? 0;
-                                                        $fullStars = floor($avgRating);
-                                                        $hasHalfStar = $avgRating - $fullStars >= 0.5;
-                                                    @endphp
-                                                    @for($i = 1; $i <= 5; $i++)
-                                                        @if($i <= $fullStars)
-                                                            <i class="fas fa-star"></i>
-                                                        @elseif($i == $fullStars + 1 && $hasHalfStar)
-                                                            <i class="fas fa-star-half-alt"></i>
-                                                        @else
-                                                            <i class="far fa-star"></i>
-                                                        @endif
-                                                    @endfor
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Price Display -->
-                                            <div class="related-product-price">
-                                                @if(isset($product->discount) && $product->discount > 0)
-                                                    <span class="related-product-current-price">
-                                                        {{ number_format($product->discount, 2) }}৳
-                                                    </span>
-                                                    <span class="related-product-original-price">
-                                                        {{ number_format($product->price, 2) }}৳
-                                                    </span>
+                                            <div class="price">
+                                                @if(isset($product->discount) && $product->discount > 0 && $product->discount < $product->price)
+                                                    <span class="fw-bold text-primary">{{ number_format($product->discount, 2) }}৳</span>
+                                                    <span class="old">{{ number_format($product->price, 2) }}৳</span>
                                                 @else
-                                                    <span class="related-product-current-price">
-                                                        {{ number_format($product->price, 2) }}৳
-                                                    </span>
+                                                    <span class="fw-bold text-primary">{{ number_format($product->price, 2) }}৳</span>
                                                 @endif
                                             </div>
-                                            
-                                            <!-- Action Buttons -->
-                                            <div class="related-product-actions">
-                                                <a href="{{ route('product.details', $product->slug) }}" 
-                                                   class="related-product-btn related-product-btn-primary">
-                                                    <i class="fas fa-eye me-1"></i>
-                                                    View Details
-                                                </a>
+                                            <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
+                                                @php
+                                                    $hasStock = $product->stock > 0;
+                                                @endphp
+                                                <button class="btn-add-cart {{ !$hasStock ? 'disabled' : '' }}" 
+                                                        data-product-id="{{ $product->id }}" 
+                                                        data-product-name="{{ $product->name }}" 
+                                                        data-has-stock="{{ $hasStock ? 'true' : 'false' }}" 
+                                                        {{ !$hasStock ? 'disabled title="Out of stock"' : 'title="Add to cart"' }}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
+                                                        <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
+                                                        <circle cx="7" cy="22" r="2"></circle>
+                                                        <circle cx="17" cy="22" r="2"></circle>
+                                                    </svg> 
+                                                    {{ $hasStock ? 'Add to Cart' : 'Out of Stock' }}
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </li>
                             @endforeach
-                        </div>
-                        
-                        <!-- Navigation Buttons -->
-                        <div class="swiper-button-next"></div>
-                        <div class="swiper-button-prev"></div>
-                        
-                        <!-- Pagination -->
-                        <div class="swiper-pagination"></div>
+                        </ul>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
     @endif
 
     <!-- Image Modal -->
@@ -4903,105 +4875,222 @@
             } catch(_) {}
         }
 
-        // Enhanced Related products slider with improved initialization
-        function initializeRelatedProductsSlider() {
-            const swiperContainer = document.querySelector('.related-swiper');
-            
-            if (!swiperContainer) {
-                console.log('[SWIPER] Related products container not found');
+        // Initialize Related Products Splide (matching New Arrivals)
+        // Prevent multiple initializations with a flag
+        let relatedProductsSplideInitialized = false;
+        let relatedProductsSplideInstance = null;
+        let splideRetryCount = 0;
+        const maxRetries = 30; // Max 15 seconds wait
+        
+        function initRelatedProductsSplide(){
+            // Prevent multiple initializations
+            if (relatedProductsSplideInitialized) {
+                console.log('[SPLIDE] Already initialized, skipping...');
                 return;
             }
             
-            if (typeof Swiper === 'undefined') {
-                console.log('[SWIPER] Swiper library not loaded, retrying in 500ms...');
-                setTimeout(initializeRelatedProductsSlider, 500);
+            const wrapper = document.getElementById('relatedProductsSplide');
+            const listEl = document.getElementById('relatedProductsSplideList');
+
+            if (!wrapper || !listEl) {
+                // Retry if elements not found yet
+                if (splideRetryCount < maxRetries) {
+                    splideRetryCount++;
+                    setTimeout(initRelatedProductsSplide, 200);
+                    return;
+                }
+                console.log('[SPLIDE] Elements not found after retries');
                 return;
             }
+
+            // Check if already has a Splide instance
+            if (wrapper.splide && wrapper.splide.Components) {
+                console.log('[SPLIDE] Instance exists, refreshing...');
+                try {
+                    wrapper.splide.refresh();
+                    relatedProductsSplideInitialized = true;
+                    wrapper.style.visibility = 'visible';
+                    wrapper.style.opacity = '1';
+                    wrapper.style.display = 'block';
+                    return;
+                } catch(e) {
+                    console.log('[SPLIDE] Refresh failed, will reinitialize');
+                }
+            }
+
+            // Wait for Splide to be available
+            const SplideClass = window.Splide || (typeof Splide !== 'undefined' ? Splide : null);
             
-            console.log('[SWIPER] Initializing related products slider...');
+            if (!SplideClass) {
+                splideRetryCount++;
+                if (splideRetryCount >= maxRetries) {
+                    console.error('[SPLIDE] Splide library failed to load');
+                    wrapper.style.display = 'block';
+                    wrapper.style.visibility = 'visible';
+                    return;
+                }
+                setTimeout(initRelatedProductsSplide, 500);
+                return;
+            }
+
+            const products = listEl.querySelectorAll('.splide__slide');
             
-            try {
-                const swiper = new Swiper('.related-swiper', {
-                    slidesPerView: 4,
-                    spaceBetween: 30,
-                    centeredSlides: false,
-                    loop: false,
-                    freeMode: false,
-                    autoHeight: true,
-                    autoplay: {
-                        delay: 5000,
-                        disableOnInteraction: false,
-                        pauseOnMouseEnter: true
-                    },
-                    speed: 600,
-                    navigation: {
-                        nextEl: '.related-swiper .swiper-button-next',
-                        prevEl: '.related-swiper .swiper-button-prev',
-                    },
-                    pagination: {
-                        el: '.related-swiper .swiper-pagination',
-                        clickable: true,
-                        dynamicBullets: true
-                    },
-                    breakpoints: {
-                        0: {
-                            slidesPerView: 1.2,
-                            spaceBetween: 20
-                        },
-                        480: {
-                            slidesPerView: 1.5,
-                            spaceBetween: 20
-                        },
-                        640: { 
-                            slidesPerView: 2.2,
-                            spaceBetween: 25
-                        },
-                        768: { 
-                            slidesPerView: 2.5,
-                            spaceBetween: 25
-                        },
-                        1024: { 
-                            slidesPerView: 3.2,
-                            spaceBetween: 30
-                        },
-                        1200: { 
-                            slidesPerView: 4,
-                            spaceBetween: 35
+            if (products.length === 0) {
+                console.warn('[SPLIDE] No products found');
+                wrapper.style.display = 'none';
+                return;
+            }
+
+            // Reset retry count on success
+            splideRetryCount = 0;
+
+            // Make visible immediately
+            wrapper.style.visibility = 'visible';
+            wrapper.style.opacity = '1';
+            wrapper.style.display = 'block';
+            
+            // Use double requestAnimationFrame for better timing
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const actualSlideCount = products.length;
+                    const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                    const canLoop = actualSlideCount >= perPage * 2;
+                    
+                    // Duplicate products if needed for looping
+                    if (actualSlideCount > 0 && actualSlideCount < perPage * 2) {
+                        const originalHtml = listEl.innerHTML;
+                        const timesToRepeat = Math.ceil((perPage * 2) / actualSlideCount);
+                        listEl.innerHTML = originalHtml.repeat(timesToRepeat);
+                    }
+                    
+                    try {
+                        // Destroy existing instance if any
+                        if (relatedProductsSplideInstance) {
+                            try {
+                                relatedProductsSplideInstance.destroy();
+                            } catch(e) {}
                         }
-                    },
-                    on: {
-                        init: function() {
-                            console.log('[SWIPER] Related products slider initialized successfully');
-                            // Add fade-in animation to slides
-                            this.slides.forEach((slide, index) => {
-                                slide.style.opacity = '0';
-                                setTimeout(() => {
-                                    slide.style.transition = 'opacity 0.6s ease';
+                        
+                        const rpSplide = new SplideClass(wrapper, {
+                            type: 'loop',
+                            perPage: perPage,
+                            gap: '16px',
+                            pagination: false,
+                            arrows: true,
+                            autoplay: canLoop,
+                            interval: 2500,
+                            pauseOnHover: true,
+                            rewind: true,
+                            breakpoints: { 
+                                1199: { perPage: 3 }, 
+                                991: { perPage: 2 }, 
+                                575: { perPage: 2 } 
+                            }
+                        });
+                        
+                        rpSplide.mount();
+                        relatedProductsSplideInstance = rpSplide;
+                        relatedProductsSplideInitialized = true;
+                        
+                        // Ensure visibility
+                        wrapper.style.visibility = 'visible';
+                        wrapper.style.opacity = '1';
+                        wrapper.style.display = 'block';
+                        
+                        // Function to ensure visible slides are shown
+                        const ensureVisibleSlides = () => {
+                            try {
+                                // Get all slides that should be visible
+                                const visibleSlides = wrapper.querySelectorAll('.splide__slide.is-visible, .splide__slide.is-active, .splide__slide.is-next, .splide__slide.is-prev');
+                                visibleSlides.forEach(slide => {
                                     slide.style.opacity = '1';
-                                }, index * 100);
-                            });
-                        },
-                        error: function(error) {
-                            console.error('[SWIPER] Error initializing related products slider:', error);
+                                    slide.style.visibility = 'visible';
+                                    const card = slide.querySelector('.product-card');
+                                    if (card) {
+                                        card.style.opacity = '1';
+                                        card.style.visibility = 'visible';
+                                    }
+                                });
+                            } catch(e) {}
+                        };
+                        
+                        // Ensure visibility immediately and after delays
+                        requestAnimationFrame(() => {
+                            ensureVisibleSlides();
+                        });
+                        
+                        setTimeout(() => {
+                            try {
+                                if (rpSplide.Components && rpSplide.Components.Slides) {
+                                    rpSplide.refresh();
+                                }
+                                ensureVisibleSlides();
+                            } catch(e) {}
+                        }, 100);
+                        
+                        setTimeout(() => {
+                            ensureVisibleSlides();
+                        }, 300);
+                        
+                        // Ensure visibility on carousel events
+                        if (rpSplide.on) {
+                            rpSplide.on('moved', ensureVisibleSlides);
+                            rpSplide.on('updated', ensureVisibleSlides);
                         }
+                        
+                        // Autoplay
+                        if (canLoop && rpSplide.Components && rpSplide.Components.Autoplay) {
+                            setTimeout(() => {
+                                try {
+                                    rpSplide.Components.Autoplay.play();
+                                } catch(e) {}
+                            }, 200);
+                        }
+                        
+                        console.log('[SPLIDE] Carousel initialized successfully');
+                    } catch (error) {
+                        console.error('[SPLIDE] Initialization error:', error);
+                        wrapper.style.visibility = 'visible';
+                        wrapper.style.opacity = '1';
+                        wrapper.style.display = 'block';
+                        relatedProductsSplideInitialized = false;
                     }
                 });
-                
-                // Store swiper instance globally for debugging
-                window.relatedProductsSwiper = swiper;
-                
-            } catch (error) {
-                console.error('[SWIPER] Failed to initialize related products slider:', error);
-            }
+            });
         }
         
-        // Initialize when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeRelatedProductsSlider);
-        } else {
-            // DOM is already ready
-            initializeRelatedProductsSlider();
+        // Robust initialization with multiple checks
+        function startRelatedProductsInit() {
+            const checkAndInit = () => {
+                const wrapper = document.getElementById('relatedProductsSplide');
+                const listEl = document.getElementById('relatedProductsSplideList');
+                const hasSplide = window.Splide || (typeof Splide !== 'undefined');
+                
+                if (wrapper && listEl && hasSplide && !relatedProductsSplideInitialized) {
+                    initRelatedProductsSplide();
+                } else if (!relatedProductsSplideInitialized) {
+                    setTimeout(checkAndInit, 100);
+                }
+            };
+            
+            setTimeout(checkAndInit, 100);
         }
+        
+        // Multiple initialization triggers
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startRelatedProductsInit);
+        } else {
+            startRelatedProductsInit();
+        }
+        
+        // Backup initialization on window load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (!relatedProductsSplideInitialized) {
+                    startRelatedProductsInit();
+                }
+            }, 500);
+        });
 
 
         // Image preview functionality

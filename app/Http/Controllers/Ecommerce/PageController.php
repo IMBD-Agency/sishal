@@ -83,7 +83,13 @@ class PageController extends Controller
             }
         }
         
-        $categories = ProductServiceCategory::where('status','active')->get();
+        // Load only parent categories with their active children for hierarchical display
+        $categories = ProductServiceCategory::whereNull('parent_id')
+            ->where('status', 'active')
+            ->with(['children' => function($q) {
+                $q->where('status', 'active');
+            }])
+            ->get();
         $query = Product::query();
 
         // Get the highest price of all products

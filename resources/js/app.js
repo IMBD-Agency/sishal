@@ -7,6 +7,7 @@ import '@splidejs/splide/css';
 // App.js loaded successfully
 
 window.Alpine = Alpine;
+window.Splide = Splide; // Expose Splide globally for inline scripts
 
 Alpine.start();
 
