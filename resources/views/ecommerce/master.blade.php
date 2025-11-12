@@ -242,9 +242,11 @@ a, button {
 /* Footer Spacing */
 .footer {
     margin-top: 2rem;
-    background: #1a202c;
-    color: white;
-    padding: 3rem 0 1rem;
+    background: linear-gradient(135deg, #001a0f 0%, #002d1a 50%, #001a0f 100%);
+    background-color: #001a0f;
+    color: #e2e8f0;
+    padding: 70px 0 30px;
+    position: relative;
 }
 
 .footer-logo img {
@@ -253,16 +255,18 @@ a, button {
 }
 
 .footer-description {
-    color: #a0aec0;
-    margin-bottom: 1.5rem;
-    line-height: 1.6;
+    color: #cbd5e1;
+    margin-bottom: 24px;
+    line-height: 1.7;
+    opacity: 0.85;
 }
 
 .footer-title {
-    color: white;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
+    color: #ffffff;
+    font-weight: 700;
+    margin-bottom: 24px;
+    font-size: 16px;
+    letter-spacing: 0.5px;
 }
 
 .footer-links {
@@ -276,13 +280,16 @@ a, button {
 }
 
 .footer-links a {
-    color: #a0aec0;
+    color: #cbd5e1;
     text-decoration: none;
-    transition: color 0.3s ease;
+    transition: all 0.3s ease;
+    opacity: 0.9;
 }
 
 .footer-links a:hover {
-    color: white;
+    color: #ffffff;
+    opacity: 1;
+    padding-left: 6px;
 }
 
 .social-links {
@@ -294,25 +301,29 @@ a, button {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    background: #2d3748;
-    color: white;
-    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    border-radius: 10px;
     text-decoration: none;
     transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .social-links a:hover {
-    background: #4a5568;
+    background: var(--primary-blue);
+    color: #ffffff;
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .footer-bottom {
-    border-top: 1px solid #2d3748;
-    padding-top: 1.5rem;
-    margin-top: 2rem;
-    color: #a0aec0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-top: 24px;
+    margin-top: 50px;
+    color: #94a3b8;
+    opacity: 0.75;
 }
 
 /* Responsive adjustments */
@@ -329,7 +340,7 @@ a, button {
     }
     
     .footer {
-        padding: 2rem 0 1rem;
+        padding: 50px 0 20px;
     }
 }
 </style>

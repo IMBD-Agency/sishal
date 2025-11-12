@@ -33,7 +33,7 @@
                 <ul class="footer-links">
                     <li><a href="{{ route('product.archive') }}">All Products</a></li>
                     
-                    <li><a href="{{ route('vlogs') }}">Vlogs</a></li>
+                    <li><a href="{{ route('vlogs') }}">Visual Stories</a></li>
                     <li><a href="{{ route('about') }}">About Us</a></li>
                 </ul>
             </div>

@@ -250,7 +250,7 @@
             <a href="{{ route('vlogging.index') }}" class="nav-link {{ request()->is('erp/vlogging*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-video nav-icon"></i>
-                    <span>Vlogs</span>
+                    <span>Visual Stories</span>
                 </div>
             </a>
         </div> 
