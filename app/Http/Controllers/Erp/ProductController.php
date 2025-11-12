@@ -374,29 +374,75 @@ class ProductController extends Controller
             'galleries',
             'branchStock.branch',
             'warehouseStock.warehouse',
-            'saleItems.invoice'
+            'saleItems.invoice',
+            'variations.stocks.branch',
+            'variations.stocks.warehouse'
         ])->findOrFail($id);
         
         // Calculate units sold from POS items
         $unitsSold = $product->saleItems->sum('quantity');
         
-        // Get branch stock distribution
-        $branchStocks = $product->branchStock->map(function($stock) {
-            return [
-                'branch_name' => $stock->branch->name ?? 'Unknown Branch',
-                'quantity' => $stock->quantity,
-                'updated_at' => $stock->last_updated_at ?? $stock->updated_at
-            ];
-        });
+        // Calculate total stock - if product has variations, sum variation stocks; otherwise sum direct product stocks
+        $totalStock = 0;
+        $branchStocksData = [];
+        $warehouseStocksData = [];
         
-        // Get warehouse stock distribution
-        $warehouseStocks = $product->warehouseStock->map(function($stock) {
-            return [
-                'warehouse_name' => $stock->warehouse->name ?? 'Unknown Warehouse',
-                'quantity' => $stock->quantity,
-                'updated_at' => $stock->last_updated_at ?? $stock->updated_at
-            ];
-        });
+        if ($product->has_variations && $product->variations && $product->variations->isNotEmpty()) {
+            // Product has variations - calculate from variation stocks
+            foreach ($product->variations as $variation) {
+                if ($variation->stocks && $variation->stocks->isNotEmpty()) {
+                    foreach ($variation->stocks as $stock) {
+                        $totalStock += $stock->quantity;
+                        
+                        if ($stock->branch_id && $stock->branch) {
+                            $branchName = $stock->branch->name ?? 'Unknown Branch';
+                            if (!isset($branchStocksData[$branchName])) {
+                                $branchStocksData[$branchName] = [
+                                    'branch_name' => $branchName,
+                                    'quantity' => 0,
+                                    'updated_at' => $stock->last_updated_at ?? $stock->updated_at
+                                ];
+                            }
+                            $branchStocksData[$branchName]['quantity'] += $stock->quantity;
+                        }
+                        
+                        if ($stock->warehouse_id && $stock->warehouse) {
+                            $warehouseName = $stock->warehouse->name ?? 'Unknown Warehouse';
+                            if (!isset($warehouseStocksData[$warehouseName])) {
+                                $warehouseStocksData[$warehouseName] = [
+                                    'warehouse_name' => $warehouseName,
+                                    'quantity' => 0,
+                                    'updated_at' => $stock->last_updated_at ?? $stock->updated_at
+                                ];
+                            }
+                            $warehouseStocksData[$warehouseName]['quantity'] += $stock->quantity;
+                        }
+                    }
+                }
+            }
+            
+            $branchStocks = collect(array_values($branchStocksData));
+            $warehouseStocks = collect(array_values($warehouseStocksData));
+        } else {
+            // Product doesn't have variations - use direct product stocks
+            $branchStocks = $product->branchStock->map(function($stock) {
+                return [
+                    'branch_name' => $stock->branch->name ?? 'Unknown Branch',
+                    'quantity' => $stock->quantity,
+                    'updated_at' => $stock->last_updated_at ?? $stock->updated_at
+                ];
+            });
+            
+            $warehouseStocks = $product->warehouseStock->map(function($stock) {
+                return [
+                    'warehouse_name' => $stock->warehouse->name ?? 'Unknown Warehouse',
+                    'quantity' => $stock->quantity,
+                    'updated_at' => $stock->last_updated_at ?? $stock->updated_at
+                ];
+            });
+            
+            $totalStock = $branchStocks->sum('quantity') + $warehouseStocks->sum('quantity');
+        }
         
         // Get recent activity (recent sales)
         $recentActivity = $product->saleItems()
@@ -419,7 +465,8 @@ class ProductController extends Controller
             'unitsSold',
             'branchStocks', 
             'warehouseStocks', 
-            'recentActivity'
+            'recentActivity',
+            'totalStock'
         ));
     }
 

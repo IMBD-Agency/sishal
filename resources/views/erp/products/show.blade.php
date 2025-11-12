@@ -168,7 +168,7 @@
                         <div class="card border-0 bg-primary text-white">
                             <div class="card-body text-center py-4">
                                 <i class="fas fa-boxes fa-2x mb-2"></i>
-                                <h4 class="fw-bold mb-1">{{ $branchStocks->sum('quantity') + $warehouseStocks->sum('quantity') }}</h4>
+                                <h4 class="fw-bold mb-1">{{ $totalStock }}</h4>
                                 <small>Total Stock</small>
                             </div>
                         </div>
@@ -196,7 +196,7 @@
                                 <span class="badge bg-primary">{{ $stock['quantity'] }} units</span>
                             </div>
                             <div class="progress" style="height: 8px;">
-                                <div class="progress-bar bg-primary" style="width: {{ ($branchStocks->sum('quantity') + $warehouseStocks->sum('quantity')) > 0 ? ($stock['quantity'] / ($branchStocks->sum('quantity') + $warehouseStocks->sum('quantity'))) * 100 : 0 }}%"></div>
+                                <div class="progress-bar bg-primary" style="width: {{ $totalStock > 0 ? ($stock['quantity'] / $totalStock) * 100 : 0 }}%"></div>
                             </div>
                             <small class="text-muted">Updated: {{ $stock['updated_at'] ? \Carbon\Carbon::parse($stock['updated_at'])->format('Y-m-d') : 'N/A' }}</small>
                         </div>
@@ -214,7 +214,7 @@
                                 <span class="badge bg-info">{{ $stock['quantity'] }} units</span>
                             </div>
                             <div class="progress" style="height: 8px;">
-                                <div class="progress-bar bg-info" style="width: {{ ($branchStocks->sum('quantity') + $warehouseStocks->sum('quantity')) > 0 ? ($stock['quantity'] / ($branchStocks->sum('quantity') + $warehouseStocks->sum('quantity'))) * 100 : 0 }}%"></div>
+                                <div class="progress-bar bg-info" style="width: {{ $totalStock > 0 ? ($stock['quantity'] / $totalStock) * 100 : 0 }}%"></div>
                             </div>
                             <small class="text-muted">Updated: {{ $stock['updated_at'] ? \Carbon\Carbon::parse($stock['updated_at'])->format('Y-m-d') : 'N/A' }}</small>
                         </div>
