@@ -344,4 +344,45 @@
         </div>
     </div>
 </div>
+
+@if(isset($order) && $order && ($general_settings->gtm_container_id ?? null))
+<script>
+    window.dataLayer = window.dataLayer || [];
+    
+    // Prevent duplicate purchase events on page reload using session storage
+    var transactionId = {!! json_encode($order->order_number) !!};
+    var purchaseKey = 'gtm_purchase_' + transactionId;
+    
+    
+    // Check if this purchase has already been tracked in this session
+    if (!sessionStorage.getItem(purchaseKey)) {
+        // Mark as tracked to prevent duplicate events on page reload
+        sessionStorage.setItem(purchaseKey, 'true');
+        
+        window.dataLayer.push({
+            'event': 'purchase',
+            'ecommerce': {
+                'transaction_id': transactionId,
+                'value': {{ $order->total }},
+                'tax': {{ $order->vat ?? 0 }},
+                'shipping': {{ $order->delivery ?? 0 }},
+                'currency': 'BDT',
+                'items': [
+                    @foreach($order->items as $item)
+                    @if($item->product)
+                    {
+                        'item_id': '{{ $item->product_id }}',
+                        'item_name': {!! json_encode($item->product->name ?? '') !!},
+                        'item_category': {!! json_encode($item->product->category->name ?? '') !!},
+                        'price': {{ $item->price }},
+                        'quantity': {{ $item->qty }}
+                    }@if(!$loop->last),@endif
+                    @endif
+                    @endforeach
+                ]
+            }
+        });
+    }
+</script>
+@endif
 @endsection

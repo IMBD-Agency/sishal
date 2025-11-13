@@ -50,6 +50,7 @@ class GeneralSettingsController extends Controller
             'smtp_from_name' => 'nullable|string|max:255',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'cod_percentage' => 'nullable|numeric|min:0|max:100',
+            'gtm_container_id' => 'nullable|string|max:20|regex:/^GTM-[A-Z0-9]+$/',
         ]);
 
         // Get the settings row (create if not exists)

@@ -1090,6 +1090,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof showToast === 'function') showToast(data.message || 'Product added to cart successfully!', 'success');
                 if (typeof updateCartCount === 'function') updateCartCount();
                 if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
+                
+                // GTM add_to_cart event tracking
+                if (data.product && window.dataLayer) {
+                    window.dataLayer.push({
+                        'event': 'add_to_cart',
+                        'ecommerce': {
+                            'currency': 'BDT',
+                            'value': data.product.price * (data.qty || 1),
+                            'items': [{
+                                'item_id': String(data.product.id),
+                                'item_name': data.product.name,
+                                'item_category': data.product.category || '',
+                                'price': data.product.price,
+                                'quantity': data.qty || 1
+                            }]
+                        }
+                    });
+                }
             } else if (data && data.redirect) {
                 // Check if response contains redirect URL (for authentication)
                 window.location.href = data.redirect;

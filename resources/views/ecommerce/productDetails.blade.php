@@ -5356,6 +5356,26 @@
         </div>
     </div>
 
+@if(isset($product) && $product && ($general_settings->gtm_container_id ?? null))
+<script>
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+        'event': 'view_item',
+        'ecommerce': {
+            'currency': 'BDT',
+            'value': {{ $product->discount ?? $product->price }},
+            'items': [{
+                'item_id': '{{ $product->id }}',
+                'item_name': {!! json_encode($product->name) !!},
+                'item_category': {!! json_encode($product->category->name ?? '') !!},
+                'price': {{ $product->discount ?? $product->price }},
+                'quantity': 1
+            }]
+        }
+    });
+</script>
+@endif
+
 @endsection
 
 @push('scripts')

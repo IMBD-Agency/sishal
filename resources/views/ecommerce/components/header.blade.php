@@ -5,6 +5,23 @@
 <html lang="en">
 
 <head>
+    @php
+        $gtmId = $general_settings->gtm_container_id ?? null;
+    @endphp
+    
+    @if($gtmId)
+    <!-- Google Tag Manager -->
+    <script>
+        window.dataLayer = window.dataLayer || [];
+    </script>
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','{{ $gtmId }}');</script>
+    <!-- End Google Tag Manager -->
+    @endif
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@if($pageTitle) {{ $pageTitle . ' | '}} @endif {{ $general_settings->site_title ?? '' }}</title>
@@ -85,5 +102,42 @@
 </head>
 
 <body>
+    @if($gtmId ?? null)
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ $gtmId }}"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    @endif
+
+    @php
+        // Initialize data layer with page info
+        $pageType = 'other';
+        if (isset($product)) {
+            $pageType = 'product';
+        } elseif (request()->routeIs('product.archive') || request()->routeIs('product.category')) {
+            $pageType = 'product_list';
+        } elseif (request()->routeIs('order.success')) {
+            $pageType = 'purchase';
+        } elseif (request()->routeIs('checkout')) {
+            $pageType = 'checkout';
+        } elseif (request()->routeIs('cart')) {
+            $pageType = 'cart';
+        }
+    @endphp
+    
+    @if($gtmId ?? null)
+    <script>
+        // Initialize data layer with page info
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+            'pageType': '{{ $pageType }}',
+            'pageTitle': '{{ $pageTitle ?? "" }}',
+            'userId': '{{ auth()->id() ?? "" }}',
+            @if(auth()->check())
+            'userEmail': '{{ auth()->user()->email ?? "" }}',
+            @endif
+        });
+    </script>
+    @endif
 
 

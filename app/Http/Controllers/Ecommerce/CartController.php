@@ -64,10 +64,25 @@ class CartController extends Controller
                 $existingCart = Cart::create($cartData);
             }
 
+            // Load product with category for GTM tracking
+            $product = $existingCart->product;
+            $productData = null;
+            if ($product) {
+                $product->load('category');
+                $productData = [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'category' => $product->category->name ?? '',
+                    'price' => $product->discount ?? $product->price,
+                ];
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Product added to cart successfully!',
-                'cart' => $existingCart
+                'cart' => $existingCart,
+                'product' => $productData,
+                'qty' => $existingCart->qty
             ]);
         } catch (\Exception $e) {
             Log::error('Error adding product to cart', [
@@ -345,10 +360,26 @@ class CartController extends Controller
             'expected_session_id' => $sessionId
         ]);
         
+        // Load product with category for GTM tracking
+        $product = $existingCart->product;
+        $productData = null;
+        if ($product) {
+            $product->load('category');
+            $finalPrice = $variation && $variation->price ? $variation->price : ($product->discount ?? $product->price);
+            $productData = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'category' => $product->category->name ?? '',
+                'price' => $finalPrice,
+            ];
+        }
+        
         return response()->json([
             'success' => true,
             'message' => 'Product added to cart successfully',
             'cart' => $existingCart->load('variation'),
+            'product' => $productData,
+            'qty' => $existingCart->qty,
             'variation_id' => $existingCart->variation_id, // Include in response for debugging
             'cart_id' => $existingCart->id,
             'debug' => [

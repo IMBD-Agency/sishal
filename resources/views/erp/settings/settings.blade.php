@@ -47,6 +47,11 @@
                                         <i class="fas fa-envelope me-2"></i>SMTP Email
                                     </button>
                                 </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab" aria-controls="analytics" aria-selected="false">
+                                        <i class="fas fa-chart-line me-2"></i>Analytics
+                                    </button>
+                                </li>
                             </ul>
                         </div>
 
@@ -339,6 +344,37 @@
                                                         </div>
                                                     </div>
                                                     <div id="smtpTestResult" class="mt-3"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Analytics Tab -->
+                                    <div class="tab-pane fade" id="analytics" role="tabpanel" aria-labelledby="analytics-tab">
+                                        <div class="row g-4">
+                                            <div class="col-12">
+                                                <h5 class="fw-semibold text-dark mb-3">Google Tag Manager</h5>
+                                                <p class="text-muted">Configure Google Tag Manager for tracking and analytics</p>
+                                            </div>
+                                            
+                                            <div class="col-md-12">
+                                                <label class="form-label fw-medium">
+                                                    <i class="fas fa-tag text-primary me-2"></i>GTM Container ID
+                                                </label>
+                                                <input type="text" name="gtm_container_id" class="form-control" placeholder="GTM-XXXXXXX" value="{{ $settings->gtm_container_id ?? '' }}" pattern="GTM-[A-Z0-9]+">
+                                                <small class="text-muted">Enter your Google Tag Manager Container ID (e.g., GTM-XXXXXXX). Get this from your GTM account.</small>
+                                            </div>
+                                            
+                                            <div class="col-12">
+                                                <div class="alert alert-info">
+                                                    <i class="fas fa-info-circle me-2"></i>
+                                                    <strong>How to get your GTM Container ID:</strong>
+                                                    <ol class="mb-0 mt-2">
+                                                        <li>Go to <a href="https://tagmanager.google.com" target="_blank">Google Tag Manager</a></li>
+                                                        <li>Select your container or create a new one</li>
+                                                        <li>Copy the Container ID (format: GTM-XXXXXXX)</li>
+                                                        <li>Paste it in the field above</li>
+                                                    </ol>
                                                 </div>
                                             </div>
                                         </div>

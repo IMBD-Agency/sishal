@@ -791,7 +791,13 @@ class OrderController extends Controller
     public function orderSuccess(string $orderId)
     {
         $pageTitle = $orderId;
-        return view('ecommerce.order-success', compact('orderId', 'pageTitle'));
+        
+        // Get order data for GTM purchase event
+        $order = Order::where('order_number', $orderId)
+            ->with(['items.product.category'])
+            ->first();
+        
+        return view('ecommerce.order-success', compact('orderId', 'pageTitle', 'order'));
     }
 
     private function generateOrderNumber()

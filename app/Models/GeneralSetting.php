@@ -34,5 +34,6 @@ class GeneralSetting extends Model
         'smtp_from_name',
         'tax_rate',
         'cod_percentage',
+        'gtm_container_id',
     ];
 }

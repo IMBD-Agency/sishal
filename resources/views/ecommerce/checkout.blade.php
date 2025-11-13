@@ -1497,4 +1497,42 @@
             console.error('JavaScript error in checkout page:', error);
         }
     </script>
+    
+    @if(isset($carts) && $carts->count() > 0 && ($general_settings->gtm_container_id ?? null))
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        
+        // Prevent duplicate begin_checkout events on page reload using session storage
+        var cartValue = {{ $cartTotal }};
+        var cartItemsCount = {{ $carts->count() }};
+        var checkoutKey = 'gtm_begin_checkout_' + cartValue + '_' + cartItemsCount;
+        
+        // Check if this checkout has already been tracked in this session
+        if (!sessionStorage.getItem(checkoutKey)) {
+            // Mark as tracked to prevent duplicate events on page reload
+            sessionStorage.setItem(checkoutKey, 'true');
+            
+            window.dataLayer.push({
+                'event': 'begin_checkout',
+                'ecommerce': {
+                    'currency': 'BDT',
+                    'value': cartValue,
+                    'items': [
+                        @foreach($carts as $cart)
+                        @if($cart->product)
+                        {
+                            'item_id': '{{ $cart->product_id }}',
+                            'item_name': {!! json_encode($cart->product->name ?? '') !!},
+                            'item_category': {!! json_encode($cart->product->category->name ?? '') !!},
+                            'price': {{ $cart->product->discount ?? $cart->product->price }},
+                            'quantity': {{ $cart->qty }}
+                        }@if(!$loop->last),@endif
+                        @endif
+                        @endforeach
+                    ]
+                }
+            });
+        }
+    </script>
+    @endif
 @endsection
