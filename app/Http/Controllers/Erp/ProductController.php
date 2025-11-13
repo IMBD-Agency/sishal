@@ -537,6 +537,15 @@ class ProductController extends Controller
             $data['image'] = 'uploads/products/' . $imageName;
         }
 
+        // Handle size chart image deletion
+        if ($request->has('delete_size_chart') && $request->delete_size_chart == '1') {
+            // Delete old size chart if exists
+            if ($product->size_chart && file_exists(public_path($product->size_chart))) {
+                @unlink(public_path($product->size_chart));
+            }
+            $data['size_chart'] = null;
+        }
+
         // Handle size chart image upload
         if ($request->hasFile('size_chart')) {
             // Delete old size chart if exists

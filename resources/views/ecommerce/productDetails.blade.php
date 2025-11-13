@@ -4087,7 +4087,7 @@
         <div class="product-tabs">
             <div class="tab-nav">
                 <button class="tab-btn active" data-tab="description" type="button">Description</button>
-                <button class="tab-btn" data-tab="features" type="button">Features</button>
+                <button class="tab-btn" data-tab="features" type="button">Care Direction</button>
                 <button class="tab-btn" data-tab="specs" type="button">Specifications</button>
                 <button class="tab-btn" data-tab="reviews" type="button">Reviews</button>
             </div>

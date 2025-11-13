@@ -97,11 +97,26 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label for="size_chart" class="form-label">Size Chart Image</label>
-                                        @if($product->size_chart)
-                                            <div class="mb-2">
-                                                <img src="{{ asset($product->size_chart) }}" alt="Current Size Chart" style="max-width: 120px; max-height: 120px;">
-                                            </div>
-                                        @endif
+                                        <div id="size_chart_preview_container" class="mb-2">
+                                            @if($product->size_chart)
+                                                <div class="position-relative" style="display: inline-block;">
+                                                    <img id="size_chart_existing_preview" src="{{ asset($product->size_chart) }}" alt="Current Size Chart" style="max-width: 120px; max-height: 120px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    <button type="button" class="btn btn-sm btn-danger p-1" id="size_chart_delete_existing_btn" style="position: absolute; top: 0; right: 0;" title="Remove image">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            @else
+                                                <div id="size_chart_new_preview" style="display: none;">
+                                                    <div class="position-relative" style="display: inline-block;">
+                                                        <img id="size_chart_preview" src="" alt="Size Chart Preview" style="max-width: 120px; max-height: 120px; border: 1px solid #ddd; border-radius: 4px;">
+                                                        <button type="button" class="btn btn-sm btn-danger p-1" id="size_chart_delete_btn" style="position: absolute; top: 0; right: 0;" title="Remove image">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <input type="hidden" name="delete_size_chart" id="delete_size_chart" value="0">
                                         <input class="form-control" type="file" id="size_chart" name="size_chart" accept="image/*">
                                         <small class="form-text text-muted">Upload a size chart image that will be displayed on the product details page. Supported: jpeg, png, jpg, gif, svg. Max size: 2MB.</small>
                                     </div>
@@ -459,6 +474,44 @@ $(document).ready(function() {
         var form = document.getElementById('galleryDeleteForm');
         form.setAttribute('action', action);
         form.submit();
+    });
+
+    // Size chart image preview and delete functionality for edit form
+    $('#size_chart').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Hide existing preview if it exists
+                $('#size_chart_existing_preview').closest('div').hide();
+                // Show new preview
+                $('#size_chart_preview').attr('src', e.target.result);
+                $('#size_chart_new_preview').show();
+                // Reset delete flag since user is uploading a new image
+                $('#delete_size_chart').val('0');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Delete existing size chart image
+    $('#size_chart_delete_existing_btn').on('click', function() {
+        if (confirm('Are you sure you want to delete this size chart image?')) {
+            $('#size_chart_existing_preview').closest('div').hide();
+            $('#delete_size_chart').val('1');
+            $('#size_chart').val('');
+        }
+    });
+
+    // Delete newly selected size chart image
+    $('#size_chart_delete_btn').on('click', function() {
+        $('#size_chart').val('');
+        $('#size_chart_preview').attr('src', '');
+        $('#size_chart_new_preview').hide();
+        // Show existing preview again if it exists and wasn't deleted
+        if ($('#delete_size_chart').val() === '0') {
+            $('#size_chart_existing_preview').closest('div').show();
+        }
     });
 
     // CKEditor 5 - Free, no API key, excellent table support

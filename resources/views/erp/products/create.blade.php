@@ -85,6 +85,14 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label for="size_chart" class="form-label">Size Chart Image</label>
+                                        <div id="size_chart_preview_container" class="mb-2" style="display: none;">
+                                            <div class="position-relative" style="display: inline-block;">
+                                                <img id="size_chart_preview" src="" alt="Size Chart Preview" style="max-width: 120px; max-height: 120px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <button type="button" class="btn btn-sm btn-danger p-1" id="size_chart_delete_btn" style="position: absolute; top: 0; right: 0;" title="Remove image">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
                                         <input class="form-control" type="file" id="size_chart" name="size_chart" accept="image/*">
                                         <small class="form-text text-muted">Upload a size chart image that will be displayed on the product details page. Supported: jpeg, png, jpg, gif, svg. Max size: 2MB.</small>
                                     </div>
@@ -532,6 +540,25 @@ $(document).ready(function() {
         else btns.show();
     }
     updateAttributeRemoveButtons();
+
+    // Size chart image preview and delete functionality
+    $('#size_chart').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#size_chart_preview').attr('src', e.target.result);
+                $('#size_chart_preview_container').show();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    $('#size_chart_delete_btn').on('click', function() {
+        $('#size_chart').val('');
+        $('#size_chart_preview').attr('src', '');
+        $('#size_chart_preview_container').hide();
+    });
 
     // Filter out empty attribute rows before form submission
     $('form').on('submit', function(e) {
