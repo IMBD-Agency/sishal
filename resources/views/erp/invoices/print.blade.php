@@ -189,7 +189,7 @@
             </tr>
             <tr>
                 <td>{{ @$invoice->customer->name }}</td>
-                <td style="text-align:right;">DATE: {{$invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d M, Y, h:i A') : ''}}</td>
+                <td style="text-align:right;">DATE: {{$invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d M, Y') : ''}}</td>
             </tr>
             <tr>
                 <td>Phone: {{ @$invoice->customer->phone }}</td>

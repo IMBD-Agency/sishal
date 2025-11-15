@@ -306,8 +306,7 @@
         <h2 class="modern-title">Order Confirmed!</h2>
         
         <p class="modern-message">
-            Your order has been successfully placed and is being processed.<br>
-            You'll receive an email confirmation shortly with tracking details.
+            Thank you for your order! Your order has been successfully placed and is being processed.
         </p>
         
         <div class="order-details">

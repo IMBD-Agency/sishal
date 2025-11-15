@@ -40,15 +40,19 @@ class InvoicePdfService
             // Get general settings (cache if needed for performance)
             $generalSettings = GeneralSetting::first();
 
+            // Pre-format date to avoid Carbon parsing in template (performance optimization)
+            $formattedDate = $order->created_at->format('F j, Y');
+
             Log::info('Loading PDF view', [
                 'order_id' => $order->id,
                 'view' => 'emails.order-invoice-pdf'
             ]);
 
-            // Generate PDF
+            // Generate PDF with pre-computed values for better performance
             $pdf = Pdf::loadView('emails.order-invoice-pdf', [
                 'order' => $order,
                 'generalSettings' => $generalSettings,
+                'formattedDate' => $formattedDate,
             ]);
 
             // Set paper size and orientation

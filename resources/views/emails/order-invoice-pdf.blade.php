@@ -41,6 +41,13 @@
             margin-bottom: 10px;
         }
         
+        .header h2 {
+            font-size: 16px;
+            font-weight: normal;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
         .invoice-info {
             display: table;
             width: 100%;
@@ -158,11 +165,14 @@
         <!-- Header -->
         <div class="header">
             <h1>INVOICE</h1>
+            @if($generalSettings && $generalSettings->site_title)
+                <h2>{{ $generalSettings->site_title }}</h2>
+            @endif
             <div class="info-value">
                 <strong>Order #:</strong> {{ $order->order_number }}
             </div>
             <div class="info-value">
-                <strong>Date:</strong> {{ \Carbon\Carbon::parse($order->created_at)->format('F j, Y') }}
+                <strong>Date:</strong> {{ $formattedDate ?? $order->created_at->format('F j, Y') }}
             </div>
         </div>
         
@@ -182,13 +192,15 @@
                 <div class="invoice-info-right">
                     <div class="info-label">Payment Method:</div>
                     <div class="info-value">
-                        @if($order->payment_method == 'online-payment')
-                            Online Payment
-                        @elseif($order->payment_method == 'cash')
-                            Cash on Delivery
-                        @else
-                            {{ ucfirst(str_replace('-', ' ', $order->payment_method ?? 'N/A')) }}
-                        @endif
+                        @php
+                            $paymentMethod = $order->payment_method ?? 'N/A';
+                            $paymentDisplay = match($paymentMethod) {
+                                'online-payment' => 'Online Payment',
+                                'cash' => 'Cash on Delivery',
+                                default => ucfirst(str_replace('-', ' ', $paymentMethod))
+                            };
+                        @endphp
+                        {{ $paymentDisplay }}
                     </div>
                     <div class="info-value" style="margin-top: 10px;">
                         <div class="info-label">Status:</div>
@@ -200,19 +212,27 @@
         
         <!-- Shipping Address -->
         @if($order->invoice && $order->invoice->invoiceAddress)
+        @php
+            $address = $order->invoice->invoiceAddress;
+            $addressParts = array_filter([
+                $address->shipping_address_1 ?? null,
+                $address->shipping_address_2 ?? null
+            ]);
+            $cityParts = array_filter([
+                $address->shipping_city ?? null,
+                $address->shipping_state ?? null,
+                $address->shipping_zip_code ? '-' . $address->shipping_zip_code : null
+            ]);
+        @endphp
         <div class="address-section">
             <div class="info-label">Shipping Address:</div>
             <div class="info-value">
-                {{ $order->invoice->invoiceAddress->shipping_address_1 ?? 'N/A' }}
-                @if($order->invoice->invoiceAddress->shipping_address_2)
-                    , {{ $order->invoice->invoiceAddress->shipping_address_2 }}
+                {{ !empty($addressParts) ? implode(', ', $addressParts) : 'N/A' }}
+                @if(!empty($cityParts))
+                    <br>{{ implode(' ', $cityParts) }}
                 @endif
-                <br>
-                {{ $order->invoice->invoiceAddress->shipping_city ?? '' }}
-                @if($order->invoice->invoiceAddress->shipping_state), {{ $order->invoice->invoiceAddress->shipping_state }} @endif
-                @if($order->invoice->invoiceAddress->shipping_zip_code) - {{ $order->invoice->invoiceAddress->shipping_zip_code }} @endif
-                @if($order->invoice->invoiceAddress->shipping_country)
-                    <br>{{ $order->invoice->invoiceAddress->shipping_country }}
+                @if($address->shipping_country)
+                    <br>{{ $address->shipping_country }}
                 @endif
             </div>
         </div>
@@ -230,53 +250,67 @@
             </thead>
             <tbody>
                 @foreach($order->items as $item)
+                @php
+                    $productName = $item->product->name ?? 'Product';
+                    $variationName = $item->variation->name ?? null;
+                    $unitPrice = number_format($item->unit_price, 2);
+                    $totalPrice = number_format($item->total_price, 2);
+                @endphp
                 <tr>
                     <td>
-                        {{ $item->product->name ?? 'Product' }}
-                        @if($item->variation)
-                            <br><small>{{ $item->variation->name ?? 'N/A' }}</small>
+                        {{ $productName }}
+                        @if($variationName)
+                            <br><small>{{ $variationName }}</small>
                         @endif
                     </td>
                     <td class="text-center">{{ $item->quantity }}</td>
-                    <td class="text-right">{{ number_format($item->unit_price, 2) }}TK</td>
-                    <td class="text-right">{{ number_format($item->total_price, 2) }}TK</td>
+                    <td class="text-right">{{ $unitPrice }}TK</td>
+                    <td class="text-right">{{ $totalPrice }}TK</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
         
         <!-- Order Summary -->
+        @php
+            $subtotal = number_format($order->subtotal ?? 0, 2);
+            $discount = $order->discount > 0 ? number_format($order->discount, 2) : null;
+            $vat = $order->vat > 0 ? number_format($order->vat, 2) : null;
+            $shipping = $order->delivery > 0 ? number_format($order->delivery, 2) : null;
+            $total = number_format($order->total, 2);
+            $dueAmount = ($order->invoice && $order->invoice->due_amount > 0) ? number_format($order->invoice->due_amount, 2) : null;
+        @endphp
         <div class="summary">
             <div class="summary-row">
                 <div class="summary-label">Subtotal:</div>
-                <div class="summary-value">{{ number_format($order->subtotal ?? 0, 2) }}TK</div>
+                <div class="summary-value">{{ $subtotal }}TK</div>
             </div>
-            @if($order->discount > 0)
+            @if($discount)
             <div class="summary-row">
                 <div class="summary-label">Discount:</div>
-                <div class="summary-value">-{{ number_format($order->discount, 2) }}TK</div>
+                <div class="summary-value">-{{ $discount }}TK</div>
             </div>
             @endif
-            @if($order->vat > 0)
+            @if($vat)
             <div class="summary-row">
                 <div class="summary-label">Tax (VAT):</div>
-                <div class="summary-value">{{ number_format($order->vat, 2) }}TK</div>
+                <div class="summary-value">{{ $vat }}TK</div>
             </div>
             @endif
-            @if($order->delivery > 0)
+            @if($shipping)
             <div class="summary-row">
                 <div class="summary-label">Shipping:</div>
-                <div class="summary-value">{{ number_format($order->delivery, 2) }}TK</div>
+                <div class="summary-value">{{ $shipping }}TK</div>
             </div>
             @endif
             <div class="summary-row total">
                 <div class="summary-label">Total Amount:</div>
-                <div class="summary-value">{{ number_format($order->total, 2) }}TK</div>
+                <div class="summary-value">{{ $total }}TK</div>
             </div>
-            @if($order->invoice && $order->invoice->due_amount > 0)
+            @if($dueAmount)
             <div class="summary-row" style="margin-top: 10px;">
                 <div class="summary-label" style="color: #000;">Due Amount:</div>
-                <div class="summary-value" style="color: #000;">{{ number_format($order->invoice->due_amount, 2) }}Tk</div>
+                <div class="summary-value" style="color: #000;">{{ $dueAmount }}Tk</div>
             </div>
             @endif
         </div>

@@ -324,6 +324,33 @@
         </div>
     </div>
 
+    <!-- Loading Overlay for Order Processing -->
+    <div id="orderProcessingOverlay" class="order-processing-overlay" style="display: none;">
+        <div class="processing-content">
+            <div class="processing-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <h3 class="processing-title">Processing Your Order</h3>
+            <p class="processing-message" id="processingMessage">Please wait while we process your order...</p>
+            <div class="processing-steps">
+                <div class="step-item" id="step1">
+                    <i class="fas fa-check-circle step-icon"></i>
+                    <span>Creating order</span>
+                </div>
+                <div class="step-item" id="step2">
+                    <i class="fas fa-circle step-icon"></i>
+                    <span>Generating invoice</span>
+                </div>
+                <div class="step-item" id="step3">
+                    <i class="fas fa-circle step-icon"></i>
+                    <span>Sending confirmation</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         :root {
             --border-color: #e2e8f0;
@@ -679,6 +706,152 @@
             background: var(--dark-blue);
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
+        }
+
+        /* Order Processing Overlay */
+        .order-processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 999999 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .processing-content {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.4s ease-out;
+            position: relative;
+            z-index: 999999 !important;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .processing-spinner {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+        }
+
+        .spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid transparent;
+            border-top-color: var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+
+        .spinner-ring:nth-child(2) {
+            width: 70%;
+            height: 70%;
+            top: 15%;
+            left: 15%;
+            border-top-color: #00c6ff;
+            animation-duration: 1s;
+            animation-direction: reverse;
+        }
+
+        .spinner-ring:nth-child(3) {
+            width: 50%;
+            height: 50%;
+            top: 25%;
+            left: 25%;
+            border-top-color: #0072ff;
+            animation-duration: 0.8s;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .processing-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .processing-message {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            min-height: 24px;
+        }
+
+        .processing-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            text-align: left;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--primary-blue);
+        }
+
+        .step-item.completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .step-item.completed .step-icon {
+            color: var(--success-color);
+        }
+
+        .step-item.active .step-icon {
+            color: var(--primary-blue);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .step-icon {
+            font-size: 1.2rem;
+            color: #ccc;
         }
 
         /* SSL Commerce Payment Styles */
@@ -1327,9 +1500,68 @@
                     e.preventDefault();
                     initializeSSLCommercePayment();
                 } else {
-                    console.log('Other payment method selected, allowing default form submission');
+                    // COD (Cash on Delivery) - Show processing overlay
+                    console.log('COD payment method selected, showing processing overlay');
+                    e.preventDefault();
+                    showOrderProcessingOverlay();
+                    
+                    // Submit form after showing overlay
+                    setTimeout(() => {
+                        form.submit();
+                    }, 500);
                 }
             });
+
+            // Function to show order processing overlay
+            function showOrderProcessingOverlay() {
+                const overlay = document.getElementById('orderProcessingOverlay');
+                const messageEl = document.getElementById('processingMessage');
+                
+                if (!overlay) return;
+                
+                // Show overlay
+                overlay.style.display = 'flex';
+                
+                // Reset steps
+                document.getElementById('step1').classList.remove('completed', 'active');
+                document.getElementById('step2').classList.remove('completed', 'active');
+                document.getElementById('step3').classList.remove('completed', 'active');
+                
+                // Step 1: Creating order
+                setTimeout(() => {
+                    const step1 = document.getElementById('step1');
+                    step1.classList.add('active');
+                    messageEl.textContent = 'Creating your order...';
+                }, 500);
+                
+                // Step 2: Generating invoice (simulate after 2 seconds)
+                setTimeout(() => {
+                    const step1 = document.getElementById('step1');
+                    const step2 = document.getElementById('step2');
+                    step1.classList.remove('active');
+                    step1.classList.add('completed');
+                    step2.classList.add('active');
+                    messageEl.textContent = 'Generating your invoice PDF...';
+                }, 2000);
+                
+                // Step 3: Sending confirmation (simulate after 4 seconds)
+                setTimeout(() => {
+                    const step2 = document.getElementById('step2');
+                    const step3 = document.getElementById('step3');
+                    step2.classList.remove('active');
+                    step2.classList.add('completed');
+                    step3.classList.add('active');
+                    messageEl.textContent = 'Sending confirmation email...';
+                }, 4000);
+                
+                // Final message (after 6 seconds)
+                setTimeout(() => {
+                    const step3 = document.getElementById('step3');
+                    step3.classList.remove('active');
+                    step3.classList.add('completed');
+                    messageEl.textContent = 'Almost done! Finalizing your order...';
+                }, 6000);
+            }
         });
 
         function initializeSSLCommercePayment() {
