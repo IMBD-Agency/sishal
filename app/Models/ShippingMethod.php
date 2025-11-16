@@ -61,7 +61,7 @@ class ShippingMethod extends Model
 
     /**
      * Get shipping cost for a specific city
-     * Returns override cost if set, otherwise default cost
+     * Returns override cost if set, otherwise checks state for inside/outside Dhaka pricing
      */
     public function getCostForCity($cityId)
     {
@@ -69,10 +69,28 @@ class ShippingMethod extends Model
             return $this->cost;
         }
         
+        // Check for city-specific override first
         $pivot = $this->cities()->where('cities.id', $cityId)->first();
-        return $pivot && $pivot->pivot->cost_override !== null 
-            ? $pivot->pivot->cost_override 
-            : $this->cost;
+        if ($pivot && $pivot->pivot->cost_override !== null) {
+            return $pivot->pivot->cost_override;
+        }
+        
+        // Get city to check state
+        $city = \App\Models\City::find($cityId);
+        if ($city) {
+            // If state is "Dhaka" (inside Dhaka), use default cost
+            // All other states (Outside Dhaka, Chattogram, Rangpur, Rajshahi, Khulna, Barishal, Sylhet, Mymensingh, etc.) use outside price
+            if ($city->state === 'Dhaka') {
+                // Inside Dhaka uses default cost
+                return $this->cost;
+            } else {
+                // All other divisions/states get outside Dhaka price (120tk)
+                return 120.00; // Outside Dhaka and all other divisions cost
+            }
+        }
+        
+        // Default fallback
+        return $this->cost;
     }
 
     /**
