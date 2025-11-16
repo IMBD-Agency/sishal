@@ -34,21 +34,21 @@ class SmtpConfigService
     }
     
     /**
-     * Get contact email from settings
-     * Priority: SMTP username > Contact email > fallback
+     * Get contact email from settings (for owner notifications)
+     * Priority: Contact email > SMTP username > fallback
      */
     public static function getContactEmail()
     {
         $settings = GeneralSetting::first();
         
-        // First priority: Use SMTP username (if configured)
-        if ($settings && $settings->smtp_username) {
-            return $settings->smtp_username;
-        }
-        
-        // Second priority: Use contact email from Contact Info tab
+        // First priority: Use contact email from Contact Info tab (for owner notifications)
         if ($settings && $settings->contact_email) {
             return $settings->contact_email;
+        }
+        
+        // Second priority: Use SMTP username (if contact_email not set)
+        if ($settings && $settings->smtp_username) {
+            return $settings->smtp_username;
         }
         
         // Fallback

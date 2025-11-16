@@ -41,7 +41,13 @@ class OrderNotificationToOwner extends Mailable
      */
     public function envelope(): Envelope
     {
+        // Use config values set by SmtpConfigService::configureFromSettings()
+        // This avoids redundant database queries (settings already loaded in constructor)
+        $fromAddress = config('mail.from.address');
+        $fromName = config('mail.from.name');
+        
         return new Envelope(
+            from: new \Illuminate\Mail\Mailables\Address($fromAddress, $fromName),
             subject: 'New Order Received - #' . $this->order->order_number,
         );
     }
