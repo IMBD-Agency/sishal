@@ -145,12 +145,25 @@
 
             <!-- Product Grid -->
             <div class="col-md-9 col-12">
-                <div class="d-flex flex-column flex-md-row justify-content-end align-items-start align-items-md-center mb-3 gap-2">
-                    <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
+                <!-- Sticky filter/sort bar for mobile -->
+                <div class="sticky-filter-bar d-md-none">
+                    <div class="d-flex align-items-center gap-2 w-100">
                         <!-- Mobile filter toggle -->
-                        <button class="btn btn-outline-secondary d-md-none flex-shrink-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas">
+                        <button class="btn btn-outline-secondary flex-shrink-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas">
                             <i class="fas fa-filter me-1"></i> Filters
                         </button>
+                        <select class="form-select form-select-sm flex-grow-1" name="sort" id="sortSelectMobile">
+                            <option value="">Sort By</option>
+                            <option value="newest" {{ $selectedSort == 'newest' ? 'selected' : '' }}>Newest</option>
+                            <option value="featured" {{ $selectedSort == 'featured' ? 'selected' : '' }}>Featured</option>
+                            <option value="lowToHigh" {{ $selectedSort == 'lowToHigh' ? 'selected' : '' }}>Price: Low to High</option>
+                            <option value="highToLow" {{ $selectedSort == 'highToLow' ? 'selected' : '' }}>Price: High to Low</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Desktop filter/sort bar -->
+                <div class="d-flex flex-column flex-md-row justify-content-end align-items-start align-items-md-center mb-3 gap-2 d-none d-md-flex">
+                    <div class="d-flex align-items-center gap-2 w-100 w-md-auto">
                         <select class="form-select form-select-sm flex-grow-1 flex-md-grow-0" style="width:auto;display:inline-block;min-width:140px;" name="sort"
                             id="sortSelect">
                             <option value="">Sort By</option>
@@ -444,10 +457,13 @@
                 });
             }
             
-            // Get sort option
+            // Get sort option (check both desktop and mobile)
             var sortSelect = document.getElementById('sortSelect');
-            if (sortSelect && sortSelect.value) {
-                params.append('sort', sortSelect.value);
+            var sortSelectMobile = document.getElementById('sortSelectMobile');
+            var sortValue = (sortSelect && sortSelect.value) ? sortSelect.value : 
+                           (sortSelectMobile && sortSelectMobile.value) ? sortSelectMobile.value : null;
+            if (sortValue) {
+                params.append('sort', sortValue);
             }
             
             // Add page and infinite scroll
@@ -479,10 +495,18 @@
             }
             loadingIndicator.style.display = 'block';
             
-            // Hide load more button if it exists
+            // Show load more button with loading state
             var loadMoreBtn = document.getElementById('products-load-more-btn');
+            var loadMoreButton = loadMoreBtn ? loadMoreBtn.querySelector('.load-more-btn') : null;
+            
+            // Add loading state to button
+            if (loadMoreButton) {
+                loadMoreButton.classList.add('loading');
+                loadMoreButton.disabled = true;
+            }
+            
             if (loadMoreBtn) {
-                loadMoreBtn.style.display = 'none';
+                loadMoreBtn.style.display = 'block';
             }
             
             // Get next page
@@ -568,6 +592,13 @@
                 
                 loadingIndicator.style.display = 'none';
                 infiniteScrollState.isLoading = false;
+                
+                // Remove loading state from button
+                var loadMoreButton = loadMoreBtn ? loadMoreBtn.querySelector('.load-more-btn') : null;
+                if (loadMoreButton) {
+                    loadMoreButton.classList.remove('loading');
+                    loadMoreButton.disabled = false;
+                }
                 
                 // Show/hide load more button based on hasMore
                 if (loadMoreBtn && data.hasMore) {
@@ -682,6 +713,14 @@
                 loadingIndicator.style.display = 'none';
                 infiniteScrollState.isLoading = false;
                 
+                // Remove loading state from button
+                var loadMoreBtn = document.getElementById('products-load-more-btn');
+                var loadMoreButton = loadMoreBtn ? loadMoreBtn.querySelector('.load-more-btn') : null;
+                if (loadMoreButton) {
+                    loadMoreButton.classList.remove('loading');
+                    loadMoreButton.disabled = false;
+                }
+                
                 // Handle specific error types
                 if (error.message && (error.message.includes('404') || error.message.includes('Blocked'))) {
                     infiniteScrollState.hasMore = false;
@@ -777,14 +816,24 @@
             
             // Add scroll listeners with throttling to improve performance
             var scrollTimeout;
+            var lastScrollTop = 0;
             var throttledScrollHandler = function() {
+                var currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // Only process if user scrolled down (not up)
+                if (currentScrollTop < lastScrollTop) {
+                    lastScrollTop = currentScrollTop;
+                    return;
+                }
+                lastScrollTop = currentScrollTop;
+                
                 if (scrollTimeout) {
                     return;
                 }
                 scrollTimeout = setTimeout(function() {
                     window.productsScrollHandler();
                     scrollTimeout = null;
-                }, 100); // Throttle to every 100ms
+                }, 150); // Throttle to every 150ms
             };
             
             window.addEventListener('scroll', throttledScrollHandler, { passive: true });
@@ -792,7 +841,11 @@
             
             // Also listen to scrollend if available (better for performance)
             if ('onscrollend' in window) {
-                window.addEventListener('scrollend', window.productsScrollHandler, { passive: true });
+                window.addEventListener('scrollend', function() {
+                    if (!scrollTimeout) {
+                        window.productsScrollHandler();
+                    }
+                }, { passive: true });
             }
         }
 
@@ -1026,6 +1079,25 @@
                     sortSelect.addEventListener('change', function () {
                         applyFilters();
                     });
+                    
+                    // Also sync mobile sort select
+                    var sortSelectMobile = document.getElementById('sortSelectMobile');
+                    if (sortSelectMobile) {
+                        sortSelectMobile.addEventListener('change', function () {
+                            // Sync with desktop select
+                            if (sortSelect) {
+                                sortSelect.value = this.value;
+                            }
+                            applyFilters();
+                        });
+                        
+                        // Sync desktop to mobile
+                        if (sortSelect) {
+                            sortSelect.addEventListener('change', function () {
+                                sortSelectMobile.value = this.value;
+                            });
+                        }
+                    }
                 }
 
                 // Collapsible filter sections
@@ -1323,56 +1395,89 @@
             transform: translateY(-20px) scale(0.98);
         }
 
-        /* Load more button */
+        /* Load more button - Green theme, transparent, with loading vibe */
         .load-more-btn {
             display: inline-flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 32px;
-            border-radius: 999px;
-            border: none;
-            color: #fff;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            background: linear-gradient(135deg, #111827 0%, #2563eb 100%);
-            box-shadow: 0 10px 25px rgba(17, 24, 39, 0.25);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            gap: 10px;
+            padding: 10px 24px;
+            border-radius: 25px;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            font-weight: 500;
+            font-size: 14px;
+            background: rgba(34, 197, 94, 0.08);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .load-more-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.2), transparent);
+            transition: left 0.5s ease;
         }
 
         .load-more-btn:hover {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.5);
             transform: translateY(-2px);
-            box-shadow: 0 16px 30px rgba(37, 99, 235, 0.35);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+        }
+
+        .load-more-btn:hover::before {
+            left: 100%;
         }
 
         .load-more-btn:active {
             transform: translateY(0);
-            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.35);
         }
 
-        .load-more-btn:focus-visible {
-            outline: 3px solid rgba(37, 99, 235, 0.4);
-            outline-offset: 4px;
+        .load-more-btn.loading {
+            pointer-events: none;
+        }
+
+        .load-more-btn.loading .load-more-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        .load-more-btn.loading .load-more-text::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
         }
 
         .load-more-btn .load-more-icon {
             display: inline-flex;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.18);
             align-items: center;
             justify-content: center;
+            font-size: 14px;
+            transition: transform 0.3s ease;
         }
 
-        .load-more-btn .load-more-icon i {
-            font-size: 16px;
+        .load-more-btn .load-more-text {
+            position: relative;
         }
 
         .load-more-btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
-            box-shadow: none;
         }
 
         /* Filter chevron rotation */
@@ -1381,6 +1486,28 @@
         }
         .filter-chevron.rotated {
             transform: rotate(180deg);
+        }
+
+        /* Sticky filter/sort bar for mobile */
+        .sticky-filter-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #fff;
+            padding: 12px 0;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        @media (max-width: 767.98px) {
+            .sticky-filter-bar {
+                margin-left: -15px;
+                margin-right: -15px;
+                padding-left: 15px;
+                padding-right: 15px;
+            }
         }
 
         /* No Products Found Styles */
