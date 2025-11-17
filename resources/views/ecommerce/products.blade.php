@@ -171,8 +171,11 @@
                 
                 <!-- Load More button for products -->
                 <div id="products-load-more-btn" class="text-center py-4" style="display: {{ $products->hasMorePages() ? 'block' : 'none' }};">
-                    <button class="btn btn-primary" onclick="loadMoreProducts()">
-                        <i class="fas fa-arrow-down me-2"></i>Load More Products
+                    <button class="load-more-btn" onclick="loadMoreProducts()">
+                        <span class="load-more-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </span>
+                        <span class="load-more-text">Load More Products</span>
                     </button>
                 </div>
             </div>
@@ -1296,6 +1299,58 @@
         .custom-toast.hide {
             opacity: 0;
             transform: translateY(-20px) scale(0.98);
+        }
+
+        /* Load more button */
+        .load-more-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 32px;
+            border-radius: 999px;
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #111827 0%, #2563eb 100%);
+            box-shadow: 0 10px 25px rgba(17, 24, 39, 0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .load-more-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 30px rgba(37, 99, 235, 0.35);
+        }
+
+        .load-more-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.35);
+        }
+
+        .load-more-btn:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.4);
+            outline-offset: 4px;
+        }
+
+        .load-more-btn .load-more-icon {
+            display: inline-flex;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.18);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .load-more-btn .load-more-icon i {
+            font-size: 16px;
+        }
+
+        .load-more-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
         }
 
         /* Filter chevron rotation */
