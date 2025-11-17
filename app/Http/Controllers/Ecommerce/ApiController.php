@@ -195,6 +195,7 @@ class ApiController extends Controller
                         ->where('status', 'active')
                         ->where('discount', '>', 0)
                         ->orderByDesc('discount')
+                        ->orderByDesc('created_at')
                         ->take($limit)
                         ->get();
                 });
@@ -204,6 +205,7 @@ class ApiController extends Controller
                     ->where('status', 'active')
                     ->where('discount', '>', 0)
                     ->orderByDesc('discount')
+                    ->orderByDesc('created_at')
                     ->take($limit)
                     ->get();
             }

@@ -137,7 +137,28 @@ class PageController extends Controller
                 $query->orderByDesc('price');
                 break;
             default:
-                $query->orderByDesc('created_at');
+                // Sort by numbers in product name (01, 02, 03, etc.)
+                // Extract last number sequence from name and sort numerically
+                // Works with formats like "yt-ch-06", "w5-vh 06", "mw-ch-03", etc.
+                // Tries to extract number after last space or hyphen
+                $query->orderByRaw("CAST(
+                    COALESCE(
+                        NULLIF(
+                            CAST(
+                                CASE 
+                                    WHEN LOCATE(' ', name) > 0 AND CAST(TRIM(SUBSTRING_INDEX(name, ' ', -1)) AS UNSIGNED) > 0 
+                                    THEN CAST(TRIM(SUBSTRING_INDEX(name, ' ', -1)) AS UNSIGNED)
+                                    WHEN LOCATE('-', name) > 0 AND CAST(TRIM(SUBSTRING_INDEX(name, '-', -1)) AS UNSIGNED) > 0 
+                                    THEN CAST(TRIM(SUBSTRING_INDEX(name, '-', -1)) AS UNSIGNED)
+                                    ELSE 0
+                                END AS UNSIGNED
+                            ),
+                            0
+                        ),
+                        999999
+                    )
+                AS UNSIGNED) ASC")
+                ->orderBy('name', 'ASC');
         }
 
         $pageTitle = 'Products';
@@ -547,8 +568,17 @@ class PageController extends Controller
         $pageTitle = 'Best Deal';
         $query = Product::where('type', 'product');
 
-        // Prioritize discounted products, then newest
-        $query->orderByDesc('discount')->orderByDesc('created_at');
+        // Prioritize discounted products, then sort by numbers in product name
+        $query->orderByDesc('discount')
+            ->orderByRaw("CAST(
+                COALESCE(
+                    NULLIF(
+                        CAST(SUBSTRING_INDEX(name, '-', -1) AS UNSIGNED),
+                        0
+                    ),
+                    999999
+                )
+            AS UNSIGNED) ASC");
 
         $products = $query->paginate(20)->appends($request->all());
         
@@ -641,7 +671,28 @@ class PageController extends Controller
                 $query->orderBy('price', 'desc');
                 break;
             default:
-                $query->latest();
+                // Sort by numbers in product name (01, 02, 03, etc.)
+                // Extract last number sequence from name and sort numerically
+                // Works with formats like "yt-ch-06", "w5-vh 06", "mw-ch-03", etc.
+                // Tries to extract number after last space or hyphen
+                $query->orderByRaw("CAST(
+                    COALESCE(
+                        NULLIF(
+                            CAST(
+                                CASE 
+                                    WHEN LOCATE(' ', name) > 0 AND CAST(TRIM(SUBSTRING_INDEX(name, ' ', -1)) AS UNSIGNED) > 0 
+                                    THEN CAST(TRIM(SUBSTRING_INDEX(name, ' ', -1)) AS UNSIGNED)
+                                    WHEN LOCATE('-', name) > 0 AND CAST(TRIM(SUBSTRING_INDEX(name, '-', -1)) AS UNSIGNED) > 0 
+                                    THEN CAST(TRIM(SUBSTRING_INDEX(name, '-', -1)) AS UNSIGNED)
+                                    ELSE 0
+                                END AS UNSIGNED
+                            ),
+                            0
+                        ),
+                        999999
+                    )
+                AS UNSIGNED) ASC")
+                ->orderBy('name', 'ASC');
         }
 
         $products = $query->paginate(12)->appends($request->all());
