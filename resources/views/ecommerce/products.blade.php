@@ -165,7 +165,8 @@
                 </div>
                 <div id="products-container" class="row g-2 g-md-4 mt-2 mt-md-4" 
                      data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
-                     data-current-page="{{ $products->currentPage() }}">
+                     data-current-page="{{ $products->currentPage() }}"
+                     data-category="{{ request()->get('category') ?? '' }}">
                     @include('ecommerce.partials.product-grid', ['products' => $products, 'hidePagination' => true])
                 </div>
                 
@@ -384,9 +385,34 @@
             var formData = new FormData();
             var filterRoot = getActiveFilterRoot();
             
-            // Get category from URL if present (for nav links)
+            // Get category from multiple sources (priority order):
+            // 1. Container data attribute (most reliable, persists through AJAX)
+            // 2. URL parameter
+            // 3. URL href parsing (fallback)
+            var container = document.getElementById('products-container');
+            var containerCategory = container ? container.getAttribute('data-category') : null;
+            
             var urlParams = new URLSearchParams(window.location.search);
             var urlCategory = urlParams.get('category');
+            
+            // Also check the full URL in case search params aren't working
+            if (!urlCategory) {
+                var urlMatch = window.location.href.match(/[?&]category=([^&]*)/);
+                if (urlMatch && urlMatch[1]) {
+                    urlCategory = decodeURIComponent(urlMatch[1]);
+                }
+            }
+            
+            // Use container category if available (most reliable), otherwise use URL
+            var finalCategory = (containerCategory && containerCategory !== '') ? containerCategory : urlCategory;
+            
+            console.log('Reading category from multiple sources:', {
+                'container.data-category': containerCategory,
+                'window.location.search': window.location.search,
+                'window.location.href': window.location.href,
+                'urlCategory': urlCategory,
+                'finalCategory': finalCategory
+            });
             
             // Get selected categories from checkboxes
             var selectedCategories = [];
@@ -398,19 +424,21 @@
                 });
             }
             
-            // Priority: Use URL category if present (for nav links), otherwise use checkboxes
+            // Priority: Use finalCategory (from container or URL) if present, otherwise use checkboxes
             // This ensures that when clicking a category link, it's always preserved
-            if (urlCategory) {
-                // Always use URL category if present, even if checkboxes are selected
+            if (finalCategory && finalCategory !== 'null' && finalCategory !== '') {
+                // Always use category if present, even if checkboxes are selected
                 // This ensures consistency when coming from navigation links
-                formData.append('category', urlCategory);
-                console.log('Using URL category for filter:', urlCategory);
+                formData.append('category', finalCategory);
+                console.log('✓ Using category for filter:', finalCategory, '(source:', containerCategory ? 'container' : 'URL', ')');
             } else if (selectedCategories.length > 0) {
                 // Use selected categories from checkboxes only if no URL category
                 selectedCategories.forEach(function(cat) {
                     formData.append('categories[]', cat);
                 });
-                console.log('Using checkbox categories for filter:', selectedCategories);
+                console.log('✓ Using checkbox categories for filter:', selectedCategories);
+            } else {
+                console.warn('⚠ No category filter found - URL category:', urlCategory, 'Checkbox categories:', selectedCategories);
             }
             
             // Get price range
@@ -477,10 +505,33 @@
             
             // Debug: Log what filters are being sent
             var formDataEntries = [];
+            var hasCategory = false;
+            var hasInfiniteScroll = false;
             for (var pair of formData.entries()) {
                 formDataEntries.push(pair[0] + ': ' + pair[1]);
+                if (pair[0] === 'category') hasCategory = true;
+                if (pair[0] === 'infinite_scroll' && pair[1] === 'true') hasInfiniteScroll = true;
             }
             console.log('Loading page', nextPage, 'for products with filters:', formDataEntries.join(', '));
+            console.log('Filter check - Has category:', hasCategory, 'Has infinite_scroll:', hasInfiniteScroll);
+            
+            // Double-check: If category exists but formData doesn't have it, add it
+            var container = document.getElementById('products-container');
+            var containerCategory = container ? container.getAttribute('data-category') : null;
+            var urlParams = new URLSearchParams(window.location.search);
+            var urlCategory = urlParams.get('category');
+            var categoryToUse = (containerCategory && containerCategory !== '') ? containerCategory : urlCategory;
+            
+            if (categoryToUse && !hasCategory) {
+                console.warn('⚠ Category missing from FormData, adding it now:', categoryToUse);
+                formData.append('category', categoryToUse);
+            }
+            
+            // Double-check: Ensure infinite_scroll flag is set
+            if (!hasInfiniteScroll) {
+                console.warn('⚠ infinite_scroll flag missing, adding it now');
+                formData.append('infinite_scroll', 'true');
+            }
             
             // Try fetch first, fallback to XMLHttpRequest if blocked
             var fetchPromise = fetch('{{ route("products.filter") }}', {
@@ -824,6 +875,14 @@
                         // Update container data attributes for infinite scroll
                         container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
                         container.setAttribute('data-current-page', data.currentPage || 1);
+                        
+                        // Preserve category in container data attribute
+                        var urlParams = new URLSearchParams(window.location.search);
+                        var urlCategory = urlParams.get('category');
+                        if (urlCategory) {
+                            container.setAttribute('data-category', urlCategory);
+                        }
+                        
                         // Update infinite scroll state
                         infiniteScrollState.currentPage = data.currentPage || 1;
                         infiniteScrollState.hasMore = data.hasMore || false;
