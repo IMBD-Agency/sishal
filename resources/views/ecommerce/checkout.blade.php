@@ -68,10 +68,7 @@
                                                 <label class="form-label">Last Name</label>
                                                 <input type="text" class="form-control modern-input" name="last_name" value="{{ optional(auth()->user())->last_name }}">
                                             </div>
-                                            <div class="col-12">
-                                                <label class="form-label">Email Address</label>
-                                                <input type="email" class="form-control modern-input" name="email" value="{{ optional(auth()->user())->email }}">
-                                            </div>
+                                            <input type="hidden" name="email" value="{{ optional(auth()->user())->email }}">
                                             <div class="col-12">
                                                 <label class="form-label">Phone Number *</label>
                                                 <input type="tel" class="form-control modern-input" name="phone" value="{{ optional(optional(auth()->user())->customer)->phone }}" required>

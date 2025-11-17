@@ -530,54 +530,52 @@ class OrderController extends Controller
             DB::commit();
             
             // Send emails directly (synchronously) - no queue needed
-            if ($request->email) {
-                try {
-                    // Configure SMTP from settings
-                    if (SmtpConfigService::configureFromSettings()) {
-                        $customerEmail = $request->email;
-                        
-                        // Send customer confirmation email
-                        if ($customerEmail) {
-                            try {
-                                Mail::mailer('smtp')->to($customerEmail)->send(new OrderConfirmation($order));
-                            } catch (\Exception $e) {
-                                \Log::error('Failed to send customer confirmation email', [
-                                    'order_id' => $order->id,
-                                    'order_number' => $order->order_number,
-                                    'to' => $customerEmail,
-                                    'error' => $e->getMessage()
-                                ]);
-                            }
+            try {
+                // Configure SMTP from settings
+                if (SmtpConfigService::configureFromSettings()) {
+                    $customerEmail = $request->email;
+                    
+                    // Send customer confirmation email (only when provided)
+                    if ($customerEmail) {
+                        try {
+                            Mail::mailer('smtp')->to($customerEmail)->send(new OrderConfirmation($order));
+                        } catch (\Exception $e) {
+                            \Log::error('Failed to send customer confirmation email', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'to' => $customerEmail,
+                                'error' => $e->getMessage()
+                            ]);
                         }
-                        
-                        // Send owner notification email
-                        $ownerEmail = SmtpConfigService::getContactEmail();
-                        if ($ownerEmail && filter_var($ownerEmail, FILTER_VALIDATE_EMAIL)) {
-                            try {
-                                Mail::mailer('smtp')->to($ownerEmail)->send(new OrderNotificationToOwner($order));
-                            } catch (\Exception $e) {
-                                \Log::error('Failed to send owner notification email', [
-                                    'order_id' => $order->id,
-                                    'order_number' => $order->order_number,
-                                    'to' => $ownerEmail,
-                                    'error' => $e->getMessage()
-                                ]);
-                            }
-                        }
-                    } else {
-                        \Log::warning('SMTP not configured - emails not sent', [
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number
-                        ]);
                     }
-                } catch (\Exception $e) {
-                    // Log error but don't fail the order
-                    \Log::error('Failed to send order emails', [
+                    
+                    // Always notify store owner regardless of customer email
+                    $ownerEmail = SmtpConfigService::getContactEmail();
+                    if ($ownerEmail && filter_var($ownerEmail, FILTER_VALIDATE_EMAIL)) {
+                        try {
+                            Mail::mailer('smtp')->to($ownerEmail)->send(new OrderNotificationToOwner($order));
+                        } catch (\Exception $e) {
+                            \Log::error('Failed to send owner notification email', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'to' => $ownerEmail,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                } else {
+                    \Log::warning('SMTP not configured - emails not sent', [
                         'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'error' => $e->getMessage()
+                        'order_number' => $order->order_number
                     ]);
                 }
+            } catch (\Exception $e) {
+                // Log error but don't fail the order
+                \Log::error('Failed to send order emails', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'error' => $e->getMessage()
+                ]);
             }
             
             // Check if this is an AJAX request for online payment
