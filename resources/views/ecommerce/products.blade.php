@@ -1491,7 +1491,7 @@
         /* Sticky filter/sort bar for mobile */
         .sticky-filter-bar {
             position: sticky;
-            top: 0;
+            top: 72px; /* keep below fixed header */
             z-index: 100;
             background: #fff;
             padding: 12px 0;
@@ -1499,6 +1499,8 @@
             border-bottom: 1px solid #e5e7eb;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             backdrop-filter: blur(10px);
+            left: 0;
+            right: 0;
         }
 
         @media (max-width: 767.98px) {
