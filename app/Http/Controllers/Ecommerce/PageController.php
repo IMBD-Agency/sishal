@@ -107,9 +107,11 @@ class PageController extends Controller
             if ($category) {
                 // Load all nested children recursively
                 $category->loadNestedChildren();
-                // Get all child category IDs recursively
+                // Get all child category IDs recursively (includes parent category ID itself)
                 $allCategoryIds = $category->getAllChildIds();
-                $query->whereIn('category_id', $allCategoryIds);
+                if (!empty($allCategoryIds)) {
+                    $query->whereIn('category_id', $allCategoryIds);
+                }
             }
         }
 
