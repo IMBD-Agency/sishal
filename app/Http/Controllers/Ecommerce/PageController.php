@@ -648,6 +648,7 @@ class PageController extends Controller
                 ->where('type', 'product');
 
         // Category filter - include child categories
+        // Handle both 'categories' (array from filter section) and 'category' (single from nav links)
         if ($request->filled('categories') && is_array($request->categories) && !in_array('all', $request->categories) && count($request->categories) > 0) {
             $categoryIds = ProductServiceCategory::whereIn('slug', $request->categories)->pluck('id')->toArray();
             // Get all child category IDs recursively only if we have category IDs
@@ -661,6 +662,22 @@ class PageController extends Controller
                 }
             } else {
                 // If no categories found by slug, return empty result
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->has('category') && $request->category) {
+            // Single category filter (from category page links or nav)
+            $category = ProductServiceCategory::with('children')->where('slug', $request->category)->first();
+            if ($category) {
+                // Load all nested children recursively
+                $category->loadNestedChildren();
+                // Get all child category IDs recursively (includes parent category ID itself)
+                $allCategoryIds = $category->getAllChildIds();
+                if (!empty($allCategoryIds)) {
+                    $query->whereIn('category_id', $allCategoryIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
                 $query->whereRaw('1 = 0');
             }
         }

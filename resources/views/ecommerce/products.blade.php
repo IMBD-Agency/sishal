@@ -483,14 +483,24 @@
                             container.insertBefore(cardContainer, loadingIndicator);
                         });
                         
-                        // Update state
+                        // Update state and container data attributes
                         infiniteScrollState.currentPage = nextPage;
                         infiniteScrollState.hasMore = data.hasMore || false;
+                        if (container) {
+                            container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
+                            container.setAttribute('data-current-page', nextPage);
+                        }
                     } else {
                         infiniteScrollState.hasMore = false;
+                        if (container) {
+                            container.setAttribute('data-has-more', 'false');
+                        }
                     }
                 } else {
                     infiniteScrollState.hasMore = false;
+                    if (container) {
+                        container.setAttribute('data-has-more', 'false');
+                    }
                 }
             })
             .catch(error => {
@@ -593,17 +603,25 @@
                 if (data.success) {
                     if (container) {
                         container.innerHTML = data.html;
+                        // Update container data attributes for infinite scroll
+                        container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
+                        container.setAttribute('data-current-page', data.currentPage || 1);
                         // Update infinite scroll state
                         infiniteScrollState.currentPage = data.currentPage || 1;
                         infiniteScrollState.hasMore = data.hasMore || false;
                         // Re-initialize infinite scroll after content update
-                        initInfiniteScroll();
+                        setTimeout(function() {
+                            initInfiniteScroll();
+                        }, 100);
                     }
                     
                 } else {
                     if (container) {
                         container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                        container.setAttribute('data-has-more', 'false');
+                        container.setAttribute('data-current-page', '1');
                         infiniteScrollState.hasMore = false;
+                        infiniteScrollState.currentPage = 1;
                     }
                 }
             })

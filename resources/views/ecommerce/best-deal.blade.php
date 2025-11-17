@@ -128,7 +128,17 @@
                     'Accept': 'application/json'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is ok (status 200-299)
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'An error occurred while loading products');
+                    }).catch(() => {
+                        throw new Error('Server error. Please try again.');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (loadingIndicator) {
                     loadingIndicator.style.display = 'none';
@@ -151,14 +161,24 @@
                             container.appendChild(cardContainer);
                         });
 
-                        // Update state
+                        // Update state and container data attributes
                         bestDealScrollState.currentPage = nextPage;
                         bestDealScrollState.hasMore = data.hasMore || false;
+                        if (container) {
+                            container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
+                            container.setAttribute('data-current-page', nextPage);
+                        }
                     } else {
                         bestDealScrollState.hasMore = false;
+                        if (container) {
+                            container.setAttribute('data-has-more', 'false');
+                        }
                     }
                 } else {
                     bestDealScrollState.hasMore = false;
+                    if (container) {
+                        container.setAttribute('data-has-more', 'false');
+                    }
                 }
             })
             .catch(error => {
