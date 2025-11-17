@@ -626,7 +626,13 @@ class PageController extends Controller
     public function filterProducts(Request $request)
     {
         try {
-            $categories = ProductServiceCategory::where('status','active')->get();
+            // Load only parent categories with their active children (match products method)
+            $categories = ProductServiceCategory::whereNull('parent_id')
+                ->where('status', 'active')
+                ->with(['children' => function($q) {
+                    $q->where('status', 'active');
+                }])
+                ->get();
             
             // Get max price for price range
             $maxProductPrice = Product::max('price') ?? 1000;
@@ -649,12 +655,19 @@ class PageController extends Controller
 
         // Category filter - include child categories (match original products method behavior)
         if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
-            $categoryIds = ProductServiceCategory::whereIn('slug', $request->categories)->pluck('id')->toArray();
-            // Get all child category IDs recursively
-            if (!empty($categoryIds)) {
-                $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
-                if (!empty($allCategoryIds)) {
-                    $query->whereIn('category_id', $allCategoryIds);
+            // Filter out 'all' value if present and reindex array
+            $categorySlugs = array_values(array_filter($request->categories, function($slug) {
+                return $slug !== 'all' && !empty($slug);
+            }));
+            
+            if (!empty($categorySlugs)) {
+                $categoryIds = ProductServiceCategory::whereIn('slug', $categorySlugs)->pluck('id')->toArray();
+                // Get all child category IDs recursively
+                if (!empty($categoryIds)) {
+                    $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
+                    if (!empty($allCategoryIds)) {
+                        $query->whereIn('category_id', $allCategoryIds);
+                    }
                 }
             }
         } elseif ($request->has('category') && $request->category) {
@@ -777,6 +790,17 @@ class PageController extends Controller
             }
         }
 
+            // Handle selected categories for both array and single category
+            $selectedCategories = [];
+            if ($request->has('categories') && is_array($request->categories)) {
+                // Filter out 'all' value and reindex
+                $selectedCategories = array_values(array_filter($request->categories, function($slug) {
+                    return $slug !== 'all' && !empty($slug);
+                }));
+            } elseif ($request->has('category') && $request->category) {
+                $selectedCategories = [$request->category];
+            }
+
             if ($request->ajax() || $request->get('infinite_scroll', false)) {
                 // For infinite scroll, return products without pagination links
                 $isInfiniteScroll = $request->get('infinite_scroll', false);
@@ -795,7 +819,18 @@ class PageController extends Controller
             }
 
             $pageTitle = 'Our Products';
-            return view('ecommerce.products', compact('products', 'categories', 'pageTitle'));
+            $viewData = [
+                'products' => $products,
+                'categories' => $categories,
+                'selectedCategories' => $selectedCategories,
+                'selectedSort' => $request->sort ?? '',
+                'priceMin' => $request->price_min ?? 0,
+                'priceMax' => $request->price_max ?? $maxProductPrice,
+                'maxProductPrice' => $maxProductPrice,
+                'selectedRatings' => $request->rating ?? [],
+                'pageTitle' => $pageTitle
+            ];
+            return view('ecommerce.products', $viewData);
         } catch (\Exception $e) {
             // Log the error for debugging
             \Log::error('Filter products error: ' . $e->getMessage(), [
