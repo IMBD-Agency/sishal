@@ -57,4 +57,9 @@ class Invoice extends Model
     {
         return $this->hasMany(\App\Models\InvoiceItem::class, 'invoice_id');
     }
+
+    public function order()
+    {
+        return $this->hasOne(\App\Models\Order::class, 'invoice_id');
+    }
 }

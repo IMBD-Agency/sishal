@@ -121,7 +121,7 @@ class InvoiceController extends Controller
             $query->where('invoices.customer_id', $customerId);
         }
 
-        $invoices = $query->distinct()->orderBy('invoices.created_at', 'desc')->paginate(10)->appends($request->all());
+        $invoices = $query->distinct()->with('order')->orderBy('invoices.created_at', 'desc')->paginate(10)->appends($request->all());
         $statuses = ['unpaid', 'partial', 'paid'];
         $filters = $request->only(['search', 'status', 'issue_date', 'due_date', 'customer_id']);
         $customers = \App\Models\Customer::orderBy('name')->get();

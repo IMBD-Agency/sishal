@@ -163,8 +163,10 @@
                         </select>
                     </div>
                 </div>
-                <div id="products-container" class="row g-2 g-md-4 mt-2 mt-md-4">
-                    @include('ecommerce.partials.product-grid', ['products' => $products])
+                <div id="products-container" class="row g-2 g-md-4 mt-2 mt-md-4" 
+                     data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
+                     data-current-page="{{ $products->currentPage() }}">
+                    @include('ecommerce.partials.product-grid', ['products' => $products, 'hidePagination' => true])
                 </div>
             </div>
         </div>
@@ -349,10 +351,32 @@
             return desktop || mobile;
         }
 
-        function applyFilters() {
+        // Infinite scroll state
+        var infiniteScrollState = {
+            currentPage: 1,
+            isLoading: false,
+            hasMore: true,
+            loadingElement: null
+        };
+
+        // Create loading indicator element
+        function createLoadingIndicator() {
+            if (infiniteScrollState.loadingElement) {
+                return infiniteScrollState.loadingElement;
+            }
+            var loadingDiv = document.createElement('div');
+            loadingDiv.className = 'col-12 text-center py-4 infinite-scroll-loader';
+            loadingDiv.style.display = 'none';
+            loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2 text-muted">Loading more products...</p>';
+            infiniteScrollState.loadingElement = loadingDiv;
+            return loadingDiv;
+        }
+
+        // Get filter data as FormData
+        function getFilterFormData(page) {
             var formData = new FormData();
             var filterRoot = getActiveFilterRoot();
-            if (!filterRoot) return;
+            if (!filterRoot) return formData;
             
             // Get selected categories
             var selectedCategories = [];
@@ -365,7 +389,7 @@
                 formData.append('categories[]', cat);
             });
             
-            // Get price range - check both mobile and desktop versions
+            // Get price range
             var priceMinEl = filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile');
             var priceMaxEl = filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile');
             var priceMin = priceMinEl ? priceMinEl.value : '';
@@ -383,6 +407,149 @@
             if (sortSelect && sortSelect.value) {
                 formData.append('sort', sortSelect.value);
             }
+            
+            // Add page and infinite scroll flag
+            if (page) {
+                formData.append('page', page);
+            }
+            formData.append('infinite_scroll', 'true');
+            
+            return formData;
+        }
+
+        // Load more products for infinite scroll
+        function loadMoreProducts() {
+            if (infiniteScrollState.isLoading || !infiniteScrollState.hasMore) {
+                return;
+            }
+            
+            infiniteScrollState.isLoading = true;
+            var container = document.getElementById('products-container');
+            if (!container) {
+                infiniteScrollState.isLoading = false;
+                return;
+            }
+            
+            // Show loading indicator
+            var loadingIndicator = createLoadingIndicator();
+            if (!container.contains(loadingIndicator)) {
+                container.appendChild(loadingIndicator);
+            }
+            loadingIndicator.style.display = 'block';
+            
+            // Get next page
+            var nextPage = infiniteScrollState.currentPage + 1;
+            var formData = getFilterFormData(nextPage);
+            
+            // Make AJAX request
+            fetch('{{ route("products.filter") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingIndicator.style.display = 'none';
+                infiniteScrollState.isLoading = false;
+                
+                if (data.success && data.html) {
+                    // Extract product cards from the response HTML
+                    var tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = data.html;
+                    // Get all col-* divs that contain product cards (exclude no-products-container)
+                    var productContainers = Array.from(tempDiv.querySelectorAll('.col-lg-3, .col-md-6, .col-6'))
+                        .filter(function(col) {
+                            // Only include if it contains a product-card, not no-products-container
+                            return col.querySelector('.product-card') && !col.querySelector('.no-products-container');
+                        });
+                    
+                    if (productContainers.length > 0) {
+                        // Append new products to container
+                        productContainers.forEach(function(cardContainer) {
+                            container.insertBefore(cardContainer, loadingIndicator);
+                        });
+                        
+                        // Update state
+                        infiniteScrollState.currentPage = nextPage;
+                        infiniteScrollState.hasMore = data.hasMore || false;
+                    } else {
+                        infiniteScrollState.hasMore = false;
+                    }
+                } else {
+                    infiniteScrollState.hasMore = false;
+                }
+            })
+            .catch(error => {
+                console.error('Load more products error:', error);
+                loadingIndicator.style.display = 'none';
+                infiniteScrollState.isLoading = false;
+                infiniteScrollState.hasMore = false;
+            });
+        }
+
+        // Initialize infinite scroll
+        function initInfiniteScroll() {
+            var container = document.getElementById('products-container');
+            if (!container) return;
+            
+            // Get initial state from data attributes if available
+            var hasMoreAttr = container.getAttribute('data-has-more');
+            var currentPageAttr = container.getAttribute('data-current-page');
+            
+            // Reset state
+            if (currentPageAttr) {
+                infiniteScrollState.currentPage = parseInt(currentPageAttr) || 1;
+            } else {
+                infiniteScrollState.currentPage = 1;
+            }
+            infiniteScrollState.isLoading = false;
+            
+            // Set hasMore from data attribute if available, otherwise check product count
+            if (hasMoreAttr !== null) {
+                infiniteScrollState.hasMore = hasMoreAttr === 'true';
+            } else {
+                // Fallback: check if there are pagination links or if we have 20 products
+                var hasPagination = container.querySelector('.pagination') !== null;
+                var productCount = container.querySelectorAll('.product-card').length;
+                infiniteScrollState.hasMore = hasPagination || productCount >= 20;
+            }
+            
+            // Remove existing scroll listener
+            if (window.productsScrollHandler) {
+                window.removeEventListener('scroll', window.productsScrollHandler);
+                window.removeEventListener('touchmove', window.productsScrollHandler);
+            }
+            
+            // Create scroll handler
+            window.productsScrollHandler = function() {
+                // Check if we're near the bottom of the page
+                var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                var windowHeight = window.innerHeight;
+                var documentHeight = document.documentElement.scrollHeight;
+                
+                // Load more when user is 300px from bottom
+                if (documentHeight - (scrollTop + windowHeight) < 300) {
+                    loadMoreProducts();
+                }
+            };
+            
+            // Add scroll listeners
+            window.addEventListener('scroll', window.productsScrollHandler, { passive: true });
+            window.addEventListener('touchmove', window.productsScrollHandler, { passive: true });
+        }
+
+        function applyFilters() {
+            var formData = getFilterFormData(1);
+            var filterRoot = getActiveFilterRoot();
+            if (!filterRoot) return;
+            
+            // Reset infinite scroll state
+            infiniteScrollState.currentPage = 1;
+            infiniteScrollState.isLoading = false;
+            infiniteScrollState.hasMore = true;
             
             // Show loading state
             var container = document.getElementById('products-container');
@@ -404,13 +571,17 @@
                 if (data.success) {
                     if (container) {
                         container.innerHTML = data.html;
-                        // Re-initialize pagination handlers after content update
-                        initPaginationHandlers();
+                        // Update infinite scroll state
+                        infiniteScrollState.currentPage = data.currentPage || 1;
+                        infiniteScrollState.hasMore = data.hasMore || false;
+                        // Re-initialize infinite scroll after content update
+                        initInfiniteScroll();
                     }
                     
                 } else {
                     if (container) {
                         container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                        infiniteScrollState.hasMore = false;
                     }
                 }
             })
@@ -418,107 +589,8 @@
                 console.error('Filter error:', error);
                 if (container) {
                     container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                    infiniteScrollState.hasMore = false;
                 }
-            });
-        }
-
-        // Handle pagination clicks - convert GET to AJAX POST
-        function initPaginationHandlers() {
-            var container = document.getElementById('products-container');
-            if (!container) return;
-            
-            // Find all pagination links
-            var paginationLinks = container.querySelectorAll('.pagination a.page-link');
-            paginationLinks.forEach(function(link) {
-                // Remove existing listeners by cloning
-                var newLink = link.cloneNode(true);
-                link.parentNode.replaceChild(newLink, link);
-                
-                // Add click handler - only intercept if link points to /products/filter
-                newLink.addEventListener('click', function(e) {
-                    var url = new URL(this.href);
-                    // Only intercept if the URL contains /products/filter
-                    if (!url.pathname.includes('/products/filter')) {
-                        // Let normal navigation happen for regular /products links
-                        return true;
-                    }
-                    
-                    e.preventDefault();
-                    var page = url.searchParams.get('page') || 1;
-                    
-                    // Get current filter state
-                    var formData = new FormData();
-                    var filterRoot = getActiveFilterRoot();
-                    if (filterRoot) {
-                        // Get selected categories
-                        var selectedCategories = [];
-                        filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
-                            if (cb.value !== 'all') {
-                                selectedCategories.push(cb.value);
-                            }
-                        });
-                        selectedCategories.forEach(function(cat) {
-                            formData.append('categories[]', cat);
-                        });
-                        
-                        // Get price range
-                        var priceMinEl = filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile');
-                        var priceMaxEl = filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile');
-                        var priceMin = priceMinEl ? priceMinEl.value : '';
-                        var priceMax = priceMaxEl ? priceMaxEl.value : '';
-                        if (priceMin) formData.append('price_min', priceMin);
-                        if (priceMax) formData.append('price_max', priceMax);
-                        
-                        // Get selected ratings
-                        filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
-                            formData.append('rating[]', cb.value);
-                        });
-                        
-                        // Get sort option
-                        var sortSelect = document.getElementById('sortSelect');
-                        if (sortSelect && sortSelect.value) {
-                            formData.append('sort', sortSelect.value);
-                        }
-                    }
-                    
-                    // Add page number
-                    formData.append('page', page);
-                    
-                    // Show loading state
-                    if (container) {
-                        container.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading products...</p></div>';
-                    }
-                    
-                    // Make AJAX request
-                    fetch('{{ route("products.filter") }}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (container) {
-                                container.innerHTML = data.html;
-                                // Re-initialize pagination handlers after content update
-                                initPaginationHandlers();
-                            }
-                        } else {
-                            if (container) {
-                                container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Pagination error:', error);
-                        if (container) {
-                            container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
-                        }
-                    });
-                });
             });
         }
 
@@ -831,8 +903,8 @@
                 initFilterRoot(document.getElementById('filterFormDesktop'));
                 initFilterRoot(document.getElementById('filterForm'));
                 
-                // Initialize pagination handlers
-                initPaginationHandlers();
+                // Initialize infinite scroll instead of pagination
+                initInfiniteScroll();
                 
                 // Minimal: no extra sync logic necessary
             } catch(error) {

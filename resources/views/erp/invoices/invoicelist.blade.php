@@ -84,6 +84,7 @@
                             <thead>
                                 <tr>
                                     <th class="border-0">Invoice #</th>
+                                    <th class="border-0">Order ID</th>
                                     <th class="border-0">Customer</th>
                                     <th class="border-0">Salesman</th>
                                     <th class="border-0">Issue Date</th>
@@ -97,6 +98,15 @@
                                 @forelse($invoices as $invoice)
                                     <tr>
                                         <td><a href="{{ route('invoice.show',$invoice->id) }}" class="btn btn-outline-primary">#{{ $invoice->invoice_number }}</a></td>
+                                        <td>
+                                            @if($invoice->order)
+                                                <a href="{{ route('order.show', $invoice->order->id) }}" class="text-decoration-none">
+                                                    #{{ $invoice->order->order_number }}
+                                                </a>
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
+                                        </td>
                                         <td>{{ optional($invoice->customer)->name ?? 'Walk-in-Customer' }}</td>
                                         <td>{{ trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System' }}</td>
                                         <td>{{ $invoice->issue_date }}</td>

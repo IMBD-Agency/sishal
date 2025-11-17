@@ -697,7 +697,9 @@ class PageController extends Controller
                 ->orderBy('name', 'ASC');
         }
 
-        $products = $query->paginate(12)->appends($request->all());
+        // Use 20 items per page for infinite scroll (matching initial load)
+        $page = $request->get('page', 1);
+        $products = $query->paginate(20)->appends($request->except('page')->all());
 
         // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
         $userId = Auth::id();
@@ -750,11 +752,19 @@ class PageController extends Controller
         }
 
         if ($request->ajax()) {
+            // For infinite scroll, return products without pagination links
+            $isInfiniteScroll = $request->get('infinite_scroll', false);
             return response()->json([
                 'success' => true,
-                'html' => view('ecommerce.partials.product-grid', compact('products'))->render(),
+                'html' => view('ecommerce.partials.product-grid', [
+                    'products' => $products,
+                    'hidePagination' => $isInfiniteScroll
+                ])->render(),
                 'count' => $products->count(),
-                'total' => $products->total()
+                'total' => $products->total(),
+                'hasMore' => $products->hasMorePages(),
+                'currentPage' => $products->currentPage(),
+                'lastPage' => $products->lastPage()
             ]);
         }
 

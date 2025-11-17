@@ -96,7 +96,7 @@
     </div>
 @endif
 
-@if($products->hasPages())
+@if($products->hasPages() && !isset($hidePagination))
     <div class="col-12">
         <div class="d-flex justify-content-center mt-4">
             {{ $products->links('vendor.pagination.bootstrap-5') }}
