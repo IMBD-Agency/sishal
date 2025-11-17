@@ -398,14 +398,19 @@
                 });
             }
             
-            // If URL has category and no checkboxes are selected, use URL category
-            if (urlCategory && selectedCategories.length === 0) {
+            // Priority: Use URL category if present (for nav links), otherwise use checkboxes
+            // This ensures that when clicking a category link, it's always preserved
+            if (urlCategory) {
+                // Always use URL category if present, even if checkboxes are selected
+                // This ensures consistency when coming from navigation links
                 formData.append('category', urlCategory);
+                console.log('Using URL category for filter:', urlCategory);
             } else if (selectedCategories.length > 0) {
-                // Use selected categories from checkboxes
+                // Use selected categories from checkboxes only if no URL category
                 selectedCategories.forEach(function(cat) {
                     formData.append('categories[]', cat);
                 });
+                console.log('Using checkbox categories for filter:', selectedCategories);
             }
             
             // Get price range
@@ -470,7 +475,12 @@
             var nextPage = infiniteScrollState.currentPage + 1;
             var formData = getFilterFormData(nextPage);
             
-            console.log('Loading page', nextPage, 'for products');
+            // Debug: Log what filters are being sent
+            var formDataEntries = [];
+            for (var pair of formData.entries()) {
+                formDataEntries.push(pair[0] + ': ' + pair[1]);
+            }
+            console.log('Loading page', nextPage, 'for products with filters:', formDataEntries.join(', '));
             
             // Try fetch first, fallback to XMLHttpRequest if blocked
             var fetchPromise = fetch('{{ route("products.filter") }}', {
