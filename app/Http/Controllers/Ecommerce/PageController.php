@@ -826,6 +826,21 @@ class PageController extends Controller
             if ($request->ajax() || $request->get('infinite_scroll', false)) {
                 // For infinite scroll, return products without pagination links
                 $isInfiniteScroll = $request->get('infinite_scroll', false);
+                
+                // Log for debugging
+                \Log::info('Products filter infinite scroll request', [
+                    'page' => $request->get('page', 1),
+                    'is_ajax' => $request->ajax(),
+                    'infinite_scroll' => $isInfiniteScroll,
+                    'products_count' => $products->count(),
+                    'total' => $products->total(),
+                    'has_more' => $products->hasMorePages(),
+                    'current_page' => $products->currentPage(),
+                    'categories' => $request->get('categories', []),
+                    'price_min' => $request->get('price_min'),
+                    'price_max' => $request->get('price_max')
+                ]);
+                
                 return response()->json([
                     'success' => true,
                     'html' => view('ecommerce.partials.product-grid', [
@@ -837,7 +852,8 @@ class PageController extends Controller
                     'hasMore' => $products->hasMorePages(),
                     'currentPage' => $products->currentPage(),
                     'lastPage' => $products->lastPage()
-                ]);
+                ])->header('Content-Type', 'application/json')
+                  ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
 
             $pageTitle = 'Our Products';

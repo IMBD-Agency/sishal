@@ -168,6 +168,13 @@
                      data-current-page="{{ $products->currentPage() }}">
                     @include('ecommerce.partials.product-grid', ['products' => $products, 'hidePagination' => true])
                 </div>
+                
+                <!-- Load More button for products -->
+                <div id="products-load-more-btn" class="text-center py-4" style="display: {{ $products->hasMorePages() ? 'block' : 'none' }};">
+                    <button class="btn btn-primary" onclick="loadMoreProducts()">
+                        <i class="fas fa-arrow-down me-2"></i>Load More Products
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -434,12 +441,14 @@
         // Load more products for infinite scroll
         function loadMoreProducts() {
             if (infiniteScrollState.isLoading || !infiniteScrollState.hasMore) {
+                console.log('Skipping load - isLoading:', infiniteScrollState.isLoading, 'hasMore:', infiniteScrollState.hasMore);
                 return;
             }
             
             infiniteScrollState.isLoading = true;
             var container = document.getElementById('products-container');
             if (!container) {
+                console.error('Container not found!');
                 infiniteScrollState.isLoading = false;
                 return;
             }
@@ -451,77 +460,231 @@
             }
             loadingIndicator.style.display = 'block';
             
+            // Hide load more button if it exists
+            var loadMoreBtn = document.getElementById('products-load-more-btn');
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = 'none';
+            }
+            
             // Get next page
             var nextPage = infiniteScrollState.currentPage + 1;
             var formData = getFilterFormData(nextPage);
             
-            // Make AJAX request
-            fetch('{{ route("products.filter") }}', {
+            console.log('Loading page', nextPage, 'for products');
+            
+            // Try fetch first, fallback to XMLHttpRequest if blocked
+            var fetchPromise = fetch('{{ route("products.filter") }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
+                credentials: 'same-origin',
                 body: formData
-            })
-            .then(response => {
+            }).catch(function(error) {
+                // If fetch is blocked, try XMLHttpRequest
+                console.warn('Fetch blocked, trying XMLHttpRequest fallback:', error);
+                return new Promise(function(resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '{{ route("products.filter") }}', true);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            // Create a Response-like object
+                            resolve({
+                                ok: true,
+                                status: xhr.status,
+                                json: function() { return Promise.resolve(JSON.parse(xhr.responseText)); },
+                                text: function() { return Promise.resolve(xhr.responseText); }
+                            });
+                        } else {
+                            reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
+                        }
+                    };
+                    xhr.onerror = function() {
+                        reject(new Error('Network error'));
+                    };
+                    xhr.send(formData);
+                });
+            });
+            
+            fetchPromise
+            .then(function(response) {
+                console.log('Response received, status:', response.status);
                 // Check if response is ok (status 200-299)
                 if (!response.ok) {
-                    return response.json().then(err => {
+                    return response.json().then(function(err) {
                         throw new Error(err.message || 'An error occurred while loading products');
-                    }).catch(() => {
+                    }).catch(function() {
                         throw new Error('Server error. Please try again.');
                     });
                 }
-                return response.json();
+                // Try to parse as JSON first
+                return response.json().catch(function(error) {
+                    // If JSON parsing fails, try to get text to see what we got
+                    console.error('Failed to parse JSON, trying text:', error);
+                    return response.text().then(function(text) {
+                        console.error('Response is not JSON, got:', text.substring(0, 200));
+                        // Try to parse as JSON manually if it looks like JSON
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            throw new Error('Server returned non-JSON response');
+                        }
+                    });
+                });
             })
-            .then(data => {
+            .then(function(data) {
+                console.log('Response data received:', {
+                    success: data.success,
+                    hasHtml: !!data.html,
+                    htmlLength: data.html ? data.html.length : 0,
+                    count: data.count,
+                    total: data.total,
+                    hasMore: data.hasMore,
+                    currentPage: data.currentPage
+                });
+                
                 loadingIndicator.style.display = 'none';
                 infiniteScrollState.isLoading = false;
+                
+                // Show/hide load more button based on hasMore
+                if (loadMoreBtn && data.hasMore) {
+                    loadMoreBtn.style.display = 'block';
+                } else if (loadMoreBtn) {
+                    loadMoreBtn.style.display = 'none';
+                }
                 
                 if (data.success && data.html) {
                     // Extract product cards from the response HTML
                     var tempDiv = document.createElement('div');
                     tempDiv.innerHTML = data.html;
                     // Get all col-* divs that contain product cards (exclude no-products-container)
-                    var productContainers = Array.from(tempDiv.querySelectorAll('.col-lg-3, .col-md-6, .col-6'))
+                    var productContainers = Array.from(tempDiv.querySelectorAll('.col-lg-3, .col-md-6, .col-6, [class*="col-"]'))
                         .filter(function(col) {
                             // Only include if it contains a product-card, not no-products-container
                             return col.querySelector('.product-card') && !col.querySelector('.no-products-container');
                         });
                     
                     if (productContainers.length > 0) {
-                        // Append new products to container
-                        productContainers.forEach(function(cardContainer) {
-                            container.insertBefore(cardContainer, loadingIndicator);
+                        // Get existing product IDs to avoid duplicates
+                        var existingProductIds = new Set();
+                        container.querySelectorAll('.col-lg-3, .col-md-6, .col-6, [class*="col-"]').forEach(function(col) {
+                            var productId = col.querySelector('.wishlist-btn[data-product-id]')?.getAttribute('data-product-id') ||
+                                          col.querySelector('.btn-add-cart[data-product-id]')?.getAttribute('data-product-id');
+                            if (productId) {
+                                existingProductIds.add(productId);
+                            }
                         });
+                        
+                        // Append new products to container (avoid duplicates)
+                        var addedCount = 0;
+                        productContainers.forEach(function(cardContainer) {
+                            var productId = cardContainer.querySelector('.wishlist-btn[data-product-id]')?.getAttribute('data-product-id') ||
+                                          cardContainer.querySelector('.btn-add-cart[data-product-id]')?.getAttribute('data-product-id');
+                            if (!productId || !existingProductIds.has(productId)) {
+                                container.insertBefore(cardContainer, loadingIndicator);
+                                if (productId) {
+                                    existingProductIds.add(productId);
+                                }
+                                addedCount++;
+                            }
+                        });
+                        
+                        // If no products were added (all duplicates), mark as no more
+                        if (addedCount === 0) {
+                            infiniteScrollState.hasMore = false;
+                            if (container) {
+                                container.setAttribute('data-has-more', 'false');
+                            }
+                            if (loadMoreBtn) {
+                                loadMoreBtn.style.display = 'none';
+                            }
+                            console.log('All products were duplicates, no more to load');
+                            return;
+                        }
                         
                         // Update state and container data attributes
                         infiniteScrollState.currentPage = nextPage;
-                        infiniteScrollState.hasMore = data.hasMore || false;
+                        infiniteScrollState.hasMore = data.hasMore !== undefined ? data.hasMore : false;
+                        
+                        // Also check if we got fewer products than expected (might be last page)
+                        if (productContainers.length < 20) {
+                            infiniteScrollState.hasMore = false;
+                        }
+                        
                         if (container) {
-                            container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
+                            container.setAttribute('data-has-more', infiniteScrollState.hasMore ? 'true' : 'false');
                             container.setAttribute('data-current-page', nextPage);
                         }
+                        
+                        // Show/hide load more button
+                        if (loadMoreBtn) {
+                            if (infiniteScrollState.hasMore) {
+                                loadMoreBtn.style.display = 'block';
+                            } else {
+                                loadMoreBtn.style.display = 'none';
+                            }
+                        }
+                        
+                        console.log('Loaded ' + addedCount + ' new products (total in response: ' + productContainers.length + '). Has more: ' + infiniteScrollState.hasMore);
                     } else {
+                        // No products found in response
                         infiniteScrollState.hasMore = false;
                         if (container) {
                             container.setAttribute('data-has-more', 'false');
                         }
+                        if (loadMoreBtn) {
+                            loadMoreBtn.style.display = 'none';
+                        }
+                        console.log('No products found in response');
                     }
                 } else {
+                    // Response was not successful or missing HTML
+                    infiniteScrollState.hasMore = false;
+                    if (container) {
+                        container.setAttribute('data-has-more', 'false');
+                    }
+                    if (loadMoreBtn) {
+                        loadMoreBtn.style.display = 'none';
+                    }
+                    console.error('Invalid response:', data);
+                }
+            })
+            .catch(function(error) {
+                console.error('Load more products error:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message
+                });
+                
+                loadingIndicator.style.display = 'none';
+                infiniteScrollState.isLoading = false;
+                
+                // Handle specific error types
+                if (error.message && (error.message.includes('404') || error.message.includes('Blocked'))) {
+                    infiniteScrollState.hasMore = false;
+                    if (container) {
+                        container.setAttribute('data-has-more', 'false');
+                    }
+                    if (loadMoreBtn) {
+                        loadMoreBtn.style.display = 'none';
+                    }
+                    console.log('No more pages available or request blocked');
+                } else if (error.message && error.message.includes('Network error')) {
+                    // Network error - don't disable, user can retry by scrolling
+                    console.warn('Network error, will retry on next scroll');
+                } else {
+                    // Other errors - disable to prevent infinite retries
                     infiniteScrollState.hasMore = false;
                     if (container) {
                         container.setAttribute('data-has-more', 'false');
                     }
                 }
-            })
-            .catch(error => {
-                console.error('Load more products error:', error);
-                loadingIndicator.style.display = 'none';
-                infiniteScrollState.isLoading = false;
-                infiniteScrollState.hasMore = false;
             });
         }
 
@@ -552,6 +715,16 @@
                 infiniteScrollState.hasMore = hasPagination || productCount >= 20;
             }
             
+            // Show/hide load more button based on initial state
+            var loadMoreBtn = document.getElementById('products-load-more-btn');
+            if (loadMoreBtn) {
+                if (infiniteScrollState.hasMore) {
+                    loadMoreBtn.style.display = 'block';
+                } else {
+                    loadMoreBtn.style.display = 'none';
+                }
+            }
+            
             // Remove existing scroll listener
             if (window.productsScrollHandler) {
                 window.removeEventListener('scroll', window.productsScrollHandler);
@@ -560,13 +733,34 @@
             
             // Create scroll handler
             window.productsScrollHandler = function() {
+                // Only proceed if we have more products and not currently loading
+                if (infiniteScrollState.isLoading || !infiniteScrollState.hasMore) {
+                    return;
+                }
+                
                 // Check if we're near the bottom of the page
                 var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                 var windowHeight = window.innerHeight;
-                var documentHeight = document.documentElement.scrollHeight;
+                var documentHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
                 
                 // Load more when user is 300px from bottom
-                if (documentHeight - (scrollTop + windowHeight) < 300) {
+                var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+                
+                // Debug logging (only occasionally to avoid spam)
+                if (Math.random() < 0.01) { // 1% chance to log
+                    console.log('Products scroll check:', {
+                        scrollTop: scrollTop,
+                        windowHeight: windowHeight,
+                        documentHeight: documentHeight,
+                        distanceFromBottom: distanceFromBottom,
+                        isLoading: infiniteScrollState.isLoading,
+                        hasMore: infiniteScrollState.hasMore,
+                        currentPage: infiniteScrollState.currentPage
+                    });
+                }
+                
+                if (distanceFromBottom < 300) {
+                    console.log('Triggering load more products - distance from bottom:', distanceFromBottom);
                     loadMoreProducts();
                 }
             };
@@ -959,6 +1153,20 @@
                 
                 // Initialize infinite scroll instead of pagination
                 initInfiniteScroll();
+                
+                // Also check if page is already scrolled near bottom (for short pages)
+                setTimeout(function() {
+                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    var windowHeight = window.innerHeight;
+                    var documentHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+                    var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+                    
+                    // If page is short and we're near bottom, try loading more
+                    if (distanceFromBottom < 500 && infiniteScrollState.hasMore && !infiniteScrollState.isLoading) {
+                        console.log('Products page is short, checking if we need to load more products');
+                        loadMoreProducts();
+                    }
+                }, 500);
                 
                 // Minimal: no extra sync logic necessary
             } catch(error) {
