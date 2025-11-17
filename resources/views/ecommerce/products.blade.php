@@ -389,6 +389,7 @@
             // 1. Container data attribute (most reliable, persists through AJAX)
             // 2. URL parameter
             // 3. URL href parsing (fallback)
+            // 4. Check if we're on a category page from the initial HTML
             var container = document.getElementById('products-container');
             var containerCategory = container ? container.getAttribute('data-category') : null;
             
@@ -403,13 +404,32 @@
                 }
             }
             
+            // Also check if there's a category in the current page URL path
+            // Some category links might use /products/category-name format
+            if (!urlCategory) {
+                var pathMatch = window.location.pathname.match(/\/products\/([^\/\?]+)/);
+                if (pathMatch && pathMatch[1]) {
+                    urlCategory = pathMatch[1];
+                }
+            }
+            
             // Use container category if available (most reliable), otherwise use URL
-            var finalCategory = (containerCategory && containerCategory !== '') ? containerCategory : urlCategory;
+            var finalCategory = (containerCategory && containerCategory !== '' && containerCategory !== 'null') 
+                                ? containerCategory 
+                                : (urlCategory && urlCategory !== '' && urlCategory !== 'null' ? urlCategory : null);
+            
+            // CRITICAL: If we still don't have a category, check if container exists and try to set it from URL
+            if (!finalCategory && container && urlCategory) {
+                container.setAttribute('data-category', urlCategory);
+                finalCategory = urlCategory;
+                console.log('⚠ Category was missing, set it from URL to container:', urlCategory);
+            }
             
             console.log('Reading category from multiple sources:', {
                 'container.data-category': containerCategory,
                 'window.location.search': window.location.search,
                 'window.location.href': window.location.href,
+                'window.location.pathname': window.location.pathname,
                 'urlCategory': urlCategory,
                 'finalCategory': finalCategory
             });
@@ -426,11 +446,17 @@
             
             // Priority: Use finalCategory (from container or URL) if present, otherwise use checkboxes
             // This ensures that when clicking a category link, it's always preserved
-            if (finalCategory && finalCategory !== 'null' && finalCategory !== '') {
+            if (finalCategory && finalCategory !== 'null' && finalCategory !== '' && finalCategory !== 'undefined') {
                 // Always use category if present, even if checkboxes are selected
                 // This ensures consistency when coming from navigation links
                 formData.append('category', finalCategory);
-                console.log('✓ Using category for filter:', finalCategory, '(source:', containerCategory ? 'container' : 'URL', ')');
+                console.log('✓ Using category for filter:', finalCategory, '(source:', containerCategory && containerCategory !== '' ? 'container' : 'URL', ')');
+                
+                // Also ensure container has it stored for future requests
+                if (container && (!containerCategory || containerCategory === '' || containerCategory === 'null')) {
+                    container.setAttribute('data-category', finalCategory);
+                    console.log('✓ Stored category in container for future requests:', finalCategory);
+                }
             } else if (selectedCategories.length > 0) {
                 // Use selected categories from checkboxes only if no URL category
                 selectedCategories.forEach(function(cat) {
@@ -438,7 +464,14 @@
                 });
                 console.log('✓ Using checkbox categories for filter:', selectedCategories);
             } else {
-                console.warn('⚠ No category filter found - URL category:', urlCategory, 'Checkbox categories:', selectedCategories);
+                console.error('❌ CRITICAL: No category filter found!', {
+                    'containerCategory': containerCategory,
+                    'urlCategory': urlCategory,
+                    'finalCategory': finalCategory,
+                    'selectedCategories': selectedCategories,
+                    'window.location.href': window.location.href,
+                    'window.location.search': window.location.search
+                });
             }
             
             // Get price range
@@ -1240,22 +1273,40 @@
                 initFilterRoot(document.getElementById('filterFormDesktop'));
                 initFilterRoot(document.getElementById('filterForm'));
                 
-                // IMPORTANT: Preserve category from URL on initial page load
+                // CRITICAL: Preserve category from URL on initial page load - DO THIS FIRST!
                 var container = document.getElementById('products-container');
                 if (container) {
+                    // Read category from URL immediately
                     var urlParams = new URLSearchParams(window.location.search);
                     var urlCategory = urlParams.get('category');
-                    if (urlCategory && urlCategory !== '') {
-                        // Store category in container data attribute immediately
+                    
+                    // Also check href as fallback
+                    if (!urlCategory) {
+                        var urlMatch = window.location.href.match(/[?&]category=([^&]*)/);
+                        if (urlMatch && urlMatch[1]) {
+                            urlCategory = decodeURIComponent(urlMatch[1]);
+                        }
+                    }
+                    
+                    if (urlCategory && urlCategory !== '' && urlCategory !== 'null') {
+                        // Store category in container data attribute immediately - CRITICAL!
                         container.setAttribute('data-category', urlCategory);
-                        console.log('✓ Initial page load - Stored category in container:', urlCategory);
+                        console.log('✓✓✓ Initial page load - Stored category in container:', urlCategory, 'URL:', window.location.href);
                     } else {
                         // If no URL category, check if container already has one (from server-side)
                         var existingCategory = container.getAttribute('data-category');
-                        if (existingCategory && existingCategory !== '') {
+                        if (existingCategory && existingCategory !== '' && existingCategory !== 'null') {
                             console.log('✓ Initial page load - Using existing container category:', existingCategory);
+                        } else {
+                            console.warn('⚠ Initial page load - No category found in URL or container!', {
+                                'URL': window.location.href,
+                                'search': window.location.search,
+                                'container.data-category': existingCategory
+                            });
                         }
                     }
+                } else {
+                    console.error('❌ CRITICAL: products-container not found on page load!');
                 }
                 
                 // Initialize infinite scroll instead of pagination
