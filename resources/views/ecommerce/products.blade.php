@@ -386,18 +386,34 @@
             
             // Get selected categories from checkboxes FIRST (user's active filter choice)
             var selectedCategories = [];
+            var allCategorySelected = false;
+            
             if (filterRoot) {
-                filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
-                    if (cb.value !== 'all') {
-                        selectedCategories.push(cb.value);
-                    }
-                });
+                // Check if "All Categories" is selected
+                var allCategoryCheckbox = filterRoot.querySelector('#catAll, #catAllMobile');
+                if (allCategoryCheckbox && allCategoryCheckbox.checked) {
+                    allCategorySelected = true;
+                }
+                
+                // Get other selected categories (excluding "all")
+                if (!allCategorySelected) {
+                    filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
+                        if (cb.value !== 'all') {
+                            selectedCategories.push(cb.value);
+                        }
+                    });
+                }
             }
             
-            // Priority: Use checkbox selections if any are selected (user actively filtering)
-            // Otherwise, use URL category (from navigation links)
-            if (selectedCategories.length > 0) {
-                // User selected categories via checkboxes - use those
+            // Priority logic:
+            // 1. If "All Categories" is selected → Don't send any category filter (show all products)
+            // 2. If specific categories are selected → Use those
+            // 3. Otherwise → Use URL category (from navigation links)
+            if (allCategorySelected) {
+                // "All Categories" selected - don't send any category filter
+                // This will show all products regardless of category
+            } else if (selectedCategories.length > 0) {
+                // User selected specific categories via checkboxes - use those
                 selectedCategories.forEach(function(cat) {
                     params.append('categories[]', cat);
                 });
