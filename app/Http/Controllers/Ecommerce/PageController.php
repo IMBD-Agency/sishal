@@ -568,7 +568,8 @@ class PageController extends Controller
     public function bestDeals(Request $request)
     {
         $pageTitle = 'Best Deal';
-        $query = Product::where('type', 'product');
+        $query = Product::where('type', 'product')
+            ->where('status', 'active');
 
         // Prioritize discounted products, then sort by numbers in product name
         $query->orderByDesc('discount')
@@ -581,6 +582,14 @@ class PageController extends Controller
                     999999
                 )
             AS UNSIGNED) ASC");
+
+        // Eager load relationships to prevent N+1 queries
+        $query->with([
+            'category',
+            'reviews' => function($q) { 
+                $q->where('is_approved', true); 
+            }
+        ]);
 
         $products = $query->paginate(20)->appends($request->all());
         

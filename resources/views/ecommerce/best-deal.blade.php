@@ -82,12 +82,18 @@
 
             // Create scroll handler
             window.bestDealScrollHandler = function() {
+                // Only proceed if we have more products and not currently loading
+                if (bestDealScrollState.isLoading || !bestDealScrollState.hasMore) {
+                    return;
+                }
+                
                 const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                 const windowHeight = window.innerHeight;
                 const documentHeight = document.documentElement.scrollHeight;
 
                 // Load more when user is 300px from bottom
-                if (documentHeight - (scrollTop + windowHeight) < 300) {
+                const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+                if (distanceFromBottom < 300) {
                     loadMoreBestDealProducts();
                 }
             };
@@ -149,36 +155,80 @@
                     // Extract product cards from the response HTML
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = data.html;
+                    
                     // Get all col-* divs that contain product cards
-                    const productContainers = Array.from(tempDiv.querySelectorAll('.col-lg-3, .col-md-4, .col-sm-6'))
+                    // Try multiple selectors to ensure we catch all product containers
+                    const productContainers = Array.from(tempDiv.querySelectorAll('.col-lg-3, .col-md-4, .col-sm-6, [class*="col-"]'))
                         .filter(function(col) {
+                            // Only include if it contains a product-card, not no-products-container
                             return col.querySelector('.product-card') && !col.querySelector('.no-products-container');
                         });
 
                     if (productContainers.length > 0) {
-                        // Append new products to container
-                        productContainers.forEach(function(cardContainer) {
-                            container.appendChild(cardContainer);
+                        // Get existing product IDs to avoid duplicates
+                        const existingProductIds = new Set();
+                        container.querySelectorAll('.col-lg-3, .col-md-4, .col-sm-6').forEach(function(col) {
+                            const productId = col.querySelector('.wishlist-btn[data-product-id]')?.getAttribute('data-product-id') ||
+                                            col.querySelector('.btn-add-cart[data-product-id]')?.getAttribute('data-product-id');
+                            if (productId) {
+                                existingProductIds.add(productId);
+                            }
                         });
+                        
+                        // Append new products to container (avoid duplicates)
+                        let addedCount = 0;
+                        productContainers.forEach(function(cardContainer) {
+                            const productId = cardContainer.querySelector('.wishlist-btn[data-product-id]')?.getAttribute('data-product-id') ||
+                                            cardContainer.querySelector('.btn-add-cart[data-product-id]')?.getAttribute('data-product-id');
+                            if (!productId || !existingProductIds.has(productId)) {
+                                container.appendChild(cardContainer);
+                                if (productId) {
+                                    existingProductIds.add(productId);
+                                }
+                                addedCount++;
+                            }
+                        });
+                        
+                        // If no products were added (all duplicates), mark as no more
+                        if (addedCount === 0) {
+                            bestDealScrollState.hasMore = false;
+                            if (container) {
+                                container.setAttribute('data-has-more', 'false');
+                            }
+                            console.log('All products were duplicates, no more to load');
+                            return;
+                        }
 
                         // Update state and container data attributes
                         bestDealScrollState.currentPage = nextPage;
-                        bestDealScrollState.hasMore = data.hasMore || false;
+                        bestDealScrollState.hasMore = data.hasMore !== undefined ? data.hasMore : false;
+                        
+                        // Also check if we got fewer products than expected (might be last page)
+                        if (productContainers.length < 20) {
+                            bestDealScrollState.hasMore = false;
+                        }
+                        
                         if (container) {
-                            container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
+                            container.setAttribute('data-has-more', bestDealScrollState.hasMore ? 'true' : 'false');
                             container.setAttribute('data-current-page', nextPage);
                         }
+                        
+                        console.log('Loaded ' + addedCount + ' new products (total in response: ' + productContainers.length + '). Has more: ' + bestDealScrollState.hasMore);
                     } else {
+                        // No products found in response
                         bestDealScrollState.hasMore = false;
                         if (container) {
                             container.setAttribute('data-has-more', 'false');
                         }
+                        console.log('No products found in response');
                     }
                 } else {
+                    // Response was not successful or missing HTML
                     bestDealScrollState.hasMore = false;
                     if (container) {
                         container.setAttribute('data-has-more', 'false');
                     }
+                    console.error('Invalid response:', data);
                 }
             })
             .catch(error => {
@@ -187,7 +237,18 @@
                     loadingIndicator.style.display = 'none';
                 }
                 bestDealScrollState.isLoading = false;
-                bestDealScrollState.hasMore = false;
+                // Don't set hasMore to false on error - might be temporary network issue
+                // Only set to false if we get a 404 or similar error indicating no more pages
+                if (error.message && error.message.includes('404')) {
+                    bestDealScrollState.hasMore = false;
+                    if (container) {
+                        container.setAttribute('data-has-more', 'false');
+                    }
+                }
+                // Show error toast if function exists
+                if (typeof showToast === 'function') {
+                    showToast('Failed to load more products. Please try again.', 'error');
+                }
             });
         }
 
