@@ -647,22 +647,15 @@ class PageController extends Controller
                 ->where('status', 'active')
                 ->where('type', 'product');
 
-        // Category filter - include child categories
-        // Handle both 'categories' (array from filter section) and 'category' (single from nav links)
-        if ($request->filled('categories') && is_array($request->categories) && !in_array('all', $request->categories) && count($request->categories) > 0) {
+        // Category filter - include child categories (match original products method behavior)
+        if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
             $categoryIds = ProductServiceCategory::whereIn('slug', $request->categories)->pluck('id')->toArray();
-            // Get all child category IDs recursively only if we have category IDs
+            // Get all child category IDs recursively
             if (!empty($categoryIds)) {
                 $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
                 if (!empty($allCategoryIds)) {
                     $query->whereIn('category_id', $allCategoryIds);
-                } else {
-                    // If no category IDs found, return empty result
-                    $query->whereRaw('1 = 0');
                 }
-            } else {
-                // If no categories found by slug, return empty result
-                $query->whereRaw('1 = 0');
             }
         } elseif ($request->has('category') && $request->category) {
             // Single category filter (from category page links or nav)
@@ -674,11 +667,7 @@ class PageController extends Controller
                 $allCategoryIds = $category->getAllChildIds();
                 if (!empty($allCategoryIds)) {
                     $query->whereIn('category_id', $allCategoryIds);
-                } else {
-                    $query->whereRaw('1 = 0');
                 }
-            } else {
-                $query->whereRaw('1 = 0');
             }
         }
 
@@ -749,7 +738,7 @@ class PageController extends Controller
         // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
         $userId = Auth::id();
         $wishlistedIds = [];
-        if ($userId) {
+        if ($userId && $products->count() > 0) {
             $wishlistedIds = Wishlist::where('user_id', $userId)
                 ->whereIn('product_id', $products->pluck('id'))
                 ->pluck('product_id')
@@ -760,59 +749,30 @@ class PageController extends Controller
             // Add wishlist status
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
             
-            // Pre-calculate ratings and reviews (avoid N+1 queries)
+            // Pre-calculate ratings and reviews (avoid N+1 queries) - match original behavior
             $product->avg_rating = $product->reviews->avg('rating') ?? 0;
             $product->total_reviews = $product->reviews->count();
             
             // Pre-calculate stock status (avoid N+1 queries)
             if ($product->has_variations) {
-                // For products with variations, check if any active variation has stock
                 $product->has_stock = false;
                 if ($product->variations && $product->variations->isNotEmpty()) {
                     foreach ($product->variations as $variation) {
-                        // Check if variation has stocks loaded
-                        if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
-                            // Use loaded relationship collection
+                        if ($variation->relationLoaded('stocks') && $variation->stocks) {
                             $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
-                            if ($totalQuantity > 0) {
-                                $product->has_stock = true;
-                                break; // Found at least one variation with stock, no need to check further
-                            }
                         } else {
-                            // Fallback: use query builder if relationship not loaded
                             $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
-                            if ($totalQuantity > 0) {
-                                $product->has_stock = true;
-                                break;
-                            }
+                        }
+                        if ($totalQuantity > 0) {
+                            $product->has_stock = true;
+                            break;
                         }
                     }
                 }
             } else {
-                // For products without variations, check branch and warehouse stock
-                $branchStock = 0;
-                $warehouseStock = 0;
-                
-                try {
-                    if ($product->relationLoaded('branchStock') && $product->branchStock) {
-                        $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                    } else {
-                        $branchStock = $product->branchStock()->sum('quantity') ?? 0;
-                    }
-                } catch (\Exception $e) {
-                    $branchStock = 0;
-                }
-                
-                try {
-                    if ($product->relationLoaded('warehouseStock') && $product->warehouseStock) {
-                        $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                    } else {
-                        $warehouseStock = $product->warehouseStock()->sum('quantity') ?? 0;
-                    }
-                } catch (\Exception $e) {
-                    $warehouseStock = 0;
-                }
-                
+                // For products without variations, check branch and warehouse stock - match original behavior
+                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
                 $product->has_stock = ($branchStock + $warehouseStock) > 0;
             }
         }
@@ -840,15 +800,18 @@ class PageController extends Controller
             // Log the error for debugging
             \Log::error('Filter products error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'request' => $request->all()
             ]);
             
             // Return error response for AJAX requests
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->get('infinite_scroll', false)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'An error occurred while filtering products. Please try again.',
-                    'error' => config('app.debug') ? $e->getMessage() : null
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                    'html' => '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-exclamation-triangle"></i></div><h3 class="no-products-title">Error Loading Products</h3><p class="no-products-message">An error occurred. Please try again.</p></div></div>'
                 ], 500);
             }
             
