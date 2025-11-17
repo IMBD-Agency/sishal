@@ -836,6 +836,19 @@
             var filterRoot = getActiveFilterRoot();
             if (!filterRoot) return;
             
+            // Ensure infinite_scroll flag is set (for consistency with loadMoreProducts)
+            formData.append('infinite_scroll', 'true');
+            
+            // Debug: Log what filters are being sent
+            var formDataEntries = [];
+            var hasCategory = false;
+            for (var pair of formData.entries()) {
+                formDataEntries.push(pair[0] + ': ' + pair[1]);
+                if (pair[0] === 'category') hasCategory = true;
+            }
+            console.log('applyFilters() - Sending filters:', formDataEntries.join(', '));
+            console.log('applyFilters() - Has category:', hasCategory);
+            
             // Reset infinite scroll state
             infiniteScrollState.currentPage = 1;
             infiniteScrollState.isLoading = false;
@@ -853,8 +866,10 @@
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
+                credentials: 'same-origin',
                 body: formData
             })
             .then(response => {
@@ -876,11 +891,16 @@
                         container.setAttribute('data-has-more', data.hasMore ? 'true' : 'false');
                         container.setAttribute('data-current-page', data.currentPage || 1);
                         
-                        // Preserve category in container data attribute
+                        // Preserve category in container data attribute (from multiple sources)
                         var urlParams = new URLSearchParams(window.location.search);
                         var urlCategory = urlParams.get('category');
-                        if (urlCategory) {
-                            container.setAttribute('data-category', urlCategory);
+                        var containerCategory = container.getAttribute('data-category');
+                        
+                        // Use URL category if available, otherwise keep existing container category
+                        var categoryToStore = urlCategory || containerCategory || '';
+                        if (categoryToStore) {
+                            container.setAttribute('data-category', categoryToStore);
+                            console.log('✓ Preserved category in container:', categoryToStore);
                         }
                         
                         // Update infinite scroll state
@@ -1219,6 +1239,24 @@
                 // Initialize both desktop and mobile filter containers (if present)
                 initFilterRoot(document.getElementById('filterFormDesktop'));
                 initFilterRoot(document.getElementById('filterForm'));
+                
+                // IMPORTANT: Preserve category from URL on initial page load
+                var container = document.getElementById('products-container');
+                if (container) {
+                    var urlParams = new URLSearchParams(window.location.search);
+                    var urlCategory = urlParams.get('category');
+                    if (urlCategory && urlCategory !== '') {
+                        // Store category in container data attribute immediately
+                        container.setAttribute('data-category', urlCategory);
+                        console.log('✓ Initial page load - Stored category in container:', urlCategory);
+                    } else {
+                        // If no URL category, check if container already has one (from server-side)
+                        var existingCategory = container.getAttribute('data-category');
+                        if (existingCategory && existingCategory !== '') {
+                            console.log('✓ Initial page load - Using existing container category:', existingCategory);
+                        }
+                    }
+                }
                 
                 // Initialize infinite scroll instead of pagination
                 initInfiniteScroll();

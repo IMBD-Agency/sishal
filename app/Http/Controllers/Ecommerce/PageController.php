@@ -835,9 +835,17 @@ class PageController extends Controller
                 $selectedCategories = [$request->category];
             }
 
-            if ($request->ajax() || $request->get('infinite_scroll', false)) {
+            // Check for infinite scroll - handle both string 'true' and boolean true
+            $infiniteScrollParam = $request->get('infinite_scroll', false);
+            $isInfiniteScrollRequest = $request->ajax() || 
+                                      $infiniteScrollParam === 'true' || 
+                                      $infiniteScrollParam === true || 
+                                      $infiniteScrollParam === '1' || 
+                                      $infiniteScrollParam === 1;
+            
+            if ($isInfiniteScrollRequest) {
                 // For infinite scroll, return products without pagination links
-                $isInfiniteScroll = $request->get('infinite_scroll', false);
+                $isInfiniteScroll = true;
                 
                 // Log for debugging
                 \Log::info('Products filter infinite scroll request', [
