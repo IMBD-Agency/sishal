@@ -756,25 +756,18 @@
                 }
                 
                 // Check if we're near the bottom of the page
-                var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                var windowHeight = window.innerHeight;
-                var documentHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+                var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                var windowHeight = window.innerHeight || document.documentElement.clientHeight;
+                var documentHeight = Math.max(
+                    document.body.scrollHeight,
+                    document.body.offsetHeight,
+                    document.documentElement.clientHeight,
+                    document.documentElement.scrollHeight,
+                    document.documentElement.offsetHeight
+                );
                 
                 // Load more when user is 300px from bottom
                 var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-                
-                // Debug logging (only occasionally to avoid spam)
-                if (Math.random() < 0.01) { // 1% chance to log
-                    console.log('Products scroll check:', {
-                        scrollTop: scrollTop,
-                        windowHeight: windowHeight,
-                        documentHeight: documentHeight,
-                        distanceFromBottom: distanceFromBottom,
-                        isLoading: infiniteScrollState.isLoading,
-                        hasMore: infiniteScrollState.hasMore,
-                        currentPage: infiniteScrollState.currentPage
-                    });
-                }
                 
                 if (distanceFromBottom < 300) {
                     console.log('Triggering load more products - distance from bottom:', distanceFromBottom);
@@ -782,9 +775,25 @@
                 }
             };
             
-            // Add scroll listeners
-            window.addEventListener('scroll', window.productsScrollHandler, { passive: true });
-            window.addEventListener('touchmove', window.productsScrollHandler, { passive: true });
+            // Add scroll listeners with throttling to improve performance
+            var scrollTimeout;
+            var throttledScrollHandler = function() {
+                if (scrollTimeout) {
+                    return;
+                }
+                scrollTimeout = setTimeout(function() {
+                    window.productsScrollHandler();
+                    scrollTimeout = null;
+                }, 100); // Throttle to every 100ms
+            };
+            
+            window.addEventListener('scroll', throttledScrollHandler, { passive: true });
+            window.addEventListener('touchmove', throttledScrollHandler, { passive: true });
+            
+            // Also listen to scrollend if available (better for performance)
+            if ('onscrollend' in window) {
+                window.addEventListener('scrollend', window.productsScrollHandler, { passive: true });
+            }
         }
 
         function applyFilters() {
@@ -1178,9 +1187,15 @@
                 
                 // Also check if page is already scrolled near bottom (for short pages)
                 setTimeout(function() {
-                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                    var windowHeight = window.innerHeight;
-                    var documentHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                    var windowHeight = window.innerHeight || document.documentElement.clientHeight;
+                    var documentHeight = Math.max(
+                        document.body.scrollHeight,
+                        document.body.offsetHeight,
+                        document.documentElement.clientHeight,
+                        document.documentElement.scrollHeight,
+                        document.documentElement.offsetHeight
+                    );
                     var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
                     
                     // If page is short and we're near bottom, try loading more
@@ -1189,6 +1204,13 @@
                         loadMoreProducts();
                     }
                 }, 500);
+                
+                // Also trigger a check after a short delay to catch any initial scroll position
+                setTimeout(function() {
+                    if (window.productsScrollHandler) {
+                        window.productsScrollHandler();
+                    }
+                }, 1000);
                 
                 // Minimal: no extra sync logic necessary
             } catch(error) {
