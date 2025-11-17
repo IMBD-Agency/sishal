@@ -675,29 +675,11 @@ class PageController extends Controller
                 ->where('status', 'active')
                 ->where('type', 'product');
 
-        // Category filter - include child categories (match original products method behavior)
-        // Priority: URL category parameter takes precedence over categories array
-        // This ensures that when clicking a category link, it's always used
-        if ($request->has('category') && $request->category) {
-            // Single category filter (from category page links or nav) - HIGHEST PRIORITY
-            $category = ProductServiceCategory::with('children')->where('slug', $request->category)->first();
-            if ($category) {
-                // Load all nested children recursively
-                $category->loadNestedChildren();
-                // Get all child category IDs recursively (includes parent category ID itself)
-                $allCategoryIds = $category->getAllChildIds();
-                if (!empty($allCategoryIds)) {
-                    $query->whereIn('category_id', $allCategoryIds);
-                    \Log::info('Applied category filter from URL', [
-                        'category_slug' => $request->category,
-                        'category_id' => $category->id,
-                        'all_category_ids' => $allCategoryIds
-                    ]);
-                }
-            }
-        } elseif ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
-            // Multiple categories from checkboxes (only if no URL category)
-            // Filter out 'all' value if present and reindex array
+        // Category filter - include child categories
+        // Priority: Checkbox selections (categories[]) take precedence over URL category
+        // This ensures filter section works, but nav links also work when no checkboxes selected
+        if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
+            // Categories from checkboxes (user actively filtering) - HIGHEST PRIORITY
             $categorySlugs = array_values(array_filter($request->categories, function($slug) {
                 return $slug !== 'all' && !empty($slug);
             }));
@@ -709,11 +691,19 @@ class PageController extends Controller
                     $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
                     if (!empty($allCategoryIds)) {
                         $query->whereIn('category_id', $allCategoryIds);
-                        \Log::info('Applied categories filter from checkboxes', [
-                            'category_slugs' => $categorySlugs,
-                            'all_category_ids' => $allCategoryIds
-                        ]);
                     }
+                }
+            }
+        } elseif ($request->has('category') && $request->category) {
+            // Single category from URL (from navigation links) - only if no checkboxes selected
+            $category = ProductServiceCategory::with('children')->where('slug', $request->category)->first();
+            if ($category) {
+                // Load all nested children recursively
+                $category->loadNestedChildren();
+                // Get all child category IDs recursively (includes parent category ID itself)
+                $allCategoryIds = $category->getAllChildIds();
+                if (!empty($allCategoryIds)) {
+                    $query->whereIn('category_id', $allCategoryIds);
                 }
             }
         }

@@ -384,21 +384,29 @@
             var params = new URLSearchParams();
             var filterRoot = getActiveFilterRoot();
             
-            // Simple: Get category from URL parameter (like pagination did)
-            var urlParams = new URLSearchParams(window.location.search);
-            var urlCategory = urlParams.get('category');
+            // Get selected categories from checkboxes FIRST (user's active filter choice)
+            var selectedCategories = [];
+            if (filterRoot) {
+                filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
+                    if (cb.value !== 'all') {
+                        selectedCategories.push(cb.value);
+                    }
+                });
+            }
             
-            // If URL has category, always include it (priority over checkboxes)
-            if (urlCategory && urlCategory !== 'null' && urlCategory !== '') {
-                params.append('category', urlCategory);
+            // Priority: Use checkbox selections if any are selected (user actively filtering)
+            // Otherwise, use URL category (from navigation links)
+            if (selectedCategories.length > 0) {
+                // User selected categories via checkboxes - use those
+                selectedCategories.forEach(function(cat) {
+                    params.append('categories[]', cat);
+                });
             } else {
-                // Otherwise, use selected categories from checkboxes
-                if (filterRoot) {
-                    filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
-                        if (cb.value !== 'all') {
-                            params.append('categories[]', cb.value);
-                        }
-                    });
+                // No checkboxes selected - use URL category if present (from nav links)
+                var urlParams = new URLSearchParams(window.location.search);
+                var urlCategory = urlParams.get('category');
+                if (urlCategory && urlCategory !== 'null' && urlCategory !== '') {
+                    params.append('category', urlCategory);
                 }
             }
             
