@@ -746,7 +746,7 @@ class PageController extends Controller
 
         // Use 20 items per page for infinite scroll (matching initial load)
         $page = $request->get('page', 1);
-        $products = $query->paginate(20)->appends($request->except('page')->all());
+        $products = $query->paginate(20)->appends($request->except('page'));
 
         // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
         $userId = Auth::id();
