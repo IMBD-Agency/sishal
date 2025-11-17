@@ -379,35 +379,26 @@
             return loadingDiv;
         }
 
-        // Get filter data as FormData
+        // Get filter data as URLSearchParams (simpler, works like pagination)
         function getFilterFormData(page) {
-            var formData = new FormData();
+            var params = new URLSearchParams();
             var filterRoot = getActiveFilterRoot();
             
             // Simple: Get category from URL parameter (like pagination did)
             var urlParams = new URLSearchParams(window.location.search);
             var urlCategory = urlParams.get('category');
             
-            // Debug: Log what we're reading
-            console.log('getFilterFormData - URL:', window.location.href, 'Category:', urlCategory);
-            
             // If URL has category, always include it (priority over checkboxes)
             if (urlCategory && urlCategory !== 'null' && urlCategory !== '') {
-                formData.append('category', urlCategory);
-                console.log('✓ Added category to FormData:', urlCategory);
+                params.append('category', urlCategory);
             } else {
                 // Otherwise, use selected categories from checkboxes
-                var selectedCategories = [];
                 if (filterRoot) {
                     filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
                         if (cb.value !== 'all') {
-                            selectedCategories.push(cb.value);
-                            formData.append('categories[]', cb.value);
+                            params.append('categories[]', cb.value);
                         }
                     });
-                }
-                if (selectedCategories.length === 0) {
-                    console.warn('⚠ No category in URL and no checkboxes selected');
                 }
             }
             
@@ -416,23 +407,27 @@
             var priceMaxEl = filterRoot ? (filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile')) : null;
             var priceMin = priceMinEl ? priceMinEl.value : '';
             var priceMax = priceMaxEl ? priceMaxEl.value : '';
-            if (priceMin) formData.append('price_min', priceMin);
-            if (priceMax) formData.append('price_max', priceMax);
+            if (priceMin) params.append('price_min', priceMin);
+            if (priceMax) params.append('price_max', priceMax);
             
             // Get selected ratings
             if (filterRoot) {
                 filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
-                    formData.append('rating[]', cb.value);
+                    params.append('rating[]', cb.value);
                 });
             }
             
             // Get sort option
             var sortSelect = document.getElementById('sortSelect');
             if (sortSelect && sortSelect.value) {
-                formData.append('sort', sortSelect.value);
+                params.append('sort', sortSelect.value);
             }
             
-            return formData;
+            // Add page and infinite scroll
+            if (page) params.append('page', page);
+            params.append('infinite_scroll', 'true');
+            
+            return params;
         }
 
         // Load more products for infinite scroll
@@ -465,18 +460,7 @@
             
             // Get next page
             var nextPage = infiniteScrollState.currentPage + 1;
-            var formData = getFilterFormData(nextPage);
-            
-            // Always add page and infinite_scroll flag
-            formData.append('page', nextPage);
-            formData.append('infinite_scroll', 'true');
-            
-            // Debug: Verify what's being sent
-            var formEntries = [];
-            for (var pair of formData.entries()) {
-                formEntries.push(pair[0] + '=' + pair[1]);
-            }
-            console.log('loadMoreProducts - FormData entries:', formEntries.join('&'));
+            var params = getFilterFormData(nextPage);
             
             // Try fetch first, fallback to XMLHttpRequest if blocked
             var fetchPromise = fetch('{{ route("products.filter") }}', {
@@ -485,10 +469,10 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
                 },
                 credentials: 'same-origin',
-                body: formData
+                body: params.toString()
             }).catch(function(error) {
                 // If fetch is blocked, try XMLHttpRequest
                 console.warn('Fetch blocked, trying XMLHttpRequest fallback:', error);
@@ -497,10 +481,10 @@
                     xhr.open('POST', '{{ route("products.filter") }}', true);
                     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
                     xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
                     xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
                     xhr.onload = function() {
                         if (xhr.status >= 200 && xhr.status < 300) {
-                            // Create a Response-like object
                             resolve({
                                 ok: true,
                                 status: xhr.status,
@@ -514,7 +498,7 @@
                     xhr.onerror = function() {
                         reject(new Error('Network error'));
                     };
-                    xhr.send(formData);
+                    xhr.send(params.toString());
                 });
             });
             
@@ -777,13 +761,9 @@
         }
 
         function applyFilters() {
-            var formData = getFilterFormData(1);
+            var params = getFilterFormData(1);
             var filterRoot = getActiveFilterRoot();
             if (!filterRoot) return;
-            
-            // Always add page and infinite_scroll flag
-            formData.append('page', 1);
-            formData.append('infinite_scroll', 'true');
             
             // Reset infinite scroll state
             infiniteScrollState.currentPage = 1;
@@ -803,10 +783,10 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
                 },
                 credentials: 'same-origin',
-                body: formData
+                body: params.toString()
             })
             .then(response => {
                 // Check if response is ok (status 200-299)

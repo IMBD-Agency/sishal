@@ -847,7 +847,7 @@ class PageController extends Controller
                 // For infinite scroll, return products without pagination links
                 $isInfiniteScroll = true;
                 
-                // Log for debugging - show ALL request data
+                // Log for debugging
                 \Log::info('Products filter infinite scroll request', [
                     'page' => $request->get('page', 1),
                     'is_ajax' => $request->ajax(),
@@ -857,9 +857,6 @@ class PageController extends Controller
                     'has_more' => $products->hasMorePages(),
                     'current_page' => $products->currentPage(),
                     'category' => $request->get('category'),
-                    'category_has' => $request->has('category'),
-                    'category_input' => $request->input('category'),
-                    'all_request_data' => $request->all(),
                     'categories' => $request->get('categories', []),
                     'price_min' => $request->get('price_min'),
                     'price_max' => $request->get('price_max'),
