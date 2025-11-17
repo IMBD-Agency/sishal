@@ -51,6 +51,11 @@ class ProductServiceCategory extends Model
     {
         $allIds = [];
         
+        // Return empty array if no category IDs provided
+        if (empty($categoryIds)) {
+            return $allIds;
+        }
+        
         // Load categories with their children recursively
         $categories = self::with('children')->whereIn('id', $categoryIds)->get();
         

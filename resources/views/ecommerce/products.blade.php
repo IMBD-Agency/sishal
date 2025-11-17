@@ -446,11 +446,22 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 },
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is ok (status 200-299)
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'An error occurred while loading products');
+                    }).catch(() => {
+                        throw new Error('Server error. Please try again.');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 loadingIndicator.style.display = 'none';
                 infiniteScrollState.isLoading = false;
@@ -562,11 +573,22 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 },
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is ok (status 200-299)
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'An error occurred while filtering products');
+                    }).catch(() => {
+                        throw new Error('Server error. Please try again.');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     if (container) {
@@ -588,7 +610,7 @@
             .catch(error => {
                 console.error('Filter error:', error);
                 if (container) {
-                    container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-search"></i></div><h3 class="no-products-title">No Products Found</h3><p class="no-products-message">We couldn\'t find any products matching your current filters.</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Try adjusting your filters to see more products</span></div></div></div>';
+                    container.innerHTML = '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-exclamation-triangle"></i></div><h3 class="no-products-title">Error Loading Products</h3><p class="no-products-message">' + (error.message || 'An error occurred while filtering products. Please try again.') + '</p><div class="no-products-suggestion"><i class="fas fa-lightbulb"></i><span>Please refresh the page or try adjusting your filters</span></div></div></div>';
                     infiniteScrollState.hasMore = false;
                 }
             });

@@ -598,6 +598,23 @@ class PageController extends Controller
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
         }
 
+        // For AJAX requests (infinite scroll), return JSON
+        if ($request->ajax() || $request->get('infinite_scroll', false)) {
+            $isInfiniteScroll = $request->get('infinite_scroll', false);
+            return response()->json([
+                'success' => true,
+                'html' => view('ecommerce.partials.best-deal-grid', [
+                    'products' => $products,
+                    'hidePagination' => $isInfiniteScroll
+                ])->render(),
+                'count' => $products->count(),
+                'total' => $products->total(),
+                'hasMore' => $products->hasMorePages(),
+                'currentPage' => $products->currentPage(),
+                'lastPage' => $products->lastPage()
+            ]);
+        }
+
         $viewData = compact('pageTitle', 'products');
         $response = response()->view('ecommerce.best-deal', $viewData);
         $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -608,33 +625,44 @@ class PageController extends Controller
 
     public function filterProducts(Request $request)
     {
-        $categories = ProductServiceCategory::where('status','active')->get();
-        
-        // Get max price for price range
-        $maxProductPrice = Product::max('price') ?? 1000;
-        
-        // Build query
-        $query = Product::with([
-                'category',
-                'reviews' => function($q) { 
-                    $q->where('is_approved', true); 
-                },
-                'branchStock',
-                'warehouseStock',
-                'variations' => function($q) {
-                    $q->where('status', 'active');
-                },
-                'variations.stocks'
-            ])
-            ->where('status', 'active')
-            ->where('type', 'product');
+        try {
+            $categories = ProductServiceCategory::where('status','active')->get();
+            
+            // Get max price for price range
+            $maxProductPrice = Product::max('price') ?? 1000;
+            
+            // Build query
+            $query = Product::with([
+                    'category',
+                    'reviews' => function($q) { 
+                        $q->where('is_approved', true); 
+                    },
+                    'branchStock',
+                    'warehouseStock',
+                    'variations' => function($q) {
+                        $q->where('status', 'active');
+                    },
+                    'variations.stocks'
+                ])
+                ->where('status', 'active')
+                ->where('type', 'product');
 
         // Category filter - include child categories
-        if ($request->filled('categories') && !in_array('all', $request->categories)) {
+        if ($request->filled('categories') && is_array($request->categories) && !in_array('all', $request->categories) && count($request->categories) > 0) {
             $categoryIds = ProductServiceCategory::whereIn('slug', $request->categories)->pluck('id')->toArray();
-            // Get all child category IDs recursively
-            $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
-            $query->whereIn('category_id', $allCategoryIds);
+            // Get all child category IDs recursively only if we have category IDs
+            if (!empty($categoryIds)) {
+                $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
+                if (!empty($allCategoryIds)) {
+                    $query->whereIn('category_id', $allCategoryIds);
+                } else {
+                    // If no category IDs found, return empty result
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
+                // If no categories found by slug, return empty result
+                $query->whereRaw('1 = 0');
+            }
         }
 
         // Price range filter
@@ -751,23 +779,42 @@ class PageController extends Controller
             }
         }
 
-        if ($request->ajax()) {
-            // For infinite scroll, return products without pagination links
-            $isInfiniteScroll = $request->get('infinite_scroll', false);
-            return response()->json([
-                'success' => true,
-                'html' => view('ecommerce.partials.product-grid', [
-                    'products' => $products,
-                    'hidePagination' => $isInfiniteScroll
-                ])->render(),
-                'count' => $products->count(),
-                'total' => $products->total(),
-                'hasMore' => $products->hasMorePages(),
-                'currentPage' => $products->currentPage(),
-                'lastPage' => $products->lastPage()
-            ]);
-        }
+            if ($request->ajax()) {
+                // For infinite scroll, return products without pagination links
+                $isInfiniteScroll = $request->get('infinite_scroll', false);
+                return response()->json([
+                    'success' => true,
+                    'html' => view('ecommerce.partials.product-grid', [
+                        'products' => $products,
+                        'hidePagination' => $isInfiniteScroll
+                    ])->render(),
+                    'count' => $products->count(),
+                    'total' => $products->total(),
+                    'hasMore' => $products->hasMorePages(),
+                    'currentPage' => $products->currentPage(),
+                    'lastPage' => $products->lastPage()
+                ]);
+            }
 
-        return view('ecommerce.products', compact('products', 'categories', 'pageTitle'));
+            return view('ecommerce.products', compact('products', 'categories', 'pageTitle'));
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::error('Filter products error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
+            // Return error response for AJAX requests
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An error occurred while filtering products. Please try again.',
+                    'error' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
+            }
+            
+            // For non-AJAX requests, redirect back with error
+            return back()->withErrors(['error' => 'An error occurred while filtering products. Please try again.']);
+        }
     }
 }
