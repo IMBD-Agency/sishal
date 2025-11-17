@@ -610,6 +610,18 @@ class PageController extends Controller
         // For AJAX requests (infinite scroll), return JSON
         if ($request->ajax() || $request->get('infinite_scroll', false)) {
             $isInfiniteScroll = $request->get('infinite_scroll', false);
+            
+            // Log for debugging
+            \Log::info('Best deals infinite scroll request', [
+                'page' => $request->get('page', 1),
+                'is_ajax' => $request->ajax(),
+                'infinite_scroll' => $isInfiniteScroll,
+                'products_count' => $products->count(),
+                'total' => $products->total(),
+                'has_more' => $products->hasMorePages(),
+                'current_page' => $products->currentPage()
+            ]);
+            
             return response()->json([
                 'success' => true,
                 'html' => view('ecommerce.partials.best-deal-grid', [
@@ -621,7 +633,8 @@ class PageController extends Controller
                 'hasMore' => $products->hasMorePages(),
                 'currentPage' => $products->currentPage(),
                 'lastPage' => $products->lastPage()
-            ]);
+            ])->header('Content-Type', 'application/json')
+              ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
 
         $viewData = compact('pageTitle', 'products');
