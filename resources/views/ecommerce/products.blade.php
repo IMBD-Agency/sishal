@@ -388,9 +388,13 @@
             var urlParams = new URLSearchParams(window.location.search);
             var urlCategory = urlParams.get('category');
             
+            // Debug: Log what we're reading
+            console.log('getFilterFormData - URL:', window.location.href, 'Category:', urlCategory);
+            
             // If URL has category, always include it (priority over checkboxes)
-            if (urlCategory) {
+            if (urlCategory && urlCategory !== 'null' && urlCategory !== '') {
                 formData.append('category', urlCategory);
+                console.log('✓ Added category to FormData:', urlCategory);
             } else {
                 // Otherwise, use selected categories from checkboxes
                 var selectedCategories = [];
@@ -401,6 +405,9 @@
                             formData.append('categories[]', cb.value);
                         }
                     });
+                }
+                if (selectedCategories.length === 0) {
+                    console.warn('⚠ No category in URL and no checkboxes selected');
                 }
             }
             
@@ -463,6 +470,13 @@
             // Always add page and infinite_scroll flag
             formData.append('page', nextPage);
             formData.append('infinite_scroll', 'true');
+            
+            // Debug: Verify what's being sent
+            var formEntries = [];
+            for (var pair of formData.entries()) {
+                formEntries.push(pair[0] + '=' + pair[1]);
+            }
+            console.log('loadMoreProducts - FormData entries:', formEntries.join('&'));
             
             // Try fetch first, fallback to XMLHttpRequest if blocked
             var fetchPromise = fetch('{{ route("products.filter") }}', {
