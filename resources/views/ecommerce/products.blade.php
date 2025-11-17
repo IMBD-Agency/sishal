@@ -376,31 +376,45 @@
         function getFilterFormData(page) {
             var formData = new FormData();
             var filterRoot = getActiveFilterRoot();
-            if (!filterRoot) return formData;
             
-            // Get selected categories
+            // Get category from URL if present (for nav links)
+            var urlParams = new URLSearchParams(window.location.search);
+            var urlCategory = urlParams.get('category');
+            
+            // Get selected categories from checkboxes
             var selectedCategories = [];
-            filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
-                if (cb.value !== 'all') {
-                    selectedCategories.push(cb.value);
-                }
-            });
-            selectedCategories.forEach(function(cat) {
-                formData.append('categories[]', cat);
-            });
+            if (filterRoot) {
+                filterRoot.querySelectorAll('input[type=checkbox][name="categories[]"]:checked').forEach(function(cb) {
+                    if (cb.value !== 'all') {
+                        selectedCategories.push(cb.value);
+                    }
+                });
+            }
+            
+            // If URL has category and no checkboxes are selected, use URL category
+            if (urlCategory && selectedCategories.length === 0) {
+                formData.append('category', urlCategory);
+            } else if (selectedCategories.length > 0) {
+                // Use selected categories from checkboxes
+                selectedCategories.forEach(function(cat) {
+                    formData.append('categories[]', cat);
+                });
+            }
             
             // Get price range
-            var priceMinEl = filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile');
-            var priceMaxEl = filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile');
+            var priceMinEl = filterRoot ? (filterRoot.querySelector('#price_min') || filterRoot.querySelector('#price_min_mobile')) : null;
+            var priceMaxEl = filterRoot ? (filterRoot.querySelector('#price_max') || filterRoot.querySelector('#price_max_mobile')) : null;
             var priceMin = priceMinEl ? priceMinEl.value : '';
             var priceMax = priceMaxEl ? priceMaxEl.value : '';
             if (priceMin) formData.append('price_min', priceMin);
             if (priceMax) formData.append('price_max', priceMax);
             
             // Get selected ratings
-            filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
-                formData.append('rating[]', cb.value);
-            });
+            if (filterRoot) {
+                filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]:checked').forEach(function(cb) {
+                    formData.append('rating[]', cb.value);
+                });
+            }
             
             // Get sort option
             var sortSelect = document.getElementById('sortSelect');

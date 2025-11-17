@@ -790,13 +790,34 @@ class PageController extends Controller
                 }
             } else {
                 // For products without variations, check branch and warehouse stock
-                $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                $branchStock = 0;
+                $warehouseStock = 0;
+                
+                try {
+                    if ($product->relationLoaded('branchStock') && $product->branchStock) {
+                        $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                    } else {
+                        $branchStock = $product->branchStock()->sum('quantity') ?? 0;
+                    }
+                } catch (\Exception $e) {
+                    $branchStock = 0;
+                }
+                
+                try {
+                    if ($product->relationLoaded('warehouseStock') && $product->warehouseStock) {
+                        $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                    } else {
+                        $warehouseStock = $product->warehouseStock()->sum('quantity') ?? 0;
+                    }
+                } catch (\Exception $e) {
+                    $warehouseStock = 0;
+                }
+                
                 $product->has_stock = ($branchStock + $warehouseStock) > 0;
             }
         }
 
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->get('infinite_scroll', false)) {
                 // For infinite scroll, return products without pagination links
                 $isInfiniteScroll = $request->get('infinite_scroll', false);
                 return response()->json([
@@ -813,6 +834,7 @@ class PageController extends Controller
                 ]);
             }
 
+            $pageTitle = 'Our Products';
             return view('ecommerce.products', compact('products', 'categories', 'pageTitle'));
         } catch (\Exception $e) {
             // Log the error for debugging
