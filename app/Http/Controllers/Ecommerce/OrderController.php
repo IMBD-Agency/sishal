@@ -359,7 +359,7 @@ class OrderController extends Controller
                 'subtotal' => $subtotal,
                 'tax' => $tax,
                 'total_amount' => $total,
-                'discount_apply' => 0,
+                'discount_apply' => $couponDiscount,
                 'paid_amount' => $isInstantPaid ? $total : 0,
                 'due_amount' => $isInstantPaid ? 0 : $total,
                 'status' => $isInstantPaid ? 'paid' : 'unpaid',

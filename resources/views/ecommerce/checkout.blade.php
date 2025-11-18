@@ -1118,9 +1118,10 @@
                         .then(response => response.json())
                         .then(data => {
                             // Use API response free delivery flag if available, otherwise use page-level flag
-                            const isFreeDelivery = data.has_product_free_delivery !== undefined 
+                            const apiFreeDelivery = data.has_product_free_delivery !== undefined 
                                 ? data.has_product_free_delivery 
                                 : hasProductFreeDelivery;
+                            const shouldForceFreeDelivery = couponProvidesFreeDelivery || apiFreeDelivery;
                             
                             if (data.shipping_methods && data.shipping_methods.length > 0) {
                                 // Update shipping options
@@ -1135,7 +1136,7 @@
                                                     <div class="shipping-desc">${method.delivery_time || method.description || ''}</div>
                                                 </div>
                                                 <div class="shipping-price">
-                                                    ${isFreeDelivery 
+                                                    ${shouldForceFreeDelivery 
                                                         ? '<span class="text-success"><i class="fas fa-truck me-1"></i>Free</span>' 
                                                         : method.formatted_cost + '৳'}
                                                 </div>
@@ -1151,16 +1152,11 @@
                                     });
                                 }
 
-                                // Update order summary (force free delivery if products have it)
-                                if (isFreeDelivery && data.summary) {
-                                    data.summary.shipping = 0;
-                                    data.summary.formatted_shipping = '0.00';
-                                    data.summary.total = data.summary.subtotal + data.summary.tax;
-                                    data.summary.formatted_total = (data.summary.subtotal + data.summary.tax).toFixed(2);
-                                }
-                                
                                 // Update order summary
-                                updateOrderSummary(data.summary, isFreeDelivery);
+                                if (data.summary) {
+                                    const preparedSummary = prepareSummaryWithCoupon(data.summary, shouldForceFreeDelivery);
+                                    updateOrderSummary(preparedSummary, shouldForceFreeDelivery);
+                                }
                             }
                         })
                         .catch(error => {
@@ -1170,15 +1166,10 @@
 
                 // Update shipping method price
                 function updateShippingPrice(methodId, summary = null) {
+                    const freeDelivery = couponProvidesFreeDelivery || hasProductFreeDelivery;
                     if (summary) {
-                        // Force free delivery if products have it
-                        if (hasProductFreeDelivery) {
-                            summary.shipping = 0;
-                            summary.formatted_shipping = '0.00';
-                            summary.total = summary.subtotal + summary.tax;
-                            summary.formatted_total = (summary.subtotal + summary.tax).toFixed(2);
-                        }
-                        updateOrderSummary(summary, hasProductFreeDelivery);
+                        const preparedSummary = prepareSummaryWithCoupon(summary, freeDelivery);
+                        updateOrderSummary(preparedSummary, freeDelivery);
                         return;
                     }
 
@@ -1187,53 +1178,24 @@
                     if (selectedMethod) {
                         const subtotal = {{ $cartTotal }};
                         const tax = {{ $cartTotal * $taxRate }};
-                        const shipping = hasProductFreeDelivery ? 0 : (parseFloat(selectedMethod.closest('.shipping-option').querySelector('.shipping-price').textContent.replace(/[৳,Free]/g, '')) || 0);
-                        const total = subtotal + tax + shipping;
+                        let shipping = parseFloat(selectedMethod.closest('.shipping-option').querySelector('.shipping-price').textContent.replace(/[৳,Free]/g, '')) || 0;
+                        if (freeDelivery) {
+                            shipping = 0;
+                        }
 
-                        updateOrderSummary({
+                        const preparedSummary = prepareSummaryWithCoupon({
                             subtotal: subtotal,
                             tax: tax,
                             shipping: shipping,
-                            total: total,
                             formatted_subtotal: subtotal.toFixed(2),
                             formatted_tax: tax.toFixed(2),
-                            formatted_shipping: shipping.toFixed(2),
-                            formatted_total: total.toFixed(2)
-                        }, hasProductFreeDelivery);
+                            formatted_shipping: shipping.toFixed(2)
+                        }, freeDelivery);
+
+                        updateOrderSummary(preparedSummary, freeDelivery);
                     }
                 }
 
-                // Update order summary
-                function updateOrderSummary(summary, isFreeDelivery = null) {
-                    const freeDelivery = isFreeDelivery !== null ? isFreeDelivery : hasProductFreeDelivery;
-                    const shippingElement = document.querySelector('#shippingDisplay') || document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
-                    const totalElement = document.querySelector('#totalDisplay') || document.querySelector('.total-row span:last-child');
-                    const buttonElement = document.querySelector('#placeOrderText') || document.querySelector('.btn-place-order');
-                    
-                    if (shippingElement) {
-                        if (freeDelivery) {
-                            shippingElement.innerHTML = '<i class="fas fa-truck me-1"></i>Free Delivery';
-                            shippingElement.classList.add('text-success');
-                        } else {
-                            shippingElement.textContent = `${summary.formatted_shipping}৳`;
-                            shippingElement.classList.remove('text-success');
-                        }
-                    }
-                    
-                    if (totalElement) {
-                        if (typeof totalElement === 'object' && totalElement.tagName) {
-                            totalElement.textContent = `${summary.formatted_total}৳`;
-                        }
-                    }
-                    
-                    if (buttonElement) {
-                        if (typeof buttonElement === 'object' && buttonElement.tagName === 'SPAN') {
-                            buttonElement.textContent = `Place Order - ${summary.formatted_total}৳`;
-                        } else if (buttonElement) {
-                            buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${summary.formatted_total}৳`;
-                        }
-                    }
-                }
 
                 // Shipping method price update (original - keep for compatibility)
                 const shippingOptions = document.querySelectorAll('input[name="shipping_method"]');
@@ -1293,7 +1255,109 @@
         });
 
         // Coupon validation and application
-        let appliedCouponDiscount = 0;
+        const couponCodeInput = document.getElementById('coupon_code');
+        const couponDiscountInput = document.getElementById('applied_coupon_discount');
+        let appliedCouponDiscount = couponDiscountInput ? (parseFloat(couponDiscountInput.value) || 0) : 0;
+        let couponProvidesFreeDelivery = false;
+        
+        // Check if products have free delivery (needed for updateOrderSummary)
+        const hasProductFreeDelivery = {{ $hasProductFreeDelivery ? 'true' : 'false' }};
+
+        function showCouponDiscountRow(amount) {
+            const discountRow = document.getElementById('couponDiscountRow');
+            const discountAmount = document.getElementById('couponDiscountAmount');
+            
+            if (!discountRow || !discountAmount) {
+                return;
+            }
+            
+            if (amount > 0) {
+                discountRow.style.display = 'flex';
+                discountAmount.textContent = `-${amount.toFixed(2)}৳`;
+            } else {
+                discountRow.style.display = 'none';
+                discountAmount.textContent = '-0.00৳';
+            }
+        }
+
+        function parseAmount(value) {
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        function prepareSummaryWithCoupon(summary, forceFreeDelivery = false) {
+            if (!summary) return summary;
+
+            const normalized = { ...summary };
+            const subtotal = parseAmount(normalized.subtotal);
+            const tax = parseAmount(normalized.tax);
+            let shipping = parseAmount(normalized.shipping);
+
+            if (forceFreeDelivery) {
+                shipping = 0;
+                normalized.shipping = 0;
+                normalized.formatted_shipping = '0.00';
+            } else if (!normalized.formatted_shipping) {
+                normalized.formatted_shipping = shipping.toFixed(2);
+            }
+
+            const totalBeforeDiscount = subtotal + tax + shipping;
+
+            if (appliedCouponDiscount > 0) {
+                const discountedTotal = Math.max(totalBeforeDiscount - appliedCouponDiscount, 0);
+                normalized.total = discountedTotal;
+                normalized.formatted_total = discountedTotal.toFixed(2);
+                showCouponDiscountRow(appliedCouponDiscount);
+            } else {
+                normalized.total = totalBeforeDiscount;
+                normalized.formatted_total = totalBeforeDiscount.toFixed(2);
+                showCouponDiscountRow(0);
+            }
+
+            if (!normalized.formatted_subtotal) {
+                normalized.formatted_subtotal = subtotal.toFixed(2);
+            }
+
+            if (!normalized.formatted_tax) {
+                normalized.formatted_tax = tax.toFixed(2);
+            }
+
+            return normalized;
+        }
+        
+        // Update order summary - must be in global scope for coupon functions
+        function updateOrderSummary(summary, isFreeDelivery = null) {
+            if (!summary) return;
+            const freeDelivery = couponProvidesFreeDelivery || (isFreeDelivery !== null ? isFreeDelivery : hasProductFreeDelivery);
+            const computedSummary = prepareSummaryWithCoupon(summary, freeDelivery);
+            const shippingElement = document.querySelector('#shippingDisplay') || document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
+            const totalElement = document.querySelector('#totalDisplay') || document.querySelector('.total-row span:last-child');
+            const buttonElement = document.querySelector('#placeOrderText') || document.querySelector('.btn-place-order');
+            
+            if (shippingElement) {
+                if (freeDelivery) {
+                    shippingElement.innerHTML = '<i class="fas fa-truck me-1"></i>Free Delivery';
+                    shippingElement.classList.add('text-success');
+                } else {
+                    shippingElement.textContent = `${computedSummary.formatted_shipping}৳`;
+                    shippingElement.classList.remove('text-success');
+                }
+            }
+            
+            if (totalElement) {
+                if (typeof totalElement === 'object' && totalElement.tagName) {
+                    totalElement.textContent = `${computedSummary.formatted_total}৳`;
+                }
+            }
+            
+            if (buttonElement) {
+                if (typeof buttonElement === 'object' && buttonElement.tagName === 'SPAN') {
+                    buttonElement.textContent = `Place Order - ${computedSummary.formatted_total}৳`;
+                } else if (buttonElement) {
+                    buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${computedSummary.formatted_total}৳`;
+                }
+            }
+        }
         
         document.getElementById('applyCouponBtn').addEventListener('click', function() {
             const couponCode = document.getElementById('coupon_code').value.trim().toUpperCase();
@@ -1335,13 +1399,11 @@
             .then(data => {
                 if (data.valid) {
                     appliedCouponDiscount = parseFloat(data.discount) || 0;
-                    document.getElementById('applied_coupon_discount').value = appliedCouponDiscount;
-                    
-                    // Show discount row
-                    const discountRow = document.getElementById('couponDiscountRow');
-                    const discountAmount = document.getElementById('couponDiscountAmount');
-                    discountRow.style.display = 'flex';
-                    discountAmount.textContent = `-${data.formatted_discount}৳`;
+                    if (couponDiscountInput) {
+                        couponDiscountInput.value = appliedCouponDiscount;
+                    }
+                    couponProvidesFreeDelivery = !!data.free_delivery;
+                    showCouponDiscountRow(appliedCouponDiscount);
                     
                     // Update total
                     updateTotalWithCoupon(data);
@@ -1352,18 +1414,28 @@
                     messageDiv.style.display = 'block';
                     
                     // Disable input and button
-                    document.getElementById('coupon_code').disabled = true;
+                    if (couponCodeInput) {
+                        couponCodeInput.value = couponCode;
+                        couponCodeInput.readOnly = true;
+                        couponCodeInput.setAttribute('data-applied', 'true');
+                    }
                     applyBtn.textContent = 'Applied';
                     applyBtn.disabled = true;
                 } else {
                     appliedCouponDiscount = 0;
-                    document.getElementById('applied_coupon_discount').value = 0;
-                    
-                    // Hide discount row
-                    document.getElementById('couponDiscountRow').style.display = 'none';
+                    couponProvidesFreeDelivery = false;
+                    if (couponDiscountInput) {
+                        couponDiscountInput.value = 0;
+                    }
+                    showCouponDiscountRow(0);
                     
                     // Update total without coupon
                     updateTotalWithoutCoupon();
+                    
+                    if (couponCodeInput) {
+                        couponCodeInput.readOnly = false;
+                        couponCodeInput.removeAttribute('data-applied');
+                    }
                     
                     // Show error message
                     messageDiv.className = 'mt-2 alert alert-danger';
@@ -1378,10 +1450,10 @@
                 messageDiv.style.display = 'block';
             })
             .finally(() => {
+            if (appliedCouponDiscount === 0) {
                 applyBtn.disabled = false;
-                if (appliedCouponDiscount === 0) {
-                    applyBtn.textContent = 'Apply';
-                }
+                applyBtn.textContent = 'Apply';
+            }
             });
         });
         
@@ -1391,23 +1463,24 @@
         });
         
         function updateTotalWithCoupon(data) {
-            const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
-            const totalElement = document.querySelector('.total-row span:last-child');
-            const buttonElement = document.querySelector('.btn-place-order');
-            
-            // Update shipping display if free delivery is enabled
-            if (data.free_delivery && shippingElement) {
-                shippingElement.textContent = `${data.formatted_shipping}৳`;
-                shippingElement.classList.add('text-success');
-            } else if (shippingElement) {
-                shippingElement.classList.remove('text-success');
-            }
-            
-            if (totalElement) totalElement.textContent = `${data.formatted_total}৳`;
-            if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${data.formatted_total}৳`;
+            couponProvidesFreeDelivery = !!data.free_delivery;
+            const summary = prepareSummaryWithCoupon({
+                subtotal: data.subtotal,
+                tax: data.tax,
+                shipping: data.shipping,
+                total: data.total,
+                formatted_subtotal: data.formatted_subtotal,
+                formatted_tax: data.formatted_tax,
+                formatted_shipping: data.formatted_shipping,
+                formatted_total: data.formatted_total
+            }, couponProvidesFreeDelivery);
+
+            updateOrderSummary(summary, couponProvidesFreeDelivery);
         }
         
         function updateTotalWithoutCoupon() {
+            couponProvidesFreeDelivery = false;
+            showCouponDiscountRow(0);
             const subtotal = {{ $cartTotal }};
             const tax = {{ $cartTotal * $taxRate }};
             const selectedShipping = document.querySelector('input[name="shipping_method"]:checked');
@@ -1420,9 +1493,14 @@
             }
             const total = subtotal + tax + shipping;
             
+            const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
             const totalElement = document.querySelector('.total-row span:last-child');
             const buttonElement = document.querySelector('.btn-place-order');
             
+            if (shippingElement) {
+                shippingElement.textContent = `${shipping.toFixed(2)}৳`;
+                shippingElement.classList.remove('text-success');
+            }
             if (totalElement) totalElement.textContent = `${total.toFixed(2)}৳`;
             if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${total.toFixed(2)}৳`;
         }
@@ -1436,16 +1514,32 @@
 
             const subtotal = {{ $cartTotal }};
             const tax = {{ $cartTotal * $taxRate }};
-            const shipping = shippingMethods[method] || 0; // Default to 0 if method not found
-            const total = subtotal + tax + shipping - appliedCouponDiscount;
+            let shipping = shippingMethods[method] || 0; // Default to 0 if method not found
+
+            const summary = prepareSummaryWithCoupon({
+                subtotal: subtotal,
+                tax: tax,
+                shipping: couponProvidesFreeDelivery ? 0 : shipping,
+                formatted_subtotal: subtotal.toFixed(2),
+                formatted_tax: tax.toFixed(2),
+                formatted_shipping: (couponProvidesFreeDelivery ? 0 : shipping).toFixed(2)
+            }, couponProvidesFreeDelivery);
 
             const shippingElement = document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
             const totalElement = document.querySelector('.total-row span:last-child');
             const buttonElement = document.querySelector('.btn-place-order');
             
-            if (shippingElement) shippingElement.textContent = `${shipping.toFixed(2)}৳`;
-            if (totalElement) totalElement.textContent = `${total.toFixed(2)}৳`;
-            if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${total.toFixed(2)}৳`;
+            if (shippingElement) {
+                if (couponProvidesFreeDelivery) {
+                    shippingElement.innerHTML = '<i class="fas fa-truck me-1"></i>Free Delivery';
+                    shippingElement.classList.add('text-success');
+                } else {
+                    shippingElement.textContent = `${summary.formatted_shipping}৳`;
+                    shippingElement.classList.remove('text-success');
+                }
+            }
+            if (totalElement) totalElement.textContent = `${summary.formatted_total}৳`;
+            if (buttonElement) buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${summary.formatted_total}৳`;
         }
 
         // Handle form submission for SSL Commerce
