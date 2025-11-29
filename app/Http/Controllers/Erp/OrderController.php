@@ -125,6 +125,58 @@ class OrderController extends Controller
         // Load order with items, products, and variations to ensure variation_id is available
         $order = Order::with(['items.product', 'items.product.variations', 'items.variation'])->findOrFail($id);
 
+        // Handle order cancellation - restore stock
+        if ($request->status === 'cancelled') {
+            // Only allow cancellation if order is not already cancelled or delivered
+            if (in_array($order->status, ['cancelled', 'delivered'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot cancel an order that is already ' . $order->status . '.'
+                ]);
+            }
+
+            $previousStatus = $order->status;
+            
+            DB::beginTransaction();
+            try {
+                // Restore stock for each order item
+                // Note: Stock should be restored even if order was shipped (current_position cleared)
+                // because stock was deducted when order was placed or shipped
+                foreach ($order->items as $item) {
+                    $this->restoreStockForOrderItem($item);
+                }
+
+                $order->status = 'cancelled';
+                $order->save();
+
+                DB::commit();
+
+                Log::info('Order cancelled and stock restored', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'previous_status' => $previousStatus,
+                    'items_count' => $order->items->count()
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order cancelled successfully. Stock has been restored.'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Order cancellation failed in updateStatus', [
+                    'order_id' => $id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to cancel order: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+
         if ($request->status === 'shipping') {
             // For e-commerce orders, we need to manage stock but don't require technician
             $isServiceOrder = $order->employee_id && $order->items->where('current_position_type')->count() > 0;
@@ -397,6 +449,55 @@ class OrderController extends Controller
                         $item->save();
                     }
                 }
+            }
+        }
+
+        // Handle reactivation from cancelled status - deduct stock again
+        if ($order->status === 'cancelled' && in_array($request->status, ['pending', 'approved', 'shipping'])) {
+            DB::beginTransaction();
+            try {
+                // Check if items have stock source assigned, if not, we need to deduct stock
+                foreach ($order->items as $item) {
+                    // If current_position is not set, it means stock was restored when cancelled
+                    // We need to deduct stock again and assign a warehouse
+                    if (!$item->current_position_type || !$item->current_position_id) {
+                        $warehouseId = $this->findOrAssignWarehouseForItem($item);
+                        if ($warehouseId) {
+                            $this->deductStockForOrderItem($item, $warehouseId);
+                        } else {
+                            throw new \Exception("Unable to find available stock for order item ID {$item->id}");
+                        }
+                    }
+                }
+
+                $order->status = $request->status;
+                $order->save();
+
+                DB::commit();
+
+                Log::info('Order reactivated from cancelled, stock deducted', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'new_status' => $request->status,
+                    'items_count' => $order->items->count()
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order status updated successfully. Stock has been deducted.'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Order reactivation failed in updateStatus', [
+                    'order_id' => $id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update order status: ' . $e->getMessage()
+                ], 500);
             }
         }
 
@@ -916,45 +1017,245 @@ class OrderController extends Controller
     private function restoreStockForOrderItem($item)
     {
         $productId = $item->product_id;
+        $variationId = $item->variation_id;
         $quantity = $item->quantity;
         $fromType = $item->current_position_type;
         $fromId = $item->current_position_id;
         $userId = auth()->id() ?? 1;
 
+        // If no stock source, try to find existing stock or use default warehouse
         if (!$fromType || !$fromId) {
-            // If no stock source, add to warehouse stock (default)
-            $warehouseStock = WarehouseProductStock::firstOrCreate(
-                ['warehouse_id' => 1, 'product_id' => $productId], // Assuming warehouse ID 1 as default
-                ['quantity' => 0, 'updated_by' => $userId]
-            );
-            $warehouseStock->quantity += $quantity;
-            $warehouseStock->updated_by = $userId;
-            $warehouseStock->save();
-            return;
+            // Try to find existing stock for this product/variation
+            if ($variationId) {
+                $existingStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                    ->whereNotNull('warehouse_id')
+                    ->whereNull('branch_id')
+                    ->first();
+                if ($existingStock) {
+                    $fromType = 'warehouse';
+                    $fromId = $existingStock->warehouse_id;
+                } else {
+                    // Default to warehouse 1
+                    $fromType = 'warehouse';
+                    $fromId = 1;
+                }
+            } else {
+                $existingStock = WarehouseProductStock::where('product_id', $productId)
+                    ->first();
+                if ($existingStock) {
+                    $fromType = 'warehouse';
+                    $fromId = $existingStock->warehouse_id;
+                } else {
+                    // Default to warehouse 1
+                    $fromType = 'warehouse';
+                    $fromId = 1;
+                }
+            }
         }
 
-        // Restore stock to original location
-        if ($fromType === 'branch') {
-            $stock = BranchProductStock::firstOrCreate(
-                ['branch_id' => $fromId, 'product_id' => $productId],
-                ['quantity' => 0, 'updated_by' => $userId]
-            );
-        } elseif ($fromType === 'warehouse') {
-            $stock = WarehouseProductStock::firstOrCreate(
-                ['warehouse_id' => $fromId, 'product_id' => $productId],
-                ['quantity' => 0, 'updated_by' => $userId]
-            );
-        } elseif ($fromType === 'employee') {
-            $stock = EmployeeProductStock::firstOrCreate(
-                ['employee_id' => $fromId, 'product_id' => $productId],
-                ['quantity' => 0, 'issued_by' => $userId, 'updated_by' => $userId]
-            );
+        // For products with variations, restore to variation-level stock
+        if ($variationId) {
+            if ($fromType === 'warehouse') {
+                $variationStock = \App\Models\ProductVariationStock::firstOrCreate(
+                    [
+                        'variation_id' => $variationId,
+                        'warehouse_id' => $fromId,
+                        'branch_id' => null
+                    ],
+                    [
+                        'quantity' => 0,
+                        'updated_by' => $userId,
+                        'last_updated_at' => now()
+                    ]
+                );
+                $variationStock->quantity += $quantity;
+                $variationStock->updated_by = $userId;
+                $variationStock->last_updated_at = now();
+                $variationStock->save();
+
+                Log::info('Stock restored to variation warehouse', [
+                    'variation_id' => $variationId,
+                    'warehouse_id' => $fromId,
+                    'quantity_restored' => $quantity,
+                    'new_quantity' => $variationStock->quantity,
+                    'order_item_id' => $item->id
+                ]);
+            } elseif ($fromType === 'branch') {
+                $variationStock = \App\Models\ProductVariationStock::firstOrCreate(
+                    [
+                        'variation_id' => $variationId,
+                        'branch_id' => $fromId,
+                        'warehouse_id' => null
+                    ],
+                    [
+                        'quantity' => 0,
+                        'updated_by' => $userId,
+                        'last_updated_at' => now()
+                    ]
+                );
+                $variationStock->quantity += $quantity;
+                $variationStock->updated_by = $userId;
+                $variationStock->last_updated_at = now();
+                $variationStock->save();
+
+                Log::info('Stock restored to variation branch', [
+                    'variation_id' => $variationId,
+                    'branch_id' => $fromId,
+                    'quantity_restored' => $quantity,
+                    'new_quantity' => $variationStock->quantity,
+                    'order_item_id' => $item->id
+                ]);
+            }
         } else {
-            return; // Unknown stock type
+            // For products without variations, restore to product-level stock
+            if ($fromType === 'branch') {
+                $stock = BranchProductStock::firstOrCreate(
+                    ['branch_id' => $fromId, 'product_id' => $productId],
+                    ['quantity' => 0, 'updated_by' => $userId]
+                );
+            } elseif ($fromType === 'warehouse') {
+                $stock = WarehouseProductStock::firstOrCreate(
+                    ['warehouse_id' => $fromId, 'product_id' => $productId],
+                    ['quantity' => 0, 'updated_by' => $userId]
+                );
+            } elseif ($fromType === 'employee') {
+                $stock = EmployeeProductStock::firstOrCreate(
+                    ['employee_id' => $fromId, 'product_id' => $productId],
+                    ['quantity' => 0, 'issued_by' => $userId, 'updated_by' => $userId]
+                );
+            } else {
+                return; // Unknown stock type
+            }
+
+            $stock->quantity += $quantity;
+            $stock->updated_by = $userId;
+            if (isset($stock->last_updated_at)) {
+                $stock->last_updated_at = now();
+            }
+            $stock->save();
+
+            Log::info('Stock restored to product location', [
+                'product_id' => $productId,
+                'location_type' => $fromType,
+                'location_id' => $fromId,
+                'quantity_restored' => $quantity,
+                'new_quantity' => $stock->quantity,
+                'order_item_id' => $item->id
+            ]);
+        }
+    }
+
+    /**
+     * Find or assign a warehouse for an order item
+     */
+    private function findOrAssignWarehouseForItem($item)
+    {
+        $productId = $item->product_id;
+        $variationId = $item->variation_id;
+        $quantity = $item->quantity;
+
+        // For products with variations, check variation-level warehouse stock
+        if ($variationId) {
+            $variationStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                ->whereNotNull('warehouse_id')
+                ->whereNull('branch_id')
+                ->where('quantity', '>=', $quantity)
+                ->orderByDesc('quantity')
+                ->first();
+
+            if ($variationStock) {
+                return $variationStock->warehouse_id;
+            }
         }
 
-        $stock->quantity += $quantity;
-        $stock->updated_by = $userId;
-        $stock->save();
+        // For products without variations, check product-level warehouse stock
+        $productStock = WarehouseProductStock::where('product_id', $productId)
+            ->where('quantity', '>=', $quantity)
+            ->orderByDesc('quantity')
+            ->first();
+
+        if ($productStock) {
+            return $productStock->warehouse_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Deduct stock for an order item when reactivating from cancelled
+     */
+    private function deductStockForOrderItem($item, $warehouseId)
+    {
+        $productId = $item->product_id;
+        $variationId = $item->variation_id;
+        $quantity = $item->quantity;
+        $userId = auth()->id() ?? 1;
+
+        // For products with variations, deduct from variation-level stock
+        if ($variationId) {
+            $variationStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                ->where('warehouse_id', $warehouseId)
+                ->whereNull('branch_id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($variationStock) {
+                if ($variationStock->quantity >= $quantity) {
+                    $variationStock->quantity -= $quantity;
+                    $variationStock->updated_by = $userId;
+                    $variationStock->last_updated_at = now();
+                    $variationStock->save();
+
+                    // Update order item to track stock source
+                    $item->current_position_type = 'warehouse';
+                    $item->current_position_id = $warehouseId;
+                    $item->save();
+
+                    Log::info('Stock deducted from variation warehouse (reactivation)', [
+                        'variation_id' => $variationId,
+                        'warehouse_id' => $warehouseId,
+                        'quantity_deducted' => $quantity,
+                        'remaining_quantity' => $variationStock->quantity,
+                        'order_item_id' => $item->id
+                    ]);
+                } else {
+                    throw new \Exception("Insufficient stock for variation ID {$variationId} at warehouse ID {$warehouseId}. Required: {$quantity}, Available: {$variationStock->quantity}");
+                }
+            } else {
+                throw new \Exception("No stock record found for variation ID {$variationId} at warehouse ID {$warehouseId}");
+            }
+        } else {
+            // For products without variations, deduct from product-level stock
+            $productStock = WarehouseProductStock::where('product_id', $productId)
+                ->where('warehouse_id', $warehouseId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($productStock) {
+                if ($productStock->quantity >= $quantity) {
+                    $productStock->quantity -= $quantity;
+                    $productStock->updated_by = $userId;
+                    $productStock->last_updated_at = now();
+                    $productStock->save();
+
+                    // Update order item to track stock source
+                    $item->current_position_type = 'warehouse';
+                    $item->current_position_id = $warehouseId;
+                    $item->save();
+
+                    Log::info('Stock deducted from product warehouse (reactivation)', [
+                        'product_id' => $productId,
+                        'warehouse_id' => $warehouseId,
+                        'quantity_deducted' => $quantity,
+                        'remaining_quantity' => $productStock->quantity,
+                        'order_item_id' => $item->id
+                    ]);
+                } else {
+                    throw new \Exception("Insufficient stock for product ID {$productId} at warehouse ID {$warehouseId}. Required: {$quantity}, Available: {$productStock->quantity}");
+                }
+            } else {
+                throw new \Exception("No stock record found for product ID {$productId} at warehouse ID {$warehouseId}");
+            }
+        }
     }
 }
