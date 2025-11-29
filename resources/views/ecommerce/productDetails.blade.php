@@ -3342,8 +3342,10 @@
                             }
                             if (!isNaN(n) && n > 0) {
                                 el.textContent = 'In stock: ' + n;
+                                el.style.color = '#111827';
                             } else if (!isNaN(n) && n === 0) {
                                 el.textContent = 'Out of stock';
+                                el.style.color = 'red';
                             } else {
                                 el.textContent = '';
                             }
@@ -3778,7 +3780,15 @@
                                     }
                                     if (nameEl) nameEl.textContent = resolved.name || 'Selected';
                                     if (priceEl) priceEl.textContent = (resolved.price != null ? Number(resolved.price).toFixed(2) : '') + '৳';
-                                    if (stockEl) stockEl.textContent = resolved.available_stock > 0 ? ('In stock: ' + resolved.available_stock) : 'Out of stock';
+                                    if (stockEl) {
+                                        if (resolved.available_stock > 0) {
+                                            stockEl.textContent = 'In stock: ' + resolved.available_stock;
+                                            stockEl.style.color = '';
+                                        } else {
+                                            stockEl.textContent = 'Out of stock';
+                                            stockEl.style.color = 'red';
+                                        }
+                                    }
                                     // Update inline stock under SIZE options if present
                                     var qty = (resolved.available_stock != null ? resolved.available_stock : (resolved.stock != null ? resolved.stock : resolved.quantity));
                                     setInlineStock(qty);
@@ -3937,7 +3947,15 @@
                                         }
                                         if (nameEl) nameEl.textContent = resolved.name || 'Selected';
                                         if (priceEl) priceEl.textContent = (resolved.price != null ? Number(resolved.price).toFixed(2) : '') + '৳';
-                                        if (stockEl) stockEl.textContent = resolved.available_stock > 0 ? ('In stock: ' + resolved.available_stock) : 'Out of stock';
+                                        if (stockEl) {
+                                            if (resolved.available_stock > 0) {
+                                                stockEl.textContent = 'In stock: ' + resolved.available_stock;
+                                                stockEl.style.color = '';
+                                            } else {
+                                                stockEl.textContent = 'Out of stock';
+                                                stockEl.style.color = 'red';
+                                            }
+                                        }
                                         // Keep inline stock in sync for visible UI
                                         setInlineStock(resolved.available_stock);
                                         window.updateActionButtons(resolved.available_stock, true);
