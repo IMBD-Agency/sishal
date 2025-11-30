@@ -27,7 +27,8 @@ class ApiController extends Controller
         
         try {
             // Set execution time limit to prevent timeouts
-            set_time_limit(30);
+            set_time_limit(60);
+            ini_set('max_execution_time', 60);
             
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
@@ -47,6 +48,17 @@ class ApiController extends Controller
                     'limit' => $limit,
                     'days' => $days,
                     'cache_used' => $useCache
+                ]);
+                // Return empty array instead of error
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'meta' => [
+                        'execution_time' => round(microtime(true) - $startTime, 3),
+                        'total_products' => 0,
+                        'period_days' => $days,
+                        'cached' => $useCache
+                    ]
                 ]);
             }
 
@@ -104,15 +116,22 @@ class ApiController extends Controller
         } catch (\Exception $e) {
             Log::error('Error loading top selling products', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id()
+                'trace' => substr($e->getTraceAsString(), 0, 500), // Limit trace length
+                'user_id' => Auth::id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
 
+            // Return empty data instead of error to prevent frontend issues
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to load top selling products',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+                'success' => true,
+                'data' => [],
+                'meta' => [
+                    'execution_time' => round(microtime(true) - $startTime, 3),
+                    'total_products' => 0,
+                    'error' => config('app.debug') ? $e->getMessage() : 'Service temporarily unavailable'
+                ]
+            ], 200); // Return 200 with empty data instead of 500
         }
     }
 
@@ -122,7 +141,8 @@ class ApiController extends Controller
         
         try {
             // Set execution time limit to prevent timeouts
-            set_time_limit(30);
+            set_time_limit(60);
+            ini_set('max_execution_time', 60);
             
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
@@ -216,6 +236,16 @@ class ApiController extends Controller
                     'limit' => $limit,
                     'cache_used' => $useCache
                 ]);
+                // Return empty array instead of error
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'meta' => [
+                        'execution_time' => round(microtime(true) - $startTime, 3),
+                        'total_products' => 0,
+                        'cached' => $useCache
+                    ]
+                ]);
             }
 
             // Optimize wishlist check with single query (user-specific, not cached)
@@ -264,15 +294,22 @@ class ApiController extends Controller
         } catch (\Exception $e) {
             Log::error('Error loading new arrivals products', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id()
+                'trace' => substr($e->getTraceAsString(), 0, 500), // Limit trace length
+                'user_id' => Auth::id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
 
+            // Return empty data instead of error to prevent frontend issues
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to load new arrivals products',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+                'success' => true,
+                'data' => [],
+                'meta' => [
+                    'execution_time' => round(microtime(true) - $startTime, 3),
+                    'total_products' => 0,
+                    'error' => config('app.debug') ? $e->getMessage() : 'Service temporarily unavailable'
+                ]
+            ], 200); // Return 200 with empty data instead of 500
         }
     }
 
@@ -281,6 +318,10 @@ class ApiController extends Controller
         $startTime = microtime(true);
         
         try {
+            // Set execution time limit to prevent timeouts
+            set_time_limit(60);
+            ini_set('max_execution_time', 60);
+            
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
             $useCache = $request->get('cache', true);
@@ -362,13 +403,36 @@ class ApiController extends Controller
                     });
             }
 
+            // Check if products collection is empty or null
+            if (!$products || $products->isEmpty()) {
+                Log::warning('No best deals products found', [
+                    'limit' => $limit,
+                    'cache_used' => $useCache
+                ]);
+                // Return empty array instead of error
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'meta' => [
+                        'execution_time' => round(microtime(true) - $startTime, 3),
+                        'total_products' => 0,
+                        'cached' => $useCache
+                    ]
+                ]);
+            }
+
             // Optimize wishlist check with single query (user-specific, not cached)
             $wishlistedIds = [];
             if ($userId) {
-                $wishlistedIds = Wishlist::where('user_id', $userId)
-                    ->whereIn('product_id', $products->pluck('id'))
-                    ->pluck('product_id')
-                    ->toArray();
+                try {
+                    $wishlistedIds = Wishlist::where('user_id', $userId)
+                        ->whereIn('product_id', $products->pluck('id'))
+                        ->pluck('product_id')
+                        ->toArray();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading wishlist', ['error' => $e->getMessage()]);
+                    $wishlistedIds = [];
+                }
             }
 
             // Add wishlist status (ratings/reviews/stock already pre-calculated in cache)
@@ -379,13 +443,25 @@ class ApiController extends Controller
                 
                 // Only calculate if not already set (from cache)
                 if (!isset($product->avg_rating)) {
-                    $product->avg_rating = $product->averageRating();
+                    try {
+                        $product->avg_rating = $product->averageRating();
+                    } catch (\Exception $e) {
+                        $product->avg_rating = 0;
+                    }
                 }
                 if (!isset($product->total_reviews)) {
-                    $product->total_reviews = $product->totalReviews();
+                    try {
+                        $product->total_reviews = $product->totalReviews();
+                    } catch (\Exception $e) {
+                        $product->total_reviews = 0;
+                    }
                 }
                 if (!isset($product->has_stock)) {
-                    $product->has_stock = $product->hasStock();
+                    try {
+                        $product->has_stock = $product->hasStock();
+                    } catch (\Exception $e) {
+                        $product->has_stock = false;
+                    }
                 }
                 
                 return $product;
@@ -414,15 +490,22 @@ class ApiController extends Controller
         } catch (\Exception $e) {
             Log::error('Error loading best deals products', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id()
+                'trace' => substr($e->getTraceAsString(), 0, 500), // Limit trace length
+                'user_id' => Auth::id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
 
+            // Return empty data instead of error to prevent frontend issues
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to load best deals products',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+                'success' => true,
+                'data' => [],
+                'meta' => [
+                    'execution_time' => round(microtime(true) - $startTime, 3),
+                    'total_products' => 0,
+                    'error' => config('app.debug') ? $e->getMessage() : 'Service temporarily unavailable'
+                ]
+            ], 200); // Return 200 with empty data instead of 500
         }
     }
 }

@@ -185,10 +185,26 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             topSellingAbortController = new AbortController();
             
-            // Add loading state
+            // Add loading state with skeleton loaders
             if (fallback) {
-                fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading top selling products...</p></div>';
-                fallback.style.display = 'block';
+                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const skeletonHTML = Array.from({ length: perPage }, () => `
+                    <div class="col-lg-3 col-md-4 col-6">
+                        <div class="product-skeleton">
+                            <div class="skeleton-image"></div>
+                            <div class="skeleton-wishlist"></div>
+                            <div class="skeleton-content">
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-price"></div>
+                                <div class="skeleton-button"></div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                fallback.innerHTML = skeletonHTML;
+                fallback.style.display = 'flex';
+                fallback.style.flexWrap = 'wrap';
             }
             
             const startTime = performance.now();
@@ -240,7 +256,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (fallback) fallback.style.display = 'none';
                 
-                // Render products with improved error handling
+                // Show skeleton loaders in carousel while rendering
+                const perPageCalc = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                listEl.innerHTML = Array.from({ length: perPageCalc }, () => `
+                    <li class="splide__slide">
+                        <div class="product-skeleton">
+                            <div class="skeleton-image"></div>
+                            <div class="skeleton-wishlist"></div>
+                            <div class="skeleton-content">
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-price"></div>
+                                <div class="skeleton-button"></div>
+                            </div>
+                        </div>
+                    </li>
+                `).join('');
+                
+                // Render actual products immediately (skeleton already shown)
                 listEl.innerHTML = products.map(product => {
                 try {
                     const rating = product.avg_rating ?? 0;
@@ -259,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
-                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.style.display='none'">
+                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
                                     ${rating > 0 ? `<div class="rating-badge">
                                         <span>${rating.toFixed(1)}</span>
                                         <i class="fas fa-star star"></i>
@@ -298,10 +331,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }).filter(html => html).join('');
                 
                 // If we have fewer products than perPage, duplicate them to enable looping
-                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
-                if (products.length > 0 && products.length < perPage * 2) {
+                if (products.length > 0 && products.length < perPageCalc * 2) {
                     const originalHtml = listEl.innerHTML;
-                    const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                    const timesToRepeat = Math.ceil((perPageCalc * 2) / products.length);
                     listEl.innerHTML = originalHtml.repeat(timesToRepeat);
                 }
                 
@@ -418,8 +450,24 @@ document.addEventListener('DOMContentLoaded', function() {
             newArrivalsAbortController = new AbortController();
             
             if (fallback) {
-                fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading new arrivals...</p></div>';
-                fallback.style.display = 'block';
+                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const skeletonHTML = Array.from({ length: perPage }, () => `
+                    <div class="col-lg-3 col-md-4 col-6">
+                        <div class="product-skeleton">
+                            <div class="skeleton-image"></div>
+                            <div class="skeleton-wishlist"></div>
+                            <div class="skeleton-content">
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-price"></div>
+                                <div class="skeleton-button"></div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                fallback.innerHTML = skeletonHTML;
+                fallback.style.display = 'flex';
+                fallback.style.flexWrap = 'wrap';
             }
 
             const startTime = performance.now();
@@ -467,7 +515,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (fallback) fallback.style.display = 'none';
-
+            
+            // Show skeleton loaders in carousel while rendering
+            const perPageCalc = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+            listEl.innerHTML = Array.from({ length: perPageCalc }, () => `
+                <li class="splide__slide">
+                    <div class="product-skeleton">
+                        <div class="skeleton-image"></div>
+                        <div class="skeleton-wishlist"></div>
+                        <div class="skeleton-content">
+                            <div class="skeleton-title"></div>
+                            <div class="skeleton-title"></div>
+                            <div class="skeleton-price"></div>
+                            <div class="skeleton-button"></div>
+                        </div>
+                    </div>
+                </li>
+            `).join('');
+            
+            // Render actual products immediately
             listEl.innerHTML = products.map(product => {
                 try {
                     const rating = product.avg_rating ?? product.rating ?? 0;
@@ -486,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class=\"${isWishlisted ? 'fas text-danger' : 'far'} fa-heart\"></i>
                                 </button>
                                 <div class=\"product-image-container\">
-                                    <img src=\"${image}\" class=\"product-image\" alt=\"${product.name}\" loading=\"lazy\" onerror=\"this.style.display='none'\">
+                                    <img src=\"${image}\" class=\"product-image\" alt=\"${product.name}\" loading=\"lazy\" onerror=\"this.onerror=null; this.src='/static/default-product.jpg';\">
                                     ${rating > 0 ? `<div class=\"rating-badge\"><span>${rating.toFixed(1)}</span><i class=\"fas fa-star star\"></i><span>| ${reviews}</span></div>` : ''}
                                 </div>
                                 <div class=\"product-info\">
@@ -521,10 +587,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }).filter(html => html).join('');
             
             // If we have fewer products than perPage, duplicate them to enable looping
-            const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
-            if (products.length > 0 && products.length < perPage * 2) {
+            if (products.length > 0 && products.length < perPageCalc * 2) {
                 const originalHtml = listEl.innerHTML;
-                const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                const timesToRepeat = Math.ceil((perPageCalc * 2) / products.length);
                 listEl.innerHTML = originalHtml.repeat(timesToRepeat);
             }
 
@@ -571,12 +636,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Auto-retry for transient errors (network, timeout, server errors)
+            // Auto-retry for transient errors (network, timeout, server errors, connection reset)
             const isRetryableError = 
                 error.message.includes('Network') || 
                 error.message.includes('Failed to fetch') ||
                 error.message.includes('timeout') ||
                 error.message.includes('Request timeout') ||
+                error.message.includes('ERR_CONNECTION_RESET') ||
+                error.message.includes('connection') ||
                 (error.response && [500, 502, 503, 504, 0].includes(error.response.status));
             
             if (retryCount < maxRetries && isRetryableError) {
@@ -631,10 +698,26 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             bestDealsAbortController = new AbortController();
             
-            // Add loading state
+            // Add loading state with skeleton loaders
             if (fallback) {
-                fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading best deals...</p></div>';
-                fallback.style.display = 'block';
+                const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const skeletonHTML = Array.from({ length: perPage }, () => `
+                    <div class="col-lg-3 col-md-4 col-6">
+                        <div class="product-skeleton">
+                            <div class="skeleton-image"></div>
+                            <div class="skeleton-wishlist"></div>
+                            <div class="skeleton-content">
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-title"></div>
+                                <div class="skeleton-price"></div>
+                                <div class="skeleton-button"></div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                fallback.innerHTML = skeletonHTML;
+                fallback.style.display = 'flex';
+                fallback.style.flexWrap = 'wrap';
             }
             
             const startTime = performance.now();
@@ -684,7 +767,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (fallback) fallback.style.display = 'none';
             
-            // Render products
+            // Show skeleton loaders in carousel while rendering
+            const perPageCalc = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+            listEl.innerHTML = Array.from({ length: perPageCalc }, () => `
+                <li class="splide__slide">
+                    <div class="product-skeleton">
+                        <div class="skeleton-image"></div>
+                        <div class="skeleton-wishlist"></div>
+                        <div class="skeleton-content">
+                            <div class="skeleton-title"></div>
+                            <div class="skeleton-title"></div>
+                            <div class="skeleton-price"></div>
+                            <div class="skeleton-button"></div>
+                        </div>
+                    </div>
+                </li>
+            `).join('');
+            
+            // Render actual products immediately
             listEl.innerHTML = products.map(product => {
                 try {
                     const rating = product.avg_rating ?? 0;
@@ -703,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
-                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.style.display='none'">
+                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
                                     ${rating > 0 ? `<div class="rating-badge">
                                         <span>${rating.toFixed(1)}</span>
                                         <i class="fas fa-star star"></i>
@@ -742,10 +842,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }).filter(html => html).join('');
             
             // If we have fewer products than perPage, duplicate them to enable looping
-            const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
-            if (products.length > 0 && products.length < perPage * 2) {
+            if (products.length > 0 && products.length < perPageCalc * 2) {
                 const originalHtml = listEl.innerHTML;
-                const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                const timesToRepeat = Math.ceil((perPageCalc * 2) / products.length);
                 listEl.innerHTML = originalHtml.repeat(timesToRepeat);
             }
             
@@ -785,7 +884,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             console.log(`Best deals loaded in ${loadTime}ms`, { count: products.length });
-            
         })
         .catch(error => {
             console.error('Failed to load best deals:', error);
@@ -795,12 +893,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Auto-retry for transient errors (network, timeout, server errors)
+            // Auto-retry for transient errors (network, timeout, server errors, connection reset)
             const isRetryableError = 
                 error.message.includes('Network') || 
                 error.message.includes('Failed to fetch') ||
                 error.message.includes('timeout') ||
                 error.message.includes('Request timeout') ||
+                error.message.includes('ERR_CONNECTION_RESET') ||
+                error.message.includes('connection') ||
                 (error.response && [500, 502, 503, 504, 0].includes(error.response.status));
             
             if (retryCount < maxRetries && isRetryableError) {

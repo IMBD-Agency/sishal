@@ -2203,6 +2203,143 @@
                 background-position: -200% 0;
             }
         }
+        
+        /* Review Skeleton Loaders */
+        .review-skeleton {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .review-skeleton-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .review-skeleton-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            margin-right: 15px;
+        }
+        
+        .review-skeleton-user-info {
+            flex: 1;
+        }
+        
+        .review-skeleton-name {
+            height: 16px;
+            width: 150px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .review-skeleton-date {
+            height: 12px;
+            width: 100px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+        
+        .review-skeleton-rating {
+            height: 20px;
+            width: 120px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .review-skeleton-text {
+            height: 14px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .review-skeleton-text:first-of-type {
+            width: 100%;
+        }
+        
+        .review-skeleton-text:nth-of-type(2) {
+            width: 95%;
+        }
+        
+        .review-skeleton-text:nth-of-type(3) {
+            width: 85%;
+        }
+        
+        .review-skeleton-text:last-of-type {
+            width: 60%;
+            margin-bottom: 0;
+        }
+        
+        /* Rating Summary Skeleton */
+        .rating-summary-skeleton {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .rating-summary-skeleton-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .rating-summary-skeleton-stars {
+            height: 20px;
+            width: 150px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin: 0 auto 10px;
+        }
+        
+        .rating-summary-skeleton-count {
+            height: 14px;
+            width: 100px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin: 0 auto 20px;
+        }
+        
+        .rating-summary-skeleton-bar {
+            height: 8px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        
+        .rating-summary-skeleton-bar:nth-child(1) { width: 90%; }
+        .rating-summary-skeleton-bar:nth-child(2) { width: 70%; }
+        .rating-summary-skeleton-bar:nth-child(3) { width: 50%; }
+        .rating-summary-skeleton-bar:nth-child(4) { width: 30%; }
+        .rating-summary-skeleton-bar:nth-child(5) { width: 15%; }
 
         /* Hover effects for interactive elements */
         .related-product-title {
@@ -3154,12 +3291,12 @@
                         <div class="swiper-wrapper">
                             <!-- Main product image -->
                             <div class="swiper-slide" data-image-type="product">
-                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="main-image" loading="eager">
+                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="main-image" loading="eager" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                             </div>
                             <!-- Product galleries -->
                             @foreach($product->galleries as $gallery)
                                 <div class="swiper-slide" data-image-type="gallery">
-                                    <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" class="main-image" loading="lazy">
+                                    <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" class="main-image" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                                 </div>
                             @endforeach
                             <!-- Variation images (hidden by default) -->
@@ -3185,12 +3322,12 @@
                         <div class="swiper-wrapper">
                             <!-- Main product image thumbnail -->
                             <div class="swiper-slide" data-image-type="product">
-                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}">
+                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                             </div>
                             <!-- Product gallery thumbnails -->
                             @foreach($product->galleries as $gallery)
                                 <div class="swiper-slide" data-image-type="gallery">
-                                    <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}">
+                                    <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                                 </div>
                             @endforeach
                             <!-- Variation image thumbnails (hidden by default) -->
@@ -4293,22 +4430,36 @@
                             
                             <!-- Right Column: Rating Summary -->
                             <div class="col-md-6">
-                                <div class="reviews-summary-card">
-                                    <div class="rating-overview text-center">
-                                        <div class="overall-rating" id="overall-rating">0.0</div>
-                                        <div class="rating-stars" id="rating-stars">
-                                            <i class="far fa-star"></i>
-                                            <i class="far fa-star"></i>
-                                            <i class="far fa-star"></i>
-                                            <i class="far fa-star"></i>
-                                            <i class="far fa-star"></i>
-                                        </div>
-                                        <div class="rating-count" id="rating-count">0 reviews</div>
+                                <div class="reviews-summary-card" id="rating-summary-card">
+                                    <!-- Skeleton loader for rating summary -->
+                                    <div id="rating-summary-skeleton" class="rating-summary-skeleton">
+                                        <div class="rating-summary-skeleton-circle"></div>
+                                        <div class="rating-summary-skeleton-stars"></div>
+                                        <div class="rating-summary-skeleton-count"></div>
+                                        <div class="rating-summary-skeleton-bar"></div>
+                                        <div class="rating-summary-skeleton-bar"></div>
+                                        <div class="rating-summary-skeleton-bar"></div>
+                                        <div class="rating-summary-skeleton-bar"></div>
+                                        <div class="rating-summary-skeleton-bar"></div>
                                     </div>
-                                    <div class="rating-breakdown">
-                                        <h6>Rating Breakdown</h6>
-                                        <div id="rating-bars">
-                                            <!-- Dynamic rating bars will be loaded here -->
+                                    <!-- Actual rating summary (hidden initially) -->
+                                    <div id="rating-summary-content" style="display: none;">
+                                        <div class="rating-overview text-center">
+                                            <div class="overall-rating" id="overall-rating">0.0</div>
+                                            <div class="rating-stars" id="rating-stars">
+                                                <i class="far fa-star"></i>
+                                                <i class="far fa-star"></i>
+                                                <i class="far fa-star"></i>
+                                                <i class="far fa-star"></i>
+                                                <i class="far fa-star"></i>
+                                            </div>
+                                            <div class="rating-count" id="rating-count">0 reviews</div>
+                                        </div>
+                                        <div class="rating-breakdown">
+                                            <h6>Rating Breakdown</h6>
+                                            <div id="rating-bars">
+                                                <!-- Dynamic rating bars will be loaded here -->
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -4332,7 +4483,48 @@
                             </div>
                         </div>
                         <div id="reviews-list" class="reviews-list" data-product-id="{{ $product->id }}" data-product-slug="{{ $product->slug }}">
-                            <!-- Reviews will be loaded here -->
+                            <!-- Reviews skeleton loaders -->
+                            <div id="reviews-skeleton" class="reviews-skeleton-container">
+                                <div class="review-skeleton">
+                                    <div class="review-skeleton-header">
+                                        <div class="review-skeleton-avatar"></div>
+                                        <div class="review-skeleton-user-info">
+                                            <div class="review-skeleton-name"></div>
+                                            <div class="review-skeleton-date"></div>
+                                        </div>
+                                    </div>
+                                    <div class="review-skeleton-rating"></div>
+                                    <div class="review-skeleton-text"></div>
+                                    <div class="review-skeleton-text"></div>
+                                    <div class="review-skeleton-text"></div>
+                                    <div class="review-skeleton-text"></div>
+                                </div>
+                                <div class="review-skeleton">
+                                    <div class="review-skeleton-header">
+                                        <div class="review-skeleton-avatar"></div>
+                                        <div class="review-skeleton-user-info">
+                                            <div class="review-skeleton-name"></div>
+                                            <div class="review-skeleton-date"></div>
+                                        </div>
+                                    </div>
+                                    <div class="review-skeleton-rating"></div>
+                                    <div class="review-skeleton-text"></div>
+                                    <div class="review-skeleton-text"></div>
+                                    <div class="review-skeleton-text"></div>
+                                </div>
+                                <div class="review-skeleton">
+                                    <div class="review-skeleton-header">
+                                        <div class="review-skeleton-avatar"></div>
+                                        <div class="review-skeleton-user-info">
+                                            <div class="review-skeleton-name"></div>
+                                            <div class="review-skeleton-date"></div>
+                                        </div>
+                                    </div>
+                                    <div class="review-skeleton-rating"></div>
+                                    <div class="review-skeleton-text"></div>
+                                    <div class="review-skeleton-text"></div>
+                                </div>
+                            </div>
                         </div>
                         <div id="load-more-container" class="text-center mt-4" style="display: none;">
                             <button class="btn btn-outline-primary" id="load-more-reviews">Load More Reviews</button>
@@ -4370,7 +4562,7 @@
                                                  class="product-image" 
                                                  alt="{{ $product->name }}" 
                                                  loading="lazy" 
-                                                 onerror="this.style.display='none'">
+                                                 onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                                             @php
                                                 $avgRating = $product->averageRating() ?? 0;
                                                 $reviews = $product->totalReviews() ?? 0;
@@ -6004,6 +6196,13 @@
             function loadReviews(retryAttempt = 0) {
                 if (isLoading) return;
                 isLoading = true;
+                
+                // Show skeleton loaders on first load
+                if (currentPage === 1) {
+                    $('#reviews-skeleton').show();
+                    $('#rating-summary-skeleton').show();
+                    $('#rating-summary-content').hide();
+                }
 
                 const url = `/api/products/${reviewProductId}/reviews?page=${currentPage}&rating=${currentFilter}&_t=${Date.now()}`;
                 console.log('=== LOAD REVIEWS DEBUG ===');
@@ -6041,6 +6240,11 @@
                             updateRatingSummary(response.average_rating, response.total_reviews, response.rating_distribution);
                             updatePagination(response.pagination);
                             
+                            // Hide skeleton loaders after displaying reviews
+                            $('#reviews-skeleton').hide();
+                            $('#rating-summary-skeleton').hide();
+                            $('#rating-summary-content').show();
+                            
                             // Hide any error messages
                             $('#reviews-error-message').remove();
                         }
@@ -6060,6 +6264,11 @@
                         
                         // Show error with retry button instead of alert
                         showReviewsError('Failed to load reviews. Please try again.');
+                        
+                        // Hide skeleton loaders on error
+                        $('#reviews-skeleton').hide();
+                        $('#rating-summary-skeleton').hide();
+                        $('#rating-summary-content').show();
                     },
                     complete: function() {
                         isLoading = false;
@@ -6091,6 +6300,8 @@
                 }
                 
                 if (currentPage === 1) {
+                    // Hide skeleton and clear list
+                    $('#reviews-skeleton').hide();
                     reviewsList.empty();
                 }
 

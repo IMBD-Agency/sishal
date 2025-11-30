@@ -86,7 +86,7 @@
                 </div>
             </div>
             <div id="newArrivalsFallback" class="row product-grid">
-                <div class="col-12 text-center text-muted">Loading new arrivals...</div>
+                <!-- Skeleton loaders will be injected here -->
             </div>
         </div>
     </section>
@@ -107,7 +107,7 @@
                 </div>
             </div>
             <div id="mostSoldFallback" class="row product-grid">
-                <div class="col-12 text-center text-muted">Loading top selling products...</div>
+                <!-- Skeleton loaders will be injected here -->
             </div>
         </div>
     </section>
@@ -166,7 +166,7 @@
                 </div>
             </div>
             <div id="bestDealsFallback" class="row product-grid">
-                <div class="col-12 text-center text-muted">Loading best deals...</div>
+                <!-- Skeleton loaders will be injected here -->
             </div>
         </div>
     </section>
@@ -250,6 +250,97 @@
         #bestDealsSplide .product-actions { margin-top: 6px; }
         #bestDealsSplide .btn-add-cart { padding: 6px 10px; font-size: 12px; }
         @media (max-width: 991.98px) { #bestDealsSplide .product-image-container { height: 180px; } }
+        
+        /* Skeleton Loader Styles */
+        .product-skeleton {
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.06);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .skeleton-image {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+        }
+        
+        .skeleton-wishlist {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+        }
+        
+        .skeleton-content {
+            padding: 10px 12px 12px;
+        }
+        
+        .skeleton-title {
+            height: 20px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .skeleton-title:first-child {
+            width: 85%;
+        }
+        
+        .skeleton-title:last-child {
+            width: 60%;
+            margin-top: 4px;
+        }
+        
+        .skeleton-price {
+            height: 24px;
+            width: 100px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+        
+        .skeleton-button {
+            height: 36px;
+            width: 100%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        @keyframes skeleton-loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+        
+        @media (max-width: 991.98px) {
+            .skeleton-image {
+                height: 180px;
+            }
+        }
+        
+        /* Skeleton for carousel slides */
+        .splide__slide .product-skeleton {
+            margin: 0;
+        }
     </style>
 
 

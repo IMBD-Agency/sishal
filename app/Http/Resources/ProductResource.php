@@ -21,7 +21,7 @@ class ProductResource extends JsonResource
             'sku' => $this->sku,
             'price' => (float) $this->price,
             'discount' => (float) $this->discount,
-            'image' => $this->image ? asset($this->image) : asset('static/default-product.jpg'),
+            'image' => $this->getImageUrl(),
             'short_desc' => $this->short_desc,
             'description' => $this->description,
             'status' => $this->status,
@@ -51,5 +51,32 @@ class ProductResource extends JsonResource
             'final_price' => $this->discount > 0 ? $this->discount : $this->price,
             'discount_percentage' => $this->price > 0 ? round((($this->price - $this->discount) / $this->price) * 100, 1) : 0,
         ];
+    }
+
+    /**
+     * Get the image URL with proper fallback
+     */
+    protected function getImageUrl(): string
+    {
+        if (!$this->image) {
+            return asset('static/default-product.jpg');
+        }
+
+        // Check if image path is already a full URL
+        if (filter_var($this->image, FILTER_VALIDATE_URL)) {
+            return $this->image;
+        }
+
+        // Check if image starts with / or public/
+        $imagePath = $this->image;
+        if (strpos($imagePath, 'public/') === 0) {
+            $imagePath = substr($imagePath, 7); // Remove 'public/' prefix
+        }
+        if (strpos($imagePath, '/') !== 0) {
+            $imagePath = '/' . $imagePath;
+        }
+
+        // Use asset() helper for proper URL generation
+        return asset($imagePath);
     }
 }

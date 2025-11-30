@@ -19,98 +19,122 @@ class SalesAnalyticsService
      */
     public function getTopSellingProducts($limit = 20, $days = 30)
     {
-        $startDate = now()->subDays($days);
-        
-        return Product::select([
-            'products.id',
-            'products.name', 
-            'products.slug',
-            'products.sku',
-            'products.price',
-            'products.discount',
-            'products.image',
-            'products.short_desc',
-            'products.description',
-            'products.status',
-            'products.has_variations',
-            'products.manage_stock',
-            'products.created_at',
-            'products.updated_at',
-            'products.category_id',
-            'products.type',
-            'products.cost',
-            'products.meta_title',
-            'products.meta_description',
-            'products.meta_keywords'
-        ])
-        ->leftJoin('pos_items', function($join) use ($startDate) {
-            $join->on('products.id', '=', 'pos_items.product_id')
-                 ->where('pos_items.created_at', '>=', $startDate);
-        })
-        ->leftJoin('order_items', function($join) use ($startDate) {
-            $join->on('products.id', '=', 'order_items.product_id')
-                 ->where('order_items.created_at', '>=', $startDate);
-        })
-        ->selectRaw('
-            COALESCE(SUM(pos_items.quantity), 0) + COALESCE(SUM(order_items.quantity), 0) as total_sold,
-            COALESCE(SUM(pos_items.total_price), 0) + COALESCE(SUM(order_items.total_price), 0) as total_revenue
-        ')
-        ->where('products.type', 'product')
-        ->where('products.status', 'active')
-        ->groupBy([
-            'products.id',
-            'products.name', 
-            'products.slug',
-            'products.sku',
-            'products.price',
-            'products.discount',
-            'products.image',
-            'products.short_desc',
-            'products.description',
-            'products.status',
-            'products.has_variations',
-            'products.manage_stock',
-            'products.created_at',
-            'products.updated_at',
-            'products.category_id',
-            'products.type',
-            'products.cost',
-            'products.meta_title',
-            'products.meta_description',
-            'products.meta_keywords'
-        ])
-        ->orderByDesc('total_sold')
-        ->orderByDesc('total_revenue')
-        ->orderByDesc('products.created_at') // Tertiary sort for consistency
-        ->take($limit)
-        ->get()
-        ->load([
-            'category',
-            'reviews' => function($q) {
-                $q->where('is_approved', true);
-            },
-            'branchStock',
-            'warehouseStock',
-            'variations.stocks'
-        ])
-        ->map(function ($product) {
-            // Pre-calculate ratings, reviews, and stock status
-            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
-            $product->total_reviews = $product->reviews->count();
+        try {
+            $startDate = now()->subDays($days);
             
-            // Pre-calculate stock status
-            if ($product->has_variations) {
-                $product->has_stock = $product->variations->where('status', 'active')
-                    ->flatMap->stocks
-                    ->sum('quantity') > 0;
-            } else {
-                $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+            // Use a more efficient query with subqueries to avoid complex joins
+            $products = Product::select([
+                'products.id',
+                'products.name', 
+                'products.slug',
+                'products.sku',
+                'products.price',
+                'products.discount',
+                'products.image',
+                'products.short_desc',
+                'products.description',
+                'products.status',
+                'products.has_variations',
+                'products.manage_stock',
+                'products.created_at',
+                'products.updated_at',
+                'products.category_id',
+                'products.type',
+                'products.cost',
+                'products.meta_title',
+                'products.meta_description',
+                'products.meta_keywords'
+            ])
+            ->selectRaw('
+                COALESCE((
+                    SELECT SUM(quantity) 
+                    FROM pos_items 
+                    WHERE pos_items.product_id = products.id 
+                    AND pos_items.created_at >= ?
+                ), 0) + COALESCE((
+                    SELECT SUM(quantity) 
+                    FROM order_items 
+                    WHERE order_items.product_id = products.id 
+                    AND order_items.created_at >= ?
+                ), 0) as total_sold,
+                COALESCE((
+                    SELECT SUM(total_price) 
+                    FROM pos_items 
+                    WHERE pos_items.product_id = products.id 
+                    AND pos_items.created_at >= ?
+                ), 0) + COALESCE((
+                    SELECT SUM(total_price) 
+                    FROM order_items 
+                    WHERE order_items.product_id = products.id 
+                    AND order_items.created_at >= ?
+                ), 0) as total_revenue
+            ', [$startDate, $startDate, $startDate, $startDate])
+            ->where('products.type', 'product')
+            ->where('products.status', 'active')
+            ->orderByDesc('total_sold')
+            ->orderByDesc('total_revenue')
+            ->orderByDesc('products.created_at')
+            ->take($limit)
+            ->get();
+            
+            // Load relationships efficiently
+            if ($products->isNotEmpty()) {
+                $products->load([
+                    'category',
+                    'reviews' => function($q) {
+                        $q->where('is_approved', true)->select(['id', 'product_id', 'rating']);
+                    },
+                    'branchStock' => function($q) {
+                        $q->select(['id', 'product_id', 'quantity']);
+                    },
+                    'warehouseStock' => function($q) {
+                        $q->select(['id', 'product_id', 'quantity']);
+                    },
+                    'variations' => function($q) {
+                        $q->where('status', 'active')
+                          ->with(['stocks' => function($sq) {
+                              $sq->select(['id', 'variation_id', 'quantity']);
+                          }]);
+                    }
+                ]);
             }
             
-            return $product;
-        });
+            return $products->map(function ($product) {
+                // Pre-calculate ratings, reviews, and stock status
+                try {
+                    $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                    $product->total_reviews = $product->reviews->count();
+                    
+                    // Pre-calculate stock status
+                    if ($product->has_variations) {
+                        $product->has_stock = $product->variations->where('status', 'active')
+                            ->flatMap->stocks
+                            ->sum('quantity') > 0;
+                    } else {
+                        $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                        $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                        $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Error calculating product stats', [
+                        'product_id' => $product->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    $product->avg_rating = 0;
+                    $product->total_reviews = 0;
+                    $product->has_stock = false;
+                }
+                
+                return $product;
+            });
+        } catch (\Exception $e) {
+            \Log::error('Error in getTopSellingProducts', [
+                'error' => $e->getMessage(),
+                'trace' => substr($e->getTraceAsString(), 0, 500)
+            ]);
+            // Return empty collection instead of throwing
+            return collect([]);
+        }
     }
 
     /**

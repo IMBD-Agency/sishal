@@ -325,6 +325,10 @@ class PageController extends Controller
     public function productDetails($slug, Request $request)
     {
         try {
+            // Set execution time limit to prevent timeouts
+            set_time_limit(60);
+            ini_set('max_execution_time', 60);
+            
             // Create cache key for product details
             $cacheKey = 'product_details_' . $slug;
             $useCache = !$request->has('no_cache');
@@ -424,17 +428,27 @@ class PageController extends Controller
             // Add wishlist status to related products (user-specific, not cached)
             $userId = Auth::id();
             $wishlistedIds = [];
-            if ($userId) {
-                $wishlistedIds = \App\Models\Wishlist::where('user_id', $userId)
-                    ->whereIn('product_id', $relatedProducts->pluck('id'))
-                    ->pluck('product_id')
-                    ->toArray();
+            if ($userId && $relatedProducts->isNotEmpty()) {
+                try {
+                    $wishlistedIds = \App\Models\Wishlist::where('user_id', $userId)
+                        ->whereIn('product_id', $relatedProducts->pluck('id'))
+                        ->pluck('product_id')
+                        ->toArray();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading wishlist for related products', ['error' => $e->getMessage()]);
+                    $wishlistedIds = [];
+                }
             }
             foreach ($relatedProducts as $relatedProduct) {
                 $relatedProduct->is_wishlisted = in_array($relatedProduct->id, $wishlistedIds);
                 // Pre-calculate ratings and reviews for better performance
-                $relatedProduct->avg_rating = $relatedProduct->reviews->avg('rating') ?? 0;
-                $relatedProduct->total_reviews = $relatedProduct->reviews->count();
+                try {
+                    $relatedProduct->avg_rating = $relatedProduct->reviews->avg('rating') ?? 0;
+                    $relatedProduct->total_reviews = $relatedProduct->reviews->count();
+                } catch (\Exception $e) {
+                    $relatedProduct->avg_rating = 0;
+                    $relatedProduct->total_reviews = 0;
+                }
             }
 
             \Log::info('Returning view with product data', [
@@ -470,8 +484,21 @@ class PageController extends Controller
             $response->header('ETag', md5($product->id . $product->updated_at));
             return $response;
         } catch (\Exception $e) {
-            Log::error('Product details error: ' . $e->getMessage());
-            abort(500, 'Error loading product details');
+            Log::error('Product details error', [
+                'error' => $e->getMessage(),
+                'slug' => $slug,
+                'trace' => substr($e->getTraceAsString(), 0, 500),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
+            // If it's a 404, show proper 404 page
+            if (strpos($e->getMessage(), 'not found') !== false || $e->getCode() == 404) {
+                abort(404, 'Product not found');
+            }
+            
+            // For other errors, show a user-friendly error page
+            abort(500, 'Error loading product details. Please try again later.');
         }
     }
 
