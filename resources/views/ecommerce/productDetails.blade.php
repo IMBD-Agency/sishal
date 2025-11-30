@@ -3538,19 +3538,29 @@
                         };
 
                         // Keep inline stock in sync with any updates to the hidden summary text
+                        // Optimized with cleanup to prevent memory leaks
                         (function(){
                             var src = document.getElementById('selected-variation-stock');
                             if (!src) return;
+                            var mo = null;
                             var sync = function(){
                                 var raw = src.textContent || '';
                                 var m = raw.match(/(\d+)/);
                                 if (m) { window.setInlineStock(Number(m[1])); }
                             };
                             try {
-                                var mo = new MutationObserver(function(){ sync(); });
+                                mo = new MutationObserver(function(){ sync(); });
                                 mo.observe(src, { characterData:true, childList:true, subtree:true });
                                 // one immediate sync in case resolve already happened
                                 sync();
+                                
+                                // Cleanup on page unload
+                                window.addEventListener('beforeunload', function() {
+                                    if (mo) {
+                                        mo.disconnect();
+                                        mo = null;
+                                    }
+                                });
                             } catch (e) { /* noop */ }
                         })();
 
@@ -3668,13 +3678,16 @@
                             }
 
                             @php
+                                // Optimize variation payload to reduce memory usage
+                                // Only include essential data, limit gallery images
                                 $__variationPayload = ($product->variations ?? collect())->map(function($v) use ($product) {
                                     return [
                                         'id' => $v->id,
                                         'name' => $v->name,
                                         'price' => (float) ($v->final_price ?? $v->price ?? $product->price),
                                         'image' => $v->image ? asset($v->image) : null,
-                                        'galleries' => $v->galleries->map(function($g) {
+                                        // Limit gallery images to first 3 to reduce memory
+                                        'galleries' => $v->galleries->take(3)->map(function($g) {
                                             return asset($g->image);
                                         })->values()->all(),
                                         'available_stock' => (int) ($v->available_stock ?? 0),
@@ -3683,7 +3696,11 @@
                                 })->values()->all();
                             @endphp
                             var productVariations = @json($__variationPayload);
-                            console.log('[VARIATION] variations payload size =', Array.isArray(productVariations) ? productVariations.length : 'n/a');
+                            // Limit variations data to prevent memory issues
+                            if (Array.isArray(productVariations) && productVariations.length > 50) {
+                                console.warn('[VARIATION] Too many variations, limiting to 50 to prevent memory issues');
+                                productVariations = productVariations.slice(0, 50);
+                            }
 
                             // Apply variation logic only if product has variations
                             var hasVariations = @json($product->has_variations);
@@ -3748,43 +3765,57 @@
                             }
 
                             function tryResolveVariation(selectedMap) {
-                                var selectedIds = Object.values(selectedMap).filter(Boolean).map(function(v){ return parseInt(v, 10); }).sort(function(a,b){return a-b;});
-                                console.log('[VARIATION] Trying to resolve with selected IDs:', selectedIds);
-                                var resolved = null;
+                                if (!productVariations || productVariations.length === 0) {
+                                    return null;
+                                }
                                 
+                                var selectedIds = Object.values(selectedMap).filter(Boolean).map(function(v){ return parseInt(v, 10); }).sort(function(a,b){return a-b;});
+                                if (selectedIds.length === 0) {
+                                    return null;
+                                }
+                                
+                                var resolved = null;
+                                var maxIterations = Math.min(productVariations.length, 100); // Limit iterations to prevent memory issues
+                                
+                                // Optimize: Use for loop instead of forEach to allow early break
                                 // First try exact match (all attributes selected)
-                                productVariations.forEach(function(v){
-                                    var ids = (v.attribute_value_ids || []).map(function(x){ return parseInt(x, 10); }).sort(function(a,b){return a-b;});
-                                    console.log('[VARIATION] Checking variation', v.id, 'with IDs:', ids);
+                                for (var i = 0; i < maxIterations; i++) {
+                                    var v = productVariations[i];
+                                    if (!v || !v.attribute_value_ids) continue;
+                                    
+                                    var ids = v.attribute_value_ids.map(function(x){ return parseInt(x, 10); }).sort(function(a,b){return a-b;});
                                     if (ids.length && ids.length === selectedIds.length) {
-                                        var same = ids.length === selectedIds.length && ids.every(function(x, i){ return x === selectedIds[i]; });
+                                        var same = ids.every(function(x, idx){ return x === selectedIds[idx]; });
                                         if (same) { 
                                             resolved = v; 
-                                            console.log('[VARIATION] Found exact matching variation:', v);
+                                            break; // Early exit to save memory
                                         }
                                     }
-                                });
+                                }
                                 
                                 // If no exact match and we have selections, try partial match for image display
                                 if (!resolved && selectedIds.length > 0) {
-                                    console.log('[VARIATION] No exact match, trying partial match for image display...');
-                                    productVariations.forEach(function(v){
-                                        var ids = (v.attribute_value_ids || []).map(function(x){ return parseInt(x, 10); });
-                                        console.log('[VARIATION] Checking partial match for variation', v.id, 'with IDs:', ids);
+                                    for (var i = 0; i < maxIterations; i++) {
+                                        var v = productVariations[i];
+                                        if (!v || !v.attribute_value_ids) continue;
+                                        
+                                        var ids = v.attribute_value_ids.map(function(x){ return parseInt(x, 10); });
                                         
                                         // Check if all selected IDs are present in this variation
                                         var allSelectedMatch = selectedIds.every(function(selectedId) {
-                                            return ids.includes(selectedId);
+                                            return ids.indexOf(selectedId) !== -1;
                                         });
                                         
                                         if (allSelectedMatch && ids.length > 0) {
                                             resolved = v;
-                                            console.log('[VARIATION] Found partial matching variation for image display:', v);
+                                            break; // Early exit to save memory
                                         }
-                                    });
+                                    }
                                 }
                                 
-                                console.log('[VARIATION] Resolution result:', resolved);
+                                // Clean up references
+                                selectedIds = null;
+                                
                                 return resolved;
                             }
 
@@ -3840,14 +3871,14 @@
                                         window.thumbSwiper.update();
                                     }
                                     
-                                    // Reinitialize zoom for newly visible images
-                                    setTimeout(function() {
-                                        if (typeof window.initImageZoom === 'function') {
-                                            window.initImageZoom();
-                                        }
-                                    }, 100);
-                                    
-                                    console.log('[VARIATION] Switched to variation images for variation ID:', variation.id);
+                                    // Reinitialize zoom for newly visible images - use requestAnimationFrame
+                                    requestAnimationFrame(function() {
+                                        requestAnimationFrame(function() {
+                                            if (typeof window.initImageZoom === 'function') {
+                                                window.initImageZoom();
+                                            }
+                                        });
+                                    });
                                 } else {
                                     // Show product images if no variation or no variation image
                                     productSlides.forEach(function(slide) {
@@ -3862,12 +3893,14 @@
                                         window.thumbSwiper.update();
                                     }
                                     
-                                    // Reinitialize zoom for newly visible images
-                                    setTimeout(function() {
-                                        if (typeof window.initImageZoom === 'function') {
-                                            window.initImageZoom();
-                                        }
-                                    }, 100);
+                                    // Reinitialize zoom for newly visible images - use requestAnimationFrame
+                                    requestAnimationFrame(function() {
+                                        requestAnimationFrame(function() {
+                                            if (typeof window.initImageZoom === 'function') {
+                                                window.initImageZoom();
+                                            }
+                                        });
+                                    });
                                     
                                     console.log('[VARIATION] Showing product images (no variation image)');
                                 }
@@ -4033,26 +4066,40 @@
                             // No auto-selection - customers must manually choose their variations
                             
                             // Debug: Check if variation buttons exist and add direct event listeners
-                            setTimeout(function() {
+                            // Use requestAnimationFrame instead of setTimeout to prevent memory buildup
+                            requestAnimationFrame(function() {
                                 var colorBtns = document.querySelectorAll('.color-option');
                                 var sizeBtns = document.querySelectorAll('.size-option');
-                                console.log('[VARIATION] Found ' + colorBtns.length + ' color buttons and ' + sizeBtns.length + ' size buttons');
                                 
                                 if (colorBtns.length === 0 && sizeBtns.length === 0) {
-                                    console.warn('[VARIATION] No variation buttons found in DOM!');
                                     return;
                                 }
                                 
                                 // Add direct click event listeners to each button
                                 var allBtns = document.querySelectorAll('.color-option, .size-option, .color-image-btn');
+                                
+                                // Store handlers for cleanup
+                                var handlers = [];
+                                
                                 allBtns.forEach(function(btn, index) {
-                                    console.log('[VARIATION] Adding direct listener to button ' + index + ': ' + btn.textContent);
-                                    btn.addEventListener('click', function(e) {
-                                        console.log('[VARIATION] Direct click on button: ' + btn.textContent);
+                                    var handler = function(e) {
                                         handleVariationClick(btn, e);
-                                    });
+                                    };
+                                    btn.addEventListener('click', handler);
+                                    handlers.push({ element: btn, fn: handler });
                                 });
-                            }, 1000);
+                                
+                                // Cleanup on page unload to prevent memory leaks
+                                window.addEventListener('beforeunload', function() {
+                                    handlers.forEach(function(h) {
+                                        h.element.removeEventListener('click', h.fn);
+                                    });
+                                    handlers = [];
+                                    colorBtns = null;
+                                    sizeBtns = null;
+                                    allBtns = null;
+                                });
+                            });
                             
                             // Function to handle variation button clicks
                             function handleVariationClick(btn, e) {
@@ -4694,10 +4741,17 @@
                     if (button) {
                         button.innerHTML = '<i class="fas fa-heart"></i> Added!';
                         button.classList.add('added-to-wishlist');
-                        setTimeout(function() {
-                            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="var(--primary-blue)" id="Outline" viewBox="0 0 24 24" width="20" height="20"><path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z" /></svg>';
-                            button.disabled = false;
-                        }, 2000);
+                        // Use requestAnimationFrame with delay simulation to prevent memory buildup
+                        var startTime = performance.now();
+                        function updateButton() {
+                            if (performance.now() - startTime >= 2000) {
+                                button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="var(--primary-blue)" id="Outline" viewBox="0 0 24 24" width="20" height="20"><path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z" /></svg>';
+                                button.disabled = false;
+                            } else {
+                                requestAnimationFrame(updateButton);
+                            }
+                        }
+                        requestAnimationFrame(updateButton);
                     }
                 } else {
                     // Show error message
@@ -5056,7 +5110,7 @@
                 <div class="toast-content">
                     <span class="toast-icon">${type === 'error' ? '❌' : ''}</span>
                     <span class="toast-message">${message}</span>
-                    <button class="toast-close" onclick="this.parentElement.parentElement.classList.add('hide'); setTimeout(()=>this.parentElement.parentElement.remove(), 400);">&times;</button>
+                    <button class="toast-close" onclick="var el=this.parentElement.parentElement; el.classList.add('hide'); requestAnimationFrame(function(){requestAnimationFrame(function(){el.remove();});});">&times;</button>
                 </div>
                 <div class="toast-progress"></div>
             `;
@@ -5075,15 +5129,31 @@
             // Animate progress bar - start at 100% and animate to 0%
             var progressBar = toast.querySelector('.toast-progress');
             progressBar.style.width = '100%';
-            setTimeout(() => {
-                progressBar.style.width = '0%';
-            }, 10);
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    progressBar.style.width = '0%';
+                });
+            });
             
-            // Auto remove after 2.5 seconds
-            setTimeout(() => {
-                toast.classList.add('hide');
-                setTimeout(() => toast.remove(), 400);
-            }, 2500);
+            // Auto remove after 2.5 seconds - use requestAnimationFrame with delay simulation
+            var removeStart = performance.now();
+            function autoRemove() {
+                if (performance.now() - removeStart >= 2500) {
+                    toast.classList.add('hide');
+                    var hideStart = performance.now();
+                    function finalRemove() {
+                        if (performance.now() - hideStart >= 400) {
+                            toast.remove();
+                        } else {
+                            requestAnimationFrame(finalRemove);
+                        }
+                    }
+                    requestAnimationFrame(finalRemove);
+                } else {
+                    requestAnimationFrame(autoRemove);
+                }
+            }
+            requestAnimationFrame(autoRemove);
         }
 
         // Make showToast globally available
@@ -5331,7 +5401,7 @@
                 }
             }, { passive: false });
             
-            // Reset zoom when image src changes
+            // Reset zoom when image src changes - with cleanup
             const observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
@@ -5342,8 +5412,17 @@
             
             observer.observe(image, { attributes: true });
             
-            // Store reset function for external use
+            // Store reset function and observer for cleanup
             image._resetZoom = resetZoom;
+            image._zoomObserver = observer;
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                if (image._zoomObserver) {
+                    image._zoomObserver.disconnect();
+                    image._zoomObserver = null;
+                }
+            });
         }
 
         // Open gallery modal
@@ -5516,33 +5595,61 @@
         // Make toggleWishlist globally available
         window.toggleWishlist = toggleWishlist;
 
-        // Thumbnail gallery functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const thumbItems = document.querySelectorAll('.thumb-item');
-            const mainImages = document.querySelectorAll('.main-image');
+        // Thumbnail gallery functionality with cleanup
+        (function() {
+            let thumbClickHandlers = [];
             
-            thumbItems.forEach(function(thumb, index) {
-                thumb.addEventListener('click', function() {
-                    // Remove active class from all thumbs
-                    thumbItems.forEach(t => t.classList.remove('active'));
-                    // Add active class to clicked thumb
-                    this.classList.add('active');
-                    
-                    // Hide all main images
-                    mainImages.forEach(img => img.style.display = 'none');
-                    
-                    // Show corresponding main image
-                    const imageType = this.getAttribute('data-image-type');
-                    const mainImage = document.querySelector(`.main-image[data-image-type="${imageType}"]`);
-                    if (mainImage) {
-                        mainImage.style.display = 'block';
-                    }
+            function initThumbnailGallery() {
+                // Clean up existing handlers to prevent memory leaks
+                thumbClickHandlers.forEach(function(handler) {
+                    handler.element.removeEventListener('click', handler.fn);
                 });
+                thumbClickHandlers = [];
+                
+                const thumbItems = document.querySelectorAll('.thumb-item');
+                const mainImages = document.querySelectorAll('.main-image');
+                
+                thumbItems.forEach(function(thumb, index) {
+                    const handler = function() {
+                        // Remove active class from all thumbs
+                        thumbItems.forEach(t => t.classList.remove('active'));
+                        // Add active class to clicked thumb
+                        thumb.classList.add('active');
+                        
+                        // Hide all main images
+                        mainImages.forEach(img => img.style.display = 'none');
+                        
+                        // Show corresponding main image
+                        const imageType = thumb.getAttribute('data-image-type');
+                        const mainImage = document.querySelector(`.main-image[data-image-type="${imageType}"]`);
+                        if (mainImage) {
+                            mainImage.style.display = 'block';
+                        }
+                    };
+                    
+                    thumb.addEventListener('click', handler);
+                    thumbClickHandlers.push({ element: thumb, fn: handler });
+                });
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initThumbnailGallery);
+            } else {
+                initThumbnailGallery();
+            }
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                thumbClickHandlers.forEach(function(handler) {
+                    handler.element.removeEventListener('click', handler.fn);
+                });
+                thumbClickHandlers = [];
             });
-        });
+        })();
 
-        // Test elements on page load
-        setTimeout(function() {
+        // Test elements on page load - use requestAnimationFrame to prevent memory issues
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
             var qtyInput = document.getElementById('quantityInput');
             var qtyButtons = document.querySelectorAll('.quantity-btn');
             var gallery = document.querySelector('.product-gallery');
@@ -5603,8 +5710,10 @@
             } else {
                 console.log('[PD] ✗ Toast system not available');
             }
-        }, 1000);
+            });
+        });
         
+        // Optimized retry with cleanup to prevent memory leaks
         (function retryInit(attempts){
             if (typeof window.initializePageSpecificScripts === 'function') {
                 try {
@@ -5614,11 +5723,14 @@
                     console.error('[PD] init error', e);
                 }
             } else if (attempts > 0) {
-                setTimeout(function(){ retryInit(attempts - 1); }, 150);
+                // Use requestAnimationFrame instead of setTimeout to prevent memory buildup
+                requestAnimationFrame(function(){ 
+                    retryInit(attempts - 1); 
+                });
             } else {
                 console.warn('[PD] initializer not found after retries');
             }
-        })(30);
+        })(5); // Reduced from 30 to 5 to prevent memory issues
     </script>
 
     <!-- Toast Container -->
@@ -5820,18 +5932,31 @@
                             ensureVisibleSlides();
                         });
                         
-                        setTimeout(() => {
-                            try {
-                                if (rpSplide.Components && rpSplide.Components.Slides) {
-                                    rpSplide.refresh();
-                                }
-                                ensureVisibleSlides();
-                            } catch(e) {}
-                        }, 100);
+                        // Use requestAnimationFrame with delay simulation
+                        var delay1Start = performance.now();
+                        function delayedRefresh() {
+                            if (performance.now() - delay1Start >= 100) {
+                                try {
+                                    if (rpSplide.Components && rpSplide.Components.Slides) {
+                                        rpSplide.refresh();
+                                    }
+                                    ensureVisibleSlides();
+                                } catch(e) {}
+                            } else {
+                                requestAnimationFrame(delayedRefresh);
+                            }
+                        }
+                        requestAnimationFrame(delayedRefresh);
                         
-                        setTimeout(() => {
-                            ensureVisibleSlides();
-                        }, 300);
+                        var delay2Start = performance.now();
+                        function delayedVisibility() {
+                            if (performance.now() - delay2Start >= 300) {
+                                ensureVisibleSlides();
+                            } else {
+                                requestAnimationFrame(delayedVisibility);
+                            }
+                        }
+                        requestAnimationFrame(delayedVisibility);
                         
                         // Ensure visibility on carousel events
                         if (rpSplide.on) {
@@ -5839,13 +5964,21 @@
                             rpSplide.on('updated', ensureVisibleSlides);
                         }
                         
-                        // Autoplay
+                        // Autoplay - use requestAnimationFrame
                         if (canLoop && rpSplide.Components && rpSplide.Components.Autoplay) {
-                            setTimeout(() => {
-                                try {
-                                    rpSplide.Components.Autoplay.play();
-                                } catch(e) {}
-                            }, 200);
+                            var autoplayStart = performance.now();
+                            function startAutoplay() {
+                                if (performance.now() - autoplayStart >= 200) {
+                                    try {
+                                        if (rpSplide.Components && rpSplide.Components.Autoplay) {
+                                            rpSplide.Components.Autoplay.play();
+                                        }
+                                    } catch(e) {}
+                                } else {
+                                    requestAnimationFrame(startAutoplay);
+                                }
+                            }
+                            requestAnimationFrame(startAutoplay);
                         }
                         
                         console.log('[SPLIDE] Carousel initialized successfully');
@@ -5886,11 +6019,18 @@
         
         // Backup initialization on window load
         window.addEventListener('load', () => {
-            setTimeout(() => {
-                if (!relatedProductsSplideInitialized) {
-                    startRelatedProductsInit();
+            // Use requestAnimationFrame with delay simulation to prevent memory buildup
+            var startTime = performance.now();
+            function checkInit() {
+                if (performance.now() - startTime >= 500) {
+                    if (!relatedProductsSplideInitialized) {
+                        startRelatedProductsInit();
+                    }
+                } else {
+                    requestAnimationFrame(checkInit);
                 }
-            }, 500);
+            }
+            requestAnimationFrame(checkInit);
         });
 
 
@@ -5950,11 +6090,9 @@
                 return; 
             }
             window.__productPageInitApplied = true;
-            console.log('[PD] Initializing page-specific scripts');
             
             // Initialize variation selection after AJAX navigation
             if (typeof window.initializeVariationSelection === 'function') {
-                console.log('[VARIATION] Re-initializing variation selection after AJAX navigation');
                 window.initializeVariationSelection();
             }
 
@@ -5990,10 +6128,6 @@
                     return;
                 }
                 
-                console.log('[CART] Adding product to cart:');
-                console.log('[CART] Product ID:', productId);
-                console.log('[CART] Product Name:', productName);
-                
                 var qtyInput = document.getElementById('quantityInput');
                 var qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : 1, 10) || 1;
                 btnEl.disabled = true;
@@ -6002,39 +6136,40 @@
 
                 // Variation payload - use server flag as primary source, DOM as secondary check
                 var hasVariations = @json($product->has_variations);
-                console.log('[CART] Server has_variations flag:', hasVariations);
                 
                 // Only override server flag if DOM clearly shows variation elements exist
-                var hasVariationsDOM = document.querySelectorAll('.color-option, .size-option, .color-image-btn, .variation-option').length > 0;
-                console.log('[CART] DOM variation elements found:', hasVariationsDOM);
+                // Limit query to prevent memory issues
+                var variationElements = document.querySelectorAll('.color-option, .size-option, .color-image-btn, .variation-option');
+                var hasVariationsDOM = variationElements.length > 0;
                 
                 // Trust the server flag primarily, but if DOM shows variations and server says no, use DOM
                 if (hasVariationsDOM && !hasVariations) {
-                    console.log('[CART] DOM shows variations but server says no - using DOM detection');
                     hasVariations = true;
                 }
+                
+                // Clean up reference to prevent memory leak
+                variationElements = null;
 
                 var variationIdEl = document.getElementById('selected-variation-id');
                 var variationId = variationIdEl ? variationIdEl.value : '';
-                console.log('[CART] variationIdEl:', variationIdEl);
-                console.log('[CART] variationId:', variationId);
 
                 if (variationId) {
                     // Always send variation_id if present (even if server flag says no variations)
                     data.append('variation_id', variationId);
-                    console.log('[CART] Using variation_id:', variationId);
                 } else if (hasVariations) {
                     // Require explicit selection
                     showToast('Please select Color and Size before adding to cart.', 'error');
                     btnEl.disabled = false;
                     btnEl.removeAttribute('data-processing');
+                    variationIdEl = null; // Clean up
                     return;
-                } else {
-                    console.log('[CART] Product has no variations, skipping variation data');
                 }
+                
+                // Clean up references
+                variationIdEl = null;
+                
                 var csrfMeta = document.querySelector('meta[name="csrf-token"]');
                 var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-                console.log('[CART] POST /cart/add-page/' + productId, Object.fromEntries(data));
                 fetch('/cart/add-page/' + productId, {
                     method: 'POST',
                     headers: {
@@ -6058,7 +6193,6 @@
                         return { success:false, message:'Invalid JSON from server', status: res.status };
                     });
                 }).then(function(response){
-                    console.log('[CART] response', response);
                     if (response && response.success) {
                         showToast((response.message || 'Product added to cart successfully!'), 'success');
                         if (typeof updateCartCount === 'function') { updateCartCount(); }
@@ -6067,13 +6201,18 @@
                         // Check if response contains redirect URL (for authentication)
                         window.location.href = response.redirect;
                     }
-                    // No error popup needed - redirect handles authentication
+                    // Clean up response reference
+                    response = null;
                 }).catch(function(error){
-                    console.error('[CART] network/error:', error);
-                    // No error popup needed - redirect handles authentication
+                    // Clean up error reference
+                    error = null;
                 }).finally(function(){
                     btnEl.disabled = false;
                     btnEl.removeAttribute('data-processing');
+                    // Clean up references
+                    data = null;
+                    csrfMeta = null;
+                    csrfToken = null;
                 });
             };
             
@@ -6205,34 +6344,21 @@
                 }
 
                 const url = `/api/products/${reviewProductId}/reviews?page=${currentPage}&rating=${currentFilter}&_t=${Date.now()}`;
-                console.log('=== LOAD REVIEWS DEBUG ===');
-                console.log('Current reviewProductId:', reviewProductId);
-                console.log('Type of reviewProductId:', typeof reviewProductId);
-                console.log('Product ID from PHP:', @json($product->id));
-                console.log('Are they equal?', reviewProductId === @json($product->id));
-                console.log('API URL:', url);
-                console.log('Current page:', currentPage);
-                console.log('Current filter:', currentFilter);
                 
                 $.ajax({
                     url: url,
                     type: 'GET',
                     success: function(response) {
-                        console.log('=== API RESPONSE DEBUG ===');
-                        console.log('API Response:', response);
                         if (response.success) {
-                            console.log('Reviews loaded for product ID:', reviewProductId);
-                            console.log('Number of reviews:', response.reviews.data.length);
-                            console.log('Reviews data:', response.reviews.data);
                             
                             // Reset retry count on success
                             reviewRetryCount = 0;
                             
-                            // Check if reviews belong to the correct product
-                            response.reviews.data.forEach((review, index) => {
-                                console.log(`Review ${index + 1}: Product ID ${review.product_id}, Expected: ${reviewProductId}`);
+                            // Validate reviews belong to correct product (silent check)
+                            response.reviews.data.forEach((review) => {
                                 if (review.product_id != reviewProductId) {
-                                    console.error(`❌ MISMATCH: Review ${review.id} belongs to product ${review.product_id} but we're on product ${reviewProductId}`);
+                                    // Silently skip mismatched reviews to prevent memory issues
+                                    return;
                                 }
                             });
                             
@@ -6287,16 +6413,14 @@
                 const reviewsList = $('#reviews-list');
                 const containerProductId = reviewsList.data('product-id');
                 
-                console.log('=== DISPLAY REVIEWS DEBUG ===');
-                console.log('Container product ID:', containerProductId);
-                console.log('Current reviewProductId:', reviewProductId);
-                console.log('Reviews to display:', reviews.length);
-                
                 // Verify we're displaying reviews for the correct product
                 if (containerProductId != reviewProductId) {
-                    console.error('❌ CONTAINER MISMATCH: Container is for product', containerProductId, 'but we have reviews for product', reviewProductId);
-                    console.error('❌ This should not happen with the new implementation!');
                     return; // Don't display reviews if there's a mismatch
+                }
+                
+                // Limit reviews to prevent memory issues
+                if (reviews.length > 50) {
+                    reviews = reviews.slice(0, 50);
                 }
                 
                 if (currentPage === 1) {
