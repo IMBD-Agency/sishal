@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const startTime = performance.now();
-            const timeout = 15000; // 15 second timeout
+            const timeout = 30000; // 30 second timeout (increased for big data on live server)
             
             // Create timeout promise
             const timeoutPromise = new Promise((_, reject) => {
@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const startTime = performance.now();
-            const timeout = 15000; // 15 second timeout
+            const timeout = 30000; // 30 second timeout (increased for big data on live server)
             
             // Create timeout promise
             const timeoutPromise = new Promise((_, reject) => {
@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const startTime = performance.now();
-            const timeout = 15000; // 15 second timeout
+            const timeout = 30000; // 30 second timeout (increased for big data on live server)
             
             // Create timeout promise
             const timeoutPromise = new Promise((_, reject) => {

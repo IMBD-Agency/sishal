@@ -20,15 +20,49 @@ class ApiController extends Controller
     {
         $this->salesAnalytics = $salesAnalytics;
     }
+    
+    /**
+     * Convert memory limit string to bytes
+     */
+    private function convertToBytes($memoryLimit)
+    {
+        $memoryLimit = trim($memoryLimit);
+        $last = strtolower($memoryLimit[strlen($memoryLimit) - 1]);
+        $value = (int) $memoryLimit;
+        
+        switch ($last) {
+            case 'g':
+                $value *= 1024;
+            case 'm':
+                $value *= 1024;
+            case 'k':
+                $value *= 1024;
+        }
+        
+        return $value;
+    }
 
     public function mostSoldProducts(Request $request)
     {
         $startTime = microtime(true);
         
         try {
-            // Set execution time limit to prevent timeouts
-            set_time_limit(60);
-            ini_set('max_execution_time', 60);
+            // Set execution time limit to prevent timeouts (increased for big data)
+            set_time_limit(120);
+            ini_set('max_execution_time', 120);
+            
+            // Set memory limit for large datasets
+            $currentMemoryLimit = ini_get('memory_limit');
+            if ($currentMemoryLimit !== '-1') {
+                $memoryBytes = $this->convertToBytes($currentMemoryLimit);
+                if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
+                    ini_set('memory_limit', '256M');
+                }
+            }
+            
+            // Set database query timeout (30 seconds)
+            DB::statement("SET SESSION wait_timeout = 30");
+            DB::statement("SET SESSION interactive_timeout = 30");
             
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
@@ -140,12 +174,25 @@ class ApiController extends Controller
         $startTime = microtime(true);
         
         try {
-            // Set execution time limit to prevent timeouts
-            set_time_limit(60);
-            ini_set('max_execution_time', 60);
+            // Set execution time limit to prevent timeouts (increased for big data)
+            set_time_limit(120);
+            ini_set('max_execution_time', 120);
+            
+            // Set memory limit for large datasets
+            $currentMemoryLimit = ini_get('memory_limit');
+            if ($currentMemoryLimit !== '-1') {
+                $memoryBytes = $this->convertToBytes($currentMemoryLimit);
+                if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
+                    ini_set('memory_limit', '256M');
+                }
+            }
+            
+            // Set database query timeout (30 seconds)
+            DB::statement("SET SESSION wait_timeout = 30");
+            DB::statement("SET SESSION interactive_timeout = 30");
             
             $userId = Auth::id();
-            $limit = $request->get('limit', 20);
+            $limit = min($request->get('limit', 20), 50); // Cap at 50 to prevent memory issues
             $useCache = $request->get('cache', true);
             
             $cacheKey = "new_arrivals_products_{$limit}";
@@ -160,17 +207,29 @@ class ApiController extends Controller
             }
             
             // Get new arrivals with caching (eager load relationships to avoid N+1 queries)
+            // Optimized query with select specific columns to reduce memory usage
             if ($useCache) {
                 $products = Cache::remember($cacheKey, 300, function () use ($limit) {
-                    return \App\Models\Product::with([
-                        'category',
-                        'reviews' => function($q) {
-                            $q->where('is_approved', true);
-                        },
-                        'branchStock',
-                        'warehouseStock',
-                        'variations.stocks'
-                    ])
+                    try {
+                        return \App\Models\Product::select([
+                            'products.id', 'products.name', 'products.slug', 'products.price', 
+                            'products.discount', 'products.image', 'products.category_id',
+                            'products.has_variations', 'products.status', 'products.created_at'
+                        ])
+                        ->with([
+                            'category:id,name,slug',
+                            'reviews' => function($q) {
+                                $q->select('id', 'product_id', 'rating', 'is_approved')
+                                  ->where('is_approved', true);
+                            },
+                            'branchStock:id,product_id,quantity',
+                            'warehouseStock:id,product_id,quantity',
+                            'variations' => function($q) {
+                                $q->select('id', 'product_id', 'status')
+                                  ->where('status', 'active')
+                                  ->with(['stocks:id,variation_id,quantity']);
+                            }
+                        ])
                         ->where('type', 'product')
                         ->where('status', 'active')
                         ->orderByDesc('created_at')
@@ -194,40 +253,57 @@ class ApiController extends Controller
                             
                             return $product;
                         });
+                    } catch (\Exception $e) {
+                        Log::error('Error in new arrivals cache closure', [
+                            'error' => $e->getMessage(),
+                            'limit' => $limit
+                        ]);
+                        throw $e;
+                    }
                 });
             } else {
-                $products = \App\Models\Product::with([
-                    'category',
-                    'reviews' => function($q) {
-                        $q->where('is_approved', true);
-                    },
-                    'branchStock',
-                    'warehouseStock',
-                    'variations.stocks'
+                $products = \App\Models\Product::select([
+                    'products.id', 'products.name', 'products.slug', 'products.price', 
+                    'products.discount', 'products.image', 'products.category_id',
+                    'products.has_variations', 'products.status', 'products.created_at'
                 ])
-                    ->where('type', 'product')
-                    ->where('status', 'active')
-                    ->orderByDesc('created_at')
-                    ->take($limit)
-                    ->get()
-                    ->map(function ($product) {
-                        // Pre-calculate ratings, reviews, and stock status
-                        $product->avg_rating = $product->reviews->avg('rating') ?? 0;
-                        $product->total_reviews = $product->reviews->count();
-                        
-                        // Pre-calculate stock status
-                        if ($product->has_variations) {
-                            $product->has_stock = $product->variations->where('status', 'active')
-                                ->flatMap->stocks
-                                ->sum('quantity') > 0;
-                        } else {
-                            $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                            $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                            $product->has_stock = ($branchStock + $warehouseStock) > 0;
-                        }
-                        
-                        return $product;
-                    });
+                ->with([
+                    'category:id,name,slug',
+                    'reviews' => function($q) {
+                        $q->select('id', 'product_id', 'rating', 'is_approved')
+                          ->where('is_approved', true);
+                    },
+                    'branchStock:id,product_id,quantity',
+                    'warehouseStock:id,product_id,quantity',
+                    'variations' => function($q) {
+                        $q->select('id', 'product_id', 'status')
+                          ->where('status', 'active')
+                          ->with(['stocks:id,variation_id,quantity']);
+                    }
+                ])
+                ->where('type', 'product')
+                ->where('status', 'active')
+                ->orderByDesc('created_at')
+                ->take($limit)
+                ->get()
+                ->map(function ($product) {
+                    // Pre-calculate ratings, reviews, and stock status
+                    $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                    $product->total_reviews = $product->reviews->count();
+                    
+                    // Pre-calculate stock status
+                    if ($product->has_variations) {
+                        $product->has_stock = $product->variations->where('status', 'active')
+                            ->flatMap->stocks
+                            ->sum('quantity') > 0;
+                    } else {
+                        $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                        $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                        $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                    }
+                    
+                    return $product;
+                });
             }
             
             // Check if products collection is empty or null
@@ -291,13 +367,33 @@ class ApiController extends Controller
 
             return response()->json($responseData);
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Database error loading new arrivals products', [
+                'error' => $e->getMessage(),
+                'sql_state' => $e->getCode(),
+                'user_id' => Auth::id(),
+                'limit' => $limit ?? 20
+            ]);
+
+            // Return empty data instead of error to prevent frontend issues
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'meta' => [
+                    'execution_time' => round(microtime(true) - $startTime, 3),
+                    'total_products' => 0,
+                    'error' => config('app.debug') ? 'Database query timeout or error' : 'Service temporarily unavailable'
+                ]
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Error loading new arrivals products', [
                 'error' => $e->getMessage(),
                 'trace' => substr($e->getTraceAsString(), 0, 500), // Limit trace length
                 'user_id' => Auth::id(),
                 'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
+                'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2) . 'MB',
+                'memory_peak' => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . 'MB'
             ]);
 
             // Return empty data instead of error to prevent frontend issues
@@ -318,9 +414,22 @@ class ApiController extends Controller
         $startTime = microtime(true);
         
         try {
-            // Set execution time limit to prevent timeouts
-            set_time_limit(60);
-            ini_set('max_execution_time', 60);
+            // Set execution time limit to prevent timeouts (increased for big data)
+            set_time_limit(120);
+            ini_set('max_execution_time', 120);
+            
+            // Set memory limit for large datasets
+            $currentMemoryLimit = ini_get('memory_limit');
+            if ($currentMemoryLimit !== '-1') {
+                $memoryBytes = $this->convertToBytes($currentMemoryLimit);
+                if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
+                    ini_set('memory_limit', '256M');
+                }
+            }
+            
+            // Set database query timeout (30 seconds)
+            DB::statement("SET SESSION wait_timeout = 30");
+            DB::statement("SET SESSION interactive_timeout = 30");
             
             $userId = Auth::id();
             $limit = $request->get('limit', 20);

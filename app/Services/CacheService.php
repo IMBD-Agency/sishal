@@ -3,9 +3,69 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class CacheService
 {
+    /**
+     * Clear cache entries matching a pattern
+     * Works with both Redis and database cache drivers
+     */
+    private static function clearCacheByPattern($pattern)
+    {
+        $store = Cache::getStore();
+        
+        // Check if we're using Redis cache driver
+        if (method_exists($store, 'getRedis')) {
+            try {
+                $redis = $store->getRedis();
+                $prefix = config('cache.prefix', '');
+                $searchPattern = $prefix . $pattern;
+                
+                // Use SCAN instead of KEYS for better performance in production
+                $keys = [];
+                $cursor = 0;
+                do {
+                    $result = $redis->scan($cursor, ['match' => $searchPattern, 'count' => 100]);
+                    $cursor = $result[0];
+                    $keys = array_merge($keys, $result[1]);
+                } while ($cursor != 0);
+                
+                if (!empty($keys)) {
+                    $redis->del($keys);
+                    \Log::info("Cleared " . count($keys) . " cache entries matching: {$pattern}");
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to clear Redis cache pattern {$pattern}: " . $e->getMessage());
+            }
+        } 
+        // For database cache driver
+        elseif (config('cache.default') === 'database') {
+            try {
+                $cacheTable = config('cache.stores.database.table', 'cache');
+                $prefix = config('cache.prefix', '');
+                
+                // Convert pattern to SQL LIKE pattern
+                $likePattern = str_replace('*', '%', $prefix . $pattern);
+                
+                // Delete matching cache entries
+                $deleted = DB::table($cacheTable)
+                    ->where('key', 'like', $likePattern)
+                    ->delete();
+                
+                if ($deleted > 0) {
+                    \Log::info("Cleared {$deleted} cache entries matching: {$pattern}");
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to clear database cache pattern {$pattern}: " . $e->getMessage());
+            }
+        }
+        // For file cache driver - we can't easily pattern match, so log a warning
+        else {
+            \Log::warning("Pattern-based cache clearing not fully supported for " . config('cache.default') . " driver. Pattern: {$pattern}");
+        }
+    }
+    
     /**
      * Clear all product-related caches
      */
@@ -14,23 +74,24 @@ class CacheService
         // Clear max product price cache (used in multiple places)
         Cache::forget('max_product_price');
         
-        // Clear product list caches (pattern matching)
+        // Clear product list caches using pattern matching
         $patterns = [
             'products_list_*',
             'product_details_*',
             'new_arrivals_products_*',
             'new_arrivals_full_response_*',
             'best_deals_products_*',
-            'best_deal_products_home',
             'best_deals_page_*', // Best Deals page cache
             'top_selling_products_*',
-            'featured_services',
         ];
         
         foreach ($patterns as $pattern) {
-            // Note: Cache::forget doesn't support wildcards, so we'll clear specific keys
-            // For wildcard support, you'd need Redis with tags or manual key tracking
+            self::clearCacheByPattern($pattern);
         }
+        
+        // Clear specific named caches
+        Cache::forget('best_deal_products_home');
+        Cache::forget('featured_services');
         
         // Clear specific product cache
         if ($productId) {
@@ -50,9 +111,8 @@ class CacheService
                 }
             }
         } else {
-            // Clear all related products caches (when any product changes globally)
-            // Note: In production with Redis, use cache tags for better invalidation
-            // For now, we'll clear them when products are updated globally
+            // Clear all related products caches when any product changes globally
+            self::clearCacheByPattern('related_products_*');
         }
         
         // Clear common API caches (clear all limit variations)
@@ -62,8 +122,6 @@ class CacheService
             Cache::forget("best_deals_products_{$limit}");
             Cache::forget("top_selling_products_{$limit}_30");
         }
-        Cache::forget('best_deal_products_home');
-        Cache::forget('featured_services');
         
         // Clear home page
         Cache::forget('home_page_data');
@@ -82,7 +140,8 @@ class CacheService
         Cache::forget('home_page_data');
         
         // Clear product list caches that depend on categories
-        // Note: In production, you might want to use cache tags (Redis) for this
+        // Products list may be filtered by category, so clear those too
+        self::clearCacheByPattern('products_list_*');
     }
     
     /**
