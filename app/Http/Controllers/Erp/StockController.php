@@ -288,4 +288,57 @@ class StockController extends Controller
         
         return redirect()->back()->with('success', 'Stock adjusted successfully.');
     }
+
+    public function getCurrentStock(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'location_type' => 'required|in:branch,warehouse',
+        ]);
+
+        // Validate location ID based on location type
+        if ($request->location_type == 'branch') {
+            $request->validate(['branch_id' => 'required|exists:branches,id']);
+        } else {
+            $request->validate(['warehouse_id' => 'required|exists:warehouses,id']);
+        }
+
+        $productId = $request->product_id;
+        $variationId = $request->variation_id ?? null;
+        $locationType = $request->location_type;
+        $quantity = 0;
+
+        if ($variationId) {
+            // Get variation stock
+            if ($locationType == 'branch') {
+                $stock = ProductVariationStock::where('variation_id', $variationId)
+                    ->where('branch_id', $request->branch_id)
+                    ->whereNull('warehouse_id')
+                    ->first();
+            } else {
+                $stock = ProductVariationStock::where('variation_id', $variationId)
+                    ->where('warehouse_id', $request->warehouse_id)
+                    ->whereNull('branch_id')
+                    ->first();
+            }
+            $quantity = $stock ? $stock->quantity : 0;
+        } else {
+            // Get product-level stock
+            if ($locationType == 'branch') {
+                $stock = BranchProductStock::where('product_id', $productId)
+                    ->where('branch_id', $request->branch_id)
+                    ->first();
+            } else {
+                $stock = WarehouseProductStock::where('product_id', $productId)
+                    ->where('warehouse_id', $request->warehouse_id)
+                    ->first();
+            }
+            $quantity = $stock ? $stock->quantity : 0;
+        }
+
+        return response()->json([
+            'success' => true,
+            'quantity' => $quantity
+        ]);
+    }
 }

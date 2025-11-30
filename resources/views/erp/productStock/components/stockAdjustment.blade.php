@@ -40,8 +40,8 @@
                         
                         <div class="col-md-6 location-select-group" id="branchSelectGroup">
                             <label class="form-label">Branch</label>
-                            <select class="form-select" name="branch_id">
-                                <option>Select Branch...</option>
+                            <select class="form-select" name="branch_id" id="branchSelect">
+                                <option value="">Select Branch...</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}">{{$branch->name}}</option>
                                 @endforeach
@@ -49,8 +49,8 @@
                         </div>
                         <div class="col-md-6 location-select-group" id="warehouseSelectGroup" style="display:none;">
                             <label class="form-label">Warehouse</label>
-                            <select class="form-select" name="warehouse_id">
-                                <option>Select Warehouse...</option>
+                            <select class="form-select" name="warehouse_id" id="warehouseSelect">
+                                <option value="">Select Warehouse...</option>
                                 @foreach ($warehouses as $warehouse)
                                     <option value="{{ $warehouse->id }}">{{$warehouse->name}}</option>
                                 @endforeach
@@ -66,6 +66,13 @@
                         <div class="col-md-6">
                             <label class="form-label">Quantity</label>
                             <input type="number" class="form-control" placeholder="Enter quantity" name="quantity">
+                        </div>
+                        <div class="col-md-12">
+                            <div class="alert alert-info mb-0 d-flex align-items-center" id="currentStockDisplay" style="display: none;">
+                                <i class="fas fa-box me-2"></i>
+                                <strong>Current Stock:</strong> 
+                                <span id="currentStockQuantity" class="ms-2 fw-bold">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -94,6 +101,8 @@ $(document).ready(function() {
             $('#branchSelectGroup').hide();
             $('#warehouseSelectGroup').show();
         }
+        // Update current stock when location type changes
+        updateCurrentStock();
     });
 
     $('#productSelect').select2({
@@ -136,6 +145,7 @@ $(document).ready(function() {
         // Reset variation select
         $('#variationSelect').val('').trigger('change');
         $('#variationSelectGroup').hide();
+        $('#currentStockDisplay').hide();
         
         if (productId) {
             // Check if we have the product data
@@ -162,6 +172,9 @@ $(document).ready(function() {
                         if (hasVariations) {
                             $('#variationSelectGroup').show();
                             loadProductVariations(productId);
+                        } else {
+                            // If no variations, update stock immediately
+                            updateCurrentStock();
                         }
                     },
                     error: function() {
@@ -173,6 +186,9 @@ $(document).ready(function() {
                     // Show variation selector and load variations
                     $('#variationSelectGroup').show();
                     loadProductVariations(productId);
+                } else {
+                    // If no variations, update stock immediately
+                    updateCurrentStock();
                 }
             }
         }
@@ -184,6 +200,16 @@ $(document).ready(function() {
         allowClear: true,
         width: 'resolve',
         dropdownParent: $('#stockAdjustmentModal'),
+    });
+
+    // Handle variation selection change
+    $('#variationSelect').on('change', function() {
+        updateCurrentStock();
+    });
+
+    // Handle branch/warehouse selection change
+    $('#branchSelect, #warehouseSelect').on('change', function() {
+        updateCurrentStock();
     });
 
     // Function to load product variations
@@ -219,13 +245,78 @@ $(document).ready(function() {
         });
     }
 
+    // Function to update current stock display
+    function updateCurrentStock() {
+        var productId = $('#productSelect').val();
+        var variationId = $('#variationSelect').val();
+        var locationType = $('input[name="location_type"]:checked').val();
+        var locationId = null;
+
+        // Get location ID based on location type
+        if (locationType === 'branch') {
+            locationId = $('#branchSelect').val();
+        } else {
+            locationId = $('#warehouseSelect').val();
+        }
+
+        // Hide stock display if required fields are missing
+        if (!productId || !locationId || locationId === '') {
+            $('#currentStockDisplay').hide();
+            return;
+        }
+
+        // If product has variations but no variation is selected, don't show stock
+        var hasVariations = productDataMap[productId]?.has_variations;
+        if (hasVariations && (!variationId || variationId === '')) {
+            $('#currentStockDisplay').hide();
+            return;
+        }
+
+        // Make API call to get current stock
+        $.ajax({
+            url: '/erp/stock/current',
+            type: 'GET',
+            data: {
+                product_id: productId,
+                variation_id: variationId || null,
+                location_type: locationType,
+                branch_id: locationType === 'branch' ? locationId : null,
+                warehouse_id: locationType === 'warehouse' ? locationId : null
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.success) {
+                    $('#currentStockQuantity').text(response.quantity);
+                    $('#currentStockDisplay').fadeIn(200);
+                } else {
+                    $('#currentStockDisplay').hide();
+                }
+            },
+            error: function(xhr) {
+                console.error('Error fetching current stock:', xhr);
+                $('#currentStockDisplay').hide();
+            }
+        });
+    }
+
+    // Update stock when modal is shown (in case fields are pre-filled)
+    $('#stockAdjustmentModal').on('shown.bs.modal', function() {
+        // Small delay to ensure all selects are initialized
+        setTimeout(function() {
+            updateCurrentStock();
+        }, 100);
+    });
+
     // Reset form when modal is closed
     $('#stockAdjustmentModal').on('hidden.bs.modal', function() {
         $('#productSelect').val('').trigger('change');
         $('#variationSelect').val('').trigger('change');
         $('#variationSelectGroup').hide();
+        $('#currentStockDisplay').hide();
         $('input[name="quantity"]').val('');
         $('select[name="type"]').val('stock_in');
+        $('#branchSelect').val('');
+        $('#warehouseSelect').val('');
         productDataMap = {}; // Clear product data map
     });
 
