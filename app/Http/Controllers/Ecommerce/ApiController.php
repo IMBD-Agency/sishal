@@ -50,7 +50,7 @@ class ApiController extends Controller
                 ]);
             }
 
-            // Optimize wishlist check with single query
+            // Optimize wishlist check with single query (user-specific, not cached)
             $wishlistedIds = [];
             if ($userId) {
                 $wishlistedIds = Wishlist::where('user_id', $userId)
@@ -59,12 +59,23 @@ class ApiController extends Controller
                     ->toArray();
             }
 
-            // Transform products with optimized data loading
+            // Add wishlist status (ratings/reviews/stock already pre-calculated in cache)
+            // If products are from cache, they already have these values
+            // If not cached, we need to calculate them
             $products->transform(function ($product) use ($wishlistedIds) {
                 $product->is_wishlisted = in_array($product->id, $wishlistedIds);
-                $product->has_stock = $product->hasStock();
-                $product->avg_rating = $product->averageRating();
-                $product->total_reviews = $product->totalReviews();
+                
+                // Only calculate if not already set (from cache)
+                if (!isset($product->avg_rating)) {
+                    $product->avg_rating = $product->averageRating();
+                }
+                if (!isset($product->total_reviews)) {
+                    $product->total_reviews = $product->totalReviews();
+                }
+                if (!isset($product->has_stock)) {
+                    $product->has_stock = $product->hasStock();
+                }
+                
                 return $product;
             });
 
@@ -128,23 +139,75 @@ class ApiController extends Controller
                 }
             }
             
-            // Get new arrivals with caching
+            // Get new arrivals with caching (eager load relationships to avoid N+1 queries)
             if ($useCache) {
                 $products = Cache::remember($cacheKey, 300, function () use ($limit) {
-                    return \App\Models\Product::with('category')
+                    return \App\Models\Product::with([
+                        'category',
+                        'reviews' => function($q) {
+                            $q->where('is_approved', true);
+                        },
+                        'branchStock',
+                        'warehouseStock',
+                        'variations.stocks'
+                    ])
                         ->where('type', 'product')
                         ->where('status', 'active')
                         ->orderByDesc('created_at')
                         ->take($limit)
-                        ->get();
+                        ->get()
+                        ->map(function ($product) {
+                            // Pre-calculate ratings, reviews, and stock status
+                            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                            $product->total_reviews = $product->reviews->count();
+                            
+                            // Pre-calculate stock status
+                            if ($product->has_variations) {
+                                $product->has_stock = $product->variations->where('status', 'active')
+                                    ->flatMap->stocks
+                                    ->sum('quantity') > 0;
+                            } else {
+                                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                            }
+                            
+                            return $product;
+                        });
                 });
             } else {
-                $products = \App\Models\Product::with('category')
+                $products = \App\Models\Product::with([
+                    'category',
+                    'reviews' => function($q) {
+                        $q->where('is_approved', true);
+                    },
+                    'branchStock',
+                    'warehouseStock',
+                    'variations.stocks'
+                ])
                     ->where('type', 'product')
                     ->where('status', 'active')
                     ->orderByDesc('created_at')
                     ->take($limit)
-                    ->get();
+                    ->get()
+                    ->map(function ($product) {
+                        // Pre-calculate ratings, reviews, and stock status
+                        $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                        $product->total_reviews = $product->reviews->count();
+                        
+                        // Pre-calculate stock status
+                        if ($product->has_variations) {
+                            $product->has_stock = $product->variations->where('status', 'active')
+                                ->flatMap->stocks
+                                ->sum('quantity') > 0;
+                        } else {
+                            $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                            $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                            $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                        }
+                        
+                        return $product;
+                    });
             }
             
             // Check if products collection is empty or null
@@ -155,7 +218,7 @@ class ApiController extends Controller
                 ]);
             }
 
-            // Optimize wishlist check with single query
+            // Optimize wishlist check with single query (user-specific, not cached)
             $wishlistedIds = [];
             if ($userId) {
                 $wishlistedIds = Wishlist::where('user_id', $userId)
@@ -164,12 +227,9 @@ class ApiController extends Controller
                     ->toArray();
             }
 
-            // Transform products with optimized data loading
+            // Add wishlist status (only user-specific data, already has ratings/reviews/stock)
             $products->transform(function ($product) use ($wishlistedIds) {
                 $product->is_wishlisted = in_array($product->id, $wishlistedIds);
-                $product->has_stock = $product->hasStock();
-                $product->avg_rating = $product->averageRating();
-                $product->total_reviews = $product->totalReviews();
                 return $product;
             });
 
@@ -227,30 +287,82 @@ class ApiController extends Controller
             
             $cacheKey = "best_deals_products_{$limit}";
             
-            // Get best deals products (products with discount > 0)
+            // Get best deals products (products with discount > 0) - eager load relationships
             if ($useCache) {
                 $products = Cache::remember($cacheKey, 300, function () use ($limit) {
-                    return \App\Models\Product::with('category')
+                    return \App\Models\Product::with([
+                        'category',
+                        'reviews' => function($q) {
+                            $q->where('is_approved', true);
+                        },
+                        'branchStock',
+                        'warehouseStock',
+                        'variations.stocks'
+                    ])
                         ->where('type', 'product')
                         ->where('status', 'active')
                         ->where('discount', '>', 0)
                         ->orderByDesc('discount')
                         ->orderByDesc('created_at')
                         ->take($limit)
-                        ->get();
+                        ->get()
+                        ->map(function ($product) {
+                            // Pre-calculate ratings, reviews, and stock status
+                            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                            $product->total_reviews = $product->reviews->count();
+                            
+                            // Pre-calculate stock status
+                            if ($product->has_variations) {
+                                $product->has_stock = $product->variations->where('status', 'active')
+                                    ->flatMap->stocks
+                                    ->sum('quantity') > 0;
+                            } else {
+                                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                            }
+                            
+                            return $product;
+                        });
                 });
             } else {
-                $products = \App\Models\Product::with('category')
+                $products = \App\Models\Product::with([
+                    'category',
+                    'reviews' => function($q) {
+                        $q->where('is_approved', true);
+                    },
+                    'branchStock',
+                    'warehouseStock',
+                    'variations.stocks'
+                ])
                     ->where('type', 'product')
                     ->where('status', 'active')
                     ->where('discount', '>', 0)
                     ->orderByDesc('discount')
                     ->orderByDesc('created_at')
                     ->take($limit)
-                    ->get();
+                    ->get()
+                    ->map(function ($product) {
+                        // Pre-calculate ratings, reviews, and stock status
+                        $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                        $product->total_reviews = $product->reviews->count();
+                        
+                        // Pre-calculate stock status
+                        if ($product->has_variations) {
+                            $product->has_stock = $product->variations->where('status', 'active')
+                                ->flatMap->stocks
+                                ->sum('quantity') > 0;
+                        } else {
+                            $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                            $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                            $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                        }
+                        
+                        return $product;
+                    });
             }
 
-            // Optimize wishlist check with single query
+            // Optimize wishlist check with single query (user-specific, not cached)
             $wishlistedIds = [];
             if ($userId) {
                 $wishlistedIds = Wishlist::where('user_id', $userId)
@@ -259,12 +371,23 @@ class ApiController extends Controller
                     ->toArray();
             }
 
-            // Transform products with optimized data loading
+            // Add wishlist status (ratings/reviews/stock already pre-calculated in cache)
+            // If products are from cache, they already have these values
+            // If not cached, we need to calculate them
             $products->transform(function ($product) use ($wishlistedIds) {
                 $product->is_wishlisted = in_array($product->id, $wishlistedIds);
-                $product->has_stock = $product->hasStock();
-                $product->avg_rating = $product->averageRating();
-                $product->total_reviews = $product->totalReviews();
+                
+                // Only calculate if not already set (from cache)
+                if (!isset($product->avg_rating)) {
+                    $product->avg_rating = $product->averageRating();
+                }
+                if (!isset($product->total_reviews)) {
+                    $product->total_reviews = $product->totalReviews();
+                }
+                if (!isset($product->has_stock)) {
+                    $product->has_stock = $product->hasStock();
+                }
+                
                 return $product;
             });
 

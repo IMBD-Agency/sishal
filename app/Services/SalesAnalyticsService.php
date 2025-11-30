@@ -83,7 +83,34 @@ class SalesAnalyticsService
         ->orderByDesc('total_revenue')
         ->orderByDesc('products.created_at') // Tertiary sort for consistency
         ->take($limit)
-        ->get();
+        ->get()
+        ->load([
+            'category',
+            'reviews' => function($q) {
+                $q->where('is_approved', true);
+            },
+            'branchStock',
+            'warehouseStock',
+            'variations.stocks'
+        ])
+        ->map(function ($product) {
+            // Pre-calculate ratings, reviews, and stock status
+            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+            $product->total_reviews = $product->reviews->count();
+            
+            // Pre-calculate stock status
+            if ($product->has_variations) {
+                $product->has_stock = $product->variations->where('status', 'active')
+                    ->flatMap->stocks
+                    ->sum('quantity') > 0;
+            } else {
+                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+            }
+            
+            return $product;
+        });
     }
 
     /**
