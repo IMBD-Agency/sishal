@@ -88,6 +88,9 @@ class BannerController extends Controller
             : null;
 
         Banner::create($validated);
+        
+        // Clear banner caches
+        \App\Services\CacheService::clearBannerCaches();
 
         return redirect()->route('banners.index')
                         ->with('success', 'Banner created successfully!');
@@ -151,6 +154,9 @@ class BannerController extends Controller
             : null;
 
         $banner->update($validated);
+        
+        // Clear banner caches
+        \App\Services\CacheService::clearBannerCaches();
 
         return redirect()->route('banners.index')
                         ->with('success', 'Banner updated successfully!');
@@ -170,6 +176,9 @@ class BannerController extends Controller
         }
 
         $banner->delete();
+        
+        // Clear banner caches
+        \App\Services\CacheService::clearBannerCaches();
 
         return redirect()->route('banners.index')
                         ->with('success', 'Banner deleted successfully!');
@@ -182,6 +191,9 @@ class BannerController extends Controller
     {
         $banner->status = $banner->status === 'active' ? 'inactive' : 'active';
         $banner->save();
+        
+        // Clear banner caches
+        \App\Services\CacheService::clearBannerCaches();
 
         return response()->json([
             'success' => true,

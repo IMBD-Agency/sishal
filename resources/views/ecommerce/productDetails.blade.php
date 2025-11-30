@@ -5997,8 +5997,11 @@
                 loadMoreReviews();
             });
 
-            // Load reviews function
-            function loadReviews() {
+            // Load reviews function with retry logic
+            let reviewRetryCount = 0;
+            const maxReviewRetries = 2;
+            
+            function loadReviews(retryAttempt = 0) {
                 if (isLoading) return;
                 isLoading = true;
 
@@ -6023,6 +6026,9 @@
                             console.log('Number of reviews:', response.reviews.data.length);
                             console.log('Reviews data:', response.reviews.data);
                             
+                            // Reset retry count on success
+                            reviewRetryCount = 0;
+                            
                             // Check if reviews belong to the correct product
                             response.reviews.data.forEach((review, index) => {
                                 console.log(`Review ${index + 1}: Product ID ${review.product_id}, Expected: ${reviewProductId}`);
@@ -6034,11 +6040,26 @@
                             displayReviews(response.reviews.data);
                             updateRatingSummary(response.average_rating, response.total_reviews, response.rating_distribution);
                             updatePagination(response.pagination);
+                            
+                            // Hide any error messages
+                            $('#reviews-error-message').remove();
                         }
                     },
-                    error: function(xhr) {
+                    error: function(xhr, status, error) {
                         console.error('Error loading reviews:', xhr);
-                        showError('Failed to load reviews');
+                        
+                        // Auto-retry for transient network errors
+                        const errorMessage = error || (xhr.responseJSON && xhr.responseJSON.message) || 'Network error';
+                        if (retryAttempt < maxReviewRetries && (errorMessage.includes('Network') || errorMessage.includes('timeout') || status === 'timeout' || xhr.status === 0)) {
+                            console.log(`Retrying reviews load (attempt ${retryAttempt + 1}/${maxReviewRetries})...`);
+                            setTimeout(() => {
+                                loadReviews(retryAttempt + 1);
+                            }, 1000 * (retryAttempt + 1)); // Exponential backoff
+                            return;
+                        }
+                        
+                        // Show error with retry button instead of alert
+                        showReviewsError('Failed to load reviews. Please try again.');
                     },
                     complete: function() {
                         isLoading = false;
@@ -6291,10 +6312,68 @@
                 return stars;
             }
 
-            // Show error message
-            function showError(message) {
-                alert(message);
+            // Show error message with retry option (replaces alert)
+            // IMPORTANT: This function replaces the old showError() that used alert()
+            function showReviewsError(message) {
+                // Remove any existing error message
+                $('#reviews-error-message').remove();
+                
+                // Create error message with retry button
+                const errorHtml = `
+                    <div id="reviews-error-message" class="col-12 text-center py-4" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; margin: 20px 0;">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3" style="color: #856404;"></i>
+                        <p style="color: #856404; margin-bottom: 15px;">${message}</p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="window.retryLoadReviews && window.retryLoadReviews()">
+                            <i class="fas fa-refresh me-1"></i>Retry
+                        </button>
+                    </div>
+                `;
+                
+                // Insert error message before reviews list
+                const reviewsList = $('#reviews-list');
+                if (reviewsList.length) {
+                    reviewsList.before(errorHtml);
+                } else {
+                    // If reviews list doesn't exist, append to reviews container
+                    const reviewsContainer = $('#reviews-container, .reviews-section, #product-reviews');
+                    if (reviewsContainer.length) {
+                        reviewsContainer.append(errorHtml);
+                    } else {
+                        // Fallback: use toast notification
+                        if (typeof showToast === 'function') {
+                            showToast(message, 'error');
+                        } else {
+                            console.error(message);
+                        }
+                    }
+                }
             }
+            
+            // Override any old showError function to prevent alert dialogs
+            // This ensures that even if cached code tries to call showError, it won't show alert
+            // CRITICAL: This prevents the alert dialog from showing in production
+            window.showError = function(message) {
+                console.warn('Old showError() called - redirecting to showReviewsError() to prevent alert dialog');
+                // Always use showReviewsError instead of alert
+                if (typeof showReviewsError === 'function') {
+                    showReviewsError(message);
+                } else {
+                    // Fallback: use toast or console, never alert
+                    if (typeof showToast === 'function') {
+                        showToast(message, 'error');
+                    } else {
+                        console.error('Review error:', message);
+                    }
+                }
+            };
+            
+            // Make retry function globally available
+            window.retryLoadReviews = function() {
+                reviewRetryCount = 0;
+                currentPage = 1;
+                $('#reviews-list').empty();
+                loadReviews(0);
+            };
         });
 
     </script>

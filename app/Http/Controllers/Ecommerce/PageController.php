@@ -22,49 +22,92 @@ class PageController extends Controller
 {
     public function index(Request $request)
     {
+        $cacheKey = 'home_page_data';
+        $useCache = !$request->has('no_cache');
+        
+        // Try to get cached home page data first
+        if ($useCache) {
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                $response = response()->view('ecommerce.home', $cachedData);
+                $response->header('Cache-Control', 'public, max-age=600'); // Allow browser caching for 10 minutes
+                return $response;
+            }
+        }
+        
         $pageTitle = null;
-        // Load only active parent categories with their active children for homepage menu
-        $categories = ProductServiceCategory::whereNull('parent_id')
-            ->where('status', 'active')
-            ->with(['children' => function($q) {
-                $q->where('status', 'active');
-            }])
-            ->get();
-        // Try loading banners if a model exists; otherwise provide empty array
+        
+        // Cache categories (they don't change often) - 1 hour
+        $categories = Cache::remember('active_categories_with_children', 3600, function () {
+            return ProductServiceCategory::whereNull('parent_id')
+                ->where('status', 'active')
+                ->with(['children' => function($q) {
+                    $q->where('status', 'active');
+                }])
+                ->get();
+        });
+        
+        // Cache banners (they change rarely) - 30 minutes
         $banners = [];
         $vlogBottomBanners = [];
         if (class_exists('App\\Models\\Banner')) {
-            $banners = \App\Models\Banner::currentlyActive()
-                ->where('position','hero')
-                ->orderBy('sort_order', 'asc')
-                ->get();
-            $vlogBottomBanners = \App\Models\Banner::currentlyActive()
-                ->where('position','vlogs_bottom')
-                ->orderBy('sort_order','asc')
-                ->get();
-        }
-        $featuredCategories = ProductServiceCategory::whereNull('parent_id')->get();
-        $featuredServices = Product::where('type', 'service')
-            ->where('status', 'active')
-            ->orderByDesc('created_at')
-            ->take(4)
-            ->get();
-        $bestDealProducts = Product::where('type','product')
-            ->orderByDesc('discount')
-            ->orderByDesc('created_at')
-            ->take(10)
-            ->get();
+            $banners = Cache::remember('banners_hero', 1800, function () {
+                return \App\Models\Banner::currentlyActive()
+                    ->where('position','hero')
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+            });
             
-        $vlogs = Vlog::where('is_active', 1)
-            ->latest()
-            ->take(4)
-            ->get();
+            $vlogBottomBanners = Cache::remember('banners_vlogs_bottom', 1800, function () {
+                return \App\Models\Banner::currentlyActive()
+                    ->where('position','vlogs_bottom')
+                    ->orderBy('sort_order','asc')
+                    ->get();
+            });
+        }
+        
+        // Cache featured categories - 1 hour
+        $featuredCategories = Cache::remember('featured_categories', 3600, function () {
+            return ProductServiceCategory::whereNull('parent_id')->get();
+        });
+        
+        // Cache featured services (5 minutes - they change more often)
+        $featuredServices = Cache::remember('featured_services', 300, function () {
+            return Product::where('type', 'service')
+                ->where('status', 'active')
+                ->orderByDesc('created_at')
+                ->take(4)
+                ->get();
+        });
+        
+        // Cache best deal products (5 minutes)
+        $bestDealProducts = Cache::remember('best_deal_products_home', 300, function () {
+            return Product::where('type','product')
+                ->where('status', 'active')
+                ->where('discount', '>', 0)
+                ->orderByDesc('discount')
+                ->orderByDesc('created_at')
+                ->take(10)
+                ->get();
+        });
+        
+        // Cache vlogs (10 minutes)
+        $vlogs = Cache::remember('active_vlogs_latest_4', 600, function () {
+            return Vlog::where('is_active', 1)
+                ->latest()
+                ->take(4)
+                ->get();
+        });
         
         $viewData = compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts','vlogBottomBanners');
+        
+        // Cache entire home page for 10 minutes
+        if ($useCache) {
+            Cache::put($cacheKey, $viewData, 600); // 10 minutes
+        }
+        
         $response = response()->view('ecommerce.home', $viewData);
-        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-        $response->header('Pragma', 'no-cache');
-        $response->header('Expires', '0');
+        $response->header('Cache-Control', 'public, max-age=600'); // Allow browser caching for 10 minutes
         return $response;
     }
 
@@ -92,8 +135,10 @@ class PageController extends Controller
             ->get();
         $query = Product::query();
 
-        // Get the highest price of all products
-        $maxProductPrice = Product::max('price') ?? 0;
+        // Get the highest price of all products (cached for 1 hour)
+        $maxProductPrice = Cache::remember('max_product_price', 3600, function () {
+            return Product::max('price') ?? 0;
+        });
 
         // Category filter - include child categories
         if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
@@ -343,34 +388,40 @@ class PageController extends Controller
             
             $pageTitle = $product->name;
             
-            // Enhanced related products logic
-            $relatedProducts = Product::where('type', 'product')
-                ->where('status', 'active')
-                ->where('id', '!=', $product->id)
-                ->where(function($query) use ($product) {
-                    // Same category products
-                    $query->where('category_id', $product->category_id)
-                          // Or similar price range products (±20%)
-                          ->orWhere(function($q) use ($product) {
-                              $priceRange = $product->price * 0.2;
-                              $q->whereBetween('price', [
-                                  $product->price - $priceRange,
-                                  $product->price + $priceRange
-                              ]);
-                          });
-                })
-                ->orderByRaw("
-                    CASE 
-                        WHEN category_id = ? THEN 1
-                        WHEN ABS(price - ?) <= ? * 0.2 THEN 2
-                        ELSE 3
-                    END
-                ", [$product->category_id, $product->price, $product->price])
-                ->orderBy('created_at', 'desc')
-                ->take(8)
-                ->get();
+            // Enhanced related products logic (cached for 30 minutes per product)
+            $relatedProductsCacheKey = "related_products_{$product->id}_{$product->category_id}";
+            $relatedProducts = Cache::remember($relatedProductsCacheKey, 1800, function () use ($product) {
+                return Product::where('type', 'product')
+                    ->where('status', 'active')
+                    ->where('id', '!=', $product->id)
+                    ->where(function($query) use ($product) {
+                        // Same category products
+                        $query->where('category_id', $product->category_id)
+                              // Or similar price range products (±20%)
+                              ->orWhere(function($q) use ($product) {
+                                  $priceRange = $product->price * 0.2;
+                                  $q->whereBetween('price', [
+                                      $product->price - $priceRange,
+                                      $product->price + $priceRange
+                                  ]);
+                              });
+                    })
+                    ->orderByRaw("
+                        CASE 
+                            WHEN category_id = ? THEN 1
+                            WHEN ABS(price - ?) <= ? * 0.2 THEN 2
+                            ELSE 3
+                        END
+                    ", [$product->category_id, $product->price, $product->price])
+                    ->orderBy('created_at', 'desc')
+                    ->take(8)
+                    ->with(['category', 'reviews' => function($q) {
+                        $q->where('is_approved', true);
+                    }])
+                    ->get();
+            });
 
-            // Add wishlist status to related products
+            // Add wishlist status to related products (user-specific, not cached)
             $userId = Auth::id();
             $wishlistedIds = [];
             if ($userId) {
@@ -381,6 +432,9 @@ class PageController extends Controller
             }
             foreach ($relatedProducts as $relatedProduct) {
                 $relatedProduct->is_wishlisted = in_array($relatedProduct->id, $wishlistedIds);
+                // Pre-calculate ratings and reviews for better performance
+                $relatedProduct->avg_rating = $relatedProduct->reviews->avg('rating') ?? 0;
+                $relatedProduct->total_reviews = $relatedProduct->reviews->count();
             }
 
             \Log::info('Returning view with product data', [
@@ -394,8 +448,10 @@ class PageController extends Controller
                 ]
             ]);
 
-            // Get general settings for social media links
-            $settings = GeneralSetting::first();
+            // Get general settings for social media links (cached for 1 hour)
+            $settings = Cache::remember('general_settings', 3600, function () {
+                return GeneralSetting::first();
+            });
             
             // Prepare view data
             $seoProduct = $product; // ensure header receives the exact product for meta tags
@@ -568,6 +624,19 @@ class PageController extends Controller
     public function bestDeals(Request $request)
     {
         $pageTitle = 'Best Deal';
+        $cacheKey = 'best_deals_page_' . md5(serialize($request->except(['page', '_token'])));
+        $useCache = !$request->has('no_cache') && !$request->ajax() && !$request->get('infinite_scroll', false);
+        
+        // Try to get cached page data first (only for non-AJAX requests)
+        if ($useCache) {
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                $response = response()->view('ecommerce.best-deal', $cachedData);
+                $response->header('Cache-Control', 'public, max-age=600'); // Allow browser caching for 10 minutes
+                return $response;
+            }
+        }
+        
         $query = Product::where('type', 'product')
             ->where('status', 'active');
 
@@ -605,6 +674,9 @@ class PageController extends Controller
         }
         foreach ($products as $product) {
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
+            // Pre-calculate ratings and reviews for better performance
+            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+            $product->total_reviews = $product->reviews->count();
         }
 
         // For AJAX requests (infinite scroll), return JSON
@@ -638,10 +710,14 @@ class PageController extends Controller
         }
 
         $viewData = compact('pageTitle', 'products');
+        
+        // Cache the view data for 10 minutes if caching is enabled
+        if ($useCache) {
+            Cache::put($cacheKey, $viewData, 600); // 10 minutes
+        }
+        
         $response = response()->view('ecommerce.best-deal', $viewData);
-        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-        $response->header('Pragma', 'no-cache');
-        $response->header('Expires', '0');
+        $response->header('Cache-Control', 'public, max-age=600'); // Allow browser caching for 10 minutes
         return $response;
     }
 
@@ -656,8 +732,10 @@ class PageController extends Controller
                 }])
                 ->get();
             
-            // Get max price for price range
-            $maxProductPrice = Product::max('price') ?? 1000;
+            // Get max price for price range (cached for 1 hour)
+            $maxProductPrice = Cache::remember('max_product_price', 3600, function () {
+                return Product::max('price') ?? 1000;
+            });
             
             // Build query
             $query = Product::with([

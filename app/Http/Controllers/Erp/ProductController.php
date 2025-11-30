@@ -166,6 +166,9 @@ class ProductController extends Controller
         }
 
         ProductServiceCategory::create($data);
+        
+        // Clear category caches
+        \App\Services\CacheService::clearCategoryCaches();
 
         return redirect()->back()->with('success', 'Category created successfully!');
     }
@@ -212,6 +215,9 @@ class ProductController extends Controller
         if (array_key_exists('status', $data) && $data['status'] === 'inactive') {
             ProductServiceCategory::where('parent_id', $category->id)->update(['status' => 'inactive']);
         }
+        
+        // Clear category caches
+        \App\Services\CacheService::clearCategoryCaches();
 
         return redirect()->back()->with('success', 'Category updated successfully!');
     }
@@ -224,6 +230,10 @@ class ProductController extends Controller
             @unlink(public_path($category->image));
         }
         $category->delete();
+        
+        // Clear category caches
+        \App\Services\CacheService::clearCategoryCaches();
+        
         return redirect()->back()->with('success', 'Category deleted successfully!');
     }
 
@@ -359,7 +369,7 @@ class ProductController extends Controller
         }
 
         // Clear product cache after creating new product
-        $this->clearProductCache();
+        $this->clearProductCache($product->id);
 
         return redirect()->route('product.list')->with('success', 'Product created successfully!');
     }
@@ -621,7 +631,7 @@ class ProductController extends Controller
         \Log::info('Final product attributes count:', ['count' => $finalAttributes->count()]);
 
         // Clear product cache after updating product
-        $this->clearProductCache();
+        $this->clearProductCache($product->id);
 
         return redirect()->route('product.list')->with('success', 'Product updated successfully!');
     }
@@ -632,10 +642,11 @@ class ProductController extends Controller
     public function destroy(string $id)
     {
         $product = Product::findOrFail($id);
+        $productId = $product->id;
         $product->delete();
         
         // Clear product cache after deleting product
-        $this->clearProductCache();
+        $this->clearProductCache($productId);
         
         return redirect()->route('product.list')->with('success', 'Product deleted successfully!');
     }
@@ -811,19 +822,10 @@ class ProductController extends Controller
     /**
      * Clear product-related cache
      */
-    private function clearProductCache()
+    private function clearProductCache($productId = null)
     {
         try {
-            // Clear product listing cache
-            $this->clearCachePattern('products_list_*');
-            
-            // Clear product details cache
-            $this->clearCachePattern('product_details_*');
-            
-            // Clear API cache
-            $this->clearCachePattern('top_selling_products_*');
-            $this->clearCachePattern('new_arrivals_products_*');
-            $this->clearCachePattern('best_deals_products_*');
+            \App\Services\CacheService::clearProductCaches($productId);
         } catch (\Exception $e) {
             \Log::warning('Failed to clear product cache: ' . $e->getMessage());
         }

@@ -175,8 +175,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!wrapper || !listEl) return;
         
         // Retry function that can be called from retry button
+        let topSellingAbortController = null;
         const loadTopSelling = function(retryCount = 0) {
-            const maxRetries = 2;
+            const maxRetries = 3; // Increased retries
+            
+            // Cancel any previous request
+            if (topSellingAbortController) {
+                topSellingAbortController.abort();
+            }
+            topSellingAbortController = new AbortController();
             
             // Add loading state
             if (fallback) {
@@ -185,17 +192,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const startTime = performance.now();
+            const timeout = 15000; // 15 second timeout
             
-            fetch('/api/products/most-sold', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
+            // Create timeout promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    topSellingAbortController.abort();
+                    reject(new Error('Request timeout'));
+                }, timeout);
+            });
+            
+            // Race between fetch and timeout
+            Promise.race([
+                fetch('/api/products/most-sold', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    signal: topSellingAbortController.signal
+                }),
+                timeoutPromise
+            ])
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    error.response = response;
+                    throw error;
                 }
                 return response.json();
             })
@@ -329,12 +352,24 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Failed to load top selling products:', error);
                 
-                // Auto-retry for transient network errors
-                if (retryCount < maxRetries && (error.message.includes('Network') || error.message.includes('Failed to fetch'))) {
+                // Don't retry if request was aborted manually
+                if (error.name === 'AbortError' && !error.message.includes('timeout')) {
+                    return;
+                }
+                
+                // Auto-retry for transient errors (network, timeout, server errors)
+                const isRetryableError = 
+                    error.message.includes('Network') || 
+                    error.message.includes('Failed to fetch') ||
+                    error.message.includes('timeout') ||
+                    error.message.includes('Request timeout') ||
+                    (error.response && [500, 502, 503, 504, 0].includes(error.response.status));
+                
+                if (retryCount < maxRetries && isRetryableError) {
                     console.log(`Retrying top selling products (attempt ${retryCount + 1}/${maxRetries})...`);
                     setTimeout(() => {
                         loadTopSelling(retryCount + 1);
-                    }, 1000 * (retryCount + 1)); // Exponential backoff
+                    }, 1000 * (retryCount + 1)); // Exponential backoff: 1s, 2s, 3s
                     return;
                 }
                 
@@ -372,8 +407,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!wrapper || !listEl) return;
 
         // Retry function that can be called from retry button
+        let newArrivalsAbortController = null;
         const loadNewArrivals = function(retryCount = 0) {
-            const maxRetries = 2;
+            const maxRetries = 3; // Increased retries
+            
+            // Cancel any previous request
+            if (newArrivalsAbortController) {
+                newArrivalsAbortController.abort();
+            }
+            newArrivalsAbortController = new AbortController();
             
             if (fallback) {
                 fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading new arrivals...</p></div>';
@@ -381,14 +423,28 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const startTime = performance.now();
-
-            fetch('/api/products/new-arrivals', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
+            const timeout = 15000; // 15 second timeout
+            
+            // Create timeout promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    newArrivalsAbortController.abort();
+                    reject(new Error('Request timeout'));
+                }, timeout);
+            });
+            
+            // Race between fetch and timeout
+            Promise.race([
+                fetch('/api/products/new-arrivals', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    signal: newArrivalsAbortController.signal
+                }),
+                timeoutPromise
+            ])
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -510,12 +566,24 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Failed to load new arrivals:', error);
             
-            // Auto-retry for transient network errors
-            if (retryCount < maxRetries && (error.message.includes('Network') || error.message.includes('Failed to fetch'))) {
+            // Don't retry if request was aborted manually
+            if (error.name === 'AbortError' && !error.message.includes('timeout')) {
+                return;
+            }
+            
+            // Auto-retry for transient errors (network, timeout, server errors)
+            const isRetryableError = 
+                error.message.includes('Network') || 
+                error.message.includes('Failed to fetch') ||
+                error.message.includes('timeout') ||
+                error.message.includes('Request timeout') ||
+                (error.response && [500, 502, 503, 504, 0].includes(error.response.status));
+            
+            if (retryCount < maxRetries && isRetryableError) {
                 console.log(`Retrying new arrivals (attempt ${retryCount + 1}/${maxRetries})...`);
                 setTimeout(() => {
                     loadNewArrivals(retryCount + 1);
-                }, 1000 * (retryCount + 1)); // Exponential backoff
+                }, 1000 * (retryCount + 1)); // Exponential backoff: 1s, 2s, 3s
                 return;
             }
             
@@ -553,8 +621,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!wrapper || !listEl) return;
         
         // Retry function that can be called from retry button
+        let bestDealsAbortController = null;
         const loadBestDeals = function(retryCount = 0) {
-            const maxRetries = 2;
+            const maxRetries = 3; // Increased retries
+            
+            // Cancel any previous request
+            if (bestDealsAbortController) {
+                bestDealsAbortController.abort();
+            }
+            bestDealsAbortController = new AbortController();
             
             // Add loading state
             if (fallback) {
@@ -563,14 +638,28 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const startTime = performance.now();
+            const timeout = 15000; // 15 second timeout
             
-            fetch('/api/products/best-deals', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
+            // Create timeout promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    bestDealsAbortController.abort();
+                    reject(new Error('Request timeout'));
+                }, timeout);
+            });
+            
+            // Race between fetch and timeout
+            Promise.race([
+                fetch('/api/products/best-deals', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    signal: bestDealsAbortController.signal
+                }),
+                timeoutPromise
+            ])
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -701,12 +790,24 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Failed to load best deals:', error);
             
-            // Auto-retry for transient network errors
-            if (retryCount < maxRetries && (error.message.includes('Network') || error.message.includes('Failed to fetch'))) {
+            // Don't retry if request was aborted manually
+            if (error.name === 'AbortError' && !error.message.includes('timeout')) {
+                return;
+            }
+            
+            // Auto-retry for transient errors (network, timeout, server errors)
+            const isRetryableError = 
+                error.message.includes('Network') || 
+                error.message.includes('Failed to fetch') ||
+                error.message.includes('timeout') ||
+                error.message.includes('Request timeout') ||
+                (error.response && [500, 502, 503, 504, 0].includes(error.response.status));
+            
+            if (retryCount < maxRetries && isRetryableError) {
                 console.log(`Retrying best deals (attempt ${retryCount + 1}/${maxRetries})...`);
                 setTimeout(() => {
                     loadBestDeals(retryCount + 1);
-                }, 1000 * (retryCount + 1)); // Exponential backoff
+                }, 1000 * (retryCount + 1)); // Exponential backoff: 1s, 2s, 3s
                 return;
             }
             

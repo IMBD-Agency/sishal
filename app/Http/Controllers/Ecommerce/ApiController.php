@@ -26,6 +26,9 @@ class ApiController extends Controller
         $startTime = microtime(true);
         
         try {
+            // Set execution time limit to prevent timeouts
+            set_time_limit(30);
+            
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
             $days = $request->get('days', 30);
@@ -36,6 +39,15 @@ class ApiController extends Controller
                 $products = $this->salesAnalytics->getTopSellingProductsCached($limit, $days, 5);
             } else {
                 $products = $this->salesAnalytics->getTopSellingProducts($limit, $days);
+            }
+            
+            // Check if products collection is empty or null
+            if (!$products || $products->isEmpty()) {
+                Log::warning('No top selling products found', [
+                    'limit' => $limit,
+                    'days' => $days,
+                    'cache_used' => $useCache
+                ]);
             }
 
             // Optimize wishlist check with single query
@@ -98,11 +110,23 @@ class ApiController extends Controller
         $startTime = microtime(true);
         
         try {
+            // Set execution time limit to prevent timeouts
+            set_time_limit(30);
+            
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
             $useCache = $request->get('cache', true);
             
             $cacheKey = "new_arrivals_products_{$limit}";
+            $fullResponseCacheKey = "new_arrivals_full_response_{$limit}";
+            
+            // Try to get cached full response first (without user-specific wishlist data)
+            if ($useCache && !$userId) {
+                $cachedResponse = Cache::get($fullResponseCacheKey);
+                if ($cachedResponse) {
+                    return response()->json($cachedResponse);
+                }
+            }
             
             // Get new arrivals with caching
             if ($useCache) {
@@ -121,6 +145,14 @@ class ApiController extends Controller
                     ->orderByDesc('created_at')
                     ->take($limit)
                     ->get();
+            }
+            
+            // Check if products collection is empty or null
+            if (!$products || $products->isEmpty()) {
+                Log::warning('No new arrival products found', [
+                    'limit' => $limit,
+                    'cache_used' => $useCache
+                ]);
             }
 
             // Optimize wishlist check with single query
@@ -143,6 +175,22 @@ class ApiController extends Controller
 
             $executionTime = microtime(true) - $startTime;
             
+            // Prepare response data
+            $responseData = [
+                'success' => true,
+                'data' => ProductResource::collection($products),
+                'meta' => [
+                    'execution_time' => round($executionTime, 3),
+                    'total_products' => $products->count(),
+                    'cached' => $useCache
+                ]
+            ];
+            
+            // Cache full response for non-logged-in users (5 minutes)
+            if ($useCache && !$userId) {
+                Cache::put($fullResponseCacheKey, $responseData, 300);
+            }
+            
             // Log performance metrics
             Log::info('New arrivals products loaded', [
                 'execution_time' => round($executionTime, 3),
@@ -151,15 +199,7 @@ class ApiController extends Controller
                 'cache_used' => $useCache
             ]);
 
-            return response()->json([
-                'success' => true,
-                'data' => ProductResource::collection($products),
-                'meta' => [
-                    'execution_time' => round($executionTime, 3),
-                    'total_products' => $products->count(),
-                    'cached' => $useCache
-                ]
-            ]);
+            return response()->json($responseData);
 
         } catch (\Exception $e) {
             Log::error('Error loading new arrivals products', [

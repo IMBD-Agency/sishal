@@ -33,6 +33,9 @@ class VloggingController extends Controller
                 'is_featured' => $isFeatured ? 1 : 0,
                 'is_active' => $isActive ? 1 : 0,
             ]);
+            
+            // Clear vlog caches
+            \App\Services\CacheService::clearVlogCaches();
 
             if ($request->wantsJson()) {
                 return response()->json(['success' => true, 'vlog' => $vlog]);
@@ -57,6 +60,9 @@ class VloggingController extends Controller
                 'is_featured' => $request->boolean('is_featured') ? 1 : 0,
                 'is_active' => $request->boolean('is_active') ? 1 : 0,
             ]);
+            
+            // Clear vlog caches
+            \App\Services\CacheService::clearVlogCaches();
 
             if ($request->wantsJson()) {
                 return response()->json(['success' => true, 'vlog' => $vlog->fresh()]);
@@ -73,6 +79,10 @@ class VloggingController extends Controller
     {
         try {
             $vlog->delete();
+            
+            // Clear vlog caches
+            \App\Services\CacheService::clearVlogCaches();
+            
             if ($request->wantsJson()) {
                 return response()->json(['success' => true]);
             }

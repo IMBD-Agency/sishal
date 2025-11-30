@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class GeneralSettingsController extends Controller
 {
@@ -108,6 +109,12 @@ class GeneralSettingsController extends Controller
 
         $settings->fill($validated);
         $settings->save();
+        
+        // Clear general settings cache
+        Cache::forget('general_settings');
+        
+        // Also clear home page cache as it may use settings
+        Cache::forget('home_page_data');
 
         return redirect()->back()->with('success', 'Settings updated successfully!');
     }
