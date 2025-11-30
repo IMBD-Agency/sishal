@@ -48,21 +48,38 @@ class ApiController extends Controller
         
         try {
             // Set execution time limit to prevent timeouts (increased for big data)
-            set_time_limit(120);
-            ini_set('max_execution_time', 120);
-            
-            // Set memory limit for large datasets
-            $currentMemoryLimit = ini_get('memory_limit');
-            if ($currentMemoryLimit !== '-1') {
-                $memoryBytes = $this->convertToBytes($currentMemoryLimit);
-                if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
-                    ini_set('memory_limit', '256M');
-                }
+            // Use try-catch to prevent fatal errors if server doesn't allow changing limits
+            try {
+                @set_time_limit(120);
+                @ini_set('max_execution_time', 120);
+            } catch (\Exception $e) {
+                // Server may not allow changing execution time - use default
+                Log::debug('Could not set execution time limit', ['error' => $e->getMessage()]);
             }
             
-            // Set database query timeout (30 seconds)
-            DB::statement("SET SESSION wait_timeout = 30");
-            DB::statement("SET SESSION interactive_timeout = 30");
+            // Set memory limit for large datasets - wrapped to prevent fatal errors
+            try {
+                $currentMemoryLimit = ini_get('memory_limit');
+                if ($currentMemoryLimit !== '-1') {
+                    $memoryBytes = $this->convertToBytes($currentMemoryLimit);
+                    if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
+                        @ini_set('memory_limit', '256M');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Server may not allow changing memory limit - use default
+                Log::debug('Could not set memory limit', ['error' => $e->getMessage()]);
+            }
+            
+            // Set database query timeout (30 seconds) - wrapped in try-catch to prevent connection errors
+            try {
+                DB::statement("SET SESSION wait_timeout = 30");
+                DB::statement("SET SESSION interactive_timeout = 30");
+            } catch (\Exception $e) {
+                // Ignore if database doesn't allow setting session variables
+                // This is not critical - database default timeout will be used
+                Log::debug('Could not set database session timeout', ['error' => $e->getMessage()]);
+            }
             
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
@@ -175,21 +192,38 @@ class ApiController extends Controller
         
         try {
             // Set execution time limit to prevent timeouts (increased for big data)
-            set_time_limit(120);
-            ini_set('max_execution_time', 120);
-            
-            // Set memory limit for large datasets
-            $currentMemoryLimit = ini_get('memory_limit');
-            if ($currentMemoryLimit !== '-1') {
-                $memoryBytes = $this->convertToBytes($currentMemoryLimit);
-                if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
-                    ini_set('memory_limit', '256M');
-                }
+            // Use try-catch to prevent fatal errors if server doesn't allow changing limits
+            try {
+                @set_time_limit(120);
+                @ini_set('max_execution_time', 120);
+            } catch (\Exception $e) {
+                // Server may not allow changing execution time - use default
+                Log::debug('Could not set execution time limit', ['error' => $e->getMessage()]);
             }
             
-            // Set database query timeout (30 seconds)
-            DB::statement("SET SESSION wait_timeout = 30");
-            DB::statement("SET SESSION interactive_timeout = 30");
+            // Set memory limit for large datasets - wrapped to prevent fatal errors
+            try {
+                $currentMemoryLimit = ini_get('memory_limit');
+                if ($currentMemoryLimit !== '-1') {
+                    $memoryBytes = $this->convertToBytes($currentMemoryLimit);
+                    if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
+                        @ini_set('memory_limit', '256M');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Server may not allow changing memory limit - use default
+                Log::debug('Could not set memory limit', ['error' => $e->getMessage()]);
+            }
+            
+            // Set database query timeout (30 seconds) - wrapped in try-catch to prevent connection errors
+            try {
+                DB::statement("SET SESSION wait_timeout = 30");
+                DB::statement("SET SESSION interactive_timeout = 30");
+            } catch (\Exception $e) {
+                // Ignore if database doesn't allow setting session variables
+                // This is not critical - database default timeout will be used
+                Log::debug('Could not set database session timeout', ['error' => $e->getMessage()]);
+            }
             
             $userId = Auth::id();
             $limit = min($request->get('limit', 20), 50); // Cap at 50 to prevent memory issues
@@ -415,21 +449,38 @@ class ApiController extends Controller
         
         try {
             // Set execution time limit to prevent timeouts (increased for big data)
-            set_time_limit(120);
-            ini_set('max_execution_time', 120);
-            
-            // Set memory limit for large datasets
-            $currentMemoryLimit = ini_get('memory_limit');
-            if ($currentMemoryLimit !== '-1') {
-                $memoryBytes = $this->convertToBytes($currentMemoryLimit);
-                if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
-                    ini_set('memory_limit', '256M');
-                }
+            // Use try-catch to prevent fatal errors if server doesn't allow changing limits
+            try {
+                @set_time_limit(120);
+                @ini_set('max_execution_time', 120);
+            } catch (\Exception $e) {
+                // Server may not allow changing execution time - use default
+                Log::debug('Could not set execution time limit', ['error' => $e->getMessage()]);
             }
             
-            // Set database query timeout (30 seconds)
-            DB::statement("SET SESSION wait_timeout = 30");
-            DB::statement("SET SESSION interactive_timeout = 30");
+            // Set memory limit for large datasets - wrapped to prevent fatal errors
+            try {
+                $currentMemoryLimit = ini_get('memory_limit');
+                if ($currentMemoryLimit !== '-1') {
+                    $memoryBytes = $this->convertToBytes($currentMemoryLimit);
+                    if ($memoryBytes < 256 * 1024 * 1024) { // Less than 256MB
+                        @ini_set('memory_limit', '256M');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Server may not allow changing memory limit - use default
+                Log::debug('Could not set memory limit', ['error' => $e->getMessage()]);
+            }
+            
+            // Set database query timeout (30 seconds) - wrapped in try-catch to prevent connection errors
+            try {
+                DB::statement("SET SESSION wait_timeout = 30");
+                DB::statement("SET SESSION interactive_timeout = 30");
+            } catch (\Exception $e) {
+                // Ignore if database doesn't allow setting session variables
+                // This is not critical - database default timeout will be used
+                Log::debug('Could not set database session timeout', ['error' => $e->getMessage()]);
+            }
             
             $userId = Auth::id();
             $limit = $request->get('limit', 20);
