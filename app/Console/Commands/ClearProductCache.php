@@ -28,52 +28,16 @@ class ClearProductCache extends Command
     {
         $this->info('Clearing product cache...');
         
-        // Clear product listing cache
-        $this->clearCachePattern('products_list_*');
-        
-        // Clear product details cache
-        $this->clearCachePattern('product_details_*');
-        
-        // Clear API cache
-        $this->clearCachePattern('top_selling_products_*');
-        $this->clearCachePattern('new_arrivals_products_*');
-        $this->clearCachePattern('best_deals_products_*');
-        
-        $this->info('Product cache cleared successfully!');
-    }
-    
-    /**
-     * Clear cache by pattern
-     */
-    private function clearCachePattern($pattern)
-    {
         try {
-            $store = Cache::getStore();
-            
-            // Check if we're using Redis cache driver
-            if (method_exists($store, 'getRedis')) {
-                // Redis-specific pattern clearing
-                $keys = $store->getRedis()->keys($pattern);
-                if (!empty($keys)) {
-                    $store->getRedis()->del($keys);
-                    $this->line("Cleared " . count($keys) . " cache entries matching: {$pattern}");
-                }
-            } else {
-                // For non-Redis drivers (database, file, array), we need to clear cache differently
-                // Since pattern matching isn't available, we'll clear the entire cache
-                $this->info("Clearing entire cache due to pattern matching not supported for current driver: " . get_class($store));
-                Cache::flush();
-                $this->line("Cleared entire cache (pattern matching not supported for current driver)");
-            }
+            // Use CacheService which properly handles database cache
+            // This prevents clearing ALL cache which causes performance issues
+            \App\Services\CacheService::clearProductCaches();
+            $this->info('Product cache cleared successfully using CacheService!');
         } catch (\Exception $e) {
-            // Fallback: try to clear individual cache entries or flush entire cache
-            $this->warn("Could not clear cache pattern {$pattern}: " . $e->getMessage());
-            try {
-                Cache::flush();
-                $this->line("Fallback: Cleared entire cache");
-            } catch (\Exception $flushException) {
-                $this->error("Failed to flush cache: " . $flushException->getMessage());
-            }
+            $this->error('Failed to clear product cache: ' . $e->getMessage());
+            return 1;
         }
+        
+        return 0;
     }
 }

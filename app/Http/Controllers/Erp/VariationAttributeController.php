@@ -256,34 +256,25 @@ class VariationAttributeController extends Controller
     }
     
     /**
-     * Clear cache by pattern
+     * Clear cache by pattern - Use CacheService instead of flushing all cache
      */
     private function clearCachePattern($pattern)
     {
         try {
-            $store = Cache::getStore();
-            
-            // Check if we're using Redis cache driver
-            if (method_exists($store, 'getRedis')) {
-                // Redis-specific pattern clearing
-                $keys = $store->getRedis()->keys($pattern);
-                if (!empty($keys)) {
-                    $store->getRedis()->del($keys);
-                }
-            } else {
-                // For non-Redis drivers (database, file, array), we need to clear cache differently
-                // Since pattern matching isn't available, we'll clear the entire cache
-                // This is a fallback approach for database/file cache drivers
-                \Log::info("Clearing entire cache due to pattern matching not supported for current driver: " . get_class($store));
-                Cache::flush();
-            }
+            // Use CacheService which handles database cache properly
+            // This prevents clearing ALL cache which causes performance issues
+            \App\Services\CacheService::clearProductCaches();
+            \Log::info("Cleared product caches using CacheService for pattern: {$pattern}");
         } catch (\Exception $e) {
-            // Fallback: try to clear individual cache entries or flush entire cache
+            // If CacheService fails, try to clear specific known cache keys
             \Log::warning("Could not clear cache pattern {$pattern}: " . $e->getMessage());
+            // Don't use Cache::flush() - it clears ALL cache and causes performance issues
+            // Instead, clear only known product-related cache keys
             try {
-                Cache::flush();
-            } catch (\Exception $flushException) {
-                \Log::error("Failed to flush cache: " . $flushException->getMessage());
+                Cache::forget('max_product_price');
+                Cache::forget('home_page_data');
+            } catch (\Exception $clearException) {
+                \Log::error("Failed to clear specific cache keys: " . $clearException->getMessage());
             }
         }
     }
