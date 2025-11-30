@@ -817,6 +817,7 @@
             // Add scroll listeners with throttling to improve performance
             var scrollTimeout;
             var lastScrollTop = 0;
+            var isScrolling = false;
             var throttledScrollHandler = function() {
                 var currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
                 
@@ -827,13 +828,15 @@
                 }
                 lastScrollTop = currentScrollTop;
                 
-                if (scrollTimeout) {
+                if (scrollTimeout || isScrolling) {
                     return;
                 }
-                scrollTimeout = setTimeout(function() {
+                isScrolling = true;
+                scrollTimeout = requestAnimationFrame(function() {
                     window.productsScrollHandler();
                     scrollTimeout = null;
-                }, 150); // Throttle to every 150ms
+                    isScrolling = false;
+                });
             };
             
             window.addEventListener('scroll', throttledScrollHandler, { passive: true });
@@ -900,10 +903,10 @@
                         // Update infinite scroll state
                         infiniteScrollState.currentPage = data.currentPage || 1;
                         infiniteScrollState.hasMore = data.hasMore || false;
-                        // Re-initialize infinite scroll after content update
-                        setTimeout(function() {
+                        // Re-initialize infinite scroll after content update (use requestAnimationFrame for better performance)
+                        requestAnimationFrame(function() {
                             initInfiniteScroll();
-                        }, 100);
+                        });
                     }
                     
                 } else {
@@ -965,10 +968,10 @@
                     });
                     
                     priceSlider.noUiSlider.on('change', function () {
-                        // Auto-apply filters on slider change
+                        // Auto-apply filters on slider change (reduced delay for better performance)
                         setTimeout(function() {
                             applyFilters();
-                        }, 300);
+                        }, 200);
                     });
                     }
 
@@ -1029,10 +1032,10 @@
                             allCategoryCheckbox.checked = true;
                         }
                         
-                        // Auto-apply filters on category change
+                        // Auto-apply filters on category change (reduced delay for better performance)
                         setTimeout(function() {
                             applyFilters();
-                        }, 300);
+                        }, 150);
                     });
                 });
 
@@ -1040,10 +1043,10 @@
                 var ratingCheckboxes = filterRoot.querySelectorAll('input[type=checkbox][name="rating[]"]');
                 ratingCheckboxes.forEach(function (checkbox) {
                     checkbox.addEventListener('change', function () {
-                        // Auto-apply filters on rating change
+                        // Auto-apply filters on rating change (reduced delay for better performance)
                         setTimeout(function() {
                             applyFilters();
-                        }, 300);
+                        }, 150);
                     });
                 });
 
@@ -1168,6 +1171,12 @@
                     var newExpandArea = expandArea.cloneNode(true);
                     expandArea.parentNode.replaceChild(newExpandArea, expandArea);
                     
+                    // Show toggle button immediately to prevent flash
+                    var toggleBtn = newExpandArea.querySelector('.category-toggle-btn');
+                    if (toggleBtn) {
+                        toggleBtn.classList.add('initialized');
+                    }
+                    
                     // Click handler for expand area
                     newExpandArea.addEventListener('click', function(e) {
                         e.preventDefault();
@@ -1196,10 +1205,10 @@
                             var expandArea = parentWrapper.querySelector('.category-expand-area');
                             if (childrenDiv && expandArea) {
                                 childrenDiv.classList.remove('collapse');
-                                // Use setTimeout to ensure DOM is ready for scrollHeight calculation
-                                setTimeout(function() {
+                                // Set max-height immediately without setTimeout to prevent flash
+                                requestAnimationFrame(function() {
                                     childrenDiv.style.maxHeight = childrenDiv.scrollHeight + 'px';
-                                }, 10);
+                                });
                                 var toggleBtn = expandArea.querySelector('.category-toggle-btn');
                                 var icon = toggleBtn ? toggleBtn.querySelector('i') : null;
                                 if (icon) {
@@ -1214,14 +1223,20 @@
                 });
                 
                 // Initialize max-height for all non-collapsed children (for smooth animations)
-                setTimeout(function() {
+                // Use requestAnimationFrame instead of setTimeout for better performance
+                requestAnimationFrame(function() {
                     var allChildrenDivs = filterRoot.querySelectorAll('.category-children:not(.collapse)');
                     allChildrenDivs.forEach(function(childrenDiv) {
                         if (!childrenDiv.style.maxHeight || childrenDiv.style.maxHeight === '0px') {
                             childrenDiv.style.maxHeight = childrenDiv.scrollHeight + 'px';
                         }
                     });
-                }, 50);
+                    // Show all category toggle buttons after initialization to prevent flash
+                    var allToggleBtns = filterRoot.querySelectorAll('.category-toggle-btn');
+                    allToggleBtns.forEach(function(btn) {
+                        btn.classList.add('initialized');
+                    });
+                });
                 
                 // Highlight parent categories that have selected children
                 function updateParentCategoryHighlight() {
@@ -1258,31 +1273,35 @@
                 initInfiniteScroll();
                 
                 // Also check if page is already scrolled near bottom (for short pages)
-                setTimeout(function() {
-                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
-                    var windowHeight = window.innerHeight || document.documentElement.clientHeight;
-                    var documentHeight = Math.max(
-                        document.body.scrollHeight,
-                        document.body.offsetHeight,
-                        document.documentElement.clientHeight,
-                        document.documentElement.scrollHeight,
-                        document.documentElement.offsetHeight
-                    );
-                    var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-                    
-                    // If page is short and we're near bottom, try loading more
-                    if (distanceFromBottom < 500 && infiniteScrollState.hasMore && !infiniteScrollState.isLoading) {
-                        console.log('Products page is short, checking if we need to load more products');
-                        loadMoreProducts();
-                    }
-                }, 500);
+                // Use requestAnimationFrame for better performance
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                        var windowHeight = window.innerHeight || document.documentElement.clientHeight;
+                        var documentHeight = Math.max(
+                            document.body.scrollHeight,
+                            document.body.offsetHeight,
+                            document.documentElement.clientHeight,
+                            document.documentElement.scrollHeight,
+                            document.documentElement.offsetHeight
+                        );
+                        var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+                        
+                        // If page is short and we're near bottom, try loading more
+                        if (distanceFromBottom < 500 && infiniteScrollState.hasMore && !infiniteScrollState.isLoading) {
+                            console.log('Products page is short, checking if we need to load more products');
+                            loadMoreProducts();
+                        }
+                    });
+                });
                 
                 // Also trigger a check after a short delay to catch any initial scroll position
+                // Reduced delay for better performance
                 setTimeout(function() {
                     if (window.productsScrollHandler) {
                         window.productsScrollHandler();
                     }
-                }, 1000);
+                }, 500);
                 
                 // Minimal: no extra sync logic necessary
             } catch(error) {
@@ -1694,13 +1713,21 @@
             padding: 0;
             cursor: pointer;
             color: #6c757d;
-            transition: color 0.2s, transform 0.2s;
+            transition: color 0.2s, transform 0.2s, opacity 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             width: 20px;
             height: 20px;
             flex-shrink: 0;
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        /* Show toggle button after initialization to prevent flash */
+        .category-toggle-btn.initialized {
+            opacity: 1;
+            visibility: visible;
         }
         
         .category-toggle-btn:hover {

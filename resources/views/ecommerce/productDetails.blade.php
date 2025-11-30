@@ -33,6 +33,33 @@
             overflow: visible;
             position: relative;
             margin-bottom: 40px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Prevent layout shift on product details page */
+        .product-section .container,
+        .product-main .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-left: 15px;
+            padding-right: 15px;
+            box-sizing: border-box;
+        }
+        
+        /* Ensure product main container has proper width from start */
+        .product-main {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        .product-main .row {
+            margin-left: 0;
+            margin-right: 0;
+            width: 100%;
         }
 
         .breadcrumb {
@@ -67,6 +94,28 @@
             max-width: 500px;
             margin: 0 auto 20px;
             aspect-ratio: 1 / 1;
+            min-height: 300px;
+            position: relative;
+        }
+        
+        /* Prevent layout shift while images load */
+        .main-swiper .swiper-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .main-swiper .swiper-slide {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .main-swiper .main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         /* Responsive Main Swiper */
@@ -3095,10 +3144,10 @@
         }
     </style>
 
-    <div class="container">
-        <div class="product-main row" data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
+    <div class="container" style="max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+        <div class="product-main row" data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}" style="margin: 0; width: 100%; max-width: 100%;">
             <!-- Product Gallery -->
-            <div class="col-lg-6 col-md-7 col-12" style="padding: 20px;">
+            <div class="col-lg-6 col-md-7 col-12" style="padding: 20px; min-width: 0;">
                 <div class="product-gallery">
                     <!-- Main Swiper -->
                     <div class="swiper main-swiper">

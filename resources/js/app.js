@@ -174,47 +174,51 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!wrapper || !listEl) return;
         
-        // Add loading state
-        if (fallback) {
-            fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading top selling products...</p></div>';
-            fallback.style.display = 'block';
-        }
-        
-        const startTime = performance.now();
-        
-        fetch('/api/products/most-sold', {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            const endTime = performance.now();
-            const loadTime = Math.round(endTime - startTime);
+        // Retry function that can be called from retry button
+        const loadTopSelling = function(retryCount = 0) {
+            const maxRetries = 2;
             
-            // Handle new API response format
-            const products = data.success ? data.data : data;
+            // Add loading state
+            if (fallback) {
+                fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading top selling products...</p></div>';
+                fallback.style.display = 'block';
+            }
             
-            if (!Array.isArray(products) || products.length === 0) {
-                if (fallback) {
-                    fallback.innerHTML = '<div class="col-12 text-center text-muted"><i class="fas fa-box-open fa-2x mb-3"></i><p>No top selling products found.</p></div>';
-                    fallback.style.display = 'block';
+            const startTime = performance.now();
+            
+            fetch('/api/products/most-sold', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 }
-                if (wrapper) wrapper.style.display = 'none';
-                return;
-            }
-            
-            if (fallback) fallback.style.display = 'none';
-            
-            // Render products with improved error handling
-            listEl.innerHTML = products.map(product => {
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const endTime = performance.now();
+                const loadTime = Math.round(endTime - startTime);
+                
+                // Handle new API response format
+                const products = data.success ? data.data : data;
+                
+                if (!Array.isArray(products) || products.length === 0) {
+                    if (fallback) {
+                        fallback.innerHTML = '<div class="col-12 text-center text-muted"><i class="fas fa-box-open fa-2x mb-3"></i><p>No top selling products found.</p></div>';
+                        fallback.style.display = 'block';
+                    }
+                    if (wrapper) wrapper.style.display = 'none';
+                    return;
+                }
+                
+                if (fallback) fallback.style.display = 'none';
+                
+                // Render products with improved error handling
+                listEl.innerHTML = products.map(product => {
                 try {
                     const rating = product.avg_rating ?? 0;
                     const reviews = product.total_reviews ?? 0;
@@ -268,78 +272,95 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error rendering product:', product, error);
                     return ''; // Skip this product if there's an error
                 }
-            }).filter(html => html).join('');
-            
-            // If we have fewer products than perPage, duplicate them to enable looping
-            const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
-            if (products.length > 0 && products.length < perPage * 2) {
-                const originalHtml = listEl.innerHTML;
-                const timesToRepeat = Math.ceil((perPage * 2) / products.length);
-                listEl.innerHTML = originalHtml.repeat(timesToRepeat);
-            }
-            
-            // Initialize Splide carousel - optimized to prevent shake
-            // Set visibility first, then wait for next frame before initializing
-            wrapper.style.visibility = 'visible';
-            requestAnimationFrame(() => {
-                const actualSlideCount = listEl.querySelectorAll('.splide__slide').length;
+                }).filter(html => html).join('');
+                
+                // If we have fewer products than perPage, duplicate them to enable looping
                 const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
-                const canLoop = actualSlideCount >= perPage * 2;
+                if (products.length > 0 && products.length < perPage * 2) {
+                    const originalHtml = listEl.innerHTML;
+                    const timesToRepeat = Math.ceil((perPage * 2) / products.length);
+                    listEl.innerHTML = originalHtml.repeat(timesToRepeat);
+                }
                 
-                console.log('Top Selling - Original Products:', products.length, 'Total Slides:', actualSlideCount, 'PerPage:', perPage, 'CanLoop:', canLoop);
-                
-                const topSplide = new Splide(wrapper, {
-                    type: 'loop',
-                    perPage: perPage,
-                    gap: '16px',
-                    pagination: false,
-                    arrows: true,
-                    autoplay: canLoop,
-                    interval: 1500,
-                    pauseOnHover: true,
-                    rewind: true,
-                    speed: 400,
-                    easing: 'ease',
-                    breakpoints: { 
-                        1199: { perPage: 3 }, 
-                        991: { perPage: 2 }, 
-                        575: { perPage: 2 } 
+                // Initialize Splide carousel - optimized to prevent shake
+                // Set visibility first, then wait for next frame before initializing
+                wrapper.style.visibility = 'visible';
+                requestAnimationFrame(() => {
+                    const actualSlideCount = listEl.querySelectorAll('.splide__slide').length;
+                    const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                    const canLoop = actualSlideCount >= perPage * 2;
+                    
+                    console.log('Top Selling - Original Products:', products.length, 'Total Slides:', actualSlideCount, 'PerPage:', perPage, 'CanLoop:', canLoop);
+                    
+                    const topSplide = new Splide(wrapper, {
+                        type: 'loop',
+                        perPage: perPage,
+                        gap: '16px',
+                        pagination: false,
+                        arrows: true,
+                        autoplay: canLoop,
+                        interval: 1500,
+                        pauseOnHover: true,
+                        rewind: true,
+                        speed: 400,
+                        easing: 'ease',
+                        breakpoints: { 
+                            1199: { perPage: 3 }, 
+                            991: { perPage: 2 }, 
+                            575: { perPage: 2 } 
+                        }
+                    });
+                    topSplide.mount();
+                    
+                    // Force autoplay if we have enough slides
+                    if (canLoop && topSplide.Components && topSplide.Components.Autoplay) {
+                        topSplide.Components.Autoplay.play();
+                        console.log('Top Selling autoplay enabled and started');
                     }
                 });
-                topSplide.mount();
                 
-                // Force autoplay if we have enough slides
-                if (canLoop && topSplide.Components && topSplide.Components.Autoplay) {
-                    topSplide.Components.Autoplay.play();
-                    console.log('Top Selling autoplay enabled and started');
+                // Log performance metrics
+                console.log(`Top selling products loaded in ${loadTime}ms`, {
+                    productsCount: products.length,
+                    loadTime: loadTime,
+                    cached: data.meta?.cached || false
+                });
+            })
+            .catch(error => {
+                console.error('Failed to load top selling products:', error);
+                
+                // Auto-retry for transient network errors
+                if (retryCount < maxRetries && (error.message.includes('Network') || error.message.includes('Failed to fetch'))) {
+                    console.log(`Retrying top selling products (attempt ${retryCount + 1}/${maxRetries})...`);
+                    setTimeout(() => {
+                        loadTopSelling(retryCount + 1);
+                    }, 1000 * (retryCount + 1)); // Exponential backoff
+                    return;
                 }
+                
+                if (fallback) {
+                    fallback.innerHTML = `
+                        <div class="col-12 text-center text-danger">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Failed to load top selling products.</p>
+                            <button class="btn btn-outline-primary btn-sm" onclick="window.loadTopSellingProducts && window.loadTopSellingProducts()">
+                                <i class="fas fa-refresh me-1"></i>Retry
+                            </button>
+                        </div>
+                    `;
+                    fallback.style.display = 'block';
+                }
+                if (wrapper) wrapper.style.display = 'none';
             });
-            
-            // Log performance metrics
-            console.log(`Top selling products loaded in ${loadTime}ms`, {
-                productsCount: products.length,
-                loadTime: loadTime,
-                cached: data.meta?.cached || false
-            });
-            
-        })
-        .catch(error => {
-            console.error('Failed to load top selling products:', error);
-            
-            if (fallback) {
-                fallback.innerHTML = `
-                    <div class="col-12 text-center text-danger">
-                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                        <p>Failed to load top selling products.</p>
-                        <button class="btn btn-outline-primary btn-sm" onclick="location.reload()">
-                            <i class="fas fa-refresh me-1"></i>Retry
-                        </button>
-                    </div>
-                `;
-                fallback.style.display = 'block';
-            }
-            if (wrapper) wrapper.style.display = 'none';
-        });
+        }; // Close loadTopSelling function
+        
+        // Make loadTopSelling available globally for retry button
+        window.loadTopSellingProducts = function() {
+            loadTopSelling(0);
+        };
+        
+        // Initial load
+        loadTopSelling(0);
     })();
 
     // Build New Arrivals Splide from API
@@ -350,20 +371,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!wrapper || !listEl) return;
 
-        if (fallback) {
-            fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading new arrivals...</p></div>';
-            fallback.style.display = 'block';
-        }
-
-        const startTime = performance.now();
-
-        fetch('/api/products/new-arrivals', {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+        // Retry function that can be called from retry button
+        const loadNewArrivals = function(retryCount = 0) {
+            const maxRetries = 2;
+            
+            if (fallback) {
+                fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading new arrivals...</p></div>';
+                fallback.style.display = 'block';
             }
-        })
+
+            const startTime = performance.now();
+
+            fetch('/api/products/new-arrivals', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -484,13 +509,23 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Failed to load new arrivals:', error);
+            
+            // Auto-retry for transient network errors
+            if (retryCount < maxRetries && (error.message.includes('Network') || error.message.includes('Failed to fetch'))) {
+                console.log(`Retrying new arrivals (attempt ${retryCount + 1}/${maxRetries})...`);
+                setTimeout(() => {
+                    loadNewArrivals(retryCount + 1);
+                }, 1000 * (retryCount + 1)); // Exponential backoff
+                return;
+            }
+            
             if (fallback) {
                 fallback.innerHTML = `
-                    <div class=\"col-12 text-center text-danger\">
-                        <i class=\"fas fa-exclamation-triangle fa-2x mb-3\"></i>
+                    <div class="col-12 text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                         <p>Failed to load new arrival products.</p>
-                        <button class=\"btn btn-outline-primary btn-sm\" onclick=\"location.reload()\">
-                            <i class=\"fas fa-refresh me-1\"></i>Retry
+                        <button class="btn btn-outline-primary btn-sm" onclick="window.loadNewArrivalsProducts && window.loadNewArrivalsProducts()">
+                            <i class="fas fa-refresh me-1"></i>Retry
                         </button>
                     </div>
                 `;
@@ -498,6 +533,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (wrapper) wrapper.style.display = 'none';
         });
+        }; // Close loadNewArrivals function
+        
+        // Make loadNewArrivals available globally for retry button
+        window.loadNewArrivalsProducts = function() {
+            loadNewArrivals(0);
+        };
+        
+        // Initial load
+        loadNewArrivals(0);
     })();
 
     // Build Best Deals Splide from API (like Top Selling)
@@ -508,21 +552,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!wrapper || !listEl) return;
         
-        // Add loading state
-        if (fallback) {
-            fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading best deals...</p></div>';
-            fallback.style.display = 'block';
-        }
-        
-        const startTime = performance.now();
-        
-        fetch('/api/products/best-deals', {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+        // Retry function that can be called from retry button
+        const loadBestDeals = function(retryCount = 0) {
+            const maxRetries = 2;
+            
+            // Add loading state
+            if (fallback) {
+                fallback.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading best deals...</p></div>';
+                fallback.style.display = 'block';
             }
-        })
+            
+            const startTime = performance.now();
+            
+            fetch('/api/products/best-deals', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -652,12 +700,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Failed to load best deals:', error);
+            
+            // Auto-retry for transient network errors
+            if (retryCount < maxRetries && (error.message.includes('Network') || error.message.includes('Failed to fetch'))) {
+                console.log(`Retrying best deals (attempt ${retryCount + 1}/${maxRetries})...`);
+                setTimeout(() => {
+                    loadBestDeals(retryCount + 1);
+                }, 1000 * (retryCount + 1)); // Exponential backoff
+                return;
+            }
+            
             if (fallback) {
                 fallback.innerHTML = `
                     <div class="col-12 text-center text-danger">
                         <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                         <p>Failed to load best deals.</p>
-                        <button class="btn btn-outline-primary btn-sm" onclick="location.reload()">
+                        <button class="btn btn-outline-primary btn-sm" onclick="window.loadBestDealsProducts && window.loadBestDealsProducts()">
                             <i class="fas fa-refresh me-1"></i>Retry
                         </button>
                     </div>
@@ -666,6 +724,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (wrapper) wrapper.style.display = 'none';
         });
+        }; // Close loadBestDeals function
+        
+        // Make loadBestDeals available globally for retry button
+        window.loadBestDealsProducts = function() {
+            loadBestDeals(0);
+        };
+        
+        // Initial load
+        loadBestDeals(0);
     })();
 
     // Init Hero Splide - optimized to prevent shake
