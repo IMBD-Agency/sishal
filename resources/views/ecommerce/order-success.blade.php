@@ -373,8 +373,8 @@
                         'item_id': '{{ $item->product_id }}',
                         'item_name': {!! json_encode($item->product->name ?? '') !!},
                         'item_category': {!! json_encode($item->product->category->name ?? '') !!},
-                        'price': {{ $item->price }},
-                        'quantity': {{ $item->qty }}
+                        'price': {{ $item->unit_price }},
+                        'quantity': {{ $item->quantity }}
                     }@if(!$loop->last),@endif
                     @endif
                     @endforeach
