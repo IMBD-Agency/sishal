@@ -278,7 +278,6 @@
             $vat = $order->vat > 0 ? number_format($order->vat, 2) : null;
             $shipping = $order->delivery > 0 ? number_format($order->delivery, 2) : null;
             $total = number_format($order->total, 2);
-            $dueAmount = ($order->invoice && $order->invoice->due_amount > 0) ? number_format($order->invoice->due_amount, 2) : null;
         @endphp
         <div class="summary">
             <div class="summary-row">
@@ -307,12 +306,6 @@
                 <div class="summary-label">Total Amount:</div>
                 <div class="summary-value">{{ $total }}TK</div>
             </div>
-            @if($dueAmount)
-            <div class="summary-row" style="margin-top: 10px;">
-                <div class="summary-label" style="color: #000;">Due Amount:</div>
-                <div class="summary-value" style="color: #000;">{{ $dueAmount }}Tk</div>
-            </div>
-            @endif
         </div>
         
         <!-- Footer -->
