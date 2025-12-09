@@ -29,10 +29,10 @@ class OrderController extends Controller
     {
         $userId = auth()->id();
         $sessionId = session()->getId();
-        $carts = Cart::with(['product','variation'])
-            ->when($userId, function($q) use ($userId) {
+        $carts = Cart::with(['product', 'variation'])
+            ->when($userId, function ($q) use ($userId) {
                 $q->where('user_id', $userId);
-            }, function($q) use ($sessionId) {
+            }, function ($q) use ($sessionId) {
                 $q->whereNull('user_id')->where('session_id', $sessionId);
             })
             ->get();
@@ -45,7 +45,7 @@ class OrderController extends Controller
                 continue;
             $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
             $cartTotal += $price * $cart->qty;
-            
+
             // Check if product has free delivery
             if ($product->free_delivery) {
                 $hasProductFreeDelivery = true;
@@ -58,7 +58,7 @@ class OrderController extends Controller
 
         // Get shipping methods
         $shippingMethods = \App\Models\ShippingMethod::active()->ordered()->get();
-        
+
         // Calculate initial shipping cost (0 if free delivery, otherwise first method cost)
         $initialShippingCost = $hasProductFreeDelivery ? 0 : ($shippingMethods->first() ? $shippingMethods->first()->cost : 0);
 
@@ -95,7 +95,7 @@ class OrderController extends Controller
                 'errors' => $validator->errors()->toArray(),
                 'input' => $request->all()
             ]);
-        
+
             return response()->json([
                 'status' => 'error',
                 'errors' => $validator->errors()
@@ -103,22 +103,22 @@ class OrderController extends Controller
         }
 
         $sessionId = session()->getId();
-        
-        $carts = Cart::with(['product','variation'])
-            ->when($userId, function($q) use ($userId) {
+
+        $carts = Cart::with(['product', 'variation'])
+            ->when($userId, function ($q) use ($userId) {
                 $q->where('user_id', $userId);
-            }, function($q) use ($sessionId) {
+            }, function ($q) use ($sessionId) {
                 $q->whereNull('user_id')->where('session_id', $sessionId);
             })
             ->get();
-        
+
         if ($carts->isEmpty()) {
             // For AJAX requests, return a validation-style response
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Your cart is empty. Please add products before placing an order.',
-                    'errors' => [ 'cart' => ['Your cart is empty.'] ]
+                    'errors' => ['cart' => ['Your cart is empty.']]
                 ], 422);
             }
             // For normal form submissions, redirect back with an error flash message
@@ -128,7 +128,7 @@ class OrderController extends Controller
         $subtotal = 0;
         $items = [];
         $invalidItemsDeleted = 0;
-        
+
         foreach ($carts as $cart) {
             $product = $cart->product;
             if (!$product) {
@@ -139,12 +139,12 @@ class OrderController extends Controller
             // CRITICAL: Check if cart item is missing variation_id for product with variations
             // This happens when cart was created before variation was selected
             $variationId = $cart->variation_id;
-            
+
             if ($product->has_variations && !$variationId) {
                 // Delete the invalid cart item - user must re-add with variation selected
                 $cart->delete();
                 $invalidItemsDeleted++;
-                
+
                 // Continue to next item instead of throwing error immediately
                 // This allows processing other valid cart items
                 continue;
@@ -159,17 +159,17 @@ class OrderController extends Controller
             }
             $total = $price * $cart->qty;
             $subtotal += $total;
-            
+
             // Validate that the variation_id belongs to this product
             if ($variationId) {
                 $variation = \App\Models\ProductVariation::where('id', $variationId)
                     ->where('product_id', $product->id)
                     ->first();
-                
+
                 if (!$variation) {
                     $errorMessage = "Invalid variation selected for product '{$product->name}'. ";
                     $errorMessage .= "Please remove this item from your cart and add it again with a valid variation.";
-                    
+
                     if ($request->ajax() || $request->wantsJson()) {
                         return response()->json([
                             'success' => false,
@@ -179,11 +179,11 @@ class OrderController extends Controller
                             'variation_id' => $variationId
                         ], 422);
                     }
-                    
+
                     throw new \Exception($errorMessage);
                 }
             }
-            
+
             $items[] = [
                 'product_id' => $product->id,
                 'variation_id' => $variationId,
@@ -192,20 +192,20 @@ class OrderController extends Controller
                 'total_price' => $total,
             ];
         }
-        
+
         // Check if we have any valid items after processing
         if (empty($items)) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => $invalidItemsDeleted > 0 
+                    'message' => $invalidItemsDeleted > 0
                         ? "Your cart items are missing variation selections. Please remove them from cart, go to product pages, select variations, and add them again."
                         : 'Your cart is empty. Please add products before placing an order.',
-                    'errors' => [ 'cart' => ['Your cart is empty or contains invalid items.'] ]
+                    'errors' => ['cart' => ['Your cart is empty or contains invalid items.']]
                 ], 422);
             }
-            
-            return redirect()->back()->with('error', $invalidItemsDeleted > 0 
+
+            return redirect()->back()->with('error', $invalidItemsDeleted > 0
                 ? "Your cart items are missing variation selections. Please remove them and add them again with variations selected."
                 : 'Your cart is empty. Please add products before placing an order.');
         }
@@ -214,15 +214,15 @@ class OrderController extends Controller
         $generalSetting = \App\Models\GeneralSetting::first();
         $taxRate = $generalSetting ? ($generalSetting->tax_rate / 100) : 0.00; // Default to 0% if not set
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00; // Default to 0% if not set
-        
+
         $tax = round($subtotal * $taxRate, 2);
-        
+
         // Determine shipping cost (accept id or enum name)
         $shippingMethod = is_numeric($request->shipping_method)
             ? \App\Models\ShippingMethod::find($request->shipping_method)
             : \App\Models\ShippingMethod::where('name', $request->shipping_method)->first();
         $shipping = $shippingMethod ? $shippingMethod->cost : 0;
-        
+
         // Check if any product in cart has free delivery enabled
         $hasProductFreeDelivery = false;
         foreach ($carts as $cart) {
@@ -232,20 +232,20 @@ class OrderController extends Controller
                 break;
             }
         }
-        
+
         // Apply free delivery if any product has free_delivery enabled
         if ($hasProductFreeDelivery) {
             $shipping = 0;
         }
-        
+
         // Handle coupon validation and discount calculation
         $coupon = null;
         $couponDiscount = 0;
         $couponId = null;
-        
+
         if ($request->filled('coupon_code')) {
             $couponValidation = $this->validateAndApplyCoupon($request->coupon_code, $subtotal, $carts, $userId, $sessionId);
-            
+
             if (!$couponValidation['valid']) {
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json([
@@ -256,19 +256,19 @@ class OrderController extends Controller
                 }
                 return redirect()->back()->with('error', $couponValidation['message'])->withInput();
             }
-            
+
             $coupon = $couponValidation['coupon'];
             $couponDiscount = $couponValidation['discount'];
             $couponId = $coupon->id;
-            
+
             // Apply free delivery if coupon has free_delivery enabled (overrides product free delivery if coupon is used)
             if ($coupon->free_delivery) {
                 $shipping = 0;
             }
         }
-        
+
         $total = $subtotal + $tax + $shipping - $couponDiscount;
-        
+
         // Calculate COD percentage discount (for accounting only, not for invoice)
         $codDiscount = 0;
         if ($request->payment_method === 'cash' && $codPercentage > 0) {
@@ -278,7 +278,7 @@ class OrderController extends Controller
             // Note: COD discount is NOT subtracted from invoice total
             // It will only be applied to accounting (Balance) records
         }
-        
+
         // Debug: Log COD calculation details
         if ($request->payment_method === 'cash') {
             Log::info('COD Discount Calculation', [
@@ -300,7 +300,7 @@ class OrderController extends Controller
             $order = Order::create([
                 'order_number' => $orderNumber,
                 'user_id' => $userId ?? 0,
-                'name' => $request->first_name. ' '.$request->last_name,
+                'name' => $request->first_name . ' ' . $request->last_name,
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'subtotal' => $subtotal,
@@ -322,7 +322,7 @@ class OrderController extends Controller
             // Resolve or create Customer (guest or logged-in)
             if ($userId) {
                 $customer = Customer::firstOrCreate(
-                    [ 'user_id' => $userId ],
+                    ['user_id' => $userId],
                     [
                         'name' => trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? '')) ?: 'Customer',
                         'email' => $request->email,
@@ -375,7 +375,7 @@ class OrderController extends Controller
             // OPTIMIZATION: Batch load all warehouse stocks upfront to avoid N+1 queries
             $variationIds = array_filter(array_column($items, 'variation_id'));
             $productIds = array_column($items, 'product_id');
-            
+
             // Load all variation stocks in one query
             $variationStocks = [];
             if (!empty($variationIds)) {
@@ -386,27 +386,27 @@ class OrderController extends Controller
                     ->orderByDesc('quantity')
                     ->get()
                     ->groupBy('variation_id');
-                
+
                 foreach ($variationStocksData as $vid => $stocks) {
                     $variationStocks[$vid] = $stocks->first();
                 }
             }
-            
+
             // Load all product-level warehouse stocks in one query
             $productStocks = \App\Models\WarehouseProductStock::whereIn('product_id', $productIds)
                 ->where('quantity', '>', 0)
                 ->orderByDesc('quantity')
                 ->get()
                 ->groupBy('product_id')
-                ->map(function($stocks) {
+                ->map(function ($stocks) {
                     return $stocks->first();
                 })
-                ->toArray();
+                ->all();
 
             foreach ($items as $item) {
                 // Auto-assign warehouse stock source for ecommerce orders
                 $warehouseId = null;
-                
+
                 // For products with variations, check variation-level warehouse stock first
                 if (!empty($item['variation_id']) && isset($variationStocks[$item['variation_id']])) {
                     $variationStock = $variationStocks[$item['variation_id']];
@@ -418,7 +418,7 @@ class OrderController extends Controller
                         $warehouseId = $variationStock->warehouse_id;
                     }
                 }
-                
+
                 // If no variation stock found, check product-level warehouse stock
                 if (!$warehouseId && isset($productStocks[$item['product_id']])) {
                     $productStock = $productStocks[$item['product_id']];
@@ -429,7 +429,7 @@ class OrderController extends Controller
                         $warehouseId = $productStock->warehouse_id;
                     }
                 }
-                
+
                 $orderItem = OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
@@ -440,7 +440,7 @@ class OrderController extends Controller
                     'current_position_type' => $warehouseId ? 'warehouse' : null, // Auto-assign warehouse
                     'current_position_id' => $warehouseId, // Auto-assign warehouse ID
                 ]);
-                
+
                 // Deduct stock from warehouse (includes validation)
                 if ($warehouseId) {
                     try {
@@ -449,7 +449,7 @@ class OrderController extends Controller
                         DB::rollBack();
                         $product = \App\Models\Product::find($item['product_id']);
                         $productName = $product ? $product->name : 'Product ID: ' . $item['product_id'];
-                        
+
                         if ($request->ajax() || $request->wantsJson()) {
                             return response()->json([
                                 'success' => false,
@@ -457,11 +457,11 @@ class OrderController extends Controller
                                 'errors' => ['stock' => ['Insufficient stock available.']]
                             ], 422);
                         }
-                        
+
                         return redirect()->back()->with('error', $e->getMessage() ?: "Insufficient stock for '{$productName}'. Please reduce quantity or remove from cart.");
                     }
                 }
-                
+
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
@@ -497,11 +497,11 @@ class OrderController extends Controller
             } else {
                 Cart::whereNull('user_id')->where('session_id', $sessionId)->delete();
             }
-            
+
             // Apply COD percentage discount on invoice total amount for accounting (Balance) records only
             // Invoice total amount remains full (no COD discount), but accounting balance reflects COD charge
             $invoiceTotalAmount = $invoice->total_amount; // Full invoice amount (e.g., 1000)
-            
+
             // Calculate accounting balance with COD discount applied
             if ($isInstantPaid) {
                 // Online payment: no balance due
@@ -512,7 +512,7 @@ class OrderController extends Controller
                 // Example: If invoice is 1000 and COD is 2%, balance = 1000 - 20 = 980
                 $accountingBalance = $invoiceTotalAmount - $codDiscount;
             }
-            
+
             // Log for debugging - this will help identify if COD discount is being applied
             Log::info('Balance Creation with COD Discount', [
                 'order_number' => $order->order_number,
@@ -525,7 +525,7 @@ class OrderController extends Controller
                 'is_instant_paid' => $isInstantPaid,
                 'calculation_formula' => $isInstantPaid ? 'N/A (online payment)' : "{$invoiceTotalAmount} - {$codDiscount} = {$accountingBalance}",
             ]);
-            
+
             Balance::create([
                 'source_type' => 'customer',
                 'source_id' => $customer->id, // Use customer ID instead of user_id for guest orders
@@ -544,19 +544,19 @@ class OrderController extends Controller
                     'discount_amount' => $couponDiscount,
                     'order_total' => $subtotal,
                 ]);
-                
+
                 // Increment coupon usage count
                 $coupon->increment('used_count');
             }
 
             DB::commit();
-            
+
             // Send emails directly (synchronously) - no queue needed
             try {
                 // Configure SMTP from settings
                 if (SmtpConfigService::configureFromSettings()) {
                     $customerEmail = $request->email;
-                    
+
                     // Send customer confirmation email (only when provided)
                     if ($customerEmail) {
                         try {
@@ -570,7 +570,7 @@ class OrderController extends Controller
                             ]);
                         }
                     }
-                    
+
                     // Always notify store owner regardless of customer email
                     $ownerEmail = SmtpConfigService::getContactEmail();
                     if ($ownerEmail && filter_var($ownerEmail, FILTER_VALIDATE_EMAIL)) {
@@ -599,7 +599,7 @@ class OrderController extends Controller
                     'error' => $e->getMessage()
                 ]);
             }
-            
+
             // Check if this is an AJAX request for online payment
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -610,20 +610,20 @@ class OrderController extends Controller
                     'message' => 'Order created successfully'
                 ]);
             }
-            
+
             // Ensure the order number is safe for URLs (avoid '#' fragment issues)
             $encodedOrderNumber = urlencode($order->order_number);
-                            
+
             return redirect()->route('order.success', $encodedOrderNumber);
-         
+
             // return redirect(url('/order-success/' . $encodedOrderNumber));
-    
+
 
 
         } catch (\Exception $e) {
             \Log::alert($e);
             DB::rollBack();
-            
+
             // Check if this is an AJAX request
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -631,7 +631,7 @@ class OrderController extends Controller
                     'message' => $e->getMessage()
                 ], 500);
             }
-            
+
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
@@ -681,42 +681,42 @@ class OrderController extends Controller
     {
         try {
             DB::beginTransaction();
-            
+
             $order = Order::with(['items', 'invoice', 'invoice.payments'])->findOrFail($id);
-            
+
             // Check if user owns this order
             if ($order->user_id !== auth()->id()) {
                 return redirect()->back()->with('error', 'You are not authorized to delete this order.');
             }
-            
+
             // Only allow deletion of cancelled or pending orders
             if (!in_array($order->status, ['cancelled', 'pending'])) {
                 return redirect()->back()->with('error', 'Only cancelled or pending orders can be deleted.');
             }
-            
+
             // Delete related invoice payments
             if ($order->invoice && $order->invoice->payments) {
                 $order->invoice->payments()->delete();
             }
-            
+
             // Delete invoice items
             if ($order->invoice) {
                 $order->invoice->items()->delete();
                 $order->invoice->delete();
             }
-            
+
             // Delete order items
             $order->items()->delete();
-            
+
             // Delete the order
             $order->delete();
-            
+
             DB::commit();
-            
+
             // Check if tab parameter exists in request
             $tab = request()->get('tab', 'profile');
             return redirect()->route('profile.edit', ['tab' => $tab])->with('success', 'Order deleted successfully.');
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Order deletion failed: ' . $e->getMessage());
@@ -738,14 +738,14 @@ class OrderController extends Controller
     private function validateAndApplyCoupon($couponCode, $subtotal, $carts, $userId = null, $sessionId = null)
     {
         $coupon = Coupon::where('code', strtoupper(trim($couponCode)))->first();
-        
+
         if (!$coupon) {
             return [
                 'valid' => false,
                 'message' => 'Invalid coupon code.'
             ];
         }
-        
+
         // Check if coupon is valid
         if (!$coupon->isValid()) {
             return [
@@ -753,7 +753,7 @@ class OrderController extends Controller
                 'message' => 'This coupon is not currently valid or has expired.'
             ];
         }
-        
+
         // Check if user can use this coupon
         if (!$coupon->canBeUsedBy($userId, $sessionId)) {
             return [
@@ -761,7 +761,7 @@ class OrderController extends Controller
                 'message' => 'You have reached the usage limit for this coupon.'
             ];
         }
-        
+
         // Check minimum purchase requirement
         if (!$coupon->meetsMinimumPurchase($subtotal)) {
             return [
@@ -769,13 +769,14 @@ class OrderController extends Controller
                 'message' => 'Minimum purchase amount of ' . number_format($coupon->min_purchase, 2) . '৳ required for this coupon.'
             ];
         }
-        
+
         // Check if coupon applies to cart items
         $applicableSubtotal = 0;
         foreach ($carts as $cart) {
             $product = $cart->product;
-            if (!$product) continue;
-            
+            if (!$product)
+                continue;
+
             if ($coupon->appliesToProduct($product->id, $product->category_id)) {
                 $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
                 if ($cart->variation && $cart->variation->price) {
@@ -784,17 +785,17 @@ class OrderController extends Controller
                 $applicableSubtotal += $price * $cart->qty;
             }
         }
-        
+
         if ($applicableSubtotal == 0) {
             return [
                 'valid' => false,
                 'message' => 'This coupon does not apply to any items in your cart.'
             ];
         }
-        
+
         // Calculate discount on applicable subtotal
         $discount = $coupon->calculateDiscount($applicableSubtotal);
-        
+
         return [
             'valid' => true,
             'coupon' => $coupon,
@@ -812,54 +813,55 @@ class OrderController extends Controller
         $couponCode = $request->input('coupon_code');
         $userId = auth()->id();
         $sessionId = session()->getId();
-        
+
         if (!$couponCode) {
             return response()->json([
                 'valid' => false,
                 'message' => 'Please enter a coupon code.'
             ]);
         }
-        
+
         // Get cart items
         $carts = Cart::with(['product', 'variation'])
-            ->when($userId, function($q) use ($userId) {
+            ->when($userId, function ($q) use ($userId) {
                 $q->where('user_id', $userId);
-            }, function($q) use ($sessionId) {
+            }, function ($q) use ($sessionId) {
                 $q->whereNull('user_id')->where('session_id', $sessionId);
             })
             ->get();
-        
+
         if ($carts->isEmpty()) {
             return response()->json([
                 'valid' => false,
                 'message' => 'Your cart is empty.'
             ]);
         }
-        
+
         // Calculate subtotal
         $subtotal = 0;
         foreach ($carts as $cart) {
             $product = $cart->product;
-            if (!$product) continue;
+            if (!$product)
+                continue;
             $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
             if ($cart->variation && $cart->variation->price) {
                 $price = $cart->variation->price;
             }
             $subtotal += $price * $cart->qty;
         }
-        
+
         $validation = $this->validateAndApplyCoupon($couponCode, $subtotal, $carts, $userId, $sessionId);
-        
+
         if ($validation['valid']) {
             // Get tax and shipping for total calculation
             $generalSetting = \App\Models\GeneralSetting::first();
             $taxRate = $generalSetting ? ($generalSetting->tax_rate / 100) : 0.00;
             $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
             $tax = round($subtotal * $taxRate, 2);
-            
+
             // Get shipping cost (if available in request)
             $shippingCost = $request->input('shipping_cost', 0);
-            
+
             // Check if any product in cart has free delivery enabled
             $hasProductFreeDelivery = false;
             foreach ($carts as $cart) {
@@ -869,14 +871,14 @@ class OrderController extends Controller
                     break;
                 }
             }
-            
+
             // Apply free delivery if any product has free_delivery enabled or coupon has free_delivery
             if ($hasProductFreeDelivery || ($validation['free_delivery'] ?? false)) {
                 $shippingCost = 0;
             }
-            
+
             $total = $subtotal + $tax + $shippingCost - $validation['discount'];
-            
+
             // Calculate COD percentage discount (for display only, not subtracted from invoice total)
             $codDiscount = 0;
             $paymentMethod = $request->input('payment_method', 'cash'); // Default to cash if not provided
@@ -885,7 +887,7 @@ class OrderController extends Controller
                 // Note: COD discount is NOT subtracted from invoice total
                 // It will only be applied to accounting (Balance) records
             }
-            
+
             return response()->json([
                 'valid' => true,
                 'message' => $validation['message'],
@@ -904,7 +906,7 @@ class OrderController extends Controller
                 'formatted_total' => number_format($total, 2),
             ]);
         }
-        
+
         return response()->json([
             'valid' => false,
             'message' => $validation['message']
@@ -915,24 +917,24 @@ class OrderController extends Controller
     {
         $generalSettings = \App\Models\GeneralSetting::first();
         $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
-        
+
         do {
             $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $fullNumber = $prefix . $number;
         } while (Invoice::where('invoice_number', $fullNumber)->exists());
-        
+
         return $fullNumber;
     }
 
     public function orderSuccess(string $orderId)
     {
         $pageTitle = $orderId;
-        
+
         // Get order data for GTM purchase event
         $order = Order::where('order_number', $orderId)
-            ->with(['items.product.category'])
+            ->with(['items.product.category', 'invoice.invoiceAddress'])
             ->first();
-        
+
         return view('ecommerce.order-success', compact('orderId', 'pageTitle', 'order'));
     }
 
@@ -944,7 +946,7 @@ class OrderController extends Controller
         }
         // Use order ID directly - much shorter format
         $orderId = $lastOrder->id + 1;
-        
+
         return "SFO{$orderId}";
     }
 
@@ -954,7 +956,7 @@ class OrderController extends Controller
     public function searchCities(Request $request)
     {
         $query = $request->get('q', '');
-        
+
         if (strlen($query) < 2) {
             return response()->json(['cities' => []]);
         }
@@ -964,7 +966,7 @@ class OrderController extends Controller
             ->ordered()
             ->limit(50)
             ->get()
-            ->map(function($city) {
+            ->map(function ($city) {
                 return [
                     'id' => $city->id,
                     'name' => $city->name,
@@ -983,7 +985,7 @@ class OrderController extends Controller
     public function getShippingMethodsForCity(Request $request)
     {
         $cityId = $request->get('city_id');
-        
+
         if (!$cityId) {
             // Return all active shipping methods if no city selected
             $methods = \App\Models\ShippingMethod::active()->ordered()->get();
@@ -998,17 +1000,18 @@ class OrderController extends Controller
         $cartTotal = 0;
         $userId = auth()->id();
         $sessionId = session()->getId();
-        $carts = Cart::with(['product','variation'])
-            ->when($userId, function($q) use ($userId) {
+        $carts = Cart::with(['product', 'variation'])
+            ->when($userId, function ($q) use ($userId) {
                 $q->where('user_id', $userId);
-            }, function($q) use ($sessionId) {
+            }, function ($q) use ($sessionId) {
                 $q->whereNull('user_id')->where('session_id', $sessionId);
             })
             ->get();
 
         foreach ($carts as $cart) {
             $product = $cart->product;
-            if (!$product) continue;
+            if (!$product)
+                continue;
             $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
             $cartTotal += $price * $cart->qty;
         }
@@ -1016,7 +1019,7 @@ class OrderController extends Controller
         $generalSetting = \App\Models\GeneralSetting::first();
         $taxRate = $generalSetting ? ($generalSetting->tax_rate / 100) : 0.00;
 
-        $shippingMethods = $methods->map(function($method) use ($cityId) {
+        $shippingMethods = $methods->map(function ($method) use ($cityId) {
             $cost = $cityId ? $method->getCostForCity($cityId) : $method->cost;
             return [
                 'id' => $method->id,
@@ -1037,16 +1040,16 @@ class OrderController extends Controller
                 break;
             }
         }
-        
+
         $tax = round($cartTotal * $taxRate, 2);
         $selectedShipping = $shippingMethods->first();
         $shippingCost = $selectedShipping ? $selectedShipping['cost'] : 0;
-        
+
         // Apply free delivery if any product has free_delivery enabled
         if ($hasProductFreeDelivery) {
             $shippingCost = 0;
         }
-        
+
         $total = $cartTotal + $tax + $shippingCost;
 
         return response()->json([
@@ -1080,20 +1083,20 @@ class OrderController extends Controller
 
         try {
             $pdf = \App\Services\InvoicePdfService::generate($order);
-            
+
             if (!$pdf) {
                 abort(500, 'Failed to generate PDF invoice');
             }
 
             $filename = \App\Services\InvoicePdfService::getFilename($order);
-            
+
             return $pdf->download($filename);
         } catch (\Exception $e) {
             \Log::error('Failed to download order invoice PDF', [
                 'order_number' => $orderNumber,
                 'error' => $e->getMessage()
             ]);
-            
+
             abort(500, 'Failed to generate PDF invoice');
         }
     }
@@ -1122,7 +1125,7 @@ class OrderController extends Controller
                     $variationStock->updated_by = $userId;
                     $variationStock->last_updated_at = now();
                     $variationStock->save();
-                    
+
                     Log::info('Stock deducted from variation warehouse', [
                         'variation_id' => $variationId,
                         'warehouse_id' => $warehouseId,
@@ -1149,7 +1152,7 @@ class OrderController extends Controller
                     $productStock->updated_by = $userId;
                     $productStock->last_updated_at = now();
                     $productStock->save();
-                    
+
                     Log::info('Stock deducted from product warehouse', [
                         'product_id' => $productId,
                         'warehouse_id' => $warehouseId,
@@ -1185,7 +1188,7 @@ class OrderController extends Controller
                 'product_id' => $productId,
                 'variation_id' => $variationId
             ]);
-            
+
             // Try to find any warehouse with stock for this product/variation
             if ($variationId) {
                 $existingStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)

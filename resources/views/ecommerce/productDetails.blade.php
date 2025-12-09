@@ -4594,25 +4594,30 @@
                 <div id="relatedProductsSplide" class="splide" aria-label="You Might Also Like">
                     <div class="splide__track">
                         <ul class="splide__list" id="relatedProductsSplideList">
-                            @foreach($relatedProducts as $product)
+                            @foreach($relatedProducts as $relatedProduct)
                                 <li class="splide__slide">
-                                    <div class="product-card position-relative no-hover-border" data-href="{{ route('product.details', $product->slug) }}">
-                                        <button class="wishlist-btn{{ $product->is_wishlisted ? ' active' : '' }}" 
-                                                data-product-id="{{ $product->id }}" 
-                                                title="{{ $product->is_wishlisted ? 'Remove from wishlist' : 'Add to wishlist' }}" 
+                                    <div class="product-card position-relative no-hover-border" 
+                                        data-href="{{ route('product.details', $relatedProduct->slug) }}"
+                                        data-gtm-id="{{ $relatedProduct->id }}"
+                                        data-gtm-name="{{ $relatedProduct->name }}"
+                                        data-gtm-price="{{ $relatedProduct->discount ?? $relatedProduct->price }}"
+                                        data-gtm-category="{{ $relatedProduct->category->name ?? '' }}">
+                                        <button class="wishlist-btn{{ $relatedProduct->is_wishlisted ? ' active' : '' }}" 
+                                                data-product-id="{{ $relatedProduct->id }}" 
+                                                title="{{ $relatedProduct->is_wishlisted ? 'Remove from wishlist' : 'Add to wishlist' }}" 
                                                 type="button" 
                                                 onclick="event.stopPropagation();">
-                                            <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
+                                            <i class="{{ $relatedProduct->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                                         </button>
                                         <div class="product-image-container">
-                                            <img src="{{ asset($product->image) }}" 
+                                            <img src="{{ asset($relatedProduct->image) }}" 
                                                  class="product-image" 
-                                                 alt="{{ $product->name }}" 
+                                                 alt="{{ $relatedProduct->name }}" 
                                                  loading="lazy" 
                                                  onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                                             @php
-                                                $avgRating = $product->averageRating() ?? 0;
-                                                $reviews = $product->totalReviews() ?? 0;
+                                                $avgRating = $relatedProduct->averageRating() ?? 0;
+                                                $reviews = $relatedProduct->totalReviews() ?? 0;
                                             @endphp
                                             @if($avgRating > 0)
                                                 <div class="rating-badge">
@@ -4623,22 +4628,22 @@
                                             @endif
                                         </div>
                                         <div class="product-info">
-                                            <a href="{{ route('product.details', $product->slug) }}" 
+                                            <a href="{{ route('product.details', $relatedProduct->slug) }}" 
                                                style="text-decoration: none" 
                                                class="product-title" 
-                                               title="{{ $product->name }}">
-                                                {{ $product->name }}
+                                               title="{{ $relatedProduct->name }}">
+                                                {{ $relatedProduct->name }}
                                             </a>
                                             <div class="price">
-                                                @if(isset($product->discount) && $product->discount > 0 && $product->discount < $product->price)
-                                                    <span class="fw-bold text-primary">{{ number_format($product->discount, 2) }}৳</span>
-                                                    <span class="old">{{ number_format($product->price, 2) }}৳</span>
+                                                @if(isset($relatedProduct->discount) && $relatedProduct->discount > 0 && $relatedProduct->discount < $relatedProduct->price)
+                                                    <span class="fw-bold text-primary">{{ number_format($relatedProduct->discount, 2) }}৳</span>
+                                                    <span class="old">{{ number_format($relatedProduct->price, 2) }}৳</span>
                                                 @else
-                                                    <span class="fw-bold text-primary">{{ number_format($product->price, 2) }}৳</span>
+                                                    <span class="fw-bold text-primary">{{ number_format($relatedProduct->price, 2) }}৳</span>
                                                 @endif
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                                <a href="{{ route('product.details', $product->slug) }}" 
+                                                <a href="{{ route('product.details', $relatedProduct->slug) }}" 
                                                    class="btn btn-view-product" 
                                                    style="background: transparent; border: 1px solid var(--teal-primary); color: var(--teal-primary); padding: 9px 16px; border-radius: 8px; font-weight: 700; width: 100%; font-size: 14px; height: max-content; display: inline-flex; align-items: center; gap: 8px; justify-content: center; text-decoration: none;"
                                                    title="View Product">

@@ -76,11 +76,12 @@
                                         <i class="fas fa-user text-primary me-2"></i>
                                         <h6 class="mb-0 fw-semibold">Customer Details</h6>
                                     </div>
-                                    <h5 class="mb-1 fw-bold">{{ @$invoice->customer->name ?? '-' }}</h5>
-                                    @if(@$invoice->customer->email)
+                                    <h5 class="mb-1 fw-bold">{{ $invoice->order->name ?? $invoice->customer->name ?? '-' }}
+                                    </h5>
+                                    @if($invoice->order->email ?? $invoice->customer->email)
                                         <p class="mb-1 text-muted small">
                                             <i class="fas fa-envelope me-1"></i>
-                                            {{ @$invoice->customer->email }}
+                                            {{ $invoice->order->email ?? $invoice->customer->email }}
                                         </p>
                                     @elseif(@$billing->billing_address_1)
                                         <p class="mb-1 text-muted small">
@@ -88,10 +89,10 @@
                                             {{ @$invoice->email ?? '-' }}
                                         </p>
                                     @endif
-                                    @if(@$invoice->customer->phone)
+                                    @if($invoice->order->phone ?? $invoice->customer->phone)
                                         <p class="mb-0 text-muted small">
                                             <i class="fas fa-phone me-1"></i>
-                                            {{ @$invoice->customer->phone }}
+                                            {{ $invoice->order->phone ?? $invoice->customer->phone }}
                                         </p>
                                     @elseif(@$billing->billing_address_1)
                                         <p class="mb-0 text-muted small">
@@ -172,19 +173,19 @@
 
             <!-- Customer Note -->
             @if(!empty($invoice->note))
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white border-0 p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-secondary bg-opacity-10 rounded-circle px-2 py-1 me-3">
-                            <i class="fas fa-sticky-note text-secondary"></i>
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-white border-0 p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary bg-opacity-10 rounded-circle px-2 py-1 me-3">
+                                <i class="fas fa-sticky-note text-secondary"></i>
+                            </div>
+                            <h5 class="mb-0 fw-semibold">Customer Note</h5>
                         </div>
-                        <h5 class="mb-0 fw-semibold">Customer Note</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="text-muted">{{ $invoice->note }}</div>
                     </div>
                 </div>
-                <div class="card-body p-4">
-                    <div class="text-muted">{{ $invoice->note }}</div>
-                </div>
-            </div>
             @endif
 
             <!-- Invoice Items -->
@@ -217,7 +218,8 @@
                                             <div class="fw-medium text-dark">{{ $item->product->name ?? '-' }}</div>
                                             @if($item->variation)
                                                 <div class="small text-muted mt-1">
-                                                    <span class="badge bg-info-subtle text-info">Variation: {{ $item->variation->name ?? $item->variation->sku }}</span>
+                                                    <span class="badge bg-info-subtle text-info">Variation:
+                                                        {{ $item->variation->name ?? $item->variation->sku }}</span>
                                                 </div>
                                             @endif
                                         </td>
@@ -225,7 +227,8 @@
                                             <span class="badge bg-light text-dark rounded-pill">{{ $item->quantity }}</span>
                                         </td>
                                         <td class="px-4 py-3 text-end">{{ number_format($item->unit_price, 2) }}৳</td>
-                                        <td class="px-4 py-3 text-end fw-semibold">{{ number_format($item->total_price, 2) }}৳</td>
+                                        <td class="px-4 py-3 text-end fw-semibold">{{ number_format($item->total_price, 2) }}৳
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -271,13 +274,15 @@
                                             <tr>
                                                 <td class="px-4 py-3 text-muted">{{ $loop->iteration }}</td>
                                                 <td class="px-4 py-3">
-                                                    {{ $payment->payment_date ?? ($payment->created_at?->format('M d, Y') ?? '-') }}</td>
+                                                    {{ $payment->payment_date ?? ($payment->created_at?->format('M d, Y') ?? '-') }}
+                                                </td>
                                                 <td class="px-4 py-3">
                                                     <span
                                                         class="badge bg-light text-dark">{{ $payment->payment_method ?? '-' }}</span>
                                                 </td>
                                                 <td class="px-4 py-3 text-end fw-semibold">
-                                                    {{ number_format($payment->amount ?? 0, 2) }}৳</td>
+                                                    {{ number_format($payment->amount ?? 0, 2) }}৳
+                                                </td>
                                                 <td class="px-4 py-3">
                                                     {{ $payment->note ?? '-' }}
                                                 </td>
@@ -324,15 +329,15 @@
                             </div>
                             @php $onlineDelivery = isset($order) ? ($order->delivery ?? 0) : 0; @endphp
                             @if(($onlineDelivery ?? 0) > 0)
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="text-muted">Delivery</span>
-                                <span class="fw-medium">{{ number_format($onlineDelivery, 2) }}৳</span>
-                            </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted">Delivery</span>
+                                    <span class="fw-medium">{{ number_format($onlineDelivery, 2) }}৳</span>
+                                </div>
                             @elseif(optional($invoice->pos)->delivery && optional($invoice->pos)->delivery > 0)
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="text-muted">Delivery</span>
-                                <span class="fw-medium">{{ number_format($invoice->pos->delivery, 2) }}৳</span>
-                            </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted">Delivery</span>
+                                    <span class="fw-medium">{{ number_format($invoice->pos->delivery, 2) }}৳</span>
+                                </div>
                             @endif
                             <hr class="my-3">
                             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -353,17 +358,19 @@
 
                             <!-- Action Buttons -->
                             <div class="d-grid gap-2">
-                                {{-- @php dd(floatval($invoice->due_amount));  @endphp --}}
+                                {{-- @php dd(floatval($invoice->due_amount)); @endphp --}}
                                 @if(floatval($invoice->due_amount) != 0.0)
                                     <button class="btn btn-primary" type="button" data-bs-toggle="modal"
                                         data-bs-target="#addPaymentModal">
                                         <i class="fas fa-plus me-2"></i>Add Payment
                                     </button>
                                 @endif
-                                <a href="{{ route('invoice.print', $invoice->invoice_number) }}?action=print" target="_blank" class="btn btn-primary" type="button">
+                                <a href="{{ route('invoice.print', $invoice->invoice_number) }}?action=print"
+                                    target="_blank" class="btn btn-primary" type="button">
                                     <i class="fas fa-print me-2"></i>Print Invoice
                                 </a>
-                                <a href="{{ route('invoice.print', $invoice->invoice_number) }}?action=download" target="_blank" class="btn btn-outline-primary" type="button">
+                                <a href="{{ route('invoice.print', $invoice->invoice_number) }}?action=download"
+                                    target="_blank" class="btn btn-outline-primary" type="button">
                                     <i class="fas fa-download me-2"></i>Download PDF
                                 </a>
                             </div>
@@ -393,17 +400,6 @@
                             <label for="paymentMethod" class="form-label">Payment Method</label>
                             <select class="form-select" id="paymentMethod" name="payment_method" required>
                                 <option value="cash">Cash</option>
-                                <option value="card">Credit/Debit Card</option>
-                                <option value="bank">Bank Transfer</option>
-                                <option value="mobile">Mobile Payment</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="accountId" class="form-label">Account (optional)</label>
-                            <select class="form-select" id="accountId" name="account_id">
-                                @foreach ($bankAccounts as $bankAccount)
-                                    <option value="{{ $bankAccount->id }}">{{ $bankAccount->provider_name . ' - ' . $bankAccount->account_number }}</option>
-                                @endforeach
                             </select>
                         </div>
                         <div class="mb-3">

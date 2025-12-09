@@ -107,7 +107,7 @@
                                                 <span class="text-muted">-</span>
                                             @endif
                                         </td>
-                                        <td>{{ optional($invoice->customer)->name ?? 'Walk-in-Customer' }}</td>
+                                        <td>{{ $invoice->order->name ?? (optional($invoice->customer)->name ?? 'Walk-in-Customer') }}</td>
                                         <td>{{ trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System' }}</td>
                                         <td>{{ $invoice->issue_date }}</td>
                                         <td>{{ $invoice->due_date }}</td>

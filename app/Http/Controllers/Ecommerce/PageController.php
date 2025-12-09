@@ -24,7 +24,7 @@ class PageController extends Controller
     {
         $cacheKey = 'home_page_data';
         $useCache = !$request->has('no_cache');
-        
+
         // Try to get cached home page data first
         if ($useCache) {
             $cachedData = Cache::get($cacheKey);
@@ -34,43 +34,45 @@ class PageController extends Controller
                 return $response;
             }
         }
-        
+
         $pageTitle = null;
-        
+
         // Cache categories (they don't change often) - 1 hour
         $categories = Cache::remember('active_categories_with_children', 3600, function () {
             return ProductServiceCategory::whereNull('parent_id')
                 ->where('status', 'active')
-                ->with(['children' => function($q) {
-                    $q->where('status', 'active');
-                }])
+                ->with([
+                    'children' => function ($q) {
+                        $q->where('status', 'active');
+                    }
+                ])
                 ->get();
         });
-        
+
         // Cache banners (they change rarely) - 30 minutes
         $banners = [];
         $vlogBottomBanners = [];
         if (class_exists('App\\Models\\Banner')) {
             $banners = Cache::remember('banners_hero', 1800, function () {
                 return \App\Models\Banner::currentlyActive()
-                    ->where('position','hero')
+                    ->where('position', 'hero')
                     ->orderBy('sort_order', 'asc')
                     ->get();
             });
-            
+
             $vlogBottomBanners = Cache::remember('banners_vlogs_bottom', 1800, function () {
                 return \App\Models\Banner::currentlyActive()
-                    ->where('position','vlogs_bottom')
-                    ->orderBy('sort_order','asc')
+                    ->where('position', 'vlogs_bottom')
+                    ->orderBy('sort_order', 'asc')
                     ->get();
             });
         }
-        
+
         // Cache featured categories - 1 hour
         $featuredCategories = Cache::remember('featured_categories', 3600, function () {
             return ProductServiceCategory::whereNull('parent_id')->get();
         });
-        
+
         // Cache featured services (5 minutes - they change more often)
         $featuredServices = Cache::remember('featured_services', 300, function () {
             return Product::where('type', 'service')
@@ -79,10 +81,10 @@ class PageController extends Controller
                 ->take(4)
                 ->get();
         });
-        
+
         // Cache best deal products (5 minutes)
         $bestDealProducts = Cache::remember('best_deal_products_home', 300, function () {
-            return Product::where('type','product')
+            return Product::where('type', 'product')
                 ->where('status', 'active')
                 ->where('discount', '>', 0)
                 ->orderByDesc('discount')
@@ -90,7 +92,7 @@ class PageController extends Controller
                 ->take(10)
                 ->get();
         });
-        
+
         // Cache vlogs (10 minutes)
         $vlogs = Cache::remember('active_vlogs_latest_4', 600, function () {
             return Vlog::where('is_active', 1)
@@ -98,14 +100,14 @@ class PageController extends Controller
                 ->take(4)
                 ->get();
         });
-        
-        $viewData = compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle','categories','banners','bestDealProducts','vlogBottomBanners');
-        
+
+        $viewData = compact('featuredCategories', 'featuredServices', 'vlogs', 'pageTitle', 'categories', 'banners', 'bestDealProducts', 'vlogBottomBanners');
+
         // Cache entire home page for 10 minutes
         if ($useCache) {
             Cache::put($cacheKey, $viewData, 600); // 10 minutes
         }
-        
+
         $response = response()->view('ecommerce.home', $viewData);
         $response->header('Cache-Control', 'public, max-age=600'); // Allow browser caching for 10 minutes
         return $response;
@@ -115,23 +117,25 @@ class PageController extends Controller
     {
         // Create cache key based on request parameters
         $cacheKey = 'products_list_' . md5(serialize($request->all()));
-        
+
         // Check if we should use cache (not for admin or when cache is disabled)
         $useCache = !$request->has('no_cache') && !$request->has('admin');
-        
+
         if ($useCache) {
             $cachedData = Cache::get($cacheKey);
             if ($cachedData) {
                 return response()->view('ecommerce.products', $cachedData);
             }
         }
-        
+
         // Load only parent categories with their active children for hierarchical display
         $categories = ProductServiceCategory::whereNull('parent_id')
             ->where('status', 'active')
-            ->with(['children' => function($q) {
-                $q->where('status', 'active');
-            }])
+            ->with([
+                'children' => function ($q) {
+                    $q->where('status', 'active');
+                }
+            ])
             ->get();
         $query = Product::query();
 
@@ -205,11 +209,11 @@ class PageController extends Controller
                         999999
                     )
                 AS UNSIGNED) ASC")
-                ->orderBy('name', 'ASC');
+                    ->orderBy('name', 'ASC');
         }
 
         $pageTitle = 'Products';
-        
+
         // Check if we want to show categories view
         if ($request->get('view') === 'categories') {
             $pageTitle = 'Categories';
@@ -222,22 +226,22 @@ class PageController extends Controller
         }
 
         // Optimize query with eager loading to prevent N+1 queries
-        $products = $query->where('type','product')
+        $products = $query->where('type', 'product')
             ->where('status', 'active')
             ->with([
                 'category',
-                'reviews' => function($q) { 
-                    $q->where('is_approved', true); 
+                'reviews' => function ($q) {
+                    $q->where('is_approved', true);
                 },
                 'branchStock',
                 'warehouseStock',
-                'variations' => function($q) {
+                'variations' => function ($q) {
                     $q->where('status', 'active');
                 },
                 'variations.stocks'
             ])
             ->paginate(20)->appends($request->all());
-        
+
         // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
         $userId = Auth::id();
         $wishlistedIds = [];
@@ -247,15 +251,15 @@ class PageController extends Controller
                 ->pluck('product_id')
                 ->toArray();
         }
-        
+
         foreach ($products as $product) {
             // Add wishlist status
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
-            
+
             // Pre-calculate ratings and reviews (avoid N+1 queries)
             $product->avg_rating = $product->reviews->avg('rating') ?? 0;
             $product->total_reviews = $product->reviews->count();
-            
+
             // Pre-calculate stock status (avoid N+1 queries)
             // Check if product has variations - if so, check variation stocks
             if ($product->has_variations) {
@@ -307,14 +311,14 @@ class PageController extends Controller
             'maxProductPrice' => $maxProductPrice,
             'selectedRatings' => $request->rating ?? []
         ];
-        
+
         $viewData['pageTitle'] = $pageTitle;
-        
+
         // Cache the view data for 15 minutes if caching is enabled
         if ($useCache) {
             Cache::put($cacheKey, $viewData, 900); // 15 minutes
         }
-        
+
         $response = response()->view('ecommerce.products', $viewData);
         $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         $response->header('Pragma', 'no-cache');
@@ -328,11 +332,11 @@ class PageController extends Controller
             // Set execution time limit to prevent timeouts
             set_time_limit(60);
             ini_set('max_execution_time', 60);
-            
+
             // Create cache key for product details
             $cacheKey = 'product_details_' . $slug;
             $useCache = !$request->has('no_cache');
-            
+
             // Try to get from cache first
             if ($useCache) {
                 $cachedData = Cache::get($cacheKey);
@@ -340,14 +344,14 @@ class PageController extends Controller
                     return response()->view('ecommerce.productDetails', $cachedData);
                 }
             }
-            
+
             \Log::info('=== PRODUCT DETAILS REQUEST ===', [
                 'slug' => $slug,
                 'url' => $request->url(),
                 'timestamp' => now(),
                 'request_id' => uniqid()
             ]);
-            
+
             // First, get the basic product with minimal relations
             $product = Product::with([
                 'category',
@@ -356,28 +360,28 @@ class PageController extends Controller
                 'productAttributes',
                 'galleries'
             ])->where('slug', $slug)->first();
-            
+
             if (!$product) {
                 \Log::error('Product not found', ['slug' => $slug]);
                 abort(404, 'Product not found');
             }
-            
+
             // Only load variations if the product has variations
             if ($product->has_variations) {
                 $product->load([
-                    'variations' => function($q) {
+                    'variations' => function ($q) {
                         $q->where('status', 'active')
-                          ->with([
-                              'combinations.attribute', 
-                              'combinations.attributeValue',
-                              'stocks.branch',
-                              'stocks.warehouse',
-                              'galleries',
-                          ]);
+                            ->with([
+                                'combinations.attribute',
+                                'combinations.attributeValue',
+                                'stocks.branch',
+                                'stocks.warehouse',
+                                'galleries',
+                            ]);
                     }
                 ]);
             }
-            
+
             \Log::info('Product found successfully', [
                 'id' => $product->id,
                 'name' => $product->name,
@@ -388,27 +392,27 @@ class PageController extends Controller
                 'meta_description' => $product->meta_description,
                 'meta_keywords' => $product->meta_keywords
             ]);
-            
-            
+
+
             $pageTitle = $product->name;
-            
+
             // Enhanced related products logic (cached for 30 minutes per product)
             $relatedProductsCacheKey = "related_products_{$product->id}_{$product->category_id}";
             $relatedProducts = Cache::remember($relatedProductsCacheKey, 1800, function () use ($product) {
                 return Product::where('type', 'product')
                     ->where('status', 'active')
                     ->where('id', '!=', $product->id)
-                    ->where(function($query) use ($product) {
+                    ->where(function ($query) use ($product) {
                         // Same category products
                         $query->where('category_id', $product->category_id)
-                              // Or similar price range products (±20%)
-                              ->orWhere(function($q) use ($product) {
-                                  $priceRange = $product->price * 0.2;
-                                  $q->whereBetween('price', [
-                                      $product->price - $priceRange,
-                                      $product->price + $priceRange
-                                  ]);
-                              });
+                            // Or similar price range products (±20%)
+                            ->orWhere(function ($q) use ($product) {
+                            $priceRange = $product->price * 0.2;
+                            $q->whereBetween('price', [
+                                $product->price - $priceRange,
+                                $product->price + $priceRange
+                            ]);
+                        });
                     })
                     ->orderByRaw("
                         CASE 
@@ -419,9 +423,12 @@ class PageController extends Controller
                     ", [$product->category_id, $product->price, $product->price])
                     ->orderBy('created_at', 'desc')
                     ->take(8)
-                    ->with(['category', 'reviews' => function($q) {
-                        $q->where('is_approved', true);
-                    }])
+                    ->with([
+                        'category',
+                        'reviews' => function ($q) {
+                            $q->where('is_approved', true);
+                        }
+                    ])
                     ->get();
             });
 
@@ -466,16 +473,16 @@ class PageController extends Controller
             $settings = Cache::remember('general_settings', 3600, function () {
                 return GeneralSetting::first();
             });
-            
+
             // Prepare view data
             $seoProduct = $product; // ensure header receives the exact product for meta tags
-            $viewData = compact('product','relatedProducts','pageTitle','seoProduct','settings');
-            
+            $viewData = compact('product', 'relatedProducts', 'pageTitle', 'seoProduct', 'settings');
+
             // Cache the view data for 30 minutes if caching is enabled
             if ($useCache) {
                 Cache::put($cacheKey, $viewData, 1800); // 30 minutes
             }
-            
+
             $response = response()->view('ecommerce.productDetails', $viewData);
             $response->header('Cache-Control', 'no-cache, no-store, must-revalidate, private');
             $response->header('Pragma', 'no-cache');
@@ -491,12 +498,12 @@ class PageController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]);
-            
+
             // If it's a 404, show proper 404 page
             if (strpos($e->getMessage(), 'not found') !== false || $e->getCode() == 404) {
                 abort(404, 'Product not found');
             }
-            
+
             // For other errors, show a user-friendly error page
             abort(500, 'Error loading product details. Please try again later.');
         }
@@ -505,17 +512,17 @@ class PageController extends Controller
     public function search(Request $request)
     {
         $search = $request->search;
-        $products = Product::where(function($query) use ($search) {
-            $query->where('name', 'like', '%'.$search.'%')
-                  ->orWhereHas('category', function($q) use ($search) {
-                      $q->where('name', 'like', '%'.$search.'%');
-                  });
+        $products = Product::where(function ($query) use ($search) {
+            $query->where('name', 'like', '%' . $search . '%')
+                ->orWhereHas('category', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                });
         })->paginate(20);
-        
-        
+
+
         $pageTitle = 'Search Result';
-        
-        $viewData = compact('products','search','pageTitle');
+
+        $viewData = compact('products', 'search', 'pageTitle');
         $response = response()->view('ecommerce.searchresult', $viewData);
         $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         $response->header('Pragma', 'no-cache');
@@ -526,32 +533,32 @@ class PageController extends Controller
     public function services(Request $request)
     {
         $pageTitle = 'Services';
-        $categories = ProductServiceCategory::where('status','active')->get();
-        $services = Product::where('type','service')->paginate(12);
-        
-        return view('ecommerce.service',compact('pageTitle','services','categories'));
+        $categories = ProductServiceCategory::where('status', 'active')->get();
+        $services = Product::where('type', 'service')->paginate(12);
+
+        return view('ecommerce.service', compact('pageTitle', 'services', 'categories'));
     }
 
     public function serviceDetails($slug, Request $request)
     {
-        $service = Product::where('slug',$slug)->first();
+        $service = Product::where('slug', $slug)->first();
         $pageTitle = $service->name;
-        
-        return view('ecommerce.servicedetails',compact('service','pageTitle'));
+
+        return view('ecommerce.servicedetails', compact('service', 'pageTitle'));
     }
 
     public function about(Request $request)
     {
         $pageTitle = 'About Us';
-        
-        return view('ecommerce.about',compact('pageTitle'));
+
+        return view('ecommerce.about', compact('pageTitle'));
     }
 
     public function contact(Request $request)
     {
         $pageTitle = 'Contact Us';
-        
-        return view('ecommerce.contact',compact('pageTitle'));
+
+        return view('ecommerce.contact', compact('pageTitle'));
     }
 
     public function submitContact(Request $request)
@@ -575,7 +582,7 @@ class PageController extends Controller
         try {
             // Configure SMTP from admin settings
             SmtpConfigService::configureFromSettings();
-            
+
             // Prepare contact data
             $contactData = [
                 'full_name' => $request->input('full_name'),
@@ -617,10 +624,10 @@ class PageController extends Controller
 
     public function additionalPage($slug, Request $request)
     {
-        $page = \App\Models\AdditionalPage::where('slug',$slug)->where('is_active',1)->firstOrFail();
+        $page = \App\Models\AdditionalPage::where('slug', $slug)->where('is_active', 1)->firstOrFail();
         $pageTitle = $page->title;
-        
-        return view('ecommerce.additionalPage', compact('page','pageTitle'));
+
+        return view('ecommerce.additionalPage', compact('page', 'pageTitle'));
     }
 
     public function vlogs(Request $request)
@@ -637,14 +644,14 @@ class PageController extends Controller
 
         $vlogs = $query->paginate(12)->appends($request->all());
 
-        return view('ecommerce.vlogs', compact('pageTitle','vlogs','sort'));
+        return view('ecommerce.vlogs', compact('pageTitle', 'vlogs', 'sort'));
     }
 
     public function categories(Request $request)
     {
         $pageTitle = 'Categories';
         $categories = ProductServiceCategory::where('status', 'active')->get();
-        
+
         return view('ecommerce.categories', compact('pageTitle', 'categories'));
     }
 
@@ -653,7 +660,7 @@ class PageController extends Controller
         $pageTitle = 'Best Deal';
         $cacheKey = 'best_deals_page_' . md5(serialize($request->except(['page', '_token'])));
         $useCache = !$request->has('no_cache') && !$request->ajax() && !$request->get('infinite_scroll', false);
-        
+
         // Try to get cached page data first (only for non-AJAX requests)
         if ($useCache) {
             $cachedData = Cache::get($cacheKey);
@@ -663,7 +670,7 @@ class PageController extends Controller
                 return $response;
             }
         }
-        
+
         $query = Product::where('type', 'product')
             ->where('status', 'active');
 
@@ -682,13 +689,13 @@ class PageController extends Controller
         // Eager load relationships to prevent N+1 queries
         $query->with([
             'category',
-            'reviews' => function($q) { 
-                $q->where('is_approved', true); 
+            'reviews' => function ($q) {
+                $q->where('is_approved', true);
             }
         ]);
 
         $products = $query->paginate(20)->appends($request->all());
-        
+
 
         // Wishlist status mapping for logged-in user
         $userId = Auth::id();
@@ -709,7 +716,7 @@ class PageController extends Controller
         // For AJAX requests (infinite scroll), return JSON
         if ($request->ajax() || $request->get('infinite_scroll', false)) {
             $isInfiniteScroll = $request->get('infinite_scroll', false);
-            
+
             // Log for debugging
             \Log::info('Best deals infinite scroll request', [
                 'page' => $request->get('page', 1),
@@ -720,7 +727,7 @@ class PageController extends Controller
                 'has_more' => $products->hasMorePages(),
                 'current_page' => $products->currentPage()
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'html' => view('ecommerce.partials.best-deal-grid', [
@@ -733,16 +740,16 @@ class PageController extends Controller
                 'currentPage' => $products->currentPage(),
                 'lastPage' => $products->lastPage()
             ])->header('Content-Type', 'application/json')
-              ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
 
         $viewData = compact('pageTitle', 'products');
-        
+
         // Cache the view data for 10 minutes if caching is enabled
         if ($useCache) {
             Cache::put($cacheKey, $viewData, 600); // 10 minutes
         }
-        
+
         $response = response()->view('ecommerce.best-deal', $viewData);
         $response->header('Cache-Control', 'public, max-age=600'); // Allow browser caching for 10 minutes
         return $response;
@@ -754,106 +761,108 @@ class PageController extends Controller
             // Load only parent categories with their active children (match products method)
             $categories = ProductServiceCategory::whereNull('parent_id')
                 ->where('status', 'active')
-                ->with(['children' => function($q) {
-                    $q->where('status', 'active');
-                }])
+                ->with([
+                    'children' => function ($q) {
+                        $q->where('status', 'active');
+                    }
+                ])
                 ->get();
-            
+
             // Get max price for price range (cached for 1 hour)
             $maxProductPrice = Cache::remember('max_product_price', 3600, function () {
                 return Product::max('price') ?? 1000;
             });
-            
+
             // Build query
             $query = Product::with([
-                    'category',
-                    'reviews' => function($q) { 
-                        $q->where('is_approved', true); 
-                    },
-                    'branchStock',
-                    'warehouseStock',
-                    'variations' => function($q) {
-                        $q->where('status', 'active');
-                    },
-                    'variations.stocks'
-                ])
+                'category',
+                'reviews' => function ($q) {
+                    $q->where('is_approved', true);
+                },
+                'branchStock',
+                'warehouseStock',
+                'variations' => function ($q) {
+                    $q->where('status', 'active');
+                },
+                'variations.stocks'
+            ])
                 ->where('status', 'active')
                 ->where('type', 'product');
 
-        // Category filter - include child categories
-        // Priority: Checkbox selections (categories[]) take precedence over URL category
-        // This ensures filter section works, but nav links also work when no checkboxes selected
-        if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
-            // Categories from checkboxes (user actively filtering) - HIGHEST PRIORITY
-            $categorySlugs = array_values(array_filter($request->categories, function($slug) {
-                return $slug !== 'all' && !empty($slug);
-            }));
-            
-            if (!empty($categorySlugs)) {
-                $categoryIds = ProductServiceCategory::whereIn('slug', $categorySlugs)->pluck('id')->toArray();
-                // Get all child category IDs recursively
-                if (!empty($categoryIds)) {
-                    $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
+            // Category filter - include child categories
+            // Priority: Checkbox selections (categories[]) take precedence over URL category
+            // This ensures filter section works, but nav links also work when no checkboxes selected
+            if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
+                // Categories from checkboxes (user actively filtering) - HIGHEST PRIORITY
+                $categorySlugs = array_values(array_filter($request->categories, function ($slug) {
+                    return $slug !== 'all' && !empty($slug);
+                }));
+
+                if (!empty($categorySlugs)) {
+                    $categoryIds = ProductServiceCategory::whereIn('slug', $categorySlugs)->pluck('id')->toArray();
+                    // Get all child category IDs recursively
+                    if (!empty($categoryIds)) {
+                        $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
+                        if (!empty($allCategoryIds)) {
+                            $query->whereIn('category_id', $allCategoryIds);
+                        }
+                    }
+                }
+            } elseif ($request->has('category') && $request->category) {
+                // Single category from URL (from navigation links) - only if no checkboxes selected
+                $category = ProductServiceCategory::with('children')->where('slug', $request->category)->first();
+                if ($category) {
+                    // Load all nested children recursively
+                    $category->loadNestedChildren();
+                    // Get all child category IDs recursively (includes parent category ID itself)
+                    $allCategoryIds = $category->getAllChildIds();
                     if (!empty($allCategoryIds)) {
                         $query->whereIn('category_id', $allCategoryIds);
                     }
                 }
             }
-        } elseif ($request->has('category') && $request->category) {
-            // Single category from URL (from navigation links) - only if no checkboxes selected
-            $category = ProductServiceCategory::with('children')->where('slug', $request->category)->first();
-            if ($category) {
-                // Load all nested children recursively
-                $category->loadNestedChildren();
-                // Get all child category IDs recursively (includes parent category ID itself)
-                $allCategoryIds = $category->getAllChildIds();
-                if (!empty($allCategoryIds)) {
-                    $query->whereIn('category_id', $allCategoryIds);
-                }
+
+            // Price range filter
+            if ($request->filled('price_min')) {
+                $query->where('price', '>=', $request->price_min);
             }
-        }
+            if ($request->filled('price_max')) {
+                $query->where('price', '<=', $request->price_max);
+            }
 
-        // Price range filter
-        if ($request->filled('price_min')) {
-            $query->where('price', '>=', $request->price_min);
-        }
-        if ($request->filled('price_max')) {
-            $query->where('price', '<=', $request->price_max);
-        }
-
-        // Rating filter
-        if ($request->filled('rating') && is_array($request->rating)) {
-            $query->whereHas('reviews', function($q) use ($request) {
-                $q->where('is_approved', true);
-                $q->where(function($subQuery) use ($request) {
-                    foreach ($request->rating as $rating) {
-                        $subQuery->orWhere('rating', '>=', $rating);
-                    }
+            // Rating filter
+            if ($request->filled('rating') && is_array($request->rating)) {
+                $query->whereHas('reviews', function ($q) use ($request) {
+                    $q->where('is_approved', true);
+                    $q->where(function ($subQuery) use ($request) {
+                        foreach ($request->rating as $rating) {
+                            $subQuery->orWhere('rating', '>=', $rating);
+                        }
+                    });
                 });
-            });
-        }
+            }
 
-        // Sort
-        $sort = $request->sort;
-        switch ($sort) {
-            case 'newest':
-                $query->latest();
-                break;
-            case 'featured':
-                $query->where('is_featured', 1)->latest();
-                break;
-            case 'lowToHigh':
-                $query->orderBy('price', 'asc');
-                break;
-            case 'highToLow':
-                $query->orderBy('price', 'desc');
-                break;
-            default:
-                // Sort by numbers in product name (01, 02, 03, etc.)
-                // Extract last number sequence from name and sort numerically
-                // Works with formats like "yt-ch-06", "w5-vh 06", "mw-ch-03", etc.
-                // Tries to extract number after last space or hyphen
-                $query->orderByRaw("CAST(
+            // Sort
+            $sort = $request->sort;
+            switch ($sort) {
+                case 'newest':
+                    $query->latest();
+                    break;
+                case 'featured':
+                    $query->where('is_featured', 1)->latest();
+                    break;
+                case 'lowToHigh':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'highToLow':
+                    $query->orderBy('price', 'desc');
+                    break;
+                default:
+                    // Sort by numbers in product name (01, 02, 03, etc.)
+                    // Extract last number sequence from name and sort numerically
+                    // Works with formats like "yt-ch-06", "w5-vh 06", "mw-ch-03", etc.
+                    // Tries to extract number after last space or hyphen
+                    $query->orderByRaw("CAST(
                     COALESCE(
                         NULLIF(
                             CAST(
@@ -870,60 +879,60 @@ class PageController extends Controller
                         999999
                     )
                 AS UNSIGNED) ASC")
-                ->orderBy('name', 'ASC');
-        }
+                        ->orderBy('name', 'ASC');
+            }
 
-        // Use 20 items per page for infinite scroll (matching initial load)
-        $page = $request->get('page', 1);
-        $products = $query->paginate(20)->appends($request->except('page'));
+            // Use 20 items per page for infinite scroll (matching initial load)
+            $page = $request->get('page', 1);
+            $products = $query->paginate(20)->appends($request->except('page'));
 
-        // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
-        $userId = Auth::id();
-        $wishlistedIds = [];
-        if ($userId && $products->count() > 0) {
-            $wishlistedIds = Wishlist::where('user_id', $userId)
-                ->whereIn('product_id', $products->pluck('id'))
-                ->pluck('product_id')
-                ->toArray();
-        }
-        
-        foreach ($products as $product) {
-            // Add wishlist status
-            $product->is_wishlisted = in_array($product->id, $wishlistedIds);
-            
-            // Pre-calculate ratings and reviews (avoid N+1 queries) - match original behavior
-            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
-            $product->total_reviews = $product->reviews->count();
-            
-            // Pre-calculate stock status (avoid N+1 queries)
-            if ($product->has_variations) {
-                $product->has_stock = false;
-                if ($product->variations && $product->variations->isNotEmpty()) {
-                    foreach ($product->variations as $variation) {
-                        if ($variation->relationLoaded('stocks') && $variation->stocks) {
-                            $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
-                        } else {
-                            $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
-                        }
-                        if ($totalQuantity > 0) {
-                            $product->has_stock = true;
-                            break;
+            // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
+            $userId = Auth::id();
+            $wishlistedIds = [];
+            if ($userId && $products->count() > 0) {
+                $wishlistedIds = Wishlist::where('user_id', $userId)
+                    ->whereIn('product_id', $products->pluck('id'))
+                    ->pluck('product_id')
+                    ->toArray();
+            }
+
+            foreach ($products as $product) {
+                // Add wishlist status
+                $product->is_wishlisted = in_array($product->id, $wishlistedIds);
+
+                // Pre-calculate ratings and reviews (avoid N+1 queries) - match original behavior
+                $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+                $product->total_reviews = $product->reviews->count();
+
+                // Pre-calculate stock status (avoid N+1 queries)
+                if ($product->has_variations) {
+                    $product->has_stock = false;
+                    if ($product->variations && $product->variations->isNotEmpty()) {
+                        foreach ($product->variations as $variation) {
+                            if ($variation->relationLoaded('stocks') && $variation->stocks) {
+                                $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                            } else {
+                                $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                            }
+                            if ($totalQuantity > 0) {
+                                $product->has_stock = true;
+                                break;
+                            }
                         }
                     }
+                } else {
+                    // For products without variations, check branch and warehouse stock - match original behavior
+                    $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                    $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                    $product->has_stock = ($branchStock + $warehouseStock) > 0;
                 }
-            } else {
-                // For products without variations, check branch and warehouse stock - match original behavior
-                $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = ($branchStock + $warehouseStock) > 0;
             }
-        }
 
             // Handle selected categories for both array and single category
             $selectedCategories = [];
             if ($request->has('categories') && is_array($request->categories)) {
                 // Filter out 'all' value and reindex
-                $selectedCategories = array_values(array_filter($request->categories, function($slug) {
+                $selectedCategories = array_values(array_filter($request->categories, function ($slug) {
                     return $slug !== 'all' && !empty($slug);
                 }));
             } elseif ($request->has('category') && $request->category) {
@@ -932,16 +941,16 @@ class PageController extends Controller
 
             // Check for infinite scroll - handle both string 'true' and boolean true
             $infiniteScrollParam = $request->get('infinite_scroll', false);
-            $isInfiniteScrollRequest = $request->ajax() || 
-                                      $infiniteScrollParam === 'true' || 
-                                      $infiniteScrollParam === true || 
-                                      $infiniteScrollParam === '1' || 
-                                      $infiniteScrollParam === 1;
-            
+            $isInfiniteScrollRequest = $request->ajax() ||
+                $infiniteScrollParam === 'true' ||
+                $infiniteScrollParam === true ||
+                $infiniteScrollParam === '1' ||
+                $infiniteScrollParam === 1;
+
             if ($isInfiniteScrollRequest) {
                 // For infinite scroll, return products without pagination links
                 $isInfiniteScroll = true;
-                
+
                 // Log for debugging
                 \Log::info('Products filter infinite scroll request', [
                     'page' => $request->get('page', 1),
@@ -957,7 +966,7 @@ class PageController extends Controller
                     'price_max' => $request->get('price_max'),
                     'sort' => $request->get('sort')
                 ]);
-                
+
                 return response()->json([
                     'success' => true,
                     'html' => view('ecommerce.partials.product-grid', [
@@ -970,7 +979,7 @@ class PageController extends Controller
                     'currentPage' => $products->currentPage(),
                     'lastPage' => $products->lastPage()
                 ])->header('Content-Type', 'application/json')
-                  ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+                    ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
 
             $pageTitle = 'Our Products';
@@ -994,7 +1003,7 @@ class PageController extends Controller
                 'line' => $e->getLine(),
                 'request' => $request->all()
             ]);
-            
+
             // Return error response for AJAX requests
             if ($request->ajax() || $request->get('infinite_scroll', false)) {
                 return response()->json([
@@ -1004,7 +1013,7 @@ class PageController extends Controller
                     'html' => '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-exclamation-triangle"></i></div><h3 class="no-products-title">Error Loading Products</h3><p class="no-products-message">An error occurred. Please try again.</p></div></div>'
                 ], 500);
             }
-            
+
             // For non-AJAX requests, redirect back with error
             return back()->withErrors(['error' => 'An error occurred while filtering products. Please try again.']);
         }

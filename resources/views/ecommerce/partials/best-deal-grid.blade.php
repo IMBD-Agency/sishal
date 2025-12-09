@@ -1,7 +1,12 @@
 @if($products->count() > 0)
     @foreach($products as $product)
         <div class="col-lg-3 col-md-4 col-sm-6">
-            <div class="product-card position-relative h-100" data-href="{{ route('product.details', $product->slug) }}">
+            <div class="product-card position-relative h-100" 
+                data-href="{{ route('product.details', $product->slug) }}"
+                data-gtm-id="{{ $product->id }}"
+                data-gtm-name="{{ $product->name }}"
+                data-gtm-price="{{ $product->discount ?? $product->price }}"
+                data-gtm-category="{{ $product->category->name ?? '' }}">
                 <button class="wishlist-btn {{$product->is_wishlisted ? ' active' : ''}}" data-product-id="{{ $product->id }}">
                     <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                 </button>
