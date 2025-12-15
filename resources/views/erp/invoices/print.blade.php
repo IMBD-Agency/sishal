@@ -193,6 +193,14 @@
             </tr>
             <tr>
                 <td>Phone: {{ $invoice->order->phone ?? $invoice->customer->phone ?? 'N/A' }}</td>
+                <td style="text-align:right;">
+                    @php
+                        $orderNumber = $order->order_number ?? $invoice->order->order_number ?? null;
+                    @endphp
+                    @if($orderNumber)
+                        <strong>ORDER #</strong> {{ $orderNumber }}
+                    @endif
+                </td>
             </tr>
             @php
                 $addressParts = [];
@@ -260,7 +268,7 @@
             @endif
             <tr><td>NET BILL :</td><td>{{ number_format($invoice->total_amount ?? 0, 2) }} Tk</td></tr>
             <tr><td>ADVANCE :</td><td>{{ number_format($invoice->paid_amount ?? 0, 2) }} Tk</td></tr>
-            <tr><td>DUE :</td><td>{{ number_format($invoice->due_amount ?? 0, 2) }} Tk</td></tr>
+            <!-- <tr><td>DUE :</td><td>{{ number_format($invoice->due_amount ?? 0, 2) }} Tk</td></tr> -->
         </table>
 
         <div style="clear:both;"></div>

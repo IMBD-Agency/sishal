@@ -1823,6 +1823,7 @@
     
     @if(isset($carts) && $carts->count() > 0 && ($general_settings->gtm_container_id ?? null))
     <script>
+        
         window.dataLayer = window.dataLayer || [];
         
         // Prevent duplicate begin_checkout events on page reload using session storage
@@ -1849,10 +1850,12 @@
                             'item_category': {!! json_encode($cart->product->category->name ?? '') !!},
                             'price': {{ $cart->product->discount ?? $cart->product->price }},
                             'quantity': {{ $cart->qty }}
+
                         }@if(!$loop->last),@endif
                         @endif
                         @endforeach
                     ]
+                    
                 }
             });
         }
