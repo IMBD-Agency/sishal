@@ -303,10 +303,18 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.list');
     Route::get('/invoices/create', [InvoiceController::class, 'create'])->name('invoice.create');
     Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoice.store');
+
+    // Invoice Report Routes
+    Route::get('/invoices/report-data', [InvoiceController::class, 'getReportData'])->name('invoices.report.data');
+    Route::get('/invoices/export-excel', [InvoiceController::class, 'exportExcel'])->name('invoices.export.excel');
+    Route::get('/invoices/export-pdf', [InvoiceController::class, 'exportPdf'])->name('invoices.export.pdf');
     Route::get('/invoices/{id}', [InvoiceController::class, 'show'])->name('invoice.show');
     Route::post('/invoices/add-payment/{id}', [InvoiceController::class, 'addPayment'])->name('invoice.addPayment');
     Route::get('/erp/invoices/{id}/edit', [InvoiceController::class, 'edit'])->name('invoice.edit');
     Route::patch('/erp/invoices/{id}', [InvoiceController::class, 'update'])->name('invoice.update');
+
+
+
 
     // Order
     Route::get('/order-list', [\App\Http\Controllers\Erp\OrderController::class, 'index'])->name('order.list');

@@ -463,6 +463,356 @@ class InvoiceController extends Controller
         return view('erp.invoices.print', compact('invoice', 'template', 'action', 'qrCodeSvg', 'general_settings', 'order'));
     }
 
+    /**
+     * Get report data for the modal
+     */
+    public function getReportData(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view invoice list')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $query = Invoice::with(['customer', 'salesman', 'order']);
+
+        // Date range filter for issue date
+        if ($request->filled('issue_date_from')) {
+            $query->whereDate('issue_date', '>=', $request->issue_date_from);
+        }
+        if ($request->filled('issue_date_to')) {
+            $query->whereDate('issue_date', '<=', $request->issue_date_to);
+        }
+
+        // Date range filter for due date
+        if ($request->filled('due_date_from')) {
+            $query->whereDate('due_date', '>=', $request->due_date_from);
+        }
+        if ($request->filled('due_date_to')) {
+            $query->whereDate('due_date', '<=', $request->due_date_to);
+        }
+
+        // Status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Customer filter
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        $invoices = $query->get();
+
+        // Transform data for frontend
+        $transformedInvoices = $invoices->map(function ($invoice) {
+            return [
+                'invoice_number' => $invoice->invoice_number,
+                'order_id' => $invoice->order ? $invoice->order->order_number : '-',
+                'customer_name' => $invoice->order ? $invoice->order->name : (optional($invoice->customer)->name ?? 'Walk-in Customer'),
+                'salesman_name' => trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System',
+                'issue_date' => $invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d-m-Y') : '-',
+                'due_date' => $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d-m-Y') : '-',
+                'status' => $invoice->status,
+                'subtotal' => number_format($invoice->subtotal, 2),
+                'tax' => number_format($invoice->tax, 2),
+                'discount' => number_format($invoice->discount_apply, 2),
+                'total_amount' => number_format($invoice->total_amount, 2),
+                'paid_amount' => number_format($invoice->paid_amount, 2),
+                'due_amount' => number_format($invoice->due_amount, 2),
+            ];
+        });
+
+        // Calculate summary statistics
+        $summary = [
+            'total_invoices' => $invoices->count(),
+            'total_amount' => number_format($invoices->sum('total_amount'), 2),
+            'paid_invoices' => $invoices->where('status', 'paid')->count(),
+            'unpaid_invoices' => $invoices->where('status', 'unpaid')->count(),
+            'partial_invoices' => $invoices->where('status', 'partial')->count(),
+        ];
+
+        return response()->json([
+            'invoices' => $transformedInvoices,
+            'summary' => $summary
+        ]);
+    }
+
+    /**
+     * Export to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view invoice list')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $query = Invoice::with(['customer', 'salesman', 'order']);
+
+        // Apply filters
+        if ($request->filled('issue_date_from')) {
+            $query->whereDate('issue_date', '>=', $request->issue_date_from);
+        }
+        if ($request->filled('issue_date_to')) {
+            $query->whereDate('issue_date', '<=', $request->issue_date_to);
+        }
+        if ($request->filled('due_date_from')) {
+            $query->whereDate('due_date', '>=', $request->due_date_from);
+        }
+        if ($request->filled('due_date_to')) {
+            $query->whereDate('due_date', '<=', $request->due_date_to);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        $invoices = $query->get();
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
+
+        // Validate that at least one column is selected
+        if (empty($selectedColumns)) {
+            return response()->json(['error' => 'Please select at least one column to export.'], 400);
+        }
+
+        // Prepare data for export
+        $exportData = [];
+        
+        // Add headers
+        $headers = [];
+        $columnMap = [
+            'invoice_number' => 'Invoice Number',
+            'order_id' => 'Order ID',
+            'customer' => 'Customer',
+            'salesman' => 'Salesman',
+            'issue_date' => 'Issue Date',
+            'due_date' => 'Due Date',
+            'status' => 'Status',
+            'subtotal' => 'Subtotal',
+            'tax' => 'Tax',
+            'discount' => 'Discount',
+            'total' => 'Total',
+            'paid_amount' => 'Paid Amount',
+            'due_amount' => 'Due Amount'
+        ];
+
+        foreach ($selectedColumns as $column) {
+            if (isset($columnMap[$column])) {
+                $headers[] = $columnMap[$column];
+            }
+        }
+        $exportData[] = $headers;
+
+        // Add data rows
+        foreach ($invoices as $invoice) {
+            $row = [];
+            foreach ($selectedColumns as $column) {
+                switch ($column) {
+                    case 'invoice_number':
+                        $row[] = $invoice->invoice_number ?? '-';
+                        break;
+                    case 'order_id':
+                        $row[] = $invoice->order ? $invoice->order->order_number : '-';
+                        break;
+                    case 'customer':
+                        $row[] = $invoice->order ? $invoice->order->name : (optional($invoice->customer)->name ?? 'Walk-in Customer');
+                        break;
+                    case 'salesman':
+                        $row[] = trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System';
+                        break;
+                    case 'issue_date':
+                        $row[] = $invoice->issue_date ? \Carbon\Carbon::parse($invoice->issue_date)->format('d-m-Y') : '-';
+                        break;
+                    case 'due_date':
+                        $row[] = $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d-m-Y') : '-';
+                        break;
+                    case 'status':
+                        $row[] = ucfirst($invoice->status ?? '-');
+                        break;
+                    case 'subtotal':
+                        $row[] = number_format($invoice->subtotal, 2);
+                        break;
+                    case 'tax':
+                        $row[] = number_format($invoice->tax, 2);
+                        break;
+                    case 'discount':
+                        $row[] = number_format($invoice->discount_apply, 2);
+                        break;
+                    case 'total':
+                        $row[] = number_format($invoice->total_amount, 2);
+                        break;
+                    case 'paid_amount':
+                        $row[] = number_format($invoice->paid_amount, 2);
+                        break;
+                    case 'due_amount':
+                        $row[] = number_format($invoice->due_amount, 2);
+                        break;
+                }
+            }
+            $exportData[] = $row;
+        }
+
+        // Generate filename
+        $filename = 'invoice_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+        
+        // Create Excel file using PhpSpreadsheet
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Add title
+        $sheet->setCellValue('A1', 'Invoice Report');
+        if (count($headers) > 0) {
+            $sheet->mergeCells('A1:' . chr(65 + count($headers) - 1) . '1');
+        }
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        
+        // Add summary info
+        $totalInvoices = $invoices->count();
+        $totalAmount = $invoices->sum('total_amount');
+        $paidInvoices = $invoices->where('status', 'paid')->count();
+        $unpaidInvoices = $invoices->where('status', 'unpaid')->count();
+        $partialInvoices = $invoices->where('status', 'partial')->count();
+        
+        if (count($headers) > 0) {
+            $sheet->setCellValue('A2', 'Summary: Total Invoices: ' . $totalInvoices . ' | Total Amount: ৳' . number_format($totalAmount, 2) . ' | Paid: ' . $paidInvoices . ' | Unpaid: ' . $unpaidInvoices . ' | Partial: ' . $partialInvoices);
+            $sheet->mergeCells('A2:' . chr(65 + count($headers) - 1) . '2');
+        }
+        $sheet->getStyle('A2')->getFont()->setSize(10);
+        
+        // Add data starting from row 4
+        $row = 4;
+        foreach ($exportData as $dataRow) {
+            $col = 'A';
+            foreach ($dataRow as $cell) {
+                $sheet->setCellValue($col . $row, $cell);
+                $col++;
+            }
+            $row++;
+        }
+        
+        // Style header row
+        $headerRow = 4;
+        $sheet->getStyle('A' . $headerRow . ':' . chr(65 + count($headers) - 1) . $headerRow)
+            ->getFont()->setBold(true);
+        $sheet->getStyle('A' . $headerRow . ':' . chr(65 + count($headers) - 1) . $headerRow)
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE0E0E0');
+        
+        // Auto-size columns
+        foreach (range('A', chr(65 + count($headers) - 1)) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        
+        // Create writer and download
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        
+        // Set headers for download
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Export to PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view invoice list')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $query = Invoice::with(['customer', 'salesman', 'order']);
+
+        // Apply filters
+        if ($request->filled('issue_date_from')) {
+            $query->whereDate('issue_date', '>=', $request->issue_date_from);
+        }
+        if ($request->filled('issue_date_to')) {
+            $query->whereDate('issue_date', '<=', $request->issue_date_to);
+        }
+        if ($request->filled('due_date_from')) {
+            $query->whereDate('due_date', '>=', $request->due_date_from);
+        }
+        if ($request->filled('due_date_to')) {
+            $query->whereDate('due_date', '<=', $request->due_date_to);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        $invoices = $query->get();
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
+
+        // Validate that at least one column is selected
+        if (empty($selectedColumns)) {
+            return response()->json(['error' => 'Please select at least one column to export.'], 400);
+        }
+
+        // Prepare data for export
+        $columnMap = [
+            'invoice_number' => 'Invoice #',
+            'order_id' => 'Order ID',
+            'customer' => 'Customer',
+            'salesman' => 'Salesman',
+            'issue_date' => 'Issue Date',
+            'due_date' => 'Due Date',
+            'status' => 'Status',
+            'subtotal' => 'Subtotal',
+            'tax' => 'Tax',
+            'discount' => 'Discount',
+            'total' => 'Total',
+            'paid_amount' => 'Paid',
+            'due_amount' => 'Due'
+        ];
+
+        $headers = [];
+        foreach ($selectedColumns as $column) {
+            if (isset($columnMap[$column])) {
+                $headers[] = $columnMap[$column];
+            }
+        }
+
+        // Calculate summary
+        $summary = [
+            'total_invoices' => $invoices->count(),
+            'total_amount' => number_format($invoices->sum('total_amount'), 2),
+            'paid_invoices' => $invoices->where('status', 'paid')->count(),
+            'unpaid_invoices' => $invoices->where('status', 'unpaid')->count(),
+            'partial_invoices' => $invoices->where('status', 'partial')->count(),
+        ];
+
+        // Generate filename
+        $filename = 'invoice_report_' . date('Y-m-d_H-i-s') . '.pdf';
+
+        // Create PDF using DomPDF
+        $pdf = Pdf::loadView('erp.invoices.invoice-report-pdf', [
+            'invoices' => $invoices,
+            'headers' => $headers,
+            'selectedColumns' => $selectedColumns,
+            'summary' => $summary,
+            'filters' => [
+                'issue_date_from' => $request->issue_date_from,
+                'issue_date_to' => $request->issue_date_to,
+                'due_date_from' => $request->due_date_from,
+                'due_date_to' => $request->due_date_to,
+                'status' => $request->status,
+                'customer_id' => $request->customer_id,
+            ]
+        ]);
+
+        $pdf->setPaper('A4', 'landscape');
+        
+        return $pdf->download($filename);
+    }
+
     private function generateInvoiceNumber()
     {
         $generalSettings = GeneralSetting::first();
