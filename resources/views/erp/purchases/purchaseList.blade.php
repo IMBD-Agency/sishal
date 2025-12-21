@@ -24,9 +24,6 @@
                         <a href="{{ route('purchase.create') }}" class="btn btn-outline-primary">
                             <i class="fas fa-adjust me-2"></i>Add Purchase
                         </a>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
                     </div>
                 </div>
             </div>
@@ -37,8 +34,8 @@
             <div class="mb-3">
                 <form method="GET" action="" class="row g-2 align-items-end">
                     <div class="col-md-3">
-                        <label class="form-label">Search (ID or Vendor)</label>
-                        <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Purchase ID or Vendor Name">
+                        <label class="form-label">Search (Purchase ID)</label>
+                        <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Purchase ID">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Purchase Date</label>
@@ -51,15 +48,6 @@
                             <option value="pending" {{ ($filters['status'] ?? '') == 'pending' ? 'selected' : '' }}>Pending</option>
                             <option value="received" {{ ($filters['status'] ?? '') == 'received' ? 'selected' : '' }}>Received</option>
                             <option value="cancelled" {{ ($filters['status'] ?? '') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Bill Status</label>
-                        <select name="bill_status" class="form-select">
-                            <option value="">All</option>
-                            <option value="unpaid" {{ ($filters['bill_status'] ?? '') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
-                            <option value="paid" {{ ($filters['bill_status'] ?? '') == 'paid' ? 'selected' : '' }}>Paid</option>
-                            <option value="partial" {{ ($filters['bill_status'] ?? '') == 'partial' ? 'selected' : '' }}>Partial</option>
                         </select>
                     </div>
                     <div class="col-md-1">
@@ -83,23 +71,34 @@
                         <table class="table table-hover align-middle mb-0" id="purchaseTable">
                             <thead class="table-light sticky-top">
                                 <tr>
-                                    <th class="border-0">Purchase</th>
-                                    <th class="border-0">Vendor</th>
+                                    <th class="border-0">Purchase ID</th>
                                     <th class="border-0">Purchase Date</th>
+                                    <th class="border-0">Location</th>
                                     <th class="border-0 text-center">Status</th>
-                                    <th class="border-0">Bill Status</th>
                                     <th class="border-0">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse ($purchases as $purchase)
                                     <tr>
-                                        <td>{{ $purchase->id ?? '-' }}</td>
                                         <td>
-                                            {{ $purchase->vendor->name ?? '-' }}
+                                            <strong>#{{ $purchase->id }}</strong>
                                         </td>
                                         <td>
                                             {{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d-m-Y') : '-' }}
+                                        </td>
+                                        <td>
+                                            @php
+                                                $locationName = 'N/A';
+                                                if ($purchase->ship_location_type === 'branch') {
+                                                    $branch = \App\Models\Branch::find($purchase->location_id);
+                                                    $locationName = $branch ? $branch->name : 'Unknown Branch';
+                                                } elseif ($purchase->ship_location_type === 'warehouse') {
+                                                    $warehouse = \App\Models\Warehouse::find($purchase->location_id);
+                                                    $locationName = $warehouse ? $warehouse->name : 'Unknown Warehouse';
+                                                }
+                                            @endphp
+                                            {{ ucfirst($purchase->ship_location_type ?? 'N/A') }}: {{ $locationName }}
                                         </td>
                                         <td class="text-center">
                                             <span class="badge 
@@ -119,28 +118,18 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge 
-                                                @if($purchase->bill && $purchase->bill->status == 'unpaid') bg-danger
-                                                @elseif($purchase->bill && $purchase->bill->status == 'paid') bg-success
-                                                @elseif($purchase->bill && $purchase->bill->status == 'pending') bg-warning text-dark
-                                                @else bg-secondary
-                                                @endif
-                                            ">
-                                                {{ ucfirst($purchase->bill->status ?? '-') }}
-                                            </span>
-                                        </td>
-                                        <td>
                                             <a href="{{ route('purchase.show', $purchase->id) }}" class="text-info"><i class="fas fa-eye"></i></a>
                                             <a href="{{ route('purchase.edit', $purchase->id) }}" class="text-primary"><i class="fas fa-edit"></i></a>
                                             <form action="{{ route('purchase.delete', $purchase->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this purchase?');">
                                                 @csrf
+                                                @method('DELETE')
                                                 <button type="submit" class="btn btn-link text-danger p-0 m-0 align-baseline"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </td>
                                     </tr>
                                 @empty   
                                 <tr>
-                                    <td colspan="6" class="text-center">No purchase Found</td></tr> 
+                                    <td colspan="5" class="text-center">No purchase Found</td></tr> 
                                 @endforelse
                             </tbody>
                         </table>
@@ -196,7 +185,8 @@
                 btn.addEventListener('click', function() {
                     var id = this.getAttribute('data-id');
                     var status = this.getAttribute('data-status');
-                    updateStatusForm.action = '/erp/purchases/' + id + '/status';
+                    // Use the proper update-status endpoint
+                    updateStatusForm.action = '{{ url('/erp/purchases') }}/' + id + '/update-status';
                     modalStatus.value = status;
                     if (status === 'received') {
                         modalStatus.setAttribute('disabled', 'disabled');

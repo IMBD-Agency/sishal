@@ -196,7 +196,7 @@ class OrderController extends Controller
                     $item->save();
                 }
             } else {
-                // E-commerce order: stock deduction from warehouses ONLY (not branches)
+                // E-commerce order: stock deduction from warehouses ONLY (no branch stock)
                 foreach ($order->items as $item) {
                     $productId = $item->product_id;
                     $qty = $item->quantity;
@@ -213,16 +213,16 @@ class OrderController extends Controller
 
                     // Check if item has stock source defined
                     if ($item->current_position_type && $item->current_position_id) {
-                        // Use defined stock source (warehouse only for ecommerce orders)
+                        // Use defined stock source (warehouse ONLY for ecommerce orders)
                         $fromType = $item->current_position_type;
                         $fromId = $item->current_position_id;
                         $product = $item->product;
 
-                        // For ecommerce orders, only allow warehouse as stock source
+                        // Ecommerce orders can ONLY use warehouse stock
                         if ($fromType !== 'warehouse') {
                             return response()->json([
                                 'success' => false,
-                                'message' => "Ecommerce orders can only deduct stock from warehouses. Please select a warehouse as the stock source for item ID {$item->id}."
+                                'message' => "Ecommerce orders can only deduct stock from warehouses. Invalid stock source type '{$fromType}' for item ID {$item->id}."
                             ], 400);
                         }
 

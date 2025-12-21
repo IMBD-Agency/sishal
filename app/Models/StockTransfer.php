@@ -12,6 +12,7 @@ class StockTransfer extends Model
         'to_type',
         'to_id',
         'product_id',
+        'variation_id',
         'quantity',
         'type',
         'status',
@@ -59,5 +60,10 @@ class StockTransfer extends Model
     public function approvedPerson()
     {
         return $this->belongsTo(\App\Models\User::class, 'approved_by');
+    }
+
+    public function variation()
+    {
+        return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
     }
 }

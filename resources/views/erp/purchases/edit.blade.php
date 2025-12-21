@@ -13,16 +13,8 @@
             <form id="purchaseForm" action="{{ route('purchase.update', $purchase->id) }}" method="POST">
                 @csrf
                 <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="supplier_id" class="form-label">Supplier</label>
-                        <select name="supplier_id" id="supplier_id" class="form-select" required>
-                            <option value="">Select Supplier</option>
-                            @foreach($suppliers as $supplier)
-                                <option value="{{ $supplier->id }}" {{ $purchase->supplier_id == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
+                    <input type="hidden" name="supplier_id" value="{{ $purchase->supplier_id ?? '' }}">
+                    <div class="col-md-6">
                         <label class="form-label">Ship Location Type</label>
                         <select name="ship_location_type" id="ship_location_type" class="form-select" required>
                             <option value="">Select Type</option>
@@ -30,7 +22,7 @@
                             <option value="warehouse" {{ $purchase->ship_location_type == 'warehouse' ? 'selected' : '' }}>Warehouse</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label for="location_id" class="form-label">Location</label>
                         <select name="location_id" id="location_id" class="form-select" required>
                             <option value="">Select Location</option>
@@ -78,12 +70,19 @@
                             @foreach($purchase->items as $i => $item)
                                 <tr>
                                     <td>
-                                        <select name="items[{{ $i }}][product_id]" class="form-select product-select" required>
-                                            <option value="">Select Product</option>
-                                            @foreach($products as $product)
-                                                <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <select
+                                            name="items[{{ $i }}][product_id]"
+                                            class="form-select product-select"
+                                            required
+                                            data-selected-id="{{ $item->product_id }}"
+                                            data-selected-text="{{ $item->product->name ?? '' }}"
+                                        ></select>
+                                        <select
+                                            name="items[{{ $i }}][variation_id]"
+                                            class="form-select mt-1 variation-select {{ $item->variation_id ? '' : 'd-none' }}"
+                                            data-initial-variation-id="{{ $item->variation_id ?? '' }}"
+                                        ></select>
+                                        <div class="small text-muted mt-1 stock-indicator"></div>
                                     </td>
                                     <td><input type="number" name="items[{{ $i }}][quantity]" class="form-control quantity" min="0.01" step="0.01" value="{{ $item->quantity }}" required></td>
                                     <td><input type="number" name="items[{{ $i }}][unit_price]" class="form-control unit_price" min="0" step="0.01" value="{{ $item->unit_price }}" required></td>
@@ -133,25 +132,110 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        // Initialize Select2 for supplier and product selects
-        $(document).ready(function() {
-            $('#supplier_id').select2({
-                placeholder: 'Select Supplier',
+        // Initialize Select2 with AJAX product search (name + SKU)
+        function initProductSelect2(selector) {
+            $(selector).select2({
+                placeholder: 'Search product by name or SKU',
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+                ajax: {
+                    url: '{{ route('products.search') }}',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return { q: params.term };
+                    },
+                    processResults: function (data) {
+                        const results = data.map(function (item) {
+                            let label = item.name;
+                            if (item.sku) {
+                                label += ' (' + item.sku + ')';
+                            }
+                            return {
+                                id: item.id,
+                                text: label
+                            };
+                        });
+                        return { results: results };
+                    },
+                    cache: true
+                }
             });
-            $('.product-select').select2({
-                placeholder: 'Select Product',
-                allowClear: true,
-                width: '100%'
+        }
+
+        // Helper to set initial value for AJAX Select2
+        function setSelect2Value($select, id, text) {
+            if (!id) return;
+            if ($select.find("option[value='" + id + "']").length === 0) {
+                var newOption = new Option(text || ('Product #' + id), id, true, true);
+                $select.append(newOption).trigger('change');
+            } else {
+                $select.val(id).trigger('change');
+            }
+        }
+
+        $(document).ready(function() {
+            // Initialize existing product selects with current values
+            $('.product-select').each(function() {
+                const $select = $(this);
+                const id = $select.data('selected-id');
+                const text = $select.data('selected-text');
+                initProductSelect2($select);
+                setSelect2Value($select, id, text);
             });
         });
+
         // Re-initialize Select2 for new product selects after adding a row
         function reinitProductSelect2() {
-            $('.product-select').select2({
-                placeholder: 'Select Product',
-                allowClear: true,
-                width: '100%'
+            initProductSelect2('.product-select');
+        }
+
+        // Fetch product price and current stock for a row
+        function handleProductChange(selectEl) {
+            const productId = selectEl.value;
+            const row = selectEl.closest('tr');
+            const unitPriceInput = row ? row.querySelector('.unit_price') : null;
+            const stockIndicator = selectEl.closest('td').querySelector('.stock-indicator');
+            const locationType = document.getElementById('ship_location_type').value;
+            const locationId = document.getElementById('location_id').value;
+
+            if (!productId) {
+                if (stockIndicator) stockIndicator.textContent = '';
+                return;
+            }
+
+            // Auto-fill unit price (only if empty)
+            $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
+                if (unitPriceInput && !unitPriceInput.value && resp && typeof resp.price !== 'undefined') {
+                    unitPriceInput.value = resp.price;
+                    updateTotals();
+                }
+            });
+
+            // Show current stock at selected location
+            if (!locationType || !locationId) {
+                if (stockIndicator) {
+                    stockIndicator.textContent = 'Select location to see current stock.';
+                }
+                return;
+            }
+
+            $.get('{{ url('/erp/order/product-stocks') }}/' + productId, function (resp) {
+                if (!resp || !resp.success || !Array.isArray(resp.stocks)) {
+                    if (stockIndicator) stockIndicator.textContent = '';
+                    return;
+                }
+                const stocks = resp.stocks;
+                let match = null;
+                if (locationType === 'branch') {
+                    match = stocks.find(s => s.type === 'branch' && String(s.branch_id) === String(locationId));
+                } else if (locationType === 'warehouse') {
+                    match = stocks.find(s => s.type === 'warehouse' && String(s.warehouse_id) === String(locationId));
+                }
+                if (stockIndicator) {
+                    const qty = match ? match.quantity : 0;
+                    stockIndicator.textContent = 'Current stock here: ' + qty;
+                }
             });
         }
         // Data for locations
@@ -179,12 +263,9 @@
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>
-                    <select name="items[${itemIndex}][product_id]" class="form-select product-select" required>
-                        <option value="">Select Product</option>
-                        @foreach($products as $product)
-                            <option value="{{ $product->id }}">{{ $product->name }}</option>
-                        @endforeach
-                    </select>
+                    <select name="items[${itemIndex}][product_id]" class="form-select product-select" required></select>
+                    <select name="items[${itemIndex}][variation_id]" class="form-select mt-1 variation-select d-none"></select>
+                    <div class="small text-muted mt-1 stock-indicator"></div>
                 </td>
                 <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity" min="0.01" step="0.01" required></td>
                 <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="0" step="0.01" required></td>
@@ -236,9 +317,29 @@
         document.querySelector('#itemsTable').addEventListener('input', function(e) {
             if (
                 e.target.classList.contains('quantity') ||
-                e.target.classList.contains('unit_price') ||
+                e.target.classList.contains('unit_price')
             ) {
                 updateTotals();
+            }
+        });
+
+        // When product / variation changes, fetch price + stock info
+        document.querySelector('#itemsTable').addEventListener('change', function(e) {
+            if (e.target.classList.contains('product-select')) {
+                handleProductChange(e.target);
+            }
+            if (e.target.classList.contains('variation-select')) {
+                const selectEl = e.target;
+                const row = selectEl.closest('tr');
+                const unitPriceInput = row ? row.querySelector('.unit_price') : null;
+                const selectedOption = selectEl.options[selectEl.selectedIndex];
+                if (unitPriceInput && selectedOption) {
+                    const price = selectedOption.getAttribute('data-price');
+                    if (price) {
+                        unitPriceInput.value = price;
+                        updateTotals();
+                    }
+                }
             }
         });
     </script>

@@ -1,6 +1,6 @@
 @extends('erp.master')
 
-@section('title', 'Point of Sale')
+@section('title', 'Edit POS Sale')
 
 @section('body')
     @include('erp.components.sidebar')
@@ -25,7 +25,7 @@
             <div class="row align-items-center">
                 <div class="col-md-6">
                     <h4 class="mb-0 text-primary fw-bold">
-                        <i class="fas fa-cash-register me-2"></i>Point of Sale
+                        <i class="fas fa-edit me-2"></i>Edit POS Sale - {{ $pos->sale_number }}
                     </h4>
                 </div>
                 <div class="col-md-6 text-end">
@@ -85,7 +85,7 @@
                                         <div class="col-md-6">
                                             <select class="form-select" id="sortBy">
                                                 @foreach ($branches as $branch)
-                                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                                    <option value="{{ $branch->id }}" {{ $pos->branch_id == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -188,7 +188,6 @@
     </div>
 
     @include('erp.pos.components.checkout-drawer')
-    @include('erp.pos.components.barcode-modal')
 
     <style>
         .product-card {
@@ -386,26 +385,6 @@
             font-size: 0.9rem;
         }
 
-        .barcode-btn {
-            border-radius: 10px;
-            padding: 10px 12px;
-            transition: all 0.2s ease;
-            border: 2px solid #6c757d;
-            background-color: transparent;
-            color: #6c757d;
-        }
-
-        .barcode-btn:hover {
-            background-color: #6c757d;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
-        }
-
-        .barcode-btn i {
-            font-size: 1rem;
-        }
-
         #modalProductDescription {
             color: #495057;
             line-height: 1.6;
@@ -522,29 +501,103 @@
 
         // Initialize the page
         $(document).ready(function () {
-            // Clear cartItems from sessionStorage after successful POS sale (do this FIRST)
-            if ($('.alert-success').length > 0) {
-                sessionStorage.setItem('cartItems', '[]');
-            }
+            // Pre-populate cart with existing sale items
+            @php
+                $existingItemsData = $pos->items->map(function($item) use ($pos) {
+                    $categoryData = null;
+                    if ($item->product->category) {
+                        $categoryData = ['name' => $item->product->category->name];
+                    }
+                    
+                    // Get current stock for the branch
+                    $branchStock = null;
+                    $variationStock = null;
+                    
+                    if ($item->variation_id) {
+                        // For variation products, get variation stock
+                        $vStock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                            ->where('branch_id', $pos->branch_id)
+                            ->whereNull('warehouse_id')
+                            ->first();
+                        if ($vStock) {
+                            $variationStock = $vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0));
+                        }
+                    } else {
+                        // For regular products, get branch stock
+                        $bStock = \App\Models\BranchProductStock::where('product_id', $item->product_id)
+                            ->where('branch_id', $pos->branch_id)
+                            ->first();
+                        if ($bStock) {
+                            $branchStock = [
+                                'branch_id' => $bStock->branch_id,
+                                'branch_name' => $bStock->branch->name ?? 'Unknown Branch',
+                                'quantity' => $bStock->quantity,
+                                'last_updated_at' => $bStock->last_updated_at
+                            ];
+                        }
+                    }
+                    
+                    return [
+                        'id' => $item->product_id,
+                        'name' => $item->product->name ?? 'Product',
+                        'price' => $item->product->price ?? $item->unit_price,
+                        'discount' => $item->product->discount ?? null,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'variation_id' => $item->variation_id,
+                        'variation_name' => $item->variation ? ($item->variation->name ?? 'Variation') : null,
+                        'variation_price' => $item->variation_id ? $item->unit_price : null,
+                        'image' => $item->product->image ?? null,
+                        'category' => $categoryData,
+                        'sku' => $item->product->sku ?? null,
+                        'branch_stock' => $branchStock,
+                        'variation_stock' => $variationStock,
+                    ];
+                })->values()->all();
+            @endphp
+            const existingItems = @json($existingItemsData);
+            
+            // Ensure all quantities are integers when loading from existing items
+            cart = existingItems.map(item => {
+                item.quantity = parseInt(item.quantity, 10) || 0;
+                return item;
+            });
+            
+            // After products are loaded, update cart items with fresh stock info
+            // This ensures stock is accurate even if it changed since the sale was created
+            setTimeout(function() {
+                refreshCartStockInfo();
+            }, 1000);
+            
+            updateCartDisplay();
+            
+            // Pre-fill checkout drawer fields
+            @if($pos->customer_id)
+                setTimeout(function() {
+                    $('#drawerCustomerSelect').val('{{ $pos->customer_id }}').trigger('change');
+                    $('.tab-btn[data-tab="existing-customer"]').click();
+                }, 500);
+            @endif
+            
+            $('#drawerDiscountInput').val('{{ $pos->discount ?? 0 }}');
+            $('#drawerShippingCharge').val('{{ $pos->delivery ?? 0 }}');
+            $('#drawerOrderNotes').val('{{ addslashes($pos->notes ?? "") }}');
+            
+            @if($pos->invoice && $pos->invoice->paid_amount)
+                $('#drawerPaidAmountInput').val('{{ $pos->invoice->paid_amount }}');
+            @endif
+            
             $('#drawerBranchSelect').val(currentBranchId);
             
             setupEventListeners();
-            // Set initial branch ID from the first option
+            // Set initial branch ID from sale's branch
             const branchSelect = $('#sortBy');
             if (branchSelect.val()) {
                 currentBranchId = branchSelect.val();
                 loadProductsFromAPI();
                 $('#drawerBranchSelect').val(currentBranchId);
             }
-            const storedCart = sessionStorage.getItem('cartItems');
-            if (storedCart) {
-                try {
-                    cart = JSON.parse(storedCart);
-                    updateCartDisplay();
-                } catch (e) {
-                    cart = [];
-                }
-            }
+            
             if ($('#productPagination').length === 0) {
                 $('#productsGrid').after('<div id="productPagination"></div>');
             }
@@ -793,6 +846,8 @@
                         products = data;
                         renderProducts(products);
                     }
+                    // Refresh cart stock info after products are loaded
+                    refreshCartStockInfo();
                 },
                 error: function (xhr, status, error) {
                     console.error('Error loading products:', error);
@@ -904,22 +959,12 @@
             const shortDescription = description.length > 100 ? description.substring(0, 100) + '...' : description;
 
             const buttonHtml = isVariationProduct
-                ? `<div class="d-flex gap-2">
-                        <button class="btn btn-primary flex-grow-1 select-variation-btn" data-product-id="${product.id}" ${!isInStock ? 'disabled' : ''}>
-                            <i class="fas fa-list me-1"></i>Select Variation
-                        </button>
-                        <button class="btn btn-outline-secondary barcode-btn" data-product-id="${product.id}" onclick="event.stopPropagation(); openBarcodeModal(${product.id});" title="Generate Barcode">
-                            <i class="fas fa-barcode"></i>
-                        </button>
-                   </div>`
-                : `<div class="d-flex gap-2">
-                        <button class="btn btn-primary flex-grow-1 add-to-cart-btn" data-product-id="${product.id}" ${!isInStock ? 'disabled' : ''}>
-                            <i class="fas fa-cart-plus me-1"></i>Add to Cart
-                        </button>
-                        <button class="btn btn-outline-secondary barcode-btn" data-product-id="${product.id}" onclick="event.stopPropagation(); openBarcodeModal(${product.id});" title="Generate Barcode">
-                            <i class="fas fa-barcode"></i>
-                        </button>
-                   </div>`;
+                ? `<button class="btn btn-primary w-100 select-variation-btn" data-product-id="${product.id}" ${!isInStock ? 'disabled' : ''}>
+                        <i class="fas fa-list me-2"></i>Select Variation
+                   </button>`
+                : `<button class="btn btn-primary w-100 add-to-cart-btn" data-product-id="${product.id}" ${!isInStock ? 'disabled' : ''}>
+                        <i class="fas fa-cart-plus me-2"></i>Add to Cart
+                   </button>`;
 
             const cardHtml = `
                             <div class="card product-card fade-in ${!isInStock ? 'out-of-stock' : ''}" data-product-id="${product.id}">
@@ -1033,6 +1078,9 @@
             // If product has variations, load them for the current branch
             if (product.has_variations) {
                 loadVariationsForProduct(product.id);
+            } else {
+                // Load multi-branch stock for simple products
+                loadMultiBranchStock(product.id, null);
             }
 
             const $modal = $('#productModal');
@@ -1154,7 +1202,7 @@
                     // Clear stock info and disable button while loading
                     $stockInfo.html('<i class="fas fa-spinner fa-spin me-1"></i>Loading stock...').removeClass('text-success text-danger text-warning');
                     $addToCartBtn.prop('disabled', true);
-
+                    
                     // Show stock per variation for the selected branch via API
                     $.get(`/erp/products/${productId}/variations/${variationId}/stock/levels`, function (resp) {
                         let qty = 0;
@@ -1237,13 +1285,16 @@
             }
 
             if (existingItem) {
-                const newQuantity = existingItem.quantity + quantity;
+                // Ensure quantities are integers
+                const currentQty = parseInt(existingItem.quantity, 10) || 0;
+                const addQty = parseInt(quantity, 10) || 1;
+                const newQuantity = currentQty + addQty;
                 // Check if new quantity exceeds available stock
                 if (newQuantity > availableStock) {
                     showToast(`Only ${availableStock} items available in stock for this selection!`, 'warning');
                     return;
                 }
-                existingItem.quantity = newQuantity;
+                existingItem.quantity = parseInt(newQuantity, 10);
                 // Update variation info if present
                 if (selectedProduct && selectedProduct.selectedVariation) {
                     const variation = selectedProduct.variations.find(v => v.id === selectedProduct.selectedVariation.id);
@@ -1252,11 +1303,12 @@
                 }
             } else {
                 // Check if quantity exceeds available stock
-                if (quantity > availableStock) {
+                const addQty = parseInt(quantity, 10) || 1;
+                if (addQty > availableStock) {
                     showToast(`Only ${availableStock} items available in stock for this selection!`, 'warning');
                     return;
                 }
-                const baseItem = { ...product, quantity: quantity };
+                const baseItem = { ...product, quantity: addQty };
                 if (selectedProduct && selectedProduct.selectedVariation) {
                     baseItem.variation_id = selectedProduct.selectedVariation.id;
                     baseItem.variation_price = selectedProduct.selectedVariation.price;
@@ -1335,6 +1387,9 @@
             $cartItems.empty();
 
             cart.forEach(item => {
+                // Ensure quantity is an integer
+                item.quantity = parseInt(item.quantity, 10) || 0;
+                
                 // Use discount price if available and less than original price
                 const useDiscount = item.discount && Number(item.discount) < Number(item.price);
                 const displayPrice = useDiscount ? Number(item.discount) : Number(item.price);
@@ -1347,11 +1402,20 @@
                 
                 // Check stock availability and show warning
                 let availableStock = 0;
+                // First check if item has stock info directly (from pre-populated cart)
                 if (item.variation_id && item.variation_stock !== undefined && item.variation_stock !== null) {
                     availableStock = item.variation_stock;
+                } else if (item.branch_stock && item.branch_stock.quantity !== undefined) {
+                    availableStock = item.branch_stock.quantity;
                 } else {
+                    // Fallback: try to get from products array
                     const product = products.find(p => p.id === item.id);
-                    availableStock = product && product.branch_stock ? product.branch_stock.quantity : 0;
+                    if (item.variation_id) {
+                        // For variations, stock should be in item.variation_stock
+                        availableStock = 0;
+                    } else {
+                        availableStock = product && product.branch_stock ? product.branch_stock.quantity : 0;
+                    }
                 }
                 const stockWarning = item.quantity > availableStock ? 
                     `<small class="text-danger d-block"><i class="fas fa-exclamation-triangle me-1"></i>Only ${availableStock} available in stock!</small>` : 
@@ -1372,7 +1436,7 @@
                                         <div class="d-flex align-items-center">
                                             <div class="quantity-controls me-2">
                                                 <button class="quantity-btn decrease-qty" data-product-id="${item.id}" data-variation-id="${item.variation_id || ''}">-</button>
-                                                <span class="mx-2">${item.quantity}</span>
+                                                <span class="mx-2">${parseInt(item.quantity, 10)}</span>
                                                 <button class="quantity-btn increase-qty" data-product-id="${item.id}" data-variation-id="${item.variation_id || ''}">+</button>
                                             </div>
                                             <button class="btn btn-outline-danger btn-sm remove-item" data-product-id="${item.id}" data-variation-id="${item.variation_id || ''}">
@@ -1420,7 +1484,9 @@
             );
             if (!item) return;
 
-            const newQuantity = item.quantity + change;
+            // Ensure quantity is an integer before calculation
+            const currentQuantity = parseInt(item.quantity, 10) || 0;
+            const newQuantity = currentQuantity + change;
 
             if (newQuantity <= 0) {
                 removeFromCart(productId, variationId);
@@ -1428,24 +1494,35 @@
                 // Check if new quantity exceeds available stock
                 let availableStock = 0;
                 
+                // First check if item has stock info directly (from pre-populated cart)
                 if (item.variation_id && item.variation_stock !== undefined && item.variation_stock !== null) {
-                    // Use variation stock
+                    // Use variation stock from cart item
                     availableStock = item.variation_stock;
+                } else if (item.branch_stock && item.branch_stock.quantity !== undefined) {
+                    // Use branch stock from cart item
+                    availableStock = item.branch_stock.quantity;
                 } else {
-                    // Use product branch stock
+                    // Fallback: try to get from products array
                     const product = products.find(p => p.id === productId);
-                    availableStock = product && product.branch_stock ? product.branch_stock.quantity : 0;
+                    if (item.variation_id) {
+                        // For variations, we need to fetch stock
+                        // This shouldn't happen if cart was properly initialized, but handle it gracefully
+                        availableStock = 0;
+                    } else {
+                        availableStock = product && product.branch_stock ? product.branch_stock.quantity : 0;
+                    }
                 }
                 
                 if (newQuantity > availableStock) {
                     showToast(`Only ${availableStock} items available in stock${item.variation_name ? ' for ' + item.variation_name : ''}!`, 'warning');
-                    // Set quantity to max available
-                    item.quantity = availableStock;
+                    // Set quantity to max available (ensure it's an integer)
+                    item.quantity = parseInt(availableStock, 10);
                     updateCartDisplay();
                     return;
                 }
 
-                item.quantity = newQuantity;
+                // Ensure quantity is always an integer
+                item.quantity = parseInt(newQuantity, 10);
                 updateCartDisplay();
             }
         }
@@ -1462,6 +1539,40 @@
             cart = [];
             updateCartDisplay();
             showToast('Cart cleared', 'info');
+        }
+
+        // Refresh stock information for cart items after products are loaded
+        function refreshCartStockInfo() {
+            if (cart.length === 0 || products.length === 0) return;
+            
+            cart.forEach(function(cartItem) {
+                const product = products.find(p => p.id === cartItem.id);
+                if (product) {
+                    // Update branch_stock for non-variation products
+                    if (!cartItem.variation_id && product.branch_stock) {
+                        cartItem.branch_stock = product.branch_stock;
+                    }
+                    
+                    // For variation products, we need to fetch variation stock
+                    if (cartItem.variation_id && currentBranchId) {
+                        $.get(`/erp/products/${cartItem.id}/variations/${cartItem.variation_id}/stock/levels`, function (resp) {
+                            if (resp && resp.branch_stocks && Array.isArray(resp.branch_stocks) && resp.branch_stocks.length > 0) {
+                                const match = resp.branch_stocks.find(s => {
+                                    return String(s.branch_id) === String(currentBranchId);
+                                });
+                                
+                                if (match) {
+                                    cartItem.variation_stock = match.available_quantity !== undefined && match.available_quantity !== null 
+                                        ? match.available_quantity 
+                                        : (match.quantity || 0) - (match.reserved_quantity || 0);
+                                    // Update cart display to reflect new stock
+                                    updateCartDisplay();
+                                }
+                            }
+                        });
+                    }
+                }
+            });
         }
 
         function processPayment() {

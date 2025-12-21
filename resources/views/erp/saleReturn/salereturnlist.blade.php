@@ -25,9 +25,6 @@
                         <a href="{{ route('saleReturn.create') }}" class="btn btn-outline-primary">
                             <i class="fas fa-adjust me-2"></i>Add Sale Return
                         </a>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
                     </div>
                 </div>
             </div>

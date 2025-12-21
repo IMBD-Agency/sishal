@@ -133,16 +133,15 @@
             </div>
         </div>
         @endcanany
-     {{--
         <div class="nav-item">
-            <a href="#posSubmenu" class="nav-link {{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/purchase-return*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/purchase-return*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? 'true' : 'false' }}" aria-controls="posSubmenu">
+            <a href="#posSubmenu" class="nav-link {{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? 'true' : 'false' }}" aria-controls="posSubmenu">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-cash-register nav-icon"></i>
                     <span>POS System</span>
                 </div>
                 <i class="fas fa-chevron-down ms-auto"></i>
             </a>
-            <div class="collapse{{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/purchase-return*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? ' show' : '' }}" id="posSubmenu">
+            <div class="collapse{{ (request()->is('erp/stock-transfer*') || request()->is('erp/purchases*') || request()->is('erp/pos*') || request()->is('erp/sale-return*')) ? ' show' : '' }}" id="posSubmenu">
                 <ul class="nav flex-column ms-4">
                     <li class="nav-item">
                         <a href="{{ route('pos.add') }}" class="nav-link {{ request()->is('erp/pos/create') ? ' active' : '' }}">Add POS</a>
@@ -153,9 +152,11 @@
                     <li class="nav-item">
                         <a href="{{ route('saleReturn.list') }}" class="nav-link {{ request()->is('erp/sale-return*') ? ' active' : '' }}">Sale Return</a>
                     </li>
+                    {{-- Purchase Return - Commented out
                     <li class="nav-item">
                         <a href="{{route('purchaseReturn.list')}}" class="nav-link {{ request()->is('erp/purchase-return*') ? ' active' : '' }}">Purchase Return</a>
                     </li>
+                    --}}
                     <li class="nav-item">
                         <a href="{{ route('stocktransfer.list') }}" class="nav-link {{ request()->is('erp/stock-transfer*') ? ' active' : '' }}">Transfer</a>
                     </li>
@@ -165,7 +166,6 @@
                 </ul>
             </div>
         </div>
-        --}}
         
         {{-- Service functionality disabled - commented out
         <div class="nav-item">
@@ -297,3 +297,8 @@
         @endcanany
     </nav>
 </div> 
+
+
+
+
+

@@ -18,6 +18,7 @@ use App\Models\Pos;
 use App\Models\PosItem;
 use App\Models\Product;
 use App\Models\ProductServiceCategory;
+use App\Models\InvoiceTemplate;
 use App\Models\ProductVariationStock;
 use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
@@ -39,7 +40,6 @@ class PosController extends Controller
     {
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
-            'employee_id' => 'nullable|exists:employees,id',
             'branch_id' => 'required|exists:branches,id',
             'sale_date' => 'required|date',
             'estimated_delivery_date' => 'nullable|date',
@@ -72,7 +72,6 @@ class PosController extends Controller
             $pos = new Pos();
             $pos->sale_number = $saleNumber;
             $pos->customer_id = $request->customer_id;
-            $pos->employee_id = $request->employee_id;
             $pos->branch_id = $request->branch_id;
             $pos->sold_by = auth()->id();
             $pos->sale_date = $request->sale_date;
@@ -127,11 +126,32 @@ class PosController extends Controller
             $invoice->due_amount = $pos->total_amount;
             $invoice->status = 'unpaid';
             $invoice->note = $pos->notes;
-            $invoice->footer_text = $invTemplate?->footer_text;
+            $invoice->footer_text = $invTemplate?->footer_note;
             $invoice->created_by = $pos->sold_by;
             $invoice->save();
 
+            $pos->invoice_id = $invoice->id;
+            $pos->save();
+
             // --- End Invoice ---
+
+            // Validate stock availability and deduct stock immediately
+            foreach ($request->items as $item) {
+                $result = $this->deductStock(
+                    $item['product_id'],
+                    $item['variation_id'] ?? null,
+                    $item['quantity'],
+                    $request->branch_id
+                );
+                
+                if (!$result['success']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => $result['message']
+                    ], 400);
+                }
+            }
 
             // Save POS items
             foreach ($request->items as $item) {
@@ -192,28 +212,41 @@ class PosController extends Controller
                 if ($invoice->paid_amount >= ($invoice->total_amount ?? 0)) {
                     $invoice->status = 'paid';
                     $invoice->due_amount = 0;
+                    // Auto-set POS status to delivered when fully paid
+                    $pos->status = 'delivered';
+                    // Move items to customer (delivered) - reload items to ensure they're available
+                    $pos->load('items');
+                    foreach ($pos->items as $item) {
+                        $item->current_position_id = null;
+                        $item->save();
+                    }
                 } elseif ($invoice->paid_amount > 0) {
                     $invoice->status = 'partial';
                 } else {
                     $invoice->status = 'unpaid';
                 }
                 $invoice->save();
+                $pos->save(); // Save the status change
 
-                Balance::create([
-                    'source_type' => 'customer',
-                    'source_id' => $pos->customer_id,
-                    'balance' => $pos->total_amount - $request->paid_amount,
-                    'description' => 'POS Sale',
-                    'reference' => $pos->sale_number,
-                ]);
-            }else{
-                Balance::create([
-                    'source_type' => 'customer',
-                    'source_id' => $pos->customer_id,
-                    'balance' => $pos->total_amount,
-                    'description' => 'POS Sale',
-                    'reference' => $pos->sale_number,
-                ]);
+                if ($pos->customer_id) {
+                    Balance::create([
+                        'source_type' => 'customer',
+                        'source_id' => $pos->customer_id,
+                        'balance' => $pos->total_amount - $request->paid_amount,
+                        'description' => 'POS Sale',
+                        'reference' => $pos->sale_number,
+                    ]);
+                }
+            } else {
+                if ($pos->customer_id) {
+                    Balance::create([
+                        'source_type' => 'customer',
+                        'source_id' => $pos->customer_id,
+                        'balance' => $pos->total_amount,
+                        'description' => 'POS Sale',
+                        'reference' => $pos->sale_number,
+                    ]);
+                }
             }
 
             DB::commit();
@@ -236,7 +269,8 @@ class PosController extends Controller
 
     public function index(Request $request)
     {
-        $query = Pos::with(['customer', 'invoice', 'branch']);
+        $query = Pos::with(['customer', 'invoice', 'branch'])
+            ->withSum('payments as payments_total', 'amount');
 
         // Search by sale_number, customer name, phone, email
         if ($request->filled('search')) {
@@ -278,7 +312,18 @@ class PosController extends Controller
     public function show($id)
     {
         $pos = Pos::where('id', $id)
-            ->with(['customer', 'invoice', 'branch', 'invoice.invoiceAddress'])
+            ->with([
+                'customer',
+                'invoice',
+                'invoice.invoiceAddress',
+                'branch',
+                'soldBy',
+                'items.product',
+                'items.variation.attributeValues.attribute',
+                'items.branch',
+                'items.technician.user',
+                'payments'
+            ])
             ->first();
 
         if (!$pos) {
@@ -289,20 +334,281 @@ class PosController extends Controller
         return view('erp.pos.show', compact('pos', 'bankAccounts'));
     }
 
-    public function assignTechnician($saleId, $techId)
+    /**
+     * Get POS sale details as JSON (for API/AJAX calls)
+     */
+    public function getDetails($id)
     {
-        $pos = Pos::find($saleId);
+        $pos = Pos::where('id', $id)
+            ->with([
+                'customer',
+                'invoice',
+                'branch',
+                'items.product',
+                'items.variation'
+            ])
+            ->first();
+
         if (!$pos) {
             return response()->json(['success' => false, 'message' => 'Sale not found.'], 404);
         }
-        $employee = \App\Models\Employee::find($techId);
-        if (!$employee) {
-            return response()->json(['success' => false, 'message' => 'Technician not found.'], 404);
-        }
-        $pos->employee_id = $techId;
-        $pos->save();
-        return response()->json(['success' => true, 'message' => 'Technician assigned successfully.']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $pos->id,
+                'sale_number' => $pos->sale_number,
+                'customer_id' => $pos->customer_id,
+                'customer_name' => $pos->customer ? $pos->customer->name : null,
+                'branch_id' => $pos->branch_id,
+                'branch_name' => $pos->branch ? $pos->branch->name : null,
+                'invoice_id' => $pos->invoice_id,
+                'items' => $pos->items->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product ? $item->product->name : null,
+                        'variation_id' => $item->variation_id,
+                        'variation_name' => $item->variation ? $item->variation->name : null,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'total_price' => $item->total_price,
+                    ];
+                })
+            ]
+        ]);
     }
+
+    public function edit($id)
+    {
+        $pos = Pos::with(['customer', 'branch', 'items.product', 'items.variation.attributeValues.attribute'])->findOrFail($id);
+        
+        // Only allow editing if status is pending or delivered (not cancelled)
+        if ($pos->status === 'cancelled') {
+            return redirect()->route('pos.show', $id)->with('error', 'Cannot edit a cancelled sale.');
+        }
+
+        $categories = ProductServiceCategory::all();
+        $branches = Branch::all();
+        $customers = Customer::all();
+        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
+        
+        return view('erp.pos.edit', compact('pos', 'categories', 'branches', 'customers', 'bankAccounts'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $pos = Pos::with(['items', 'invoice'])->findOrFail($id);
+        
+        // Only allow editing if status is pending or delivered (not cancelled)
+        if ($pos->status === 'cancelled') {
+            return response()->json(['success' => false, 'message' => 'Cannot edit a cancelled sale.'], 400);
+        }
+
+        $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'branch_id' => 'required|exists:branches,id',
+            'sale_date' => 'required|date',
+            'estimated_delivery_date' => 'nullable|date',
+            'estimated_delivery_time' => 'nullable',
+            'sub_total' => 'required|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
+            'delivery' => 'nullable|numeric|min:0',
+            'total_amount' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.variation_id' => 'nullable|exists:product_variations,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Store old items for stock restoration
+            $oldItems = $pos->items;
+            
+            // Restore stock from old items
+            foreach ($oldItems as $oldItem) {
+                $this->restoreStock(
+                    $oldItem->product_id,
+                    $oldItem->variation_id,
+                    $oldItem->quantity,
+                    $pos->branch_id
+                );
+            }
+
+            // Update POS sale
+            $pos->customer_id = $request->customer_id;
+            $pos->branch_id = $request->branch_id;
+            $pos->sale_date = $request->sale_date;
+            $pos->sub_total = $request->sub_total;
+            $pos->discount = $request->discount ?? 0;
+            $pos->delivery = $request->delivery ?? 0;
+            $pos->total_amount = $request->total_amount;
+            $pos->estimated_delivery_date = $request->estimated_delivery_date;
+            $pos->estimated_delivery_time = $request->estimated_delivery_time;
+            $pos->notes = $request->notes;
+            $pos->save();
+
+            // Delete old items
+            $pos->items()->delete();
+
+            // Add new items and deduct stock
+            foreach ($request->items as $item) {
+                // Validate and deduct stock
+                $stockResult = $this->deductStock(
+                    $item['product_id'],
+                    $item['variation_id'] ?? null,
+                    $item['quantity'],
+                    $request->branch_id
+                );
+
+                if (!$stockResult['success']) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => $stockResult['message']], 400);
+                }
+
+                // Create POS item
+                $posItem = new PosItem();
+                $posItem->pos_sale_id = $pos->id;
+                $posItem->product_id = $item['product_id'];
+                $posItem->variation_id = $item['variation_id'] ?? null;
+                $posItem->quantity = $item['quantity'];
+                $posItem->unit_price = $item['unit_price'];
+                $posItem->total_price = $item['quantity'] * $item['unit_price'];
+                $posItem->current_position_type = 'branch';
+                $posItem->current_position_id = $request->branch_id;
+                $posItem->save();
+            }
+
+            // Update invoice if exists
+            if ($pos->invoice) {
+                $generalSettings = GeneralSetting::first();
+                $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
+                $tax = round($pos->sub_total * $taxRate, 2);
+
+                $invoice = $pos->invoice;
+                $invoice->subtotal = $pos->sub_total;
+                $invoice->discount_apply = $pos->discount;
+                $invoice->tax = $tax;
+                $invoice->total_amount = $pos->total_amount;
+                $invoice->due_amount = max(0, $invoice->total_amount - ($invoice->paid_amount ?? 0));
+                
+                // Update invoice status based on payment
+                if ($invoice->paid_amount >= $invoice->total_amount) {
+                    $invoice->status = 'paid';
+                    $invoice->due_amount = 0;
+                } elseif ($invoice->paid_amount > 0) {
+                    $invoice->status = 'partial';
+                } else {
+                    $invoice->status = 'unpaid';
+                }
+                $invoice->save();
+
+                // Delete old invoice items
+                $invoice->items()->delete();
+
+                // Create new invoice items
+                foreach ($request->items as $item) {
+                    $invoiceItem = new InvoiceItem();
+                    $invoiceItem->invoice_id = $invoice->id;
+                    $invoiceItem->product_id = $item['product_id'];
+                    $invoiceItem->variation_id = $item['variation_id'] ?? null;
+                    $invoiceItem->quantity = $item['quantity'];
+                    $invoiceItem->unit_price = $item['unit_price'];
+                    $invoiceItem->total_price = $item['quantity'] * $item['unit_price'];
+                    $invoiceItem->save();
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Sale updated successfully.', 'sale_id' => $pos->id]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function print($id)
+    {
+        $pos = Pos::with([
+            'customer',
+            'branch',
+            'items.product',
+            'items.variation.attributeValues.attribute',
+            'invoice',
+            'soldBy'
+        ])->findOrFail($id);
+
+        $template = InvoiceTemplate::where('is_default', 1)->first();
+        $general_settings = GeneralSetting::first();
+        $action = request()->get('action', 'print');
+
+        // Calculate tax if not already calculated
+        if ($pos->invoice && !$pos->invoice->tax && $general_settings && $general_settings->tax_rate > 0) {
+            $taxRate = $general_settings->tax_rate / 100;
+            $pos->invoice->tax = round($pos->sub_total * $taxRate, 2);
+        }
+
+        // Generate QR code as SVG
+        $printUrl = route('pos.print', ['id' => $pos->id]);
+        $qrCodeSvg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(60)->generate($printUrl);
+
+        // PDF download logic
+        if ($action == 'download') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+            return $pdf->download('pos-receipt-'.$pos->sale_number.'.pdf');
+        }
+
+        return view('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+    }
+
+    public function getMultiBranchStock($productId, $variationId = null)
+    {
+        $product = Product::findOrFail($productId);
+        $branches = Branch::all();
+        $stockData = [];
+
+        foreach ($branches as $branch) {
+            if ($variationId) {
+                $stock = ProductVariationStock::where('variation_id', $variationId)
+                    ->where('branch_id', $branch->id)
+                    ->whereNull('warehouse_id')
+                    ->first();
+                $quantity = $stock ? ($stock->available_quantity ?? ($stock->quantity - ($stock->reserved_quantity ?? 0))) : 0;
+            } else {
+                $stock = BranchProductStock::where('branch_id', $branch->id)
+                    ->where('product_id', $productId)
+                    ->first();
+                $quantity = $stock ? $stock->quantity : 0;
+            }
+
+            $stockData[] = [
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
+                'quantity' => $quantity,
+            ];
+        }
+
+        return response()->json(['success' => true, 'data' => $stockData]);
+    }
+
+    // Technician assignment removed - not needed for ecommerce-only business
+    // public function assignTechnician($saleId, $techId)
+    // {
+    //     $pos = Pos::find($saleId);
+    //     if (!$pos) {
+    //         return response()->json(['success' => false, 'message' => 'Sale not found.'], 404);
+    //     }
+    //     $employee = \App\Models\Employee::find($techId);
+    //     if (!$employee) {
+    //         return response()->json(['success' => false, 'message' => 'Technician not found.'], 404);
+    //     }
+    //     $pos->employee_id = $techId;
+    //     $pos->save();
+    //     return response()->json(['success' => true, 'message' => 'Technician assigned successfully.']);
+    // }
 
     public function updateNote($saleId, Request $request)
     {
@@ -348,6 +654,15 @@ class PosController extends Controller
         if ($invoice->paid_amount >= $invoice->total_amount) {
             $invoice->status = 'paid';
             $invoice->due_amount = 0;
+                    // Auto-set POS status to delivered when fully paid
+                    $pos->status = 'delivered';
+                    // Move items to customer (delivered) - reload items to ensure they're available
+                    $pos->load('items');
+                    foreach ($pos->items as $item) {
+                        $item->current_position_id = null;
+                        $item->save();
+                    }
+            $pos->save();
         } elseif ($invoice->paid_amount > 0) {
             $invoice->status = 'partial';
         } else {
@@ -411,110 +726,27 @@ class PosController extends Controller
 
         if ($request->status == 'pending') {
             $pos->status = $request->input('status');
-        } else if ($request->status == 'approved') {
-            $pos->status = $request->input('status');
-            foreach ($pos->items as $item) {
-                $item->current_position_type = 'technician';
-                $item->current_position_id = $pos->employee_id;
-                $item->save();
-
-                if ($item->variation_id) {
-                    $vStock = ProductVariationStock::where('variation_id', $item->variation_id)
-                        ->where('branch_id', $pos->branch_id)
-                        ->whereNull('warehouse_id')
-                        ->first();
-                    if ($vStock) {
-                        $vStock->quantity -= $item->quantity;
-                        if ($vStock->quantity < 0) $vStock->quantity = 0;
-                        $vStock->save();
-                    }
-                } else {
-                    $branchStock = BranchProductStock::where('branch_id', $pos->branch_id)->where('product_id', $item->product_id)->first();
-                    if ($branchStock) {
-                        $branchStock->quantity -= $item->quantity;
-                        if ($branchStock->quantity < 0)
-                            $branchStock->quantity = 0;
-                        $branchStock->save();
-                    }
-                }
-
-                $existTechStock = EmployeeProductStock::where('employee_id', $pos->employee_id)->where('product_id', $item->product_id)->first();
-                if ($existTechStock) {
-                    $existTechStock->quantity += $item->quantity;
-                    $existTechStock->save();
-                } else {
-                    $techStock = new EmployeeProductStock();
-                    $techStock->employee_id = $pos->employee_id;
-                    $techStock->product_id = $item->product_id;
-                    $techStock->quantity = $item->quantity;
-                    $techStock->issued_by = auth()->id();
-                    $techStock->save();
-                }
-            }
         } else if ($request->status == 'delivered') {
             $pos->status = $request->input('status');
             foreach ($pos->items as $item) {
                 $item->current_position_id = null;
                 $item->save();
-                // Reduce from technician stock
-                $techStock = EmployeeProductStock::where('employee_id', $pos->employee_id)->where('product_id', $item->product_id)->first();
-                if ($techStock) {
-                    $techStock->quantity -= $item->quantity;
-                    if ($techStock->quantity < 0)
-                        $techStock->quantity = 0;
-                    $techStock->save();
-                }
             }
-        } else if ($request->status == 'shipping') {
-            $pos->status = $request->input('status');
         } else if ($request->status == 'cancelled') {
             $pos->status = $request->input('status');
             foreach ($pos->items as $item) {
-                // Reverse approved logic
                 // Move back to branch
                 $item->current_position_type = 'branch';
                 $item->current_position_id = $pos->branch_id;
                 $item->save();
 
-                if ($item->variation_id) {
-                    $vStock = ProductVariationStock::where('variation_id', $item->variation_id)
-                        ->where('branch_id', $pos->branch_id)
-                        ->whereNull('warehouse_id')
-                        ->first();
-                    if ($vStock) {
-                        $vStock->quantity += $item->quantity;
-                        $vStock->save();
-                    } else {
-                        ProductVariationStock::create([
-                            'variation_id' => $item->variation_id,
-                            'branch_id' => $pos->branch_id,
-                            'quantity' => $item->quantity,
-                            'updated_by' => auth()->id() ?? 1,
-                            'last_updated_at' => now(),
-                        ]);
-                    }
-                } else {
-                    $branchStock = BranchProductStock::where('branch_id', $pos->branch_id)->where('product_id', $item->product_id)->first();
-                    if ($branchStock) {
-                        $branchStock->quantity += $item->quantity;
-                        $branchStock->save();
-                    } else {
-                        // Optionally create new branch stock
-                        $newBranchStock = new BranchProductStock();
-                        $newBranchStock->branch_id = $pos->branch_id;
-                        $newBranchStock->product_id = $item->product_id;
-                        $newBranchStock->quantity = $item->quantity;
-                        $newBranchStock->save();
-                    }
-                }
-
-                $existTechStock = EmployeeProductStock::where('employee_id', $pos->employee_id)->where('product_id', $item->product_id)->first();
-                if ($existTechStock) {
-                    $existTechStock->quantity -= $item->quantity;
-                    if ($existTechStock->quantity < 0)
-                        $existTechStock->quantity = 0;
-                    $existTechStock->save();
-                }
+                // Restore stock using helper method
+                $this->restoreStock(
+                    $item->product_id,
+                    $item->variation_id,
+                    $item->quantity,
+                    $pos->branch_id
+                );
             }
         }
 
@@ -566,7 +798,14 @@ class PosController extends Controller
     public function posSearch(Request $request)
     {
         $q = $request->input('q');
+        $customerId = $request->input('customer_id');
         $query = \App\Models\Pos::with('customer');
+        
+        // Filter by customer if provided
+        if ($customerId) {
+            $query->where('customer_id', $customerId);
+        }
+        
         if ($q) {
             $query->where(function ($sub) use ($q) {
                 $sub->where('sale_number', 'like', "%$q%")
@@ -578,15 +817,19 @@ class PosController extends Controller
             });
         }
         $sales = $query->orderBy('sale_number', 'desc')->limit(20)->get();
-        $results = $sales->map(function ($sale) {
-            $customer = $sale->customer;
+        $results = $sales->map(function ($sale) use ($customerId) {
+            // If customer is already selected, just show sale number
+            // Otherwise show customer info for identification
             $text = $sale->sale_number;
-            if ($customer) {
-                $text .= ' - ' . $customer->name;
-                if ($customer->phone)
-                    $text .= ' (' . $customer->phone . ')';
-                if ($customer->email)
-                    $text .= ' [' . $customer->email . ']';
+            if (!$customerId) {
+                $customer = $sale->customer;
+                if ($customer) {
+                    $text .= ' - ' . $customer->name;
+                    if ($customer->phone)
+                        $text .= ' (' . $customer->phone . ')';
+                    if ($customer->email)
+                        $text .= ' [' . $customer->email . ']';
+                }
             }
             return [
                 'id' => $sale->id,
@@ -611,76 +854,78 @@ class PosController extends Controller
     }
 
 
-
     /**
      * Get report data for the modal
      */
     public function getReportData(Request $request)
     {
-        if(!Auth::user()->hasPermissionTo('view sales')){
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
+        try {
+            $query = Pos::with(['customer', 'invoice', 'branch']);
 
-        $query = Pos::with(['customer', 'invoice', 'branch']);
+            // Date range filter
+            if ($request->filled('date_from')) {
+                $query->whereDate('sale_date', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('sale_date', '<=', $request->date_to);
+            }
 
-        // Date range filter
-        if ($request->filled('date_from')) {
-            $query->whereDate('sale_date', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('sale_date', '<=', $request->date_to);
-        }
+            // Status filter
+            if ($request->filled('status') && $request->status !== '') {
+                $query->where('status', $request->status);
+            }
 
-        // Status filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+            // Payment status filter
+            if ($request->filled('payment_status') && $request->payment_status !== '') {
+                $query->whereHas('invoice', function ($q) use ($request) {
+                    $q->where('status', $request->payment_status);
+                });
+            }
 
-        // Payment status filter
-        if ($request->filled('payment_status')) {
-            $query->whereHas('invoice', function ($q) use ($request) {
-                $q->where('status', $request->payment_status);
+            $sales = $query->orderBy('sale_date', 'desc')->get();
+
+            // Transform data for frontend
+            $transformedSales = $sales->map(function ($sale) {
+                return [
+                    'sale_number' => $sale->sale_number,
+                    'sale_date' => $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d-m-Y') : '-',
+                    'customer_name' => $sale->customer ? $sale->customer->name : 'Walk-in Customer',
+                    'customer_phone' => $sale->customer ? $sale->customer->phone : '-',
+                    'branch_name' => $sale->branch ? $sale->branch->name : '-',
+                    'status' => $sale->status,
+                    'payment_status' => $sale->invoice ? $sale->invoice->status : '-',
+                    'sub_total' => number_format($sale->sub_total, 2),
+                    'discount' => number_format($sale->discount, 2),
+                    'total_amount' => number_format($sale->total_amount, 2),
+                    'paid_amount' => $sale->invoice ? number_format($sale->invoice->paid_amount, 2) : '0.00',
+                    'due_amount' => $sale->invoice ? number_format($sale->invoice->due_amount, 2) : '0.00',
+                ];
             });
-        }
 
-        // Branch filter
-
-        $sales = $query->get();
-
-        // Transform data for frontend
-        $transformedSales = $sales->map(function ($sale) {
-            return [
-                'sale_number' => $sale->sale_number,
-                'sale_date' => $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d-m-Y') : '-',
-                'customer_name' => $sale->customer ? $sale->customer->name : 'Walk-in Customer',
-                'customer_phone' => $sale->customer ? $sale->customer->phone : '-',
-                'branch_name' => $sale->branch ? $sale->branch->name : '-',
-                'status' => $sale->status,
-                'payment_status' => $sale->invoice ? $sale->invoice->status : '-',
-                'sub_total' => number_format($sale->sub_total, 2),
-                'discount' => number_format($sale->discount, 2),
-                'total_amount' => number_format($sale->total_amount, 2),
-                'paid_amount' => $sale->invoice ? number_format($sale->invoice->paid_amount, 2) : '0.00',
-                'due_amount' => $sale->invoice ? number_format($sale->invoice->due_amount, 2) : '0.00',
+            // Calculate summary statistics
+            $summary = [
+                'total_sales' => $sales->count(),
+                'total_amount' => number_format($sales->sum('total_amount'), 2),
+                'paid_sales' => $sales->filter(function($sale) {
+                    return $sale->invoice && $sale->invoice->status === 'paid';
+                })->count(),
+                'unpaid_sales' => $sales->filter(function($sale) {
+                    return $sale->invoice && $sale->invoice->status === 'unpaid';
+                })->count(),
             ];
-        });
 
-        // Calculate summary statistics
-        $summary = [
-            'total_sales' => $sales->count(),
-            'total_amount' => number_format($sales->sum('total_amount'), 2),
-            'paid_sales' => $sales->filter(function($sale) {
-                return $sale->invoice && $sale->invoice->status === 'paid';
-            })->count(),
-            'unpaid_sales' => $sales->filter(function($sale) {
-                return $sale->invoice && $sale->invoice->status === 'unpaid';
-            })->count(),
-        ];
-
-        return response()->json([
-            'sales' => $transformedSales,
-            'summary' => $summary
-        ]);
+            return response()->json([
+                'sales' => $transformedSales,
+                'summary' => $summary
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in getReportData: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'An error occurred while loading report data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -688,10 +933,6 @@ class PosController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        if(!Auth::user()->hasPermissionTo('view sales')){
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $query = Pos::with(['customer', 'invoice', 'branch']);
 
         // Apply filters
@@ -927,10 +1168,6 @@ class PosController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        if(!Auth::user()->hasPermissionTo('view sales')){
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $query = Pos::with(['customer', 'invoice', 'branch']);
 
         // Apply filters
@@ -1028,5 +1265,123 @@ class PosController extends Controller
         $serialNumber = str_pad($lastSale->id + 1, 2, '0', STR_PAD_LEFT);
         
         return "sfp-{$dateString}{$serialNumber}";
+    }
+
+    /**
+     * Deduct stock for a product/variation from branch
+     * 
+     * @param int $productId
+     * @param int|null $variationId
+     * @param float $quantity
+     * @param int $branchId
+     * @return array ['success' => bool, 'message' => string]
+     */
+    private function deductStock($productId, $variationId, $quantity, $branchId)
+    {
+        if ($variationId) {
+            // Handle variation stock
+            $vStock = ProductVariationStock::where('variation_id', $variationId)
+                ->where('branch_id', $branchId)
+                ->whereNull('warehouse_id')
+                ->lockForUpdate()
+                ->first();
+            
+            $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+            
+            if (!$vStock || $availableQty < $quantity) {
+                $product = Product::find($productId);
+                $productName = $product ? $product->name : 'Product';
+                return [
+                    'success' => false,
+                    'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
+                ];
+            }
+            
+            // Deduct stock
+            $vStock->quantity -= $quantity;
+            if ($vStock->quantity < 0) $vStock->quantity = 0;
+            $vStock->save();
+            
+            return ['success' => true];
+        } else {
+            // Handle regular product stock
+            $branchStock = BranchProductStock::where('branch_id', $branchId)
+                ->where('product_id', $productId)
+                ->lockForUpdate()
+                ->first();
+            
+            if (!$branchStock || $branchStock->quantity < $quantity) {
+                $availableQty = $branchStock ? $branchStock->quantity : 0;
+                $product = Product::find($productId);
+                $productName = $product ? $product->name : 'Product';
+                return [
+                    'success' => false,
+                    'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
+                ];
+            }
+            
+            // Deduct stock
+            $branchStock->quantity -= $quantity;
+            if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+            $branchStock->save();
+            
+            return ['success' => true];
+        }
+    }
+
+    /**
+     * Restore stock for a product/variation to branch
+     * 
+     * @param int $productId
+     * @param int|null $variationId
+     * @param float $quantity
+     * @param int $branchId
+     * @return void
+     */
+    private function restoreStock($productId, $variationId, $quantity, $branchId)
+    {
+        if ($variationId) {
+            // Handle variation stock restoration
+            $vStock = ProductVariationStock::where('variation_id', $variationId)
+                ->where('branch_id', $branchId)
+                ->whereNull('warehouse_id')
+                ->lockForUpdate()
+                ->first();
+            
+            if ($vStock) {
+                $vStock->quantity += $quantity;
+                $vStock->save();
+            } else {
+                // Create new variation stock record if it doesn't exist
+                ProductVariationStock::create([
+                    'variation_id' => $variationId,
+                    'branch_id' => $branchId,
+                    'quantity' => $quantity,
+                    'reserved_quantity' => 0,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
+        } else {
+            // Handle regular product stock restoration
+            $branchStock = BranchProductStock::where('branch_id', $branchId)
+                ->where('product_id', $productId)
+                ->lockForUpdate()
+                ->first();
+            
+            if ($branchStock) {
+                $branchStock->quantity += $quantity;
+                $branchStock->save();
+            } else {
+                // Create new branch stock record if it doesn't exist
+                BranchProductStock::create([
+                    'branch_id' => $branchId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
+        }
     }
 }

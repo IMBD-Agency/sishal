@@ -372,14 +372,15 @@ class OrderController extends Controller
             $order->invoice_id = $invoice->id;
             $order->save();
 
-            // OPTIMIZATION: Batch load all warehouse stocks upfront to avoid N+1 queries
+            // OPTIMIZATION: Batch load warehouse stocks upfront to avoid N+1 queries
+            // Ecommerce orders ONLY use warehouse stock (no branch stock)
             $variationIds = array_filter(array_column($items, 'variation_id'));
             $productIds = array_column($items, 'product_id');
             
-            // Load all variation stocks in one query
-            $variationStocks = [];
+            // Load variation-level warehouse stocks only
+            $variationWarehouseStocks = [];
             if (!empty($variationIds)) {
-                $variationStocksData = \App\Models\ProductVariationStock::whereIn('variation_id', $variationIds)
+                $variationWarehouseStocksData = \App\Models\ProductVariationStock::whereIn('variation_id', $variationIds)
                     ->whereNotNull('warehouse_id')
                     ->whereNull('branch_id')
                     ->where('quantity', '>', 0)
@@ -387,13 +388,13 @@ class OrderController extends Controller
                     ->get()
                     ->groupBy('variation_id');
                 
-                foreach ($variationStocksData as $vid => $stocks) {
-                    $variationStocks[$vid] = $stocks->first();
+                foreach ($variationWarehouseStocksData as $vid => $stocks) {
+                    $variationWarehouseStocks[$vid] = $stocks->first();
                 }
             }
             
-            // Load all product-level warehouse stocks in one query
-            $productStocks = \App\Models\WarehouseProductStock::whereIn('product_id', $productIds)
+            // Load product-level warehouse stocks only
+            $productWarehouseStocks = \App\Models\WarehouseProductStock::whereIn('product_id', $productIds)
                 ->where('quantity', '>', 0)
                 ->orderByDesc('quantity')
                 ->get()
@@ -404,28 +405,23 @@ class OrderController extends Controller
                 ->toArray();
 
             foreach ($items as $item) {
-                // Auto-assign warehouse stock source for ecommerce orders
+                // Auto-assign warehouse stock source for ecommerce orders (warehouse ONLY)
                 $warehouseId = null;
                 
-                // For products with variations, check variation-level warehouse stock first
-                if (!empty($item['variation_id']) && isset($variationStocks[$item['variation_id']])) {
-                    $variationStock = $variationStocks[$item['variation_id']];
-                    // Check if stock meets quantity requirement
-                    if ($variationStock->quantity >= $item['quantity']) {
-                        $warehouseId = $variationStock->warehouse_id;
-                    } elseif ($variationStock->quantity > 0) {
-                        // Use partial stock if available
-                        $warehouseId = $variationStock->warehouse_id;
+                // For products with variations, check variation-level warehouse stock
+                if (!empty($item['variation_id'])) {
+                    if (isset($variationWarehouseStocks[$item['variation_id']])) {
+                        $variationStock = $variationWarehouseStocks[$item['variation_id']];
+                        if ($variationStock->quantity >= $item['quantity'] || $variationStock->quantity > 0) {
+                            $warehouseId = $variationStock->warehouse_id;
+                        }
                     }
                 }
                 
                 // If no variation stock found, check product-level warehouse stock
-                if (!$warehouseId && isset($productStocks[$item['product_id']])) {
-                    $productStock = $productStocks[$item['product_id']];
-                    if ($productStock->quantity >= $item['quantity']) {
-                        $warehouseId = $productStock->warehouse_id;
-                    } elseif ($productStock->quantity > 0) {
-                        // Use partial stock if available
+                if (!$warehouseId && isset($productWarehouseStocks[$item['product_id']])) {
+                    $productStock = $productWarehouseStocks[$item['product_id']];
+                    if ($productStock->quantity >= $item['quantity'] || $productStock->quantity > 0) {
                         $warehouseId = $productStock->warehouse_id;
                     }
                 }
@@ -437,8 +433,8 @@ class OrderController extends Controller
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
-                    'current_position_type' => $warehouseId ? 'warehouse' : null, // Auto-assign warehouse
-                    'current_position_id' => $warehouseId, // Auto-assign warehouse ID
+                    'current_position_type' => $warehouseId ? 'warehouse' : null, // Warehouse only
+                    'current_position_id' => $warehouseId, // Warehouse ID only
                 ]);
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,

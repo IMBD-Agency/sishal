@@ -25,9 +25,6 @@
                         <a href="{{ route('purchaseReturn.create') }}" class="btn btn-outline-primary">
                             <i class="fas fa-adjust me-2"></i>Add Purchase Return
                         </a>
-                        <button class="btn btn-outline-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
                     </div>
                 </div>
             </div>
@@ -47,13 +44,7 @@
                                 <input type="text" class="form-control border-start-0" placeholder="Purchase ID, Vendor name..." name="search" value="{{ request('search') }}">
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-medium">Supplier</label>
-                            <select class="form-select" name="supplier_id" id="supplierFilter">
-                                <option value="">All Suppliers</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4">
                             <label class="form-label fw-medium">Purchase</label>
                             <select class="form-select" name="purchase_id" id="purchaseFilter">
                                 <option value="">All Purchases</option>
@@ -102,16 +93,13 @@
         </div>
 
         <!-- Results Summary -->
-        @if(request('search') || request('supplier_id') || request('purchase_id') || request('status') || request('created_by') || request('return_date_from') || request('return_date_to'))
+        @if(request('search') || request('purchase_id') || request('status') || request('created_by') || request('return_date_from') || request('return_date_to'))
             <div class="alert alert-info m-2">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>Filtered Results:</strong>
                         @if(request('search'))
                             <span class="badge bg-primary me-2">Search: "{{ request('search') }}"</span>
-                        @endif
-                        @if(request('supplier_id'))
-                            <span class="badge bg-info me-2" id="supplierBadge">Supplier: Loading...</span>
                         @endif
                         @if(request('purchase_id'))
                             <span class="badge bg-info me-2" id="purchaseBadge">Purchase: Loading...</span>
@@ -289,47 +277,7 @@
     
     <script>
         $(document).ready(function() {
-            // Initialize Select2 for supplier filter with AJAX
-            $('#supplierFilter').select2({
-                placeholder: 'Search Supplier',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: '{{ route('supplier.search') }}',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.results
-                        };
-                    },
-                    cache: true
-                }
-            });
-
-            // Set selected value if supplier_id is in URL params
-            @if(request('supplier_id'))
-                // Fetch the supplier details to set the selected option
-                $.ajax({
-                    url: '{{ route('supplier.search') }}',
-                    data: { q: '{{ request('supplier_id') }}' },
-                    success: function(data) {
-                        if (data.results && data.results.length > 0) {
-                            const supplier = data.results[0];
-                            const option = new Option(supplier.text, supplier.id, true, true);
-                            $('#supplierFilter').append(option).trigger('change');
-                            
-                            // Update the supplier badge
-                            $('#supplierBadge').text('Supplier: ' + supplier.text);
-                        }
-                    }
-                });
-            @endif
+            // Supplier filter removed - not needed
 
             // Initialize Select2 for purchase filter with AJAX
             $('#purchaseFilter').select2({

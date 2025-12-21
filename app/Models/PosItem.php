@@ -32,6 +32,11 @@ class PosItem extends Model
         return $this->belongsTo(\App\Models\Branch::class, 'current_position_id');
     }
 
+    public function variation()
+    {
+        return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
+    }
+
     public function technician()
     {
         return $this->belongsTo(\App\Models\Employee::class, 'current_position_id');

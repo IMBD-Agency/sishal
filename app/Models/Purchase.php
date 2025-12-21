@@ -28,7 +28,7 @@ class Purchase extends Model
         return $this->hasOne(PurchaseBill::class, 'purchase_id');
     }
 
-    public function vendor()
+    public function supplier()
     {
         return $this->belongsTo(Supplier::class, 'supplier_id');
     }

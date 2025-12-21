@@ -15,6 +15,9 @@ class Product extends Model
         'has_variations' => 'boolean',
         'manage_stock' => 'boolean',
         'free_delivery' => 'boolean',
+        'price' => 'decimal:2',
+        'cost' => 'decimal:2',
+        'discount' => 'decimal:2',
     ];
 
     public function galleries()
@@ -149,33 +152,38 @@ class Product extends Model
     {
         if ($this->has_variations) {
             return $this->activeVariations()->with('stocks')->get()->sum(function($variation) {
-                return $variation->stocks->sum('quantity');
+                // Only count warehouse stock for ecommerce display (exclude branch stock)
+                return $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity');
             });
         }
         
         // Use query builder instead of accessing loaded relationships directly
-        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
+        // For ecommerce: Only show warehouse stock, not branch stock
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
         
-        return $branchStock + $warehouseStock;
+        return $warehouseStock;
     }
 
     /**
      * Check if product has stock.
+     * For ecommerce: Only checks warehouse stock, not branch stock.
      */
     public function hasStock()
     {
         if ($this->has_variations) {
             return $this->activeVariations()->whereHas('stocks', function($query) {
-                $query->where('quantity', '>', 0);
+                // Only check warehouse stock for ecommerce (exclude branch stock)
+                $query->whereNotNull('warehouse_id')
+                      ->whereNull('branch_id')
+                      ->where('quantity', '>', 0);
             })->exists();
         }
         
         // Use query builder instead of accessing loaded relationships directly
-        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
+        // For ecommerce: Only check warehouse stock, not branch stock
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
         
-        return $branchStock > 0 || $warehouseStock > 0;
+        return $warehouseStock > 0;
     }
 
     /**

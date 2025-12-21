@@ -68,13 +68,13 @@
                     <div class="cart-section">
                         <div class="section-header">
                             <h4 class="section-title">
-                                <i class="fas fa-list-ul"></i>
-                                Order Note
+                                <i class="fas fa-sticky-note"></i>
+                                Order Note (Optional)
                             </h4>
                         </div>
 
                         <div class="cart-items-container">
-                            <textarea name="" id="" class="form-input" rows="6"></textarea>
+                            <textarea name="order_notes" id="drawerOrderNotes" class="form-input" rows="3" placeholder="Add any special instructions or notes..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -130,7 +130,7 @@
                                         </div>
                                     </div>
                                     <div class="form-group">
-                                        <label for="drawerEmail" class="form-label">Email *</label>
+                                        <label for="drawerEmail" class="form-label">Email</label>
                                         <div class="input-group">
                                             <i class="fas fa-envelope input-icon"></i>
                                             <input type="email" class="form-input" style="border-radius: 12px;" id="drawerEmail" placeholder="Enter customer's email">
@@ -160,113 +160,50 @@
                             </div>
                         </div>
 
-                        <!-- Estimated Date & Time Row -->
-                        <div class="row mb-3">
-
-                            <div class="col-12 mb-3">
-                                <div class="form-group">
-                                    <label for="drawerAddress" class="form-label">Address</label>
-                                    <input type="text" class="form-input" id="drawerAddress">
-                                </div>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <div class="form-group">
-                                    <label for="drawerCity" class="form-label">City</label>
-                                    <input type="text" class="form-input" id="drawerCity">
-                                </div>
-                            </div>
-
-                            <div class="col-6 mb-3">
-                                <div class="form-group">
-                                    <label for="drawerState" class="form-label">State</label>
-                                    <input type="text" class="form-input" id="drawerState">
-                                </div>
-                            </div>
-
-                            <div class="col-6 mb-3">
-                                <div class="form-group">
-                                    <label for="drawerZipCode" class="form-label">Zip Code</label>
-                                    <input type="text" class="form-input" id="drawerZipCode">
-                                </div>
-                            </div>
-                            <div class="col-6 mb-3">
-                            </div>
-
-                                <div class="col-6">
-                                    <div class="form-group">
-                                        <label for="drawerEstimatedDate" class="form-label">Estimated Delivey
-                                            Date</label>
-                                        <input type="date" class="form-input" id="drawerEstimatedDate">
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="form-group">
-                                        <label for="drawerEstimatedTime" class="form-label">Estimated Delivey
-                                            Time</label>
-                                        <input type="time" class="form-input" id="drawerEstimatedTime">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="drawerEmployee" class="form-label">Technician</label>
-                                <div class="input-group">
-                                    <i class="fas fa-user-tie input-icon"></i>
-                                    <select class="form-input" id="drawerEmployee">
-                                        <option value="">Choose technician</option>
-                                    </select>
-                                </div>
+                            <!-- Payment Section -->
+                            <div class="payment-section-header mb-3">
+                                <h5 class="section-title mb-3">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    Payment Details
+                                </h5>
                             </div>
 
                             <div class="row mb-3">
                                 <div class="col-6 mb-3">
                                     <div class="form-group">
-                                        <label for="drawerPaidAmountInput" class="form-label">Paid Amount</label>
-                                        <input type="text" class="form-input" id="drawerPaidAmountInput">
+                                        <label for="drawerDiscountInput" class="form-label">
+                                            <i class="fas fa-tag me-1"></i>Discount (৳)
+                                        </label>
+                                        <input type="number" class="form-input" id="drawerDiscountInput" placeholder="0.00" min="0" step="0.01">
                                     </div>
                                 </div>
                                 <div class="col-6 mb-3">
                                     <div class="form-group">
-                                        <label for="drawerDiscountInput" class="form-label">Discount</label>
-                                        <input type="text" class="form-input" id="drawerDiscountInput">
+                                        <label for="drawerShippingCharge" class="form-label">
+                                            <i class="fas fa-shipping-fast me-1"></i>Shipping (৳)
+                                        </label>
+                                        <input type="number" class="form-input" id="drawerShippingCharge" placeholder="0.00" min="0" step="0.01">
                                     </div>
                                 </div>
-                                <div class="col-6 mb-3">
+                                <div class="col-12 mb-3">
                                     <div class="form-group">
-                                        <label for="drawerShippingCharge" class="form-label">Shipping Charge</label>
-                                        <div class="input-group">
-                                            <i class="fas fa-shipping-fast input-icon"></i>
-                                            <input type="number" class="form-input" id="drawerShippingCharge" placeholder="0.00" style="border-radius: 12px;"
-                                                min="0">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-6 mb-3">
-                                    <div class="form-group">
-                                        <label for="drawerPaymentMethod" class="form-label">Payment Method</label>
-                                        <div class="input-group">
-                                            <i class="fas fa-credit-card input-icon"></i>
-                                            <select class="form-input" id="drawerPaymentMethod" style="border-radius: 12px;">
-                                                <option value="cash" selected>💵 Cash</option>
-                                                <option value="card">💳 Credit/Debit Card</option>
-                                                <option value="bank">🏦 Bank Transfer</option>
-                                                <option value="mobile">📱 Mobile Payment</option>
-                                            </select>
-                                        </div>
+                                        <label for="drawerPaymentMethod" class="form-label">
+                                            <i class="fas fa-credit-card me-1"></i>Payment Method *
+                                        </label>
+                                        <select class="form-input" id="drawerPaymentMethod" style="border-radius: 12px;">
+                                            <option value="cash" selected>💵 Cash</option>
+                                            <option value="mobile">📱 Mobile Payment</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                <div class="col-12">
+                                <div class="col-12 mb-3">
                                     <div class="form-group">
-                                        <label for="drawerBankAccount" class="form-label">Bank Account</label>
-                                        <div class="input-group">
-                                            <i class="fas fa-university input-icon"></i>
-                                            <select class="form-input" id="drawerBankAccount" name="account_id" style="border-radius: 12px;">
-                                                @foreach ($bankAccounts as $bankAccount)
-                                                    <option value="{{ $bankAccount->id }}">{{ $bankAccount->provider_name . ' - ' . $bankAccount->account_number }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
+                                        <label for="drawerPaidAmountInput" class="form-label">
+                                            <i class="fas fa-money-check-alt me-1"></i>Paid Amount (৳) *
+                                        </label>
+                                        <input type="number" class="form-input" id="drawerPaidAmountInput" placeholder="0.00" min="0" step="0.01">
+                                        <small class="text-muted">Leave empty to auto-fill with total amount</small>
                                     </div>
                                 </div>
                             </div>
@@ -279,9 +216,9 @@
 
         <!-- Footer -->
         <div class="drawer-footer position-absolute bottom-0 w-100" style="z-index: 9;">
-            <form id="posCheckoutForm" method="POST" action="{{ route('pos.store') }}">
+            <form id="posCheckoutForm" method="POST" action="{{ isset($pos) ? route('pos.update', $pos->id) : route('pos.store') }}">
                 @csrf
-                <input type="hidden" id="hiddenBranchId" name="branch_id" value="">
+                <input type="hidden" id="hiddenBranchId" name="branch_id" value="{{ isset($pos) ? $pos->branch_id : '' }}">
                 <button type="submit" class="checkout-button" id="drawerCheckoutBtn">
                     <i class="fas fa-lock" id="checkoutIcon"></i>
                     <i class="fas fa-spinner fa-spin" id="checkoutSpinner" style="display: none;"></i>
@@ -949,15 +886,36 @@ $(document).ready(function() {
         $('#drawerPhone').val('');
         $('#drawerCustomerSelect').val('');
         
-        // Clear address fields
-        $('#drawerAddress').val('');
-        $('#drawerCity').val('');
-        $('#drawerState').val('');
-        $('#drawerZipCode').val('');
-        
         // Hide customer info display
         $('#customerInfoDisplay').hide();
     }
+
+    // Auto-fill paid amount with total when drawer opens or total changes
+    function autoFillPaidAmount() {
+        const totalText = $('#drawerCartTotal').text().trim();
+        const total = parseFloat(totalText.replace(/[^\d.]/g, '')) || 0;
+        const currentPaid = $('#drawerPaidAmountInput').val();
+        
+        // Only auto-fill if paid amount is empty or 0
+        if (!currentPaid || parseFloat(currentPaid) === 0) {
+            $('#drawerPaidAmountInput').val(total.toFixed(2));
+        }
+    }
+
+    // Update paid amount when total changes
+    $(document).on('DOMSubtreeModified', '#drawerCartTotal', function() {
+        autoFillPaidAmount();
+    });
+
+    // Allow manual override of paid amount
+    $('#drawerPaidAmountInput').on('focus', function() {
+        // Keep current value, don't auto-fill on focus
+    });
+
+    // Calculate and update totals when discount/shipping changes
+    $('#drawerDiscountInput, #drawerShippingCharge').on('input', function() {
+        updateDrawerTotals();
+    });
 
     // Load existing customers
     function loadExistingCustomers() {
@@ -1047,53 +1005,19 @@ $('#posCheckoutForm').on('submit', function(e) {
             alert('Please enter customer name for new customer.');
             return;
         }
-        if (!customerEmail.trim()) {
-            hideCheckoutLoading();
-            alert('Please enter customer email for new customer.');
-            return;
-        }
+
     }
     
-    const employeeId = $('#drawerEmployee').val();
-    const saleDate = new Date().toISOString().slice(0, 10); // today
-    const estimatedDeliveryDate = $('#drawerEstimatedDate').val();
-    const estimatedDeliveryTime = $('#drawerEstimatedTime').val();
-    const subTotal = $('#drawerCartSubtotal').text().replace(/[^\d.]/g, '') || 0;
-    const discount = $('#drawerDiscountInput').val() || 0;
-    const delivery = $('#drawerShippingCharge').val() || 0;
-    const totalAmount = $('#drawerCartTotal').text().replace(/[^\d.]/g, '') || 0;
-    const paidAmount = $('#drawerPaidAmountInput').val() || 0;
-    const paymentMethod = $('#drawerPaymentMethod').val();
-    const accountId = $('#drawerBankAccount').val();
-    const notes = $('textarea.form-input').val();
-
-    // Add as hidden inputs
-    form.append('<input type="hidden" class="dynamic-input" name="branch_id" value="'+branchId+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_id" value="'+customerId+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_type" value="'+activeTab+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_name" value="'+customerName+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_email" value="'+customerEmail+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_phone" value="'+customerPhone+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_address" value="'+customerAddress+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_city" value="'+customerCity+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_state" value="'+customerState+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="customer_zip_code" value="'+customerZipCode+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="employee_id" value="'+employeeId+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="sale_date" value="'+saleDate+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="estimated_delivery_date" value="'+estimatedDeliveryDate+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="estimated_delivery_time" value="'+estimatedDeliveryTime+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="sub_total" value="'+subTotal+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="discount" value="'+discount+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="delivery" value="'+delivery+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="total_amount" value="'+totalAmount+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="paid_amount" value="'+paidAmount+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="payment_method" value="'+paymentMethod+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="account_id" value="'+accountId+'">');
-    form.append('<input type="hidden" class="dynamic-input" name="notes" value="'+notes+'">');
-
-    // Read cart from sessionStorage
-    let cartData = [];
+    // Validate required fields before proceeding
+    if (!branchId) {
+        hideCheckoutLoading();
+        alert('Please select a branch.');
+        return;
+    }
+    
+    // Check if cart is empty
     const storedCart = sessionStorage.getItem('cartItems');
+    let cartData = [];
     if (storedCart) {
         try {
             cartData = JSON.parse(storedCart);
@@ -1101,24 +1025,182 @@ $('#posCheckoutForm').on('submit', function(e) {
             cartData = [];
         }
     }
-    if (Array.isArray(cartData)) {
+    if (!Array.isArray(cartData) || cartData.length === 0) {
+        hideCheckoutLoading();
+        alert('Your cart is empty. Please add items before checkout.');
+        return;
+    }
+    
+    const saleDate = new Date().toISOString().slice(0, 10); // today
+    const estimatedDeliveryDate = $('#drawerEstimatedDate').val() || null;
+    const estimatedDeliveryTime = $('#drawerEstimatedTime').val() || null;
+    
+    // Extract numeric values from text (handle currency symbols)
+    const subTotalText = $('#drawerCartSubtotal').text().trim();
+    const subTotalRaw = subTotalText.replace(/[^\d.]/g, '');
+    const subTotal = subTotalRaw ? parseFloat(subTotalRaw) : 0;
+    
+    const discountInput = $('#drawerDiscountInput').val() || '0';
+    const discount = parseFloat(discountInput) || 0;
+    
+    const deliveryInput = $('#drawerShippingCharge').val() || '0';
+    const delivery = parseFloat(deliveryInput) || 0;
+    
+    const totalAmountText = $('#drawerCartTotal').text().trim();
+    const totalAmountRaw = totalAmountText.replace(/[^\d.]/g, '');
+    const totalAmount = totalAmountRaw ? parseFloat(totalAmountRaw) : 0;
+    
+    const paidAmountInput = $('#drawerPaidAmountInput').val() || '0';
+    const paidAmount = parseFloat(paidAmountInput) || 0;
+    
+    const paymentMethod = $('#drawerPaymentMethod').val() || '';
+    const accountId = $('#drawerBankAccount').val() || null;
+    const notes = $('#drawerOrderNotes').val() || '';
+    
+    // Validate required fields
+    if (!saleDate) {
+        hideCheckoutLoading();
+        alert('Sale date is required.');
+        return;
+    }
+    
+    if (subTotal <= 0) {
+        hideCheckoutLoading();
+        alert('Subtotal must be greater than 0. Current value: ' + subTotal);
+        return;
+    }
+    
+    if (totalAmount <= 0) {
+        hideCheckoutLoading();
+        alert('Total amount must be greater than 0. Current value: ' + totalAmount);
+        return;
+    }
+    
+    if (paidAmount < 0) {
+        hideCheckoutLoading();
+        alert('Paid amount cannot be negative.');
+        return;
+    }
+    
+    if (!paymentMethod || paymentMethod.trim() === '') {
+        hideCheckoutLoading();
+        alert('Please select a payment method.');
+        return;
+    }
+
+    // Add as hidden inputs - escape values to prevent XSS and ensure proper encoding
+    const escapeHtml = (text) => {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    };
+    
+    form.append('<input type="hidden" class="dynamic-input" name="branch_id" value="'+escapeHtml(branchId)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_id" value="'+(customerId ? escapeHtml(customerId) : '')+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_type" value="'+escapeHtml(activeTab)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_name" value="'+escapeHtml(customerName)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_email" value="'+escapeHtml(customerEmail)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_phone" value="'+escapeHtml(customerPhone)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_address" value="'+escapeHtml(customerAddress)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_city" value="'+escapeHtml(customerCity)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_state" value="'+escapeHtml(customerState)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="customer_zip_code" value="'+escapeHtml(customerZipCode)+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="sale_date" value="'+escapeHtml(saleDate)+'">');
+    if (estimatedDeliveryDate) {
+        form.append('<input type="hidden" class="dynamic-input" name="estimated_delivery_date" value="'+escapeHtml(estimatedDeliveryDate)+'">');
+    }
+    if (estimatedDeliveryTime) {
+        form.append('<input type="hidden" class="dynamic-input" name="estimated_delivery_time" value="'+escapeHtml(estimatedDeliveryTime)+'">');
+    }
+    form.append('<input type="hidden" class="dynamic-input" name="sub_total" value="'+subTotal+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="discount" value="'+discount+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="delivery" value="'+delivery+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="total_amount" value="'+totalAmount+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="paid_amount" value="'+paidAmount+'">');
+    form.append('<input type="hidden" class="dynamic-input" name="payment_method" value="'+escapeHtml(paymentMethod)+'">');
+    if (accountId) {
+        form.append('<input type="hidden" class="dynamic-input" name="account_id" value="'+escapeHtml(accountId)+'">');
+    }
+    if (notes) {
+        form.append('<input type="hidden" class="dynamic-input" name="notes" value="'+escapeHtml(notes)+'">');
+    }
+
+    // Read cart from sessionStorage (already validated above)
+    if (Array.isArray(cartData) && cartData.length > 0) {
         cartData.forEach(function(item, idx) {
             const productId = parseInt(item.id, 10);
             const quantity = parseFloat(item.quantity) || 0;
             let unitPrice = 0;
-            if (item.discount && Number(item.discount) < Number(item.price)) {
+            if (item.variation_price) {
+                unitPrice = parseFloat(item.variation_price);
+            } else if (item.discount && Number(item.discount) < Number(item.price)) {
                 unitPrice = parseFloat(item.discount);
             } else {
                 unitPrice = parseFloat(item.price);
             }
             const totalPrice = unitPrice * quantity;
             form.append('<input type="hidden" class="dynamic-input" name="items['+idx+'][product_id]" value="'+productId+'">');
+            if (item.variation_id) {
+                form.append('<input type="hidden" class="dynamic-input" name="items['+idx+'][variation_id]" value="'+item.variation_id+'">');
+            }
             form.append('<input type="hidden" class="dynamic-input" name="items['+idx+'][quantity]" value="'+quantity+'">');
             form.append('<input type="hidden" class="dynamic-input" name="items['+idx+'][unit_price]" value="'+unitPrice+'">');
             form.append('<input type="hidden" class="dynamic-input" name="items['+idx+'][total_price]" value="'+totalPrice+'">');
         });
     }
 
+    // Check stock for each item (variation-aware) - cartData already loaded above
+    let stockError = false;
+    let stockErrorMessage = '';
+    for (let item of cartData) {
+        const requestedQty = parseFloat(item.quantity) || 0;
+        let availableQty = 0;
+        
+        if (item.variation_id && item.variation_stock !== undefined && item.variation_stock !== null) {
+            // Check variation stock
+            availableQty = item.variation_stock || 0;
+            const variationName = item.variation_name || 'selected variation';
+            if (requestedQty > availableQty) {
+                stockError = true;
+                stockErrorMessage = `Insufficient stock for ${item.name} (${variationName}). Available: ${availableQty}, Requested: ${requestedQty}`;
+                break;
+            }
+        } else if (item.branch_stock) {
+            // Check product stock for simple products
+            availableQty = item.branch_stock.quantity || 0;
+            if (requestedQty > availableQty) {
+                stockError = true;
+                stockErrorMessage = `Insufficient stock for ${item.name}. Available: ${availableQty}, Requested: ${requestedQty}`;
+                break;
+            }
+        } else {
+            stockError = true;
+            const variationName = item.variation_name ? ` (${item.variation_name})` : '';
+            stockErrorMessage = `Product ${item.name}${variationName} is out of stock.`;
+            break;
+        }
+    }
+    
+    if (stockError) {
+        hideCheckoutLoading();
+        alert(stockErrorMessage);
+        return;
+    }
+
+    // Debug: Log form data before submission
+    console.log('Form data:', form.serialize());
+    console.log('Subtotal:', subTotal);
+    console.log('Total Amount:', totalAmount);
+    console.log('Paid Amount:', paidAmount);
+    console.log('Payment Method:', paymentMethod);
+    console.log('Sale Date:', saleDate);
+    console.log('Cart Items:', cartData.length);
+    
     // Submit via AJAX
     $.ajax({
         url: form.attr('action'),
@@ -1128,21 +1210,41 @@ $('#posCheckoutForm').on('submit', function(e) {
             'X-CSRF-TOKEN': $('input[name="_token"]').val()
         },
         success: function(response) {
+            hideCheckoutLoading();
             // Clear cart after successful sale
             sessionStorage.setItem('cartItems', '[]');
-            // Optionally, reload the page or update UI
-            location.reload();
+
+            // If backend returned sale_id, redirect to POS show page for that sale
+            if (response && response.success && response.sale_id) {
+                window.location.href = '/erp/pos/' + response.sale_id;
+            } else {
+                // Fallback: go back to POS list
+                window.location.href = '/erp/pos';
+            }
         },
         error: function(xhr) {
-            // Hide loading state on error
             hideCheckoutLoading();
-            
-            // Optionally, show error messages
+            let errorMessage = 'An error occurred while processing your order.';
             if (xhr.responseJSON && xhr.responseJSON.message) {
-                alert('Error: ' + xhr.responseJSON.message);
-            } else {
-                alert('An error occurred while processing the sale.');
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                // Laravel validation errors
+                const errors = xhr.responseJSON.errors;
+                const errorList = Object.keys(errors).map(key => `${key}: ${errors[key].join(', ')}`).join('\n');
+                errorMessage = 'Validation errors:\n' + errorList;
+            } else if (xhr.responseText) {
+                try {
+                    const errorData = JSON.parse(xhr.responseText);
+                    if (errorData.message) {
+                        errorMessage = errorData.message;
+                    }
+                } catch (e) {
+                    // Not JSON, use response text
+                    errorMessage = xhr.responseText.substring(0, 200);
+                }
             }
+            alert(errorMessage);
+            console.error('Checkout error:', xhr);
         }
     });
 });

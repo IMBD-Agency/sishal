@@ -206,6 +206,11 @@
                                                         <small class="text-muted">
                                                             <i class="fas fa-barcode me-1"></i>
                                                             SKU: {{ $item->product->sku ?? 'N/A' }}
+                                                            @if($item->variation)
+                                                                <br>
+                                                                <i class="fas fa-tags me-1"></i>
+                                                                Variation: {{ $item->variation->name ?? 'N/A' }}
+                                                            @endif
                                                         </small>
                                                     </div>
                                                 </div>

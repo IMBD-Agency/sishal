@@ -212,23 +212,24 @@ class PageController extends Controller
             $product->total_reviews = $product->reviews->count();
             
             // Pre-calculate stock status (avoid N+1 queries)
+            // For ecommerce: Only check warehouse stock, not branch stock
             // Check if product has variations - if so, check variation stocks
             if ($product->has_variations) {
-                // For products with variations, check if any active variation has stock
+                // For products with variations, check if any active variation has warehouse stock
                 $product->has_stock = false;
                 if ($product->variations && $product->variations->isNotEmpty()) {
                     foreach ($product->variations as $variation) {
                         // Check if variation has stocks loaded
                         if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
-                            // Use loaded relationship collection
-                            $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                            // Use loaded relationship collection - only count warehouse stock
+                            $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                             if ($totalQuantity > 0) {
                                 $product->has_stock = true;
                                 break; // Found at least one variation with stock, no need to check further
                             }
                         } else {
-                            // Fallback: use query builder if relationship not loaded
-                            $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                            // Fallback: use query builder if relationship not loaded - only warehouse stock
+                            $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                             if ($totalQuantity > 0) {
                                 $product->has_stock = true;
                                 break;
@@ -237,10 +238,9 @@ class PageController extends Controller
                     }
                 }
             } else {
-                // For products without variations, check branch and warehouse stock
-                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                // For products without variations, only check warehouse stock (not branch stock)
                 $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                $product->has_stock = $warehouseStock > 0;
             }
         }
 
@@ -791,14 +791,17 @@ class PageController extends Controller
             $product->total_reviews = $product->reviews->count();
             
             // Pre-calculate stock status (avoid N+1 queries)
+            // For ecommerce: Only check warehouse stock, not branch stock
             if ($product->has_variations) {
                 $product->has_stock = false;
                 if ($product->variations && $product->variations->isNotEmpty()) {
                     foreach ($product->variations as $variation) {
                         if ($variation->relationLoaded('stocks') && $variation->stocks) {
-                            $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                            // Only count warehouse stock (exclude branch stock)
+                            $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                         } else {
-                            $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                            // Only count warehouse stock (exclude branch stock)
+                            $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                         }
                         if ($totalQuantity > 0) {
                             $product->has_stock = true;
@@ -807,10 +810,9 @@ class PageController extends Controller
                     }
                 }
             } else {
-                // For products without variations, check branch and warehouse stock - match original behavior
-                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                // For products without variations, only check warehouse stock (not branch stock)
                 $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                $product->has_stock = $warehouseStock > 0;
             }
         }
 

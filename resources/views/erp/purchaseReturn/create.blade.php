@@ -21,8 +21,7 @@
                 @csrf
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="supplier_id" class="form-label">Supplier</label>
-                        <select name="supplier_id" id="supplier_id" class="form-select" required></select>
+                        <input type="hidden" name="supplier_id" id="supplier_id" value="">
                     </div>
                     <div class="col-md-4">
                         <label for="purchase_id" class="form-label">Purchase</label>
@@ -171,27 +170,8 @@
         }
 
         $(document).ready(function() {
-            $('#supplier_id').select2({
-                placeholder: 'Select Supplier',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: '{{ route('supplier.search') }}',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.results
-                        };
-                    },
-                    cache: true
-                }
-            });
+            // Supplier field removed - not needed
+            $('#supplier_id').hide().closest('.form-group, .col-md-6, .col-md-4').hide();
 
             // Purchase select2 AJAX
             $('#purchase_id').select2({
@@ -205,7 +185,7 @@
                     data: function(params) {
                         return {
                             q: params.term,
-                            supplier: $('#supplier_id').val()
+                            supplier: null
                         };
                     },
                     processResults: function(data) {
@@ -231,9 +211,7 @@
             });
 
             // When supplier changes, clear purchase select2
-            $('#supplier_id').on('change', function() {
-                $('#purchase_id').val(null).trigger('change');
-            });
+            // Supplier field removed
 
             // When product is selected, auto-fill unit price
             $(document).on('change', '.product-select', function() {

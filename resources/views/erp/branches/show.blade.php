@@ -334,4 +334,49 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Product search functionality
+            const productSearch = document.getElementById('productSearch');
+            const productsTable = document.getElementById('productsTable');
+            
+            if (productSearch && productsTable) {
+                productSearch.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const rows = productsTable.querySelectorAll('tbody tr');
+                    
+                    rows.forEach(function(row) {
+                        const productName = row.querySelector('h6')?.textContent.toLowerCase() || '';
+                        const productId = row.querySelector('small')?.textContent.toLowerCase() || '';
+                        const sku = row.querySelector('code')?.textContent.toLowerCase() || '';
+                        const category = row.querySelector('.badge')?.textContent.toLowerCase() || '';
+                        
+                        const matches = productName.includes(searchTerm) || 
+                                       productId.includes(searchTerm) || 
+                                       sku.includes(searchTerm) ||
+                                       category.includes(searchTerm);
+                        
+                        if (matches || searchTerm === '') {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                    
+                    // Show/hide empty message
+                    const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+                    const emptyRow = productsTable.querySelector('tbody tr td[colspan]');
+                    if (emptyRow && emptyRow.parentElement) {
+                        if (visibleRows.length === 0 && searchTerm !== '') {
+                            emptyRow.parentElement.style.display = '';
+                            emptyRow.innerHTML = '<td colspan="6" class="text-center py-4"><div class="text-muted"><i class="fas fa-search text-muted mb-3" style="font-size: 3rem; opacity: 0.3;"></i><h5>No products found</h5><p>No products match your search criteria.</p></div></td>';
+                        } else if (visibleRows.length > 0) {
+                            emptyRow.parentElement.style.display = 'none';
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 @endsection

@@ -46,11 +46,9 @@
                         <label class="form-label">Status</label>
                         <select name="status" class="form-select">
                             <option value="">All</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="shipping">Shipping</option>
-                            <option value="received">Received</option>
-                            <option value="cancelled">Cancelled</option>
+                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                            <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -61,9 +59,9 @@
                         <label class="form-label">Bill Status</label>
                         <select name="bill_status" class="form-select">
                             <option value="">All</option>
-                            <option value="unpaid">Unpaid</option>
-                            <option value="paid">Paid</option>
-                            <option value="partial">Partial</option>
+                            <option value="unpaid" {{ request('bill_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                            <option value="paid" {{ request('bill_status') == 'paid' ? 'selected' : '' }}>Paid</option>
+                            <option value="partial" {{ request('bill_status') == 'partial' ? 'selected' : '' }}>Partial</option>
                         </select>
                     </div>
                     <div class="col-md-1">
@@ -88,76 +86,76 @@
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th class="border-0">POS ID</th>
-                                    <th class="border-0">Due Date</th>
+                                    <th class="border-0">Sale Date</th>
                                     <th class="border-0">Customer</th>
-                                    <th class="border-0">Phone</th>
                                     <th class="border-0">Branch</th>
                                     <th class="border-0 text-center">Status</th>
-                                    <th class="border-0">Bill Status</th>
-                                    <th class="border-0">Subtotal</th>
-                                    <th class="border-0">Discount</th>
-                                    <th class="border-0">Total</th>
-                                    <th class="border-0">Paid</th>
-                                    <th class="border-0">Due</th>
+                                    <th class="border-0 text-center">Payment</th>
+                                    <th class="border-0 text-end">Total</th>
+                                    <th class="border-0 text-end">Paid</th>
+                                    <th class="border-0 text-end">Due</th>
+                                    <th class="border-0 text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse ($sales as $sale)
                                     <tr>
-                                        <td><a href="{{ route('pos.show',$sale->id) }}" class="btn btn-outline-primary">{{ $sale->sale_number ?? '-' }}</a></td>
+                                        @php
+                                            $invoice = $sale->invoice;
+                                            $total = $sale->total_amount ?? 0;
+                                            $paidRaw = $invoice ? ($invoice->paid_amount ?? 0) : ($sale->payments_total ?? 0);
+                                            $paidAmount = min($paidRaw, $total);
+                                            $dueAmount = max(0, $total - $paidAmount);
+                                        @endphp
                                         <td>
-                                            {{ $sale->estimated_delivery_date ? \Carbon\Carbon::parse($sale->estimated_delivery_date)->format('d-m-Y') : '-' }}
+                                            <a href="{{ route('pos.show',$sale->id) }}" class="text-decoration-none fw-semibold">
+                                                {{ $sale->sale_number ?? '-' }}
+                                            </a>
                                         </td>
-                                        <td>{{@$sale->customer->name ?? 'Walk-in-Customer'}}</td>
-                                        <td>{{@$sale->customer->phone}}</td>
-                                        <td>{{@$sale->branch->name}}</td>
+                                        <td>
+                                            {{ $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d M Y') : '-' }}
+                                        </td>
+                                        <td>
+                                            <div class="fw-medium">{{ $sale->customer->name ?? 'Walk-in Customer' }}</div>
+                                            @if($sale->customer && $sale->customer->phone)
+                                                <small class="text-muted">{{ $sale->customer->phone }}</small>
+                                            @endif
+                                        </td>
+                                        <td>{{ $sale->branch->name ?? '-' }}</td>
                                         <td class="text-center">
                                             <span class="badge 
                                                 @if($sale->status == 'pending') bg-warning text-dark
-                                                @elseif($sale->status == 'approved' || $sale->status == 'paid') bg-success
-                                                @elseif($sale->status == 'unpaid' || $sale->status == 'rejected') bg-danger
+                                                @elseif($sale->status == 'delivered') bg-success
+                                                @elseif($sale->status == 'cancelled') bg-danger
                                                 @else bg-secondary
-                                                @endif
-                                                update-status-btn"
-                                                style="cursor:pointer;"
-                                                data-id="{{ $sale->id }}"
-                                                data-status="{{ $sale->status }}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#updateStatusModal"
-                                            >
+                                                @endif">
                                                 {{ ucfirst($sale->status ?? '-') }}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td class="text-center">
                                             <span class="badge 
-                                                @if($sale->invoice && $sale->invoice->status == 'unpaid') bg-danger
-                                                @elseif($sale->invoice && $sale->invoice->status == 'paid') bg-success
-                                                @elseif($sale->invoice && $sale->invoice->status == 'pending') bg-warning text-dark
+                                                @if($invoice && $invoice->status == 'unpaid') bg-danger
+                                                @elseif($invoice && $invoice->status == 'paid') bg-success
+                                                @elseif($invoice && $invoice->status == 'partial') bg-warning text-dark
                                                 @else bg-secondary
-                                                @endif
-                                            ">
-                                                {{ ucfirst($sale->invoice->status ?? '-') }}
+                                                @endif">
+                                                {{ ucfirst($invoice->status ?? 'unpaid') }}
                                             </span>
                                         </td>
-                                        <td>
-                                            {{ $sale->sub_total }}৳
+                                        <td class="text-end fw-semibold">{{ number_format($total, 2) }}৳</td>
+                                        <td class="text-end text-success fw-semibold">{{ number_format($paidAmount, 2) }}৳</td>
+                                        <td class="text-end {{ $dueAmount > 0 ? 'text-danger fw-bold' : 'text-muted' }}">
+                                            {{ number_format($dueAmount, 2) }}৳
                                         </td>
-                                        <td>
-                                            {{ $sale->discount }}৳
-                                        </td>
-                                        <td>
-                                            {{ $sale->total_amount }}৳
-                                        </td>
-                                        <td>
-                                            {{ @$sale->invoice->paid_amount }}৳
-                                        </td>
-                                        <td>
-                                            {{ @$sale->invoice->due_amount }}৳
+                                        <td class="text-end">
+                                            <a href="{{ route('pos.show',$sale->id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
                                         </td>
                                     </tr>
                                 @empty   
                                 <tr>
-                                    <td colspan="12" class="text-center">No sale Found</td></tr> 
+                                    <td colspan="10" class="text-center">No sale found</td></tr> 
                                 @endforelse
                             </tbody>
                         </table>
@@ -198,9 +196,7 @@
                                 <select class="form-select" id="statusFilter" name="status">
                                     <option value="">All Status</option>
                                     <option value="pending">Pending</option>
-                                    <option value="approved">Approved</option>
-                                    <option value="shipping">Shipping</option>
-                                    <option value="received">Received</option>
+                                    <option value="delivered">Delivered</option>
                                     <option value="cancelled">Cancelled</option>
                                 </select>
                             </div>
@@ -415,14 +411,36 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('reportPreviewBody').innerHTML = '<tr><td colspan="12" class="text-center">Loading...</td></tr>';
 
         fetch(`/erp/pos/report-data?date_from=${dateFrom}&date_to=${dateTo}&status=${status}&payment_status=${paymentStatus}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Handle HTTP error responses
+                    return response.json().then(err => {
+                        throw new Error(err.error || `HTTP error! status: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
-                updateReportPreview(data.sales);
-                updateSummaryStats(data.summary);
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                if (data.sales && data.summary) {
+                    updateReportPreview(data.sales);
+                    updateSummaryStats(data.summary);
+                } else {
+                    throw new Error('Invalid response format');
+                }
             })
             .catch(error => {
                 console.error('Error loading report data:', error);
-                document.getElementById('reportPreviewBody').innerHTML = '<tr><td colspan="12" class="text-center text-danger">Error loading data</td></tr>';
+                document.getElementById('reportPreviewBody').innerHTML = `<tr><td colspan="12" class="text-center text-danger">Error: ${error.message || 'Error loading data'}</td></tr>`;
+                // Reset summary stats on error
+                updateSummaryStats({
+                    total_sales: 0,
+                    total_amount: '0.00',
+                    paid_sales: 0,
+                    unpaid_sales: 0
+                });
             });
     }
 
@@ -492,9 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function getStatusBadgeColor(status) {
         switch(status) {
             case 'pending': return 'warning';
-            case 'approved': return 'success';
-            case 'shipping': return 'info';
-            case 'received': return 'success';
+            case 'delivered': return 'success';
             case 'cancelled': return 'danger';
             default: return 'secondary';
         }

@@ -108,6 +108,11 @@
                                             <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
                                         @endforeach
                                     </select>
+                                    <div class="variation-wrapper mt-2" style="display:none;" data-product-id="{{ $item->product_id }}" data-variation-id="{{ $item->variation_id ?? '' }}">
+                                        <select name="items[{{ $i }}][variation_id]" class="form-select variation-select">
+                                            <option value="">Select Variation (if applicable)</option>
+                                        </select>
+                                    </div>
                                     <input type="hidden" name="items[{{ $i }}][sale_item_id]" class="sale-item-id" value="{{ $item->sale_item_id }}">
                                 </td>
                                 <td><input type="number" name="items[{{ $i }}][returned_qty]" class="form-control returned_qty" min="1" value="{{ $item->returned_qty }}" required></td>
@@ -184,6 +189,119 @@
                     cache: true
                 }
             });
+            // Function to load variations for a product
+            function loadVariationsForProduct($productSelect, productId, selectedVariationId) {
+                const $row = $productSelect.closest('tr');
+                const $variationWrapper = $row.find('.variation-wrapper');
+                const $variationSelect = $row.find('.variation-select');
+                const $unitPriceInput = $row.find('.unit_price');
+                
+                $.get(`/erp/products/${productId}/variations-list`, function(variations) {
+                    if (variations && variations.length > 0) {
+                        // Product has variations
+                        $variationSelect.empty().append('<option value="">Select Variation</option>');
+                        variations.forEach(function(variation) {
+                            const selected = (selectedVariationId && variation.id == selectedVariationId) ? 'selected' : '';
+                            const price = (variation.price && variation.price > 0) ? variation.price : '';
+                            $variationSelect.append(`<option value="${variation.id}" data-price="${price}" ${selected}>${variation.display_name || variation.name}</option>`);
+                        });
+                        $variationWrapper.show();
+                        
+                        // If variation is pre-selected, auto-load its price
+                        if (selectedVariationId) {
+                            const selectedVariation = variations.find(v => v.id == selectedVariationId);
+                            if (selectedVariation && $unitPriceInput.length) {
+                                if (selectedVariation.price && selectedVariation.price > 0) {
+                                    $unitPriceInput.val(parseFloat(selectedVariation.price).toFixed(2));
+                                } else {
+                                    // Get product price if variation doesn't have specific price
+                                    loadProductPrice(productId, $unitPriceInput);
+                                }
+                            }
+                        } else {
+                            // No variation selected yet, clear price (wait for variation selection)
+                            $unitPriceInput.val('');
+                        }
+                    } else {
+                        // Product has no variations - load product price directly
+                        $variationWrapper.hide();
+                        $variationSelect.val('').empty();
+                        loadProductPrice(productId, $unitPriceInput);
+                    }
+                }).fail(function() {
+                    $variationWrapper.hide();
+                    $variationSelect.val('').empty();
+                    // Try to load product price even if variations endpoint fails
+                    loadProductPrice(productId, $unitPriceInput);
+                });
+            }
+            
+            // Helper function to load product price (for sales returns, use sale price)
+            function loadProductPrice(productId, $unitPriceInput) {
+                if (!$unitPriceInput.length || !productId) return;
+                
+                $.get(`/erp/products/${productId}/sale-price`, function(resp) {
+                    if (resp && typeof resp.price !== 'undefined') {
+                        $unitPriceInput.val(parseFloat(resp.price).toFixed(2));
+                    }
+                }).fail(function() {
+                    // If price fetch fails, leave it empty for manual entry
+                });
+            }
+            
+            // Handle variation selection change to auto-load price
+            $(document).on('change', '.variation-select', function() {
+                const $variationSelect = $(this);
+                const $row = $variationSelect.closest('tr');
+                const $unitPriceInput = $row.find('.unit_price');
+                const selectedOption = $variationSelect.find('option:selected');
+                const variationPrice = selectedOption.data('price');
+                
+                if ($unitPriceInput.length) {
+                    if (variationPrice && variationPrice !== '') {
+                        // Use variation price if available
+                        $unitPriceInput.val(parseFloat(variationPrice).toFixed(2));
+                    } else {
+                        // If variation doesn't have specific price, get product sale price
+                        const productId = $row.find('.product-select').val();
+                        if (productId) {
+                            loadProductPrice(productId, $unitPriceInput);
+                        }
+                    }
+                }
+            });
+            
+            // Load variations for existing items on page load
+            $('.variation-wrapper').each(function() {
+                const $wrapper = $(this);
+                const productId = $wrapper.data('product-id');
+                const variationId = $wrapper.data('variation-id');
+                if (productId) {
+                    const $productSelect = $wrapper.closest('tr').find('.product-select');
+                    loadVariationsForProduct($productSelect, productId, variationId);
+                }
+            });
+            
+            // Handle product change for existing rows (works with both regular select and Select2)
+            $(document).on('change select2:select', '.product-select', function() {
+                const productId = $(this).val();
+                const $row = $(this).closest('tr');
+                const $variationWrapper = $row.find('.variation-wrapper');
+                const $variationSelect = $row.find('.variation-select');
+                const $unitPriceInput = $row.find('.unit_price');
+                
+                if (productId) {
+                    // Clear price first when switching products
+                    $unitPriceInput.val('');
+                    loadVariationsForProduct($(this), productId, null);
+                } else {
+                    // Product deselected - clear everything
+                    $variationWrapper.hide();
+                    $variationSelect.val('').empty();
+                    $unitPriceInput.val('');
+                }
+            });
+            
             // Add new item row
             $('#addItemRow').on('click', function() {
                 const row = `<tr>
@@ -194,6 +312,11 @@
                                 <option value="{{ $product->id }}">{{ $product->name }}</option>
                             @endforeach
                         </select>
+                        <div class="variation-wrapper mt-2" style="display:none;">
+                            <select name="items[${itemIndex}][variation_id]" class="form-select variation-select">
+                                <option value="">Select Variation (if applicable)</option>
+                            </select>
+                        </div>
                         <input type="hidden" name="items[${itemIndex}][sale_item_id]" class="sale-item-id">
                     </td>
                     <td><input type="number" name="items[${itemIndex}][returned_qty]" class="form-control returned_qty" min="1" required></td>

@@ -1652,7 +1652,7 @@
                     step3.classList.add('completed');
                     messageEl.textContent = 'Almost done! Finalizing your order...';
                 }, 6000);
-            }
+            } 
         });
 
         function initializeSSLCommercePayment() {
