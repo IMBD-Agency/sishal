@@ -25,9 +25,6 @@
                         <a href="{{ route('saleReturn.create') }}" class="btn btn-outline-primary">
                             <i class="fas fa-adjust me-2"></i>Add Sale Return
                         </a>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
                     </div>
                 </div>
             </div>
@@ -90,7 +87,19 @@
                                     <tr>
                                         <td>{{ $return->id }}</td>
                                         <td>{{ optional($return->customer)->name }}</td>
-                                        <td>#{{ optional($return->posSale)->sale_number }}</td>
+                                        <td>
+                                            @if($return->posSale)
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    #POS-{{ $return->posSale->id }}
+                                                </span>
+                                            @elseif($return->invoice && $return->invoice->order)
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                    #SFO{{ $return->invoice->order->id }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $return->return_date }}</td>
                                         <td>
                                             <span class="badge bg-secondary status-badge" 

@@ -26,8 +26,7 @@
                 @csrf
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="supplier_id" class="form-label">Supplier</label>
-                        <select name="supplier_id" id="supplier_id" class="form-select" required></select>
+                        <input type="hidden" name="supplier_id" id="supplier_id" value="">
                     </div>
                     <div class="col-md-4">
                         <label for="bill_date" class="form-label">Bill Date</label>
@@ -151,23 +150,7 @@
         }
 
         $(document).ready(function () {
-            $('#supplier_id').select2({
-                placeholder: 'Select Supplier',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: '{{ route('supplier.search') }}',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return { q: params.term };
-                    },
-                    processResults: function (data) {
-                        return { results: data.results };
-                    },
-                    cache: true
-                }
-            });
+            // Supplier field removed - using hidden input
 
             initProductSelect2('.product-select');
 

@@ -41,13 +41,16 @@ class SaleReturnController extends Controller
             $query->where('status', $status);
         }
 
-        $returns = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->all());
+        $returns = $query->with(['customer', 'posSale', 'invoice.order'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->appends($request->all());
         $statuses = ['pending', 'approved', 'rejected', 'processed'];
         $filters = $request->only(['search', 'return_date', 'status']);
         return view('erp.saleReturn.salereturnlist', compact('returns', 'statuses', 'filters'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $customers = Customer::all();
         $posSales = Pos::all();
@@ -55,7 +58,15 @@ class SaleReturnController extends Controller
         $products = \App\Models\Product::all();
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
-        return view('erp.saleReturn.create', compact('customers', 'posSales', 'invoices', 'products', 'branches', 'warehouses'));
+        
+        // Handle pre-selected POS sale from query parameter
+        $selectedPosSale = null;
+        if ($request->has('pos_sale_id')) {
+            $selectedPosSale = Pos::with(['customer', 'items.product', 'items.variation', 'branch', 'invoice'])
+                ->find($request->pos_sale_id);
+        }
+        
+        return view('erp.saleReturn.create', compact('customers', 'posSales', 'invoices', 'products', 'branches', 'warehouses', 'selectedPosSale'));
     }
 
     public function store(Request $request)
@@ -87,6 +98,7 @@ class SaleReturnController extends Controller
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
                 'product_id' => $item['product_id'],
+                'variation_id' => $item['variation_id'] ?? null,
                 'returned_qty' => $item['returned_qty'],
                 'unit_price' => $item['unit_price'],
                 'total_price' => $item['returned_qty'] * $item['unit_price'],
@@ -98,7 +110,15 @@ class SaleReturnController extends Controller
 
     public function show($id)
     {
-        $saleReturn = SaleReturn::with(['items.product', 'employee.user'])->findOrFail($id);
+        $saleReturn = SaleReturn::with([
+            'customer',
+            'posSale',
+            'items.product',
+            'items.variation',
+            'employee.user',
+            'branch',
+            'warehouse'
+        ])->findOrFail($id);
         return view('erp.saleReturn.show', compact('saleReturn'));
     }
 
@@ -145,6 +165,7 @@ class SaleReturnController extends Controller
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
                 'product_id' => $item['product_id'],
+                'variation_id' => $item['variation_id'] ?? null,
                 'returned_qty' => $item['returned_qty'],
                 'unit_price' => $item['unit_price'],
                 'total_price' => $item['returned_qty'] * $item['unit_price'],

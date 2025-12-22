@@ -738,32 +738,240 @@ class ProductController extends Controller
             $attributes = $variation->combinations->map(function($combination) {
                 return $combination->attributeValue->value ?? '';
             })->filter()->implode(' - ');
+
+            // Price logic: If variation has price, use it; otherwise use product price
+            // Then apply discount if exists (variation discount or product discount)
+            $basePrice = ($variation->price && $variation->price > 0) ? (float) $variation->price : (float) $product->price;
+            
+            // Check for discount (variation discount first, then product discount)
+            $discount = ($variation->discount && $variation->discount > 0) ? (float) $variation->discount : ((float) ($product->discount ?? 0));
+            $hasDiscount = $discount > 0 && $discount < $basePrice;
+            $displayPrice = $hasDiscount ? $discount : $basePrice;
             
             return [
                 'id' => $variation->id,
                 'name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
                 'display_name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
                 'sku' => $variation->sku,
+                'price' => $displayPrice, // Final price with discount applied
+                'base_price' => $basePrice, // Base price before discount
+                'discount' => $discount,
+                'has_discount' => $hasDiscount
             ];
         });
         
         return response()->json($variations);
     }
 
+    /**
+     * Find product by SKU/barcode for POS scanning
+     */
+    public function findProductByBarcode(Request $request, $branchId)
+    {
+        $barcode = $request->input('barcode') ?? $request->input('sku');
+        
+        if (!$barcode) {
+            return response()->json(['success' => false, 'message' => 'Barcode/SKU is required'], 400);
+        }
+
+        // First, try to find by product SKU
+        $product = Product::with(['category', 'branchStock' => function($q) use ($branchId) {
+            $q->where('branch_id', $branchId);
+        }, 'variations.stocks' => function($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->whereNull('warehouse_id');
+        }])
+        ->where('sku', $barcode)
+        ->where(function($q) use ($branchId) {
+            $q->whereHas('branchStock', function($subQ) use ($branchId) {
+                $subQ->where('branch_id', $branchId);
+            })
+            ->orWhereHas('variations.stocks', function($subQ) use ($branchId) {
+                $subQ->where('branch_id', $branchId)->whereNull('warehouse_id');
+            });
+        })
+        ->first();
+
+        // If product found, return it with stock info
+        if ($product) {
+            $productData = $this->transformProductForPOS($product, $branchId);
+            return response()->json(['success' => true, 'product' => $productData, 'type' => 'product']);
+        }
+
+        // If not found, try to find by variation SKU
+        $variation = \App\Models\ProductVariation::with(['product.category', 'product.branchStock' => function($q) use ($branchId) {
+            $q->where('branch_id', $branchId);
+        }, 'stocks' => function($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->whereNull('warehouse_id');
+        }])
+        ->where('sku', $barcode)
+        ->where('status', 'active')
+        ->whereHas('stocks', function($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->whereNull('warehouse_id');
+        })
+        ->first();
+
+        if ($variation && $variation->product) {
+            $product = $variation->product;
+            $productData = $this->transformProductForPOS($product, $branchId);
+            
+            // Add variation info
+            $variationStock = 0;
+            foreach ($variation->stocks as $stock) {
+                if ($stock->branch_id == $branchId && !$stock->warehouse_id) {
+                    $variationStock += $stock->available_quantity ?? ($stock->quantity - ($stock->reserved_quantity ?? 0));
+                }
+            }
+            
+            $productData['selected_variation'] = [
+                'id' => $variation->id,
+                'sku' => $variation->sku,
+                'name' => $variation->name,
+                'price' => ($variation->price && $variation->price > 0) ? $variation->price : null,
+                'stock' => $variationStock,
+            ];
+            
+            return response()->json(['success' => true, 'product' => $productData, 'type' => 'variation', 'variation_id' => $variation->id]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Product not found with this barcode/SKU'], 404);
+    }
+
+    /**
+     * Transform product data for POS display
+     */
+    private function transformProductForPOS($product, $branchId)
+    {
+        if ($product->has_variations) {
+            // Load variations if not already loaded
+            if (!$product->relationLoaded('variations')) {
+                $product->load(['variations.stocks' => function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId)->whereNull('warehouse_id');
+                }]);
+            }
+            
+            // Sum all variation stocks for this branch
+            $totalVariationStock = 0;
+            $lastUpdatedAt = null;
+            foreach ($product->variations as $variation) {
+                if ($variation->relationLoaded('stocks')) {
+                    foreach ($variation->stocks as $vStock) {
+                        if ($vStock->branch_id == $branchId && !$vStock->warehouse_id) {
+                            $totalVariationStock += $vStock->quantity;
+                            if (!$lastUpdatedAt || ($vStock->last_updated_at && $vStock->last_updated_at > $lastUpdatedAt)) {
+                                $lastUpdatedAt = $vStock->last_updated_at;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            $branch = \App\Models\Branch::find($branchId);
+            $branchName = $branch ? $branch->name : 'Unknown Branch';
+            
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'type' => $product->type,
+                'price' => $product->price,
+                'cost' => $product->cost,
+                'discount' => $product->discount,
+                'status' => $product->status,
+                'image' => $product->image,
+                'description' => $product->description,
+                'has_variations' => $product->has_variations,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name
+                ] : null,
+                'branch_stock' => [
+                    'branch_id' => $branchId,
+                    'branch_name' => $branchName,
+                    'quantity' => $totalVariationStock,
+                    'last_updated_at' => $lastUpdatedAt
+                ],
+                'total_stock' => $totalVariationStock
+            ];
+        } else {
+            $branchStock = $product->branchStock->first();
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'type' => $product->type,
+                'price' => $product->price,
+                'cost' => $product->cost,
+                'discount' => $product->discount,
+                'status' => $product->status,
+                'image' => $product->image,
+                'description' => $product->description,
+                'has_variations' => $product->has_variations,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name
+                ] : null,
+                'branch_stock' => $branchStock ? [
+                    'branch_id' => $branchStock->branch_id,
+                    'branch_name' => $branchStock->branch->name ?? 'Unknown Branch',
+                    'quantity' => $branchStock->quantity,
+                    'last_updated_at' => $branchStock->last_updated_at
+                ] : [
+                    'branch_id' => $branchId,
+                    'branch_name' => 'Unknown Branch',
+                    'quantity' => 0,
+                    'last_updated_at' => null
+                ],
+                'total_stock' => $product->branchStock->sum('quantity')
+            ];
+        }
+    }
+
     public function getPrice($id)
     {
         $product = \App\Models\Product::findOrFail($id);
-        return response()->json(['price' => $product->price]);
+        // Return price with discount logic (same as POS)
+        // If has discount, return discount price, otherwise return base price
+        $hasDiscount = $product->discount && $product->discount > 0 && $product->discount < $product->price;
+        $displayPrice = $hasDiscount ? $product->discount : $product->price;
+        
+        return response()->json([
+            'price' => (float) $displayPrice,
+            'base_price' => (float) $product->price,
+            'discount' => (float) ($product->discount ?? 0),
+            'has_discount' => $hasDiscount
+        ]);
+    }
+
+    public function getSalePrice($id)
+    {
+        $product = \App\Models\Product::findOrFail($id);
+        // For sales/returns, use the selling price (consider discount if applicable)
+        // Use discount price if available, otherwise use regular price
+        $price = ($product->discount && $product->discount > 0 && $product->discount < $product->price) 
+            ? $product->discount 
+            : $product->price;
+        return response()->json(['price' => $price]);
     }
 
 
     public function searchProductWithFilters(Request $request, $branchId)
     {
+        // For products with variations, we need to check variation stocks
+        // For products without variations, we check branch stocks
         $query = Product::with(['category', 'branchStock' => function($q) use ($branchId) {
             $q->where('branch_id', $branchId);
+        }, 'variations.stocks' => function($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
-        ->whereHas('branchStock', function($q) use ($branchId) {
-            $q->where('branch_id', $branchId);
+        ->where(function($q) use ($branchId) {
+            // Products with branch stock (non-variation products)
+            $q->whereHas('branchStock', function($subQ) use ($branchId) {
+                $subQ->where('branch_id', $branchId);
+            })
+            // OR products with variations that have stock in this branch
+            ->orWhereHas('variations.stocks', function($subQ) use ($branchId) {
+                $subQ->where('branch_id', $branchId)->whereNull('warehouse_id');
+            });
         });
 
         if ($request->filled('category_id')) {
@@ -782,31 +990,82 @@ class ProductController extends Controller
         // Always paginate for testing (per page = 1)
         $products = $query->paginate(12); // 1 per page for testing
 
-        $products->getCollection()->transform(function($product) use ($branchId) {
-            $branchStock = $product->branchStock->first();
-            return [
-                'id' => $product->id,
-                'name' => $product->name,
-                'sku' => $product->sku,
-                'type' => $product->type,
-                'price' => $product->price,
-                'cost' => $product->cost,
-                'discount' => $product->discount,
-                'status' => $product->status,
-                'image' => $product->image,
-                'description' => $product->description,
-                'category' => $product->category ? [
-                    'id' => $product->category->id,
-                    'name' => $product->category->name
-                ] : null,
-                'branch_stock' => [
-                    'branch_id' => $branchStock->branch_id,
-                    'branch_name' => $branchStock->branch->name ?? 'Unknown Branch',
-                    'quantity' => $branchStock->quantity,
-                    'last_updated_at' => $branchStock->last_updated_at
-                ],
-                'total_stock' => $product->branchStock->sum('quantity')
-            ];
+        // Get branch name once for all products in this request
+        $branch = \App\Models\Branch::find($branchId);
+        $branchName = $branch ? $branch->name : 'Unknown Branch';
+
+        $products->getCollection()->transform(function($product) use ($branchId, $branchName) {
+            // For products with variations, calculate total stock from variation stocks
+            if ($product->has_variations) {
+                // Variations and stocks are already eager loaded via 'with' on the query
+                // No need to call $product->load() here as it causes N+1 issues
+                
+                // Sum all variation stocks for this branch
+                $totalVariationStock = 0;
+                $lastUpdatedAt = null;
+                foreach ($product->variations as $variation) {
+                    foreach ($variation->stocks as $vStock) {
+                        if ($vStock->branch_id == $branchId && !$vStock->warehouse_id) {
+                            $totalVariationStock += $vStock->quantity;
+                            if (!$lastUpdatedAt || ($vStock->last_updated_at && $vStock->last_updated_at > $lastUpdatedAt)) {
+                                $lastUpdatedAt = $vStock->last_updated_at;
+                            }
+                        }
+                    }
+                }
+                
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'type' => $product->type,
+                    'price' => $product->price,
+                    'cost' => $product->cost,
+                    'discount' => $product->discount,
+                    'status' => $product->status,
+                    'image' => $product->image,
+                    'description' => $product->description,
+                    'has_variations' => $product->has_variations,
+                    'category' => $product->category ? [
+                        'id' => $product->category->id,
+                        'name' => $product->category->name
+                    ] : null,
+                    'branch_stock' => [
+                        'branch_id' => $branchId,
+                        'branch_name' => $branchName,
+                        'quantity' => $totalVariationStock,
+                        'last_updated_at' => $lastUpdatedAt
+                    ],
+                    'total_stock' => $totalVariationStock
+                ];
+            } else {
+                // For products without variations, use branch stock
+                $branchStock = $product->branchStock->first();
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'type' => $product->type,
+                    'price' => $product->price,
+                    'cost' => $product->cost,
+                    'discount' => $product->discount,
+                    'status' => $product->status,
+                    'image' => $product->image,
+                    'description' => $product->description,
+                    'has_variations' => $product->has_variations,
+                    'category' => $product->category ? [
+                        'id' => $product->category->id,
+                        'name' => $product->category->name
+                    ] : null,
+                    'branch_stock' => [
+                        'branch_id' => $branchStock->branch_id ?? $branchId,
+                        'branch_name' => $branchStock->branch->name ?? $branchName,
+                        'quantity' => $branchStock->quantity ?? 0,
+                        'last_updated_at' => $branchStock->last_updated_at ?? null
+                    ],
+                    'total_stock' => $branchStock->quantity ?? 0
+                ];
+            }
         });
 
         // Return paginated response with meta

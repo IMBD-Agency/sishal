@@ -261,23 +261,24 @@ class PageController extends Controller
             $product->total_reviews = $product->reviews->count();
 
             // Pre-calculate stock status (avoid N+1 queries)
+            // For ecommerce: Only check warehouse stock, not branch stock
             // Check if product has variations - if so, check variation stocks
             if ($product->has_variations) {
-                // For products with variations, check if any active variation has stock
+                // For products with variations, check if any active variation has warehouse stock
                 $product->has_stock = false;
                 if ($product->variations && $product->variations->isNotEmpty()) {
                     foreach ($product->variations as $variation) {
                         // Check if variation has stocks loaded
                         if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
-                            // Use loaded relationship collection
-                            $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                            // Use loaded relationship collection - only count warehouse stock
+                            $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                             if ($totalQuantity > 0) {
                                 $product->has_stock = true;
                                 break; // Found at least one variation with stock, no need to check further
                             }
                         } else {
-                            // Fallback: use query builder if relationship not loaded
-                            $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                            // Fallback: use query builder if relationship not loaded - only warehouse stock
+                            $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                             if ($totalQuantity > 0) {
                                 $product->has_stock = true;
                                 break;
@@ -286,10 +287,9 @@ class PageController extends Controller
                     }
                 }
             } else {
-                // For products without variations, check branch and warehouse stock
-                $branchStock = $product->branchStock->sum('quantity') ?? 0;
+                // For products without variations, only check warehouse stock (not branch stock)
                 $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                $product->has_stock = $warehouseStock > 0;
             }
         }
 
@@ -790,17 +790,13 @@ class PageController extends Controller
                 ->where('type', 'product');
 
             // Category filter - include child categories
-            // Priority: Checkbox selections (categories[]) take precedence over URL category
-            // This ensures filter section works, but nav links also work when no checkboxes selected
             if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {
-                // Categories from checkboxes (user actively filtering) - HIGHEST PRIORITY
                 $categorySlugs = array_values(array_filter($request->categories, function ($slug) {
                     return $slug !== 'all' && !empty($slug);
                 }));
 
                 if (!empty($categorySlugs)) {
                     $categoryIds = ProductServiceCategory::whereIn('slug', $categorySlugs)->pluck('id')->toArray();
-                    // Get all child category IDs recursively
                     if (!empty($categoryIds)) {
                         $allCategoryIds = ProductServiceCategory::getAllChildIdsForCategories($categoryIds);
                         if (!empty($allCategoryIds)) {
@@ -809,12 +805,9 @@ class PageController extends Controller
                     }
                 }
             } elseif ($request->has('category') && $request->category) {
-                // Single category from URL (from navigation links) - only if no checkboxes selected
                 $category = ProductServiceCategory::with('children')->where('slug', $request->category)->first();
                 if ($category) {
-                    // Load all nested children recursively
                     $category->loadNestedChildren();
-                    // Get all child category IDs recursively (includes parent category ID itself)
                     $allCategoryIds = $category->getAllChildIds();
                     if (!empty($allCategoryIds)) {
                         $query->whereIn('category_id', $allCategoryIds);
@@ -858,10 +851,6 @@ class PageController extends Controller
                     $query->orderBy('price', 'desc');
                     break;
                 default:
-                    // Sort by numbers in product name (01, 02, 03, etc.)
-                    // Extract last number sequence from name and sort numerically
-                    // Works with formats like "yt-ch-06", "w5-vh 06", "mw-ch-03", etc.
-                    // Tries to extract number after last space or hyphen
                     $query->orderByRaw("CAST(
                     COALESCE(
                         NULLIF(
@@ -882,11 +871,10 @@ class PageController extends Controller
                         ->orderBy('name', 'ASC');
             }
 
-            // Use 20 items per page for infinite scroll (matching initial load)
-            $page = $request->get('page', 1);
+            // Use 20 items per page
             $products = $query->paginate(20)->appends($request->except('page'));
 
-            // Pre-calculate ratings, reviews, and stock status to avoid N+1 queries
+            // Pre-calculate ratings, reviews, and stock status
             $userId = Auth::id();
             $wishlistedIds = [];
             if ($userId && $products->count() > 0) {
@@ -897,22 +885,19 @@ class PageController extends Controller
             }
 
             foreach ($products as $product) {
-                // Add wishlist status
                 $product->is_wishlisted = in_array($product->id, $wishlistedIds);
-
-                // Pre-calculate ratings and reviews (avoid N+1 queries) - match original behavior
                 $product->avg_rating = $product->reviews->avg('rating') ?? 0;
                 $product->total_reviews = $product->reviews->count();
 
-                // Pre-calculate stock status (avoid N+1 queries)
+                // For ecommerce: Only check warehouse stock, not branch stock
                 if ($product->has_variations) {
                     $product->has_stock = false;
                     if ($product->variations && $product->variations->isNotEmpty()) {
                         foreach ($product->variations as $variation) {
                             if ($variation->relationLoaded('stocks') && $variation->stocks) {
-                                $totalQuantity = $variation->stocks->sum('quantity') ?? 0;
+                                $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                             } else {
-                                $totalQuantity = $variation->stocks()->sum('quantity') ?? 0;
+                                $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
                             }
                             if ($totalQuantity > 0) {
                                 $product->has_stock = true;
@@ -921,17 +906,14 @@ class PageController extends Controller
                         }
                     }
                 } else {
-                    // For products without variations, check branch and warehouse stock - match original behavior
-                    $branchStock = $product->branchStock->sum('quantity') ?? 0;
                     $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                    $product->has_stock = ($branchStock + $warehouseStock) > 0;
+                    $product->has_stock = $warehouseStock > 0;
                 }
             }
 
-            // Handle selected categories for both array and single category
+            // Handle selected categories
             $selectedCategories = [];
             if ($request->has('categories') && is_array($request->categories)) {
-                // Filter out 'all' value and reindex
                 $selectedCategories = array_values(array_filter($request->categories, function ($slug) {
                     return $slug !== 'all' && !empty($slug);
                 }));
@@ -939,7 +921,7 @@ class PageController extends Controller
                 $selectedCategories = [$request->category];
             }
 
-            // Check for infinite scroll - handle both string 'true' and boolean true
+            // Check for infinite scroll
             $infiniteScrollParam = $request->get('infinite_scroll', false);
             $isInfiniteScrollRequest = $request->ajax() ||
                 $infiniteScrollParam === 'true' ||
@@ -948,30 +930,11 @@ class PageController extends Controller
                 $infiniteScrollParam === 1;
 
             if ($isInfiniteScrollRequest) {
-                // For infinite scroll, return products without pagination links
-                $isInfiniteScroll = true;
-
-                // Log for debugging
-                \Log::info('Products filter infinite scroll request', [
-                    'page' => $request->get('page', 1),
-                    'is_ajax' => $request->ajax(),
-                    'infinite_scroll' => $isInfiniteScroll,
-                    'products_count' => $products->count(),
-                    'total' => $products->total(),
-                    'has_more' => $products->hasMorePages(),
-                    'current_page' => $products->currentPage(),
-                    'category' => $request->get('category'),
-                    'categories' => $request->get('categories', []),
-                    'price_min' => $request->get('price_min'),
-                    'price_max' => $request->get('price_max'),
-                    'sort' => $request->get('sort')
-                ]);
-
                 return response()->json([
                     'success' => true,
                     'html' => view('ecommerce.partials.product-grid', [
                         'products' => $products,
-                        'hidePagination' => $isInfiniteScroll
+                        'hidePagination' => true
                     ])->render(),
                     'count' => $products->count(),
                     'total' => $products->total(),
@@ -996,25 +959,19 @@ class PageController extends Controller
             ];
             return view('ecommerce.products', $viewData);
         } catch (\Exception $e) {
-            // Log the error for debugging
             \Log::error('Filter products error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'request' => $request->all()
             ]);
 
-            // Return error response for AJAX requests
             if ($request->ajax() || $request->get('infinite_scroll', false)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'An error occurred while filtering products. Please try again.',
-                    'error' => config('app.debug') ? $e->getMessage() : null,
+                    'message' => 'An error occurred while filtering products.',
                     'html' => '<div class="col-12"><div class="no-products-container"><div class="no-products-icon"><i class="fas fa-exclamation-triangle"></i></div><h3 class="no-products-title">Error Loading Products</h3><p class="no-products-message">An error occurred. Please try again.</p></div></div>'
                 ], 500);
             }
-
-            // For non-AJAX requests, redirect back with error
             return back()->withErrors(['error' => 'An error occurred while filtering products. Please try again.']);
         }
     }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Erp\UserController;
 use App\Http\Controllers\Erp\ProductVariationController;
 use App\Http\Controllers\Erp\VariationAttributeController;
 use App\Http\Controllers\Erp\ProductVariationStockController;
+use App\Http\Controllers\Erp\BarcodeController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -184,6 +185,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Products
     Route::get('/products/search', [\App\Http\Controllers\Erp\ProductController::class, 'productSearch'])->name('products.search');
     Route::get('/products/search-with-filters/{branchId}', [\App\Http\Controllers\Erp\ProductController::class, 'searchProductWithFilters'])->name('product.searchWithFilters');
+    Route::post('/products/find-by-barcode/{branchId}', [\App\Http\Controllers\Erp\ProductController::class, 'findProductByBarcode'])->name('products.find.by.barcode');
     Route::delete('/products/gallery/{id}', [\App\Http\Controllers\Erp\ProductController::class, 'deleteGalleryImage'])->name('product.gallery.delete');
     Route::post('/products/gallery', [\App\Http\Controllers\Erp\ProductController::class, 'addGalleryImage'])->name('product.gallery.add');
     Route::get('/products', [\App\Http\Controllers\Erp\ProductController::class, 'index'])->name('product.list');
@@ -194,7 +196,15 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::patch('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'update'])->name('product.update');
     Route::delete('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'destroy'])->name('product.delete');
     Route::get('/products/{id}/price', [\App\Http\Controllers\Erp\ProductController::class, 'getPrice']);
+    Route::get('/products/{id}/sale-price', [\App\Http\Controllers\Erp\ProductController::class, 'getSalePrice']);
     Route::get('/products/{productId}/variations-list', [\App\Http\Controllers\Erp\ProductController::class, 'getProductVariations'])->name('products.variations.list');
+
+    // Barcode Generation Routes
+    Route::get('/barcodes/product/{productId}', [BarcodeController::class, 'generateProductBarcode'])->name('barcodes.product');
+    Route::get('/barcodes/variation/{productId}/{variationId}', [BarcodeController::class, 'generateVariationBarcode'])->name('barcodes.variation');
+    Route::post('/barcodes/bulk', [BarcodeController::class, 'generateBulkBarcodes'])->name('barcodes.bulk');
+    Route::get('/barcodes/print/{productId}/{variationId?}', [BarcodeController::class, 'printBarcodeLabel'])->name('barcodes.print');
+    Route::get('/barcodes/download/{productId}/{variationId?}', [BarcodeController::class, 'downloadBarcodePDF'])->name('barcodes.download');
 
     // Product Variations
     Route::prefix('products/{productId}/variations')->group(function () {
@@ -240,6 +250,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'show'])->name('stocktransfer.show');
     Route::post('/stock-transfer', [\App\Http\Controllers\Erp\StockTransferController::class, 'store'])->name('stocktransfer.store');
     Route::patch('/stock-transfer/{id}/status', [\App\Http\Controllers\Erp\StockTransferController::class, 'updateStatus'])->name('stocktransfer.status');
+    Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.delete');
 
 
 
@@ -254,6 +265,28 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::put('/sale-return/{id}', [\App\Http\Controllers\Erp\SaleReturnController::class, 'update'])->name('saleReturn.update');
     Route::delete('/sale-return/{id}', [\App\Http\Controllers\Erp\SaleReturnController::class, 'destroy'])->name('saleReturn.delete');
     Route::post('/sale-return/{id}/update-status', [\App\Http\Controllers\Erp\SaleReturnController::class, 'updateReturnStatus'])->name('saleReturn.updateStatus');
+
+    // Purchase
+    Route::get('/purchases', [\App\Http\Controllers\Erp\PurchaseController::class, 'index'])->name('purchase.list');
+    Route::get('/purchases/create', [\App\Http\Controllers\Erp\PurchaseController::class, 'create'])->name('purchase.create');
+    Route::post('/purchases', [\App\Http\Controllers\Erp\PurchaseController::class, 'store'])->name('purchase.store');
+    Route::get('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'show'])->name('purchase.show');
+    Route::get('/purchases/{id}/edit', [\App\Http\Controllers\Erp\PurchaseController::class, 'edit'])->name('purchase.edit');
+    Route::put('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'update'])->name('purchase.update');
+    Route::delete('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'delete'])->name('purchase.delete');
+    Route::post('/purchases/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseController::class, 'updateStatus'])->name('purchase.updateStatus');
+    Route::get('/purchases/search', [\App\Http\Controllers\Erp\PurchaseController::class, 'searchPurchase'])->name('purchase.search');
+    Route::get('/purchases/{id}/items', [\App\Http\Controllers\Erp\PurchaseController::class, 'getItemByPurchase'])->name('purchase.items');
+
+    // Purchase Return - Commented out
+    // Route::get('/purchase-return', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'index'])->name('purchaseReturn.list');
+    // Route::get('/purchase-return/create', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'create'])->name('purchaseReturn.create');
+    // Route::post('/purchase-return/store', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'store'])->name('purchaseReturn.store');
+    // Route::get('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'show'])->name('purchaseReturn.show');
+    // Route::get('/purchase-return/{id}/edit', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'edit'])->name('purchaseReturn.edit');
+    // Route::put('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'update'])->name('purchaseReturn.update');
+    // Route::post('/purchase-return/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'updateReturnStatus'])->name('purchaseReturn.updateStatus');
+    // Route::get('/purchase-return/stock/{productId}/{fromId}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getStockByType'])->name('purchaseReturn.stock');
 
     // Customer
     Route::get('/customers', [\App\Http\Controllers\Erp\CustomerController::class, 'index'])->name('customers.list');
@@ -279,7 +312,14 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/pos/export-pdf', [\App\Http\Controllers\Erp\PosController::class, 'exportPdf'])->name('pos.export.pdf');
 
     Route::get('/pos/{id}', [\App\Http\Controllers\Erp\PosController::class, 'show'])->name('pos.show');
-    Route::post('/pos/assign-tech/{saleId}/{techId}', [\App\Http\Controllers\Erp\PosController::class, 'assignTechnician'])->name('pos.assign.tech');
+    Route::get('/pos/{id}/details', [\App\Http\Controllers\Erp\PosController::class, 'getDetails'])->name('pos.details');
+    Route::get('/pos/{id}/edit', [\App\Http\Controllers\Erp\PosController::class, 'edit'])->name('pos.edit');
+    Route::post('/pos/{id}/update', [\App\Http\Controllers\Erp\PosController::class, 'update'])->name('pos.update');
+    Route::get('/pos/{id}/print', [\App\Http\Controllers\Erp\PosController::class, 'print'])->name('pos.print');
+    Route::get('/pos/product/{productId}/stock', [\App\Http\Controllers\Erp\PosController::class, 'getMultiBranchStock'])->name('pos.product.stock');
+    Route::get('/pos/product/{productId}/variation/{variationId}/stock', [\App\Http\Controllers\Erp\PosController::class, 'getMultiBranchStock'])->name('pos.variation.stock');
+    // Technician assignment route removed - not needed for ecommerce-only business
+    // Route::post('/pos/assign-tech/{saleId}/{techId}', [\App\Http\Controllers\Erp\PosController::class, 'assignTechnician'])->name('pos.assign.tech');
     Route::post('/pos/update-note/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateNote'])->name('pos.update.note');
     Route::post('/pos/add-payment/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'addPayment'])->name('pos.add.payment');
     Route::post('/erp/pos/update-status/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateStatus'])->name('pos.update.status');

@@ -49,6 +49,9 @@
                                     <a href="{{ route('product.show', $product->id) }}" class="btn btn-sm btn-outline-success" title="View"><i class="fas fa-eye"></i></a>
                                     <a href="{{ route('product.edit', $product->id) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
                                     <a href="{{ route('erp.products.variations.index', $product->id) }}" class="btn btn-sm btn-outline-info" title="Manage Variations"><i class="fas fa-layer-group"></i></a>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Generate Barcode" onclick="openBarcodeModal({{ $product->id }})">
+                                        <i class="fas fa-barcode"></i>
+                                    </button>
                                     <form action="{{ route('product.delete', $product->id) }}" method="POST">
                                         @csrf
                                         @method('DELETE')
@@ -69,6 +72,8 @@
             </nav>
         </div>
     </div>
+
+    @include('erp.pos.components.barcode-modal')
 
     <style>
         .select2-selection{
@@ -130,5 +135,23 @@ $(document).ready(function() {
         });
     }
 });
+
+// Initialize products array for barcode modal
+const products = @json($products->items());
+
+// Helper function to show toast (since it might be missing from this page)
+function showToast(message, type = 'info') {
+    const icon = type === 'success' ? 'check-circle' : (type === 'warning' ? 'exclamation-triangle' : (type === 'danger' ? 'times-circle' : 'info-circle'));
+    const $toast = $(`
+        <div class="alert alert-${type} position-fixed" style="top: 20px; right: 20px; z-index: 10000; min-width: 250px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${icon} me-2"></i>
+                ${message}
+            </div>
+        </div>
+    `);
+    $('body').append($toast);
+    setTimeout(() => { $toast.fadeOut(300, function() { $(this).remove(); }); }, 3000);
+}
 </script>
 @endpush

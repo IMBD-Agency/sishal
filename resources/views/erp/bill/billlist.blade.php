@@ -56,7 +56,7 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label fw-medium">Supplier</label>
-                                <select name="supplier_id" id="supplier_id" class="form-select"></select>
+                                <input type="hidden" name="supplier_id" id="supplier_id" value="">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label fw-medium">Status</label>
@@ -95,7 +95,7 @@
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th class="border-0">Bill No</th>
-                                    <th class="border-0">Vendor</th>
+                                    <th class="border-0">Bill ID</th>
                                     <th class="border-0">Bill Date</th>
                                     <th class="border-0">Due Date</th>
                                     <th class="border-0 text-center">Status</th>
@@ -106,7 +106,7 @@
                                 @forelse ($bills as $bill)
                                     <tr>
                                         <td>{{ $bill->bill_number ?? '-' }}</td>
-                                        <td>{{ $bill->vendor->name }}</td>
+                                        <td>{{ $bill->id }}</td>
                                         <td>
                                             {{ $bill->bill_date ?? '-' }}
                                         </td>
@@ -197,27 +197,7 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
-            $('#supplier_id').select2({
-                placeholder: 'Select Supplier',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: '{{ route('supplier.search') }}',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.results
-                        };
-                    },
-                    cache: true
-                }
-            });
+            // Supplier filter removed - not needed
         });
     </script>
 @endpush

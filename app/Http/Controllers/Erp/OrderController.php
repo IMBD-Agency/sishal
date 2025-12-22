@@ -19,7 +19,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view order list')) {
+        if (!auth()->user()->can('view order list')) {
             abort(403, 'Unauthorized action.');
         }
         $query = Order::query();
@@ -248,7 +248,7 @@ class OrderController extends Controller
                     $item->save();
                 }
             } else {
-                // E-commerce order: stock deduction from warehouses ONLY (not branches)
+                // E-commerce order: stock deduction from warehouses ONLY (no branch stock)
                 foreach ($order->items as $item) {
                     $productId = $item->product_id;
                     $qty = $item->quantity;
@@ -265,16 +265,16 @@ class OrderController extends Controller
 
                     // Check if item has stock source defined
                     if ($item->current_position_type && $item->current_position_id) {
-                        // Use defined stock source (warehouse only for ecommerce orders)
+                        // Use defined stock source (warehouse ONLY for ecommerce orders)
                         $fromType = $item->current_position_type;
                         $fromId = $item->current_position_id;
                         $product = $item->product;
 
-                        // For ecommerce orders, only allow warehouse as stock source
+                        // Ecommerce orders can ONLY use warehouse stock
                         if ($fromType !== 'warehouse') {
                             return response()->json([
                                 'success' => false,
-                                'message' => "Ecommerce orders can only deduct stock from warehouses. Please select a warehouse as the stock source for item ID {$item->id}."
+                                'message' => "Ecommerce orders can only deduct stock from warehouses. Invalid stock source type '{$fromType}' for item ID {$item->id}."
                             ], 400);
                         }
 
@@ -921,7 +921,7 @@ class OrderController extends Controller
     public function destroy($id)
     {
         // Check if user has permission to delete orders
-        if (!auth()->user()->hasPermissionTo('delete orders')) {
+        if (!auth()->user()->can('delete orders')) {
             return response()->json([
                 'success' => false, 
                 'message' => 'You do not have permission to delete orders.'
@@ -968,9 +968,11 @@ class OrderController extends Controller
                 'customer_phone' => $order->phone
             ]);
 
-            // Restore stock for each order item
-            foreach ($order->items as $item) {
-                $this->restoreStockForOrderItem($item);
+            // Restore stock for each order item (only if not already cancelled)
+            if ($order->status !== 'cancelled') {
+                foreach ($order->items as $item) {
+                    $this->restoreStockForOrderItem($item);
+                }
             }
 
             // Delete related records
@@ -979,7 +981,9 @@ class OrderController extends Controller
             // Delete invoice if exists and not paid
             if ($order->invoice && $order->invoice->status !== 'paid') {
                 $order->invoice->items()->delete();
-                $order->invoice->addresses()->delete();
+                if ($order->invoice->invoiceAddress) {
+                    $order->invoice->invoiceAddress()->delete();
+                }
                 $order->invoice->delete();
             }
 

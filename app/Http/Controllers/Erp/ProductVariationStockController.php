@@ -211,23 +211,25 @@ class ProductVariationStockController extends Controller
             'branch_stocks' => $variation->stocks->where('branch_id', '!=', null)->map(function($stock) {
                 return [
                     'id' => $stock->id,
+                    'branch_id' => $stock->branch_id,
                     'branch_name' => $stock->branch->name ?? 'Unknown Branch',
                     'quantity' => $stock->quantity,
                     'reserved_quantity' => $stock->reserved_quantity,
                     'available_quantity' => $stock->available_quantity,
                     'last_updated_at' => $stock->last_updated_at,
                 ];
-            }),
+            })->values()->toArray(), // Ensure it's a proper array
             'warehouse_stocks' => $variation->stocks->where('warehouse_id', '!=', null)->map(function($stock) {
                 return [
                     'id' => $stock->id,
+                    'warehouse_id' => $stock->warehouse_id,
                     'warehouse_name' => $stock->warehouse->name ?? 'Unknown Warehouse',
                     'quantity' => $stock->quantity,
                     'reserved_quantity' => $stock->reserved_quantity,
                     'available_quantity' => $stock->available_quantity,
                     'last_updated_at' => $stock->last_updated_at,
                 ];
-            }),
+            })->values()->toArray(), // Ensure it's a proper array
         ];
         
         return response()->json($stockData);

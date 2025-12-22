@@ -19,8 +19,25 @@
                                     <i class="fas fa-file-invoice text-white"></i>
                                 </div>
                                 <div>
-                                    <h2 class="mb-0 fw-bold text-dark">Invoice #{{ $invoice->invoice_number }}</h2>
-                                    <small class="text-muted">Generated invoice document</small>
+                                    <h2 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        Invoice #{{ $invoice->invoice_number }}
+                                        @if($invoice->order)
+                                            <span class="badge bg-info text-white ms-2" style="font-size: 0.45em;">Ecommerce</span>
+                                        @elseif($invoice->pos)
+                                            <span class="badge bg-success text-white ms-2" style="font-size: 0.45em;">POS</span>
+                                        @else
+                                            <span class="badge bg-secondary text-white ms-2" style="font-size: 0.45em;">Manual</span>
+                                        @endif
+                                    </h2>
+                                    <small class="text-muted">
+                                        @if($invoice->order)
+                                            Order Reference: <strong>#{{ $invoice->order->order_number }}</strong>
+                                        @elseif($invoice->pos)
+                                            POS Reference: <strong>#POS-{{ $invoice->pos->id }}</strong>
+                                        @else
+                                            Manual Invoice Document
+                                        @endif
+                                    </small>
                                 </div>
                             </div>
 
@@ -76,12 +93,12 @@
                                         <i class="fas fa-user text-primary me-2"></i>
                                         <h6 class="mb-0 fw-semibold">Customer Details</h6>
                                     </div>
-                                    <h5 class="mb-1 fw-bold">{{ $invoice->order->name ?? $invoice->customer->name ?? '-' }}
+                                    <h5 class="mb-1 fw-bold">{{ $invoice->order?->name ?? $invoice->customer?->name ?? '-' }}
                                     </h5>
-                                    @if($invoice->order->email ?? $invoice->customer->email)
+                                    @if($invoice->order?->email ?? $invoice->customer?->email)
                                         <p class="mb-1 text-muted small">
                                             <i class="fas fa-envelope me-1"></i>
-                                            {{ $invoice->order->email ?? $invoice->customer->email }}
+                                            {{ $invoice->order?->email ?? $invoice->customer?->email }}
                                         </p>
                                     @elseif(@$billing->billing_address_1)
                                         <p class="mb-1 text-muted small">
@@ -89,10 +106,10 @@
                                             {{ @$invoice->email ?? '-' }}
                                         </p>
                                     @endif
-                                    @if($invoice->order->phone ?? $invoice->customer->phone)
+                                    @if($invoice->order?->phone ?? $invoice->customer?->phone)
                                         <p class="mb-0 text-muted small">
                                             <i class="fas fa-phone me-1"></i>
-                                            {{ $invoice->order->phone ?? $invoice->customer->phone }}
+                                            {{ $invoice->order?->phone ?? $invoice->customer?->phone }}
                                         </p>
                                     @elseif(@$billing->billing_address_1)
                                         <p class="mb-0 text-muted small">

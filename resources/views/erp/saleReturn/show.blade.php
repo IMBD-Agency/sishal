@@ -97,7 +97,19 @@
                                             <i class="fas fa-cash-register"></i>
                                         </div>
                                         <label class="form-label fw-semibold text-muted text-uppercase small">POS Sale</label>
-                                        <p class="mb-0 fw-bold fs-5 text-dark">{{ $saleReturn->posSale ? 'POS #' . $saleReturn->posSale->sale_number : 'N/A' }}</p>
+                                        <p class="mb-0 fw-bold fs-5 text-dark">
+                                            @if($saleReturn->posSale)
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    #POS-{{ $saleReturn->posSale->id }}
+                                                </span>
+                                            @elseif($saleReturn->invoice && $saleReturn->invoice->order)
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                    #SFO{{ $saleReturn->invoice->order->id }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </p>
                                     </div>
                                     
                                     <div class="info-item mb-4">
@@ -206,6 +218,11 @@
                                                         <small class="text-muted">
                                                             <i class="fas fa-barcode me-1"></i>
                                                             SKU: {{ $item->product->sku ?? 'N/A' }}
+                                                            @if($item->variation)
+                                                                <br>
+                                                                <i class="fas fa-tags me-1"></i>
+                                                                Variation: {{ $item->variation->name ?? 'N/A' }}
+                                                            @endif
                                                         </small>
                                                     </div>
                                                 </div>

@@ -15,16 +15,14 @@ class PurchaseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Purchase::with(['vendor', 'bill']);
+        $query = Purchase::with(['bill']);
 
-        // Search by purchase id or vendor name
+        // Search by purchase id (supports partial match)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('id', $search)
-                  ->orWhereHas('vendor', function($q2) use ($search) {
-                      $q2->where('name', 'like', "%$search%");
-                  });
+                  ->orWhere('id', 'like', "%$search%");
             });
         }
         // Filter by purchase date
@@ -35,32 +33,25 @@ class PurchaseController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        // Filter by bill status
-        if ($request->filled('bill_status')) {
-            $query->whereHas('bill', function($q) use ($request) {
-                $q->where('status', $request->bill_status);
-            });
-        }
-        $purchases = $query->paginate(10)->appends($request->all());
+        $purchases = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->all());
         return view('erp.purchases.purchaseList', [
             'purchases' => $purchases,
-            'filters' => $request->only(['search', 'purchase_date', 'status', 'bill_status'])
+            'filters' => $request->only(['search', 'purchase_date', 'status'])
         ]);
     }
 
     public function create()
     {
-        $suppliers = \App\Models\Supplier::all();
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
         $products = \App\Models\Product::all();
-        return view('erp.purchases.create', compact('suppliers', 'branches', 'warehouses', 'products'));
+        return view('erp.purchases.create', compact('branches', 'warehouses', 'products'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => 'nullable|integer',
             'ship_location_type' => 'required|in:branch,warehouse',
             'location_id' => 'required|integer',
             'purchase_date' => 'required|date',
@@ -81,9 +72,9 @@ class PurchaseController extends Controller
                 $totalAmount += $item['quantity'] * $item['unit_price'];
             }
     
-            // Create Purchase
+            // Create Purchase (supplier is optional)
             $purchase = Purchase::create([
-                'supplier_id'         => $request->supplier_id,
+                'supplier_id'         => $request->supplier_id ?? null,
                 'ship_location_type'  => $request->ship_location_type,
                 'location_id'         => $request->location_id,
                 'purchase_date'       => $request->purchase_date,
@@ -105,18 +96,20 @@ class PurchaseController extends Controller
                 ]);
             }
     
-            // Create Bill
-            $bill = PurchaseBill::create([
-                'supplier_id'   => $request->supplier_id,
-                'purchase_id'   => $purchase->id,
-                'bill_date'     => now()->toDateString(),
-                'total_amount'  => $totalAmount,
-                'paid_amount'   => 0,
-                'due_amount'    => $totalAmount,
-                'status'        => 'unpaid',
-                'created_by'    => auth()->id(),
-                'description'   => 'Auto-generated bill from purchase ID: ' . $purchase->id,
-            ]);
+            // Create Bill (only if supplier is provided)
+            if ($request->supplier_id) {
+                PurchaseBill::create([
+                    'supplier_id'   => $request->supplier_id,
+                    'purchase_id'   => $purchase->id,
+                    'bill_date'     => now()->toDateString(),
+                    'total_amount'  => $totalAmount,
+                    'paid_amount'   => 0,
+                    'due_amount'    => $totalAmount,
+                    'status'        => 'unpaid',
+                    'created_by'    => auth()->id(),
+                    'description'   => 'Auto-generated bill from purchase ID: ' . $purchase->id,
+                ]);
+            }
     
             DB::commit();
     
@@ -133,32 +126,34 @@ class PurchaseController extends Controller
 
     public function show($id)
     {
-        $purchase = Purchase::where('id',$id)->with('bill','items.product','vendor')->first();
+        $purchase = Purchase::with(['bill', 'supplier', 'items.product', 'items.variation'])->findOrFail($id);
 
-        if($purchase->ship_location_type == 'branch')
-        {
-            $purchase->location_name = Branch::find($purchase->location_id)->first()->name;
-        }else{
-            $purchase->location_name = Warehouse::find($purchase->location_id)->first()->name;
+        // Safely resolve location name; the related branch/warehouse might not exist anymore
+        if ($purchase->ship_location_type === 'branch') {
+            $branch = Branch::find($purchase->location_id);
+            $purchase->location_name = $branch?->name ?? 'Unknown Branch';
+        } elseif ($purchase->ship_location_type === 'warehouse') {
+            $warehouse = Warehouse::find($purchase->location_id);
+            $purchase->location_name = $warehouse?->name ?? 'Unknown Warehouse';
+        } else {
+            $purchase->location_name = 'Unknown Location';
         }
 
-        return view('erp.purchases.show',compact('purchase'));
+        return view('erp.purchases.show', compact('purchase'));
     }
 
     public function edit($id)
     {
         $purchase = Purchase::with('items')->findOrFail($id);
-        $suppliers = \App\Models\Supplier::all();
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
-        $products = \App\Models\Product::all();
-        return view('erp.purchases.edit', compact('purchase', 'suppliers', 'branches', 'warehouses', 'products'));
+        return view('erp.purchases.edit', compact('purchase', 'branches', 'warehouses'));
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => 'nullable|integer',
             'ship_location_type' => 'required|in:branch,warehouse',
             'location_id' => 'required|integer',
             'purchase_date' => 'required|date',
@@ -172,8 +167,10 @@ class PurchaseController extends Controller
         DB::beginTransaction();
         try {
             $purchase = Purchase::findOrFail($id);
+            $previousStatus = $purchase->status;
+
             $purchase->update([
-                'supplier_id'         => $request->supplier_id,
+                'supplier_id'         => $request->supplier_id ?? null,
                 'ship_location_type'  => $request->ship_location_type,
                 'location_id'         => $request->location_id,
                 'purchase_date'       => $request->purchase_date,
@@ -181,31 +178,60 @@ class PurchaseController extends Controller
                 'notes'               => $request->notes,
             ]);
 
-            if ($request->status === 'received') {
+            // Only add stock the first time we move into "received" status
+            if ($request->status === 'received' && $previousStatus !== 'received') {
                 foreach ($purchase->items as $item) {
                     if ($item->variation_id) {
+                        // Update detailed variation stock
                         if ($purchase->ship_location_type === 'branch') {
                             $stock = \App\Models\ProductVariationStock::firstOrNew([
                                 'variation_id' => $item->variation_id,
                                 'branch_id' => $purchase->location_id,
                             ]);
                             $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->updated_by = auth()->id() ?? 1;
+                            $stock->last_updated_at = now();
                             $stock->save();
+
+                            // Also mirror into branch product stock so POS can see this product
+                            $branchStock = \App\Models\BranchProductStock::firstOrNew([
+                                'branch_id'  => $purchase->location_id,
+                                'product_id' => $item->product_id,
+                            ]);
+                            $branchStock->quantity = ($branchStock->quantity ?? 0) + $item->quantity;
+                            $branchStock->updated_by = auth()->id() ?? 1;
+                            $branchStock->last_updated_at = now();
+                            $branchStock->save();
                         } elseif ($purchase->ship_location_type === 'warehouse') {
                             $stock = \App\Models\ProductVariationStock::firstOrNew([
                                 'variation_id' => $item->variation_id,
                                 'warehouse_id' => $purchase->location_id,
                             ]);
                             $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->updated_by = auth()->id() ?? 1;
+                            $stock->last_updated_at = now();
                             $stock->save();
+
+                            // Mirror into warehouse product stock so non-variation flows can see it
+                            $warehouseStock = \App\Models\WarehouseProductStock::firstOrNew([
+                                'warehouse_id' => $purchase->location_id,
+                                'product_id'   => $item->product_id,
+                            ]);
+                            $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $item->quantity;
+                            $warehouseStock->updated_by = auth()->id() ?? 1;
+                            $warehouseStock->last_updated_at = now();
+                            $warehouseStock->save();
                         }
                     } else {
+                        // Simple (non-variation) products: existing behavior
                         if ($purchase->ship_location_type === 'branch') {
                             $stock = \App\Models\BranchProductStock::firstOrNew([
                                 'branch_id' => $purchase->location_id,
                                 'product_id' => $item->product_id,
                             ]);
                             $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->updated_by = auth()->id() ?? 1;
+                            $stock->last_updated_at = now();
                             $stock->save();
                         } elseif ($purchase->ship_location_type === 'warehouse') {
                             $stock = \App\Models\WarehouseProductStock::firstOrNew([
@@ -213,6 +239,8 @@ class PurchaseController extends Controller
                                 'product_id' => $item->product_id,
                             ]);
                             $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                            $stock->updated_by = auth()->id() ?? 1;
+                            $stock->last_updated_at = now();
                             $stock->save();
                         }
                     }
@@ -247,10 +275,12 @@ class PurchaseController extends Controller
             'status' => 'required|string',
         ]);
         $purchase = Purchase::with('items')->findOrFail($id);
+        $previousStatus = $purchase->status;
         $purchase->status = $request->status;
         $purchase->save();
 
-        if ($request->status === 'received') {
+        // Only add stock the first time we move into "received" status
+        if ($request->status === 'received' && $previousStatus !== 'received') {
             foreach ($purchase->items as $item) {
                 if ($item->variation_id) {
                     if ($purchase->ship_location_type === 'branch') {
@@ -259,14 +289,38 @@ class PurchaseController extends Controller
                             'branch_id' => $purchase->location_id,
                         ]);
                         $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
                         $stock->save();
+
+                        // Mirror into branch product stock so POS can see this product
+                        $branchStock = \App\Models\BranchProductStock::firstOrNew([
+                            'branch_id'  => $purchase->location_id,
+                            'product_id' => $item->product_id,
+                        ]);
+                        $branchStock->quantity = ($branchStock->quantity ?? 0) + $item->quantity;
+                        $branchStock->updated_by = auth()->id() ?? 1;
+                        $branchStock->last_updated_at = now();
+                        $branchStock->save();
                     } elseif ($purchase->ship_location_type === 'warehouse') {
                         $stock = \App\Models\ProductVariationStock::firstOrNew([
                             'variation_id' => $item->variation_id,
                             'warehouse_id' => $purchase->location_id,
                         ]);
                         $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
                         $stock->save();
+
+                        // Mirror into warehouse product stock so other flows can see it
+                        $warehouseStock = \App\Models\WarehouseProductStock::firstOrNew([
+                            'warehouse_id' => $purchase->location_id,
+                            'product_id'   => $item->product_id,
+                        ]);
+                        $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $item->quantity;
+                        $warehouseStock->updated_by = auth()->id() ?? 1;
+                        $warehouseStock->last_updated_at = now();
+                        $warehouseStock->save();
                     }
                 } else {
                     if ($purchase->ship_location_type === 'branch') {
@@ -275,6 +329,8 @@ class PurchaseController extends Controller
                             'product_id' => $item->product_id,
                         ]);
                         $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
                         $stock->save();
                     } elseif ($purchase->ship_location_type === 'warehouse') {
                         $stock = \App\Models\WarehouseProductStock::firstOrNew([
@@ -282,6 +338,8 @@ class PurchaseController extends Controller
                             'product_id' => $item->product_id,
                         ]);
                         $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
                         $stock->save();
                     }
                 }
@@ -314,27 +372,18 @@ class PurchaseController extends Controller
     public function searchPurchase(Request $request)
     {
         $search = $request->q;
-        $supplier_q = $request->supplier;
-        $query = Purchase::with('vendor');
+        $query = Purchase::query();
         if ($search) {
-            $query->where(function($q) use ($search, $supplier_q) {
+            $query->where(function($q) use ($search) {
                 $q->where('id', $search)
-                  ->orWhereHas('vendor', function($q2) use ($search) {
-                      $q2->where('name', 'like', "%$search%");
-                  });
-                if ($supplier_q) {
-                    $q->orWhere('supplier_id', $supplier_q);
-                }
+                  ->orWhere('id', 'like', "%$search%");
             });
-        } elseif ($supplier_q) {
-            $query->where('supplier_id', $supplier_q);
         }
         $purchases = $query->limit(20)->get()->filter();
         $results = $purchases->filter(function($purchase) {
             return $purchase !== null;
         })->map(function($purchase) {
-            $supplier = $purchase->vendor ? $purchase->vendor->name : 'Unknown';
-            $text = "#{$purchase->id} - {$supplier} ({$purchase->purchase_date})";
+            $text = "#{$purchase->id} - Purchase ({$purchase->purchase_date})";
             return [
                 'id' => $purchase->id,
                 'text' => $text

@@ -26,8 +26,7 @@
                 @csrf
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="supplier_id" class="form-label">Supplier</label>
-                        <select name="supplier_id" id="supplier_id" class="form-select" required data-selected-id="{{ $bill->supplier_id }}" data-selected-text="{{ $bill->vendor->name ?? '' }}"></select>
+                        <input type="hidden" name="supplier_id" id="supplier_id" value="{{ $bill->supplier_id ?? '' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="bill_date" class="form-label">Bill Date</label>
@@ -141,26 +140,7 @@
         }
         $(document).ready(function () {
             // Supplier select2
-            let supplierId = $('#supplier_id').data('selected-id');
-            let supplierText = $('#supplier_id').data('selected-text');
-            $('#supplier_id').select2({
-                placeholder: 'Select Supplier',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: '{{ route('supplier.search') }}',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return { q: params.term };
-                    },
-                    processResults: function (data) {
-                        return { results: data.results };
-                    },
-                    cache: true
-                }
-            });
-            setSelect2Value($('#supplier_id'), supplierId, supplierText);
+            // Supplier field removed - using hidden input
             // Product select2 for each item row
             $('#itemsTable tbody tr').each(function () {
                 let $select = $(this).find('.product-select');

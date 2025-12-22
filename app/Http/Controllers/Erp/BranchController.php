@@ -81,7 +81,11 @@ class BranchController extends Controller
             // Dynamic counts
             $employees_count = $branch->employees->count();
             $warehouses_count = $branch->warehouses->count();
-            $products_count = $branch->branchProductStocks->count();
+            // Count unique products (not stock records)
+            $products_count = $branch->branchProductStocks()
+                ->select('product_id')
+                ->distinct()
+                ->count('product_id');
             
             
             // Get recent sales (last 10)
@@ -91,10 +95,10 @@ class BranchController extends Controller
                 ->limit(5)
                 ->get();
             
-            // Get branch products with stock info
+            // Get branch products with stock info (all products, not limited)
             $branch_products = $branch->branchProductStocks()
-                ->with(['product.category'])->orderBy('created_at', 'desc')
-                ->limit(5)
+                ->with(['product.category'])
+                ->orderBy('created_at', 'desc')
                 ->get();
             
             // Get employees with their roles

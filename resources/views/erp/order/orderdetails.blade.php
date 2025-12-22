@@ -39,7 +39,31 @@
                                 class="fas fa-{{ $order->status == 'pending' ? 'clock' : ($order->status == 'approved' ? 'check-circle' : 'info-circle') }} me-2"></i>
                             <strong>Status: {{ ucfirst($order->status) }}</strong>
                         </div>
-                        <button id="changeStatusBtn" class="btn btn-sm btn-outline-primary">Change Status</button>
+                        <div class="d-flex align-items-center gap-2">
+                            @php
+                                $canCancel = !in_array($order->status, ['cancelled', 'delivered', 'received']);
+                                $canDelete = auth()->user()->can('delete orders') && 
+                                           (in_array($order->status, ['pending', 'cancelled']) && 
+                                            !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
+                                            (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled'));
+                            @endphp
+
+                            @if($canCancel)
+                            <button id="directCancelBtn" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-ban me-1"></i>Cancel Order
+                            </button>
+                            @endif
+
+                            @can('delete orders')
+                                @if($canDelete)
+                                <button id="directDeleteBtn" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash me-1"></i>Delete Order
+                                </button>
+                                @endif
+                            @endcan
+
+                            <button id="changeStatusBtn" class="btn btn-sm btn-outline-primary">Change Status</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -97,6 +121,47 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Delete Order Confirmation Modal -->
+            
+            <div class="modal fade" id="deleteOrderModal" tabindex="-1" aria-labelledby="deleteOrderModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white border-0">
+                            <h5 class="modal-title" id="deleteOrderModalLabel">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Delete Order
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning border-0 shadow-sm">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Warning:</strong> This action cannot be undone!
+                            </div>
+                            <p>Are you sure you want to delete order <strong>#{{ $order->order_number }}</strong>?</p>
+                            <div class="alert alert-info border-0 shadow-sm">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> This will:
+                                <ul class="mb-0 mt-2">
+                                    <li>Restore product stock to inventory</li>
+                                    <li>Delete all order items and related data</li>
+                                    <li>Remove associated invoices (if not paid)</li>
+                                    <li>Delete payment records</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </button>
+                            <button type="button" class="btn btn-danger px-4 rounded-pill" id="confirmDeleteOrderBtn">
+                                <i class="fas fa-trash me-1"></i>Yes, Delete Order
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
 
             <div class="row g-4">
                 <!-- Left Column -->
@@ -682,10 +747,72 @@
 @endsection
 
 @push('scripts')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(function () {
+            // Direct Cancel Button
+            $('#directCancelBtn').on('click', function() {
+                if (confirm('Are you sure you want to cancel this order? This will restore all stock.')) {
+                    const $btn = $(this);
+                    const originalHtml = $btn.html();
+                    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Cancelling...');
+                    
+                    $.ajax({
+                        url: '{{ route("order.updateStatus", $order->id) }}',
+                        type: 'POST',
+                        data: {
+                            status: 'cancelled',
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                showCustomAlert(response.message, 'success');
+                                setTimeout(() => location.reload(), 1500);
+                            } else {
+                                showCustomAlert(response.message, 'error');
+                                $btn.prop('disabled', false).html(originalHtml);
+                            }
+                        },
+                        error: function(xhr) {
+                            showCustomAlert('An error occurred while cancelling the order', 'error');
+                            $btn.prop('disabled', false).html(originalHtml);
+                        }
+                    });
+                }
+            });
+
+            // Direct Delete Button
+            $('#directDeleteBtn').on('click', function() {
+                $('#deleteOrderModal').modal('show');
+            });
+
+            $('#confirmDeleteOrderBtn').on('click', function() {
+                const $btn = $(this);
+                const originalHtml = $btn.html();
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Deleting...');
+                
+                $.ajax({
+                    url: '{{ route("erp.order.delete", $order->id) }}',
+                    type: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(response) {
+                        if (response.success) {
+                            showCustomAlert(response.message, 'success');
+                            setTimeout(() => window.location.href = '{{ route("order.list") }}', 1500);
+                        } else {
+                            showCustomAlert(response.message, 'error');
+                            $btn.prop('disabled', false).html(originalHtml);
+                        }
+                    },
+                    error: function(xhr) {
+                        let msg = 'Failed to delete order.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                        showCustomAlert(msg, 'error');
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                });
+            });
+
             var currentOrderItemId = null;
             var currentPositionType = null;
             var currentPositionId = null;

@@ -99,7 +99,15 @@
                                     <tr>
                                         <td>{{ $return->id }}</td>
                                         <td>{{ optional($return->customer)->name }}</td>
-                                        <td>#{{ optional($return->order)->order_number }}</td>
+                                        <td>
+                                            @if($return->order)
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                    #SFO{{ $return->order->id }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $return->return_date }}</td>
                                         <td>
                                             @php

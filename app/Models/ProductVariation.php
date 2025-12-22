@@ -115,12 +115,14 @@ class ProductVariation extends Model
 
     /**
      * Get the available stock (total - reserved).
+     * For ecommerce: Only shows warehouse stock, not branch stock.
      */
     public function getAvailableStockAttribute(): int
     {
         // Use query builder to ensure we get fresh data
-        $totalStock = $this->stocks()->sum('quantity') ?? 0;
-        $reservedStock = $this->stocks()->sum('reserved_quantity') ?? 0;
+        // Only count warehouse stock for ecommerce display (exclude branch stock)
+        $totalStock = $this->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+        $reservedStock = $this->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('reserved_quantity') ?? 0;
         return $totalStock - $reservedStock;
     }
 

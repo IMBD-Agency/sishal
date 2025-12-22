@@ -16,10 +16,21 @@
                         <div class="card-body">
                             <dl class="row mb-0">
                                 <dt class="col-sm-4">Product</dt>
-                                <dd class="col-sm-8">{{ $transfer->product->name ?? '-' }}</dd>
+                                <dd class="col-sm-8">
+                                    {{ $transfer->product->name ?? '-' }}
+                                    @if($transfer->variation_id && $transfer->variation)
+                                        <br><small class="text-muted">Variation: {{ $transfer->variation->name ?? 'Variation #' . $transfer->variation_id }}</small>
+                                    @endif
+                                </dd>
 
                                 <dt class="col-sm-4">SKU</dt>
-                                <dd class="col-sm-8">{{ $transfer->product->sku ?? '-' }}</dd>
+                                <dd class="col-sm-8">
+                                    @if($transfer->variation_id && $transfer->variation && $transfer->variation->sku)
+                                        {{ $transfer->variation->sku }}
+                                    @else
+                                        {{ $transfer->product->sku ?? '-' }}
+                                    @endif
+                                </dd>
 
                                 <dt class="col-sm-4">Category</dt>
                                 <dd class="col-sm-8">{{ $transfer->product->category->name ?? '-' }}</dd>
@@ -73,6 +84,22 @@
                                 <dt class="col-sm-4">Notes</dt>
                                 <dd class="col-sm-8">{{ $transfer->notes ?? '-' }}</dd>
                             </dl>
+                        </div>
+                        <div class="card-footer bg-white border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{{ route('stocktransfer.list') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to List
+                                </a>
+                                @if(in_array($transfer->status, ['pending', 'rejected']))
+                                    <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this transfer? This action cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="fas fa-trash me-2"></i>Delete Transfer
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -82,9 +82,7 @@
                                     <th class="border-0">Subtotal</th>
                                     <th class="border-0">Discount</th>
                                     <th class="border-0">Total</th>
-                                    @can('delete orders')
                                     <th class="border-0 text-center">Actions</th>
-                                    @endcan
                                 </tr>
                             </thead>
                             <tbody>
@@ -130,29 +128,47 @@
                                         <td>
                                             {{ $order->total }}৳
                                         </td>
-                                        @can('delete orders')
                                         <td class="text-center">
-                                            @php
-                                                $canDelete = in_array($order->status, ['pending', 'cancelled']) && 
-                                                           !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
-                                                           (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled');
-                                            @endphp
-                                            @if($canDelete)
-                                                <button class="btn btn-sm btn-outline-danger delete-order-btn" 
-                                                        data-order-id="{{ $order->id }}" 
-                                                        data-order-number="{{ $order->order_number }}"
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#deleteOrderModal"
-                                                        title="Delete Order">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            @else
-                                                <span class="text-muted" title="Cannot delete this order">
-                                                    <i class="fas fa-lock"></i>
-                                                </span>
-                                            @endif
+                                            <div class="btn-group">
+                                                @php
+                                                    $canCancel = !in_array($order->status, ['cancelled', 'delivered', 'received']);
+                                                    $canDelete = auth()->user()->can('delete orders') && 
+                                                               (in_array($order->status, ['pending', 'cancelled']) && 
+                                                                !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
+                                                                (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled'));
+                                                @endphp
+
+                                                @if($canCancel)
+                                                    <button class="btn btn-sm btn-outline-warning cancel-order-direct" 
+                                                            data-id="{{ $order->id }}" 
+                                                            data-number="{{ $order->order_number }}"
+                                                            title="Cancel Order">
+                                                        <i class="fas fa-ban"></i>
+                                                    </button>
+                                                @endif
+
+                                                @can('delete orders')
+                                                    @if($canDelete)
+                                                        <button class="btn btn-sm btn-outline-danger delete-order-btn" 
+                                                                data-order-id="{{ $order->id }}" 
+                                                                data-order-number="{{ $order->order_number }}"
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#deleteOrderModal"
+                                                                title="Delete Order">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    @else
+                                                        <button class="btn btn-sm btn-light" disabled title="Cannot delete this order">
+                                                            <i class="fas fa-lock text-muted"></i>
+                                                        </button>
+                                                    @endif
+                                                @endcan
+
+                                                <a href="{{ route('order.show', $order->id) }}" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
                                         </td>
-                                        @endcan
                                     </tr>
                                 @empty   
                                 <tr>
@@ -323,6 +339,40 @@ $(document).ready(function() {
         });
     });
     
+    // Cancel Order Direct
+    $('.cancel-order-direct').on('click', function() {
+        const orderId = $(this).data('id');
+        const orderNumber = $(this).data('number');
+        
+        if (confirm(`Are you sure you want to cancel order ${orderNumber}? This will restore stock.`)) {
+            const $btn = $(this);
+            const originalHtml = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+            
+            $.ajax({
+                url: '{{ route("order.updateStatus", ":id") }}'.replace(':id', orderId),
+                type: 'POST',
+                data: {
+                    status: 'cancelled',
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message);
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showAlert('error', response.message);
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                },
+                error: function(xhr) {
+                    showAlert('error', 'An error occurred while cancelling the order');
+                    $btn.prop('disabled', false).html(originalHtml);
+                }
+            });
+        }
+    });
+
     // Reset modal when closed
     $('#updateStatusModal').on('hidden.bs.modal', function() {
         orderToUpdate = null;

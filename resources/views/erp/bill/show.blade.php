@@ -35,7 +35,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h4 class="mb-1 font-weight-bold">Bill #{{ $bill->id }}</h4>
-                                    <p class="mb-0 opacity-75">{{ $bill->vendor->name ?? 'N/A' }}</p>
+                                    <p class="mb-0 opacity-75">Bill #{{ $bill->id }}</p>
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-{{ $bill->status == 'paid' ? 'success' : ($bill->status == 'overdue' ? 'danger' : 'warning') }} px-3 py-2 rounded-pill text-uppercase fw-bold">

@@ -12,7 +12,6 @@ use App\Models\EmployeeProductStock;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Models\PurchaseItem;
-use App\Models\Supplier;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +22,7 @@ class PurchaseReturnController extends Controller
 {
     public function index(Request $request)
     {
-        $query = PurchaseReturn::with(['purchase', 'supplier', 'createdBy', 'items.product']);
+        $query = PurchaseReturn::with(['purchase', 'createdBy', 'items.product']);
 
         // Search functionality
         if ($request->filled('search')) {
@@ -32,17 +31,10 @@ class PurchaseReturnController extends Controller
                 $q->whereHas('purchase', function($purchaseQuery) use ($searchTerm) {
                     $purchaseQuery->where('id', 'LIKE', "%{$searchTerm}%");
                 })
-                ->orWhereHas('supplier', function($supplierQuery) use ($searchTerm) {
-                    $supplierQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                })
                 ->orWhere('id', 'LIKE', "%{$searchTerm}%");
             });
         }
 
-        // Filter by supplier
-        if ($request->filled('supplier_id')) {
-            $query->where('supplier_id', $request->supplier_id);
-        }
 
         // Filter by purchase
         if ($request->filled('purchase_id')) {
@@ -87,7 +79,7 @@ class PurchaseReturnController extends Controller
     {
         $request->validate([
             'purchase_id' => 'required|exists:purchases,id',
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => 'nullable|integer',
             'return_date' => 'required|date',
             'return_type' => 'required|in:refund,adjust_to_due,none',
             'reason' => 'nullable|string',
@@ -131,7 +123,7 @@ class PurchaseReturnController extends Controller
         try {
             $purchaseReturn = PurchaseReturn::create([
                 'purchase_id' => $request->purchase_id,
-                'supplier_id' => $request->supplier_id,
+                'supplier_id' => $request->supplier_id ?? null,
                 'return_date' => $request->return_date,
                 'return_type' => $request->return_type,
                 'status' => 'pending',
@@ -166,7 +158,6 @@ class PurchaseReturnController extends Controller
     {
         $purchaseReturn = PurchaseReturn::with([
             'purchase', 
-            'supplier', 
             'createdBy', 
             'approvedBy', 
             'items.product', 
@@ -215,7 +206,7 @@ class PurchaseReturnController extends Controller
 
         $request->validate([
             'purchase_id' => 'required|exists:purchases,id',
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => 'nullable|integer',
             'return_date' => 'required|date',
             'return_type' => 'required|in:refund,adjust_to_due,none',
             'reason' => 'nullable|string',
@@ -261,7 +252,7 @@ class PurchaseReturnController extends Controller
             // Update purchase return
             $purchaseReturn->update([
                 'purchase_id' => $request->purchase_id,
-                'supplier_id' => $request->supplier_id,
+                'supplier_id' => $request->supplier_id ?? null,
                 'return_date' => $request->return_date,
                 'return_type' => $request->return_type,
                 'reason' => $request->reason,

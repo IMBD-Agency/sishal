@@ -44,4 +44,14 @@ class SaleReturn extends Model
     {
         return $this->belongsTo(\App\Models\Employee::class, 'return_to_id');
     }
+
+    public function branch()
+    {
+        return $this->belongsTo(\App\Models\Branch::class, 'return_to_id');
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(\App\Models\Warehouse::class, 'return_to_id');
+    }
 }

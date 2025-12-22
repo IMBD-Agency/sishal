@@ -89,6 +89,7 @@
                             <thead>
                                 <tr>
                                     <th class="border-0">Invoice #</th>
+                                    <th class="border-0">Source</th>
                                     <th class="border-0">Order ID</th>
                                     <th class="border-0">Customer</th>
                                     <th class="border-0">Salesman</th>
@@ -105,14 +106,25 @@
                                         <td><a href="{{ route('invoice.show',$invoice->id) }}" class="btn btn-outline-primary">#{{ $invoice->invoice_number }}</a></td>
                                         <td>
                                             @if($invoice->order)
+                                                <span class="badge bg-info text-white">Ecommerce</span>
+                                            @elseif($invoice->pos)
+                                                <span class="badge bg-success text-white">POS</span>
+                                            @else
+                                                <span class="badge bg-secondary text-white">Manual</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($invoice->order)
                                                 <a href="{{ route('order.show', $invoice->order->id) }}" class="text-decoration-none">
                                                     #{{ $invoice->order->order_number }}
                                                 </a>
+                                            @elseif($invoice->pos)
+                                                <span class="text-dark fw-medium">#POS-{{ $invoice->pos->id }}</span>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
                                         </td>
-                                        <td>{{ $invoice->order->name ?? (optional($invoice->customer)->name ?? 'Walk-in-Customer') }}</td>
+                                        <td>{{ $invoice->order?->name ?? (optional($invoice->customer)->name ?? 'Walk-in-Customer') }}</td>
                                         <td>{{ trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System' }}</td>
                                         <td>{{ $invoice->issue_date }}</td>
                                         <td>{{ $invoice->due_date }}</td>
@@ -133,7 +145,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center text-muted py-4">No invoices found for the given criteria.</td>
+                                        <td colspan="10" class="text-center text-muted py-4">No invoices found for the given criteria.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

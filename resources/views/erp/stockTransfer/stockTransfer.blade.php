@@ -18,15 +18,12 @@
                         </ol>
                     </nav>
                     <h2 class="fw-bold mb-0">Stock Transfer</h2>
-                    <p class="text-muted mb-0">Transfer stock levels across all locations, warehouses & employees</p>
+                    <p class="text-muted mb-0">Transfer stock levels across all locations and warehouses</p>
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="btn-group me-2">
                         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#stockTransferModal">
                             <i class="fas fa-adjust me-2"></i>Make Transfer
-                        </button>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
                         </button>
                     </div>
                 </div>
@@ -34,65 +31,105 @@
         </div>
 
         <div class="container-fluid px-4 py-4">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>Success!</strong> {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> Please check the following errors:
+                    <ul class="mb-0 mt-2">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
 
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <form method="GET" action="" id="filterForm">
                         <div class="row g-3 align-items-end">
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label fw-medium">Search Product Name</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0">
                                         <i class="fas fa-search text-muted"></i>
                                     </span>
-                                    <input type="text" class="form-control border-start-0" placeholder="Product name..." name="search" value="{{ request('search') }}">
+                                    <input type="text" class="form-control border-start-0" placeholder="Product name..." name="search" value="{{ $filters['search'] ?? '' }}">
                                 </div>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label fw-medium">From Branch</label>
+                                <label class="form-label fw-medium">From Location</label>
                                 <select class="form-select" name="from_branch_id">
-                                    <option value="">All Branches</option>
-                                    @foreach ($branches as $branch)
-                                        <option value="{{ $branch->id }}" {{ request('from_branch_id') == $branch->id ? 'selected' : '' }}>{{$branch->name}}</option>
-                                    @endforeach
+                                    <option value="">All Locations</option>
+                                    <optgroup label="Branches">
+                                        @foreach ($branches as $branch)
+                                            <option value="branch_{{ $branch->id }}" {{ ($filters['from_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['from_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Warehouses">
+                                        @foreach ($warehouses as $warehouse)
+                                            <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['from_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['from_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label fw-medium">From Warehouse</label>
-                                <select class="form-select" name="from_warehouse_id">
-                                    <option value="">All Warehouses</option>
-                                    @foreach ($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}" {{ request('from_warehouse_id') == $warehouse->id ? 'selected' : '' }}>{{$warehouse->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">To Branch</label>
+                                <label class="form-label fw-medium">To Location</label>
                                 <select class="form-select" name="to_branch_id">
-                                    <option value="">All Branches</option>
-                                    @foreach ($branches as $branch)
-                                        <option value="{{ $branch->id }}" {{ request('to_branch_id') == $branch->id ? 'selected' : '' }}>{{$branch->name}}</option>
+                                    <option value="">All Locations</option>
+                                    <optgroup label="Branches">
+                                        @foreach ($branches as $branch)
+                                            <option value="branch_{{ $branch->id }}" {{ ($filters['to_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['to_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Warehouses">
+                                        @foreach ($warehouses as $warehouse)
+                                            <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['to_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['to_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-medium">Status</label>
+                                <select class="form-select" name="status">
+                                    <option value="">All Status</option>
+                                    @foreach($statuses as $status)
+                                        <option value="{{ $status }}" {{ ($filters['status'] ?? '') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label fw-medium">To Warehouse</label>
-                                <select class="form-select" name="to_warehouse_id">
-                                    <option value="">All Warehouses</option>
-                                    @foreach ($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}" {{ request('to_warehouse_id') == $warehouse->id ? 'selected' : '' }}>{{$warehouse->name}}</option>
-                                    @endforeach
-                                </select>
+                                <label class="form-label fw-medium">Date From</label>
+                                <input type="date" class="form-control" name="date_from" value="{{ $filters['date_from'] ?? '' }}">
                             </div>
+                            <div class="col-md-1">
+                                <button class="btn btn-primary w-100" type="submit" title="Apply Filters">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-3 align-items-end mt-2">
                             <div class="col-md-2">
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-primary flex-fill" type="submit">
-                                        <i class="fas fa-filter me-2"></i>Filter
-                                    </button>
-                                    <a href="{{ url()->current() }}" class="btn btn-outline-secondary">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
+                                <label class="form-label fw-medium">Date To</label>
+                                <input type="date" class="form-control" name="date_to" value="{{ $filters['date_to'] ?? '' }}">
+                            </div>
+                            <div class="col-md-10">
+                                <a href="{{ route('stocktransfer.list') }}" class="btn btn-outline-danger" title="Reset All Filters">
+                                    <i class="fas fa-times me-2"></i>Reset Filters
+                                </a>
                             </div>
                         </div>
                     </form>
@@ -126,7 +163,12 @@
                             <tbody>
                                 @foreach ($transfers as $transfer)
                                     <tr>
-                                        <td>{{ $transfer->product->name ?? '-' }}</td>
+                                        <td>
+                                            {{ $transfer->product->name ?? '-' }}
+                                            @if($transfer->variation_id && $transfer->variation)
+                                                <br><small class="text-muted">{{ $transfer->variation->name ?? 'Variation #' . $transfer->variation_id }}</small>
+                                            @endif
+                                        </td>
                                         <td>
                                             @if($transfer->from_type === 'branch')
                                                 Branch: {{ $transfer->fromBranch->name ?? '-' }}
@@ -154,8 +196,16 @@
                                         <td>{{@$transfer->approvedPerson->first_name}} {{@$transfer->approvedPerson->last_name}}</td>
                                         <td>{{ $transfer->approved_at ? \Carbon\Carbon::parse($transfer->approved_at)->format('Y-m-d H:i') : '-' }}</td>
                                         <td>
-                                            <a href="{{ route('stocktransfer.show',$transfer->id) }}" class="text-info me-2"><i class="fas fa-eye"></i></a>
-                                            <a href="#" class="text-danger"><i class="fas fa-trash"></i></a>
+                                            <a href="{{ route('stocktransfer.show',$transfer->id) }}" class="text-info me-2" title="View"><i class="fas fa-eye"></i></a>
+                                            @if(in_array($transfer->status, ['pending', 'rejected']))
+                                                <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this transfer? This action cannot be undone.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-link text-danger p-0 border-0" title="Delete"><i class="fas fa-trash"></i></button>
+                                                </form>
+                                            @else
+                                                <span class="text-muted" title="Cannot delete {{ ucfirst($transfer->status) }} transfer"><i class="fas fa-trash"></i></span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -189,7 +239,6 @@
                                     <select class="form-select from-type-select" name="from_type" required>
                                         <option value="branch">Branch</option>
                                         <option value="warehouse">Warehouse</option>
-                                        <option value="employee">Employee</option>
                                     </select>
                                 </div>
                                 <div class="mb-3 w-100 from-branch-group">
@@ -216,7 +265,6 @@
                                     <select class="form-select to-type-select" name="to_type" required>
                                         <option value="branch">Branch</option>
                                         <option value="warehouse">Warehouse</option>
-                                        <option value="employee">Employee</option>
                                     </select>
                                 </div>
                                 <div class="mb-3 w-100 to-branch-group">
@@ -241,6 +289,12 @@
                                 <label class="form-label">Product</label>
                                 <select class="form-select" name="product_id" id="productSelect" required style="width: 100%">
                                     <option value="">Select Product...</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="variationWrapper" style="display: none;">
+                                <label class="form-label">Variation <span class="text-muted">(if applicable)</span></label>
+                                <select class="form-select" name="variation_id" id="variationSelect" style="width: 100%">
+                                    <option value="">Select Variation...</option>
                                 </select>
                             </div>
                             <div class="mb-3">
@@ -296,10 +350,48 @@
         <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
         <script>
             document.addEventListener('DOMContentLoaded', function () {
+                // Function to clean up stuck modal backdrop (only called after modal is closed)
+                function cleanupModalBackdrop() {
+                    // Wait a moment to ensure modal animation is complete
+                    setTimeout(function() {
+                        // Check if any modal is currently showing
+                        var hasVisibleModal = document.querySelector('.modal.show');
+                        
+                        // Only clean up if no modal is visible
+                        if (!hasVisibleModal) {
+                            // Remove any stuck backdrops
+                            var backdrops = document.querySelectorAll('.modal-backdrop');
+                            backdrops.forEach(function(backdrop) {
+                                backdrop.remove();
+                            });
+                            
+                            // Clean up body classes
+                            if (document.body.classList.contains('modal-open')) {
+                                document.body.classList.remove('modal-open');
+                            }
+                            if (document.body.style.paddingRight) {
+                                document.body.style.paddingRight = '';
+                            }
+                        }
+                    }, 150);
+                }
+
+                // Initialize modal instance once
+                var stockTransferModalElement = document.getElementById('stockTransferModal');
+                var stockTransferModal = null;
+                if (stockTransferModalElement) {
+                    stockTransferModal = new bootstrap.Modal(stockTransferModalElement, {
+                        backdrop: true,
+                        keyboard: true,
+                        focus: true
+                    });
+                }
+
                 document.querySelectorAll('[data-bs-target="#stockTransferModal"]').forEach(function (btn) {
                     btn.addEventListener('click', function () {
-                        var modal = new bootstrap.Modal(document.getElementById('stockTransferModal'));
-                        modal.show();
+                        if (stockTransferModal) {
+                            stockTransferModal.show();
+                        }
                     });
                 });
 
@@ -328,6 +420,57 @@
                     dropdownParent: $('#stockTransferModal'),
                 });
 
+                // Initialize variation select2
+                $('#variationSelect').select2({
+                    placeholder: 'Select Variation...',
+                    allowClear: true,
+                    width: 'resolve',
+                    dropdownParent: $('#stockTransferModal'),
+                });
+
+                // Load variations when product is selected
+                $('#productSelect').on('change', function() {
+                    const productId = $(this).val();
+                    loadProductVariations(productId);
+                });
+
+                // Function to load product variations
+                function loadProductVariations(productId) {
+                    if (!productId) {
+                        $('#variationWrapper').hide();
+                        $('#variationSelect').empty().append('<option value="">Select Variation...</option>');
+                        return;
+                    }
+                    
+                    $.ajax({
+                        url: '/erp/products/' + productId + '/variations-list',
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function(variations) {
+                            // Clear existing options
+                            $('#variationSelect').empty().append('<option value="">Select Variation...</option>');
+                            
+                            // Add variation options
+                            if (variations && variations.length > 0) {
+                                variations.forEach(function(variation) {
+                                    var option = new Option(variation.display_name || variation.name, variation.id, false, false);
+                                    $('#variationSelect').append(option);
+                                });
+                                $('#variationWrapper').show();
+                            } else {
+                                $('#variationWrapper').hide();
+                            }
+                            
+                            $('#variationSelect').trigger('change');
+                        },
+                        error: function(xhr) {
+                            console.error('Error loading variations:', xhr);
+                            $('#variationWrapper').hide();
+                            $('#variationSelect').empty().append('<option value="">Select Variation...</option>');
+                        }
+                    });
+                }
+
                 // Show/hide branch/warehouse selects for FROM
                 $('.from-type-select').on('change', function() {
                     if ($(this).val() === 'branch') {
@@ -354,6 +497,21 @@
                         $('.to-warehouse-group').hide();
                     }
                 }).trigger('change');
+
+                // Reset form when modal is closed
+                $('#stockTransferModal').on('hidden.bs.modal', function() {
+                    // Reset form fields
+                    $('#productSelect').val(null).trigger('change');
+                    $('#variationSelect').val(null).trigger('change');
+                    $('#variationWrapper').hide();
+                    var form = $('#stockTransferModal').find('form')[0];
+                    if (form) {
+                        form.reset();
+                    }
+                    
+                    // Clean up any stuck backdrops
+                    cleanupModalBackdrop();
+                });
 
                 $(document).on('click', '.status-badge', function() {
                     var transferId = $(this).data('transfer-id');
@@ -390,8 +548,20 @@
 
                     var actionUrl = "{{ route('stocktransfer.status', ['id' => 'TRANSFER_ID']) }}".replace('TRANSFER_ID', transferId);
                     $('#statusUpdateForm').attr('action', actionUrl);
-                    var modal = new bootstrap.Modal(document.getElementById('statusUpdateModal'));
-                    modal.show();
+                    var statusModalElement = document.getElementById('statusUpdateModal');
+                    if (statusModalElement) {
+                        var statusModal = new bootstrap.Modal(statusModalElement, {
+                            backdrop: true,
+                            keyboard: true,
+                            focus: true
+                        });
+                        statusModal.show();
+                        
+                        // Clean up backdrop when status modal is closed
+                        $(statusModalElement).on('hidden.bs.modal', function() {
+                            cleanupModalBackdrop();
+                        });
+                    }
                 });
             });
         </script>
