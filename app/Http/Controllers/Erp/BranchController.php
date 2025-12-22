@@ -97,6 +97,7 @@ class BranchController extends Controller
             
             // Get branch products with stock info (all products, not limited)
             $branch_products = $branch->branchProductStocks()
+                ->whereHas('product')
                 ->with(['product.category'])
                 ->orderBy('created_at', 'desc')
                 ->get();
