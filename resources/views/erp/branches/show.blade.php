@@ -224,28 +224,28 @@
                                                             <i class="fas fa-box text-primary"></i>
                                                         </div>
                                                         <div>
-                                                            <h6 class="mb-0 fw-semibold">{{ $product->product->name ?? 'N/A' }}
+                                                            <h6 class="mb-0 fw-semibold">{{ $product->product?->name ?? 'N/A' }}
                                                             </h6>
                                                             <small class="text-muted">ID:
-                                                                #{{ $product->product->id ?? 'N/A' }}</small>
+                                                                #{{ $product->product?->id ?? 'N/A' }}</small>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td class="border-0">
                                                     <code
-                                                        class="bg-light px-2 py-1 rounded">{{ $product->product->sku ?? 'N/A' }}</code>
+                                                        class="bg-light px-2 py-1 rounded">{{ $product->product?->sku ?? 'N/A' }}</code>
                                                 </td>
                                                 <td class="border-0">
                                                     <span
-                                                        class="fw-semibold text-success">৳{{ number_format(($product->product->discount && $product->product->discount > 0) ? $product->product->discount : ($product->product->price ?? 0), 2) }}</span>
+                                                        class="fw-semibold text-success">৳{{ number_format(($product->product?->discount && $product->product?->discount > 0) ? $product->product?->discount : ($product->product?->price ?? 0), 2) }}</span>
                                                 </td>
                                                 <td class="border-0">
                                                     <span
-                                                        class="fw-semibold">৳{{ number_format($product->product->cost ?? 0, 2) }}</span>
+                                                        class="fw-semibold">৳{{ number_format($product->product?->cost ?? 0, 2) }}</span>
                                                 </td>
                                                 <td class="border-0">
                                                     <span class="badge bg-info bg-opacity-25 text-info">
-                                                        {{ $product->product->category->name ?? 'No Category' }}
+                                                        {{ $product->product?->category?->name ?? 'No Category' }}
                                                     </span>
                                                 </td>
                                                 <td class="border-0">
