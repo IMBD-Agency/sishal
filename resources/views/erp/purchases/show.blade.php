@@ -1,6 +1,6 @@
 @extends('erp.master')
 
-@section('title', 'Purchase Management')
+@section('title', 'Assign Management')
 
 @section('body')
     @include('erp.components.sidebar')
@@ -12,11 +12,11 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-2">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ route('purchase.list') }}" class="text-decoration-none">Purchases</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Purchase #{{ $purchase->id }}</li>
+                            <li class="breadcrumb-item"><a href="{{ route('purchase.list') }}" class="text-decoration-none">Assigns</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Assign #{{ $purchase->id }}</li>
                         </ol>
                     </nav>
-                    <h3>Purchase #{{ $purchase->id }}</h3>
+                    <h3>Assign #{{ $purchase->id }}</h3>
                     <div class="mb-2">
                         <span class="me-2">
                             <strong>Date:</strong> {{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d-m-Y') : '-' }}
@@ -46,9 +46,9 @@
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="card mb-3">
-                        <div class="card-header">Purchase Info</div>
+                        <div class="card-header">Assign Info</div>
                         <div class="card-body">
-                            <p><strong>Purchase ID:</strong> #{{ $purchase->id }}</p>
+                            <p><strong>Assign ID:</strong> #{{ $purchase->id }}</p>
                             @if($purchase->supplier)
                                 <p><strong>Supplier:</strong> {{ $purchase->supplier->name }}</p>
                             @endif

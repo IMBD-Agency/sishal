@@ -107,7 +107,7 @@ class PurchaseController extends Controller
                     'due_amount'    => $totalAmount,
                     'status'        => 'unpaid',
                     'created_by'    => auth()->id(),
-                    'description'   => 'Auto-generated bill from purchase ID: ' . $purchase->id,
+                    'description'   => 'Auto-generated bill from assign ID: ' . $purchase->id,
                 ]);
             }
     
@@ -262,7 +262,7 @@ class PurchaseController extends Controller
             }
             // Optionally update bill if needed (not shown here)
             DB::commit();
-            return redirect()->route('purchase.list')->with('success', 'Purchase updated successfully.');
+            return redirect()->route('purchase.list')->with('success', 'Assign updated successfully.');
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Something went wrong.', 'details' => $e->getMessage()]);
@@ -345,7 +345,7 @@ class PurchaseController extends Controller
                 }
             }
         }
-        return redirect()->back()->with('success', 'Purchase status updated successfully.');
+        return redirect()->back()->with('success', 'Assign status updated successfully.');
     }
 
     public function delete($id)
@@ -362,7 +362,7 @@ class PurchaseController extends Controller
             // Delete the purchase itself
             $purchase->delete();
             DB::commit();
-            return redirect()->route('purchase.list')->with('success', 'Purchase and related data deleted successfully.');
+            return redirect()->route('purchase.list')->with('success', 'Assign and related data deleted successfully.');
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Something went wrong.', 'details' => $e->getMessage()]);
@@ -383,7 +383,7 @@ class PurchaseController extends Controller
         $results = $purchases->filter(function($purchase) {
             return $purchase !== null;
         })->map(function($purchase) {
-            $text = "#{$purchase->id} - Purchase ({$purchase->purchase_date})";
+            $text = "#{$purchase->id} - Assign ({$purchase->purchase_date})";
             return [
                 'id' => $purchase->id,
                 'text' => $text

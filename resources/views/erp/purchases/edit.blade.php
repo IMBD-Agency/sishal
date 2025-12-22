@@ -1,13 +1,13 @@
 @extends('erp.master')
 
-@section('title', 'Edit Purchase')
+@section('title', 'Edit Assign')
 
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <h2 class="mb-4">Edit Purchase</h2>
+            <h2 class="mb-4">Edit Assign</h2>
             <!-- Select2 CSS -->
             <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
             <form id="purchaseForm" action="{{ route('purchase.update', $purchase->id) }}" method="POST">
@@ -37,7 +37,7 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="purchase_date" class="form-label">Purchase Date</label>
+                        <label for="purchase_date" class="form-label">Assign Date</label>
                         <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ $purchase->purchase_date }}" required>
                     </div>
 
@@ -124,7 +124,7 @@
                     </div>
                 </div>
                 <div class="mb-3 text-end">
-                    <button type="submit" class="btn btn-primary">Update Purchase</button>
+                    <button type="submit" class="btn btn-primary">Update Assign</button>
                 </div>
             </form>
         </div>

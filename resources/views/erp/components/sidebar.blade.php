@@ -146,12 +146,12 @@
                 <ul class="nav flex-column ms-4">
                     @can('pos')
                     <li class="nav-item">
-                        <a href="{{ route('pos.add') }}" class="nav-link {{ request()->is('erp/pos/create') ? ' active' : '' }}">Add POS</a>
+                        <a href="{{ route('pos.add') }}" class="nav-link {{ request()->is('erp/pos/create') ? ' active' : '' }}">POS</a>
                     </li>
                     @endcan
                     @can('pos list')
                     <li class="nav-item">
-                        <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">POS</a>
+                        <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">POS List</a>
                     </li>
                     @endcan
                     @can('pos return')
@@ -171,7 +171,7 @@
                     @endcan
                     @can('pos assign list')
                     <li class="nav-item">
-                        <a href="{{ route('purchase.list') }}" class="nav-link {{ request()->is('erp/purchases*') ? ' active' : '' }}">Purchase</a>
+                        <a href="{{ route('purchase.list') }}" class="nav-link {{ request()->is('erp/purchases*') ? ' active' : '' }}">Assign</a>
                     </li>
                     @endcan
                 </ul>

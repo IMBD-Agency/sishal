@@ -1,6 +1,6 @@
 @extends('erp.master')
 
-@section('title', 'Purchase Management')
+@section('title', 'Assign Management')
 
 @section('body')
     @include('erp.components.sidebar')
@@ -13,16 +13,15 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-2">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Purchase List</li>
+                            <li class="breadcrumb-item active" aria-current="page">Assign List</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Purchase List</h2>
-                    <p class="text-muted mb-0">Manage purchase information, contacts, and transactions efficiently.</p>
+                    <h2 class="fw-bold mb-0">Assign List</h2>
+                    <p class="text-muted mb-0">Manage assignment information, contacts, and transactions efficiently.</p>
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="btn-group me-2">
-                        <a href="{{ route('purchase.create') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-adjust me-2"></i>Add Purchase
+                            <i class="fas fa-adjust me-2"></i>Assign POS
                         </a>
                     </div>
                 </div>
@@ -63,7 +62,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Purchase List</h5>
+                        <h5 class="fw-bold mb-0">Assign List</h5>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -71,8 +70,8 @@
                         <table class="table table-hover align-middle mb-0" id="purchaseTable">
                             <thead class="table-light sticky-top">
                                 <tr>
-                                    <th class="border-0">Purchase ID</th>
-                                    <th class="border-0">Purchase Date</th>
+                                    <th class="border-0">Assign ID</th>
+                                    <th class="border-0">Assign Date</th>
                                     <th class="border-0">Location</th>
                                     <th class="border-0 text-center">Status</th>
                                     <th class="border-0">Actions</th>
@@ -129,7 +128,7 @@
                                     </tr>
                                 @empty   
                                 <tr>
-                                    <td colspan="5" class="text-center">No purchase Found</td></tr> 
+                                    <td colspan="5" class="text-center">No Assign Found</td></tr> 
                                 @endforelse
                             </tbody>
                         </table>
@@ -154,7 +153,7 @@
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="updateStatusModalLabel">Update Purchase Status</h5>
+                        <h5 class="modal-title" id="updateStatusModalLabel">Update Assign Status</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
