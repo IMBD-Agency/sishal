@@ -21,6 +21,7 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="btn-group me-2">
+                        <a href="{{ route('purchase.create') }}" class="btn btn-primary">
                             <i class="fas fa-adjust me-2"></i>Assign POS
                         </a>
                     </div>
