@@ -963,15 +963,8 @@ class ProductController extends Controller
         }, 'variations.stocks' => function($q) use ($branchId) {
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
-        ->where(function($q) use ($branchId) {
-            // Products with branch stock (non-variation products)
-            $q->whereHas('branchStock', function($subQ) use ($branchId) {
-                $subQ->where('branch_id', $branchId);
-            })
-            // OR products with variations that have stock in this branch
-            ->orWhereHas('variations.stocks', function($subQ) use ($branchId) {
-                $subQ->where('branch_id', $branchId)->whereNull('warehouse_id');
-            });
+        ->whereHas('branchStock', function($q) use ($branchId) {
+            $q->where('branch_id', $branchId);
         });
 
         if ($request->filled('category_id')) {

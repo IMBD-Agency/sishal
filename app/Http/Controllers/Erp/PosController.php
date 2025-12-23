@@ -599,7 +599,9 @@ class PosController extends Controller
         if ($variationId && $variationId !== 'null') {
             $stock = ProductVariationStock::where('variation_id', $variationId)
                 ->where('branch_id', $branchId)
-                ->whereNull('warehouse_id')
+                ->where(function($q) {
+                    $q->whereNull('warehouse_id')->orWhere('warehouse_id', 0);
+                })
                 ->first();
             // Use available_quantity accessor or calculate manually
             $quantity = $stock ? ($stock->quantity - ($stock->reserved_quantity ?? 0)) : 0;

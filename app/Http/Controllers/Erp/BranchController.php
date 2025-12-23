@@ -98,7 +98,9 @@ class BranchController extends Controller
             // Get branch products with stock info (all products, not limited)
             $branch_products = $branch->branchProductStocks()
                 ->whereHas('product')
-                ->with(['product.category'])
+                ->with(['product.category', 'product.variations.stocks' => function($q) use ($id) {
+                    $q->where('branch_id', $id);
+                }])
                 ->orderBy('created_at', 'desc')
                 ->get();
             
@@ -514,13 +516,43 @@ class BranchController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $branchStock = \App\Models\BranchProductStock::findOrFail($id);
+        $branchStock = \App\Models\BranchProductStock::with(['product'])->findOrFail($id);
 
+        $hasRealStock = false;
         if ($branchStock->quantity > 0) {
+            $hasRealStock = true;
+            // If variable product, check if it actually has variation stock
+            if ($branchStock->product && $branchStock->product->has_variations) {
+                 // Calculate actual sum of variation stocks for this branch
+                 $variationStockSum = \App\Models\ProductVariationStock::where('branch_id', $branchStock->branch_id)
+                    ->whereIn('variation_id', $branchStock->product->variations->pluck('id'))
+                    ->sum('quantity');
+                 
+                 if ($variationStockSum == 0) {
+                     $hasRealStock = false; // It's ghost stock, allow removal
+                 }
+            }
+        }
+
+        if ($hasRealStock) {
             return back()->with('error', 'Cannot remove product that still has stock. Please adjust stock to 0 first.');
         }
 
+        // Clean up variation stocks for this branch if they exist
+        if ($branchStock->product && $branchStock->product->has_variations) {
+            \App\Models\ProductVariationStock::where('branch_id', $branchStock->branch_id)
+                ->whereIn('variation_id', $branchStock->product->variations->pluck('id'))
+                ->delete();
+        }
+
         $branchStock->delete();
+        
+        // Clear product cache to reflect changes in POS immediately
+        try {
+            \App\Services\CacheService::clearProductCaches($branchStock->product_id);
+        } catch (\Exception $e) {
+            // Ignore cache error
+        }
 
         return back()->with('status', 'Product removed from branch successfully.');
     }

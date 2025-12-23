@@ -221,11 +221,23 @@
                                             <tr>
                                                 <td class="border-0">
                                                     <div class="d-flex align-items-center">
-                                                        <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
-                                                            <i class="fas fa-box text-primary"></i>
+                                                        <div class="me-3" style="width: 50px; height: 50px; flex-shrink: 0;">
+                                                            @if($product->product?->image)
+                                                                <img src="{{ asset('storage/' . $product->product->image) }}" 
+                                                                     alt="{{ $product->product->name }}" 
+                                                                     class="rounded object-fit-cover w-100 h-100 border">
+                                                            @else
+                                                                <div class="bg-primary bg-opacity-10 rounded w-100 h-100 d-flex align-items-center justify-content-center">
+                                                                    <i class="fas fa-box text-primary fa-lg"></i>
+                                                                </div>
+                                                            @endif
                                                         </div>
                                                         <div>
-                                                            <h6 class="mb-0 fw-semibold">{{ $product->product?->name ?? 'N/A' }}
+                                                            <h6 class="mb-0 fw-semibold">
+                                                                {{ $product->product?->name ?? 'N/A' }}
+                                                                @if($product->product?->has_variations)
+                                                                    <span class="badge bg-primary bg-opacity-10 text-primary ms-1" style="font-size: 0.65rem;">Variable</span>
+                                                                @endif
                                                             </h6>
                                                             <small class="text-muted">ID:
                                                                 #{{ $product->product?->id ?? 'N/A' }}</small>
@@ -250,20 +262,84 @@
                                                     </span>
                                                 </td>
                                                 <td class="border-0">
+                                                    @php
+                                                        $displayQty = $product->quantity;
+                                                        if ($product->product?->has_variations) {
+                                                            $displayQty = $product->product->variations->sum(function($v) {
+                                                                return $v->stocks->sum(function($s) {
+                                                                    return $s->quantity - ($s->reserved_quantity ?? 0);
+                                                                });
+                                                            });
+                                                        }
+                                                    @endphp
                                                     <span
-                                                        class="badge {{ $product->quantity > 0 ? 'bg-success bg-opacity-25 text-success' : 'bg-danger bg-opacity-25 text-danger' }}">
-                                                        {{ $product->quantity }} in stock
+                                                        class="badge {{ $displayQty > 0 ? 'bg-success bg-opacity-25 text-success' : 'bg-danger bg-opacity-25 text-danger' }}">
+                                                        {{ $displayQty }} in stock
                                                     </span>
+                                                    @if($product->product?->has_variations)
+                                                        <div class="mt-2" style="max-height: 100px; overflow-y: auto;">
+                                                            @foreach($product->product->variations as $variation)
+                                                                @php
+                                                                    // Separate Floor (POS) and Warehouse stock
+                                                                    $floorStock = $variation->stocks->whereNull('warehouse_id')->first();
+                                                                    $floorQty = $floorStock ? ($floorStock->quantity - ($floorStock->reserved_quantity ?? 0)) : 0;
+                                                                    
+                                                                    $warehouseQty = $variation->stocks->whereNotNull('warehouse_id')->sum('quantity');
+                                                                @endphp
+                                                                @if($floorQty > 0 || $warehouseQty > 0)
+                                                                    <div class="mt-1 border-bottom pb-1">
+                                                                        <div class="d-flex align-items-center">
+                                                                            <i class="fas fa-caret-right text-muted me-1" style="font-size: 0.7rem;"></i>
+                                                                            <span class="text-dark small fw-bold">{{ $variation->name }}</span>
+                                                                        </div>
+                                                                        <div class="ms-3 d-flex flex-column">
+                                                                            @if($floorQty > 0)
+                                                                                <span class="text-success small" style="font-size: 0.7rem;">
+                                                                                    Floor: <strong>{{ $floorQty }}</strong>
+                                                                                </span>
+                                                                            @endif
+                                                                            @if($warehouseQty > 0)
+                                                                                <span class="text-info small" style="font-size: 0.7rem;">
+                                                                                    Warehouse: <strong>{{ $warehouseQty }}</strong>
+                                                                                </span>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
                                                 </td>
                                                 <td class="border-0">
-                                                    @if($product->quantity <= 0)
+                                                    @php
+                                                        $canRemove = $product->quantity <= 0;
+                                                        $isGhostStock = false;
+                                                        
+                                                        if ($product->quantity > 0 && $product->product?->has_variations) {
+                                                            $variationSum = 0;
+                                                            foreach($product->product->variations as $var) {
+                                                                // Sum all stocks (Floor + Warehouse) for this branch
+                                                                $variationSum += $var->stocks->sum('quantity');
+                                                            }
+                                                            
+                                                            if ($variationSum == 0) {
+                                                                $canRemove = true;
+                                                                $isGhostStock = true;
+                                                            }
+                                                        }
+                                                    @endphp
+
+                                                    @if($canRemove)
                                                         <form action="{{ route('branches.products.remove', $product->id) }}" method="POST"
-                                                            onsubmit="return confirm('Are you sure you want to remove this product from the branch list?');">
+                                                            onsubmit="return confirm('Are you sure you want to remove this product from the branch list?{{ $isGhostStock ? ' This appears to be correct ghost stock (variations have 0 stock).' : '' }}');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from list">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ $isGhostStock ? 'Force Remove (Ghost Stock)' : 'Remove from list' }}">
                                                                 <i class="fas fa-trash-alt"></i> Remove
                                                             </button>
+                                                            @if($isGhostStock)
+                                                                <i class="fas fa-exclamation-triangle text-warning ms-1" title="Stock mismatch detected (Total > 0 but Variations = 0)"></i>
+                                                            @endif
                                                         </form>
                                                     @endif
                                                 </td>
