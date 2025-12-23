@@ -57,7 +57,7 @@ class PurchaseController extends Controller
             'purchase_date' => 'required|date',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.variation_id' => 'nullable|integer',
+            'items.*.variation_id' => 'nullable', // allow string/int
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
@@ -88,11 +88,11 @@ class PurchaseController extends Controller
                 PurchaseItem::create(attributes: [
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
+                    'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
                     'quantity'     => $item['quantity'],
                     'unit_price'   => $item['unit_price'],
                     'total_price'  => $item['quantity'] * $item['unit_price'],
-                    'description'     => $item['description'],
+                    'description'     => $item['description'] ?? null,
                 ]);
             }
     

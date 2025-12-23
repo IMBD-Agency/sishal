@@ -239,20 +239,92 @@
             // but for "Assign" (Distribution), it makes sense. 
             // We will check the "order/product-stocks" endpoint which returns all stocks.
             
+            // Reset variation select and clear unit price
+            if (variationSelect) {
+                variationSelect.classList.add('d-none');
+                variationSelect.innerHTML = '';
+                variationSelect.removeAttribute('required');
+            }
+            if (unitPriceInput) {
+                unitPriceInput.value = '';
+            }
+
+            // Flag to check if we should fetch generic product stock immediately
+            let fetchGenericStock = true;
+
+            // Load variations first to check if product has variations
+            if (variationSelect) {
+                $.get('{{ url('/erp/products') }}/' + productId + '/variations-list', function (vars) {
+                    if (Array.isArray(vars) && vars.length > 0) {
+                        // Product has variations
+                        fetchGenericStock = false; // Defers stock check to variation selection
+
+                        // Show variation select and require it
+                        variationSelect.classList.remove('d-none');
+                        variationSelect.setAttribute('required', 'required');
+                        let optionsHtml = '<option value="">Select Variation</option>';
+                        vars.forEach(function (v) {
+                            const label = v.display_name || v.name || ('Variation #' + v.id);
+                            // Use the display price (with discount if applicable)
+                            const price = (typeof v.price !== 'undefined' && v.price !== null && v.price > 0) ? v.price : '';
+                            optionsHtml += '<option value="' + v.id + '" data-price="' + price + '" data-base-price="' + (v.base_price || '') + '">' + label + (v.sku ? ' (' + v.sku + ')' : '') + '</option>';
+                        });
+                        variationSelect.innerHTML = optionsHtml;
+                        
+                        // Clear stock indicator initially for variable product
+                        if (stockIndicator) {
+                            stockIndicator.textContent = 'Select a variation to see stock.';
+                            stockIndicator.classList.remove('text-info', 'text-danger');
+                        }
+                    } else {
+                        // No variations - auto-fill price from product
+                        variationSelect.classList.add('d-none');
+                        variationSelect.removeAttribute('required');
+                        
+                        // Fetch product price
+                        $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
+                            if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
+                                unitPriceInput.value = parseFloat(resp.price).toFixed(2);
+                                updateTotals();
+                            }
+                        });
+
+                        // Fetch generic stock since no variations
+                        checkGenericStock(productId, row, $select);
+                    }
+                }).fail(function() {
+                    // Fallback if variations check fails - assume simple product
+                    checkGenericStock(productId, row, $select);
+                });
+            } else {
+                // No variation select element found - just get product price and stock
+                 $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
+                    if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
+                        unitPriceInput.value = parseFloat(resp.price).toFixed(2);
+                        updateTotals();
+                    }
+                });
+                checkGenericStock(productId, row, $select);
+            }
+        }
+        
+        // Helper function to check stock for simple products
+        function checkGenericStock(productId, row, $select) {
+            const stockIndicator = row ? row.querySelector('.stock-indicator') : null;
+            
             $.get('{{ url('/erp/order/product-stocks') }}/' + productId, function (resp) {
                 if (!resp || !resp.success || !Array.isArray(resp.stocks)) {
                     // Fallback or error
                 } else {
                     const stocks = resp.stocks;
-                    // Calculate total warehouse stock (assuming source is warehouse)
+                    // Calculate total warehouse stock
                     const totalWarehouseStock = stocks
                         .filter(s => s.type === 'warehouse')
                         .reduce((sum, s) => sum + parseFloat(s.quantity), 0);
 
-                    // If total warehouse stock is 0, prevent selection
+                    // If total warehouse stock is 0
                     if (totalWarehouseStock <= 0) {
                         alert('This product has 0 stock in Warehouses and cannot be assigned.');
-                        // Clear selection
                         $select.val(null).trigger('change'); 
                         return; 
                     }
@@ -266,333 +338,90 @@
                         }
                         if (stockIndicator) {
                             stockIndicator.textContent = 'Available Warehouse Stock: ' + totalWarehouseStock;
-                            stockIndicator.classList.add('text-info');
+                            stockIndicator.className = 'small mt-1 stock-indicator text-info';
                         }
                     }
                 }
             });
-
-            // Reset variation select and clear unit price
-            if (variationSelect) {
-                variationSelect.classList.add('d-none');
-                variationSelect.innerHTML = '';
-                variationSelect.removeAttribute('required');
-            }
-            if (unitPriceInput) {
-                unitPriceInput.value = '';
-            }
-
-            // Load variations first to check if product has variations
-            if (variationSelect) {
-                $.get('{{ url('/erp/products') }}/' + productId + '/variations-list', function (vars) {
-                    if (Array.isArray(vars) && vars.length > 0) {
-                        // Product has variations - show variation select and require it
-                        variationSelect.classList.remove('d-none');
-                        variationSelect.setAttribute('required', 'required');
-                        let optionsHtml = '<option value="">Select Variation</option>';
-                        vars.forEach(function (v) {
-                            const label = v.display_name || v.name || ('Variation #' + v.id);
-                            // Use the display price (with discount if applicable)
-                            const price = (typeof v.price !== 'undefined' && v.price !== null && v.price > 0) ? v.price : '';
-                            optionsHtml += '<option value="' + v.id + '" data-price="' + price + '" data-base-price="' + (v.base_price || '') + '">' + label + (v.sku ? ' (' + v.sku + ')' : '') + '</option>';
-                        });
-                        variationSelect.innerHTML = optionsHtml;
-                        // Don't auto-fill price here - wait for variation selection
-                    } else {
-                        // No variations - auto-fill price from product (with discount logic)
-                        variationSelect.classList.add('d-none');
-                        variationSelect.removeAttribute('required');
-                        $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                            // Use display price (with discount if applicable)
-                            if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
-                                unitPriceInput.value = parseFloat(resp.price).toFixed(2);
-                                updateTotals();
-                            }
-                        });
-                    }
-                });
-            } else {
-                // No variation select element - just get product price
-                $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                    // Use display price (with discount if applicable)
-                    if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
-                        unitPriceInput.value = parseFloat(resp.price).toFixed(2);
-                        updateTotals();
-                    }
-                });
-            }
-
-            // Show current stock at selected location (if location selected)
-            if (locationType && locationId && stockIndicator) {
-                $.get('{{ url('/erp/order/product-stocks') }}/' + productId, function (resp) {
-                    if (!resp || !resp.success || !Array.isArray(resp.stocks)) {
-                        stockIndicator.textContent = '';
-                        return;
-                    }
-                    const stocks = resp.stocks;
-                    let match = null;
-                    if (locationType === 'branch') {
-                        match = stocks.find(s => s.type === 'branch' && String(s.branch_id) === String(locationId));
-                    } else if (locationType === 'warehouse') {
-                        match = stocks.find(s => s.type === 'warehouse' && String(s.warehouse_id) === String(locationId));
-                    }
-                    const qty = match ? match.quantity : 0;
-                    stockIndicator.textContent = 'Current stock here: ' + qty;
-                }).fail(function() {
-                    stockIndicator.textContent = '';
-                });
-            } else if (stockIndicator) {
-                stockIndicator.textContent = 'Select location to see current stock.';
-            }
         }
-
-        // Function to add a new item row
-        function addItemRow(copyFromRow = null) {
-            const tbody = document.querySelector('#itemsTable tbody');
-            const row = document.createElement('tr');
-            
-            // Get values from row to copy, if provided
-            let copiedProductId = '';
-            let copiedVariationId = '';
-            let copiedPrice = '';
-            let copiedQuantity = '';
-            let copiedDescription = '';
-            
-            if (copyFromRow) {
-                const productSelect = copyFromRow.querySelector('.product-select');
-                const variationSelect = copyFromRow.querySelector('.variation-select');
-                const priceInput = copyFromRow.querySelector('.unit_price');
-                const quantityInput = copyFromRow.querySelector('.quantity');
-                const descTextarea = copyFromRow.querySelector('.description');
-                
-                copiedProductId = $(productSelect).val() || '';
-                copiedVariationId = $(variationSelect).val() || '';
-                copiedPrice = priceInput ? priceInput.value : '';
-                copiedQuantity = quantityInput ? quantityInput.value : '';
-                copiedDescription = descTextarea ? descTextarea.value : '';
-            }
-            
-            row.innerHTML = `
-                <td>
-                    <select name="items[${itemIndex}][product_id]" class="form-select product-select" required data-copied-id="${copiedProductId}"></select>
-                    <select name="items[${itemIndex}][variation_id]" class="form-select mt-1 variation-select d-none" data-copied-id="${copiedVariationId}"></select>
-                    <div class="small text-muted mt-1 stock-indicator"></div>
-                </td>
-                <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity" min="0.01" step="0.01" value="${copiedQuantity}" required></td>
-                <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="0" step="0.01" value="${copiedPrice}" required></td>
-                <td class="item-total">0.00</td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-primary duplicate-row" title="Duplicate this row">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                        <button type="button" class="btn btn-danger remove-row" title="Remove this row">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(row);
-            
-            // Add description row
-            const descRow = document.createElement('tr');
-            descRow.innerHTML = `
-                <td colspan="6">
-                    <textarea class="form-control description" name="items[${itemIndex}][description]" placeholder="Description">${copiedDescription}</textarea>
-                </td>
-            `;
-            tbody.appendChild(descRow);
-            
-            // Initialize Select2
-            reinitProductSelect2();
-            const newProductSelect = row.querySelector('.product-select');
-            const newVariationSelect = row.querySelector('.variation-select');
-            
-            // Bind Select2 events
-            if (newProductSelect) {
-                $(newProductSelect).on('select2:select', function() {
-                    handleProductChange(this);
-                });
-            }
-            
-            // Restore copied values if duplicating
-            if (copyFromRow && copiedProductId) {
-                // Get the product name from the original select
-                const originalProductSelect = copyFromRow.querySelector('.product-select');
-                const $originalSelect = $(originalProductSelect);
-                const productText = $originalSelect.find('option:selected').text() || $originalSelect.select2('data')[0]?.text || '';
-                
-                // Wait for Select2 to initialize, then restore product
-                setTimeout(function() {
-                    const $newSelect = $(newProductSelect);
-                    
-                    // Create option if it doesn't exist (for Select2 AJAX)
-                    if (!$newSelect.find(`option[value="${copiedProductId}"]`).length && productText) {
-                        const newOption = new Option(productText, copiedProductId, true, true);
-                        $newSelect.append(newOption);
-                    }
-                    
-                    // Set value and trigger change to load variations
-                    $newSelect.val(copiedProductId).trigger('change');
-                    
-                    // After product variations are loaded, restore variation
-                    setTimeout(function() {
-                        if (copiedVariationId && newVariationSelect) {
-                            const $newVariationSelect = $(newVariationSelect);
-                            const originalVariationSelect = copyFromRow.querySelector('.variation-select');
-                            const $originalVariationSelect = $(originalVariationSelect);
-                            const variationText = $originalVariationSelect.find('option:selected').text() || '';
-                            
-                            // Wait a bit more for variations to load
-                            setTimeout(function() {
-                                if ($newVariationSelect.find(`option[value="${copiedVariationId}"]`).length) {
-                                    $newVariationSelect.val(copiedVariationId).trigger('change');
-                                } else if (variationText) {
-                                    $newVariationSelect.append(new Option(variationText, copiedVariationId, true, true));
-                                    $newVariationSelect.val(copiedVariationId).trigger('change');
-                                }
-                            }, 300);
-                        }
-                    }, 1000);
-                }, 500);
-            }
-            
-            // Auto-focus on quantity field for quick entry (only if not duplicating)
-            if (!copyFromRow) {
-                setTimeout(function() {
-                    const quantityInput = row.querySelector('.quantity');
-                    if (quantityInput) {
-                        quantityInput.focus();
-                        quantityInput.select();
-                    }
-                }, 200);
-            } else {
-                // If duplicating, focus on quantity to allow quick edit
-                setTimeout(function() {
-                    const quantityInput = row.querySelector('.quantity');
-                    if (quantityInput) {
-                        quantityInput.focus();
-                        quantityInput.select();
-                    }
-                }, 1000);
-            }
-            
-            itemIndex++;
-            updateTotals();
-        }
-
-        // Dynamic items
-        let itemIndex = 1;
-        
-        // Add single item
-        document.getElementById('addItemRow').addEventListener('click', function() {
-            addItemRow();
-        });
-        
-        // Add multiple items at once
-        document.getElementById('addMultipleRows').addEventListener('click', function() {
-            for (let i = 0; i < 5; i++) {
-                addItemRow();
-            }
-        });
-        
-        // Duplicate row functionality
-        $(document).on('click', '.duplicate-row', function() {
-            const row = $(this).closest('tr');
-            addItemRow(row[0]);
-        });
-        
-        // Auto-add new row on Enter key in quantity or price field
-        $(document).on('keydown', '.quantity, .unit_price', function(e) {
-            if (e.key === 'Enter' || e.keyCode === 13) {
-                e.preventDefault();
-                const currentRow = $(this).closest('tr');
-                // Check if this is the last row
-                const allRows = $('#itemsTable tbody tr').filter(function() {
-                    return $(this).find('.product-select').length > 0;
-                });
-                if (currentRow.index() === allRows.length - 1) {
-                    addItemRow();
-                } else {
-                    // Move to next row
-                    const nextRow = allRows.eq(allRows.index(currentRow) + 1);
-                    const nextInput = nextRow.find('.quantity');
-                    if (nextInput.length) {
-                        nextInput.focus().select();
-                    }
-                }
-            }
-        });
-        // Remove row functionality
-        $(document).on('click', '.remove-row', function() {
-            const itemRow = $(this).closest('tr');
-            const descRow = itemRow.next('tr');
-            itemRow.remove();
-            if (descRow.length && descRow.find('textarea.description').length) {
-                descRow.remove();
-            }
-            updateTotals();
-            
-            // Re-enable remove button on first row if it was disabled
-            const firstRow = $('#itemsTable tbody tr').first();
-            if (firstRow.length) {
-                const firstRemoveBtn = firstRow.find('.remove-row');
-                if (firstRemoveBtn.length && $('#itemsTable tbody tr').length <= 2) {
-                    firstRemoveBtn.prop('disabled', true);
-                }
-            }
-        });
 
         // Handle variation selection change
         $(document).on('change', '.variation-select', function() {
             const selectEl = this;
+            const $select = $(selectEl);
             const row = selectEl.closest('tr');
             const unitPriceInput = row ? row.querySelector('.unit_price') : null;
+            const stockIndicator = row ? row.querySelector('.stock-indicator') : null;
             const selectedOption = selectEl.options[selectEl.selectedIndex];
+            const variationId = $select.val();
             
+            // Get product ID from the sibling product select
+            const productSelect = row.querySelector('.product-select');
+            const productId = $(productSelect).val();
+
+            if (!variationId) {
+                if (stockIndicator) stockIndicator.textContent = '';
+                return;
+            }
+            
+            // 1. Update Price
             if (unitPriceInput && selectedOption) {
                 const price = selectedOption.getAttribute('data-price');
-                console.log('Variation price selected:', price);
                 if (price && price !== '' && price !== 'null' && price !== 'undefined') {
                     const priceValue = parseFloat(price);
                     if (!isNaN(priceValue) && priceValue > 0) {
-                        // Use variation price (already includes discount if applicable)
                         unitPriceInput.value = priceValue.toFixed(2);
-                        updateTotals();
-                    } else {
-                        // If variation price is invalid, fallback to product price
-                        const productSelect = row.querySelector('.product-select');
-                        const productId = $(productSelect).val();
-                        if (productId) {
-                            $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                                console.log('Product price for variation (fallback):', resp);
-                                if (resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
-                                    unitPriceInput.value = parseFloat(resp.price).toFixed(2);
-                                    updateTotals();
-                                }
-                            });
-                        } else {
-                            unitPriceInput.value = '';
-                            updateTotals();
-                        }
-                    }
-                } else {
-                    // If no price in variation, use product price
-                    const productSelect = row.querySelector('.product-select');
-                    const productId = $(productSelect).val();
-                    if (productId) {
-                        $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                            console.log('Product price for variation:', resp);
-                            if (resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
-                                unitPriceInput.value = parseFloat(resp.price).toFixed(2);
-                                updateTotals();
-                            }
-                        });
-                    } else {
-                        unitPriceInput.value = '';
                         updateTotals();
                     }
                 }
+            }
+
+            // 2. Check Stock for this specific variation
+            if (productId && variationId) {
+                const url = `{{ url('/erp/products') }}/${productId}/variations/${variationId}/stock/levels`;
+                
+                $.get(url, function(resp) {
+                    if (resp && resp.warehouse_stocks) {
+                        // Calculate total available warehouse stock for this variation
+                        // Note: resp.available_stock is global, we want per-warehouse for Assign
+                        // Based on controller, 'warehouse_stocks' is an array of objects { quantity: ... }
+                        
+                        const totalVarWarehouseStock = resp.warehouse_stocks.reduce((sum, s) => sum + parseFloat(s.quantity), 0);
+                        
+                        if (totalVarWarehouseStock <= 0) {
+                            alert('This variation has 0 stock in Warehouses and cannot be assigned.');
+                            $select.val('').trigger('change.select2'); // Reset variation selection
+                             if (stockIndicator) {
+                                stockIndicator.textContent = 'Out of Stock (Warehouse)';
+                                stockIndicator.className = 'small mt-1 stock-indicator text-danger';
+                            }
+                            // Also disable quantity?
+                            const qtyInput = row.querySelector('.quantity');
+                            if (qtyInput) {
+                                qtyInput.value = '';
+                                qtyInput.dataset.maxStock = 0;
+                            }
+                            return;
+                        }
+
+                        // Update Limit
+                        if (row) {
+                             const qtyInput = row.querySelector('.quantity');
+                            if (qtyInput) {
+                                qtyInput.setAttribute('max', totalVarWarehouseStock);
+                                qtyInput.dataset.maxStock = totalVarWarehouseStock;
+                            }
+                            if (stockIndicator) {
+                                stockIndicator.textContent = 'Available Warehouse Stock: ' + totalVarWarehouseStock;
+                                stockIndicator.className = 'small mt-1 stock-indicator text-info';
+                            }
+                        }
+                    } else {
+                         if (stockIndicator) stockIndicator.textContent = 'Stock info unavailable';
+                    }
+                }).fail(function() {
+                    console.error('Failed to fetch variation stock');
+                });
             }
         });
         // Calculate item total and update summary

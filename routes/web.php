@@ -319,6 +319,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/pos/{id}/print', [\App\Http\Controllers\Erp\PosController::class, 'print'])->name('pos.print');
     Route::get('/pos/product/{productId}/stock', [\App\Http\Controllers\Erp\PosController::class, 'getMultiBranchStock'])->name('pos.product.stock');
     Route::get('/pos/product/{productId}/variation/{variationId}/stock', [\App\Http\Controllers\Erp\PosController::class, 'getMultiBranchStock'])->name('pos.variation.stock');
+    Route::get('/pos/product/{productId}/branch/{branchId}/stock/{variationId?}', [\App\Http\Controllers\Erp\PosController::class, 'getBranchStock'])->name('pos.product.branch.stock');
     // Technician assignment route removed - not needed for ecommerce-only business
     // Route::post('/pos/assign-tech/{saleId}/{techId}', [\App\Http\Controllers\Erp\PosController::class, 'assignTechnician'])->name('pos.assign.tech');
     Route::post('/pos/update-note/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateNote'])->name('pos.update.note');

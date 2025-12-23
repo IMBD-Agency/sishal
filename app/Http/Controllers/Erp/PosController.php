@@ -594,6 +594,28 @@ class PosController extends Controller
         return response()->json(['success' => true, 'data' => $stockData]);
     }
 
+    public function getBranchStock($productId, $branchId, $variationId = null)
+    {
+        if ($variationId && $variationId !== 'null') {
+            $stock = ProductVariationStock::where('variation_id', $variationId)
+                ->where('branch_id', $branchId)
+                ->whereNull('warehouse_id')
+                ->first();
+            // Use available_quantity accessor or calculate manually
+            $quantity = $stock ? ($stock->quantity - ($stock->reserved_quantity ?? 0)) : 0;
+            
+            // Double check: if no variation stock record exists, strictly return 0
+            // Do NOT fall back to product stock here
+        } else {
+            $stock = BranchProductStock::where('branch_id', $branchId)
+                ->where('product_id', $productId)
+                ->first();
+            $quantity = $stock ? $stock->quantity : 0;
+        }
+
+        return response()->json(['success' => true, 'quantity' => $quantity]);
+    }
+
     // Technician assignment removed - not needed for ecommerce-only business
     // public function assignTechnician($saleId, $techId)
     // {

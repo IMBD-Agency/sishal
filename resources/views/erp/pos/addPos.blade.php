@@ -679,19 +679,11 @@
         // Load variations and auto-select the one from barcode
         function loadProductVariationsForBarcode(productId, variationId, product) {
             // First, get the variation stock information
-            $.get(`/erp/products/${productId}/variations/${variationId}/stock/levels`, function(stockResponse) {
+            $.get(`/erp/pos/product/${productId}/branch/${currentBranchId}/stock/${variationId}`, function(stockResponse) {
                 let stockForBranch = 0;
                 
-                // Extract stock from response
-                if (stockResponse && stockResponse.branch_stocks && Array.isArray(stockResponse.branch_stocks)) {
-                    const match = stockResponse.branch_stocks.find(s => {
-                        return String(s.branch_id) === String(currentBranchId);
-                    });
-                    if (match) {
-                        stockForBranch = match.available_quantity !== undefined && match.available_quantity !== null 
-                            ? match.available_quantity 
-                            : (match.quantity || 0) - (match.reserved_quantity || 0);
-                    }
+                if (stockResponse && stockResponse.success) {
+                    stockForBranch = stockResponse.quantity || 0;
                 }
                 
                 // Now get variation details
@@ -1133,24 +1125,11 @@
                     $addToCartBtn.prop('disabled', true);
 
                     // Show stock per variation for the selected branch via API
-                    $.get(`/erp/products/${productId}/variations/${variationId}/stock/levels`, function (resp) {
+                    $.get(`/erp/pos/product/${productId}/branch/${currentBranchId}/stock/${variationId}`, function (resp) {
                         let qty = 0;
-                        let reservedQty = 0;
                         
-                        if (resp && resp.branch_stocks && Array.isArray(resp.branch_stocks) && resp.branch_stocks.length > 0) {
-                            // Find matching branch stock
-                            const match = resp.branch_stocks.find(s => {
-                                // Ensure both are compared as strings to avoid type mismatch
-                                return String(s.branch_id) === String(currentBranchId);
-                            });
-                            
-                            if (match) {
-                                // Use available_quantity if present, otherwise calculate from quantity - reserved_quantity
-                                qty = match.available_quantity !== undefined && match.available_quantity !== null 
-                                    ? match.available_quantity 
-                                    : (match.quantity || 0) - (match.reserved_quantity || 0);
-                                reservedQty = match.reserved_quantity || 0;
-                            }
+                        if (resp && resp.success) {
+                            qty = resp.quantity || 0;
                         }
                         
                         selectedProduct.selectedVariation.stockForBranch = qty;
@@ -1164,14 +1143,11 @@
                             } else {
                                 $stockInfo.removeClass('text-danger text-warning').addClass('text-success');
                             }
-                            if (reservedQty > 0) {
-                                stockMessage += ` (${reservedQty} reserved)`;
-                            }
                             $stockInfo.html(stockMessage);
                             $addToCartBtn.prop('disabled', false);
                         } else {
                             $stockInfo.removeClass('text-success text-warning').addClass('text-danger');
-                            $stockInfo.html(`<i class="fas fa-times-circle me-1"></i><strong>Out of Stock</strong>${reservedQty > 0 ? ` (${reservedQty} reserved)` : ''}`);
+                            $stockInfo.html(`<i class="fas fa-times-circle me-1"></i><strong>Out of Stock</strong>`);
                             $addToCartBtn.prop('disabled', true);
                         }
                     }).fail(function (xhr, status, error) {
