@@ -154,24 +154,14 @@
             });
             
             // Attach event handler after initialization
-            $(selector).on('select2:select', function (e) {
-                // Small delay to ensure Select2 has updated the value
-                setTimeout(function() {
-                    handleProductChange(e.target);
-                }, 100);
-            });
         }
 
         // Initial bind
         $(document).ready(function() {
             initProductSelect2('.product-select');
             
-            // Bind Select2 events for product selection
-            $(document).on('select2:select', '.product-select', function(e) {
-                handleProductChange(this);
-            });
-            
-            // Also handle standard change event as fallback
+            // Only handle standard change event which covers both user selection and programmatic updates
+            // This prevents double-firing (once from select2:select, once from change)
             $(document).on('change', '.product-select', function() {
                 handleProductChange(this);
             });
@@ -239,6 +229,49 @@
                 return;
             }
 
+            // Check global/warehouse stock before proceeding
+            // We assume "Assign" distributes from a central Warehouse. 
+            // If the user treats "Purchase" as "Assign from Warehouse", we should check if Warehouse/Global stock > 0.
+            // Since we don't know the exact source warehouse, we'll check the Product's general availability or stock endpoint.
+            
+            // Let's use the stock endpoint (which might be warehouse specific) or a new check.
+            // Since Purchase creates stock, this check is actually logically inverted for a "Purchase", 
+            // but for "Assign" (Distribution), it makes sense. 
+            // We will check the "order/product-stocks" endpoint which returns all stocks.
+            
+            $.get('{{ url('/erp/order/product-stocks') }}/' + productId, function (resp) {
+                if (!resp || !resp.success || !Array.isArray(resp.stocks)) {
+                    // Fallback or error
+                } else {
+                    const stocks = resp.stocks;
+                    // Calculate total warehouse stock (assuming source is warehouse)
+                    const totalWarehouseStock = stocks
+                        .filter(s => s.type === 'warehouse')
+                        .reduce((sum, s) => sum + parseFloat(s.quantity), 0);
+
+                    // If total warehouse stock is 0, prevent selection
+                    if (totalWarehouseStock <= 0) {
+                        alert('This product has 0 stock in Warehouses and cannot be assigned.');
+                        // Clear selection
+                        $select.val(null).trigger('change'); 
+                        return; 
+                    }
+
+                    // Store max stock on quantity input and update indicator
+                    if (row) {
+                        const qtyInput = row.querySelector('.quantity');
+                        if (qtyInput) {
+                            qtyInput.setAttribute('max', totalWarehouseStock);
+                            qtyInput.dataset.maxStock = totalWarehouseStock; // For easy access
+                        }
+                        if (stockIndicator) {
+                            stockIndicator.textContent = 'Available Warehouse Stock: ' + totalWarehouseStock;
+                            stockIndicator.classList.add('text-info');
+                        }
+                    }
+                }
+            });
+
             // Reset variation select and clear unit price
             if (variationSelect) {
                 variationSelect.classList.add('d-none');
@@ -270,47 +303,22 @@
                         variationSelect.classList.add('d-none');
                         variationSelect.removeAttribute('required');
                         $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                            console.log('Price response:', resp);
                             // Use display price (with discount if applicable)
                             if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
                                 unitPriceInput.value = parseFloat(resp.price).toFixed(2);
                                 updateTotals();
-                            } else {
-                                console.warn('Price not available or invalid:', resp);
                             }
-                        }).fail(function(xhr, status, error) {
-                            console.error('Failed to fetch product price:', error, xhr);
                         });
                     }
-                }).fail(function(xhr, status, error) {
-                    console.error('Failed to fetch variations:', error);
-                    // If variations endpoint fails, try to get product price
-                    $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                        console.log('Price response (fallback):', resp);
-                        // Use display price (with discount if applicable)
-                        if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
-                            unitPriceInput.value = parseFloat(resp.price).toFixed(2);
-                            updateTotals();
-                        } else {
-                            console.warn('Price not available or invalid (fallback):', resp);
-                        }
-                    }).fail(function(xhr, status, error) {
-                        console.error('Failed to fetch product price (fallback):', error, xhr);
-                    });
                 });
             } else {
                 // No variation select element - just get product price
                 $.get('{{ url('/erp/products') }}/' + productId + '/price', function (resp) {
-                    console.log('Price response (no variations):', resp);
                     // Use display price (with discount if applicable)
                     if (unitPriceInput && resp && typeof resp.price !== 'undefined' && resp.price !== null && resp.price !== '' && resp.price > 0) {
                         unitPriceInput.value = parseFloat(resp.price).toFixed(2);
                         updateTotals();
-                    } else {
-                        console.warn('Price not available or invalid (no variations):', resp);
                     }
-                }).fail(function(xhr, status, error) {
-                    console.error('Failed to fetch product price (no variations):', error, xhr);
                 });
             }
 
@@ -610,6 +618,16 @@
                 e.target.classList.contains('quantity') ||
                 e.target.classList.contains('unit_price')
             ) {
+                // Validate quantity if it's a quantity input
+                if (e.target.classList.contains('quantity')) {
+                    const qty = parseFloat(e.target.value);
+                    const maxStock = parseFloat(e.target.dataset.maxStock);
+                    
+                    if (!isNaN(qty) && !isNaN(maxStock) && qty > maxStock) {
+                        alert('You cannot assign more than available stock (' + maxStock + ').');
+                        e.target.value = maxStock; // Reset to max
+                    }
+                }
                 updateTotals();
             }
         });

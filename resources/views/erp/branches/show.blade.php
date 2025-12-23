@@ -213,6 +213,7 @@
                                             <th class="border-0">Purchase Price</th>
                                             <th class="border-0">Category</th>
                                             <th class="border-0">Stock</th>
+                                            <th class="border-0">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -253,6 +254,18 @@
                                                         class="badge {{ $product->quantity > 0 ? 'bg-success bg-opacity-25 text-success' : 'bg-danger bg-opacity-25 text-danger' }}">
                                                         {{ $product->quantity }} in stock
                                                     </span>
+                                                </td>
+                                                <td class="border-0">
+                                                    @if($product->quantity <= 0)
+                                                        <form action="{{ route('branches.products.remove', $product->id) }}" method="POST"
+                                                            onsubmit="return confirm('Are you sure you want to remove this product from the branch list?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from list">
+                                                                <i class="fas fa-trash-alt"></i> Remove
+                                                            </button>
+                                                        </form>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @empty

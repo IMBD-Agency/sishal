@@ -162,6 +162,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/branches/{branch}/non-branch-employees', [\App\Http\Controllers\Erp\BranchController::class, 'getNonBranchEmployee'])->name('branches.non_branch_employees');
     Route::post('/branches/{branch}/add-employee/{employee}', [\App\Http\Controllers\Erp\BranchController::class, 'addEmployee'])->name('branches.add_employee');
     Route::post('/branches/remove-employee/{employee}', [\App\Http\Controllers\Erp\BranchController::class, 'removeEmployeeFromBranch'])->name('branches.remove_employee');
+    Route::delete('/branches/products/{id}', [\App\Http\Controllers\Erp\BranchController::class, 'removeProduct'])->name('branches.products.remove');
     Route::post('/branches/{branch}/warehouses', [\App\Http\Controllers\Erp\WarehouseController::class, 'storeWarehousePerBranch'])->name('branches.warehouses.store');
     Route::patch('/warehouses/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'update'])->name('warehouses.update');
     Route::delete('/warehouses/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'destroy'])->name('warehouses.destroy');

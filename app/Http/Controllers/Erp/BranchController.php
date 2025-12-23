@@ -507,4 +507,21 @@ class BranchController extends Controller
         
         return $pdf->download($filename);
     }
+
+    public function removeProduct($id)
+    {
+        if(!Auth::user()->hasPermissionTo('edit branch')){
+            abort(403, 'Unauthorized action.');
+        }
+
+        $branchStock = \App\Models\BranchProductStock::findOrFail($id);
+
+        if ($branchStock->quantity > 0) {
+            return back()->with('error', 'Cannot remove product that still has stock. Please adjust stock to 0 first.');
+        }
+
+        $branchStock->delete();
+
+        return back()->with('status', 'Product removed from branch successfully.');
+    }
 }
