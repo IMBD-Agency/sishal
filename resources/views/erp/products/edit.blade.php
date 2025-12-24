@@ -134,6 +134,19 @@
                                         <small class="form-text text-muted">You can select multiple images. Uploading new images will add to the gallery.</small>
                                     </div>
                                     <div class="col-md-6">
+                                        <div class="card border-0 shadow-sm p-3 h-100">
+                                            <div class="form-check form-switch d-flex align-items-center justify-content-between p-0">
+                                                <div>
+                                                    <label class="form-check-label fw-bold mb-0" for="show_in_ecommerce">
+                                                        <i class="fas fa-globe me-2 text-primary"></i>Show in Ecommerce
+                                                    </label>
+                                                    <div class="form-text mt-1 small">Visible on public website. Always visible in POS.</div>
+                                                </div>
+                                                <input class="form-check-input ms-0" type="checkbox" id="show_in_ecommerce" name="show_in_ecommerce" value="1" style="width: 3rem; height: 1.5rem; cursor: pointer;" {{ old('show_in_ecommerce', $product->show_in_ecommerce) ? 'checked' : '' }}>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label for="status" class="form-label">Status</label>
                                         <select class="form-select" id="status" name="status">
                                             <option value="active" {{ old('status', $product->status) == 'active' ? 'selected' : '' }}>Active</option>

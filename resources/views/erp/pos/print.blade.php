@@ -1,276 +1,263 @@
 @php
-    // Include helper functions
-    require_once app_path('Helpers/NumberHelper.php');
+    // Include helper functions if needed
+    // require_once app_path('Helpers/NumberHelper.php');
 @endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>POS Receipt - {{ $pos->sale_number }}</title>
     <style>
-        /* === PRINT SAFE AREA === */
+        /* Base Styles */
         @page {
-            size: A4;
-            margin: 15mm 20mm 15mm 20mm;
-        }
-
-        html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            height: 100%;
-            background: #fff;
-            overflow: visible !important;
-            -webkit-print-color-adjust: exact;
-        }
-
-        * {
             margin: 0;
-            padding: 0;
-            box-sizing: border-box;
         }
 
         body {
-            font-family: 'Arial', sans-serif;
-            color: #222;
-        }
-
-        .receipt-box {
-            max-width: 800px;
-            margin: 20px auto;
-            border: 1px solid #222;
-            padding: 24px 32px;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #000;
+            margin: 0;
+            padding: 0;
             background: #fff;
-            page-break-after: avoid;
-            page-break-before: avoid;
         }
 
-        .header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
+        .receipt-container {
+            width: 220pt; /* Fixed width in points for stability (~78mm) */
+            margin: 0;
+            padding: 10pt;
+            box-sizing: border-box;
         }
 
-        .header .logo {
-            width: 120px;
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: bold; }
+
+        .header { margin-bottom: 15pt; }
+        .company-name {
+            font-size: 16pt;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2pt;
+        }
+        .company-info {
+            font-size: 10pt;
+            display: block;
+            margin-bottom: 2pt;
+        }
+        .invoice-title {
+            margin-top: 10pt;
+            font-size: 11pt;
+            font-weight: bold;
+            display: block;
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 5pt 0;
+            margin-bottom: 10pt;
         }
 
-        .header .receipt-title {
-            text-align: right;
-            color: #007bff;
-            font-size: 2rem;
-            font-weight: 400;
+        .sale-info {
+            margin-bottom: 10pt;
+            width: 100%;
         }
-
-        .barcode {
-            text-align: right;
-            margin-top: 8px;
-        }
-
-        .info-table, .items-table {
+        
+        .info-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 16px;
         }
-
         .info-table td {
-            padding: 2px 0;
-            font-size: 14px;
+            vertical-align: top;
+            padding: 2pt 0;
+            font-size: 10pt;
         }
-
-        .items-table th, .items-table td {
-            border: 1px solid #222;
-            padding: 6px 8px;
-            text-align: center;
-            font-size: 10px;
-        }
-
-        .items-table th {
-            background: #f5f5f5;
-        }
-
-        .summary-table {
-            width: 40%;
-            float: right;
-            margin-top: 16px;
-            border-collapse: collapse;
-        }
-
-        .summary-table td {
-            padding: 4px 8px;
-            font-size: 10px;
-        }
-
-        .summary-table tr td:first-child {
-            text-align: right;
-        }
-
-        .summary-table tr td:last-child {
-            text-align: right;
+        .info-label {
+            width: 80pt;
             font-weight: bold;
         }
 
-        .inword, .bill-note, .footer, .sign-row {
-            margin-top: 16px;
-            font-size: 12px;
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+        }
+        .items-table th, .items-table td {
+            border: 1px solid #000;
+            padding: 4pt 2pt;
+            font-size: 9pt;
+            text-align: center;
+        }
+        .items-table th { font-weight: bold; background: #f0f0f0; }
+        .items-table .text-left { text-align: left; padding-left: 3pt; }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: -1px;
+        }
+        .summary-table td {
+            border: 1px solid #000;
+            padding: 4pt 5pt;
+            font-size: 10pt;
+        }
+        .summary-label { text-align: right; font-weight: bold; width: 70%; }
+        .summary-value { text-align: right; width: 30%; font-weight: bold; }
+
+        .footer { 
+            margin-top: 20pt; 
+            font-size: 11pt;
+            padding-bottom: 30pt;
         }
 
-        .footer {
-            color: #444;
-            margin-top: 24px;
-        }
+        .item-sku { font-size: 8pt; display: block; color: #555; }
 
-        .sign-row {
-            margin-top: 48px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-        }
+        /* PDF specific layout */
+        @if(isset($action) && $action == 'download')
+        body { width: 260pt; }
+        .receipt-container { width: 250pt; }
+        @endif
 
+        /* Browser Print specific */
         @media print {
-            html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: visible !important;
-            }
-
-            .receipt-box {
-                border: none;
-                box-shadow: none;
-                margin: 0 auto;
-                padding: 24px 32px;
-                page-break-inside: avoid;
-            }
-
-            .header,
-            .barcode,
-            .info-table,
-            .items-table,
-            .summary-table,
-            .inword,
-            .bill-note,
-            .footer,
-            .sign-row {
-                page-break-inside: avoid;
-            }
+            body { width: 80mm; }
+            .receipt-container { width: 76mm; padding: 2mm; }
         }
     </style>
 </head>
 <body>
-    <div class="receipt-box">
-        <div class="header">
-            <div>
-                <img src="{{ asset($general_settings->site_logo) }}" alt="{{ $general_settings->site_title }}" class="logo" style="width: 60px;">
-            </div>
-            <div>
-                <div class="receipt-title">POS RECEIPT</div>
-            </div>
+    <div class="receipt-container">
+        <!-- Header -->
+        <div class="header text-center">
+            <span class="company-name">{{ $general_settings->site_title }}</span>
+            <span class="company-info">{{ $general_settings->contact_address }}</span>
+            <span class="company-info">Tel: {{ $general_settings->contact_phone }}</span>
+            <span class="invoice-title">IN POS SALE INVOICE COPY</span>
         </div>
 
-        <div class="header" style="margin-top: 4px;">
-            <div style="font-size: 14px; max-width: 300px;">
-                {{ $general_settings->contact_address }} <br>
-                Phone: <a style="color: black; text-decoration: none;" href="callto:{{ $general_settings->contact_phone }}">{{ $general_settings->contact_phone }}</a><br>
-                Email: <a style="color: black; text-decoration: none;" href="mailto:{{ $general_settings->contact_email }}">{{ $general_settings->contact_email }}</a><br>
-                Website: <a style="color: black; text-decoration: none;" target="_blank" href="{{ $general_settings->website_url ?? '#' }}">{{ $general_settings->website_url ?? 'N/A' }}</a>
-            </div>
-            <div class="barcode">{!! $qrCodeSvg !!}</div>
+        <!-- Sale Details -->
+        <div class="sale-info">
+            <table class="info-table">
+                <tr>
+                    <td class="info-label">Date:</td>
+                    <td>{{ \Carbon\Carbon::parse($pos->sale_date)->format('d-m-Y | h:i A') }}</td>
+                </tr>
+                <tr>
+                    <td class="info-label">Invoice No.:</td>
+                    <td>{{ $pos->sale_number }}</td>
+                </tr>
+                <tr>
+                    <td class="info-label">Payment Mode:</td>
+                    <td>
+                        @php
+                            $pm = 'Cash In Hand';
+                            if($pos->invoice && $pos->invoice->payments->count() > 0) {
+                                $pm = $pos->invoice->payments->first()->payment_method ?? 'Cash In Hand';
+                            }
+                        @endphp
+                        {{ $pm }}
+                        @if($pos->branch)
+                            ({{ strtoupper($pos->branch->name) }})
+                        @endif
+                    </td>
+                </tr>
+                <tr>
+                    <td class="info-label">Customer:</td>
+                    <td>{{ $pos->customer ? $pos->customer->name : 'Admin' }}</td>
+                </tr>
+                <tr>
+                    <td class="info-label">Mobile:</td>
+                    <td>{{ $pos->customer ? $pos->customer->phone : '' }}</td>
+                </tr>
+            </table>
         </div>
 
-        <table class="info-table">
-            <tr>
-                <td><strong>Customer Info.</strong></td>
-                <td style="text-align:right;"><strong>SALE #</strong> {{ $pos->sale_number }}</td>
-            </tr>
-            <tr>
-                <td>{{ $pos->customer ? $pos->customer->name : 'Walk-in Customer' }}</td>
-                <td style="text-align:right;">DATE: {{ \Carbon\Carbon::parse($pos->sale_date)->format('d M, Y') }}</td>
-            </tr>
-            @if($pos->customer)
-            <tr>
-                <td>Phone: {{ $pos->customer->phone }}</td>
-            </tr>
-            @endif
-            @if($pos->branch)
-            <tr>
-                <td>Branch: {{ $pos->branch->name }}</td>
-            </tr>
-            @endif
-        </table>
-
-        <table class="items-table" style="margin-top: 18px;">
+        <!-- Items Table -->
+        <table class="items-table">
             <thead>
                 <tr>
-                    <th>SL</th>
-                    <th>DESCRIPTION</th>
-                    <th>QUANTITY</th>
-                    <th>UNIT</th>
-                    <th>PRICE</th>
-                    <th>AMOUNT</th>
+                    <th style="width: 10%;">SN</th>
+                    <th style="width: 45%;">Product</th>
+                    <th style="width: 25%;">S & C</th>
+                    <th style="width: 10%;">QTY</th>
+                    <th style="width: 10%;">AMT</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach ($pos->items as $item)
+                @foreach ($pos->items as $index => $item)
                 <tr>
-                    <td>{{ $loop->iteration }}</td>
-                    <td style="text-align:left;">
+                    <td>{{ $index + 1 }}</td>
+                    <td class="text-left">
                         {{ $item->product->name }}
+                        <span class="item-sku">{{ $item->product->sku }}</span>
+                    </td>
+                    <td>
                         @if($item->variation)
-                            <br><small style="color: #666;">Variation: {{ $item->variation->name ?? $item->variation->sku }}</small>
+                            @php
+                                $vals = [];
+                                foreach($item->variation->attributeValues as $val) {
+                                    $vals[] = $val->value;
+                                }
+                                echo implode(', ', $vals);
+                            @endphp
+                        @else
+                            ALL
                         @endif
                     </td>
                     <td>{{ number_format($item->quantity, 0) }}</td>
-                    <td>PCS</td>
-                    <td>{{ number_format($item->unit_price, 2) }} Tk</td>
-                    <td>{{ number_format($item->total_price, 2) }} Tk</td>
+                    <td>{{ number_format($item->total_price, 1) }}</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
 
+        <!-- Summary Table -->
         <table class="summary-table">
-            <tr><td>SUB TOTAL :</td><td>{{ number_format($pos->sub_total ?? 0, 2) }} Tk</td></tr>
-            <tr><td>DISCOUNT :</td><td>{{ number_format($pos->discount ?? 0, 2) }} Tk</td></tr>
-            @if($pos->invoice && $pos->invoice->tax)
-            <tr><td>VAT :</td><td>{{ number_format($pos->invoice->tax ?? 0, 2) }} Tk</td></tr>
-            @endif
-            @if($pos->delivery > 0)
-            <tr><td>DELIVERY :</td><td>{{ number_format($pos->delivery, 2) }} Tk</td></tr>
-            @endif
-            <tr><td>NET BILL :</td><td>{{ number_format($pos->total_amount ?? 0, 2) }} Tk</td></tr>
-            @if($pos->invoice)
-            <tr><td>PAID :</td><td>{{ number_format($pos->invoice->paid_amount ?? 0, 2) }} Tk</td></tr>
-            <tr><td>DUE :</td><td>{{ number_format($pos->invoice->due_amount ?? 0, 2) }} Tk</td></tr>
-            @endif
+            <tr>
+                <td class="summary-label">Sub Total</td>
+                <td class="summary-value">{{ number_format($pos->sub_total ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Delivery Charge</td>
+                <td class="summary-value">{{ number_format($pos->delivery ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">VAT & Tax (+)</td>
+                <td class="summary-value">{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Discount (-)</td>
+                <td class="summary-value">{{ number_format($pos->discount ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Total Amount</td>
+                <td class="summary-value bold">{{ number_format($pos->total_amount ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Paid Amount</td>
+                <td class="summary-value">{{ number_format($pos->invoice->paid_amount ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Due Amount</td>
+                <td class="summary-value">{{ number_format($pos->invoice->due_amount ?? 0, 2) }}</td>
+            </tr>
         </table>
 
-        <div style="clear:both;"></div>
-
-        <div class="inword"><strong>IN-WORD :</strong> {{ numberToWords($pos->total_amount ?? 0) }}</div>
-        @if($pos->notes)
-        <div class="bill-note"><strong>NOTE :</strong> {{ $pos->notes }}</div>
-        @endif
-        @if($pos->invoice && $pos->invoice->payments->count() > 0)
-        <p style="margin-top: 10px;"><b>- Payment Method :</b> {{ $pos->invoice->payments->first()->payment_method ?? 'Not specified' }}</p>
-        @endif
-
-        @if($template)
-        <div class="footer">
-            {!! $template->footer_note !!}
-        </div>
-        @endif
-
-        <div class="sign-row">
-            <div style="border-top: 1px dotted black; padding-top: 10px;">Received By</div>
-            <div style="border-top: 1px dotted black; padding-top: 10px;">Sales Person : {{ $pos->soldBy ? $pos->soldBy->name : 'N/A' }}</div>
+        <!-- Footer -->
+        <div class="footer text-center">
+            <div>Thank you, come again @ {{ $general_settings->site_title }}</div>
         </div>
     </div>
+
+    @if(!isset($action) || $action == 'print')
+    <script>
+        window.onload = () => {
+            window.print();
+            setTimeout(() => {
+                window.close();
+            }, 700);
+        }
+    </script>
+    @endif
 </body>
 </html>
-
-@if($action == 'print' || (isset($action) && $action == 'print'))
-<script>
-    window.onload = () => window.print();
-    window.onafterprint = () => window.close();
-</script>
-@endif
-

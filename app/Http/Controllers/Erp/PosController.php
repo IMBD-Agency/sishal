@@ -558,6 +558,8 @@ class PosController extends Controller
         // PDF download logic
         if ($action == 'download') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+            // Increased width to 260 points (~91mm) to provide breathing room and prevent clipping
+            $pdf->setPaper([0, 0, 260, 1000], 'portrait');
             return $pdf->download('pos-receipt-'.$pos->sale_number.'.pdf');
         }
 

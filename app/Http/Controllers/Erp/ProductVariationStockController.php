@@ -65,7 +65,18 @@ class ProductVariationStockController extends Controller
                     'last_updated_at' => now(),
                 ]);
             }
-        }
+
+        // Ensure BranchProductStock record exists so product shows in branch detail page
+        \App\Models\BranchProductStock::firstOrCreate([
+            'branch_id' => $branchId,
+            'product_id' => $variation->product_id,
+        ], [
+            'quantity' => 0,
+            'updated_by' => auth()->id() ?? 1,
+            'last_updated_at' => now(),
+        ]);
+    }
+        
 
         return response()->json(['success' => true, 'message' => 'Stock added to branches successfully.']);
     }

@@ -71,6 +71,7 @@ class SalesAnalyticsService
             ', [$startDate, $startDate, $startDate, $startDate])
             ->where('products.type', 'product')
             ->where('products.status', 'active')
+            ->where('products.show_in_ecommerce', true)
             ->orderByDesc('total_sold')
             ->orderByDesc('total_revenue')
             ->orderByDesc('products.created_at')

@@ -223,7 +223,7 @@
                                                     <div class="d-flex align-items-center">
                                                         <div class="me-3" style="width: 50px; height: 50px; flex-shrink: 0;">
                                                             @if($product->product?->image)
-                                                                <img src="{{ asset('storage/' . $product->product->image) }}" 
+                                                                <img src="{{ asset($product->product->image) }}" 
                                                                      alt="{{ $product->product->name }}" 
                                                                      class="rounded object-fit-cover w-100 h-100 border">
                                                             @else
@@ -312,19 +312,26 @@
                                                 </td>
                                                 <td class="border-0">
                                                     @php
-                                                        $canRemove = $product->quantity <= 0;
+                                                        $canRemove = false;
                                                         $isGhostStock = false;
                                                         
-                                                        if ($product->quantity > 0 && $product->product?->has_variations) {
-                                                            $variationSum = 0;
-                                                            foreach($product->product->variations as $var) {
-                                                                // Sum all stocks (Floor + Warehouse) for this branch
-                                                                $variationSum += $var->stocks->sum('quantity');
-                                                            }
+                                                        if ($product->product?->has_variations) {
+                                                            // For variable products, check sum of all variation stocks in this branch
+                                                            $variationStockSum = $product->product->variations->sum(function($v) {
+                                                                return $v->stocks->sum('quantity');
+                                                            });
                                                             
-                                                            if ($variationSum == 0) {
+                                                            if ($variationStockSum <= 0) {
                                                                 $canRemove = true;
-                                                                $isGhostStock = true;
+                                                                // If base quantity > 0 but variations are 0, it's ghost stock
+                                                                if ($product->quantity > 0) {
+                                                                    $isGhostStock = true;
+                                                                }
+                                                            }
+                                                        } else {
+                                                            // For simple products, just check the base quantity
+                                                            if ($product->quantity <= 0) {
+                                                                $canRemove = true;
                                                             }
                                                         }
                                                     @endphp

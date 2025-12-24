@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'free_delivery'
+        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'free_delivery', 'show_in_ecommerce'
     ];
 
     protected $casts = [
@@ -15,6 +15,7 @@ class Product extends Model
         'has_variations' => 'boolean',
         'manage_stock' => 'boolean',
         'free_delivery' => 'boolean',
+        'show_in_ecommerce' => 'boolean',
         'price' => 'decimal:2',
         'cost' => 'decimal:2',
         'discount' => 'decimal:2',
@@ -152,16 +153,14 @@ class Product extends Model
     {
         if ($this->has_variations) {
             return $this->activeVariations()->with('stocks')->get()->sum(function($variation) {
-                // Only count warehouse stock for ecommerce display (exclude branch stock)
-                return $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity');
+                return $variation->stocks->sum('quantity');
             });
         }
         
-        // Use query builder instead of accessing loaded relationships directly
-        // For ecommerce: Only show warehouse stock, not branch stock
+        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
         
-        return $warehouseStock;
+        return $branchStock + $warehouseStock;
     }
 
     /**
@@ -172,18 +171,14 @@ class Product extends Model
     {
         if ($this->has_variations) {
             return $this->activeVariations()->whereHas('stocks', function($query) {
-                // Only check warehouse stock for ecommerce (exclude branch stock)
-                $query->whereNotNull('warehouse_id')
-                      ->whereNull('branch_id')
-                      ->where('quantity', '>', 0);
+                $query->where('quantity', '>', 0);
             })->exists();
         }
         
-        // Use query builder instead of accessing loaded relationships directly
-        // For ecommerce: Only check warehouse stock, not branch stock
+        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
         
-        return $warehouseStock > 0;
+        return ($branchStock + $warehouseStock) > 0;
     }
 
     /**

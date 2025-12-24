@@ -77,6 +77,7 @@ class PageController extends Controller
         $featuredServices = Cache::remember('featured_services', 300, function () {
             return Product::where('type', 'service')
                 ->where('status', 'active')
+                ->where('show_in_ecommerce', true)
                 ->orderByDesc('created_at')
                 ->take(4)
                 ->get();
@@ -86,6 +87,7 @@ class PageController extends Controller
         $bestDealProducts = Cache::remember('best_deal_products_home', 300, function () {
             return Product::where('type', 'product')
                 ->where('status', 'active')
+                ->where('show_in_ecommerce', true)
                 ->where('discount', '>', 0)
                 ->orderByDesc('discount')
                 ->orderByDesc('created_at')
@@ -137,7 +139,7 @@ class PageController extends Controller
                 }
             ])
             ->get();
-        $query = Product::query();
+        $query = Product::where('show_in_ecommerce', true);
 
         // Get the highest price of all products (cached for 1 hour)
         $maxProductPrice = Cache::remember('max_product_price', 3600, function () {
@@ -359,7 +361,9 @@ class PageController extends Controller
                 'warehouseStock',
                 'productAttributes',
                 'galleries'
-            ])->where('slug', $slug)->first();
+            ])->where('slug', $slug)
+                ->where('show_in_ecommerce', true)
+                ->first();
 
             if (!$product) {
                 \Log::error('Product not found', ['slug' => $slug]);
@@ -401,6 +405,7 @@ class PageController extends Controller
             $relatedProducts = Cache::remember($relatedProductsCacheKey, 1800, function () use ($product) {
                 return Product::where('type', 'product')
                     ->where('status', 'active')
+                    ->where('show_in_ecommerce', true)
                     ->where('id', '!=', $product->id)
                     ->where(function ($query) use ($product) {
                         // Same category products
@@ -512,7 +517,7 @@ class PageController extends Controller
     public function search(Request $request)
     {
         $search = $request->search;
-        $products = Product::where(function ($query) use ($search) {
+        $products = Product::where('show_in_ecommerce', true)->where(function ($query) use ($search) {
             $query->where('name', 'like', '%' . $search . '%')
                 ->orWhereHas('category', function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%');
@@ -534,7 +539,7 @@ class PageController extends Controller
     {
         $pageTitle = 'Services';
         $categories = ProductServiceCategory::where('status', 'active')->get();
-        $services = Product::where('type', 'service')->paginate(12);
+        $services = Product::where('type', 'service')->where('show_in_ecommerce', true)->paginate(12);
 
         return view('ecommerce.service', compact('pageTitle', 'services', 'categories'));
     }
@@ -672,7 +677,8 @@ class PageController extends Controller
         }
 
         $query = Product::where('type', 'product')
-            ->where('status', 'active');
+            ->where('status', 'active')
+            ->where('show_in_ecommerce', true);
 
         // Prioritize discounted products, then sort by numbers in product name
         $query->orderByDesc('discount')
@@ -787,6 +793,7 @@ class PageController extends Controller
                 'variations.stocks'
             ])
                 ->where('status', 'active')
+                ->where('show_in_ecommerce', true)
                 ->where('type', 'product');
 
             // Category filter - include child categories

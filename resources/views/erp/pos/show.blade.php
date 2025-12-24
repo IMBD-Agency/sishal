@@ -27,6 +27,9 @@
                         <a href="{{ route('pos.print', $pos->id) }}" target="_blank" class="btn btn-outline-secondary px-4 py-2 rounded-pill">
                             <i class="fas fa-print me-2"></i>Print Receipt
                         </a>
+                        <a href="{{ route('pos.print', [$pos->id, 'action' => 'download']) }}" class="btn btn-outline-danger px-4 py-2 rounded-pill">
+                            <i class="fas fa-file-pdf me-2"></i>Download PDF
+                        </a>
                         @if($pos->status !== 'cancelled')
                         <a href="{{ route('pos.edit', $pos->id) }}" class="btn btn-info px-4 py-2 rounded-pill">
                             <i class="fas fa-edit me-2"></i>Edit Sale

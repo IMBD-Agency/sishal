@@ -81,11 +81,37 @@ class BranchController extends Controller
             // Dynamic counts
             $employees_count = $branch->employees->count();
             $warehouses_count = $branch->warehouses->count();
-            // Count unique products (not stock records)
-            $products_count = $branch->branchProductStocks()
-                ->select('product_id')
-                ->distinct()
-                ->count('product_id');
+        // Automatically ensure BranchProductStock records exist for any product that has variation stock records in this branch
+        $variableProductIdsWithRecords = \App\Models\ProductVariationStock::where('branch_id', $id)
+            ->whereNull('warehouse_id')
+            ->with('variation.product')
+            ->get()
+            ->pluck('variation.product_id')
+            ->unique();
+
+        foreach ($variableProductIdsWithRecords as $pid) {
+            if ($pid) {
+                \App\Models\BranchProductStock::firstOrCreate([
+                    'branch_id' => $id,
+                    'product_id' => $pid,
+                ], [
+                    'quantity' => 0,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
+        }
+
+        // Get branch products with stock info (all products, not limited)
+        $branch_products = $branch->branchProductStocks()
+            ->whereHas('product')
+            ->with(['product.category', 'product.variations.stocks' => function ($q) use ($id) {
+                $q->where('branch_id', $id)->whereNull('warehouse_id');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $products_count = $branch_products->count();
             
             
             // Get recent sales (last 10)
@@ -93,15 +119,6 @@ class BranchController extends Controller
                 ->with(['customer', 'invoice'])
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
-                ->get();
-            
-            // Get branch products with stock info (all products, not limited)
-            $branch_products = $branch->branchProductStocks()
-                ->whereHas('product')
-                ->with(['product.category', 'product.variations.stocks' => function($q) use ($id) {
-                    $q->where('branch_id', $id);
-                }])
-                ->orderBy('created_at', 'desc')
                 ->get();
             
             // Get employees with their roles

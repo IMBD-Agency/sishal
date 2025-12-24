@@ -308,9 +308,15 @@ class ProductController extends Controller
         ]);
 
         $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        
+        // Ensure nullable text fields are not null to avoid DB integrity constraint violations
+        $data['features'] = $data['features'] ?? '';
+        $data['short_desc'] = $data['short_desc'] ?? '';
+        $data['description'] = $data['description'] ?? '';
         $data['type'] = 'product'; // Always set type to product
         $data['has_variations'] = $request->boolean('has_variations');
         $data['manage_stock'] = $request->boolean('manage_stock');
+        $data['show_in_ecommerce'] = $request->has('show_in_ecommerce') ? $request->boolean('show_in_ecommerce') : true;
         
         // Handle meta_keywords array - convert to JSON string for storage
         if ($request->has('meta_keywords') && is_array($request->meta_keywords)) {
@@ -524,7 +530,13 @@ class ProductController extends Controller
         ]);
 
         $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        
+        // Ensure nullable text fields are not null to avoid DB integrity constraint violations
+        $data['features'] = $data['features'] ?? '';
+        $data['short_desc'] = $data['short_desc'] ?? '';
+        $data['description'] = $data['description'] ?? '';
         $data['type'] = 'product'; // Always set type to product
+        $data['show_in_ecommerce'] = $request->boolean('show_in_ecommerce');
         
         // Handle meta_keywords array - convert to JSON string for storage
         if ($request->has('meta_keywords') && is_array($request->meta_keywords)) {
@@ -781,6 +793,8 @@ class ProductController extends Controller
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
         ->where('sku', $barcode)
+        ->where('status', 'active')
+        ->where('type', 'product')
         ->where(function($q) use ($branchId) {
             $q->whereHas('branchStock', function($subQ) use ($branchId) {
                 $subQ->where('branch_id', $branchId);
@@ -798,13 +812,20 @@ class ProductController extends Controller
         }
 
         // If not found, try to find by variation SKU
-        $variation = \App\Models\ProductVariation::with(['product.category', 'product.branchStock' => function($q) use ($branchId) {
-            $q->where('branch_id', $branchId);
+        $variation = \App\Models\ProductVariation::with(['product' => function($q) use ($branchId) {
+            $q->where('status', 'active')
+              ->where('type', 'product')
+              ->with(['category', 'branchStock' => function($sq) use ($branchId) {
+                $sq->where('branch_id', $branchId);
+            }]);
         }, 'stocks' => function($q) use ($branchId) {
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
         ->where('sku', $barcode)
         ->where('status', 'active')
+        ->whereHas('product', function($q) {
+            $q->where('status', 'active')->where('type', 'product');
+        })
         ->whereHas('stocks', function($q) use ($branchId) {
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         })
@@ -963,8 +984,15 @@ class ProductController extends Controller
         }, 'variations.stocks' => function($q) use ($branchId) {
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
-        ->whereHas('branchStock', function($q) use ($branchId) {
-            $q->where('branch_id', $branchId);
+        ->where('status', 'active')
+        ->where('type', 'product')
+        ->where(function($q) use ($branchId) {
+            $q->whereHas('branchStock', function($sq) use ($branchId) {
+                $sq->where('branch_id', $branchId);
+            })
+            ->orWhereHas('variations.stocks', function($sq) use ($branchId) {
+                $sq->where('branch_id', $branchId)->whereNull('warehouse_id');
+            });
         });
 
         if ($request->filled('category_id')) {
