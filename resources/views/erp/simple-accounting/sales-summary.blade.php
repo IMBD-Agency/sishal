@@ -30,7 +30,7 @@
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between">
                                                 <div>
-                                                    <h4 class="mb-0">{{ number_format($salesData['total_revenue'], 2) }}৳</h4>
+                                                    <h4 class="mb-0">{{ number_format($salesData['total_revenue'], 2) }} TK</h4>
                                                     <p class="mb-0">Total Revenue</p>
                                                 </div>
                                                 <div class="align-self-center">
@@ -45,7 +45,7 @@
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between">
                                                 <div>
-                                                    <h4 class="mb-0">{{ number_format($profitData['gross_profit'], 2) }}৳</h4>
+                                                    <h4 class="mb-0">{{ number_format($profitData['gross_profit'], 2) }} TK</h4>
                                                     <p class="mb-0">Gross Profit</p>
                                                 </div>
                                                 <div class="align-self-center">
@@ -60,7 +60,7 @@
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between">
                                                 <div>
-                                                    <h4 class="mb-0">{{ number_format($costData['total_costs'], 2) }}৳</h4>
+                                                    <h4 class="mb-0">{{ number_format($costData['total_costs'], 2) }} TK</h4>
                                                     <p class="mb-0">Total Costs</p>
                                                 </div>
                                                 <div class="align-self-center">
@@ -100,17 +100,17 @@
                                                     <tbody>
                                                         <tr>
                                                             <td><strong>Online Orders</strong></td>
-                                                            <td class="text-end">{{ number_format($salesData['order_revenue'], 2) }}৳</td>
+                                                            <td class="text-end">{{ number_format($salesData['order_revenue'], 2) }} TK</td>
                                                             <td class="text-end">{{ $salesData['order_count'] }} orders</td>
                                                         </tr>
                                                         <tr>
                                                             <td><strong>POS Sales</strong></td>
-                                                            <td class="text-end">{{ number_format($salesData['pos_revenue'], 2) }}৳</td>
+                                                            <td class="text-end">{{ number_format($salesData['pos_revenue'], 2) }} TK</td>
                                                             <td class="text-end">{{ $salesData['pos_count'] }} sales</td>
                                                         </tr>
                                                         <tr class="table-primary">
                                                             <td><strong>Total Sales</strong></td>
-                                                            <td class="text-end"><strong>{{ number_format($salesData['total_revenue'], 2) }}৳</strong></td>
+                                                            <td class="text-end"><strong>{{ number_format($salesData['total_revenue'], 2) }} TK</strong></td>
                                                             <td class="text-end"><strong>{{ $salesData['total_sales_count'] }} transactions</strong></td>
                                                         </tr>
                                                     </tbody>
@@ -130,15 +130,15 @@
                                                     <tbody>
                                                         <tr>
                                                             <td><strong>Order Costs</strong></td>
-                                                            <td class="text-end">{{ number_format($costData['order_costs'], 2) }}৳</td>
+                                                            <td class="text-end">{{ number_format($costData['order_costs'], 2) }} TK</td>
                                                         </tr>
                                                         <tr>
                                                             <td><strong>POS Costs</strong></td>
-                                                            <td class="text-end">{{ number_format($costData['pos_costs'], 2) }}৳</td>
+                                                            <td class="text-end">{{ number_format($costData['pos_costs'], 2) }} TK</td>
                                                         </tr>
                                                         <tr class="table-warning">
                                                             <td><strong>Total Costs</strong></td>
-                                                            <td class="text-end"><strong>{{ number_format($costData['total_costs'], 2) }}৳</strong></td>
+                                                            <td class="text-end"><strong>{{ number_format($costData['total_costs'], 2) }} TK</strong></td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
@@ -160,19 +160,19 @@
                                                 <div class="col-md-4">
                                                     <div class="text-center">
                                                         <h6 class="text-muted">Revenue</h6>
-                                                        <h4 class="text-primary">{{ number_format($salesData['total_revenue'], 2) }}৳</h4>
+                                                        <h4 class="text-primary">{{ number_format($salesData['total_revenue'], 2) }} TK</h4>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="text-center">
                                                         <h6 class="text-muted">Costs</h6>
-                                                        <h4 class="text-warning">{{ number_format($costData['total_costs'], 2) }}৳</h4>
+                                                        <h4 class="text-warning">{{ number_format($costData['total_costs'], 2) }} TK</h4>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="text-center">
                                                         <h6 class="text-muted">Profit</h6>
-                                                        <h4 class="text-success">{{ number_format($profitData['gross_profit'], 2) }}৳</h4>
+                                                        <h4 class="text-success">{{ number_format($profitData['gross_profit'], 2) }} TK</h4>
                                                         <small class="text-muted">{{ number_format($profitData['profit_margin'], 1) }}% margin</small>
                                                     </div>
                                                 </div>

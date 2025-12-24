@@ -48,6 +48,7 @@
         </div>
         @endcanany
         {{-- Simple Accounting Menu --}}
+        @canany(['view sales summary', 'view sales report', 'view top products', 'view stock value'])   
         <div class="nav-item">
             <a href="#simpleAccountingSubmenu" class="nav-link {{ (request()->is('erp/simple-accounting*')) ? ' active' : '' }}" data-bs-toggle="collapse" role="button" aria-expanded="{{ (request()->is('erp/simple-accounting*')) ? 'true' : 'false' }}" aria-controls="simpleAccountingSubmenu">
                 <div class="d-flex align-items-center">
@@ -57,14 +58,23 @@
                 <i class="fas fa-chevron-down ms-auto"></i>
             </a>
             <div class="collapse{{ (request()->is('erp/simple-accounting*')) ? ' show' : '' }}" id="simpleAccountingSubmenu">
-                <ul class="nav flex-column ms-4">
+            <ul class="nav flex-column ms-4">
+                    @can('view sales summary')
                     <li class="nav-item"><a href="{{ route('simple-accounting.sales-summary') }}" class="nav-link {{ request()->is('erp/simple-accounting/sales-summary*') ? ' active' : '' }}">Sales Summary</a></li>
-                    <li class="nav-item"><a href="{{ route('simple-accounting.profit-report') }}" class="nav-link {{ request()->is('erp/simple-accounting/profit-report*') ? ' active' : '' }}">Profit Report</a></li>
+                    @endcan
+                    @can('view sales report')
+                    <li class="nav-item"><a href="{{ route('simple-accounting.sales-report') }}" class="nav-link {{ request()->is('erp/simple-accounting/sales-report*') ? ' active' : '' }}">Sales Report</a></li>
+                    @endcan
+                    @can('view top products')
                     <li class="nav-item"><a href="{{ route('simple-accounting.top-products') }}" class="nav-link {{ request()->is('erp/simple-accounting/top-products*') ? ' active' : '' }}">Top Products</a></li>
+                    @endcan
+                    @can('view stock value')
                     <li class="nav-item"><a href="{{ route('simple-accounting.stock-value') }}" class="nav-link {{ request()->is('erp/simple-accounting/stock-value*') ? ' active' : '' }}">Stock Value</a></li>
+                    @endcan
                 </ul>
             </div>
         </div>
+        @endcanany
         @canany(['view list user role'])
         <div class="nav-item">
             <a href="#" class="nav-link {{ (request()->is('erp/user-role*')) ? ' active' : '' }}" data-bs-toggle="collapse" data-bs-target="#userManagementSubMenu" aria-expanded="{{ (request()->is('erp/user-role*')) ? 'true' : 'false' }}" aria-controls="userManagementSubMenu">

@@ -26,7 +26,7 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between">
                                         <div>
-                                            <h4 class="mb-0">{{ number_format($totalStockValue, 2) }}৳</h4>
+                                            <h4 class="mb-0">{{ number_format($totalStockValue, 2) }} TK</h4>
                                             <p class="mb-0">Total Stock Value</p>
                                         </div>
                                         <div class="align-self-center">
@@ -109,9 +109,9 @@
                                                     <td class="text-end">
                                                         <span class="badge bg-primary">{{ number_format($data['total_stock']) }}</span>
                                                     </td>
-                                                    <td class="text-end">{{ number_format($data['unit_cost'], 2) }}৳</td>
+                                                    <td class="text-end">{{ number_format($data['unit_cost'], 2) }} TK</td>
                                                     <td class="text-end">
-                                                        <strong class="text-success">{{ number_format($data['total_value'], 2) }}৳</strong>
+                                                        <strong class="text-success">{{ number_format($data['total_value'], 2) }} TK</strong>
                                                     </td>
                                                     <td class="text-end">
                                                         @php
@@ -119,14 +119,14 @@
                                                                 ? ($data['product']->discount ?? 0)
                                                                 : ($data['product']->price ?? 0);
                                                         @endphp
-                                                        {{ number_format($sellingPrice, 2) }}৳
+                                                        {{ number_format($sellingPrice, 2) }} TK
                                                     </td>
                                                     <td class="text-end">
                                                         @php
                                                             $potentialProfit = ($sellingPrice - $data['unit_cost']) * $data['total_stock'];
                                                         @endphp
                                                         <span class="badge {{ $potentialProfit >= 0 ? 'bg-success' : 'bg-danger' }}">
-                                                            {{ number_format($potentialProfit, 2) }}৳
+                                                            {{ number_format($potentialProfit, 2) }} TK
                                                         </span>
                                                     </td>
                                                 </tr>
@@ -173,10 +173,10 @@
                                                         <span class="badge bg-primary">{{ number_format($data['total_stock']) }}</span>
                                                     </td>
                                                     <td class="text-end">
-                                                        <strong class="text-success">{{ number_format($data['total_value'], 2) }}৳</strong>
+                                                        <strong class="text-success">{{ number_format($data['total_value'], 2) }} TK</strong>
                                                     </td>
                                                     <td class="text-end">
-                                                        {{ number_format($data['product_count'] > 0 ? $data['total_value'] / $data['product_count'] : 0, 2) }}৳
+                                                        {{ number_format($data['product_count'] > 0 ? $data['total_value'] / $data['product_count'] : 0, 2) }} TK
                                                     </td>
                                                 </tr>
                                                 @empty

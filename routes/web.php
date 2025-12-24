@@ -406,9 +406,12 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // Simple Accounting Routes
     Route::get('/simple-accounting/sales-summary', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'salesSummary'])->name('simple-accounting.sales-summary');
-    Route::get('/simple-accounting/profit-report', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'profitReport'])->name('simple-accounting.profit-report');
+    Route::get('/simple-accounting/sales-report', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'salesReport'])->name('simple-accounting.sales-report');
     Route::get('/simple-accounting/top-products', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'topProducts'])->name('simple-accounting.top-products');
     Route::get('/simple-accounting/stock-value', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'stockValue'])->name('simple-accounting.stock-value');
+    Route::get('/simple-accounting/get-sales-report-data', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'getSalesDataReport'])->name('simple-accounting.get-sales-report-data');
+    Route::get('/simple-accounting/export-excel', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'exportExcel'])->name('simple-accounting.export-excel');
+    Route::get('/simple-accounting/export-pdf', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'exportPdf'])->name('simple-accounting.export-pdf');
 
     // User Role
     Route::get('/user-role', [\App\Http\Controllers\Erp\UserRoleController::class, 'index'])->name('userRole.index');

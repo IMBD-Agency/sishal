@@ -15,6 +15,9 @@ use App\Models\ProductVariationStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class SimpleAccountingController extends Controller
 {
@@ -47,23 +50,25 @@ class SimpleAccountingController extends Controller
     }
 
     /**
-     * Profit Report
+     * Sales Report (Combined Product and Category)
      */
-    public function profitReport(Request $request)
+    public function salesReport(Request $request)
     {
         $dateRange = $request->get('range', 'month');
         $startDate = $this->getStartDate($dateRange);
         $endDate = Carbon::now();
 
-        // Get profit by product
-        $productProfits = $this->getProductProfits($startDate, $endDate);
+        $onlineProductProfits = $this->getProductProfits($startDate, $endDate, 'online');
+        $onlineCategoryProfits = $this->getCategoryProfits($startDate, $endDate, 'online');
         
-        // Get profit by category
-        $categoryProfits = $this->getCategoryProfits($startDate, $endDate);
+        $posProductProfits = $this->getProductProfits($startDate, $endDate, 'pos');
+        $posCategoryProfits = $this->getCategoryProfits($startDate, $endDate, 'pos');
 
-        return view('erp.simple-accounting.profit-report', compact(
-            'productProfits',
-            'categoryProfits',
+        return view('erp.simple-accounting.sales-report', compact(
+            'onlineProductProfits',
+            'onlineCategoryProfits',
+            'posProductProfits',
+            'posCategoryProfits',
             'dateRange',
             'startDate',
             'endDate'
@@ -119,6 +124,149 @@ class SimpleAccountingController extends Controller
             'categoryStockValues',
             'totalStockValue'
         ));
+    }
+
+
+    /**
+     * Get Sales Report Data for Modal
+     */
+    public function getSalesDataReport(Request $request)
+    {
+        $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subMonth();
+        $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
+        $type = $request->get('type', 'product');
+        $source = $request->get('source', 'all');
+
+        if ($type === 'category') {
+            $data = $this->getCategoryProfits($startDate, $endDate, $source);
+            $transformed = $data->values()->map(function($item) {
+                return [
+                    'name' => $item['category_name'],
+                    'product_count' => $item['product_count'],
+                    'quantity_sold' => $item['quantity_sold'],
+                    'revenue' => number_format($item['revenue'], 2),
+                    'cost' => number_format($item['cost'], 2),
+                    'profit' => number_format($item['profit'], 2),
+                ];
+            });
+            $summary = [
+                'total_revenue' => number_format($data->sum('revenue'), 2),
+                'total_profit' => number_format($data->sum('profit'), 2),
+                'total_items' => $data->sum('quantity_sold'),
+            ];
+        } else {
+            $data = $this->getProductProfits($startDate, $endDate, $source);
+            $transformed = $data->values()->map(function($item) {
+                return [
+                    'name' => $item['product']->name ?? 'Deleted Product',
+                    'category' => $item['product']->category->name ?? 'Uncategorized',
+                    'quantity_sold' => $item['quantity_sold'],
+                    'revenue' => number_format($item['revenue'], 2),
+                    'cost' => number_format($item['cost'], 2),
+                    'profit' => number_format($item['profit'], 2),
+                ];
+            });
+            $summary = [
+                'total_revenue' => number_format($data->sum('revenue'), 2),
+                'total_profit' => number_format($data->sum('profit'), 2),
+                'total_items' => $data->sum('quantity_sold'),
+            ];
+        }
+
+        return response()->json([
+            'data' => $transformed,
+            'summary' => $summary
+        ]);
+    }
+
+    /**
+     * Export Sales Report to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subMonth();
+        $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
+        $type = $request->get('type', 'product');
+        $source = $request->get('source', 'all');
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        if ($type === 'category') {
+            $data = $this->getCategoryProfits($startDate, $endDate, $source);
+            $sheet->setCellValue('A1', 'Category Wise Sales Report');
+            $sheet->setCellValue('A3', 'Category');
+            $sheet->setCellValue('B3', 'Products');
+            $sheet->setCellValue('C3', 'Qty Sold');
+            $sheet->setCellValue('D3', 'Revenue');
+            $sheet->setCellValue('E3', 'Cost');
+            $sheet->setCellValue('F3', 'Profit');
+            
+            $row = 4;
+            foreach ($data as $item) {
+                $sheet->setCellValue('A' . $row, $item['category_name']);
+                $sheet->setCellValue('B' . $row, $item['product_count']);
+                $sheet->setCellValue('C' . $row, $item['quantity_sold']);
+                $sheet->setCellValue('D' . $row, $item['revenue']);
+                $sheet->setCellValue('E' . $row, $item['cost']);
+                $sheet->setCellValue('F' . $row, $item['profit']);
+                $row++;
+            }
+        } else {
+            $data = $this->getProductProfits($startDate, $endDate, $source);
+            $sheet->setCellValue('A1', 'Product Wise Sales Report');
+            $sheet->setCellValue('A3', 'Product');
+            $sheet->setCellValue('B3', 'Category');
+            $sheet->setCellValue('C3', 'Qty Sold');
+            $sheet->setCellValue('D3', 'Revenue');
+            $sheet->setCellValue('E3', 'Cost');
+            $sheet->setCellValue('F3', 'Profit');
+            
+            $row = 4;
+            foreach ($data as $item) {
+                $sheet->setCellValue('A' . $row, $item['product']->name ?? 'Deleted Product');
+                $sheet->setCellValue('B' . $row, $item['product']->category->name ?? 'Uncategorized');
+                $sheet->setCellValue('C' . $row, $item['quantity_sold']);
+                $sheet->setCellValue('D' . $row, $item['revenue']);
+                $sheet->setCellValue('E' . $row, $item['cost']);
+                $sheet->setCellValue('F' . $row, $item['profit']);
+                $row++;
+            }
+        }
+
+        $filename = "sales_report_{$type}_" . date('Y-m-d') . ".xlsx";
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Export Sales Report to PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subMonth();
+        $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
+        $type = $request->get('type', 'product');
+        $source = $request->get('source', 'all');
+
+        if ($type === 'category') {
+            $data = $this->getCategoryProfits($startDate, $endDate, $source);
+            $view = 'erp.simple-accounting.exports.category-sales-pdf';
+        } else {
+            $data = $this->getProductProfits($startDate, $endDate, $source);
+            $view = 'erp.simple-accounting.exports.product-sales-pdf';
+        }
+
+        $pdf = Pdf::loadView($view, [
+            'data' => $data,
+            'startDate' => $startDate,
+            'endDate' => $endDate
+        ]);
+
+        return $pdf->download("sales_report_{$type}_" . date('Y-m-d') . ".pdf");
     }
 
     /**
@@ -223,21 +371,26 @@ class SimpleAccountingController extends Controller
     /**
      * Get product profits
      */
-    private function getProductProfits($startDate, $endDate)
+    private function getProductProfits($startDate, $endDate, $source = 'all')
     {
         // Get COD percentage from settings
         $generalSetting = \App\Models\GeneralSetting::first();
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
 
-        // Get orders with their items
-        $orders = Order::whereBetween('created_at', [$startDate, $endDate])
-            ->where('status', '!=', 'cancelled')
-            ->with('items.product')
-            ->get();
+        $orders = collect();
+        if ($source === 'all' || $source === 'online') {
+            $orders = Order::whereBetween('created_at', [$startDate, $endDate])
+                ->where('status', '!=', 'cancelled')
+                ->with('items.product')
+                ->get();
+        }
 
-        $posItems = PosItem::whereHas('pos', function($query) use ($startDate, $endDate) {
-            $query->whereBetween('sale_date', [$startDate, $endDate]);
-        })->with('product')->get();
+        $posItems = collect();
+        if ($source === 'all' || $source === 'pos') {
+            $posItems = PosItem::whereHas('pos', function($query) use ($startDate, $endDate) {
+                $query->whereBetween('sale_date', [$startDate, $endDate]);
+            })->with('product')->get();
+        }
 
         $productProfits = collect();
 
@@ -334,9 +487,9 @@ class SimpleAccountingController extends Controller
     /**
      * Get category profits
      */
-    private function getCategoryProfits($startDate, $endDate)
+    private function getCategoryProfits($startDate, $endDate, $source = 'all')
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source);
         
         $categoryProfits = collect();
         
@@ -355,7 +508,8 @@ class SimpleAccountingController extends Controller
                     'revenue' => 0,
                     'cost' => 0,
                     'profit' => 0,
-                    'product_count' => 0
+                    'product_count' => 0,
+                    'quantity_sold' => 0
                 ]);
             }
 
@@ -365,7 +519,8 @@ class SimpleAccountingController extends Controller
                 'revenue' => $current['revenue'] + $data['revenue'],
                 'cost' => $current['cost'] + $data['cost'],
                 'profit' => $current['profit'] + $data['profit'],
-                'product_count' => $current['product_count'] + 1
+                'product_count' => $current['product_count'] + 1,
+                'quantity_sold' => $current['quantity_sold'] + $data['quantity_sold']
             ]);
         }
 

@@ -80,11 +80,11 @@
                                                         </div>
                                                     </td>
                                                     <td class="text-end">
-                                                        <strong class="text-success">{{ number_format($data['revenue'], 2) }}৳</strong>
+                                                        <strong class="text-success">{{ number_format($data['revenue'], 2) }} TK</strong>
                                                     </td>
                                                     <td class="text-end">{{ number_format($data['quantity_sold']) }}</td>
                                                     <td class="text-end">
-                                                        {{ number_format($data['quantity_sold'] > 0 ? $data['revenue'] / $data['quantity_sold'] : 0, 2) }}৳
+                                                        {{ number_format($data['quantity_sold'] > 0 ? $data['revenue'] / $data['quantity_sold'] : 0, 2) }} TK
                                                     </td>
                                                 </tr>
                                                 @endif
@@ -147,10 +147,10 @@
                                                     </td>
                                                     <td class="text-end">
                                                         <strong class="{{ $data['profit'] >= 0 ? 'text-success' : 'text-danger' }}">
-                                                            {{ number_format($data['profit'], 2) }}৳
+                                                            {{ number_format($data['profit'], 2) }} TK
                                                         </strong>
                                                     </td>
-                                                    <td class="text-end">{{ number_format($data['revenue'], 2) }}৳</td>
+                                                    <td class="text-end">{{ number_format($data['revenue'], 2) }} TK</td>
                                                     <td class="text-end">
                                                         @php
                                                             $margin = $data['revenue'] > 0 ? ($data['profit'] / $data['revenue']) * 100 : 0;
@@ -221,9 +221,9 @@
                                                     <td class="text-end">
                                                         <strong class="text-primary">{{ number_format($data['quantity_sold']) }}</strong>
                                                     </td>
-                                                    <td class="text-end">{{ number_format($data['revenue'], 2) }}৳</td>
+                                                    <td class="text-end">{{ number_format($data['revenue'], 2) }} TK</td>
                                                     <td class="text-end">
-                                                        {{ number_format($data['quantity_sold'] > 0 ? $data['revenue'] / $data['quantity_sold'] : 0, 2) }}৳
+                                                        {{ number_format($data['quantity_sold'] > 0 ? $data['revenue'] / $data['quantity_sold'] : 0, 2) }} TK
                                                     </td>
                                                 </tr>
                                                 @endif
