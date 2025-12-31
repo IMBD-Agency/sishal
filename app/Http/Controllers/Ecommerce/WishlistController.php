@@ -19,6 +19,9 @@ class WishlistController extends Controller
     public function addToWishlist($productId)
     {
         $userID = auth()->id();
+        if (!$userID) {
+            return response()->json(['success' => false, 'message' => 'Please login first to add products to your wishlist.']);
+        }
         $existingWishlist = Wishlist::where('user_id',$userID)->where('product_id',$productId)->first();
 
         if($existingWishlist)
@@ -38,6 +41,9 @@ class WishlistController extends Controller
     public function wishlistCount()
     {
         $userId = auth()->id();
+        if (!$userId) {
+            return response()->json(0);
+        }
 
         $wishlistCount = Wishlist::where('user_id',$userId)->count();
 

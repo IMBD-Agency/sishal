@@ -81,8 +81,6 @@ Route::middleware('auth')->group(function () {
 
     // Wishlist
     Route::get('/wishlists', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'index'])->name('wishlist.index');
-    Route::get('/wishlist/count', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'wishlistCount'])->name('wihslist.count');
-    Route::post('/add-remove-wishlist/{productId}', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'addToWishlist'])->name('wishlist.add');
     Route::delete('/remove-wishlis', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'removeAllWishlist'])->name('wishlist.removeAll');
 
     // Service functionality disabled - commented out
@@ -451,6 +449,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Shipping Methods
     Route::resource('shipping-methods', \App\Http\Controllers\Erp\ShippingMethodController::class);
 });
+Route::get('/wishlist/count', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'wishlistCount'])->name('wihslist.count');
+Route::post('/add-remove-wishlist/{productId}', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'addToWishlist'])->name('wishlist.add');
 
 Route::get('/api/products/most-sold', [\App\Http\Controllers\Ecommerce\ApiController::class, 'mostSoldProducts']);
 Route::get('/api/products/new-arrivals', [\App\Http\Controllers\Ecommerce\ApiController::class, 'newArrivalsProducts']);

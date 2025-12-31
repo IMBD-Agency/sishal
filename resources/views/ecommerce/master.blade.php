@@ -648,7 +648,7 @@
                                 </div>\
                                 <div class="price">' + price + '৳</div>\
                                 <div class="d-flex justify-content-between align-items-center gap-2 product-actions">\
-                                    <button class="btn-add-cart" data-product-id="' + product.id + '" data-has-stock="' + (product.has_stock ? 'true' : 'false') + '"' + (!product.has_stock ? ' disabled' : '') + '><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14"><path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path><circle cx="7" cy="22" r="2"></circle><circle cx="17" cy="22" r="2"></circle></svg> ' + (product.has_stock ? 'Add to Cart' : 'Out of Stock') + '</button>\
+                                    <a href="/product/' + product.slug + '" class="btn-add-cart" style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14"><path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path><circle cx="7" cy="22" r="2"></circle><circle cx="17" cy="22" r="2"></circle></svg> View Product</a>\
                                 </div>\
                             </div>\
                         </div>\
@@ -867,6 +867,15 @@
         window.toggleWishlist = function (productId) {
             console.log('[WISHLIST] Toggling wishlist for product:', productId);
 
+            // Fast authentication check before sending request
+            const isAuth = document.querySelector('meta[name="auth-check"]')?.getAttribute('content') === '1';
+            if (!isAuth) {
+                if (typeof showToast === 'function') {
+                    showToast('Please login first to add products to your wishlist.', 'error');
+                }
+                return;
+            }
+
             const button = document.querySelector(`[data-product-id="${productId}"].product-wishlist-top`);
             if (!button) {
                 console.error('[WISHLIST] Button not found for product:', productId);
@@ -888,7 +897,15 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(response => response.json())
+                .then(async response => {
+                    const text = await response.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Invalid JSON response:', text.substring(0, 100));
+                        throw new Error('Server returned an invalid response');
+                    }
+                })
                 .then(data => {
                     if (data.success) {
                         // Toggle button state
@@ -997,7 +1014,8 @@
         // Global cart event handler to prevent duplicate listeners
         window.globalCartHandler = function (e) {
             var btn = e.target.closest('.btn-add-cart');
-            if (!btn) return;
+            // If it's an anchor tag, it's a "View Product" link - let it proceed with navigation
+            if (!btn || btn.tagName === 'A') return;
 
             // Check stock for products without variations
             var hasStock = btn.getAttribute('data-has-stock');

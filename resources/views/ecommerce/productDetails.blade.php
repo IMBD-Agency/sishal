@@ -4709,6 +4709,15 @@
         function addToWishlist() {
             console.log('[WISHLIST] Adding to wishlist...');
             
+            // Fast authentication check before sending request
+            const isAuth = document.querySelector('meta[name="auth-check"]')?.getAttribute('content') === '1';
+            if (!isAuth) {
+                if (typeof showToast === 'function') {
+                    showToast('Please login first to add products to your wishlist.', 'error');
+                }
+                return;
+            }
+
             // Get product ID from the button or page
             var productId = {{ $product->id }};
             var button = event.target.closest('button');
@@ -4727,7 +4736,15 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 }
             })
-            .then(response => response.json())
+            .then(async response => {
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Invalid JSON response:', text.substring(0, 100));
+                    throw new Error('Server returned an invalid response');
+                }
+            })
             .then(data => {
                 if (data.success) {
                     // Show success message

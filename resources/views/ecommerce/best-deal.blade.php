@@ -427,7 +427,15 @@
                         icon.toggleClass('active');
                         icon.toggleClass('fas far');
                         if (typeof showToast === 'function') showToast(response.message, 'success');
+                    } else {
+                        if (typeof showToast === 'function') showToast(response.message || 'Failed to update wishlist', 'error');
                     }
+                },
+                error: function() {
+                    if (typeof showToast === 'function') showToast('Error updating wishlist', 'error');
+                },
+                complete: function() {
+                    btn.prop('disabled', false);
                 }
             });
         });

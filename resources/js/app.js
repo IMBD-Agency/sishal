@@ -21,6 +21,15 @@ document.addEventListener('click', async (event) => {
     const productId = button.getAttribute('data-product-id');
     if (!productId) return;
 
+    // Fast authentication check before sending request
+    const isAuth = document.querySelector('meta[name="auth-check"]')?.getAttribute('content') === '1';
+    if (!isAuth) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Please login first to add products to your wishlist.', 'error');
+        }
+        return;
+    }
+
     const icon = button.querySelector('i');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -42,10 +51,27 @@ document.addEventListener('click', async (event) => {
         });
 
         let result = null;
-        try { result = await response.json(); } catch (_) { /* ignore */ }
+        try {
+            const text = await response.text();
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                console.error('Invalid JSON response:', text.substring(0, 100));
+                throw new Error('Server returned an invalid response. Please try again.');
+            }
+        } catch (e) {
+            throw e;
+        }
 
         if (!response.ok) {
             throw new Error(result?.message || `Wishlist update failed (${response.status})`);
+        }
+
+        if (result && result.success === false) {
+            if (typeof window.showToast === 'function') {
+                window.showToast(result.message || 'Could not update wishlist', 'error');
+            }
+            return;
         }
 
         // Decide whether this action resulted in an add or a removal
@@ -308,18 +334,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                        <button class="btn-add-cart ${!hasStock ? 'disabled' : ''}" 
-                                                data-product-id="${product.id}" 
-                                                data-product-name="${product.name}" 
-                                                data-has-stock="${hasStock}" 
-                                                ${!hasStock ? 'disabled title="Out of stock"' : 'title="Add to cart"'}>
+                                        <a href="/product/${product.slug}" class="btn-add-cart" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;" title="View Product">
                                             <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
                                                 <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
                                                 <circle cx="7" cy="22" r="2"></circle>
                                                 <circle cx="17" cy="22" r="2"></circle>
                                             </svg> 
-                                            ${hasStock ? 'Add to Cart' : 'Out of Stock'}
-                                        </button>
+                                            View Product
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -564,18 +586,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                                     </div>
                                     <div class=\"d-flex justify-content-between align-items-center gap-2 product-actions\">
-                                        <button class=\"btn-add-cart ${!hasStock ? 'disabled' : ''}\" 
-                                                data-product-id=\"${product.id}\" 
-                                                data-product-name=\"${product.name}\" 
-                                                data-has-stock=\"${hasStock}\" 
-                                                ${!hasStock ? 'disabled title="Out of stock"' : 'title="Add to cart"'}>
+                                        <a href=\"/product/${product.slug}\" class=\"btn-add-cart\" style=\"text-decoration: none; display: inline-flex; justify-content: center; align-items: center;\" title=\"View Product\">
                                             <svg xmlns=\"http://www.w3.org/2000/svg\" id=\"Outline\" viewBox=\"0 0 24 24\" fill=\"#fff\" width=\"14\" height=\"14\">
                                                 <path d=\"M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z\"></path>
                                                 <circle cx=\"7\" cy=\"22\" r=\"2\"></circle>
                                                 <circle cx=\"17\" cy=\"22\" r=\"2\"></circle>
                                             </svg> 
-                                            ${hasStock ? 'Add to Cart' : 'Out of Stock'}
-                                        </button>
+                                            View Product
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -819,18 +837,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                        <button class="btn-add-cart ${!hasStock ? 'disabled' : ''}" 
-                                                data-product-id="${product.id}" 
-                                                data-product-name="${product.name}" 
-                                                data-has-stock="${hasStock}" 
-                                                ${!hasStock ? 'disabled title="Out of stock"' : 'title="Add to cart"'}>
+                                        <a href="/product/${product.slug}" class="btn-add-cart" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;" title="View Product">
                                             <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
                                                 <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
                                                 <circle cx="7" cy="22" r="2"></circle>
                                                 <circle cx="17" cy="22" r="2"></circle>
                                             </svg> 
-                                            ${hasStock ? 'Add to Cart' : 'Out of Stock'}
-                                        </button>
+                                            View Product
+                                        </a>
                                     </div>
                                 </div>
                             </div>

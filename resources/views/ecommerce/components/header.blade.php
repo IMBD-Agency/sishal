@@ -29,6 +29,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@if($pageTitle) {{ $pageTitle . ' | '}} @endif {{ $general_settings->site_title ?? '' }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="auth-check" content="{{ auth()->check() ? '1' : '0' }}">
 
     @php
         // Prefer explicit SEO product if provided
