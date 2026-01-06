@@ -113,7 +113,7 @@ class BranchController extends Controller
 
         $products_count = $branch_products->count();
             
-            
+          
             // Get recent sales (last 10)
             $recent_sales = $branch->pos()
                 ->with(['customer', 'invoice'])

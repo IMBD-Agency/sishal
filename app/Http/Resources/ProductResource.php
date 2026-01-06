@@ -14,13 +14,17 @@ class ProductResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $effectivePrice = $this->effective_price;
+        $hasDiscount = $effectivePrice < $this->price;
+        $discountValue = $hasDiscount ? (float) $effectivePrice : 0;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
             'price' => (float) $this->price,
-            'discount' => (float) $this->discount,
+            'discount' => $discountValue,
             'image' => $this->getImageUrl(),
             'short_desc' => $this->short_desc,
             'description' => $this->description,
@@ -48,8 +52,8 @@ class ProductResource extends JsonResource
             'total_revenue' => $this->when(isset($this->total_revenue), round($this->total_revenue, 2)),
             
             // Price calculations
-            'final_price' => $this->discount > 0 ? $this->discount : $this->price,
-            'discount_percentage' => $this->price > 0 ? round((($this->price - $this->discount) / $this->price) * 100, 1) : 0,
+            'final_price' => (float) $effectivePrice,
+            'discount_percentage' => $this->price > 0 && $hasDiscount ? round((($this->price - $effectivePrice) / $this->price) * 100, 1) : 0,
         ];
     }
 
