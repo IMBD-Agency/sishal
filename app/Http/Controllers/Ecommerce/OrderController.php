@@ -1031,7 +1031,18 @@ class OrderController extends Controller
             $product = $cart->product;
             if (!$product)
                 continue;
-            $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
+                
+            // Calculate price with bulk discount and variation support
+            $price = 0;
+            if ($cart->variation && $cart->variation->price) {
+                $price = $cart->variation->price;
+                $bulkDiscount = $product->getApplicableBulkDiscount();
+                if ($bulkDiscount) {
+                    $price = $bulkDiscount->calculateDiscountedPrice($price);
+                }
+            } else {
+                $price = $product->effective_price;
+            }
             $cartTotal += $price * $cart->qty;
         }
 
