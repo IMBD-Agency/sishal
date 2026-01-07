@@ -43,7 +43,17 @@ class OrderController extends Controller
             $product = $cart->product;
             if (!$product)
                 continue;
-            $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
+            // Calculate price with bulk discount and variation support
+            $price = 0;
+            if ($cart->variation && $cart->variation->price) {
+                $price = $cart->variation->price;
+                $bulkDiscount = $product->getApplicableBulkDiscount();
+                if ($bulkDiscount) {
+                    $price = $bulkDiscount->calculateDiscountedPrice($price);
+                }
+            } else {
+                $price = $product->effective_price;
+            }
             $cartTotal += $price * $cart->qty;
 
             // Check if product has free delivery
@@ -150,12 +160,16 @@ class OrderController extends Controller
                 continue;
             }
 
-            // Use variation price if set, else product price/discount
-            $price = null;
-            if ($cart->variation) {
-                $price = $cart->variation->price ?? ($product->discount && $product->discount > 0 ? $product->discount : $product->price);
+            // Calculate price with bulk discount and variation support
+            $price = 0;
+            if ($cart->variation && $cart->variation->price) {
+                $price = $cart->variation->price;
+                $bulkDiscount = $product->getApplicableBulkDiscount();
+                if ($bulkDiscount) {
+                    $price = $bulkDiscount->calculateDiscountedPrice($price);
+                }
             } else {
-                $price = ($product->discount && $product->discount > 0) ? $product->discount : $product->price;
+                $price = $product->effective_price;
             }
             $total = $price * $cart->qty;
             $subtotal += $total;
@@ -776,9 +790,16 @@ class OrderController extends Controller
                 continue;
 
             if ($coupon->appliesToProduct($product->id, $product->category_id)) {
-                $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
+                // Calculate price with bulk discount and variation support
+                $price = 0;
                 if ($cart->variation && $cart->variation->price) {
                     $price = $cart->variation->price;
+                    $bulkDiscount = $product->getApplicableBulkDiscount();
+                    if ($bulkDiscount) {
+                        $price = $bulkDiscount->calculateDiscountedPrice($price);
+                    }
+                } else {
+                    $price = $product->effective_price;
                 }
                 $applicableSubtotal += $price * $cart->qty;
             }

@@ -18,6 +18,7 @@ class ProductResource extends JsonResource
         $hasDiscount = $effectivePrice < $this->price;
         $discountValue = $hasDiscount ? (float) $effectivePrice : 0;
 
+        
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -50,7 +51,7 @@ class ProductResource extends JsonResource
             'total_reviews' => $this->when(isset($this->total_reviews), $this->total_reviews),
             'total_sold' => $this->when(isset($this->total_sold), $this->total_sold),
             'total_revenue' => $this->when(isset($this->total_revenue), round($this->total_revenue, 2)),
-            
+             
             // Price calculations
             'final_price' => (float) $effectivePrice,
             'discount_percentage' => $this->price > 0 && $hasDiscount ? round((($this->price - $effectivePrice) / $this->price) * 100, 1) : 0,
@@ -71,6 +72,8 @@ class ProductResource extends JsonResource
             return $this->image;
         }
 
+
+     
         // Check if image starts with / or public/
         $imagePath = $this->image;
         if (strpos($imagePath, 'public/') === 0) {
@@ -84,3 +87,4 @@ class ProductResource extends JsonResource
         return asset($imagePath);
     }
 }
+

@@ -489,18 +489,21 @@ class CartController extends Controller
                 ]);
                 continue;
             }
-            // Use variation price if available, otherwise use product price
-            $price = $product->price;
+            // Calculate price with bulk discount and variation support
+            $price = 0;
             if ($item->variation_id) {
                 $variation = \App\Models\ProductVariation::find($item->variation_id);
                 if ($variation && $variation->price) {
                     $price = $variation->price;
+                    $bulkDiscount = $product->getApplicableBulkDiscount();
+                    if ($bulkDiscount) {
+                        $price = $bulkDiscount->calculateDiscountedPrice($price);
+                    }
+                } else {
+                    $price = $product->effective_price;
                 }
-            }
-            
-            // Apply discount if available
-            if ($product->discount && $product->discount > 0) {
-                $price = $product->discount;
+            } else {
+                $price = $product->effective_price;
             }
             
             $total = $price * $item->qty;

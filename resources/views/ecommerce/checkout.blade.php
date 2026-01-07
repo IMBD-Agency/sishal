@@ -254,14 +254,33 @@
                                     <div class="order-items">
                                         @foreach ($carts as $cart)
 
+                                            @php
+                                                $price = 0;
+                                                if ($cart->variation && $cart->variation->price) {
+                                                    $price = $cart->variation->price;
+                                                    $bulkDiscount = $cart->product->getApplicableBulkDiscount();
+                                                    if ($bulkDiscount) {
+                                                        $price = $bulkDiscount->calculateDiscountedPrice($price);
+                                                    }
+                                                } else {
+                                                    $price = $cart->product->effective_price;
+                                                }
+                                            @endphp
                                             <div class="order-item">
                                                 <img src="{{ asset(@$cart->product->image) }}"
                                                     alt="Product">
                                                 <div class="item-details">
-                                                    <div class="item-name">{{ @$cart->product->name }}</div>
+                                                    <div class="item-name">
+                                                        {{ @$cart->product->name }}
+                                                        @if($cart->variation)
+                                                            <small class="text-muted d-block">
+                                                                {{ $cart->variation->combinations->map(function($c) { return $c->attribute->name . ': ' . $c->attributeValue->value; })->join(', ') }}
+                                                            </small>
+                                                        @endif
+                                                    </div>
                                                     <div class="item-quantity">Qty: {{$cart->qty}}</div>
                                                 </div>
-                                                <div class="item-price">{{ $cart->qty * ($cart->product->discount > 0 ? $cart->product->discount : $cart->product->price) }}৳</div>
+                                                <div class="item-price">{{ number_format($cart->qty * $price, 2) }}৳</div>
                                             </div>
                                         @endforeach
                                     </div>
