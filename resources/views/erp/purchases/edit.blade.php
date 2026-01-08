@@ -87,7 +87,16 @@
                                     <td><input type="number" name="items[{{ $i }}][quantity]" class="form-control quantity" min="0.01" step="0.01" value="{{ $item->quantity }}" required></td>
                                     <td><input type="number" name="items[{{ $i }}][unit_price]" class="form-control unit_price" min="0" step="0.01" value="{{ $item->unit_price }}" required></td>
                                     <td class="item-total">{{ number_format($item->quantity * $item->unit_price, 2) }}</td>
-                                    <td><button type="button" class="btn btn-danger btn-sm remove-row" {{ $i == 0 ? 'disabled' : '' }}>&times;</button></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary duplicate-row" title="Duplicate this row">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-danger remove-row" {{ $i == 0 && count($purchase->items) == 1 ? 'disabled' : '' }} title="Remove this row">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td colspan="6">
@@ -97,7 +106,14 @@
                             @endforeach
                         </tbody>
                     </table>
-                    <button type="button" class="btn btn-secondary btn-sm" id="addItemRow">Add Item</button>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button" class="btn btn-secondary btn-sm" id="addItemRow">
+                            <i class="fas fa-plus me-1"></i>Add Item
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addMultipleRows">
+                            <i class="fas fa-plus-circle me-1"></i>Add 5 Items
+                        </button>
+                    </div>
 
                     <!-- Summary Section -->
                     <div class="row justify-content-end mt-3">
@@ -258,41 +274,116 @@
 
         // Dynamic items
         let itemIndex = {{ count($purchase->items) }};
-        document.getElementById('addItemRow').addEventListener('click', function() {
-            const tbody = document.querySelector('#itemsTable tbody');
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>
-                    <select name="items[${itemIndex}][product_id]" class="form-select product-select" required></select>
-                    <select name="items[${itemIndex}][variation_id]" class="form-select mt-1 variation-select d-none"></select>
-                    <div class="small text-muted mt-1 stock-indicator"></div>
-                </td>
-                <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity" min="0.01" step="0.01" required></td>
-                <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="0" step="0.01" required></td>
-                <td class="item-total">0.00</td>
-                <td><button type="button" class="btn btn-danger btn-sm remove-row">&times;</button></td>
+        
+        function addItemRow() {
+            const tbody = $('#itemsTable tbody');
+            const row1 = `
+                <tr>
+                    <td>
+                        <select name="items[${itemIndex}][product_id]" class="form-select product-select" required></select>
+                        <select name="items[${itemIndex}][variation_id]" class="form-select mt-1 variation-select d-none"></select>
+                        <div class="small text-muted mt-1 stock-indicator"></div>
+                    </td>
+                    <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity" min="0.01" step="0.01" required></td>
+                    <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="0" step="0.01" required></td>
+                    <td class="item-total">0.00</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary duplicate-row" title="Duplicate this row">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger remove-row" title="Remove this row">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
             `;
-            tbody.appendChild(row);
-            // Add description row
-            const descRow = document.createElement('tr');
-            descRow.innerHTML = `
-                <td colspan="6">
-                    <textarea class="form-control description" name="items[${itemIndex}][description]" placeholder="Description"></textarea>
-                </td>
+            const row2 = `
+                <tr>
+                    <td colspan="6">
+                        <textarea class="form-control description w-80" name="items[${itemIndex}][description]" placeholder="Description"></textarea>
+                    </td>
+                </tr>
             `;
-            tbody.appendChild(descRow);
+            tbody.append(row1);
+            tbody.append(row2);
+            
+            // Initialize Select2 for the new product select
+            initProductSelect2(tbody.find('tr:last').prev('tr').find('.product-select'));
             itemIndex++;
-            reinitProductSelect2();
-        });
-        document.querySelector('#itemsTable').addEventListener('click', function(e) {
-            if (e.target.classList.contains('remove-row')) {
-                const itemRow = e.target.closest('tr');
-                const descRow = itemRow.nextElementSibling;
-                itemRow.remove();
-                if (descRow && descRow.querySelector('textarea.description')) {
-                    descRow.remove();
-                }
+            updateRemoveButtons();
+        }
+
+        $('#addItemRow').on('click', addItemRow);
+
+        $('#addMultipleRows').on('click', function() {
+            for (let i = 0; i < 5; i++) {
+                addItemRow();
             }
+        });
+
+        // Event delegation for remove and duplicate
+        $(document).on('click', '.remove-row', function() {
+            const row1 = $(this).closest('tr');
+            const row2 = row1.next('tr');
+            row1.remove();
+            row2.remove();
+            updateTotals();
+            updateRemoveButtons();
+        });
+
+        $(document).on('click', '.duplicate-row', function() {
+            const row1 = $(this).closest('tr');
+            const row2 = row1.next('tr');
+            
+            // Values to copy
+            const productId = row1.find('.product-select').val();
+            const productName = row1.find('.product-select option:selected').text();
+            const variationId = row1.find('.variation-select').val();
+            const quantity = row1.find('.quantity').val();
+            const unitPrice = row1.find('.unit_price').val();
+            const description = row2.find('.description').val();
+            
+            addItemRow();
+            
+            const newRow1 = $('#itemsTable tbody tr').last().prev('tr');
+            const newRow2 = $('#itemsTable tbody tr').last();
+            
+            if (productId) {
+                const option = new Option(productName, productId, true, true);
+                newRow1.find('.product-select').append(option).trigger('change');
+                
+                // For variable products, we need to wait for handleProductChange to load variations
+                setTimeout(() => {
+                    if (variationId) {
+                        newRow1.find('.variation-select').val(variationId).trigger('change');
+                    }
+                    newRow1.find('.quantity').val(quantity);
+                    newRow1.find('.unit_price').val(unitPrice);
+                    newRow2.find('.description').val(description);
+                    updateTotals();
+                }, 800);
+            } else {
+                 newRow1.find('.quantity').val(quantity);
+                 newRow1.find('.unit_price').val(unitPrice);
+                 newRow2.find('.description').val(description);
+                 updateTotals();
+            }
+        });
+
+        function updateRemoveButtons() {
+            const removeButtons = $('.remove-row');
+            if (removeButtons.length <= 1) {
+                removeButtons.prop('disabled', true);
+            } else {
+                removeButtons.prop('disabled', false);
+            }
+        }
+        
+        // Initial setup for remove buttons
+        $(document).ready(function() {
+            updateRemoveButtons();
         });
         // Calculate item total and update summary
         function updateTotals() {

@@ -176,6 +176,120 @@
         function reinitProductSelect2() {
             initProductSelect2('.product-select');
         }
+
+        let itemIndex = 1;
+
+        function addItemRow() {
+            const tbody = $('#itemsTable tbody');
+            const row1 = `
+                <tr>
+                    <td>
+                        <select name="items[${itemIndex}][product_id]" class="form-select product-select" required></select>
+                        <select name="items[${itemIndex}][variation_id]" class="form-select mt-1 variation-select d-none"></select>
+                        <div class="small text-muted mt-1 stock-indicator"></div>
+                    </td>
+                    <td><input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity" min="0.01" step="0.01" required></td>
+                    <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="0" step="0.01" required></td>
+                    <td class="item-total">0.00</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary duplicate-row" title="Duplicate this row">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger remove-row" title="Remove this row">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            const row2 = `
+                <tr>
+                    <td colspan="6">
+                        <textarea class="form-control description w-80" name="items[${itemIndex}][description]" placeholder="Description"></textarea>
+                    </td>
+                </tr>
+            `;
+            tbody.append(row1);
+            tbody.append(row2);
+            
+            // Initialize Select2 for the new product select
+            initProductSelect2(tbody.find('tr:last').prev('tr').find('.product-select'));
+            itemIndex++;
+            updateRemoveButtons();
+        }
+
+        $('#addItemRow').on('click', addItemRow);
+
+        $('#addMultipleRows').on('click', function() {
+            for (let i = 0; i < 5; i++) {
+                addItemRow();
+            }
+        });
+
+        // Event delegation for remove and duplicate
+        $(document).on('click', '.remove-row', function() {
+            const row1 = $(this).closest('tr');
+            const row2 = row1.next('tr');
+            row1.remove();
+            row2.remove();
+            updateTotals();
+            updateRemoveButtons();
+        });
+
+        $(document).on('click', '.duplicate-row', function() {
+            const row1 = $(this).closest('tr');
+            const row2 = row1.next('tr');
+            
+            // Values to copy
+            const productId = row1.find('.product-select').val();
+            const productName = row1.find('.product-select option:selected').text();
+            const variationId = row1.find('.variation-select').val();
+            const quantity = row1.find('.quantity').val();
+            const unitPrice = row1.find('.unit_price').val();
+            const description = row2.find('.description').val();
+            
+            addItemRow();
+            
+            const newRow1 = $('#itemsTable tbody tr').last().prev('tr');
+            const newRow2 = $('#itemsTable tbody tr').last();
+            
+            if (productId) {
+                const option = new Option(productName, productId, true, true);
+                newRow1.find('.product-select').append(option).trigger('change');
+                
+                // For variable products, we need to wait for handleProductChange to load variations
+                setTimeout(() => {
+                    if (variationId) {
+                        newRow1.find('.variation-select').val(variationId).trigger('change');
+                    }
+                    newRow1.find('.quantity').val(quantity);
+                    newRow1.find('.unit_price').val(unitPrice);
+                    newRow2.find('.description').val(description);
+                    updateTotals();
+                }, 800);
+            } else {
+                 newRow1.find('.quantity').val(quantity);
+                 newRow1.find('.unit_price').val(unitPrice);
+                 newRow2.find('.description').val(description);
+                 updateTotals();
+            }
+        });
+
+        function updateRemoveButtons() {
+            const removeButtons = $('.remove-row');
+            if (removeButtons.length <= 1) {
+                removeButtons.prop('disabled', true);
+            } else {
+                removeButtons.prop('disabled', false);
+            }
+        }
+        
+        // Initial setup for remove buttons
+        $(document).ready(function() {
+            updateRemoveButtons();
+        });
+
         // Data for locations
         const branches = @json($branches);
         const warehouses = @json($warehouses);
