@@ -43,17 +43,8 @@ class OrderController extends Controller
             $product = $cart->product;
             if (!$product)
                 continue;
-            // Calculate price with bulk discount and variation support
-            $price = 0;
-            if ($cart->variation && $cart->variation->price) {
-                $price = $cart->variation->price;
-                $bulkDiscount = $product->getApplicableBulkDiscount();
-                if ($bulkDiscount) {
-                    $price = $bulkDiscount->calculateDiscountedPrice($price);
-                }
-            } else {
-                $price = $product->effective_price;
-            }
+            
+            $price = $this->getCartItemPrice($cart);
             $cartTotal += $price * $cart->qty;
 
             // Check if product has free delivery
@@ -160,17 +151,7 @@ class OrderController extends Controller
                 continue;
             }
 
-            // Calculate price with bulk discount and variation support
-            $price = 0;
-            if ($cart->variation && $cart->variation->price) {
-                $price = $cart->variation->price;
-                $bulkDiscount = $product->getApplicableBulkDiscount();
-                if ($bulkDiscount) {
-                    $price = $bulkDiscount->calculateDiscountedPrice($price);
-                }
-            } else {
-                $price = $product->effective_price;
-            }
+            $price = $this->getCartItemPrice($cart);
             $total = $price * $cart->qty;
             $subtotal += $total;
 
@@ -790,17 +771,7 @@ class OrderController extends Controller
                 continue;
 
             if ($coupon->appliesToProduct($product->id, $product->category_id)) {
-                // Calculate price with bulk discount and variation support
-                $price = 0;
-                if ($cart->variation && $cart->variation->price) {
-                    $price = $cart->variation->price;
-                    $bulkDiscount = $product->getApplicableBulkDiscount();
-                    if ($bulkDiscount) {
-                        $price = $bulkDiscount->calculateDiscountedPrice($price);
-                    }
-                } else {
-                    $price = $product->effective_price;
-                }
+                $price = $this->getCartItemPrice($cart);
                 $applicableSubtotal += $price * $cart->qty;
             }
         }
@@ -862,10 +833,7 @@ class OrderController extends Controller
             $product = $cart->product;
             if (!$product)
                 continue;
-            $price = $product->discount && $product->discount > 0 ? $product->discount : $product->price;
-            if ($cart->variation && $cart->variation->price) {
-                $price = $cart->variation->price;
-            }
+            $price = $this->getCartItemPrice($cart);
             $subtotal += $price * $cart->qty;
         }
 
@@ -1032,17 +1000,7 @@ class OrderController extends Controller
             if (!$product)
                 continue;
                 
-            // Calculate price with bulk discount and variation support
-            $price = 0;
-            if ($cart->variation && $cart->variation->price) {
-                $price = $cart->variation->price;
-                $bulkDiscount = $product->getApplicableBulkDiscount();
-                if ($bulkDiscount) {
-                    $price = $bulkDiscount->calculateDiscountedPrice($price);
-                }
-            } else {
-                $price = $product->effective_price;
-            }
+            $price = $this->getCartItemPrice($cart);
             $cartTotal += $price * $cart->qty;
         }
 
@@ -1287,5 +1245,29 @@ class OrderController extends Controller
                 'order_item_id' => $item->id
             ]);
         }
+    }
+
+    /**
+     * Get the consistent price for a cart item
+     */
+    private function getCartItemPrice($cart)
+    {
+        $product = $cart->product;
+        if (!$product) return 0;
+
+        if ($cart->variation) {
+            // Use variation effective price
+            $price = (float) $cart->variation->effective_price;
+            
+            // Apply bulk discount to variation price (if no direct variation/product discount is set, or as stackable?)
+            // Following existing code logic which applied bulk discount to variations
+            $bulkDiscount = $product->getApplicableBulkDiscount();
+            if ($bulkDiscount) {
+                $price = (float) $bulkDiscount->calculateDiscountedPrice($price);
+            }
+            return $price;
+        }
+
+        return (float) $product->effective_price;
     }
 }

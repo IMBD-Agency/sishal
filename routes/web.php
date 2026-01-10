@@ -322,8 +322,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Route::post('/pos/assign-tech/{saleId}/{techId}', [\App\Http\Controllers\Erp\PosController::class, 'assignTechnician'])->name('pos.assign.tech');
     Route::post('/pos/update-note/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateNote'])->name('pos.update.note');
     Route::post('/pos/add-payment/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'addPayment'])->name('pos.add.payment');
-    Route::post('/erp/pos/update-status/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateStatus'])->name('pos.update.status');
-    Route::post('/erp/pos/add-address/{invoiceId}', [\App\Http\Controllers\Erp\PosController::class, 'addAddress'])->name('pos.add.address');
+    Route::post('/pos/update-status/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateStatus'])->name('pos.update.status');
+    Route::post('/pos/add-address/{invoiceId}', [\App\Http\Controllers\Erp\PosController::class, 'addAddress'])->name('pos.add.address');
 
     // Add explicit routes for employees
     Route::get('/employees/search', [\App\Http\Controllers\Erp\EmployeeController::class, 'employeeSearch'])->name('employees.search');

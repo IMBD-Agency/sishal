@@ -285,9 +285,14 @@ class PosController extends Controller
             });
         }
 
+        // Filter by branch
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->input('branch_id'));
+        }
+
         // Filter by status
         if ($request->filled('status')) {
-            $query->where('pos.status', $request->input('status'));
+            $query->where('status', $request->input('status'));
         }
 
         // Filter by invoice status
@@ -296,6 +301,24 @@ class PosController extends Controller
                 $q->where('status', $request->input('bill_status'));
             });
         }
+
+        // Filter by sale date range
+    if ($request->filled('start_date') || $request->filled('end_date')) {
+        if ($request->filled('start_date')) {
+            $query->whereDate('sale_date', '>=', $request->input('start_date'));
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('sale_date', '<=', $request->input('end_date'));
+        }
+    } elseif ($request->filled('quick_filter')) {
+        $filter = $request->input('quick_filter');
+        if ($filter == 'today') {
+            $query->whereDate('sale_date', now()->today());
+        } elseif ($filter == 'monthly') {
+            $query->whereMonth('sale_date', now()->month)
+                  ->whereYear('sale_date', now()->year);
+        }
+    }
 
         // Filter by estimated delivery date
         if ($request->filled('estimated_delivery_date')) {
@@ -306,7 +329,9 @@ class PosController extends Controller
         $query->orderBy('created_at', 'desc');
 
         $sales = $query->paginate(10)->withQueryString();
-        return view('erp.pos.index', compact('sales'));
+        $branches = Branch::all();
+
+        return view('erp.pos.index', compact('sales', 'branches'));
     }
 
     public function show($id)
@@ -742,13 +767,16 @@ class PosController extends Controller
 
     public function updateStatus($saleId, Request $request)
     {
-        $pos = Pos::find($saleId);
-        if (!$pos) {
-            return response()->json(['success' => false, 'message' => 'Sale not found.'], 404);
-        }
+        $pos = Pos::findOrFail($saleId);
+        
         $request->validate([
             'status' => 'required|string',
         ]);
+
+        // Prevent cancellation if already delivered
+        if ($request->status == 'cancelled' && $pos->status == 'delivered') {
+            return response()->json(['success' => false, 'message' => 'Cannot cancel a sale that has already been delivered.'], 400);
+        }
 
         if ($request->status == 'pending') {
             $pos->status = $request->input('status');
@@ -889,11 +917,13 @@ class PosController extends Controller
             $query = Pos::with(['customer', 'invoice', 'branch']);
 
             // Date range filter
-            if ($request->filled('date_from')) {
-                $query->whereDate('sale_date', '>=', $request->date_from);
+            $startDate = $request->input('start_date') ?? $request->input('date_from');
+            $endDate = $request->input('end_date') ?? $request->input('date_to');
+            if ($startDate) {
+                $query->whereDate('sale_date', '>=', $startDate);
             }
-            if ($request->filled('date_to')) {
-                $query->whereDate('sale_date', '<=', $request->date_to);
+            if ($endDate) {
+                $query->whereDate('sale_date', '<=', $endDate);
             }
 
             // Status filter
@@ -902,9 +932,28 @@ class PosController extends Controller
             }
 
             // Payment status filter
-            if ($request->filled('payment_status') && $request->payment_status !== '') {
-                $query->whereHas('invoice', function ($q) use ($request) {
-                    $q->where('status', $request->payment_status);
+            $paymentStatus = $request->input('bill_status') ?? $request->input('payment_status');
+            if ($paymentStatus && $paymentStatus !== '') {
+                $query->whereHas('invoice', function ($q) use ($paymentStatus) {
+                    $q->where('status', $paymentStatus);
+                });
+            }
+
+            // Branch filter
+            if ($request->filled('branch_id')) {
+                $query->where('branch_id', $request->branch_id);
+            }
+
+            // Search filter
+            if ($request->filled('search')) {
+                $search = $request->input('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('sale_number', 'like', "%$search%")
+                        ->orWhereHas('customer', function ($q2) use ($search) {
+                            $q2->where('name', 'like', "%$search%")
+                                ->orWhere('phone', 'like', "%$search%")
+                                ->orWhere('email', 'like', "%$search%");
+                        });
                 });
             }
 
@@ -962,22 +1011,41 @@ class PosController extends Controller
         $query = Pos::with(['customer', 'invoice', 'branch']);
 
         // Apply filters
-        if ($request->filled('date_from')) {
-            $query->whereDate('sale_date', '>=', $request->date_from);
+        $startDate = $request->input('start_date') ?? $request->input('date_from');
+        $endDate = $request->input('end_date') ?? $request->input('date_to');
+        if ($startDate) {
+            $query->whereDate('sale_date', '>=', $startDate);
         }
-        if ($request->filled('date_to')) {
-            $query->whereDate('sale_date', '<=', $request->date_to);
+        if ($endDate) {
+            $query->whereDate('sale_date', '<=', $endDate);
         }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('payment_status')) {
-            $query->whereHas('invoice', function ($q) use ($request) {
-                $q->where('status', $request->payment_status);
+
+        $paymentStatus = $request->input('bill_status') ?? $request->input('payment_status');
+        if ($paymentStatus) {
+            $query->whereHas('invoice', function ($q) use ($paymentStatus) {
+                $q->where('status', $paymentStatus);
             });
         }
 
-        // Branch filter
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('sale_number', 'like', "%$search%")
+                    ->orWhereHas('customer', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%$search%")
+                            ->orWhere('phone', 'like', "%$search%")
+                            ->orWhere('email', 'like', "%$search%");
+                    });
+            });
+        }
 
         $sales = $query->get();
         $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
@@ -1197,22 +1265,41 @@ class PosController extends Controller
         $query = Pos::with(['customer', 'invoice', 'branch']);
 
         // Apply filters
-        if ($request->filled('date_from')) {
-            $query->whereDate('sale_date', '>=', $request->date_from);
+        $startDate = $request->input('start_date') ?? $request->input('date_from');
+        $endDate = $request->input('end_date') ?? $request->input('date_to');
+        if ($startDate) {
+            $query->whereDate('sale_date', '>=', $startDate);
         }
-        if ($request->filled('date_to')) {
-            $query->whereDate('sale_date', '<=', $request->date_to);
+        if ($endDate) {
+            $query->whereDate('sale_date', '<=', $endDate);
         }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('payment_status')) {
-            $query->whereHas('invoice', function ($q) use ($request) {
-                $q->where('status', $request->payment_status);
+
+        $paymentStatus = $request->input('bill_status') ?? $request->input('payment_status');
+        if ($paymentStatus) {
+            $query->whereHas('invoice', function ($q) use ($paymentStatus) {
+                $q->where('status', $paymentStatus);
             });
         }
 
-        // Branch filter
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('sale_number', 'like', "%$search%")
+                    ->orWhereHas('customer', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%$search%")
+                            ->orWhere('phone', 'like', "%$search%")
+                            ->orWhere('email', 'like', "%$search%");
+                    });
+            });
+        }
 
         $sales = $query->get();
         $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
@@ -1275,6 +1362,10 @@ class PosController extends Controller
         ]);
 
         $pdf->setPaper('A4', 'landscape');
+        
+        if ($request->input('action') === 'print') {
+            return $pdf->stream($filename);
+        }
         
         return $pdf->download($filename);
     }

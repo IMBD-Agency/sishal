@@ -255,15 +255,12 @@
                                         @foreach ($carts as $cart)
 
                                             @php
-                                                $price = 0;
-                                                if ($cart->variation && $cart->variation->price) {
-                                                    $price = $cart->variation->price;
+                                                $price = $cart->variation ? $cart->variation->effective_price : $cart->product->effective_price;
+                                                if ($cart->variation) {
                                                     $bulkDiscount = $cart->product->getApplicableBulkDiscount();
                                                     if ($bulkDiscount) {
                                                         $price = $bulkDiscount->calculateDiscountedPrice($price);
                                                     }
-                                                } else {
-                                                    $price = $cart->product->effective_price;
                                                 }
                                             @endphp
                                             <div class="order-item">
