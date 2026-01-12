@@ -75,51 +75,8 @@ class InvoiceController extends Controller
         if (!auth()->user()->hasPermissionTo('view invoice list')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Invoice::query();
-
-        // Join salesman (user) and employee for phone
-        $query->leftJoin('users as salesman', 'invoices.created_by', '=', 'salesman.id')
-              ->leftJoin('employees as emp', 'salesman.id', '=', 'emp.user_id')
-              ->select('invoices.*');
-
-        // Join customer for search/filter
-        $query->leftJoin('customers', 'invoices.customer_id', '=', 'customers.id');
-
-        // Search by id, customer, salesman
-        if ($search = $request->input('search')) {
-            $query->where(function($q) use ($search) {
-                $q->where('invoices.id', 'like', "%$search%")
-                ->orWhere('invoices.invoice_number', 'like', "%$search%")
-                    ->orWhere('customers.name', 'like', "%$search%")
-                    ->orWhere('customers.email', 'like', "%$search%")
-                    ->orWhere('customers.phone', 'like', "%$search%")
-                    ->orWhere('salesman.first_name', 'like', "%$search%")
-                    ->orWhere('salesman.last_name', 'like', "%$search%")
-                    ->orWhere('salesman.email', 'like', "%$search%")
-                    ->orWhere('emp.phone', 'like', "%$search%")
-                    ;
-            });
-        }
-
-        // Filter by status
-        if ($status = $request->input('status')) {
-            $query->where('invoices.status', $status);
-        }
-
-        // Filter by issue_date
-        if ($issueDate = $request->input('issue_date')) {
-            $query->whereDate('invoices.issue_date', $issueDate);
-        }
-
-        // Filter by due_date
-        if ($dueDate = $request->input('due_date')) {
-            $query->whereDate('invoices.due_date', $dueDate);
-        }
-
-        // Filter by customer
-        if ($customerId = $request->input('customer_id')) {
-            $query->where('invoices.customer_id', $customerId);
-        }
+        
+        $query = $this->getFilteredQuery($request);
 
         $invoices = $query->distinct()->with(['order', 'pos'])->orderBy('invoices.created_at', 'desc')->paginate(10)->appends($request->all());
         $statuses = ['unpaid', 'partial', 'paid'];
@@ -545,41 +502,9 @@ class InvoiceController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $query = Invoice::with(['customer', 'salesman', 'order']);
-
-        // Apply filters
-        if ($request->filled('issue_date_from')) {
-            $query->whereDate('issue_date', '>=', $request->issue_date_from);
-        }
-        if ($request->filled('issue_date_to')) {
-            $query->whereDate('issue_date', '<=', $request->issue_date_to);
-        }
-        if ($request->filled('due_date_from')) {
-            $query->whereDate('due_date', '>=', $request->due_date_from);
-        }
-        if ($request->filled('due_date_to')) {
-            $query->whereDate('due_date', '<=', $request->due_date_to);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        $invoices = $query->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
-
-        // Validate that at least one column is selected
-        if (empty($selectedColumns)) {
-            return response()->json(['error' => 'Please select at least one column to export.'], 400);
-        }
-
-        // Prepare data for export
-        $exportData = [];
+        $query = $this->getFilteredQuery($request);
+        $invoices = $query->with(['customer', 'salesman', 'order'])->orderBy('invoices.created_at', 'desc')->get();
         
-        // Add headers
-        $headers = [];
         $columnMap = [
             'invoice_number' => 'Invoice Number',
             'order_id' => 'Order ID',
@@ -596,6 +521,14 @@ class InvoiceController extends Controller
             'due_amount' => 'Due Amount'
         ];
 
+        // Default to all columns if none selected
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : array_keys($columnMap);
+
+        // Prepare data for export
+        $exportData = [];
+        
+        // Add headers
+        $headers = [];
         foreach ($selectedColumns as $column) {
             if (isset($columnMap[$column])) {
                 $headers[] = $columnMap[$column];
@@ -726,37 +659,9 @@ class InvoiceController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $query = Invoice::with(['customer', 'salesman', 'order']);
-
-        // Apply filters
-        if ($request->filled('issue_date_from')) {
-            $query->whereDate('issue_date', '>=', $request->issue_date_from);
-        }
-        if ($request->filled('issue_date_to')) {
-            $query->whereDate('issue_date', '<=', $request->issue_date_to);
-        }
-        if ($request->filled('due_date_from')) {
-            $query->whereDate('due_date', '>=', $request->due_date_from);
-        }
-        if ($request->filled('due_date_to')) {
-            $query->whereDate('due_date', '<=', $request->due_date_to);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        $invoices = $query->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
-
-        // Validate that at least one column is selected
-        if (empty($selectedColumns)) {
-            return response()->json(['error' => 'Please select at least one column to export.'], 400);
-        }
-
-        // Prepare data for export
+        $query = $this->getFilteredQuery($request);
+        $invoices = $query->with(['customer', 'salesman', 'order'])->orderBy('invoices.created_at', 'desc')->get();
+        
         $columnMap = [
             'invoice_number' => 'Invoice #',
             'order_id' => 'Order ID',
@@ -772,6 +677,9 @@ class InvoiceController extends Controller
             'paid_amount' => 'Paid',
             'due_amount' => 'Due'
         ];
+
+        // Default to all columns if none selected
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : array_keys($columnMap);
 
         $headers = [];
         foreach ($selectedColumns as $column) {
@@ -803,6 +711,8 @@ class InvoiceController extends Controller
                 'issue_date_to' => $request->issue_date_to,
                 'due_date_from' => $request->due_date_from,
                 'due_date_to' => $request->due_date_to,
+                'issue_date' => $request->issue_date,
+                'due_date' => $request->due_date,
                 'status' => $request->status,
                 'customer_id' => $request->customer_id,
             ]
@@ -811,6 +721,56 @@ class InvoiceController extends Controller
         $pdf->setPaper('A4', 'landscape');
         
         return $pdf->download($filename);
+    }
+
+    private function getFilteredQuery(Request $request)
+    {
+        $query = Invoice::query();
+
+        // Join salesman (user) and employee for phone
+        $query->leftJoin('users as salesman', 'invoices.created_by', '=', 'salesman.id')
+              ->leftJoin('employees as emp', 'salesman.id', '=', 'emp.user_id')
+              ->select('invoices.*');
+
+        // Join customer for search/filter
+        $query->leftJoin('customers', 'invoices.customer_id', '=', 'customers.id');
+
+        // Search by id, customer, salesman
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('invoices.id', 'like', "%$search%")
+                ->orWhere('invoices.invoice_number', 'like', "%$search%")
+                    ->orWhere('customers.name', 'like', "%$search%")
+                    ->orWhere('customers.email', 'like', "%$search%")
+                    ->orWhere('customers.phone', 'like', "%$search%")
+                    ->orWhere('salesman.first_name', 'like', "%$search%")
+                    ->orWhere('salesman.last_name', 'like', "%$search%")
+                    ->orWhere('salesman.email', 'like', "%$search%")
+                    ->orWhere('emp.phone', 'like', "%$search%");
+            });
+        }
+
+        // Filter by status
+        if ($status = $request->input('status')) {
+            $query->where('invoices.status', $status);
+        }
+
+        // Filter by issue_date (Exact)
+        if ($issueDate = $request->input('issue_date')) {
+            $query->whereDate('invoices.issue_date', $issueDate);
+        }
+
+        // Filter by due_date (Exact)
+        if ($dueDate = $request->input('due_date')) {
+            $query->whereDate('invoices.due_date', $dueDate);
+        }
+
+        // Filter by customer
+        if ($customerId = $request->input('customer_id')) {
+            $query->where('invoices.customer_id', $customerId);
+        }
+
+        return $query;
     }
 
     private function generateInvoiceNumber()

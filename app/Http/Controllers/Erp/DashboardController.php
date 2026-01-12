@@ -21,12 +21,15 @@ class DashboardController extends Controller
         $startDate = $this->getStartDate($dateRange);
         $endDate = Carbon::now();
 
-        $baseQuery = Pos::query();
-
-        $stats = $this->getStatistics($baseQuery, $startDate, $endDate, $dateRange);
-        $salesOverview = $this->getSalesOverview($baseQuery, $startDate, $endDate, $dateRange);
-        $orderStatus = $this->getOrderStatus($baseQuery, $startDate, $endDate);
+        $stats = $this->getStatistics($startDate, $endDate, $dateRange);
+        $salesOverview = $this->getSalesOverview($startDate, $endDate, $dateRange);
+        $orderStatus = $this->getOrderStatus($startDate, $endDate);
         $currentInvoices = $this->getCurrentInvoices();
+        $topSellingItems = $this->getTopSellingItems($startDate, $endDate);
+        $lowStockItems = $this->getLowStockItems();
+        $locationPerformance = $this->getLocationPerformance($startDate, $endDate);
+        $profitMetrics = $this->getProfitMetrics($startDate, $endDate, $dateRange);
+        $channelBreakdown = $this->getChannelBreakdown($startDate, $endDate);
 
         return view('erp.dashboard', [
             'range' => $dateRange,
@@ -34,6 +37,11 @@ class DashboardController extends Controller
             'salesOverview' => $salesOverview,
             'orderStatus' => $orderStatus,
             'currentInvoices' => $currentInvoices,
+            'topSellingItems' => $topSellingItems,
+            'lowStockItems' => $lowStockItems,
+            'locationPerformance' => $locationPerformance,
+            'profitMetrics' => $profitMetrics,
+            'channelBreakdown' => $channelBreakdown
         ]);
     }
 
@@ -43,20 +51,17 @@ class DashboardController extends Controller
         $startDate = $this->getStartDate($dateRange);
         $endDate = Carbon::now();
 
-        // Base query with branch filter
-        $baseQuery = Pos::query();
-
         // Get statistics
-        $stats = $this->getStatistics($baseQuery, $startDate, $endDate, $dateRange);
+        $stats = $this->getStatistics($startDate, $endDate, $dateRange);
         
         // Get sales overview data
-        $salesOverview = $this->getSalesOverview($baseQuery, $startDate, $endDate, $dateRange);
+        $salesOverview = $this->getSalesOverview($startDate, $endDate, $dateRange);
         
         // Get order status distribution
-        $orderStatus = $this->getOrderStatus($baseQuery, $startDate, $endDate);
+        $orderStatus = $this->getOrderStatus($startDate, $endDate);
         
         // Get top selling items
-        $topSellingItems = $this->getTopSellingItems($baseQuery, $startDate, $endDate);
+        $topSellingItems = $this->getTopSellingItems($startDate, $endDate);
         
         // Get location performance
         $locationPerformance = $this->getLocationPerformance($startDate, $endDate);
@@ -94,15 +99,15 @@ class DashboardController extends Controller
         }
     }
 
-    private function getStatistics($baseQuery, $startDate, $endDate, $range)
+    private function getStatistics($startDate, $endDate, $range)
     {
         // Get POS data
-        $currentPosQuery = clone $baseQuery;
+        $currentPosQuery = Pos::query();
         $currentPosQuery->whereBetween('sale_date', [$startDate, $endDate]);
         
-        $previousPosQuery = clone $baseQuery;
         $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
         $previousEndDate = $startDate->copy()->subDay();
+        $previousPosQuery = Pos::query();
         $previousPosQuery->whereBetween('sale_date', [$previousStartDate, $previousEndDate]);
 
         // Get Online Order data
@@ -218,10 +223,10 @@ class DashboardController extends Controller
         }
     }
 
-    private function getSalesOverview($baseQuery, $startDate, $endDate, $range)
+    private function getSalesOverview($startDate, $endDate, $range)
     {
         // Get POS data
-        $posQuery = clone $baseQuery;
+        $posQuery = Pos::query();
         
         // Get Online Order data
         $orderQuery = Order::query();
@@ -314,12 +319,11 @@ class DashboardController extends Controller
         ];
     }
 
-    private function getOrderStatus($baseQuery, $startDate, $endDate)
+    private function getOrderStatus($startDate, $endDate)
     {
         // Get POS status data
-        $posQuery = clone $baseQuery;
-        $posQuery->whereBetween('sale_date', [$startDate, $endDate]);
-        $posStatuses = $posQuery->selectRaw('status, COUNT(*) as count')
+        $posStatuses = Pos::whereBetween('sale_date', [$startDate, $endDate])
+                               ->selectRaw('status, COUNT(*) as count')
                                ->groupBy('status')
                                ->get();
 
@@ -355,7 +359,7 @@ class DashboardController extends Controller
         ];
     }
 
-    private function getTopSellingItems($baseQuery, $startDate, $endDate)
+    private function getTopSellingItems($startDate, $endDate)
     {
         try {
             // Get real top selling items from actual sales data
@@ -520,6 +524,135 @@ class DashboardController extends Controller
             'percentage' => round($percentage, 1),
             'count' => $currentCount,
             'trend' => $percentage >= 0 ? 'up' : 'down'
+        ];
+    }
+
+    private function getLowStockItems()
+    {
+        // Get products where manual management is on and total stock is low
+        return \App\Models\Product::where('manage_stock', true)
+            ->where('status', 'active')
+            ->with('category')
+            ->get()
+            ->filter(function($product) {
+                return $product->total_variation_stock < 10;
+            })
+            ->take(5)
+            ->map(function($product) {
+                return [
+                    'name' => $product->name,
+                    'category' => $product->category->name ?? 'Uncategorized',
+                    'stock' => $product->total_variation_stock,
+                    'sku' => $product->sku
+                ];
+            });
+    }
+
+    private function getProfitMetrics($startDate, $endDate, $range)
+    {
+        // Get COD percentage from settings
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
+
+        // Current period
+        $currentPosItems = \App\Models\PosItem::whereBetween('created_at', [$startDate, $endDate])->get();
+        $currentPosRevenue = $currentPosItems->sum('total_price');
+        $currentPosCost = $currentPosItems->sum(function($item) {
+            return $item->quantity * ($item->product->cost ?? 0);
+        });
+
+        $currentOrderItems = \App\Models\OrderItem::whereBetween('created_at', [$startDate, $endDate])->get();
+        $currentOrderRevenue = $currentOrderItems->sum('total_price');
+        $currentOrderCost = $currentOrderItems->sum(function($item) {
+            return $item->quantity * ($item->product->cost ?? 0);
+        });
+
+        // Apply COD discount to online revenue
+        $currentOrders = Order::whereBetween('created_at', [$startDate, $endDate])->get();
+        $codDiscount = $currentOrders->where('payment_method', 'cash')->sum(function($order) use ($codPercentage) {
+            return round($order->total * $codPercentage, 2);
+        });
+
+        $currentRevenue = $currentPosRevenue + $currentOrderRevenue - $codDiscount;
+        $currentCost = $currentPosCost + $currentOrderCost;
+        $currentProfit = $currentRevenue - $currentCost;
+        $currentMargin = $currentRevenue > 0 ? ($currentProfit / $currentRevenue) * 100 : 0;
+
+        // Previous period
+        $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
+        $previousEndDate = $startDate->copy()->subDay();
+
+        $previousPosItems = \App\Models\PosItem::whereBetween('created_at', [$previousStartDate, $previousEndDate])->get();
+        $previousPosRevenue = $previousPosItems->sum('total_price');
+        $previousPosCost = $previousPosItems->sum(function($item) {
+            return $item->quantity * ($item->product->cost ?? 0);
+        });
+
+        $previousOrderItems = \App\Models\OrderItem::whereBetween('created_at', [$previousStartDate, $previousEndDate])->get();
+        $previousOrderRevenue = $previousOrderItems->sum('total_price');
+        $previousOrderCost = $previousOrderItems->sum(function($item) {
+            return $item->quantity * ($item->product->cost ?? 0);
+        });
+
+        $previousOrders = Order::whereBetween('created_at', [$previousStartDate, $previousEndDate])->get();
+        $previousCodDiscount = $previousOrders->where('payment_method', 'cash')->sum(function($order) use ($codPercentage) {
+            return round($order->total * $codPercentage, 2);
+        });
+
+        $previousRevenue = $previousPosRevenue + $previousOrderRevenue - $previousCodDiscount;
+        $previousCost = $previousPosCost + $previousOrderCost;
+        $previousProfit = $previousRevenue - $previousCost;
+
+        $profitPercentage = $previousProfit > 0 ? (($currentProfit - $previousProfit) / $previousProfit) * 100 : 0;
+
+        return [
+            'profit' => number_format($currentProfit, 2),
+            'margin' => round($currentMargin, 1),
+            'percentage' => round($profitPercentage, 1),
+            'trend' => $profitPercentage >= 0 ? 'up' : 'down'
+        ];
+    }
+
+    private function getChannelBreakdown($startDate, $endDate)
+    {
+        // Get COD percentage
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
+
+        // POS Sales
+        $posRevenue = Pos::whereBetween('sale_date', [$startDate, $endDate])
+            ->sum(DB::raw('total_amount - COALESCE(delivery, 0)'));
+        $posOrders = Pos::whereBetween('sale_date', [$startDate, $endDate])->count();
+
+        // Online Sales
+        $onlineOrders = Order::whereBetween('created_at', [$startDate, $endDate])->get();
+        $onlineRevenue = $onlineOrders->sum(function($order) use ($codPercentage) {
+            $revenue = $order->total - ($order->delivery ?? 0);
+            if ($order->payment_method === 'cash' && $codPercentage > 0) {
+                $codDiscount = round($order->total * $codPercentage, 2);
+                $revenue = $revenue - $codDiscount;
+            }
+            return $revenue;
+        });
+        $onlineOrdersCount = $onlineOrders->count();
+
+        // Pending orders (need attention)
+        $pendingOrders = Order::where('status', 'pending')
+            ->orWhere('status', 'approved')
+            ->count();
+
+        return [
+            'pos' => [
+                'revenue' => number_format($posRevenue, 2),
+                'orders' => $posOrders,
+                'percentage' => $posRevenue + $onlineRevenue > 0 ? round(($posRevenue / ($posRevenue + $onlineRevenue)) * 100, 1) : 0
+            ],
+            'online' => [
+                'revenue' => number_format($onlineRevenue, 2),
+                'orders' => $onlineOrdersCount,
+                'percentage' => $posRevenue + $onlineRevenue > 0 ? round(($onlineRevenue / ($posRevenue + $onlineRevenue)) * 100, 1) : 0
+            ],
+            'pending' => $pendingOrders
         ];
     }
 }

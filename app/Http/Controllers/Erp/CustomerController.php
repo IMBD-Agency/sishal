@@ -11,6 +11,9 @@ use App\Models\Pos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Carbon\Carbon;
 
 class CustomerController extends Controller
 {
@@ -19,48 +22,7 @@ class CustomerController extends Controller
         if (!auth()->user()->hasPermissionTo('view customer list')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Customer::with('addedBy');
-
-        // Search by Customer ID
-        if ($request->filled('customer_id')) {
-            $query->where('id', $request->customer_id);
-        }
-
-        // Search by Name
-        if ($request->filled('name')) {
-            $query->where('name', 'LIKE', '%' . $request->name . '%');
-        }
-
-        // Search by Email
-        if ($request->filled('email')) {
-            $query->where('email', 'LIKE', '%' . $request->email . '%');
-        }
-
-        // Search by Phone
-        if ($request->filled('phone')) {
-            $query->where('phone', 'LIKE', '%' . $request->phone . '%');
-        }
-
-        // Filter by Status
-        if ($request->filled('status')) {
-            $query->where('is_active', $request->status);
-        }
-
-        // Filter by Premium Status
-        if ($request->filled('premium')) {
-            $query->where('is_premium', $request->premium);
-        }
-
-        // General Search (searches across multiple fields)
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('id', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('name', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('email', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('phone', 'LIKE', '%' . $searchTerm . '%');
-            });
-        }
+        $query = $this->getFilteredQuery($request);
 
         // Get paginated results
         $customers = $query->orderBy('created_at', 'desc')->paginate(10);
@@ -353,5 +315,115 @@ class CustomerController extends Controller
             'email' => $customer->email,
             'phone' => $customer->phone,
         ]);
+    }
+
+    private function getFilteredQuery(Request $request)
+    {
+        $query = Customer::with('addedBy');
+
+        // Search by Customer ID
+        if ($request->filled('customer_id')) {
+            $query->where('id', $request->customer_id);
+        }
+
+        // Search by Name
+        if ($request->filled('name')) {
+            $query->where('name', 'LIKE', '%' . $request->name . '%');
+        }
+
+        // Search by Email
+        if ($request->filled('email')) {
+            $query->where('email', 'LIKE', '%' . $request->email . '%');
+        }
+
+        // Search by Phone
+        if ($request->filled('phone')) {
+            $query->where('phone', 'LIKE', '%' . $request->phone . '%');
+        }
+
+        // Filter by Status
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status);
+        }
+
+        // Filter by Premium Status
+        if ($request->filled('premium')) {
+            $query->where('is_premium', $request->premium);
+        }
+        
+        // Filter by Date Range
+        if ($request->filled('date_range')) {
+            $dates = explode(' - ', $request->date_range);
+            if (count($dates) == 2) {
+                try {
+                    $startDate = Carbon::parse(trim($dates[0]))->startOfDay();
+                    $endDate = Carbon::parse(trim($dates[1]))->endOfDay();
+                    $query->whereBetween('created_at', [$startDate, $endDate]);
+                } catch (\Exception $e) {
+                    // Invalid date format, ignore
+                }
+            }
+        }
+
+        // General Search
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('id', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('name', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('email', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('phone', 'LIKE', '%' . $searchTerm . '%');
+            });
+        }
+
+        return $query;
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $query = $this->getFilteredQuery($request);
+        $customers = $query->orderBy('created_at', 'desc')->get();
+
+        $csvFileName = 'customers_' . date('Y-m-d_H-i-s') . '.csv';
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$csvFileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use($customers) {
+            $file = fopen('php://output', 'w');
+            
+            // Header
+            fputcsv($file, ['ID', 'Name', 'Email', 'Phone', 'Address', 'City', 'Status', 'Joined Date']);
+
+            foreach ($customers as $customer) {
+                fputcsv($file, [
+                    $customer->id,
+                    $customer->name,
+                    $customer->email,
+                    $customer->phone,
+                    $customer->address_1,
+                    $customer->city,
+                    $customer->is_active ? 'Active' : 'Inactive',
+                    $customer->created_at->format('Y-m-d'),
+                ]);
+            }
+            fclose($file);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
+    }
+
+    public function exportPdf(Request $request) 
+    {
+        $query = $this->getFilteredQuery($request);
+        $customers = $query->orderBy('created_at', 'desc')->get();
+        
+        $pdf = Pdf::loadView('erp.customers.pdf', compact('customers'));
+        return $pdf->download('customers_' . date('Y-m-d') . '.pdf');
     }
 }

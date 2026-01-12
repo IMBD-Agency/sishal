@@ -7,8 +7,11 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Models\Branch;
+use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class OrderReturnController extends Controller
 {
@@ -17,9 +20,10 @@ class OrderReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('view order return list')) {
             abort(403, 'Unauthorized action.');
         }
+
         $query = OrderReturn::query();
 
-        // Search by customer name, phone, email, or POS order_number
+        // Search by customer name, phone, email, or Order number
         if ($search = $request->input('search')) {
             $query->where(function($q) use ($search) {
                 $q->whereHas('customer', function($qc) use ($search) {
@@ -33,9 +37,25 @@ class OrderReturnController extends Controller
             });
         }
 
-        // Filter by return_date
-        if ($returnDate = $request->input('return_date')) {
-            $query->whereDate('return_date', $returnDate);
+        // Filter by Date Range
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        if ($startDate) {
+            $query->whereDate('return_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('return_date', '<=', $endDate);
+        }
+
+        // Quick Filters
+        if ($request->has('quick_filter')) {
+            $filter = $request->input('quick_filter');
+            if ($filter == 'today') {
+                $query->whereDate('return_date', Carbon::today());
+            } elseif ($filter == 'monthly') {
+                $query->whereMonth('return_date', Carbon::now()->month)
+                      ->whereYear('return_date', Carbon::now()->year);
+            }
         }
 
         // Filter by status
@@ -43,9 +63,14 @@ class OrderReturnController extends Controller
             $query->where('status', $status);
         }
 
-        $returns = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->all());
+        $returns = $query->with(['customer', 'order', 'items'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(15)
+            ->appends($request->all());
+
         $statuses = ['pending', 'approved', 'rejected', 'processed'];
-        $filters = $request->only(['search', 'return_date', 'status']);
+        $filters = $request->all();
+
         return view('erp.orderReturn.orderreturnlist', compact('returns', 'statuses', 'filters'));
     }
 

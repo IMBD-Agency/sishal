@@ -33,11 +33,176 @@ class PurchaseController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
+
+        // Quick Filter
+        if ($request->filled('quick_filter')) {
+            if ($request->quick_filter == 'today') {
+                $query->whereDate('purchase_date', now()->toDateString());
+            } elseif ($request->quick_filter == 'monthly') {
+                $query->whereMonth('purchase_date', now()->month)
+                      ->whereYear('purchase_date', now()->year);
+            }
+        }
+
         $purchases = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->all());
+        $branches = Branch::all();
         return view('erp.purchases.purchaseList', [
             'purchases' => $purchases,
-            'filters' => $request->only(['search', 'purchase_date', 'status'])
+            'branches' => $branches,
+            'filters' => $request->only(['search', 'purchase_date', 'status', 'quick_filter'])
         ]);
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $query = $this->applyFilters($request);
+        $purchases = $query->orderBy('created_at', 'desc')->get();
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'location', 'status', 'total'];
+
+        $exportData = [];
+        $headers = [];
+        $columnMap = [
+            'id' => 'Assign ID',
+            'date' => 'Date',
+            'location' => 'Location',
+            'status' => 'Status',
+            'total' => 'Total Amount'
+        ];
+
+        foreach ($selectedColumns as $column) {
+            if (isset($columnMap[$column])) {
+                $headers[] = $columnMap[$column];
+            }
+        }
+        $exportData[] = $headers;
+
+        foreach ($purchases as $purchase) {
+            $row = [];
+            foreach ($selectedColumns as $column) {
+                switch ($column) {
+                    case 'id': $row[] = '#' . $purchase->id; break;
+                    case 'date': $row[] = $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d-m-Y') : '-'; break;
+                    case 'location': 
+                        $loc = '';
+                        if ($purchase->ship_location_type == 'branch') {
+                            $branch = Branch::find($purchase->location_id);
+                            $loc = 'Branch: ' . ($branch->name ?? '-');
+                        } else {
+                            $warehouse = Warehouse::find($purchase->location_id);
+                            $loc = 'Warehouse: ' . ($warehouse->name ?? '-');
+                        }
+                        $row[] = $loc;
+                        break;
+                    case 'status': $row[] = ucfirst($purchase->status); break;
+                    case 'total': $row[] = number_format($purchase->items->sum('total_price'), 2); break;
+                }
+            }
+            $exportData[] = $row;
+        }
+
+        $filename = 'purchase_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', 'Purchase Report');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue(chr(65 + $index) . '3', $header);
+            $sheet->getStyle(chr(65 + $index) . '3')->getFont()->setBold(true);
+        }
+        
+        $dataRow = 4;
+        foreach ($exportData as $rowIndex => $row) {
+            if ($rowIndex === 0) continue;
+            foreach ($row as $colIndex => $value) {
+                $sheet->setCellValue(chr(65 + $colIndex) . $dataRow, $value);
+            }
+            $dataRow++;
+        }
+        
+        foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filePath = storage_path('app/public/' . $filename);
+        $writer->save($filePath);
+        
+        return response()->download($filePath, $filename)->deleteFileAfterSend();
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $query = $this->applyFilters($request);
+        $purchases = $query->orderBy('created_at', 'desc')->get();
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'location', 'status', 'total'];
+
+        $columnMap = [
+            'id' => 'Assign ID',
+            'date' => 'Date',
+            'location' => 'Location',
+            'status' => 'Status',
+            'total' => 'Total Amount'
+        ];
+
+        $headers = [];
+        foreach ($selectedColumns as $column) {
+            if (isset($columnMap[$column])) {
+                $headers[] = $columnMap[$column];
+            }
+        }
+
+        $filename = 'purchase_report_' . date('Y-m-d_H-i-s') . '.pdf';
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.purchases.report-pdf', [
+            'purchases' => $purchases,
+            'headers' => $headers,
+            'selectedColumns' => $selectedColumns,
+            'filters' => $request->all()
+        ]);
+
+        $pdf->setPaper('A4', 'portrait');
+        
+        if ($request->input('action') === 'print') {
+            return $pdf->stream($filename);
+        }
+        
+        return $pdf->download($filename);
+    }
+
+    private function applyFilters(Request $request)
+    {
+        $query = Purchase::with(['bill', 'items']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('id', $search)
+                  ->orWhere('id', 'like', "%$search%");
+            });
+        }
+        if ($request->filled('purchase_date')) {
+            $query->whereDate('purchase_date', $request->purchase_date);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('quick_filter')) {
+            if ($request->quick_filter == 'today') {
+                $query->whereDate('purchase_date', now()->toDateString());
+            } elseif ($request->quick_filter == 'yesterday') {
+                $query->whereDate('purchase_date', now()->subDay()->toDateString());
+            } elseif ($request->quick_filter == 'last_7_days') {
+                $query->whereBetween('purchase_date', [now()->subDays(7)->toDateString(), now()->toDateString()]);
+            } elseif ($request->quick_filter == 'monthly') {
+                $query->whereMonth('purchase_date', now()->month)
+                      ->whereYear('purchase_date', now()->year);
+            } elseif ($request->quick_filter == 'yearly') {
+                $query->whereYear('purchase_date', now()->year);
+            }
+        }
+
+        return $query;
     }
 
     public function create()
@@ -113,7 +278,7 @@ class PurchaseController extends Controller
     
             DB::commit();
     
-            return redirect()->route('purchase.list');
+            return redirect()->route('purchase.list')->with('success', 'Purchase created successfully.');
     
         } catch (\Exception $e) {
             DB::rollback();
@@ -262,7 +427,7 @@ class PurchaseController extends Controller
             }
             // Optionally update bill if needed (not shown here)
             DB::commit();
-            return redirect()->route('purchase.list')->with('success', 'Assign updated successfully.');
+            return redirect()->route('purchase.list')->with('success', 'Purchase updated successfully.');
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Something went wrong.', 'details' => $e->getMessage()]);
@@ -345,7 +510,7 @@ class PurchaseController extends Controller
                 }
             }
         }
-        return redirect()->back()->with('success', 'Assign status updated successfully.');
+        return redirect()->back()->with('success', 'Purchase status updated successfully.');
     }
 
     public function delete($id)
@@ -362,7 +527,7 @@ class PurchaseController extends Controller
             // Delete the purchase itself
             $purchase->delete();
             DB::commit();
-            return redirect()->route('purchase.list')->with('success', 'Assign and related data deleted successfully.');
+            return redirect()->route('purchase.list')->with('success', 'Purchase and related data deleted successfully.');
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Something went wrong.', 'details' => $e->getMessage()]);

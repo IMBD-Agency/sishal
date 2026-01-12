@@ -153,9 +153,15 @@
         </table>
     </div>
 
-    @if(!empty($filters['issue_date_from']) || !empty($filters['issue_date_to']) || !empty($filters['due_date_from']) || !empty($filters['due_date_to']) || !empty($filters['status']))
+    @if(!empty($filters['issue_date_from']) || !empty($filters['issue_date_to']) || !empty($filters['due_date_from']) || !empty($filters['due_date_to']) || !empty($filters['status']) || !empty($filters['issue_date']) || !empty($filters['due_date']))
     <div class="filters">
         <h3>Applied Filters:</h3>
+        @if(!empty($filters['issue_date']))
+            <span class="filter-item">Issue Date: {{ \Carbon\Carbon::parse($filters['issue_date'])->format('d-m-Y') }}</span>
+        @endif
+        @if(!empty($filters['due_date']))
+            <span class="filter-item">Due Date: {{ \Carbon\Carbon::parse($filters['due_date'])->format('d-m-Y') }}</span>
+        @endif
         @if(!empty($filters['issue_date_from']))
             <span class="filter-item">Issue From: {{ $filters['issue_date_from'] }}</span>
         @endif

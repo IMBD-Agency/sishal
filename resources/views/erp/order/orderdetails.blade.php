@@ -198,6 +198,84 @@
                         </div>
                     </div>
 
+                    <!-- Order Financial Summary Card -->
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-success bg-opacity-10 rounded-3 p-2 me-3">
+                                    <i class="fas fa-calculator text-success"></i>
+                                </div>
+                                <h5 class="card-title mb-0 fw-bold">Order Breakdown</h5>
+                            </div>
+                            <div class="financial-summary">
+                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                    <span class="text-muted">Subtotal</span>
+                                    <span class="fw-semibold">{{ number_format($order->subtotal ?? 0, 2) }}৳</span>
+                                </div>
+                                @if($order->discount && $order->discount > 0)
+                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                    <span class="text-success">
+                                        <i class="fas fa-tag me-1"></i>Discount
+                                        @if($order->coupon_id)
+                                            <small class="badge bg-success-subtle text-success ms-1">Coupon</small>
+                                        @endif
+                                    </span>
+                                    <span class="text-success fw-semibold">-{{ number_format($order->discount, 2) }}৳</span>
+                                </div>
+                                @endif
+                                @if($order->delivery && $order->delivery > 0)
+                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                    <span class="text-muted">
+                                        <i class="fas fa-shipping-fast me-1"></i>Delivery Charge
+                                    </span>
+                                    <span class="fw-semibold">{{ number_format($order->delivery, 2) }}৳</span>
+                                </div>
+                                @endif
+                                @if($order->vat && $order->vat > 0)
+                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                    <span class="text-muted">VAT/Tax</span>
+                                    <span class="fw-semibold">{{ number_format($order->vat, 2) }}৳</span>
+                                </div>
+                                @endif
+                                <div class="d-flex justify-content-between align-items-center bg-primary bg-opacity-10 rounded-3 p-3">
+                                    <span class="fw-bold text-primary">Total Amount</span>
+                                    <span class="fw-bold h5 mb-0 text-primary">{{ number_format($order->total, 2) }}৳</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method & Status Card -->
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-info bg-opacity-10 rounded-3 p-2 me-3">
+                                    <i class="fas fa-credit-card text-info"></i>
+                                </div>
+                                <h5 class="card-title mb-0 fw-bold">Payment Details</h5>
+                            </div>
+                            <div class="payment-details">
+                                <div class="mb-3">
+                                    <label class="small text-muted">Payment Method</label>
+                                    <div class="fw-medium">
+                                        <span class="badge bg-{{ $order->payment_method === 'cash' ? 'success' : 'primary' }} rounded-pill">
+                                            <i class="fas fa-{{ $order->payment_method === 'cash' ? 'money-bill-wave' : ($order->payment_method === 'card' ? 'credit-card' : 'mobile-alt') }} me-1"></i>
+                                            {{ ucfirst($order->payment_method ?? 'Not specified') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="small text-muted">Payment Status</label>
+                                    <div>
+                                        <span class="badge bg-{{ $order->payment_status === 'paid' ? 'success' : ($order->payment_status === 'pending' ? 'warning' : 'danger') }} rounded-pill">
+                                            {{ ucfirst($order->payment_status ?? 'Pending') }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Team Information - HIDDEN -->
                     <div class="card border-0 shadow-sm rounded-4 mb-4" style="display: none;">
                         <div class="card-body p-4">
@@ -235,6 +313,8 @@
                         @endif
                     </div>
                     --}}
+                        </div>
+                    </div>
 
                     <!-- Customer Card -->
                     <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -605,12 +685,18 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="paymentDate" class="form-label">Cash Received By</label>
+                            <label for="received_by" class="form-label">Cash Received By (Optional)</label>
                             <select name="received_by" id="received_by" class="form-select">
-                                <option value="">Select Receiver</option>
-                                @if ($order->employee)
-                                    <option value="{{ $order->employee->user->id }}">{{ @$order->employee->user->first_name . ' ' . @$order->employee->user->last_name }} (Technician)</option>
-                                @endif
+                                <option value="">Not Specified</option>
+                                <option value="{{ auth()->user()->id }}" selected>{{ auth()->user()->first_name }} {{ auth()->user()->last_name }} (Me)</option>
+                                @php
+                                    $adminUsers = \App\Models\User::where('is_admin', 1)
+                                        ->where('id', '!=', auth()->user()->id)
+                                        ->get();
+                                @endphp
+                                @foreach($adminUsers as $admin)
+                                    <option value="{{ $admin->id }}">{{ $admin->first_name }} {{ $admin->last_name }} (Admin)</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="mb-3">

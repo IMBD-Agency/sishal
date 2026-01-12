@@ -6,125 +6,245 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
+        
+        <style>
+            .form-section-title {
+                font-size: 0.85rem;
+                font-weight: 700;
+                text-uppercase: uppercase;
+                letter-spacing: 0.05em;
+                color: #6c757d;
+                margin-bottom: 1.5rem;
+                display: flex;
+                align-items: center;
+            }
+            .form-section-title::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background: #e9ecef;
+                margin-left: 1rem;
+            }
+            .card { border-radius: 12px; }
+            .form-control, .form-select {
+                padding: 0.6rem 0.8rem;
+                border-color: #e9ecef;
+                border-radius: 8px;
+            }
+            .form-control:focus, .form-select:focus {
+                border-color: #0d6efd;
+                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05);
+            }
+            .input-group-text { border-radius: 8px 0 0 8px; border-color: #e9ecef; background: #f8f9fa; }
+            .product-row { transition: all 0.2s; }
+            .product-row:hover { background-color: #fcfdfe; }
+            .btn-remove { 
+                width: 32px; height: 32px; 
+                display: flex; align-items: center; justify-content: center;
+                border-radius: 8px; transition: all 0.2s;
+            }
+            .btn-remove:hover { background-color: #dc3545; color: white; }
+            .select2-container--default .select2-selection--single {
+                height: 42px !important;
+                border: 1px solid #e9ecef !important;
+                border-radius: 8px !important;
+                display: flex;
+                align-items: center;
+            }
+        </style>
+
+        <!-- Header -->
         <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <h2 class="mb-4">Edit Order Return</h2>
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-2">
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('orderReturn.list') }}" class="text-decoration-none">Order Returns</a></li>
+                            <li class="breadcrumb-item active">Edit Return</li>
+                        </ol>
+                    </nav>
+                    <h2 class="fw-bold mb-0">Edit Order Return #{{ str_pad($orderReturn->id, 5, '0', STR_PAD_LEFT) }}</h2>
+                    <p class="text-muted mb-0">Update information for this E-commerce return record.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ route('orderReturn.list') }}" class="btn btn-light border px-4 rounded-3">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid px-4 py-4">
             @if ($errors->any())
-                <div class="alert alert-danger">
-                    <ul>
+                <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                    <ul class="mb-0">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach
                     </ul>
                 </div>
             @endif
+
             <form id="orderReturnForm" action="{{ route('orderReturn.update', $orderReturn->id) }}" method="POST">
                 @csrf
                 @method('PUT')
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="customer_id" class="form-label">Customer</label>
-                        <select name="customer_id" id="customer_id" class="form-select" required>
-                            <option value="">Select Customer</option>
-                            @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}" {{ $orderReturn->customer_id == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="pos_sale_id" class="form-label">Order Sale</label>
-                        <select name="order_id" id="pos_sale_id" class="form-select" required>
-                            <option value="">Select Order Sale</option>
-                            @foreach($orders as $order)
-                                <option value="{{ $order->id }}" {{ $orderReturn->order_id == $order->id ? 'selected' : '' }}>ORD #{{ $order->id }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="return_date" class="form-label">Return Date</label>
-                        <input type="date" name="return_date" id="return_date" class="form-control" value="{{ $orderReturn->return_date }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="refund_type" class="form-label">Refund Type</label>
-                        <select name="refund_type" id="refund_type" class="form-select" required>
-                            <option value="none" {{ $orderReturn->refund_type == 'none' ? 'selected' : '' }}>None</option>
-                            <option value="cash" {{ $orderReturn->refund_type == 'cash' ? 'selected' : '' }}>Cash</option>
-                            <option value="bank" {{ $orderReturn->refund_type == 'bank' ? 'selected' : '' }}>Bank</option>
-                            <option value="credit" {{ $orderReturn->refund_type == 'credit' ? 'selected' : '' }}>Credit</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="return_to_type" class="form-label">Return To</label>
-                        <select name="return_to_type" id="return_to_type" class="form-select" required>
-                            <option value="">Select Return To</option>
-                            <option value="branch" {{ $orderReturn->return_to_type == 'branch' ? 'selected' : '' }}>Branch</option>
-                            <option value="warehouse" {{ $orderReturn->return_to_type == 'warehouse' ? 'selected' : '' }}>Warehouse</option>
-                            <option value="employee" {{ $orderReturn->return_to_type == 'employee' ? 'selected' : '' }}>Employee</option>
-                        </select>
-                        <select name="return_to_id" id="return_to_id" class="form-select mt-2" style="display:{{ $orderReturn->return_to_type ? '' : 'none' }};" required>
-                            <option value="">Select Location</option>
-                            @if($orderReturn->return_to_type == 'branch')
-                                @foreach($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ $orderReturn->return_to_id == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                @endforeach
-                            @elseif($orderReturn->return_to_type == 'warehouse')
-                                @foreach($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ $orderReturn->return_to_id == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
-                                @endforeach
-                            @elseif($orderReturn->return_to_type == 'employee' && $orderReturn->return_to_id)
-                                <option value="{{ $orderReturn->return_to_id }}" selected>{{ $orderReturn->employee ? ($orderReturn->employee->user->first_name . ' ' . $orderReturn->employee->user->last_name) : 'Selected Employee' }}</option>
-                            @endif
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="reason" class="form-label">Reason</label>
-                    <input type="text" name="reason" id="reason" class="form-control" value="{{ $orderReturn->reason }}">
-                </div>
-                <div class="mb-3">
-                    <label for="notes" class="form-label">Notes</label>
-                    <textarea name="notes" id="notes" class="form-control" rows="2">{{ $orderReturn->notes }}</textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Return Items</label>
-                    <table class="table table-bordered align-middle" id="itemsTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Product</th>
-                                <th>Returned Qty</th>
-                                <th>Unit Price</th>
-                                <th>Reason</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($orderReturn->items as $i => $item)
-                            <tr>
-                                <td>
-                                    <select name="items[{{ $i }}][product_id]" class="form-select product-select" required>
-                                        <option value="">Select Product</option>
-                                        @foreach($products as $product)
-                                            <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                <div class="row g-4">
+                    <!-- Left Column: Basic Info -->
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body p-4">
+                                <div class="form-section-title">Return Source</div>
+                                
+                                <div class="mb-3">
+                                    <label for="order_id" class="form-label fw-bold small">Order Reference <span class="text-danger">*</span></label>
+                                    <select name="order_id" id="order_id" class="form-select" required>
+                                        @if($orderReturn->order)
+                                            <option value="{{ $orderReturn->order_id }}" selected>{{ $orderReturn->order->order_number }} - {{ $orderReturn->customer->name ?? 'Customer' }}</option>
+                                        @endif
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="customer_id" class="form-label fw-bold small">Customer</label>
+                                    <select name="customer_id" id="customer_id" class="form-select">
+                                        @foreach($customers as $customer)
+                                            <option value="{{ $customer->id }}" {{ $orderReturn->customer_id == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
                                         @endforeach
                                     </select>
-                                    <input type="hidden" name="items[{{ $i }}][order_item_id]" class="order-item-id" value="{{ $item->order_item_id }}">
-                                    <input type="hidden" name="items[{{ $i }}][variation_id]" class="variation-id" value="{{ $item->variation_id }}">
-                                </td>
-                                <td><input type="number" name="items[{{ $i }}][returned_qty]" class="form-control returned_qty" min="1" value="{{ $item->returned_qty }}" required></td>
-                                <td><input type="number" name="items[{{ $i }}][unit_price]" class="form-control unit_price" min="1" value="{{ $item->unit_price }}" required></td>
-                                <td><input type="text" name="items[{{ $i }}][reason]" class="form-control" value="{{ $item->reason }}"></td>
-                                <td><button type="button" class="btn btn-danger btn-sm remove-row" {{ $i == 0 ? 'disabled' : '' }}>&times;</button></td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                    <button type="button" class="btn btn-secondary btn-sm" id="addItemRow">Add Item</button>
-                </div>
-                <div class="mb-3 text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Update Order Return
-                    </button>
+                                </div>
+
+                                <div class="form-section-title mt-4">Return Details</div>
+
+                                <div class="mb-3">
+                                    <label for="return_date" class="form-label fw-bold small">Return Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="return_date" id="return_date" class="form-control" value="{{ \Carbon\Carbon::parse($orderReturn->return_date)->format('Y-m-d') }}" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="refund_type" class="form-label fw-bold small">Refund Method <span class="text-danger">*</span></label>
+                                    <select name="refund_type" id="refund_type" class="form-select" required>
+                                        <option value="none" {{ $orderReturn->refund_type == 'none' ? 'selected' : '' }}>No Refund</option>
+                                        <option value="cash" {{ $orderReturn->refund_type == 'cash' ? 'selected' : '' }}>Cash Refund</option>
+                                        <option value="bank" {{ $orderReturn->refund_type == 'bank' ? 'selected' : '' }}>Bank Transfer</option>
+                                        <option value="credit" {{ $orderReturn->refund_type == 'credit' ? 'selected' : '' }}>Store Credit</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="return_to_type" class="form-label fw-bold small">Restock Location <span class="text-danger">*</span></label>
+                                    <select name="return_to_type" id="return_to_type" class="form-select mb-2" required>
+                                        <option value="">Select Location Type</option>
+                                        <option value="branch" {{ $orderReturn->return_to_type == 'branch' ? 'selected' : '' }}>Branch Office</option>
+                                        <option value="warehouse" {{ $orderReturn->return_to_type == 'warehouse' ? 'selected' : '' }}>Central Warehouse</option>
+                                        <option value="employee" {{ $orderReturn->return_to_type == 'employee' ? 'selected' : '' }}>Field Employee</option>
+                                    </select>
+                                    <select name="return_to_id" id="return_to_id" class="form-select" {{ $orderReturn->return_to_type == 'employee' ? 'style=display:none;' : '' }} required>
+                                        <option value="">Select Specific Location</option>
+                                        @if($orderReturn->return_to_type == 'branch')
+                                            @foreach($branches as $branch)
+                                                <option value="{{ $branch->id }}" {{ $orderReturn->return_to_id == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                            @endforeach
+                                        @elseif($orderReturn->return_to_type == 'warehouse')
+                                            @foreach($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}" {{ $orderReturn->return_to_id == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                            @endforeach
+                                        @elseif($orderReturn->return_to_type == 'employee')
+                                            <option value="{{ $orderReturn->return_to_id }}" selected>{{ $orderReturn->destination_name }}</option>
+                                        @endif
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="form-section-title">Additional Info</div>
+                                <div class="mb-3">
+                                    <label for="reason" class="form-label fw-bold small">Primary Reason</label>
+                                    <input type="text" name="reason" id="reason" class="form-control" value="{{ $orderReturn->reason }}" placeholder="e.g., Damaged item, customer choice">
+                                </div>
+                                <div class="mb-0">
+                                    <label for="notes" class="form-label fw-bold small">Internal Notes</label>
+                                    <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Enter any extra details...">{{ $orderReturn->notes }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Table -->
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom p-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="fw-bold mb-0">Return Items</h5>
+                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" id="addItemRow">
+                                        <i class="fas fa-plus me-1"></i>Add Manual Item
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table align-middle mb-0" id="itemsTable">
+                                        <thead class="bg-light text-muted small text-uppercase">
+                                            <tr>
+                                                <th class="ps-4 py-3" style="width: 40%;">Product Specification</th>
+                                                <th class="py-3" style="width: 15%;">Qty</th>
+                                                <th class="py-3" style="width: 20%;">Price (৳)</th>
+                                                <th class="py-3">Reason</th>
+                                                <th class="pe-4 py-3"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($orderReturn->items as $index => $item)
+                                                <tr class="product-row">
+                                                    <td class="ps-4">
+                                                        <select name="items[{{ $index }}][product_id]" class="form-select product-select" required>
+                                                            @foreach($products as $p)
+                                                                <option value="{{ $p->id }}" {{ $item->product_id == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <div class="variation-wrapper mt-2" style="{{ $item->variation_id ? '' : 'display:none;' }}">
+                                                            <select name="items[{{ $index }}][variation_id]" class="form-select variation-select small py-1">
+                                                                <option value="{{ $item->variation_id }}">{{ $item->variation->name ?? 'Default Variation' }}</option>
+                                                            </select>
+                                                        </div>
+                                                        <input type="hidden" name="items[{{ $index }}][id]" value="{{ $item->id }}">
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="items[{{ $index }}][returned_qty]" class="form-control" min="0.01" step="0.01" value="{{ $item->returned_qty }}" required>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text border-0 bg-transparent">৳</span>
+                                                            <input type="number" name="items[{{ $index }}][unit_price]" class="form-control border-0 bg-light unit_price" min="0" step="0.01" value="{{ $item->unit_price }}" required>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" name="items[{{ $index }}][reason]" class="form-control form-control-sm border-0 bg-light" value="{{ $item->reason }}" placeholder="Defect?">
+                                                    </td>
+                                                    <td class="pe-4 text-end">
+                                                        <button type="button" class="btn btn-link text-danger p-0 btn-remove shadow-none">
+                                                            <i class="fas fa-times-circle"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="emptyState" class="text-center py-5" style="display:none;">
+                                    <i class="fas fa-shopping-bag fs-1 text-muted opacity-25 mb-3"></i>
+                                    <p class="text-muted">No items in this return.</p>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light border-0 p-4 text-end">
+                                <button type="submit" class="btn btn-primary px-5 py-2 rounded-3 shadow-sm fw-bold">
+                                    <i class="fas fa-save me-2"></i>Update Return
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -134,185 +254,193 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         let itemIndex = {{ count($orderReturn->items) }};
+        
+        function toggleEmptyState() {
+            if ($('#itemsTable tbody tr').length > 0) {
+                $('#emptyState').hide();
+            } else {
+                $('#emptyState').show();
+            }
+        }
+
         $(document).ready(function() {
-            // Initialize Select2 for customer search
-            $('#customer_id').select2({
-                placeholder: 'Select Customer',
-                allowClear: true,
+            $('#order_id').select2({
+                placeholder: 'Search by Order #, Customer Name or Phone...',
                 width: '100%',
                 ajax: {
-                    url: '/erp/customers/search',
+                    url: '{{ route("order.search") }}',
                     dataType: 'json',
                     delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.map(function(item) {
-                                return { id: item.id, text: item.name + (item.email ? ' (' + item.email + ')' : '') };
-                            })
-                        };
-                    },
+                    data: params => ({ q: params.term }),
+                    processResults: data => ({ results: data }),
                     cache: true
                 }
             });
-            // Initialize Select2 for initial product dropdown
-            $('.product-select').select2({
-                placeholder: 'Search Product',
-                allowClear: true,
-                width: '100%'
-            });
-            // Initialize Select2 for POS Sale search
-            $('#pos_sale_id').select2({
-                placeholder: 'Select POS Sale',
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: '/erp/order/search',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data
-                        };
-                    },
-                    cache: true
+
+            $('#customer_id').select2({ width: '100%' });
+            $('.product-select').select2({ width: '100%' });
+
+            $('#order_id').on('change select2:select', function() {
+                const orderId = $(this).val();
+                if (orderId) {
+                    loadOrderDetails(orderId);
                 }
             });
-            // Add new item row
-            $('#addItemRow').on('click', function() {
-                const row = `<tr>
-                    <td>
-                        <select name="items[${itemIndex}][product_id]" class="form-select product-select" required>
-                            <option value="">Select Product</option>
-                            @foreach($products as $product)
-                                <option value="{{ $product->id }}">{{ $product->name }}</option>
-                            @endforeach
-                        </select>
-                        <input type="hidden" name="items[${itemIndex}][order_item_id]" class="order-item-id">
-                        <input type="hidden" name="items[${itemIndex}][variation_id]" class="variation-id">
-                    </td>
-                    <td><input type="number" name="items[${itemIndex}][returned_qty]" class="form-control returned_qty" min="1" required></td>
-                    <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="1" required></td>
-                    <td><input type="text" name="items[${itemIndex}][reason]" class="form-control"></td>
-                    <td><button type="button" class="btn btn-danger btn-sm remove-row">&times;</button></td>
-                </tr>`;
-                $('#itemsTable tbody').append(row);
-                // Initialize Select2 for the new product dropdown
-                const newRow = $('#itemsTable tbody tr:last');
-                newRow.find('.product-select').select2({
-                    placeholder: 'Search Product',
-                    allowClear: true,
-                    width: '100%'
+
+            function loadOrderDetails(orderId) {
+                const $tableBody = $('#itemsTable tbody');
+                $tableBody.html('<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading items...</td></tr>');
+                
+                $.ajax({
+                    url: `/erp/order/${orderId}/details`,
+                    method: 'GET',
+                    success: function(response) {
+                        $tableBody.empty();
+                        const data = response; 
+                        
+                        if (data && data.items) {
+                            if (data.customer_id) {
+                                const $customerSelect = $('#customer_id');
+                                const option = new Option(data.customer_name || 'Customer #' + data.customer_id, data.customer_id, true, true);
+                                $customerSelect.empty().append(option).trigger('change');
+                            }
+
+                            data.items.forEach((item, index) => {
+                                const i = index;
+                                const row = $(`
+                                    <tr class="product-row">
+                                        <td class="ps-4">
+                                            <select name="items[${i}][product_id]" class="form-select product-select" required>
+                                                <option value="${item.product_id}" selected>${item.product_name}</option>
+                                            </select>
+                                            <div class="variation-wrapper mt-2" style="${item.variation_id ? '' : 'display:none;'}">
+                                                <select name="items[${i}][variation_id]" class="form-select variation-select small py-1">
+                                                    <option value="${item.variation_id || ''}" selected>${item.variation_name || 'Standard Variation'}</option>
+                                                </select>
+                                            </div>
+                                            <input type="hidden" name="items[${i}][order_item_id]" value="${item.id}">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="items[${i}][returned_qty]" class="form-control" min="0.01" step="0.01" value="${item.quantity}" required>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text border-0 bg-transparent">৳</span>
+                                                <input type="number" name="items[${i}][unit_price]" class="form-control border-0 bg-light unit_price" min="0" step="0.01" value="${item.unit_price}" required>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="text" name="items[${i}][reason]" class="form-control form-control-sm border-0 bg-light" placeholder="Defect?">
+                                        </td>
+                                        <td class="pe-4 text-end">
+                                            <button type="button" class="btn btn-link text-danger p-0 btn-remove shadow-none">
+                                                <i class="fas fa-times-circle"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `);
+                                $tableBody.append(row);
+                                row.find('.product-select').select2({ width: '100%' });
+                            });
+                        }
+                        toggleEmptyState();
+                    },
+                    error: function() {
+                        $tableBody.html('<tr><td colspan="5" class="text-center text-danger py-4">Failed to load order details.</td></tr>');
+                    }
                 });
-                itemIndex++;
+            }
+
+            $(document).on('click', '.btn-remove', function() {
+                $(this).closest('tr').fadeOut(200, function() {
+                    $(this).remove();
+                    toggleEmptyState();
+                });
             });
-            // Remove item row
-            $('#itemsTable').on('click', '.remove-row', function() {
-                $(this).closest('tr').remove();
+
+            $('#addItemRow').on('click', function() {
+                const i = itemIndex++;
+                const row = $(`
+                    <tr class="product-row">
+                        <td class="ps-4">
+                            <select name="items[${i}][product_id]" class="form-select product-select" required>
+                                <option value="">Select Product</option>
+                                @foreach($products as $p)
+                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="variation-wrapper mt-2" style="display:none;">
+                                <select name="items[${i}][variation_id]" class="form-select variation-select small py-1"></select>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="number" name="items[${i}][returned_qty]" class="form-control" min="0.01" step="0.01" value="1" required>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text border-0 bg-transparent">৳</span>
+                                <input type="number" name="items[${i}][unit_price]" class="form-control border-0 bg-light unit_price" min="0" step="0.01" required>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" name="items[${i}][reason]" class="form-control form-control-sm border-0 bg-light" placeholder="Defect?">
+                        </td>
+                        <td class="pe-4 text-end">
+                            <button type="button" class="btn btn-link text-danger p-0 btn-remove shadow-none">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+                $('#itemsTable tbody').append(row);
+                row.find('.product-select').select2({ width: '100%' });
+                toggleEmptyState();
             });
-            // When return_to_type changes, populate and show the return_to_id select
+
+            $(document).on('change', '.product-select', function() {
+                const productId = $(this).val();
+                if (!productId) return;
+                const $row = $(this).closest('tr');
+                const $vWrapper = $row.find('.variation-wrapper');
+                const $vSelect = $row.find('.variation-select');
+                const $price = $row.find('.unit_price');
+
+                $.get(`/erp/products/${productId}/variations-list`, function(vars) {
+                    if (vars.length > 0) {
+                        $vSelect.empty().append('<option value="">Select Variation</option>');
+                        vars.forEach(v => $vSelect.append(`<option value="${v.id}" data-price="${v.price}">${v.display_name}</option>`));
+                        $vWrapper.show();
+                    } else {
+                        $vWrapper.hide();
+                        $.get(`/erp/products/${productId}/sale-price`, resp => $price.val(resp.price));
+                    }
+                });
+            });
+
             $('#return_to_type').on('change', function() {
-                const returnToType = $(this).val();
-                const returnToIdSelect = $('#return_to_id');
-                returnToIdSelect.hide().prop('required', false).val('').empty();
-                if (returnToType === 'branch') {
-                    returnToIdSelect.append('<option value="">Select Branch</option>');
-                    @foreach ($branches as $branch)
-                        returnToIdSelect.append('<option value="{{ $branch->id }}">{{ $branch->name }}</option>');
-                    @endforeach
-                    returnToIdSelect.show().prop('required', true);
-                    returnToIdSelect.select2({
-                        placeholder: 'Select Location',
-                        allowClear: true,
-                        width: '100%'
-                    });
-                } else if (returnToType === 'warehouse') {
-                    returnToIdSelect.append('<option value="">Select Warehouse</option>');
-                    @foreach ($warehouses as $warehouse)
-                        returnToIdSelect.append('<option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>');
-                    @endforeach
-                    returnToIdSelect.show().prop('required', true);
-                    returnToIdSelect.select2({
-                        placeholder: 'Select Location',
-                        allowClear: true,
-                        width: '100%'
-                    });
-                } else if (returnToType === 'employee') {
-                    returnToIdSelect.append('<option value="">Select Employee</option>');
-                    returnToIdSelect.show().prop('required', true);
-                    returnToIdSelect.select2({
-                        placeholder: 'Select Employee',
-                        allowClear: true,
+                const type = $(this).val();
+                const $idSelect = $('#return_to_id');
+                $idSelect.hide().empty();
+                
+                if (type === 'branch' || type === 'warehouse') {
+                    const opts = type === 'branch' ? @json($branches) : @json($warehouses);
+                    $idSelect.append('<option value="">Select Location</option>');
+                    opts.forEach(o => $idSelect.append(`<option value="${o.id}">${o.name}</option>`));
+                    $idSelect.show();
+                    if ($idSelect.hasClass('select2-hidden-accessible')) $idSelect.select2('destroy');
+                } else if (type === 'employee') {
+                    $idSelect.show().select2({
+                        placeholder: 'Search Employee...',
                         width: '100%',
                         ajax: {
                             url: '/erp/employees/search',
                             dataType: 'json',
-                            delay: 250,
-                            data: function(params) {
-                                return { q: params.term };
-                            },
-                            processResults: function(data) {
-                                return {
-                                    results: data.map(function(item) {
-                                        return { id: item.id, text: item.name + (item.email ? ' (' + item.email + ')' : '') };
-                                    })
-                                };
-                            },
-                            cache: true
+                            data: params => ({ q: params.term }),
+                            processResults: data => ({ results: data.map(i => ({ id: i.id, text: i.name })) })
                         }
                     });
                 }
             });
-            // Show location dropdown if return_to_type is already selected
-            if ($('#return_to_type').val()) {
-                $('#return_to_id').show().prop('required', true);
-                // Always initialize Select2 for location dropdown
-                if (!$('#return_to_id').hasClass('select2-hidden-accessible')) {
-                    if ($('#return_to_type').val() === 'employee') {
-                        $('#return_to_id').select2({
-                            placeholder: 'Select Employee',
-                            allowClear: true,
-                            width: '100%',
-                            ajax: {
-                                url: '/erp/employees/search',
-                                dataType: 'json',
-                                delay: 250,
-                                data: function(params) {
-                                    return { q: params.term };
-                                },
-                                processResults: function(data) {
-                                    return {
-                                        results: data.map(function(item) {
-                                            return { id: item.id, text: item.name + (item.email ? ' (' + item.email + ')' : '') };
-                                        })
-                                    };
-                                },
-                                cache: true
-                            }
-                        });
-                        // If a value is present, trigger change for Select2
-                        var selectedVal = $('#return_to_id').val();
-                        if (selectedVal) {
-                            $('#return_to_id').val(selectedVal).trigger('change');
-                        }
-                    } else {
-                        $('#return_to_id').select2({
-                            placeholder: 'Select Location',
-                            allowClear: true,
-                            width: '100%'
-                        });
-                    }
-                }
-            }
         });
     </script>
-@endsection 
+@endsection

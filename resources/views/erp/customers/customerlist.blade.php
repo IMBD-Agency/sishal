@@ -4,153 +4,167 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content bg-gray-50 min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}"
-                                    class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Customer List</li>
-                        </ol>
-                    </nav>
-                    <h2 class="fw-bold mb-0">Customer List</h2>
-                    <p class="text-muted mb-0">Manage Customer information, contacts, and transactions efficiently.</p>
+        
+        <!-- Header -->
+        <div class="container-fluid px-4 py-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+                <div>
+                    <h2 class="h3 fw-bold mb-1 text-dark">Customer Database</h2>
+                    <p class="text-muted mb-0">Manage your customer relationships and data.</p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <button class="btn btn-outline-primary" id="addCustomerBtn">
-                        <i class="fas fa-adjust me-2"></i>Add Customer
+                <div class="d-flex gap-2">
+                    <a href="{{ route('customers.export.excel', request()->all()) }}" class="btn btn-success d-flex align-items-center gap-2 shadow-sm">
+                        <i class="fas fa-file-excel"></i> <span class="d-none d-md-inline">Excel</span>
+                    </a>
+                    <a href="{{ route('customers.export.pdf', request()->all()) }}" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm">
+                        <i class="fas fa-file-pdf"></i> <span class="d-none d-md-inline">PDF</span>
+                    </a>
+                    <button class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" id="addCustomerBtn">
+                        <i class="fas fa-plus-circle"></i> <span>Add Customer</span>
                     </button>
                 </div>
             </div>
-        </div>
 
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body">
-                <form method="GET" action="" id="filterForm">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-10">
-                            <label class="form-label fw-medium">Search</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">
-                                    <i class="fas fa-search text-muted"></i>
-                                </span>
-                                <input type="text" class="form-control border-start-0"
-                                    placeholder="Customer Name, Phone, Email..." name="search"
-                                    value="{{ request('search') }}">
+            <!-- Modern Filter Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <form method="GET" action="{{ route('customers.list') }}" id="filterForm">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted fw-bold">Search</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ request('search') }}" placeholder="Name, Email, Phone...">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted fw-bold">Status</label>
+                                <select class="form-select" name="status">
+                                    <option value="">All Status</option>
+                                    <option value="1" {{ request('status') == '1' ? 'selected' : '' }}>Active</option>
+                                    <option value="0" {{ request('status') == '0' ? 'selected' : '' }}>Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small text-muted fw-bold">Type</label>
+                                <select class="form-select" name="premium">
+                                    <option value="">All Types</option>
+                                    <option value="1" {{ request('premium') == '1' ? 'selected' : '' }}>Premium</option>
+                                    <option value="0" {{ request('premium') == '0' ? 'selected' : '' }}>Standard</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted fw-bold">Date Range</label>
+                                <input type="text" class="form-control" name="date_range" id="dateRange" value="{{ request('date_range') }}" placeholder="Select Dates">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-dark w-100 me-2">Apply</button>
+                                <a href="{{ route('customers.list') }}" class="btn btn-light" title="Reset"><i class="fas fa-undo"></i></a>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-primary flex-fill" type="submit">
-                                    <i class="fas fa-filter me-2"></i>Filter
-                                </button>
-                                <a href="{{ route('customers.list') }}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-times"></i>Clear
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Stock Listing Table -->
-        <div class="card border-0 shadow-sm m-2">
-            <div class="card-header bg-white border-0 py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Customer List</h5>
-                    <div class="text-muted">
-                        <small>Total: {{ $customers->total() }} returns</small>
-                    </div>
+                    </form>
                 </div>
             </div>
-            <div class="card-body p-0">
+
+            <!-- Customer Table -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" id="stockTable">
-                        <thead class="table-light sticky-top">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
                             <tr>
-                                <th class="border-0">ID</th>
-                                <th class="border-0">Name</th>
-                                <th class="border-0">Email</th>
-                                <th class="border-0 text-center">Phone</th>
-                                <th class="border-0 text-center">Address</th>
-                                <th class="border-0 text-center">Status</th>
-                                <th class="border-0 text-center">Added By</th>
-                                <th class="border-0">Action</th>
+                                <th class="border-0 py-3 ps-4">Customer</th>
+                                <th class="border-0 py-3">Contact</th>
+                                <th class="border-0 py-3">Location</th>
+                                <th class="border-0 py-3 text-center">Status</th>
+                                <th class="border-0 py-3 text-center">Joined</th>
+                                <th class="border-0 py-3 text-end pe-4">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="stockTableBody">
+                        <tbody>
                             @forelse ($customers as $customer)
-                                <tr>
-                                    <td>
-                                        <h6 class="mb-0 fw-medium">#{{ $customer->id ?? 'N/A' }}</h6>
-                                    </td>
-                                    <td>
-                                        <span class="fw-medium">{{ $customer->name ?? 'N/A' }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="fw-medium">{{ $customer->email }}</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-primary">{{ $customer->phone }}</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="fw-medium">{{ $customer->address_1 }}, {{$customer->city}},
-                                            {{$customer->state}}, {{$customer->country}} {{$customer->zip_code}}</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="text-muted">{{ $customer->is_active ? 'Active' : 'Inactive' }}</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="fw-medium">{{ $customer->addedBy->first_name ?? 'N/A' }}
-                                            {{ $customer->addedBy->last_name ?? '' }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex gap-2" role="group">
-                                            <a href="{{ route('customer.show', $customer->id) }}"
-                                                class="btn btn-sm btn-outline-info" title="View">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ route('customers.edit', $customer->id) }}"
-                                                class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-
-                                            <form action="{{ route('customers.destroy',$customer->id) }}" method="post">
-                                                @csrf
-                                                @method('delete')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Edit">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle me-3 bg-{{ ['primary','success','info','warning','danger'][rand(0,4)] }} text-white d-flex align-items-center justify-content-center rounded-circle fw-bold shadow-sm" style="width: 40px; height: 40px; font-size: 14px;">
+                                            {{ strtoupper(substr($customer->name, 0, 2)) }}
                                         </div>
-                                    </td>
-                                </tr>
+                                        <div>
+                                            <div class="fw-bold text-dark">{{ $customer->name }}
+                                                @if($customer->is_premium)
+                                                    <i class="fas fa-star text-warning small ms-1" title="Premium Customer"></i>
+                                                @endif
+                                            </div>
+                                            <div class="small text-muted">ID: #{{ $customer->id }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="text-dark"><i class="fas fa-phone-alt text-muted me-2 small"></i>{{ $customer->phone }}</span>
+                                        <span class="text-muted small"><i class="fas fa-envelope text-muted me-2 small"></i>{{ $customer->email }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($customer->city || $customer->country)
+                                        <div class="small text-dark">{{ $customer->city }}{{ $customer->city && $customer->country ? ', ' : '' }}{{ $customer->country }}</div>
+                                        @if($customer->address_1)
+                                            <div class="small text-muted text-truncate" style="max-width: 150px;">{{ $customer->address_1 }}</div>
+                                        @endif
+                                    @else
+                                        <span class="text-muted small">-</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-{{ $customer->is_active ? 'success-subtle text-success' : 'danger-subtle text-danger' }} rounded-pill px-3 border border-{{ $customer->is_active ? 'success' : 'danger' }} border-opacity-10">
+                                        {{ $customer->is_active ? 'Active' : 'Inactive' }}
+                                    </span>
+                                </td>
+                                <td class="text-center text-muted small">
+                                    {{ $customer->created_at->format('M d, Y') }}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v text-muted"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-3">
+                                            <li><a class="dropdown-item" href="{{ route('customer.show', $customer->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
+                                            <li><a class="dropdown-item" href="{{ route('customers.edit', $customer->id) }}"><i class="fas fa-edit me-2 text-info"></i>Edit Info</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form action="{{ route('customers.destroy',$customer->id) }}" method="post" onsubmit="return confirm('Are you sure?')">
+                                                    @csrf
+                                                    @method('delete')
+                                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt me-2"></i>Delete</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
                             @empty
-                                <tr>
-                                    <td colspan="8" class="text-center py-4">
-                                        <div class="text-muted">
-                                            <i class="fas fa-inbox fa-2x mb-3"></i>
-                                            <p class="mb-0">No Customers found</p>
-                                        </div>
-                                    </td>
-                                </tr>
+                            <tr>
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <div class="mb-3"><i class="fas fa-users-slash fa-3x opacity-25"></i></div>
+                                        <h5 class="fw-bold">No customers found</h5>
+                                        <p class="mb-0">Try adjusting your filters or add a new customer.</p>
+                                    </div>
+                                </td>
+                            </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
-            </div>
-            <div class="card-footer bg-white border-0">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted">
-                        Showing {{ $customers->firstItem() }} to {{ $customers->lastItem() }} of {{ $customers->total() }}
-                        Customers
-                    </span>
-                    {{ $customers->links('vendor.pagination.bootstrap-5') }}
+                <div class="card-footer bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">
+                            Showing {{ $customers->firstItem() ?? 0 }} to {{ $customers->lastItem() ?? 0 }} of {{ $customers->total() }} entries
+                        </span>
+                        {{ $customers->links('vendor.pagination.bootstrap-5') }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -245,8 +259,28 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    
     <script>
         $(function () {
+            // Initialize Date Range Picker
+            $('#dateRange').daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    cancelLabel: 'Clear',
+                    format: 'YYYY-MM-DD'
+                }
+            });
+
+            $('#dateRange').on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('YYYY-MM-DD') + ' - ' + picker.endDate.format('YYYY-MM-DD'));
+            });
+
+            $('#dateRange').on('cancel.daterangepicker', function(ev, picker) {
+                $(this).val('');
+            });
             // Show modal on button click
             $('#addCustomerBtn').on('click', function () {
                 $('#addCustomerModal').modal('show');

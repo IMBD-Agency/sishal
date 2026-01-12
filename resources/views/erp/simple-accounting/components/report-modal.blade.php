@@ -19,10 +19,28 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-bold">Sales Source</label>
-                        <select class="form-select form-select-sm" name="source" id="reportSource">
+                        <select class="form-select form-select-sm" name="source" id="reportSource" onchange="toggleBranchFilter()">
                             <option value="all" selected>All Sales</option>
                             <option value="online">Online Only</option>
                             <option value="pos">POS Only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Branch</label>
+                        <select class="form-select form-select-sm" name="branch_id" id="reportBranch">
+                            <option value="">All Branches</option>
+                            @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Category</label>
+                        <select class="form-select form-select-sm" name="category_id" id="reportCategory">
+                            <option value="">All Categories</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->display_name }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -123,13 +141,16 @@
         const dateFrom = document.getElementById('reportDateFrom').value;
         const dateTo = document.getElementById('reportDateTo').value;
         
+        const branchId = document.getElementById('reportBranch').value;
+        const categoryId = document.getElementById('reportCategory').value;
+        
         const tbody = document.getElementById('reportTableBody');
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> Loading data...</td></tr>';
 
         $.ajax({
             url: "{{ route('simple-accounting.get-sales-report-data') }}",
             type: 'GET',
-            data: { type, source, date_from: dateFrom, date_to: dateTo },
+            data: { type, source, date_from: dateFrom, date_to: dateTo, branch_id: branchId, category_id: categoryId },
             success: function(response) {
                 updateUI(response, type);
             },
@@ -202,6 +223,9 @@
         const dateFrom = document.getElementById('reportDateFrom').value;
         const dateTo = document.getElementById('reportDateTo').value;
         
+        const branchId = document.getElementById('reportBranch').value;
+        const categoryId = document.getElementById('reportCategory').value;
+        
         let url = format === 'excel' 
             ? "{{ route('simple-accounting.export-excel') }}" 
             : "{{ route('simple-accounting.export-pdf') }}";
@@ -210,10 +234,22 @@
             type: type,
             source: source,
             date_from: dateFrom,
-            date_to: dateTo
+            date_to: dateTo,
+            branch_id: branchId,
+            category_id: categoryId
         });
         
         window.location.href = `${url}?${params.toString()}`;
+    }
+    function toggleBranchFilter() {
+        const source = document.getElementById('reportSource').value;
+        const branchSelect = document.getElementById('reportBranch');
+        if (source === 'online') {
+            branchSelect.value = '';
+            branchSelect.disabled = true;
+        } else {
+            branchSelect.disabled = false;
+        }
     }
 </script>
 @endpush

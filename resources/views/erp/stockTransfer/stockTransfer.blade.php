@@ -7,348 +7,472 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
 
-        <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="#" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Stock Transfer</li>
-                        </ol>
-                    </nav>
-                    <h2 class="fw-bold mb-0">Stock Transfer</h2>
-                    <p class="text-muted mb-0">Transfer stock levels across all locations and warehouses</p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#stockTransferModal">
-                            <i class="fas fa-adjust me-2"></i>Make Transfer
-                        </button>
+    <style>
+        .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
+        .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
+        .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
+        .bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); }
+        .bg-info-soft { background-color: rgba(13, 202, 240, 0.1); }
+        .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
+        
+        .transition-all { transition: all 0.2s ease-in-out; }
+        #transferTable tbody tr:hover { 
+            background-color: #f8faff !important;
+        }
+        
+        .form-select, .form-control { border-color: #f1f3f5; }
+        .form-select:focus, .form-control:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1); }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 500;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+        /* Quick Filter Styles */
+        .quick-filter-btn {
+            background-color: #fff;
+            color: #6c757d;
+            border: 1px solid #e9ecef;
+            padding: 0.4rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .quick-filter-btn:hover {
+            background-color: #f8f9fa;
+            color: #0d6efd;
+        }
+        .btn-check:checked + .quick-filter-btn {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+            border-color: #0d6efd !important;
+            box-shadow: 0 4px 6px rgba(13, 110, 253, 0.15);
+        }
+    </style>
+
+    <!-- Header Section -->
+    <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2">
+                        <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Stock Transfer</li>
+                    </ol>
+                </nav>
+                <h2 class="fw-bold mb-0">Stock Transfer</h2>
+                <p class="text-muted mb-0">Manage and track inventory movements across all locations.</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-primary px-4 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#stockTransferModal">
+                    <i class="fas fa-plus-circle me-2"></i>Make Transfer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4 py-4">
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <i class="fas fa-check-circle me-2"></i><strong>Success!</strong> {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i><strong>Error!</strong> {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        <!-- Filters Section -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <form method="GET" action="" id="filterForm" class="row g-3">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-semibold text-muted small text-uppercase">Search Product/Variation</label>
+                        <div class="input-group border rounded-3 overflow-hidden">
+                            <span class="input-group-text bg-white border-0"><i class="fas fa-search text-primary"></i></span>
+                            <input type="text" name="search" class="form-control border-0 px-2" placeholder="Product name, variation, ID..." value="{{ $filters['search'] ?? '' }}">
+                        </div>
                     </div>
+
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label fw-semibold text-muted small text-uppercase">From Location</label>
+                        <select class="form-select border rounded-3" name="from_branch_id">
+                            <option value="">All Locations</option>
+                            <optgroup label="Branches">
+                                @foreach ($branches as $branch)
+                                    <option value="branch_{{ $branch->id }}" {{ ($filters['from_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['from_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="Warehouses">
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['from_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['from_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                @endforeach
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label fw-semibold text-muted small text-uppercase">To Location</label>
+                        <select class="form-select border rounded-3" name="to_branch_id">
+                            <option value="">All Locations</option>
+                            <optgroup label="Branches">
+                                @foreach ($branches as $branch)
+                                    <option value="branch_{{ $branch->id }}" {{ ($filters['to_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['to_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="Warehouses">
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['to_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['to_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                @endforeach
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label fw-semibold text-muted small text-uppercase">Status</label>
+                        <select class="form-select border rounded-3" name="status">
+                            <option value="">All Status</option>
+                            @foreach($statuses as $status)
+                                <option value="{{ $status }}" {{ ($filters['status'] ?? '') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-lg-3 col-md-12">
+                        <label class="form-label fw-semibold text-muted small text-uppercase">Transfer Date Range</label>
+                        <div class="input-group border rounded-3 overflow-hidden">
+                            <input type="date" name="date_from" class="form-control border-0 border-end" value="{{ $filters['date_from'] ?? '' }}" title="Start Date">
+                            <span class="input-group-text bg-light border-0 px-2 text-muted small">to</span>
+                            <input type="date" name="date_to" class="form-control border-0" value="{{ $filters['date_to'] ?? '' }}" title="End Date">
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-between align-items-center mt-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <label class="fw-semibold text-muted small text-uppercase mb-0">Quick Filter:</label>
+                            <div class="btn-group shadow-sm" role="group">
+                                <input type="radio" class="btn-check" name="quick_filter" id="filter_all" value="" {{ !($filters['quick_filter'] ?? '') ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
+                                <label class="btn quick-filter-btn" for="filter_all">All</label>
+
+                                <input type="radio" class="btn-check" name="quick_filter" id="filter_today" value="today" {{ ($filters['quick_filter'] ?? '') == 'today' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
+                                <label class="btn quick-filter-btn" for="filter_today">Today</label>
+
+                                <input type="radio" class="btn-check" name="quick_filter" id="filter_monthly" value="monthly" {{ ($filters['quick_filter'] ?? '') == 'monthly' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
+                                <label class="btn quick-filter-btn" for="filter_monthly">Monthly</label>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ route('stocktransfer.list') }}" class="btn btn-light border px-4 rounded-3 text-muted">
+                                <i class="fas fa-undo me-2"></i>Reset
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
+                                <i class="fas fa-filter me-2"></i>Apply Filters
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stock Transfer Listing Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-4 px-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold mb-1">Transfer History</h5>
+                        <p class="text-muted small mb-0">Overview of all stock movements and their current status.</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="btn-group shadow-sm">
+                            <a href="{{ route('stocktransfer.export.pdf', array_merge(request()->all(), ['action' => 'print'])) }}" target="_blank" class="btn btn-sm btn-light border px-3 fw-medium">
+                                <i class="fas fa-print me-1"></i>Print
+                            </a>
+                            <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-sm btn-light border px-3 fw-medium text-danger">
+                                <i class="fas fa-file-pdf me-1"></i>PDF
+                            </a>
+                            <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-sm btn-light border px-3 fw-medium text-success">
+                                <i class="fas fa-file-excel me-1"></i>Excel
+                            </a>
+                        </div>
+                        @if($transfers->total() > 0)
+                            <div class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill">
+                                Total: {{ $transfers->total() }} Records
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="transferTable">
+                        <thead class="bg-light text-muted small text-uppercase fw-bold">
+                            <tr>
+                                <th class="ps-4 border-0 py-3">Product Information</th>
+                                <th class="border-0 py-3">Source & Destination</th>
+                                <th class="border-0 py-3 text-center">Quantity</th>
+                                <th class="border-0 py-3 text-center">Status</th>
+                                <th class="border-0 py-3">Audit Log</th>
+                                <th class="pe-4 border-0 py-3 text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($transfers as $transfer)
+                                <tr class="transition-all">
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-3 rounded-3 bg-light text-primary d-flex align-items-center justify-content-center">
+                                                <i class="fas fa-box"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">{{ $transfer->product->name ?? '-' }}</div>
+                                                @if($transfer->variation_id && $transfer->variation)
+                                                    <small class="text-primary fw-medium">{{ $transfer->variation->name ?? 'Variation #' . $transfer->variation_id }}</small>
+                                                @else
+                                                    <small class="text-muted small">Standard Product</small>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small mb-1">
+                                            <span class="text-muted me-2">From:</span>
+                                            <span class="fw-medium text-dark">
+                                                @if($transfer->from_type === 'branch')
+                                                    <i class="fas fa-store me-1 x-small text-muted"></i> {{ $transfer->fromBranch->name ?? '-' }}
+                                                @else
+                                                    <i class="fas fa-warehouse me-1 x-small text-muted"></i> {{ $transfer->fromWarehouse->name ?? '-' }}
+                                                @endif
+                                            </span>
+                                        </div>
+                                        <div class="small">
+                                            <span class="text-muted me-3">To:</span>
+                                            <span class="fw-medium text-dark">
+                                                @if($transfer->to_type === 'branch')
+                                                    <i class="fas fa-store me-1 x-small text-muted"></i> {{ $transfer->toBranch->name ?? '-' }}
+                                                @else
+                                                    <i class="fas fa-warehouse me-1 x-small text-muted"></i> {{ $transfer->toWarehouse->name ?? '-' }}
+                                                @endif
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-bold text-dark fs-6">{{ $transfer->quantity }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @php
+                                            $statusClass = [
+                                                'pending' => 'bg-warning-soft text-warning border-warning',
+                                                'approved' => 'bg-info-soft text-info border-info',
+                                                'shipped' => 'bg-primary-soft text-primary border-primary',
+                                                'delivered' => 'bg-success-soft text-success border-success',
+                                                'rejected' => 'bg-danger-soft text-danger border-danger',
+                                            ][$transfer->status] ?? 'bg-secondary-soft text-secondary border-secondary';
+                                        @endphp
+                                        <span class="status-badge {{ $statusClass }}" data-transfer-id="{{ $transfer->id }}" data-current-status="{{ $transfer->status }}">
+                                            <i class="fas fa-circle me-1 x-small" style="font-size: 0.5rem;"></i> {{ ucfirst($transfer->status) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted mb-1">
+                                            <i class="far fa-user me-1 x-small"></i> {{@$transfer->requestedPerson->first_name}} {{ @$transfer->requestedPerson->last_name }}
+                                        </div>
+                                        <div class="small text-muted">
+                                            <i class="far fa-clock me-1 x-small"></i> {{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d M, H:i') : '-' }}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <a href="{{ route('stocktransfer.show',$transfer->id) }}" class="btn btn-sm btn-light border-0 text-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            @if(in_array($transfer->status, ['pending', 'rejected']))
+                                                <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-light border-0 text-danger" title="Delete">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="py-4">
+                                            <i class="fas fa-exchange-alt fa-3x text-light mb-3"></i>
+                                            <h6 class="text-muted">No stock transfers found</h6>
+                                            <a href="{{ route('stocktransfer.list') }}" class="btn btn-sm btn-outline-primary mt-2">Clear filters</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-0 py-3 px-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">
+                        Showing <span class="fw-bold text-dark">{{ $transfers->firstItem() ?? 0 }}</span> to <span class="fw-bold text-dark">{{ $transfers->lastItem() ?? 0 }}</span> of <span class="fw-bold text-dark">{{ $transfers->total() }}</span> transfers
+                    </span>
+                    {{ $transfers->links('vendor.pagination.bootstrap-5') }}
                 </div>
             </div>
         </div>
 
-        <div class="container-fluid px-4 py-4">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <strong>Success!</strong> {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <strong>Error!</strong> {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            @if($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <strong>Error!</strong> Please check the following errors:
-                    <ul class="mb-0 mt-2">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <form method="GET" action="" id="filterForm">
-                        <div class="row g-3 align-items-end">
-                            <div class="col-md-3">
-                                <label class="form-label fw-medium">Search Product Name</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">
-                                        <i class="fas fa-search text-muted"></i>
-                                    </span>
-                                    <input type="text" class="form-control border-start-0" placeholder="Product name..." name="search" value="{{ $filters['search'] ?? '' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">From Location</label>
-                                <select class="form-select" name="from_branch_id">
-                                    <option value="">All Locations</option>
-                                    <optgroup label="Branches">
-                                        @foreach ($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}" {{ ($filters['from_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['from_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                    <optgroup label="Warehouses">
-                                        @foreach ($warehouses as $warehouse)
-                                            <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['from_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['from_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">To Location</label>
-                                <select class="form-select" name="to_branch_id">
-                                    <option value="">All Locations</option>
-                                    <optgroup label="Branches">
-                                        @foreach ($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}" {{ ($filters['to_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['to_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                    <optgroup label="Warehouses">
-                                        @foreach ($warehouses as $warehouse)
-                                            <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['to_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['to_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">Status</label>
-                                <select class="form-select" name="status">
-                                    <option value="">All Status</option>
-                                    @foreach($statuses as $status)
-                                        <option value="{{ $status }}" {{ ($filters['status'] ?? '') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">Date From</label>
-                                <input type="date" class="form-control" name="date_from" value="{{ $filters['date_from'] ?? '' }}">
-                            </div>
-                            <div class="col-md-1">
-                                <button class="btn btn-primary w-100" type="submit" title="Apply Filters">
-                                    <i class="fas fa-filter"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="row g-3 align-items-end mt-2">
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">Date To</label>
-                                <input type="date" class="form-control" name="date_to" value="{{ $filters['date_to'] ?? '' }}">
-                            </div>
-                            <div class="col-md-10">
-                                <a href="{{ route('stocktransfer.list') }}" class="btn btn-outline-danger" title="Reset All Filters">
-                                    <i class="fas fa-times me-2"></i>Reset Filters
-                                </a>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Stock Transfer Listing Table -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Stock Transfers</h5>
+        <!-- Stock Transfer Modal -->
+        <div class="modal fade" id="stockTransferModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <form class="modal-content border-0 shadow" method="POST" action="{{ route('stocktransfer.store') }}">
+                    @csrf
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="fw-bold">Create Stock Transfer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="transferTable">
-                            <thead class="table-light sticky-top">
-                                <tr>
-                                    <th class="border-0">Product</th>
-                                    <th class="border-0">From</th>
-                                    <th class="border-0">To</th>
-                                    <th class="border-0 text-center">Quantity</th>
-                                    <th class="border-0">Status</th>
-                                    <th class="border-0">Request By</th>
-                                    <th class="border-0">Requested At</th>
-                                    <th class="border-0">Approved By</th>
-                                    <th class="border-0">Approved At</th>
-                                    <th class="border-0">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($transfers as $transfer)
-                                    <tr>
-                                        <td>
-                                            {{ $transfer->product->name ?? '-' }}
-                                            @if($transfer->variation_id && $transfer->variation)
-                                                <br><small class="text-muted">{{ $transfer->variation->name ?? 'Variation #' . $transfer->variation_id }}</small>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($transfer->from_type === 'branch')
-                                                Branch: {{ $transfer->fromBranch->name ?? '-' }}
-                                            @elseif($transfer->from_type === 'warehouse')
-                                                Warehouse: {{ $transfer->fromWarehouse->name ?? '-' }}
-                                            @else
-                                                {{ ucfirst($transfer->from_type) }}
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($transfer->to_type === 'branch')
-                                                Branch: {{ $transfer->toBranch->name ?? '-' }}
-                                            @elseif($transfer->to_type === 'warehouse')
-                                                Warehouse: {{ $transfer->toWarehouse->name ?? '-' }}
-                                            @else
-                                                {{ ucfirst($transfer->to_type) }}
-                                            @endif
-                                        </td>
-                                        <td class="text-center">{{ $transfer->quantity }}</td>
-                                        <td>
-                                            <span class="badge bg-info status-badge" style="cursor:pointer;" data-transfer-id="{{ $transfer->id }}" data-current-status="{{ $transfer->status }}">{{ ucfirst($transfer->status) }}</span>
-                                        </td>
-                                        <td>{{@$transfer->requestedPerson->first_name}} {{@$transfer->requestedPerson->last_name}}</td>
-                                        <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('Y-m-d H:i') : '-' }}</td>
-                                        <td>{{@$transfer->approvedPerson->first_name}} {{@$transfer->approvedPerson->last_name}}</td>
-                                        <td>{{ $transfer->approved_at ? \Carbon\Carbon::parse($transfer->approved_at)->format('Y-m-d H:i') : '-' }}</td>
-                                        <td>
-                                            <a href="{{ route('stocktransfer.show',$transfer->id) }}" class="text-info me-2" title="View"><i class="fas fa-eye"></i></a>
-                                            @if(in_array($transfer->status, ['pending', 'rejected']))
-                                                <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this transfer? This action cannot be undone.');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-link text-danger p-0 border-0" title="Delete"><i class="fas fa-trash"></i></button>
-                                                </form>
-                                            @else
-                                                <span class="text-muted" title="Cannot delete {{ ucfirst($transfer->status) }} transfer"><i class="fas fa-trash"></i></span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white border-0">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted">
-                            Showing {{ $transfers->firstItem() }} to {{ $transfers->lastItem() }} of {{ $transfers->total() }} transfers
-                        </span>
-                        {{ $transfers->links('vendor.pagination.bootstrap-5') }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stock Transfer Modal -->
-            <div class="modal fade" id="stockTransferModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <form class="modal-content" method="POST" action="{{ route('stocktransfer.store') }}">
-                        @csrf
-                        <div class="modal-header">
-                            <h5 class="modal-title">New Stock Transfer</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="d-flex align-items-end gap-2 w-100">
-                                <div class="mb-3">
-                                    <label class="form-label">From</label>
-                                    <select class="form-select from-type-select" name="from_type" required>
-                                        <option value="branch">Branch</option>
-                                        <option value="warehouse">Warehouse</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3 w-100 from-branch-group">
-                                    <select name="from_branch_id" class="form-select">
-                                        <option value="">Select Branch</option>
-                                        @foreach ($branches as $branch)
-                                            <option value="{{ $branch->id }}">{{$branch->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="mb-3 w-100 from-warehouse-group" style="display:none;">
-                                    <select name="from_warehouse_id" class="form-select">
-                                        <option value="">Select Warehouse</option>
-                                        @foreach ($warehouses as $warehouse)
-                                            <option value="{{ $warehouse->id }}">{{$warehouse->name}}</option>
-                                        @endforeach
-                                    </select>
+                    <div class="modal-body p-4">
+                        <div class="row g-4">
+                            <!-- FROM -->
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3">
+                                    <label class="form-label fw-bold text-muted small text-uppercase mb-3">Transfer From</label>
+                                    <div class="mb-3">
+                                        <select class="form-select from-type-select mb-2" name="from_type" required>
+                                            <option value="branch">Branch</option>
+                                            <option value="warehouse">Warehouse</option>
+                                        </select>
+                                    </div>
+                                    <div class="from-branch-group">
+                                        <select name="from_branch_id" class="form-select">
+                                            <option value="">Select Branch</option>
+                                            @foreach ($branches as $branch)
+                                                <option value="{{ $branch->id }}">{{$branch->name}}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="from-warehouse-group" style="display:none;">
+                                        <select name="from_warehouse_id" class="form-select">
+                                            <option value="">Select Warehouse</option>
+                                            @foreach ($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}">{{$warehouse->name}}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="d-flex align-items-end gap-2 w-100">
-                                <div class="mb-3">
-                                    <label class="form-label">To</label>
-                                    <select class="form-select to-type-select" name="to_type" required>
-                                        <option value="branch">Branch</option>
-                                        <option value="warehouse">Warehouse</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3 w-100 to-branch-group">
-                                    <select name="to_branch_id" class="form-select">
-                                        <option value="">Select Branch</option>
-                                        @foreach ($branches as $branch)
-                                            <option value="{{ $branch->id }}">{{$branch->name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="mb-3 w-100 to-warehouse-group" style="display:none;">
-                                    <select name="to_warehouse_id" class="form-select">
-                                        <option value="">Select Warehouse</option>
-                                        @foreach ($warehouses as $warehouse)
-                                            <option value="{{ $warehouse->id }}">{{$warehouse->name}}</option>
-                                        @endforeach
-                                    </select>
+                            <!-- TO -->
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3 h-100">
+                                    <label class="form-label fw-bold text-muted small text-uppercase mb-3">Transfer To</label>
+                                    <div class="mb-3">
+                                        <select class="form-select to-type-select mb-2" name="to_type" required>
+                                            <option value="branch">Branch</option>
+                                            <option value="warehouse">Warehouse</option>
+                                        </select>
+                                    </div>
+                                    <div class="to-branch-group">
+                                        <select name="to_branch_id" class="form-select">
+                                            <option value="">Select Branch</option>
+                                            @foreach ($branches as $branch)
+                                                <option value="{{ $branch->id }}">{{$branch->name}}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="to-warehouse-group" style="display:none;">
+                                        <select name="to_warehouse_id" class="form-select">
+                                            <option value="">Select Warehouse</option>
+                                            @foreach ($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}">{{$warehouse->name}}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Product</label>
+                            <!-- Product -->
+                            <div class="col-12 mt-4">
+                                <label class="form-label fw-bold">Select Product</label>
                                 <select class="form-select" name="product_id" id="productSelect" required style="width: 100%">
-                                    <option value="">Select Product...</option>
+                                    <option value="">Search by name or code...</option>
                                 </select>
                             </div>
-                            <div class="mb-3" id="variationWrapper" style="display: none;">
-                                <label class="form-label">Variation <span class="text-muted">(if applicable)</span></label>
+
+                            <div class="col-md-8" id="variationWrapper" style="display: none;">
+                                <label class="form-label fw-bold">Select Variation</label>
                                 <select class="form-select" name="variation_id" id="variationSelect" style="width: 100%">
                                     <option value="">Select Variation...</option>
                                 </select>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Quantity</label>
-                                <input type="number" class="form-control" name="quantity" min="0.01" step="0.01" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Notes</label>
-                                <textarea class="form-control" name="notes" rows="2"></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Create Transfer</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
 
-            <!-- Status Update Modal -->
-            <div class="modal fade" id="statusUpdateModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <form class="modal-content" id="statusUpdateForm" method="POST" action="">
-                        @csrf
-                        @method('PATCH')
-                        <div class="modal-header">
-                            <h5 class="modal-title">Update Transfer Status</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <input type="hidden" name="transfer_id" id="modalTransferId">
-                            <div class="mb-3">
-                                <label class="form-label">Status</label>
-                                <select class="form-select" name="status" id="modalStatusSelect">
-                                    <option value="pending">Pending</option>
-                                    <option value="approved">Approved</option>
-                                    <option value="shipped">Shipped</option>
-                                    <option value="delivered">Delivered</option>
-                                    <option value="rejected">Rejected</option>
-                                </select>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Quantity</label>
+                                <input type="number" class="form-control" name="quantity" min="0.01" step="0.01" required placeholder="0.00">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Internal Notes</label>
+                                <textarea class="form-control" name="notes" rows="2" placeholder="Reason for transfer, special instructions..."></textarea>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Update Status</button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">Process Transfer</button>
+                    </div>
+                </form>
             </div>
+        </div>
+
+        <!-- Status Update Modal -->
+        <div class="modal fade" id="statusUpdateModal" tabindex="-1">
+            <div class="modal-dialog">
+                <form class="modal-content border-0 shadow" id="statusUpdateForm" method="POST" action="">
+                    @csrf
+                    @method('PATCH')
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="fw-bold">Update Transfer Status</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <input type="hidden" name="transfer_id" id="modalTransferId">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">New Status</label>
+                            <select class="form-select rounded-3" name="status" id="modalStatusSelect">
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <p class="text-muted small">Changing status may affect inventory levels at both source and destination.</p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         </div>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
         <script>
+            function applyQuickFilter(value) {
+                document.getElementsByName('date_from')[0].value = '';
+                document.getElementsByName('date_to')[0].value = '';
+                document.getElementById('filterForm').submit();
+            }
+
             document.addEventListener('DOMContentLoaded', function () {
                 // Function to clean up stuck modal backdrop (only called after modal is closed)
                 function cleanupModalBackdrop() {

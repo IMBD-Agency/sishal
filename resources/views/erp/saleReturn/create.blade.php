@@ -6,114 +6,205 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
+        
+        <style>
+            .form-section-title {
+                font-size: 0.85rem;
+                font-weight: 700;
+                text-uppercase: uppercase;
+                letter-spacing: 0.05em;
+                color: #6c757d;
+                margin-bottom: 1.5rem;
+                display: flex;
+                align-items: center;
+            }
+            .form-section-title::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background: #e9ecef;
+                margin-left: 1rem;
+            }
+            .card { border-radius: 12px; }
+            .form-control, .form-select {
+                padding: 0.6rem 0.8rem;
+                border-color: #e9ecef;
+                border-radius: 8px;
+            }
+            .form-control:focus, .form-select:focus {
+                border-color: #0d6efd;
+                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05);
+            }
+            .input-group-text { border-radius: 8px 0 0 8px; border-color: #e9ecef; background: #f8f9fa; }
+            .product-row { transition: all 0.2s; }
+            .product-row:hover { background-color: #fcfdfe; }
+            .btn-remove { 
+                width: 32px; height: 32px; 
+                display: flex; align-items: center; justify-content: center;
+                border-radius: 8px; transition: all 0.2s;
+            }
+            .btn-remove:hover { background-color: #dc3545; color: white; }
+            .select2-container--default .select2-selection--single {
+                height: 42px !important;
+                border: 1px solid #e9ecef !important;
+                border-radius: 8px !important;
+                display: flex;
+                align-items: center;
+            }
+        </style>
+
+        <!-- Header -->
         <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <h2 class="mb-4">Create Sale Return</h2>
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-2">
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('saleReturn.list') }}" class="text-decoration-none">Sale Returns</a></li>
+                            <li class="breadcrumb-item active">Create Return</li>
+                        </ol>
+                    </nav>
+                    <h2 class="fw-bold mb-0">Create Sale Return</h2>
+                    <p class="text-muted mb-0">Record a new product return and update inventory accordingly.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ route('saleReturn.list') }}" class="btn btn-light border px-4 rounded-3">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid px-4 py-4">
             @if ($errors->any())
-                <div class="alert alert-danger">
-                    <ul>
+                <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                    <ul class="mb-0">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach
                     </ul>
                 </div>
             @endif
+
             <form id="saleReturnForm" action="{{ route('saleReturn.store') }}" method="POST">
                 @csrf
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="customer_id" class="form-label">Customer</label>
-                        <select name="customer_id" id="customer_id" class="form-select" required>
-                            <option value="">Select Customer</option>
-                            @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}"
-                                    @if(isset($selectedPosSale) && $selectedPosSale && $selectedPosSale->customer_id == $customer->id) selected @endif>
-                                    {{ $customer->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="pos_sale_id" class="form-label">POS Sale</label>
-                        <select name="pos_sale_id" id="pos_sale_id" class="form-select" required disabled>
-                            <option value="">Select Customer First</option>
-                        </select>
-                        <small class="text-muted" id="pos_sale_hint">Please select a customer first</small>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="return_date" class="form-label">Return Date</label>
-                        <input type="date" name="return_date" id="return_date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="refund_type" class="form-label">Refund Type</label>
-                        <select name="refund_type" id="refund_type" class="form-select" required>
-                            <option value="none">None</option>
-                            <option value="cash">Cash</option>
-                            <option value="bank">Bank</option>
-                            <option value="credit">Credit</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="return_to_type" class="form-label">Return To</label>
-                        <select name="return_to_type" id="return_to_type" class="form-select" required>
-                            <option value="">Select Return To</option>
-                            <option value="branch">Branch</option>
-                            <option value="warehouse">Warehouse</option>
-                            <option value="employee">Employee</option>
-                        </select>
-                        <select name="return_to_id" id="return_to_id" class="form-select mt-2" style="display:none;" required>
-                            <option value="">Select Location</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="reason" class="form-label">Reason</label>
-                    <input type="text" name="reason" id="reason" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label for="notes" class="form-label">Notes</label>
-                    <textarea name="notes" id="notes" class="form-control" rows="2"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Return Items</label>
-                    <table class="table table-bordered align-middle" id="itemsTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Product</th>
-                                <th>Returned Qty</th>
-                                <th>Unit Price</th>
-                                <th>Reason</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <select name="items[0][product_id]" class="form-select product-select" required>
-                                        <option value="">Select Product</option>
-                                        @foreach($products as $product)
-                                            <option value="{{ $product->id }}">{{ $product->name }}</option>
+                <div class="row g-4">
+                    <!-- Left Column: Basic Info -->
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body p-4">
+                                <div class="form-section-title">Return Source</div>
+                                
+                                <div class="mb-3">
+                                    <label for="pos_sale_id" class="form-label fw-bold small">POS Sale Reference <span class="text-danger">*</span></label>
+                                    <select name="pos_sale_id" id="pos_sale_id" class="form-select" required>
+                                        <option value="">Search by POS ID or Customer...</option>
+                                    </select>
+                                    <small class="text-muted mt-1 d-block" id="pos_sale_hint">
+                                        <i class="fas fa-search me-1"></i> You can search by POS ID, Customer Name, or Phone.
+                                    </small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="customer_id" class="form-label fw-bold small">Customer <span class="text-secondary">(Auto-filled)</span></label>
+                                    <select name="customer_id" id="customer_id" class="form-select">
+                                        <option value="">Select or search POS first</option>
+                                        @foreach($customers as $customer)
+                                            <option value="{{ $customer->id }}"
+                                                @if(isset($selectedPosSale) && $selectedPosSale && $selectedPosSale->customer_id == $customer->id) selected @endif>
+                                                {{ $customer->name }}
+                                            </option>
                                         @endforeach
                                     </select>
-                                    <div class="variation-wrapper mt-2" style="display:none;">
-                                        <select name="items[0][variation_id]" class="form-select variation-select">
-                                            <option value="">Select Variation (if applicable)</option>
-                                        </select>
-                                    </div>
-                                    <input type="hidden" name="items[0][sale_item_id]" class="sale-item-id">
-                                </td>
-                                <td><input type="number" name="items[0][returned_qty]" class="form-control returned_qty" min="1" required></td>
-                                <td><input type="number" name="items[0][unit_price]" class="form-control unit_price" min="1" required></td>
-                                <td><input type="text" name="items[0][reason]" class="form-control"></td>
-                                <td><button type="button" class="btn btn-danger btn-sm remove-row" disabled>&times;</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <button type="button" class="btn btn-secondary btn-sm" id="addItemRow" style="display:none;">Add Item</button>
-                </div>
-                <div class="mb-3 text-end">
-                    <button type="submit" class="btn btn-primary">Create Sale Return</button>
+                                </div>
+
+                                <div class="form-section-title mt-4">Return Details</div>
+
+                                <div class="mb-3">
+                                    <label for="return_date" class="form-label fw-bold small">Return Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="return_date" id="return_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="refund_type" class="form-label fw-bold small">Refund Method <span class="text-danger">*</span></label>
+                                    <select name="refund_type" id="refund_type" class="form-select" required>
+                                        <option value="none">No Refund</option>
+                                        <option value="cash">Cash Refund</option>
+                                        <option value="bank">Bank Transfer</option>
+                                        <option value="credit">Store Credit</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="return_to_type" class="form-label fw-bold small">Restock Location <span class="text-danger">*</span></label>
+                                    <select name="return_to_type" id="return_to_type" class="form-select mb-2" required>
+                                        <option value="">Select Location Type</option>
+                                        <option value="branch">Branch Office</option>
+                                        <option value="warehouse">Central Warehouse</option>
+                                        <option value="employee">Field Employee</option>
+                                    </select>
+                                    <select name="return_to_id" id="return_to_id" class="form-select" style="display:none;" required>
+                                        <option value="">Select Specific Location</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="form-section-title">Additional Info</div>
+                                <div class="mb-3">
+                                    <label for="reason" class="form-label fw-bold small">Primary Reason</label>
+                                    <input type="text" name="reason" id="reason" class="form-control" placeholder="e.g., Damaged item, customer choice">
+                                </div>
+                                <div class="mb-0">
+                                    <label for="notes" class="form-label fw-bold small">Internal Notes</label>
+                                    <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Enter any extra details..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Table -->
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom p-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="fw-bold mb-0">Return Items</h5>
+                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" id="addItemRow" style="display:none;">
+                                        <i class="fas fa-plus me-1"></i>Add Manual Item
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table align-middle mb-0" id="itemsTable">
+                                        <thead class="bg-light text-muted small text-uppercase">
+                                            <tr>
+                                                <th class="ps-4 py-3" style="width: 40%;">Product Specification</th>
+                                                <th class="py-3" style="width: 15%;">Qty</th>
+                                                <th class="py-3" style="width: 20%;">Price (৳)</th>
+                                                <th class="py-3">Reason</th>
+                                                <th class="pe-4 py-3"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Rows loaded via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="emptyState" class="text-center py-5">
+                                    <i class="fas fa-receipt fs-1 text-muted opacity-25 mb-3"></i>
+                                    <p class="text-muted">Select a POS sale to automatically load items.</p>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light border-0 p-4 text-end">
+                                <button type="submit" class="btn btn-primary px-5 py-2 rounded-3 shadow-sm fw-bold">
+                                    <i class="fas fa-save me-2"></i>Process Return
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -122,471 +213,251 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        let itemIndex = 1;
-        let availableProducts = []; // Store products from selected POS sale
+        let itemIndex = 0;
+        let availableProducts = [];
         
-        // Helper function to safely destroy Select2
         function safeDestroySelect2($element) {
             if ($element.length && $element.hasClass('select2-hidden-accessible')) {
-                try {
-                    $element.select2('destroy');
-                } catch(e) {
-                    // Ignore errors if Select2 is not properly initialized
-                }
+                try { $element.select2('destroy'); } catch(e) {}
             }
         }
         
+        function toggleEmptyState() {
+            if ($('#itemsTable tbody tr').length > 0) {
+                $('#emptyState').hide();
+                $('#addItemRow').show();
+            } else {
+                $('#emptyState').show();
+                $('#addItemRow').hide();
+            }
+        }
+
         $(document).ready(function() {
-            // Initialize Select2 for customer search
+            // Initial POS Sale Select2 (Leading field)
+            $('#pos_sale_id').select2({
+                placeholder: 'Search by POS ID, Customer Name or Phone...',
+                allowClear: true,
+                width: '100%',
+                ajax: {
+                    url: '/erp/pos/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: params => ({ 
+                        q: params.term || '', 
+                        customer_id: $('#customer_id').val() 
+                    }),
+                    processResults: data => ({ results: data }),
+                    cache: true
+                }
+            });
+
+            // Customer Select2 (Used as filter or auto-filled)
             $('#customer_id').select2({
-                placeholder: 'Select Customer',
+                placeholder: 'Search Customer...',
                 allowClear: true,
                 width: '100%',
                 ajax: {
                     url: '/erp/customers/search',
                     dataType: 'json',
                     delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.map(function(item) {
-                                return { id: item.id, text: item.name + (item.email ? ' (' + item.email + ')' : '') };
-                            })
-                        };
-                    },
+                    data: params => ({ q: params.term }),
+                    processResults: data => ({
+                        results: data.map(item => ({ id: item.id, text: item.name + (item.phone ? ' (' + item.phone + ')' : '') }))
+                    }),
                     cache: true
                 }
             });
-            // Initialize Select2 for initial product dropdown
-            $('.product-select').select2({
-                placeholder: 'Search Product',
-                allowClear: true,
-                width: '100%'
+
+            $('#customer_id').on('change', function() {
+                const customerId = $(this).val();
+                if (customerId) {
+                    $('#pos_sale_hint').html('<i class="fas fa-filter me-1 text-primary"></i> Filtering sales for selected customer.');
+                } else {
+                    $('#pos_sale_hint').html('<i class="fas fa-search me-1"></i> You can search by POS ID, Customer Name, or Phone.');
+                }
+                // We don't clear the POS Sale here to allow switching customers, 
+                // but Select2 will naturally filter on next open
             });
-            // Initialize Select2 for POS Sale search (initially disabled)
-            $('#pos_sale_id').select2({
-                placeholder: 'Select Customer First',
-                allowClear: true,
-                width: '100%',
-                disabled: true
-            });
-            
-            // Handle customer selection change (handle both regular change and Select2 events)
-            $('#customer_id').on('change select2:select select2:unselect', function(e) {
-                // Use setTimeout to ensure Select2 value is set
-                setTimeout(function() {
-                    const customerId = $('#customer_id').val();
-                    const $posSaleSelect = $('#pos_sale_id');
-                    const $hint = $('#pos_sale_hint');
-                    
-                    if (customerId) {
-                        // Hide hint message
-                        $hint.hide();
-                        
-                        // Enable POS sale dropdown and update it to filter by customer
-                        $posSaleSelect.prop('disabled', false);
-                        $posSaleSelect.empty().append('<option value="">Select POS Sale</option>');
-                        
-                        // Store customer ID for use in AJAX
-                        const selectedCustomerId = customerId;
-                        
-                        // Reinitialize Select2 with customer filter
-                        safeDestroySelect2($posSaleSelect);
-                        $posSaleSelect.select2({
-                            placeholder: 'Select POS Sale',
-                            allowClear: true,
-                            width: '100%',
-                            ajax: {
-                                url: '/erp/pos/search',
-                                dataType: 'json',
-                                delay: 250,
-                                data: function(params) {
-                                    return {
-                                        q: params.term || '',
-                                        customer_id: selectedCustomerId
-                                    };
-                                },
-                                processResults: function(data) {
-                                    return {
-                                        results: data
-                                    };
-                                },
-                                cache: true
-                            }
-                        });
-                    } else {
-                        // Show hint message
-                        $hint.show();
-                        
-                        // Disable POS sale dropdown if no customer selected
-                        $posSaleSelect.prop('disabled', true);
-                        $posSaleSelect.val('').trigger('change');
-                        safeDestroySelect2($posSaleSelect);
-                        $posSaleSelect.select2({
-                            placeholder: 'Select Customer First',
-                            allowClear: true,
-                            width: '100%',
-                            disabled: true
-                        });
-                        clearItemsTable();
-                    }
-                }, 100);
-            });
-            
-            // Auto-load POS sale details when selected
+
             $('#pos_sale_id').on('change select2:select', function() {
                 const posSaleId = $(this).val();
                 if (posSaleId) {
-                    $('#addItemRow').show();
                     loadPosSaleDetails(posSaleId);
                 } else {
-                    // Clear items and available products if POS sale is deselected
                     availableProducts = [];
-                    clearItemsTable();
-                    $('#addItemRow').hide();
+                    $('#itemsTable tbody').empty();
+                    toggleEmptyState();
                 }
             });
-            
-            // Function to load POS sale details
+
             function loadPosSaleDetails(posSaleId) {
+                const $tableBody = $('#itemsTable tbody');
+                $tableBody.html('<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading items...</td></tr>');
+                
                 $.ajax({
-                    url: '/erp/pos/' + posSaleId + '/details',
+                    url: `/erp/pos/${posSaleId}/details`,
                     method: 'GET',
-                    dataType: 'json',
                     success: function(response) {
+                        $tableBody.empty();
                         if (response.success && response.data) {
                             const data = response.data;
                             
-                            // Set customer (without triggering change to avoid reinitializing POS sale dropdown)
+                            // Auto-set Customer if not already correctly selected
                             if (data.customer_id) {
                                 const $customerSelect = $('#customer_id');
                                 if ($customerSelect.val() != data.customer_id) {
-                                    $customerSelect.val(data.customer_id).trigger('change');
+                                    const option = new Option(data.customer_name || 'Customer #' + data.customer_id, data.customer_id, true, true);
+                                    $customerSelect.empty().append(option).trigger('change');
                                 }
                             }
-                            
-                            // Set return_to_type to branch if branch_id exists
+
                             if (data.branch_id) {
                                 $('#return_to_type').val('branch').trigger('change');
-                                setTimeout(function() {
-                                    $('#return_to_id').val(data.branch_id).trigger('change');
-                                }, 100);
+                                setTimeout(() => $('#return_to_id').val(data.branch_id).trigger('change'), 200);
                             }
-                            
-                            // Store available products from this POS sale
+
                             if (data.items && data.items.length > 0) {
-                                availableProducts = data.items.map(function(item) {
-                                    return {
-                                        id: parseInt(item.product_id),
-                                        name: item.product_name || 'Product #' + item.product_id
-                                    };
-                                });
-                                // Remove duplicates
-                                availableProducts = availableProducts.filter((product, index, self) =>
-                                    index === self.findIndex((p) => p.id === product.id)
-                                );
+                                availableProducts = data.items.map(item => ({
+                                    id: parseInt(item.product_id),
+                                    name: item.product_name || 'Product #' + item.product_id
+                                }));
                                 
-                                clearItemsTable();
-                                data.items.forEach(function(item, index) {
-                                    addItemRow(item, index);
-                                });
-                                $('#addItemRow').show();
-                            } else {
-                                availableProducts = [];
-                                clearItemsTable();
-                                $('#addItemRow').show(); // Still show button even if no items
+                                data.items.forEach((item, index) => addItemRow(item, index));
                             }
                         }
+                        toggleEmptyState();
                     },
-                    error: function(xhr) {
-                        console.error('Error loading POS sale details:', xhr);
-                        alert('Failed to load POS sale details. Please try again.');
+                    error: function() {
+                        $tableBody.html('<tr><td colspan="5" class="text-center text-danger py-4">Failed to load sale details.</td></tr>');
                     }
                 });
             }
-            
-            // Function to add item row with data
+
             function addItemRow(itemData, index) {
-                // Build product options - only show products from selected POS sale if available
-                let productOptions = '<option value="">Select Product</option>';
-                
-                if (availableProducts.length > 0) {
-                    // Only show products from the selected POS sale
-                    availableProducts.forEach(function(product) {
-                        const itemProductId = itemData ? parseInt(itemData.product_id) : null;
-                        const selected = (itemProductId && itemProductId === product.id) ? 'selected' : '';
-                        productOptions += `<option value="${product.id}" ${selected}>${product.name}</option>`;
-                    });
-                } else {
-                    // If no POS sale selected, show all products
-                    @foreach($products as $product)
-                        productOptions += '<option value="{{ $product->id }}"' + 
-                            (itemData && itemData.product_id == {{ $product->id }} ? ' selected' : '') + 
-                            '>{{ $product->name }}</option>';
-                    @endforeach
-                }
-                
-                const saleItemId = itemData ? itemData.id : '';
-                const variationId = itemData ? (itemData.variation_id || '') : '';
-                const quantity = itemData ? itemData.quantity : '';
-                const unitPrice = itemData ? itemData.unit_price : '';
-                
-                const row = $('<tr>');
-                row.html(`
-                    <td>
-                        <select name="items[${index}][product_id]" class="form-select product-select" required>
-                            ${productOptions}
-                        </select>
-                        <div class="variation-wrapper mt-2" style="display:none;">
-                            <select name="items[${index}][variation_id]" class="form-select variation-select">
-                                <option value="">Select Variation (if applicable)</option>
+                const i = index ?? itemIndex++;
+                const productOptions = availableProducts.map(p => 
+                    `<option value="${p.id}" ${itemData && itemData.product_id == p.id ? 'selected' : ''}>${p.name}</option>`
+                ).join('');
+
+                const row = $(`
+                    <tr class="product-row">
+                        <td class="ps-4">
+                            <select name="items[${i}][product_id]" class="form-select product-select select2-basic" required>
+                                <option value="">Select Product</option>
+                                ${productOptions}
                             </select>
-                        </div>
-                        <input type="hidden" name="items[${index}][sale_item_id]" class="sale-item-id" value="${saleItemId}">
-                    </td>
-                    <td><input type="number" name="items[${index}][returned_qty]" class="form-control returned_qty" min="1" value="${quantity}" required></td>
-                    <td><input type="number" name="items[${index}][unit_price]" class="form-control unit_price" min="0" step="0.01" value="${unitPrice}" required></td>
-                    <td><input type="text" name="items[${index}][reason]" class="form-control"></td>
-                    <td><button type="button" class="btn btn-danger btn-sm remove-row">&times;</button></td>
+                            <div class="variation-wrapper mt-2" style="display:none;">
+                                <select name="items[${i}][variation_id]" class="form-select variation-select small py-1">
+                                    <option value="">Standard Variation</option>
+                                </select>
+                            </div>
+                            <input type="hidden" name="items[${i}][sale_item_id]" value="${itemData ? itemData.id : ''}">
+                        </td>
+                        <td>
+                            <input type="number" name="items[${i}][returned_qty]" class="form-control" min="0.01" step="0.01" value="${itemData ? itemData.quantity : 1}" required>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text border-0 bg-transparent">৳</span>
+                                <input type="number" name="items[${i}][unit_price]" class="form-control border-0 bg-light unit_price" min="0" step="0.01" value="${itemData ? itemData.unit_price : ''}" required>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" name="items[${i}][reason]" class="form-control form-control-sm border-0 bg-light" placeholder="Defect?">
+                        </td>
+                        <td class="pe-4 text-end">
+                            <button type="button" class="btn btn-link text-danger p-0 btn-remove shadow-none">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
                 `);
+
                 $('#itemsTable tbody').append(row);
+                const $productSelect = row.find('.product-select');
                 
-                // Initialize Select2 for product dropdown
-                const productSelect = row.find('.product-select');
-                productSelect.select2({
-                    placeholder: 'Search Product',
-                    allowClear: true,
-                    width: '100%'
-                });
+                $productSelect.select2({ width: '100%' });
                 
-                // Set selected product if itemData provided
                 if (itemData && itemData.product_id) {
-                    const productId = parseInt(itemData.product_id);
-                    // Use setTimeout to ensure Select2 is fully initialized
-                    setTimeout(function() {
-                        productSelect.val(productId).trigger('change');
-                        // Load variations if product has variations
-                        loadVariationsForProduct(productSelect, productId, variationId);
-                    }, 100);
+                    loadVariationsForProduct($productSelect, itemData.product_id, itemData.variation_id);
                 }
-                
-                // Handle product change to load variations (works with both regular select and Select2)
-                productSelect.on('change select2:select', function() {
+
+                $productSelect.on('change', function() {
                     const productId = $(this).val();
-                    const $row = $(this).closest('tr');
-                    const $unitPriceInput = $row.find('.unit_price');
-                    
-                    if (productId) {
-                        // Clear price first when switching products
-                        $unitPriceInput.val('');
-                        loadVariationsForProduct($(this), productId, null);
-                    } else {
-                        // Product deselected - clear everything
-                        $row.find('.variation-wrapper').hide();
-                        $row.find('.variation-select').val('').empty();
-                        $unitPriceInput.val('');
-                    }
+                    if (productId) loadVariationsForProduct($(this), productId, null);
                 });
-                
-                // Update itemIndex
-                if (index >= itemIndex) {
-                    itemIndex = index + 1;
-                }
+
+                toggleEmptyState();
             }
-            
-            // Function to clear items table
-            function clearItemsTable() {
-                $('#itemsTable tbody').empty();
-                itemIndex = 0;
-                // Add one empty row
-                addItemRow(null, 0);
-            }
-            
-            // Load POS sale details on page load if pre-selected
-            @if(isset($selectedPosSale) && $selectedPosSale)
-                $(document).ready(function() {
-                    // Wait for Select2 to initialize
-                    setTimeout(function() {
-                        // Set customer first
-                        if ({{ $selectedPosSale->customer_id ?? 'null' }}) {
-                            $('#customer_id').val({{ $selectedPosSale->customer_id }}).trigger('change');
-                        }
-                        // Then set POS sale after customer dropdown is ready
-                        setTimeout(function() {
-                            $('#pos_sale_id').val({{ $selectedPosSale->id }}).trigger('change');
-                            loadPosSaleDetails({{ $selectedPosSale->id }});
-                        }, 300);
-                    }, 500);
+
+            $(document).on('click', '.btn-remove', function() {
+                $(this).closest('tr').fadeOut(200, function() {
+                    $(this).remove();
+                    toggleEmptyState();
                 });
-            @endif
-            // Function to load variations for a product
+            });
+
+            $('#addItemRow').on('click', () => addItemRow(null));
+
             function loadVariationsForProduct($productSelect, productId, selectedVariationId) {
                 const $row = $productSelect.closest('tr');
                 const $variationWrapper = $row.find('.variation-wrapper');
                 const $variationSelect = $row.find('.variation-select');
-                const $unitPriceInput = $row.find('.unit_price');
+                const $priceInput = $row.find('.unit_price');
                 
                 $.get(`/erp/products/${productId}/variations-list`, function(variations) {
                     if (variations && variations.length > 0) {
-                        // Product has variations
                         $variationSelect.empty().append('<option value="">Select Variation</option>');
-                        variations.forEach(function(variation) {
-                            const selected = (selectedVariationId && variation.id == selectedVariationId) ? 'selected' : '';
-                            const price = (variation.price && variation.price > 0) ? variation.price : '';
-                            $variationSelect.append(`<option value="${variation.id}" data-price="${price}" ${selected}>${variation.display_name || variation.name}</option>`);
+                        variations.forEach(v => {
+                            const selected = v.id == selectedVariationId ? 'selected' : '';
+                            $variationSelect.append(`<option value="${v.id}" data-price="${v.price || ''}" ${selected}>${v.display_name || v.name}</option>`);
                         });
                         $variationWrapper.show();
-                        
-                        // If variation is pre-selected, auto-load its price
-                        if (selectedVariationId) {
-                            const selectedVariation = variations.find(v => v.id == selectedVariationId);
-                            if (selectedVariation && $unitPriceInput.length) {
-                                if (selectedVariation.price && selectedVariation.price > 0) {
-                                    $unitPriceInput.val(parseFloat(selectedVariation.price).toFixed(2));
-                                } else {
-                                    // Get product price if variation doesn't have specific price
-                                    loadProductPrice(productId, $unitPriceInput);
-                                }
-                            }
-                        } else {
-                            // No variation selected yet, clear price (wait for variation selection)
-                            $unitPriceInput.val('');
-                        }
                     } else {
-                        // Product has no variations - load product price directly
                         $variationWrapper.hide();
-                        $variationSelect.val('').empty();
-                        loadProductPrice(productId, $unitPriceInput);
+                        if (!$priceInput.val()) loadProductPrice(productId, $priceInput);
                     }
-                }).fail(function() {
-                    $variationWrapper.hide();
-                    $variationSelect.val('').empty();
-                    // Try to load product price even if variations endpoint fails
-                    loadProductPrice(productId, $unitPriceInput);
                 });
             }
-            
-            // Helper function to load product price (for sales returns, use sale price)
-            function loadProductPrice(productId, $unitPriceInput) {
-                if (!$unitPriceInput.length || !productId) return;
-                
-                $.get(`/erp/products/${productId}/sale-price`, function(resp) {
-                    if (resp && typeof resp.price !== 'undefined') {
-                        $unitPriceInput.val(parseFloat(resp.price).toFixed(2));
-                    }
-                }).fail(function() {
-                    // If price fetch fails, leave it empty for manual entry
+
+            function loadProductPrice(productId, $input) {
+                $.get(`/erp/products/${productId}/sale-price`, resp => {
+                    if (resp && resp.price) $input.val(parseFloat(resp.price).toFixed(2));
                 });
             }
-            
-            // Handle variation selection change to auto-load price
+
             $(document).on('change', '.variation-select', function() {
-                const $variationSelect = $(this);
-                const $row = $variationSelect.closest('tr');
-                const $unitPriceInput = $row.find('.unit_price');
-                const selectedOption = $variationSelect.find('option:selected');
-                const variationPrice = selectedOption.data('price');
-                
-                if ($unitPriceInput.length) {
-                    if (variationPrice && variationPrice !== '') {
-                        // Use variation price if available
-                        $unitPriceInput.val(parseFloat(variationPrice).toFixed(2));
-                    } else {
-                        // If variation doesn't have specific price, get product sale price
-                        const productId = $row.find('.product-select').val();
-                        if (productId) {
-                            loadProductPrice(productId, $unitPriceInput);
-                        }
-                    }
-                }
+                const price = $(this).find('option:selected').data('price');
+                if (price) $(this).closest('tr').find('.unit_price').val(parseFloat(price).toFixed(2));
             });
-            
-            // Handle product change for existing rows (works with both regular select and Select2)
-            $(document).on('change select2:select', '.product-select', function() {
-                const productId = $(this).val();
-                const $row = $(this).closest('tr');
-                const $variationWrapper = $row.find('.variation-wrapper');
-                const $variationSelect = $row.find('.variation-select');
-                const $unitPriceInput = $row.find('.unit_price');
-                
-                if (productId) {
-                    // Clear price first when switching products
-                    $unitPriceInput.val('');
-                    loadVariationsForProduct($(this), productId, null);
-                } else {
-                    // Product deselected - clear everything
-                    $variationWrapper.hide();
-                    $variationSelect.val('').empty();
-                    $unitPriceInput.val('');
-                }
-            });
-            
-            // Add new item row (updated to use the function)
-            $('#addItemRow').on('click', function() {
-                // Only allow adding items if POS sale is selected
-                const posSaleId = $('#pos_sale_id').val();
-                if (!posSaleId) {
-                    alert('Please select a POS Sale first');
-                    return;
-                }
-                addItemRow(null, itemIndex);
-            });
-            // Remove item row
-            $('#itemsTable').on('click', '.remove-row', function() {
-                $(this).closest('tr').remove();
-            });
-            // When return_to_type changes, populate and show the return_to_id select
+
             $('#return_to_type').on('change', function() {
-                const returnToType = $(this).val();
-                const returnToIdSelect = $('#return_to_id');
-                returnToIdSelect.hide().prop('required', false).val('').empty();
-                if (returnToType === 'branch') {
-                    returnToIdSelect.append('<option value="">Select Branch</option>');
-                    @foreach ($branches as $branch)
-                        returnToIdSelect.append('<option value="{{ $branch->id }}">{{ $branch->name }}</option>');
-                    @endforeach
-                    returnToIdSelect.show().prop('required', true);
-                    safeDestroySelect2(returnToIdSelect);
-                } else if (returnToType === 'warehouse') {
-                    returnToIdSelect.append('<option value="">Select Warehouse</option>');
-                    @foreach ($warehouses as $warehouse)
-                        returnToIdSelect.append('<option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>');
-                    @endforeach
-                    returnToIdSelect.show().prop('required', true);
-                    safeDestroySelect2(returnToIdSelect);
-                } else if (returnToType === 'employee') {
-                    returnToIdSelect.append('<option value="">Select Employee</option>');
-                    returnToIdSelect.show().prop('required', true);
-                    // Initialize AJAX select2 for employee
-                    returnToIdSelect.select2({
-                        placeholder: 'Select Employee',
-                        allowClear: true,
+                const type = $(this).val();
+                const $idSelect = $('#return_to_id');
+                $idSelect.hide().empty().prop('required', false);
+                
+                if (type === 'branch' || type === 'warehouse') {
+                    const options = type === 'branch' ? @json($branches) : @json($warehouses);
+                    $idSelect.append(`<option value="">Select ${type.charAt(0).toUpperCase() + type.slice(1)}</option>`);
+                    options.forEach(opt => $idSelect.append(`<option value="${opt.id}">${opt.name}</option>`));
+                    $idSelect.show().prop('required', true);
+                    safeDestroySelect2($idSelect);
+                } else if (type === 'employee') {
+                    $idSelect.show().prop('required', true).select2({
+                        placeholder: 'Search Employee...',
                         width: '100%',
                         ajax: {
                             url: '/erp/employees/search',
                             dataType: 'json',
-                            delay: 250,
-                            data: function(params) {
-                                return {
-                                    q: params.term
-                                };
-                            },
-                            processResults: function(data) {
-                                return {
-                                    results: data.map(function(item) {
-                                        return { id: item.id, text: item.name + (item.email ? ' (' + item.email + ')' : '') };
-                                    })
-                                };
-                            },
-                            cache: true
+                            data: params => ({ q: params.term }),
+                            processResults: data => ({ results: data.map(i => ({ id: i.id, text: i.name })) })
                         }
                     });
                 }
             });
+
+            // Initial state
+            toggleEmptyState();
         });
     </script>
 @endsection

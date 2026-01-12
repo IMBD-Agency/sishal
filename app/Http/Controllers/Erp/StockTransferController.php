@@ -15,11 +15,19 @@ class StockTransferController extends Controller
 {
     public function index(Request $request)
     {
-        $query = StockTransfer::with(['product.category', 'variation', 'fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse','requestedPerson','approvedPerson']);
+        $query = $this->applyFilters($request);
+        $transfers = $query->orderBy('requested_at','desc')->paginate(15)->appends($request->except('page'));
+        $branches = Branch::all();
+        $warehouses = Warehouse::all();
+        $statuses = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
+        $filters = $request->only(['search', 'from_branch_id', 'from_warehouse_id', 'to_branch_id', 'to_warehouse_id', 'status', 'date_from', 'date_to', 'variation_id', 'quick_filter']);
+        return view('erp.stockTransfer.stockTransfer', compact('transfers', 'branches', 'warehouses', 'statuses', 'filters'));
+    }
 
-        // Filter by from location (supports both branch and warehouse)
-        // New format: "branch_1" or "warehouse_2"
-        // Old format: separate from_branch_id and from_warehouse_id (for backward compatibility)
+    private function applyFilters(Request $request)
+    {
+        $query = StockTransfer::with(['product.category', 'variation', 'fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson', 'approvedPerson']);
+
         if ($request->filled('from_branch_id')) {
             $fromValue = $request->from_branch_id;
             if (str_starts_with($fromValue, 'branch_')) {
@@ -29,16 +37,13 @@ class StockTransferController extends Controller
                 $warehouseId = str_replace('warehouse_', '', $fromValue);
                 $query->where('from_type', 'warehouse')->where('from_id', $warehouseId);
             } else {
-                // Old format: numeric ID, check if it's a branch
                 $query->where('from_type', 'branch')->where('from_id', $fromValue);
             }
         }
         if ($request->filled('from_warehouse_id')) {
-            // Old format support
             $query->where('from_type', 'warehouse')->where('from_id', $request->from_warehouse_id);
         }
         
-        // Filter by to location (supports both branch and warehouse)
         if ($request->filled('to_branch_id')) {
             $toValue = $request->to_branch_id;
             if (str_starts_with($toValue, 'branch_')) {
@@ -48,28 +53,32 @@ class StockTransferController extends Controller
                 $warehouseId = str_replace('warehouse_', '', $toValue);
                 $query->where('to_type', 'warehouse')->where('to_id', $warehouseId);
             } else {
-                // Old format: numeric ID, check if it's a branch
                 $query->where('to_type', 'branch')->where('to_id', $toValue);
             }
         }
         if ($request->filled('to_warehouse_id')) {
-            // Old format support
             $query->where('to_type', 'warehouse')->where('to_id', $request->to_warehouse_id);
         }
-        // Filter by product name search
+
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->whereHas('product', function($q) use ($search) {
-                $q->where('name', 'like', "%$search%") ;
+            $query->where(function($q) use ($search) {
+                $q->whereHas('product', function($pq) use ($search) {
+                    $pq->where('name', 'like', "%$search%");
+                })->orWhereHas('variation', function($vq) use ($search) {
+                    $vq->where('name', 'like', "%$search%");
+                })->orWhere('id', 'like', "%$search%");
             });
         }
 
-        // Filter by status
+        if ($request->filled('variation_id')) {
+            $query->where('variation_id', $request->variation_id);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        // Filter by date range
         if ($request->filled('date_from')) {
             $query->whereDate('requested_at', '>=', $request->date_from);
         }
@@ -77,12 +86,142 @@ class StockTransferController extends Controller
             $query->whereDate('requested_at', '<=', $request->date_to);
         }
 
-        $transfers = $query->orderBy('requested_at','desc')->paginate(15)->appends($request->except('page'));
-        $branches = Branch::all();
-        $warehouses = Warehouse::all();
-        $statuses = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
-        $filters = $request->only(['search', 'from_branch_id', 'from_warehouse_id', 'to_branch_id', 'to_warehouse_id', 'status', 'date_from', 'date_to']);
-        return view('erp.stockTransfer.stockTransfer', compact('transfers', 'branches', 'warehouses', 'statuses', 'filters'));
+        if ($request->filled('quick_filter')) {
+            if ($request->quick_filter == 'today') {
+                $query->whereDate('requested_at', now()->toDateString());
+            } elseif ($request->quick_filter == 'monthly') {
+                $query->whereMonth('requested_at', now()->month)
+                      ->whereYear('requested_at', now()->year);
+            }
+        }
+
+        return $query;
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $query = $this->applyFilters($request);
+        $transfers = $query->orderBy('requested_at', 'desc')->get();
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'product', 'source', 'destination', 'quantity', 'status', 'by'];
+
+        $exportData = [];
+        $headers = [];
+        $columnMap = [
+            'id' => 'ID',
+            'date' => 'Date',
+            'product' => 'Product',
+            'source' => 'Source',
+            'destination' => 'Destination',
+            'quantity' => 'Quantity',
+            'status' => 'Status',
+            'by' => 'Requested By'
+        ];
+
+        foreach ($selectedColumns as $column) {
+            if (isset($columnMap[$column])) {
+                $headers[] = $columnMap[$column];
+            }
+        }
+        $exportData[] = $headers;
+
+        foreach ($transfers as $transfer) {
+            $row = [];
+            foreach ($selectedColumns as $column) {
+                switch ($column) {
+                    case 'id': $row[] = $transfer->id; break;
+                    case 'date': $row[] = $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-'; break;
+                    case 'product': 
+                        $prod = $transfer->product->name ?? '-';
+                        if ($transfer->variation) $prod .= ' (' . $transfer->variation->name . ')';
+                        $row[] = $prod;
+                        break;
+                    case 'source': 
+                        if ($transfer->from_type == 'branch') $row[] = 'Branch: ' . ($transfer->fromBranch->name ?? '-');
+                        else $row[] = 'Warehouse: ' . ($transfer->fromWarehouse->name ?? '-');
+                        break;
+                    case 'destination':
+                        if ($transfer->to_type == 'branch') $row[] = 'Branch: ' . ($transfer->toBranch->name ?? '-');
+                        else $row[] = 'Warehouse: ' . ($transfer->toWarehouse->name ?? '-');
+                        break;
+                    case 'quantity': $row[] = $transfer->quantity; break;
+                    case 'status': $row[] = ucfirst($transfer->status); break;
+                    case 'by': $row[] = $transfer->requestedPerson->name ?? '-'; break;
+                }
+            }
+            $exportData[] = $row;
+        }
+
+        $filename = 'stock_transfers_' . date('Y-m-d_H-i-s') . '.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', 'Stock Transfer Report');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue(chr(65 + $index) . '3', $header);
+            $sheet->getStyle(chr(65 + $index) . '3')->getFont()->setBold(true);
+        }
+        
+        $dataRow = 4;
+        foreach ($exportData as $rowIndex => $row) {
+            if ($rowIndex === 0) continue;
+            foreach ($row as $colIndex => $value) {
+                $sheet->setCellValue(chr(65 + $colIndex) . $dataRow, $value);
+            }
+            $dataRow++;
+        }
+        
+        foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filePath = storage_path('app/public/' . $filename);
+        $writer->save($filePath);
+        
+        return response()->download($filePath, $filename)->deleteFileAfterSend();
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $query = $this->applyFilters($request);
+        $transfers = $query->orderBy('requested_at', 'desc')->get();
+        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'product', 'source', 'destination', 'quantity', 'status', 'by'];
+
+        $columnMap = [
+            'id' => 'ID',
+            'date' => 'Date',
+            'product' => 'Product',
+            'source' => 'Source',
+            'destination' => 'Destination',
+            'quantity' => 'Quantity',
+            'status' => 'Status',
+            'by' => 'Requested By'
+        ];
+
+        $headers = [];
+        foreach ($selectedColumns as $column) {
+            if (isset($columnMap[$column])) {
+                $headers[] = $columnMap[$column];
+            }
+        }
+
+        $filename = 'stock_transfers_' . date('Y-m-d_H-i-s') . '.pdf';
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.stockTransfer.report-pdf', [
+            'transfers' => $transfers,
+            'headers' => $headers,
+            'selectedColumns' => $selectedColumns,
+            'filters' => $request->all()
+        ]);
+
+        $pdf->setPaper('A4', 'landscape');
+        
+        if ($request->input('action') === 'print') {
+            return $pdf->stream($filename);
+        }
+        
+        return $pdf->download($filename);
     }
 
     public function show($id)

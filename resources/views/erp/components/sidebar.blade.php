@@ -161,7 +161,7 @@
                     @endcan
                     @can('pos list')
                     <li class="nav-item">
-                        <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">POS List</a>
+                        <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">Sales</a>
                     </li>
                     @endcan
                     @can('pos return')
@@ -181,7 +181,7 @@
                     @endcan
                     @can('pos assign list')
                     <li class="nav-item">
-                        <a href="{{ route('purchase.list') }}" class="nav-link {{ request()->is('erp/purchases*') ? ' active' : '' }}">Assign</a>
+                        <a href="{{ route('purchase.list') }}" class="nav-link {{ request()->is('erp/purchases*') ? ' active' : '' }}">Purchase</a>
                     </li>
                     @endcan
                 </ul>

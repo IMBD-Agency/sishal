@@ -11,10 +11,6 @@
             @endif
         </div>
         <div class="d-flex align-items-center position-relative">
-            <button class="btn btn-link position-relative me-3 p-2">
-                <i class="fas fa-bell"></i>
-                <span class="notification-badge"></span>
-            </button>
             <div class="dropdown">
                 <button class="btn p-0 border-0 bg-transparent d-flex align-items-center" id="userDropdown"
                     data-bs-toggle="dropdown" aria-expanded="false">

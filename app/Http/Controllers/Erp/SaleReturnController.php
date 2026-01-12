@@ -6,10 +6,18 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\SaleReturn;
 use App\Models\Customer;
+use App\Models\Branch;
+use App\Models\Warehouse;
 use App\Models\Pos;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class SaleReturnController extends Controller
 {
@@ -31,9 +39,25 @@ class SaleReturnController extends Controller
             });
         }
 
-        // Filter by return_date
-        if ($returnDate = $request->input('return_date')) {
-            $query->whereDate('return_date', $returnDate);
+        // Filter by Date Range
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        if ($startDate) {
+            $query->whereDate('return_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('return_date', '<=', $endDate);
+        }
+
+        // Quick Filters
+        if ($request->has('quick_filter')) {
+            $filter = $request->input('quick_filter');
+            if ($filter == 'today') {
+                $query->whereDate('return_date', Carbon::today());
+            } elseif ($filter == 'monthly') {
+                $query->whereMonth('return_date', Carbon::now()->month)
+                      ->whereYear('return_date', Carbon::now()->year);
+            }
         }
 
         // Filter by status
@@ -41,13 +65,131 @@ class SaleReturnController extends Controller
             $query->where('status', $status);
         }
 
-        $returns = $query->with(['customer', 'posSale', 'invoice.order'])
+        // Filter by branch
+        if ($branchId = $request->input('branch_id')) {
+            $query->where('return_to_type', 'branch')->where('return_to_id', $branchId);
+        }
+
+        // Filter by warehouse
+        if ($warehouseId = $request->input('warehouse_id')) {
+            $query->where('return_to_type', 'warehouse')->where('return_to_id', $warehouseId);
+        }
+
+        $returns = $query->with(['customer', 'posSale', 'invoice.order', 'branch', 'warehouse'])
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(15)
             ->appends($request->all());
+
         $statuses = ['pending', 'approved', 'rejected', 'processed'];
-        $filters = $request->only(['search', 'return_date', 'status']);
-        return view('erp.saleReturn.salereturnlist', compact('returns', 'statuses', 'filters'));
+        $branches = Branch::all();
+        $warehouses = Warehouse::all();
+        $filters = $request->all();
+
+        return view('erp.saleReturn.salereturnlist', compact('returns', 'statuses', 'filters', 'branches', 'warehouses'));
+    }
+
+    /**
+     * Export to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = SaleReturn::with(['customer', 'posSale', 'branch', 'warehouse', 'items']);
+        $this->applyFilters($query, $request);
+        $returns = $query->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Sale Returns');
+
+        // Headers
+        $headers = ['Return ID', 'Date', 'Customer', 'POS Sale', 'Location', 'Items Count', 'Total Amount', 'Status'];
+        foreach ($headers as $key => $header) {
+            $cell = chr(65 + $key) . '1';
+            $sheet->setCellValue($cell, $header);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+            $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
+        }
+
+        // Data
+        $row = 2;
+        foreach ($returns as $return) {
+            $location = 'N/A';
+            if ($return->return_to_type == 'branch') $location = 'Branch: ' . ($return->branch->name ?? 'N/A');
+            elseif ($return->return_to_type == 'warehouse') $location = 'Warehouse: ' . ($return->warehouse->name ?? 'N/A');
+            elseif ($return->return_to_type == 'employee') $location = 'Employee: ' . ($return->employee->user->first_name ?? 'N/A');
+
+            $sheet->setCellValue('A' . $row, '#SR-' . str_pad($return->id, 5, '0', STR_PAD_LEFT));
+            $sheet->setCellValue('B' . $row, $return->return_date);
+            $sheet->setCellValue('C' . $row, $return->customer->name ?? 'Walk-in');
+            $sheet->setCellValue('D' . $row, $return->posSale->sale_number ?? 'N/A');
+            $sheet->setCellValue('E' . $row, $location);
+            $sheet->setCellValue('F' . $row, $return->items->count());
+            $sheet->setCellValue('G' . $row, number_format($return->items->sum('total_price'), 2));
+            $sheet->setCellValue('H' . $row, ucfirst($return->status));
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'H') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'sale_returns_' . date('Ymd_His') . '.xlsx';
+        $filePath = storage_path('app/public/' . $filename);
+        $writer->save($filePath);
+
+        return response()->download($filePath, $filename)->deleteFileAfterSend();
+    }
+
+    /**
+     * Export to PDF or Stream (Print)
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = SaleReturn::with(['customer', 'posSale', 'branch', 'warehouse', 'items']);
+        $this->applyFilters($query, $request);
+        $returns = $query->get();
+
+        $pdf = Pdf::loadView('erp.saleReturn.report-pdf', [
+            'returns' => $returns,
+            'filters' => $request->all(),
+            'date' => date('d M, Y')
+        ]);
+
+        $pdf->setPaper('A4', 'landscape');
+        $filename = 'sale_returns_' . date('Ymd_His') . '.pdf';
+
+        if ($request->input('action') === 'print') {
+            return $pdf->stream($filename);
+        }
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Helper to apply filters shared between index and exports
+     */
+    private function applyFilters($query, Request $request)
+    {
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->whereHas('customer', function($qc) use ($search) {
+                    $qc->where('name', 'like', "%$search%");
+                })->orWhereHas('posSale', function($qp) use ($search) {
+                    $qp->where('sale_number', 'like', "%$search%");
+                });
+            });
+        }
+
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        if ($startDate) $query->whereDate('return_date', '>=', $startDate);
+        if ($endDate) $query->whereDate('return_date', '<=', $endDate);
+
+        if ($status = $request->input('status')) $query->where('status', $status);
+        if ($branchId = $request->input('branch_id')) $query->where('return_to_type', 'branch')->where('return_to_id', $branchId);
+        if ($warehouseId = $request->input('warehouse_id')) $query->where('return_to_type', 'warehouse')->where('return_to_id', $warehouseId);
     }
 
     public function create(Request $request)
@@ -188,7 +330,7 @@ class SaleReturnController extends Controller
     public function updateReturnStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:approved,rejected,processed',
+            'status' => 'required|in:pending,approved,rejected,processed',
             'notes' => 'nullable|string|max:500'
         ]);
 
