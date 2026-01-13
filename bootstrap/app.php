@@ -24,11 +24,17 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Process queued jobs every minute
-        // This will automatically process all pending email jobs
         $schedule->command('queue:work --stop-when-empty --tries=3')
             ->everyMinute()
             ->withoutOverlapping()
             ->runInBackground();
+
+        // Prune expired database cache entries daily to prevent 3.5GB+ bloat
+        $schedule->call(function () {
+            \Illuminate\Support\Facades\DB::table('cache')
+                ->where('expiration', '<', now()->getTimestamp())
+                ->delete();
+        })->daily();
     })->create();
 
 

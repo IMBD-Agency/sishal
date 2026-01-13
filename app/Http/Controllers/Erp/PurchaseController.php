@@ -210,7 +210,8 @@ class PurchaseController extends Controller
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
         $products = \App\Models\Product::all();
-        return view('erp.purchases.create', compact('branches', 'warehouses', 'products'));
+        $suppliers = \App\Models\Supplier::all();
+        return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers'));
     }
 
     public function store(Request $request)
@@ -312,7 +313,8 @@ class PurchaseController extends Controller
         $purchase = Purchase::with('items')->findOrFail($id);
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
-        return view('erp.purchases.edit', compact('purchase', 'branches', 'warehouses'));
+        $suppliers = \App\Models\Supplier::all();
+        return view('erp.purchases.edit', compact('purchase', 'branches', 'warehouses', 'suppliers'));
     }
 
     public function update(Request $request, $id)
