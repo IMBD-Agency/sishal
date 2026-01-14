@@ -23,7 +23,7 @@
                                     @endif
                                 </dd>
 
-                                <dt class="col-sm-4">SKU</dt>
+                                <dt class="col-sm-4">Style No</dt>
                                 <dd class="col-sm-8">
                                     @if($transfer->variation_id && $transfer->variation && $transfer->variation->sku)
                                         {{ $transfer->variation->sku }}

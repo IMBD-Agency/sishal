@@ -10,6 +10,7 @@ class PurchaseReturnItem extends Model
         'purchase_return_id',
         'purchase_item_id',
         'product_id',
+        'variation_id',
         'returned_qty',
         'unit_price',
         'total_price',
@@ -24,6 +25,14 @@ class PurchaseReturnItem extends Model
     public function purchaseReturn()
     {
         return $this->belongsTo(PurchaseReturn::class, 'purchase_return_id');
+    }
+
+    /**
+     * Get the variation that is being returned
+     */
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'variation_id');
     }
 
     /**

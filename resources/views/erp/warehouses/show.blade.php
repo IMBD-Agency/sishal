@@ -115,7 +115,7 @@
                                         <thead class="table-light">
                                             <tr>
                                                 <th class="border-0 fw-semibold">Product</th>
-                                                <th class="border-0 fw-semibold">SKU</th>
+                                                <th class="border-0 fw-semibold">Style No</th>
                                                 <th class="border-0 fw-semibold">Sale Price</th>
                                                 <th class="border-0 fw-semibold">Cost Price</th>
                                                 <th class="border-0 fw-semibold">Category</th>

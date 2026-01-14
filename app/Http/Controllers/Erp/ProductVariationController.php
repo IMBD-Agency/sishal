@@ -201,10 +201,65 @@ class ProductVariationController extends Controller
     {
         $product = Product::findOrFail($productId);
         
-        // Debug: Log the request data
-        \Log::info('Variation Store Request Data:', $request->all());
-        
-        // Preprocess input for validation: detect bulk mode and normalize name length
+        // Handle New Premium UI Submission
+        if ($request->has('vars')) {
+            DB::beginTransaction();
+            try {
+                $count = 0;
+                foreach ($request->vars as $index => $var) {
+                    // Check if active
+                    if (!isset($var['active'])) continue;
+
+                    // Upload Image if exists
+                    $uploadedImagePath = null;
+                    if ($request->hasFile("vars.$index.image")) {
+                        $image = $request->file("vars.$index.image");
+                        $imageName = time() . '_' . $index . '_' . $this->sanitizeFilename($image->getClientOriginalName());
+                        $image->move(public_path('uploads/products/variations'), $imageName);
+                        $uploadedImagePath = 'uploads/products/variations/' . $imageName;
+                    }
+
+                    // Create Variation
+                    $variation = ProductVariation::create([
+                        'product_id' => $productId,
+                        'sku' => $var['sku'],
+                        'name' => $var['name'],
+                        'price' => $var['price'] ?? $product->price,
+                        'cost' => $var['cost'] ?? $product->cost,
+                        'image' => $uploadedImagePath,
+                        'status' => 'active',
+                        'is_default' => $request->is_default_index == $index,
+                    ]);
+
+                    // Create Combinations
+                    if (isset($var['attributes'])) {
+                        foreach ($var['attributes'] as $attrId => $valId) {
+                            ProductVariationCombination::create([
+                                'variation_id' => $variation->id,
+                                'attribute_id' => $attrId,
+                                'attribute_value_id' => $valId,
+                            ]);
+                        }
+                    }
+                    $count++;
+                }
+
+                $product->update(['has_variations' => true]);
+                DB::commit();
+                $this->clearProductCache();
+
+                return redirect()->route('erp.products.variations.index', $productId)
+                    ->with('success', "$count Variations created successfully.");
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                \Log::error("Variation Bulk Create Error: " . $e->getMessage());
+                return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+            }
+        }
+
+        // Keep fallback for old logic if needed (optional, but requested UX improvement)
+        // ... existing legacy code ...
         $valuesInputForDetection = $request->input('attribute_values', []);
         $isAssociativeForDetection = array_keys((array) $valuesInputForDetection) !== range(0, count((array) $valuesInputForDetection) - 1);
         $hasArraysForDetection = false;
@@ -325,14 +380,14 @@ class ProductVariationController extends Controller
             
             if (!empty($conflictingSkus)) {
                 return back()->withInput()->withErrors([
-                    'sku' => 'The following SKUs already exist: ' . implode(', ', $conflictingSkus) . '. Please use a different base SKU.'
+                    'sku' => 'The following Style Nos already exist: ' . implode(', ', $conflictingSkus) . '. Please use a different base Style No.'
                 ]);
             }
         } else {
             // Check for SKU conflict in single mode
             if (ProductVariation::where('sku', $request->sku)->exists()) {
                 return back()->withInput()->withErrors([
-                    'sku' => 'This SKU already exists. Please use a different SKU.'
+                    'sku' => 'This Style No already exists. Please use a different Style No.'
                 ]);
             }
         }

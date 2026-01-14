@@ -208,7 +208,7 @@
                                     <thead class="table-light sticky-top">
                                         <tr>
                                             <th class="border-0">Product</th>
-                                            <th class="border-0">SKU</th>
+                                            <th class="border-0">Style No</th>
                                             <th class="border-0">Sale Price</th>
                                             <th class="border-0">Purchase Price</th>
                                             <th class="border-0">Category</th>

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Erp;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductServiceCategory;
+use App\Models\Brand;
+use App\Models\Season;
+use App\Models\Gender;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Cache;
@@ -244,29 +247,78 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         if (auth()->user()->hasPermissionTo('view products list')) {
+            $reportType = $request->get('report_type', 'daily');
+            
+            if ($reportType == 'monthly') {
+                $month = $request->get('month', date('n'));
+                $year = $request->get('year', date('Y'));
+                $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+                $endDate = $startDate->copy()->endOfMonth();
+            } elseif ($reportType == 'yearly') {
+                $year = $request->get('year', date('Y'));
+                $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+                $endDate = $startDate->copy()->endOfYear();
+            } else {
+                $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+                $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            }
+
             $query = Product::query();
 
-            // Filter by category if provided
+            // Date Filters
+            if ($startDate) {
+                $query->where('created_at', '>=', $startDate);
+            }
+            if ($endDate) {
+                $query->where('created_at', '<=', $endDate);
+            }
+
+            // Relationship Filters
             if ($request->filled('category_id')) {
                 $query->where('category_id', $request->category_id);
             }
-    
-            // Search by product name or SKU if provided
+            if ($request->filled('brand_id')) {
+                $query->where('brand_id', $request->brand_id);
+            }
+            if ($request->filled('season_id')) {
+                $query->where('season_id', $request->season_id);
+            }
+            if ($request->filled('gender_id')) {
+                $query->where('gender_id', $request->gender_id);
+            }
+
+            // Search by Name or SKU
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'like', "%$search%")
-                      ->orWhere('sku', 'like', "%$search%")
-                      ;
+                      ->orWhere('sku', 'like', "%$search%");
                 });
             }
-    
-            $products = $query->with(['category', 'variations.stocks', 'branchStock', 'warehouseStock'])
+
+            // Specific Product Search (dropdown)
+            if ($request->filled('product_id')) {
+                $query->where('id', $request->product_id);
+            }
+
+            // Style Number Search
+            if ($request->filled('style_number')) {
+                $query->where('style_number', 'like', "%$request->style_number%");
+            }
+
+            $products = $query->with(['category', 'brand', 'season', 'gender', 'variations.stocks', 'branchStock', 'warehouseStock'])
                 ->latest()
-                ->paginate(12)
+                ->paginate(10)
                 ->withQueryString();
-    
-            return view('erp.products.productlist', compact('products'));
+
+            // Fetch lists for filters
+            $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
+            $brands = Brand::orderBy('name')->get();
+            $seasons = Season::orderBy('name')->get();
+            $genders = Gender::orderBy('name')->get();
+            $allProducts = Product::orderBy('name')->get(); // For product dropdown
+
+            return view('erp.products.productList', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'reportType', 'startDate', 'endDate'));
         }
         else{
             abort(403, 'Unauthorized action.');
@@ -276,7 +328,11 @@ class ProductController extends Controller
     public function create()
     {
         $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
-        return view('erp.products.create', compact('attributes'));
+        $brands = \App\Models\Brand::where('status', 'active')->get();
+        $seasons = \App\Models\Season::where('status', 'active')->get();
+        $genders = \App\Models\Gender::all();
+        $units = \App\Models\Unit::all();
+        return view('erp.products.create', compact('attributes', 'brands', 'seasons', 'genders', 'units'));
     }
     
     public function store(Request $request)
@@ -288,13 +344,20 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'slug' => 'required|unique:products,slug',
             'sku' => 'required|string|unique:products,sku',
+            'style_number' => 'nullable|string|max:100',
             'short_desc' => 'nullable|string',
             'description' => 'nullable|string',
             'features' => 'nullable|string',
             'category_id' => 'required|exists:product_service_categories,id',
+            'brand_id' => 'nullable|exists:brands,id',
+            'season_id' => 'nullable|exists:seasons,id',
+            'gender_id' => 'nullable|exists:genders,id',
+            'unit_id' => 'nullable|exists:units,id',
             'price' => 'required|numeric',
+            'wholesale_price' => 'nullable|numeric',
             'discount' => 'nullable|numeric',
             'cost' => 'required|numeric',
+            'alert_quantity' => 'nullable|integer',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'size_chart' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'gallery' => 'nullable',
@@ -307,7 +370,7 @@ class ProductController extends Controller
             'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'slug', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'alert_quantity', 'status', 'meta_title', 'meta_description']);
         
         // Ensure nullable text fields are not null to avoid DB integrity constraint violations
         $data['features'] = $data['features'] ?? '';
@@ -390,7 +453,7 @@ class ProductController extends Controller
             'galleries',
             'branchStock.branch',
             'warehouseStock.warehouse',
-            'saleItems.invoice',
+            'saleItems.pos.invoice',
             'variations.stocks.branch',
             'variations.stocks.warehouse'
         ])->findOrFail($id);
@@ -462,7 +525,7 @@ class ProductController extends Controller
         
         // Get recent activity (recent sales)
         $recentActivity = $product->saleItems()
-            ->with(['invoice'])
+            ->with(['pos.invoice'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()
@@ -494,7 +557,11 @@ class ProductController extends Controller
     {
         $product = Product::with('category.parent', 'galleries', 'productAttributes')->findOrFail($id);
         $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
-        return view('erp.products.edit', compact('product', 'attributes'));
+        $brands = \App\Models\Brand::where('status', 'active')->get();
+        $seasons = \App\Models\Season::where('status', 'active')->get();
+        $genders = \App\Models\Gender::all();
+        $units = \App\Models\Unit::all();
+        return view('erp.products.edit', compact('product', 'attributes', 'brands', 'seasons', 'genders', 'units'));
     }
 
     /**
@@ -510,13 +577,20 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'slug' => 'unique:products,slug,' . $product->id,
             'sku' => 'required|string|unique:products,sku,' . $product->id,
+            'style_number' => 'nullable|string|max:100',
             'short_desc' => 'nullable|string',
             'description' => 'nullable|string',
             'features' => 'nullable|string',
             'category_id' => 'required|exists:product_service_categories,id',
+            'brand_id' => 'nullable|exists:brands,id',
+            'season_id' => 'nullable|exists:seasons,id',
+            'gender_id' => 'nullable|exists:genders,id',
+            'unit_id' => 'nullable|exists:units,id',
             'price' => 'required|numeric',
+            'wholesale_price' => 'nullable|numeric',
             'discount' => 'nullable|numeric',
             'cost' => 'required|numeric',
+            'alert_quantity' => 'nullable|integer',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'size_chart' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'gallery' => 'nullable',
@@ -529,7 +603,7 @@ class ProductController extends Controller
             'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'slug', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'status', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'slug', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'alert_quantity', 'status', 'meta_title', 'meta_description']);
         
         // Ensure nullable text fields are not null to avoid DB integrity constraint violations
         $data['features'] = $data['features'] ?? '';
@@ -735,6 +809,65 @@ class ProductController extends Controller
         }
         $products = $query->orderBy('name')->limit(20)->get(['id', 'name', 'sku', 'has_variations']);
         return response()->json($products);
+    }
+
+    public function searchByStyle(Request $request)
+    {
+        $q = $request->q;
+        $query = Product::with(['category', 'brand', 'season', 'gender']);
+        
+        if ($q) {
+            $query->where('style_number', 'like', "%$q%")
+                  ->orWhere('name', 'like', "%$q%");
+        }
+        
+        $products = $query->orderBy('style_number')->limit(20)->get();
+        return response()->json($products);
+    }
+
+    public function getVariationsWithStock($productId)
+    {
+        $product = Product::with([
+            'variations.stocks' => function($query) {
+                $query->select('variation_id', 'branch_id', 'warehouse_id', 'quantity');
+            },
+            'variations.combinations.attribute',
+            'variations.combinations.attributeValue'
+        ])->findOrFail($productId);
+        
+        if (!$product->has_variations) {
+            return response()->json([]);
+        }
+        
+        $variations = $product->variations->map(function($variation) {
+            $totalStock = $variation->stocks->sum('quantity');
+            
+            // Extract size and color from combinations
+            $size = null;
+            $color = null;
+            
+            foreach ($variation->combinations as $combination) {
+                $attributeName = strtolower($combination->attribute->name ?? '');
+                $attributeValue = $combination->attributeValue->value ?? '';
+                
+                if (in_array($attributeName, ['size', 'sizes'])) {
+                    $size = $attributeValue;
+                } elseif (in_array($attributeName, ['color', 'colour', 'colors'])) {
+                    $color = $attributeValue;
+                }
+            }
+            
+            return [
+                'id' => $variation->id,
+                'name' => $variation->name,
+                'size' => $size,
+                'color' => $color,
+                'price' => $variation->price,
+                'stock' => $totalStock
+            ];
+        });
+        
+        return response()->json($variations);
     }
 
     public function getProductVariations($productId)
@@ -1097,6 +1230,108 @@ class ProductController extends Controller
             'per_page' => $products->perPage(),
             'total' => $products->total(),
         ]);
+    }
+
+    /**
+     * Search products by Style Number
+     */
+    public function searchStyleNumber(Request $request)
+    {
+        $q = $request->q;
+        $query = Product::query();
+        if ($q) {
+            $query->where('style_number', 'like', "%$q%");
+        }
+        $styles = $query->whereNotNull('style_number')
+            ->where('style_number', '!=', '')
+            ->groupBy('style_number')
+            ->limit(20)
+            ->pluck('style_number');
+            
+        $results = $styles->map(function($style) {
+            return ['id' => $style, 'text' => $style];
+        });
+        
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * Find product and its variations by Style Number
+     */
+    public function findProductByStyle($styleNumber)
+    {
+        $products = Product::with(['category', 'brand', 'season', 'gender', 'variations.combinations.attributeValue.attribute'])
+            ->where('style_number', $styleNumber)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Product not found with this Style Number'], 404);
+        }
+
+        $results = $products->map(function($product) {
+            // Determine if it has variations more reliably
+            $hasActuallyVariations = $product->has_variations || $product->variations->isNotEmpty();
+            
+            // Get unique sizes and colors from variations
+            $sizes = [];
+            $colors = [];
+            
+            if ($hasActuallyVariations) {
+                foreach ($product->variations as $variation) {
+                    foreach ($variation->combinations as $combination) {
+                        $val = $combination->attributeValue;
+                        if (!$val) continue;
+                        
+                        $attr = $val->attribute;
+                        $attrName = strtolower($attr->name ?? '');
+                        
+                        if ($attr && ($attr->is_color || $attrName == 'color' || $attrName == 'colour')) {
+                            $colors[$val->id] = $val->value;
+                        } elseif ($attr && ($attrName == 'size')) {
+                            $sizes[$val->id] = $val->value;
+                        } else {
+                            // Catch-all for other attributes, categorized as 'sizes' for UI simplicity
+                            $sizes[$val->id] = $val->value;
+                        }
+                    }
+                }
+            }
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'image' => $product->image ? asset($product->image) : asset('assets/images/product-placeholder.png'),
+                'category' => $product->category->name ?? '-',
+                'brand' => $product->brand->name ?? '-',
+                'season' => $product->season->name ?? '-',
+                'gender' => $product->gender->name ?? '-',
+                'style_number' => $product->style_number,
+                'price' => $product->price,
+                'wholesale_price' => $product->wholesale_price,
+                'cost' => $product->cost,
+                'has_variations' => $hasActuallyVariations,
+                'sizes' => array_map(function($id, $name) { return ['id' => $id, 'name' => $name]; }, array_keys($sizes), $sizes),
+                'colors' => array_map(function($id, $name) { return ['id' => $id, 'name' => $name]; }, array_keys($colors), $colors),
+                'variations' => $product->variations->map(function($v) use ($product) {
+                    return [
+                        'id' => $v->id,
+                        'name' => $v->name,
+                        'sku' => $v->sku,
+                        'price' => $v->price ?? $product->price,
+                        'wholesale_price' => $v->wholesale_price ?? $product->wholesale_price,
+                        'attributes' => $v->combinations->map(function($c) {
+                            return [
+                                'attribute_id' => $c->attribute_id,
+                                'value_id' => $c->attribute_value_id,
+                                'value' => $c->attributeValue->value ?? ''
+                            ];
+                        })
+                    ];
+                })
+            ];
+        });
+
+        return response()->json(['success' => true, 'products' => $results]);
     }
 
     /**

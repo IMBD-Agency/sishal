@@ -48,7 +48,7 @@
                                     <span class="input-group-text bg-light border-end-0">
                                         <i class="fas fa-search text-muted"></i>
                                     </span>
-                                    <input type="text" class="form-control border-start-0" placeholder="Product name, SKU..." name="search" value="{{ request('search') }}">
+                                    <input type="text" class="form-control border-start-0" placeholder="Product name, Style Number..." name="search" value="{{ request('search') }}">
                                 </div>
                             </div>
                             <div class="col-md-2">
@@ -187,7 +187,7 @@
                                         <img src="{{ asset($stock->image) }}" alt="Product" class="rounded me-3" style="width: 48px; height: 48px; object-fit: cover;">
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold">{{ $stock->name }}</div>
-                                            <div class="small text-muted">SKU: {{ $stock->sku }} • {{ $stock->category->name ?? 'No Category' }}</div>
+                                            <div class="small text-muted">Style No: {{ $stock->sku }} • {{ $stock->category->name ?? 'No Category' }}</div>
                                         </div>
                                         <div class="text-end">
                                             <div class="d-flex align-items-center justify-content-end gap-1">
@@ -240,7 +240,7 @@
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th class="border-0">Product</th>
-                                    <th class="border-0">SKU</th>
+                                    <th class="border-0">Style No</th>
                                     <th class="border-0">Category</th>
                                     <th class="border-0 text-center">Total Stock</th>
                                     <th class="border-0 text-center">Branches</th>

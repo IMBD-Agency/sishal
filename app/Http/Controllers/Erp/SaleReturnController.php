@@ -23,173 +23,233 @@ class SaleReturnController extends Controller
 {
     public function index(Request $request)
     {
-        $query = SaleReturn::query();
-
-        // Search by customer name, phone, email, or POS sale_number
-        if ($search = $request->input('search')) {
-            $query->where(function($q) use ($search) {
-                $q->whereHas('customer', function($qc) use ($search) {
-                    $qc->where('name', 'like', "%$search%")
-                        ->orWhere('phone', 'like', "%$search%")
-                        ->orWhere('email', 'like', "%$search%");
-                })
-                ->orWhereHas('posSale', function($qp) use ($search) {
-                    $qp->where('sale_number', 'like', "%$search%");
-                });
-            });
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        // Filter by Date Range
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-        if ($startDate) {
-            $query->whereDate('return_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->whereDate('return_date', '<=', $endDate);
-        }
+        $query = \App\Models\SaleReturnItem::whereHas('saleReturn')->with([
+            'saleReturn.customer',
+            'saleReturn.posSale',
+            'saleReturn.branch',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
+            'variation.attributeValues.attribute',
+        ]);
 
-        // Quick Filters
-        if ($request->has('quick_filter')) {
-            $filter = $request->input('quick_filter');
-            if ($filter == 'today') {
-                $query->whereDate('return_date', Carbon::today());
-            } elseif ($filter == 'monthly') {
-                $query->whereMonth('return_date', Carbon::now()->month)
-                      ->whereYear('return_date', Carbon::now()->year);
-            }
-        }
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
-        // Filter by status
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
+        $totalQty = $query->sum('returned_qty');
+        $totalAmount = $query->sum('total_price');
 
-        // Filter by branch
-        if ($branchId = $request->input('branch_id')) {
-            $query->where('return_to_type', 'branch')->where('return_to_id', $branchId);
-        }
-
-        // Filter by warehouse
-        if ($warehouseId = $request->input('warehouse_id')) {
-            $query->where('return_to_type', 'warehouse')->where('return_to_id', $warehouseId);
-        }
-
-        $returns = $query->with(['customer', 'posSale', 'invoice.order', 'branch', 'warehouse'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15)
-            ->appends($request->all());
-
-        $statuses = ['pending', 'approved', 'rejected', 'processed'];
+        $items = $query->latest()->paginate(20)->appends($request->all());
+        
         $branches = Branch::all();
-        $warehouses = Warehouse::all();
-        $filters = $request->all();
+        $customers = Customer::orderBy('name')->get();
+        $products = \App\Models\Product::orderBy('name')->get();
+        $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
+        $brands = \App\Models\Brand::orderBy('name')->get();
+        $seasons = \App\Models\Season::orderBy('name')->get();
+        $genders = \App\Models\Gender::orderBy('name')->get();
 
-        return view('erp.saleReturn.salereturnlist', compact('returns', 'statuses', 'filters', 'branches', 'warehouses'));
+        return view('erp.saleReturn.salereturnlist', compact(
+            'items', 'branches', 'customers', 'products', 'categories', 'brands', 'seasons', 'genders',
+            'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+        ));
     }
 
-    /**
-     * Export to Excel
-     */
     public function exportExcel(Request $request)
     {
-        $query = SaleReturn::with(['customer', 'posSale', 'branch', 'warehouse', 'items']);
-        $this->applyFilters($query, $request);
-        $returns = $query->get();
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
+        $query = \App\Models\SaleReturnItem::with([
+            'saleReturn.customer', 'saleReturn.posSale', 'saleReturn.branch',
+            'product.category', 'product.brand', 'product.season', 'product.gender',
+            'variation.attributeValues.attribute'
+        ]);
+
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->latest()->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Sale Returns');
+        
+        $headers = [
+            'Serial No', 'Date', 'R-Inv. No.', 'S-Inv. No.', 'Customer', 'Mobile', 'Outlet', 
+            'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Color', 'Size', 
+            'Qty', 'Total Amount'
+        ];
+        
+        $sheet->fromArray([$headers], NULL, 'A1');
+        $sheet->getStyle('A1:Q1')->getFont()->setBold(true);
 
-        // Headers
-        $headers = ['Return ID', 'Date', 'Customer', 'POS Sale', 'Location', 'Items Count', 'Total Amount', 'Status'];
-        foreach ($headers as $key => $header) {
-            $cell = chr(65 + $key) . '1';
-            $sheet->setCellValue($cell, $header);
-            $sheet->getStyle($cell)->getFont()->setBold(true);
-            $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
-        }
+        $rowNum = 2;
+        foreach ($items as $index => $item) {
+            $return = $item->saleReturn;
+            $product = $item->product;
+            $variation = $item->variation;
+            
+            $color = '-'; $size = '-';
+            if ($variation && $variation->attributeValues) {
+                foreach($variation->attributeValues as $val) {
+                    $attrName = strtolower($val->attribute->name ?? '');
+                    if (str_contains($attrName, 'color')) $color = $val->value;
+                    elseif (str_contains($attrName, 'size')) $size = $val->value;
+                }
+            }
 
-        // Data
-        $row = 2;
-        foreach ($returns as $return) {
-            $location = 'N/A';
-            if ($return->return_to_type == 'branch') $location = 'Branch: ' . ($return->branch->name ?? 'N/A');
-            elseif ($return->return_to_type == 'warehouse') $location = 'Warehouse: ' . ($return->warehouse->name ?? 'N/A');
-            elseif ($return->return_to_type == 'employee') $location = 'Employee: ' . ($return->employee->user->first_name ?? 'N/A');
-
-            $sheet->setCellValue('A' . $row, '#SR-' . str_pad($return->id, 5, '0', STR_PAD_LEFT));
-            $sheet->setCellValue('B' . $row, $return->return_date);
-            $sheet->setCellValue('C' . $row, $return->customer->name ?? 'Walk-in');
-            $sheet->setCellValue('D' . $row, $return->posSale->sale_number ?? 'N/A');
-            $sheet->setCellValue('E' . $row, $location);
-            $sheet->setCellValue('F' . $row, $return->items->count());
-            $sheet->setCellValue('G' . $row, number_format($return->items->sum('total_price'), 2));
-            $sheet->setCellValue('H' . $row, ucfirst($return->status));
-            $row++;
-        }
-
-        // Auto-size columns
-        foreach (range('A', 'H') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $data = [
+                $index + 1,
+                $return->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-',
+                '#SR-' . str_pad($return->id, 5, '0', STR_PAD_LEFT),
+                $return->posSale->sale_number ?? '-',
+                $return->customer->name ?? 'Walk-in',
+                $return->customer->phone ?? '-',
+                $return->branch->name ?? '-',
+                $product->category->name ?? '-',
+                $product->brand->name ?? '-',
+                $product->season->name ?? '-',
+                $product->gender->name ?? '-',
+                $product->name ?? '-',
+                $product->style_number ?? '-',
+                $color,
+                $size,
+                $item->returned_qty,
+                $item->total_price
+            ];
+            $sheet->fromArray([$data], NULL, 'A' . $rowNum);
+            $rowNum++;
         }
 
         $writer = new Xlsx($spreadsheet);
-        $filename = 'sale_returns_' . date('Ymd_His') . '.xlsx';
-        $filePath = storage_path('app/public/' . $filename);
-        $writer->save($filePath);
-
-        return response()->download($filePath, $filename)->deleteFileAfterSend();
+        $filename = 'sale_return_report_' . date('Ymd_His') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $writer->save('php://output');
+        exit;
     }
 
-    /**
-     * Export to PDF or Stream (Print)
-     */
     public function exportPdf(Request $request)
     {
-        $query = SaleReturn::with(['customer', 'posSale', 'branch', 'warehouse', 'items']);
-        $this->applyFilters($query, $request);
-        $returns = $query->get();
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
 
-        $pdf = Pdf::loadView('erp.saleReturn.report-pdf', [
-            'returns' => $returns,
-            'filters' => $request->all(),
-            'date' => date('d M, Y')
+        $query = \App\Models\SaleReturnItem::with([
+            'saleReturn.customer', 'saleReturn.posSale', 'saleReturn.branch',
+            'product.category', 'product.brand', 'product.season', 'product.gender',
+            'variation.attributeValues.attribute'
         ]);
 
-        $pdf->setPaper('A4', 'landscape');
-        $filename = 'sale_returns_' . date('Ymd_His') . '.pdf';
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->latest()->get();
 
+        $pdf = Pdf::loadView('erp.saleReturn.export-pdf', compact('items', 'reportType', 'startDate', 'endDate'));
+        $pdf->setPaper('A4', 'landscape');
+        
+        $filename = 'sale_return_report_' . date('Ymd_His') . '.pdf';
         if ($request->input('action') === 'print') {
             return $pdf->stream($filename);
         }
-
         return $pdf->download($filename);
     }
 
-    /**
-     * Helper to apply filters shared between index and exports
-     */
-    private function applyFilters($query, Request $request)
+    private function applyFilters($query, Request $request, $startDate = null, $endDate = null)
     {
-        if ($search = $request->input('search')) {
+        // Date Filtering
+        if ($startDate && $endDate) {
+            $query->whereHas('saleReturn', function($q) use ($startDate, $endDate) {
+                $q->whereBetween('return_date', [$startDate, $endDate]);
+            });
+        } elseif ($startDate) {
+            $query->whereHas('saleReturn', function($q) use ($startDate) {
+                $q->whereDate('return_date', '>=', $startDate);
+            });
+        } elseif ($endDate) {
+            $query->whereHas('saleReturn', function($q) use ($endDate) {
+                $q->whereDate('return_date', '<=', $endDate);
+            });
+        }
+
+        // Search by sale number / invoice
+        if ($request->filled('search')) {
+            $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->whereHas('customer', function($qc) use ($search) {
-                    $qc->where('name', 'like', "%$search%");
-                })->orWhereHas('posSale', function($qp) use ($search) {
-                    $qp->where('sale_number', 'like', "%$search%");
+                $q->whereHas('saleReturn.posSale', function($sq) use ($search) {
+                    $sq->where('sale_number', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('saleReturn.customer', function($cq) use ($search) {
+                    $cq->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('phone', 'LIKE', "%{$search}%");
                 });
             });
         }
 
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-        if ($startDate) $query->whereDate('return_date', '>=', $startDate);
-        if ($endDate) $query->whereDate('return_date', '<=', $endDate);
+        // Filters from dropdowns
+        if ($request->filled('branch_id')) {
+            $query->whereHas('saleReturn', function($q) use ($request) {
+                $q->where('return_to_id', $request->branch_id)->where('return_to_type', 'branch');
+            });
+        }
+        if ($request->filled('customer_id')) {
+            $query->whereHas('saleReturn', function($q) use ($request) {
+                $q->where('customer_id', $request->customer_id);
+            });
+        }
+        if ($request->filled('status')) {
+            $query->whereHas('saleReturn', function($q) use ($request) {
+                $q->where('status', $request->status);
+            });
+        }
+        
+        // Product Filters
+        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
 
-        if ($status = $request->input('status')) $query->where('status', $status);
-        if ($branchId = $request->input('branch_id')) $query->where('return_to_type', 'branch')->where('return_to_id', $branchId);
-        if ($warehouseId = $request->input('warehouse_id')) $query->where('return_to_type', 'warehouse')->where('return_to_id', $warehouseId);
+        if ($request->filled('style_number') || $request->filled('category_id') || 
+            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
+            
+            $query->whereHas('product', function($q) use ($request) {
+                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+                if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+                if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
+                if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+            });
+        }
+
+        return $query;
     }
 
     public function create(Request $request)
@@ -211,6 +271,57 @@ class SaleReturnController extends Controller
         return view('erp.saleReturn.create', compact('customers', 'posSales', 'invoices', 'products', 'branches', 'warehouses', 'selectedPosSale'));
     }
 
+    public function searchInvoice(Request $request)
+    {
+        $invoiceNo = $request->invoice_no;
+        if (!$invoiceNo) {
+            return response()->json(['success' => false, 'message' => 'Invoice number is required.']);
+        }
+
+        $sale = Pos::with(['customer', 'items.product', 'items.variation.attributeValues.attribute', 'branch', 'invoice'])
+            ->where('sale_number', $invoiceNo)
+            ->first();
+
+        if (!$sale) {
+            return response()->json(['success' => false, 'message' => 'Invoice not found.']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $sale->id,
+                'sale_number' => $sale->sale_number,
+                'customer_id' => $sale->customer_id,
+                'customer_name' => $sale->customer->name ?? 'Walk-in',
+                'customer_phone' => $sale->customer->phone ?? '-',
+                'branch_id' => $sale->branch_id,
+                'items' => $sale->items->map(function($item) {
+                    $color = '-'; $size = '-';
+                    if ($item->variation && $item->variation->attributeValues) {
+                        foreach($item->variation->attributeValues as $val) {
+                            $attrName = strtolower($val->attribute->name ?? '');
+                            if (str_contains($attrName, 'color')) $color = $val->value;
+                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                        }
+                    }
+
+                    return [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product->name,
+                        'variation_id' => $item->variation_id,
+                        'variation_name' => $item->variation->name ?? 'Standard',
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'color' => $color,
+                        'size' => $size,
+                        'style_number' => $item->product->style_number ?? '-',
+                    ];
+                })
+            ]
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -222,31 +333,37 @@ class SaleReturnController extends Controller
             'return_to_type' => 'required|in:branch,warehouse,employee',
             'return_to_id' => 'required|integer',
             'reason' => 'nullable|string',
-            'processed_by' => 'nullable|exists:users,id',
-            'processed_at' => 'nullable|date',
-            'account_id' => 'nullable|integer',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.returned_qty' => 'required|numeric|min:0.01',
+            'items.*.returned_qty' => 'required|numeric|min:0',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.reason' => 'nullable|string',
         ]);
+
         $data = $request->except(['items', 'status']);
         $data['status'] = 'pending';
         $saleReturn = SaleReturn::create($data);
+
         foreach ($request->items as $item) {
-            \App\Models\SaleReturnItem::create([
+            $returnedQty = $item['returned_qty'] ?? 0;
+            if ($returnedQty <= 0) continue;
+
+            $returnItem = \App\Models\SaleReturnItem::create([
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
                 'product_id' => $item['product_id'],
                 'variation_id' => $item['variation_id'] ?? null,
-                'returned_qty' => $item['returned_qty'],
+                'returned_qty' => $returnedQty,
                 'unit_price' => $item['unit_price'],
-                'total_price' => $item['returned_qty'] * $item['unit_price'],
+                'total_price' => $returnedQty * $item['unit_price'],
                 'reason' => $item['reason'] ?? null,
             ]);
+
+            if ($saleReturn->status === 'processed') {
+                $this->addStockForReturnItem($saleReturn, $returnItem);
+            }
         }
+
         return redirect()->route('saleReturn.list')->with('success', 'Sale return created successfully.');
     }
 

@@ -33,7 +33,7 @@
                                     <div class="card h-100">
                                         <div class="card-header"><h5 class="mb-0">Basic Info</h5></div>
                                         <div class="card-body">
-                                            <p class="mb-2"><strong>SKU:</strong> {{ $variation->sku }}</p>
+                                            <p class="mb-2"><strong>Style No:</strong> {{ $variation->sku }}</p>
                                             <p class="mb-2"><strong>Name:</strong> {{ $variation->name }}</p>
                                             <p class="mb-2"><strong>Status:</strong> 
                                                 <span class="badge bg-{{ $variation->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($variation->status) }}</span>

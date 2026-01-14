@@ -223,7 +223,7 @@
                 <span class="info-value">{{ $name }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">SKU:</span>
+                <span class="info-label">Style No:</span>
                 <span class="info-value">{{ $sku }}</span>
             </div>
             <div class="info-item">

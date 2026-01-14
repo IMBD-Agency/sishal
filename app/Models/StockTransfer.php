@@ -27,6 +27,9 @@ class StockTransfer extends Model
         'notes',
     ];
 
+
+    
+
     public function product()
     {
         return $this->belongsTo(\App\Models\Product::class);
@@ -67,3 +70,6 @@ class StockTransfer extends Model
         return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
     }
 }
+
+
+

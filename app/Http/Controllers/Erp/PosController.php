@@ -21,6 +21,10 @@ use App\Models\ProductServiceCategory;
 use App\Models\InvoiceTemplate;
 use App\Models\ProductVariationStock;
 use App\Models\WarehouseProductStock;
+use App\Models\Brand;
+use App\Models\Season;
+use App\Models\Gender;
+use App\Models\ShippingMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -267,73 +271,123 @@ class PosController extends Controller
         }
     }
 
-    public function index(Request $request)
+        public function index(Request $request)
     {
-        $query = Pos::with(['customer', 'invoice', 'branch'])
-            ->withSum('payments as payments_total', 'amount');
-
-        // Search by sale_number, customer name, phone, email
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('sale_number', 'like', "%$search%")
-                    ->orWhereHas('customer', function ($q2) use ($search) {
-                        $q2->where('name', 'like', "%$search%")
-                            ->orWhere('phone', 'like', "%$search%")
-                            ->orWhere('email', 'like', "%$search%");
-                    });
-            });
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        // Filter by branch
-        if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->input('branch_id'));
-        }
+        $query = \App\Models\PosItem::with([
+            'pos.customer',
+            'pos.invoice',
+            'pos.branch',
+            'pos.soldBy',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
+        ]);
 
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
-        // Filter by invoice status
-        if ($request->filled('bill_status')) {
-            $query->whereHas('invoice', function ($q) use ($request) {
-                $q->where('status', $request->input('bill_status'));
-            });
-        }
+        // Sums for filtered items
+        $totalQty = $query->sum('quantity');
+        $totalAmount = $query->sum('total_price');
 
-        // Filter by sale date range
-    if ($request->filled('start_date') || $request->filled('end_date')) {
-        if ($request->filled('start_date')) {
-            $query->whereDate('sale_date', '>=', $request->input('start_date'));
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('sale_date', '<=', $request->input('end_date'));
-        }
-    } elseif ($request->filled('quick_filter')) {
-        $filter = $request->input('quick_filter');
-        if ($filter == 'today') {
-            $query->whereDate('sale_date', now()->today());
-        } elseif ($filter == 'monthly') {
-            $query->whereMonth('sale_date', now()->month)
-                  ->whereYear('sale_date', now()->year);
-        }
-    }
-
-        // Filter by estimated delivery date
-        if ($request->filled('estimated_delivery_date')) {
-            $query->whereDate('estimated_delivery_date', $request->input('estimated_delivery_date'));
-        }
-
-        // Order by latest created
-        $query->orderBy('created_at', 'desc');
-
-        $sales = $query->paginate(10)->withQueryString();
+        $items = $query->latest()->paginate(20)->appends($request->all());
+        
+        // Dropdown Data
         $branches = Branch::all();
+        $customers = Customer::orderBy('name')->get();
+        $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
+        $brands = \App\Models\Brand::orderBy('name')->get();
+        $seasons = \App\Models\Season::orderBy('name')->get();
+        $genders = \App\Models\Gender::orderBy('name')->get();
+        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
 
-        return view('erp.pos.index', compact('sales', 'branches'));
+        return view('erp.pos.index', compact(
+            'items', 'branches', 'customers', 'categories', 'brands', 'seasons', 'genders', 'products', 
+            'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+        ));
     }
 
+    private function applyFilters($query, Request $request, $startDate = null, $endDate = null)
+    {
+        // Date Filtering
+        if ($startDate && $endDate) {
+            $query->whereHas('pos', function($q) use ($startDate, $endDate) {
+                $q->whereBetween('sale_date', [$startDate, $endDate]);
+            });
+        } elseif ($startDate) {
+            $query->whereHas('pos', function($q) use ($startDate) {
+                $q->whereDate('sale_date', '>=', $startDate);
+            });
+        } elseif ($endDate) {
+            $query->whereHas('pos', function($q) use ($endDate) {
+                $q->whereDate('sale_date', '<=', $endDate);
+            });
+        }
+
+        // Search by sale number / invoice
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('pos', function($q) use ($search) {
+                $q->where('sale_number', 'LIKE', "%$search%")
+                  ->orWhereHas('customer', function($cq) use ($search) {
+                      $cq->where('name', 'LIKE', "%$search%")
+                        ->orWhere('phone', 'LIKE', "%$search%");
+                  });
+            });
+        }
+
+        // Filters from dropdowns
+        if ($request->filled('branch_id')) {
+            $query->whereHas('pos', function($q) use ($request) {
+                $q->where('branch_id', $request->branch_id);
+            });
+        }
+        if ($request->filled('customer_id')) {
+            $query->whereHas('pos', function($q) use ($request) {
+                $q->where('customer_id', $request->customer_id);
+            });
+        }
+        if ($request->filled('status')) {
+            $query->whereHas('pos', function($q) use ($request) {
+                $q->where('status', $request->status);
+            });
+        }
+        
+        // Filter by Product/Style/Category/Brand/Season/Gender
+        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
+
+        if ($request->filled('style_number') || $request->filled('category_id') || 
+            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
+            
+            $query->whereHas('product', function($q) use ($request) {
+                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+                if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+                if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
+                if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+            });
+        }
+
+        return $query;
+    }
     public function show($id)
     {
         $pos = Pos::where('id', $id)
@@ -1003,370 +1057,139 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Export to Excel
-     */
     public function exportExcel(Request $request)
     {
-        $query = Pos::with(['customer', 'invoice', 'branch']);
-
-        // Apply filters
-        $startDate = $request->input('start_date') ?? $request->input('date_from');
-        $endDate = $request->input('end_date') ?? $request->input('date_to');
-        if ($startDate) {
-            $query->whereDate('sale_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->whereDate('sale_date', '<=', $endDate);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $paymentStatus = $request->input('bill_status') ?? $request->input('payment_status');
-        if ($paymentStatus) {
-            $query->whereHas('invoice', function ($q) use ($paymentStatus) {
-                $q->where('status', $paymentStatus);
-            });
-        }
+        $query = \App\Models\PosItem::with([
+            'pos.customer', 'pos.invoice', 'pos.branch', 'pos.soldBy',
+            'product.category', 'product.brand', 'product.season', 'product.gender',
+            'variation.attributeValues.attribute', 'returnItems'
+        ]);
 
-        if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->latest()->get();
 
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('sale_number', 'like', "%$search%")
-                    ->orWhereHas('customer', function ($q2) use ($search) {
-                        $q2->where('name', 'like', "%$search%")
-                            ->orWhere('phone', 'like', "%$search%")
-                            ->orWhere('email', 'like', "%$search%");
-                    });
-            });
-        }
-
-        $sales = $query->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
-
-        // Validate that at least one column is selected
-        if (empty($selectedColumns)) {
-            return response()->json(['error' => 'Please select at least one column to export.'], 400);
-        }
-
-        // Prepare data for export
-        $exportData = [];
-        
-        // Add headers
-        $headers = [];
-        $columnMap = [
-            'pos_id' => 'POS ID',
-            'sale_date' => 'Sale Date',
-            'customer' => 'Customer',
-            'phone' => 'Phone',
-            'branch' => 'Branch',
-            'status' => 'Status',
-            'payment_status' => 'Payment Status',
-            'subtotal' => 'Subtotal',
-            'discount' => 'Discount',
-            'total' => 'Total',
-            'paid_amount' => 'Paid Amount',
-            'due_amount' => 'Due Amount'
-        ];
-
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
-        }
-        $exportData[] = $headers;
-
-        // Add data rows
-        foreach ($sales as $sale) {
-            $row = [];
-            foreach ($selectedColumns as $column) {
-                switch ($column) {
-                    case 'pos_id':
-                        $row[] = $sale->sale_number ?? '-';
-                        break;
-                    case 'sale_date':
-                        $row[] = $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d-m-Y') : '-';
-                        break;
-                    case 'customer':
-                        $row[] = $sale->customer ? $sale->customer->name : 'Walk-in Customer';
-                        break;
-                    case 'phone':
-                        $row[] = $sale->customer ? $sale->customer->phone : '-';
-                        break;
-                    case 'branch':
-                        $row[] = $sale->branch ? $sale->branch->name : '-';
-                        break;
-                    case 'status':
-                        $row[] = ucfirst($sale->status ?? '-');
-                        break;
-                    case 'payment_status':
-                        $row[] = $sale->invoice ? ucfirst($sale->invoice->status) : '-';
-                        break;
-                    case 'subtotal':
-                        $row[] = number_format($sale->sub_total, 2);
-                        break;
-                    case 'discount':
-                        $row[] = number_format($sale->discount, 2);
-                        break;
-                    case 'total':
-                        $row[] = number_format($sale->total_amount, 2);
-                        break;
-                    case 'paid_amount':
-                        $row[] = $sale->invoice ? number_format($sale->invoice->paid_amount, 2) : '0.00';
-                        break;
-                    case 'due_amount':
-                        $row[] = $sale->invoice ? number_format($sale->invoice->due_amount, 2) : '0.00';
-                        break;
-                }
-            }
-            $exportData[] = $row;
-        }
-
-        // Generate filename
-        $filename = 'sales_report_' . date('Y-m-d_H-i-s') . '.xlsx';
-        
-        // Create Excel file using PhpSpreadsheet
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        // Add title
-        $sheet->setCellValue('A1', 'Sales Report');
-        if (count($headers) > 0) {
-            $sheet->mergeCells('A1:' . chr(65 + count($headers) - 1) . '1');
-        }
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $headers = [
+            'Serial No', 'Invoice', 'Date', 'Customer', 'Created', 'Category', 'Brand', 'Season', 'Gender',
+            'Product Name', 'Style Number', 'Color', 'Size', 'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
+            'SR-Qty', 'Total SR-Qty', 'SR-Amount', 'Total SR-Amount', 'AS-Qty', 'Total AS-Qty',
+            'Delivery Charge', 'Discount Amount', 'Exchange Amount', 'Actual Sales Amount', 'Final Total', 'Received Amount', 'Due Amount'
+        ];
         
-        // Add summary info
-        $totalSales = $sales->count();
-        $totalAmount = $sales->sum('total_amount');
-        $paidSales = $sales->filter(function($sale) {
-            return $sale->invoice && $sale->invoice->status === 'paid';
-        })->count();
-        $unpaidSales = $sales->filter(function($sale) {
-            return $sale->invoice && $sale->invoice->status === 'unpaid';
-        })->count();
-        
-        if (count($headers) > 0) {
-            $sheet->setCellValue('A2', 'Summary: Total Sales: ' . $totalSales . ' | Total Amount: ৳' . number_format($totalAmount, 2) . ' | Paid: ' . $paidSales . ' | Unpaid: ' . $unpaidSales);
-            $sheet->mergeCells('A2:' . chr(65 + count($headers) - 1) . '2');
-            $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
-            $sheet->getStyle('A2')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('F0F8FF');
-        }
-        
-        // Add filters info
-        $filterInfo = [];
-        if ($request->filled('date_from')) $filterInfo[] = 'From: ' . $request->date_from;
-        if ($request->filled('date_to')) $filterInfo[] = 'To: ' . $request->date_to;
-        if ($request->filled('status')) $filterInfo[] = 'Status: ' . ucfirst($request->status);
-        if ($request->filled('payment_status')) $filterInfo[] = 'Payment Status: ' . ucfirst($request->payment_status);
-        
-        if (!empty($filterInfo) && count($headers) > 0) {
-            $sheet->setCellValue('A3', 'Filters: ' . implode(', ', $filterInfo));
-            $sheet->mergeCells('A3:' . chr(65 + count($headers) - 1) . '3');
-            $sheet->getStyle('A3')->getFont()->setItalic(true);
-        }
-        
-        // Add headers
-        $headerRow = 4;
-        foreach ($headers as $index => $header) {
-            $sheet->setCellValue(chr(65 + $index) . $headerRow, $header);
-            $sheet->getStyle(chr(65 + $index) . $headerRow)->getFont()->setBold(true);
-            $sheet->getStyle(chr(65 + $index) . $headerRow)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
-        }
-        
-        // Add data
-        $dataRow = 5;
-        $totalRow = $dataRow;
-        foreach ($exportData as $rowIndex => $row) {
-            if ($rowIndex === 0) continue; // Skip headers as we already added them
-            foreach ($row as $colIndex => $value) {
-                $sheet->setCellValue(chr(65 + $colIndex) . $dataRow, $value);
-            }
-            $dataRow++;
-        }
-        $totalRow = $dataRow; // This will be the row after the last data row
-        
-        // Add totals row
-        if ($sales->count() > 0) {
-            $sheet->setCellValue('A' . $totalRow, 'TOTAL');
-            $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
+        $sheet->fromArray([$headers], NULL, 'A1');
+        $sheet->getStyle('A1:AC1')->getFont()->setBold(true);
+
+        $rowNum = 2;
+        foreach ($items as $index => $item) {
+            $sale = $item->pos;
+            $invoice = $sale->invoice;
+            $product = $item->product;
+            $variation = $item->variation;
             
-            // Calculate and add totals for specific columns
-            $totalAmount = 0;
-            $totalPaidAmount = 0;
-            $totalDueAmount = 0;
-            
-            foreach ($sales as $sale) {
-                $totalAmount += $sale->total_amount ?? 0;
-                if ($sale->invoice) {
-                    $totalPaidAmount += $sale->invoice->paid_amount ?? 0;
-                    $totalDueAmount += $sale->invoice->due_amount ?? 0;
+            $color = '-'; $size = '-';
+            if ($variation && $variation->attributeValues) {
+                foreach($variation->attributeValues as $val) {
+                    $attrName = strtolower($val->attribute->name ?? '');
+                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
+                    elseif (str_contains($attrName, 'size')) $size = $val->value;
                 }
             }
-            
-            // Add totals to the appropriate columns
-            foreach ($selectedColumns as $colIndex => $column) {
-                $cellAddress = chr(65 + $colIndex) . $totalRow;
-                
-                switch ($column) {
-                    case 'total':
-                        $sheet->setCellValue($cellAddress, number_format($totalAmount, 2));
-                        $sheet->getStyle($cellAddress)->getFont()->setBold(true);
-                        break;
-                    case 'paid_amount':
-                        $sheet->setCellValue($cellAddress, number_format($totalPaidAmount, 2));
-                        $sheet->getStyle($cellAddress)->getFont()->setBold(true);
-                        break;
-                    case 'due_amount':
-                        $sheet->setCellValue($cellAddress, number_format($totalDueAmount, 2));
-                        $sheet->getStyle($cellAddress)->getFont()->setBold(true);
-                        break;
-                    default:
-                        // For other columns, leave empty or add count if it's the first column
-                        if ($colIndex === 0) {
-                            $sheet->setCellValue($cellAddress, $sales->count() . ' Sales');
-                            $sheet->getStyle($cellAddress)->getFont()->setBold(true);
-                        }
-                        break;
-                }
-            }
-            
-            // Style the totals row
-            $sheet->getStyle('A' . $totalRow . ':' . chr(65 + count($headers) - 1) . $totalRow)->getFill()
-                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setRGB('E8F4FD');
+
+            $retQty = $item->returnItems->sum('returned_qty');
+            $retAmt = $item->returnItems->sum('total_price');
+            $actualQty = $item->quantity - $retQty;
+            $actualAmt = $item->total_price - $retAmt;
+            $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
+
+            $data = [
+                $index + 1,
+                $sale->sale_number ?? '-',
+                $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-',
+                $sale->customer->name ?? 'Walk-in',
+                $sale->soldBy->name ?? '-',
+                $product->category->name ?? '-',
+                $product->brand->name ?? '-',
+                $product->season->name ?? '-',
+                $product->gender->name ?? '-',
+                $product->name ?? '-',
+                $product->style_number ?? '-',
+                $color,
+                $size,
+                $item->quantity,
+                $item->quantity, // Total S-Qty
+                $item->total_price,
+                $item->total_price, // Total Sales Amount
+                $retQty,
+                $retQty, // Total SR-Qty
+                $retAmt,
+                $retAmt, // Total SR-Amt
+                $actualQty,
+                $actualQty, // Total AS-Qty
+                $isFirst ? $sale->delivery : '-',
+                $isFirst ? $sale->discount : '-',
+                $isFirst ? ($sale->exchange_amount ?? 0) : '-',
+                $actualAmt,
+                $isFirst ? $sale->total_amount : '-',
+                $isFirst ? ($invoice->paid_amount ?? 0) : '-',
+                $isFirst ? ($invoice->due_amount ?? 0) : '-'
+            ];
+            $sheet->fromArray([$data], NULL, 'A' . $rowNum);
+            $rowNum++;
         }
-        
-        // Auto-size columns
-        foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
-        }
-        
-        // Create writer and output
+
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $filePath = storage_path('app/public/' . $filename);
-        $writer->save($filePath);
+        $filename = 'pos_sales_report_' . date('Ymd_His') . '.xlsx';
         
-        return response()->download($filePath, $filename)->deleteFileAfterSend();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $writer->save('php://output');
+        exit;
     }
 
-    /**
-     * Export to PDF
-     */
     public function exportPdf(Request $request)
     {
-        $query = Pos::with(['customer', 'invoice', 'branch']);
-
-        // Apply filters
-        $startDate = $request->input('start_date') ?? $request->input('date_from');
-        $endDate = $request->input('end_date') ?? $request->input('date_to');
-        if ($startDate) {
-            $query->whereDate('sale_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->whereDate('sale_date', '<=', $endDate);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $paymentStatus = $request->input('bill_status') ?? $request->input('payment_status');
-        if ($paymentStatus) {
-            $query->whereHas('invoice', function ($q) use ($paymentStatus) {
-                $q->where('status', $paymentStatus);
-            });
-        }
-
-        if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('sale_number', 'like', "%$search%")
-                    ->orWhereHas('customer', function ($q2) use ($search) {
-                        $q2->where('name', 'like', "%$search%")
-                            ->orWhere('phone', 'like', "%$search%")
-                            ->orWhere('email', 'like', "%$search%");
-                    });
-            });
-        }
-
-        $sales = $query->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : [];
-
-        // Validate that at least one column is selected
-        if (empty($selectedColumns)) {
-            return response()->json(['error' => 'Please select at least one column to export.'], 400);
-        }
-
-        // Prepare data for export
-        $columnMap = [
-            'pos_id' => 'POS ID',
-            'sale_date' => 'Sale Date',
-            'customer' => 'Customer',
-            'phone' => 'Phone',
-            'branch' => 'Branch',
-            'status' => 'Status',
-            'payment_status' => 'Payment Status',
-            'subtotal' => 'Subtotal',
-            'discount' => 'Discount',
-            'total' => 'Total',
-            'paid_amount' => 'Paid Amount',
-            'due_amount' => 'Due Amount'
-        ];
-
-        $headers = [];
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
-        }
-
-        // Calculate summary
-        $summary = [
-            'total_sales' => $sales->count(),
-            'total_amount' => number_format($sales->sum('total_amount'), 2),
-            'paid_sales' => $sales->filter(function($sale) {
-                return $sale->invoice && $sale->invoice->status === 'paid';
-            })->count(),
-            'unpaid_sales' => $sales->filter(function($sale) {
-                return $sale->invoice && $sale->invoice->status === 'unpaid';
-            })->count(),
-        ];
-
-        // Generate filename
-        $filename = 'sales_report_' . date('Y-m-d_H-i-s') . '.pdf';
-
-        // Create PDF using DomPDF
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.report-pdf', [
-            'sales' => $sales,
-            'headers' => $headers,
-            'selectedColumns' => $selectedColumns,
-            'summary' => $summary,
-            'filters' => [
-                'date_from' => $request->date_from,
-                'date_to' => $request->date_to,
-                'status' => $request->status,
-                'payment_status' => $request->payment_status,
-            ]
+        $query = \App\Models\PosItem::with([
+            'pos.customer', 'pos.invoice', 'pos.branch', 'pos.soldBy',
+            'product.category', 'product.brand', 'product.season', 'product.gender',
+            'variation.attributeValues.attribute', 'returnItems'
         ]);
 
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->latest()->get();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.export-pdf', compact('items', 'reportType', 'startDate', 'endDate'));
         $pdf->setPaper('A4', 'landscape');
         
+        $filename = 'pos_sales_report_' . date('Ymd_His') . '.pdf';
         if ($request->input('action') === 'print') {
             return $pdf->stream($filename);
         }
-        
         return $pdf->download($filename);
     }
 
@@ -1501,4 +1324,160 @@ class PosController extends Controller
             }
         }
     }
+
+    public function manualSaleCreate()
+    {
+        $customers = Customer::orderBy('name')->get();
+        $branches = Branch::all();
+        $products = Product::where('status', 'active')->where('type', 'product')->get();
+        $brands = \App\Models\Brand::all();
+        $seasons = \App\Models\Season::all();
+        $genders = \App\Models\Gender::all();
+        $categories = ProductServiceCategory::whereNull('parent_id')->get();
+        $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
+        
+        // Generate next numbers
+        $invoiceNo = $this->generateInvoiceNumber();
+        $challanNo = str_replace('INV', 'CHA', $invoiceNo);
+        $saleNo = $this->generateSaleNumber();
+
+        return view('erp.pos.manualSale.create', compact(
+            'customers', 'branches', 'products', 'brands', 'seasons', 
+            'genders', 'categories', 'shippingMethods', 'invoiceNo', 
+            'challanNo', 'saleNo'
+        ));
+    }
+
+    public function manualSaleStore(Request $request)
+    {
+        $request->validate([
+            'customer_id' => 'required|exists:customers,id',
+            'branch_id' => 'required|exists:branches,id',
+            'sale_date' => 'required|date',
+            'sale_type' => 'required|string',
+            'invoice_no' => 'required|string',
+            'challan_no' => 'required|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'total_amount' => 'required|numeric',
+            'paid_amount' => 'required|numeric',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $pos = new Pos();
+            $pos->sale_number = $request->input('sale_no', $this->generateSaleNumber());
+            $pos->challan_number = $request->challan_no;
+            $pos->customer_id = $request->customer_id;
+            $pos->branch_id = $request->branch_id;
+            $pos->sold_by = auth()->id();
+            $pos->sale_date = $request->sale_date;
+            $pos->sale_type = $request->sale_type;
+            $pos->sub_total = $request->sub_total;
+            $pos->discount = $request->discount ?? 0;
+            $pos->delivery = $request->delivery_charge ?? 0;
+            $pos->total_amount = $request->total_amount;
+            $pos->status = 'delivered'; // Manual sales are often considered delivered immediately
+            $pos->account_type = $request->account_type;
+            $pos->account_number = $request->account_no;
+            $pos->remarks = $request->remarks;
+            $pos->notes = $request->note;
+            $pos->courier_id = $request->courier_id;
+            $pos->save();
+
+            // Create Invoice
+            $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
+            $invoice = new Invoice();
+            $invoice->invoice_number = $request->invoice_no;
+            $invoice->template_id = $invTemplate?->id;
+            $invoice->customer_id = $pos->customer_id;
+            $invoice->operated_by = auth()->id();
+            $invoice->issue_date = $pos->sale_date;
+            $invoice->due_date = $pos->sale_date;
+            $invoice->subtotal = $pos->sub_total;
+            $invoice->tax = 0; // Can be enhanced later
+            $invoice->total_amount = $pos->total_amount;
+            $invoice->discount_apply = $pos->discount;
+            $invoice->paid_amount = $request->paid_amount;
+            $invoice->due_amount = $pos->total_amount - $request->paid_amount;
+            $invoice->status = $invoice->due_amount <= 0 ? 'paid' : ($invoice->paid_amount > 0 ? 'partial' : 'unpaid');
+            $invoice->note = $pos->notes;
+            $invoice->created_by = auth()->id();
+            $invoice->save();
+
+            $pos->invoice_id = $invoice->id;
+            $pos->save();
+
+            // Items processing
+            foreach ($request->items as $item) {
+                // Deduct Stock
+                $result = $this->deductStock(
+                    $item['product_id'],
+                    $item['variation_id'] ?? null,
+                    $item['quantity'],
+                    $request->branch_id
+                );
+
+                if (!$result['success']) {
+                    throw new \Exception($result['message']);
+                }
+
+                // Save POS Item
+                PosItem::create([
+                    'pos_sale_id' => $pos->id,
+                    'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'total_price' => $item['quantity'] * $item['unit_price'],
+                    'current_position_type' => 'branch',
+                    'current_position_id' => $request->branch_id
+                ]);
+
+                // Save Invoice Item
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'total_price' => $item['quantity'] * $item['unit_price'],
+                ]);
+            }
+
+            // Payment Recording
+            if ($request->paid_amount > 0) {
+                Payment::create([
+                    'payment_for' => 'pos',
+                    'pos_id' => $pos->id,
+                    'invoice_id' => $invoice->id,
+                    'payment_date' => $pos->sale_date,
+                    'amount' => $request->paid_amount,
+                    'payment_method' => strtolower($request->account_type) ?: 'cash',
+                    'note' => $pos->notes,
+                ]);
+            }
+
+            // Customer Balance Update
+            if ($pos->customer_id) {
+                Balance::create([
+                    'source_type' => 'customer',
+                    'source_id' => $pos->customer_id,
+                    'balance' => $pos->total_amount - $request->paid_amount,
+                    'description' => 'Manual Sale Entry',
+                    'reference' => $pos->sale_number,
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Sale recorded successfully.', 'redirect' => route('pos.show', $pos->id)]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
 }
+

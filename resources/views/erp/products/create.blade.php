@@ -37,15 +37,54 @@
                                         <label for="slug" class="form-label">Slug <span class="text-danger">*</span></label>
                                         <input type="text" class="form-control" id="slug" name="slug" required value="{{ old('slug') }}" placeholder="Auto-generated from name">
                                     </div>
-                                    <div class="col-md-6">
-                                        <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="sku" name="sku" required value="{{ old('sku') }}">
+                                    <div class="col-md-4">
+                                        <label for="sku" class="form-label">Style Number <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="sku" name="sku" required value="{{ old('sku') }}" placeholder="e.g. SN-1001">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
+                                        <label for="style_number" class="form-label">Internal Ref</label>
+                                        <input type="text" class="form-control" id="style_number" name="style_number" value="{{ old('style_number') }}" placeholder="Optional reference">
+                                    </div>
+                                    <div class="col-md-4">
                                         <label for="category_id" class="form-label">Category <span class="text-danger">*</span></label>
                                         <select class="form-select" id="category_id" name="category_id" required style="width: 100%">
                                             <option value="">Select Category</option>
-                                            {{-- Options will be loaded via AJAX --}}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="brand_id" class="form-label">Brand</label>
+                                        <select class="form-select" id="brand_id" name="brand_id">
+                                            <option value="">Select Brand</option>
+                                            @foreach($brands as $brand)
+                                                <option value="{{ $brand->id }}">{{ $brand->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="season_id" class="form-label">Season</label>
+                                        <select class="form-select" id="season_id" name="season_id">
+                                            <option value="">Select Season</option>
+                                            @foreach($seasons as $season)
+                                                <option value="{{ $season->id }}">{{ $season->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="gender_id" class="form-label">Gender</label>
+                                        <select class="form-select" id="gender_id" name="gender_id">
+                                            <option value="">Select Gender</option>
+                                            @foreach($genders as $gender)
+                                                <option value="{{ $gender->id }}">{{ $gender->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="unit_id" class="form-label">Unit</label>
+                                        <select class="form-select" id="unit_id" name="unit_id">
+                                            <option value="">Select Unit</option>
+                                            @foreach($units as $unit)
+                                                <option value="{{ $unit->id }}">{{ $unit->name }} ({{ $unit->short_name }})</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div class="col-md-12">
@@ -66,17 +105,25 @@
                                         <input type="hidden" name="features" id="features_input" value="{{ old('features') }}">
                                         <div id="quill_features_create" style="height: 220px; background: #fff;" class="border"></div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="price" class="form-label">Price <span class="text-danger">*</span></label>
+                                    <div class="col-md-3">
+                                        <label for="price" class="form-label">Selling Price <span class="text-danger">*</span></label>
                                         <input type="number" step="0.01" class="form-control" id="price" name="price" required value="{{ old('price') }}">
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
+                                        <label for="wholesale_price" class="form-label">Wholesale Price</label>
+                                        <input type="number" step="0.01" class="form-control" id="wholesale_price" name="wholesale_price" value="{{ old('wholesale_price') }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="cost" class="form-label">Cost Price <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.01" class="form-control" id="cost" name="cost" required value="{{ old('cost') }}">
+                                    </div>
+                                    <div class="col-md-2">
                                         <label for="discount" class="form-label">Discount</label>
                                         <input type="number" step="0.01" class="form-control" id="discount" name="discount" value="{{ old('discount') }}">
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="cost" class="form-label">Cost <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" class="form-control" id="cost" name="cost" required value="{{ old('cost') }}">
+                                    <div class="col-md-2">
+                                        <label for="alert_quantity" class="form-label">Alert Quantity</label>
+                                        <input type="number" class="form-control" id="alert_quantity" name="alert_quantity" value="{{ old('alert_quantity', 10) }}">
                                     </div>
                                     <div class="col-md-6">
                                         <label for="image" class="form-label">Main Image</label>

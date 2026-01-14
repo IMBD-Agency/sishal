@@ -168,4 +168,12 @@ class ProductVariation extends Model
     {
         return $query->where('is_default', true);
     }
+
+    /**
+     * Get the Style No (aliased from sku)
+     */
+    public function getStyleNoAttribute()
+    {
+        return $this->sku;
+    }
 }

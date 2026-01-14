@@ -148,7 +148,7 @@
                                                 <div class="d-flex align-items-center">
                                                     <div class="ms-3">
                                                         <h6 class="mb-0 fw-medium">{{ $item->product->name ?? 'N/A' }}</h6>
-                                                        <small class="text-muted">SKU: {{ $item->product->sku ?? 'N/A' }}</small>
+                                                        <small class="text-muted">Style No: {{ $item->product->sku ?? 'N/A' }}</small>
                                                     </div>
                                                 </div>
                                             </td>

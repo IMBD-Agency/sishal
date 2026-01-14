@@ -41,4 +41,21 @@ class PosItem extends Model
     {
         return $this->belongsTo(\App\Models\Employee::class, 'current_position_id');
     }
+
+    public function returnItems()
+    {
+        return $this->hasMany(\App\Models\SaleReturnItem::class, 'sale_item_id');
+    }
+
+    public function invoice()
+    {
+        return $this->hasOneThrough(
+            \App\Models\Invoice::class,
+            \App\Models\Pos::class,
+            'id', // Foreign key on Pos table
+            'id', // Foreign key on Invoice table
+            'pos_sale_id', // Local key on PosItem table
+            'invoice_id' // Local key on Pos table
+        );
+    }
 }

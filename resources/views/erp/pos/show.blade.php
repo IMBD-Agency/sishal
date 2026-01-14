@@ -261,7 +261,7 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th class="border-0 fw-bold">Product</th>
-                                            <th class="border-0 fw-bold">Variation / SKU</th>
+                                            <th class="border-0 fw-bold">Variation / Style No</th>
                                             <th class="border-0 fw-bold text-center">Qty</th>
                                             <th class="border-0 fw-bold text-end">Unit Price</th>
                                             <th class="border-0 fw-bold text-end">Total</th>
@@ -274,7 +274,7 @@
                                                 <td class="border-0 py-3">
                                                     <div class="fw-medium">{{ $item->product->name ?? '-' }}</div>
                                                     @if($item->product && $item->product->sku)
-                                                        <div class="text-muted small">Base SKU: {{ $item->product->sku }}</div>
+                                                        <div class="text-muted small">Base Style No: {{ $item->product->sku }}</div>
                                                     @endif
                                                 </td>
                                                 <td class="border-0 py-3">
@@ -288,7 +288,7 @@
                                                     @endphp
                                                     @if($item->variation)
                                                         <div class="fw-medium">{{ $item->variation->name ?? 'Variation' }}</div>
-                                                        <div class="text-muted small">SKU: {{ $item->variation->sku ?? '-' }}</div>
+                                                        <div class="text-muted small">Style No: {{ $item->variation->sku ?? '-' }}</div>
                                                         @if($variationAttributes)
                                                             <div class="text-muted small">{{ $variationAttributes }}</div>
                                                         @endif

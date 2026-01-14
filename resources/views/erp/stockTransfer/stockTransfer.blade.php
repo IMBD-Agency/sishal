@@ -7,296 +7,281 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
 
-    <style>
-        .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
-        .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
-        .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
-        .bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); }
-        .bg-info-soft { background-color: rgba(13, 202, 240, 0.1); }
-        .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
-        
-        .transition-all { transition: all 0.2s ease-in-out; }
-        #transferTable tbody tr:hover { 
-            background-color: #f8faff !important;
-        }
-        
-        .form-select, .form-control { border-color: #f1f3f5; }
-        .form-select:focus, .form-control:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1); }
-        
-        .status-badge {
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            font-weight: 500;
-            border: 1px solid transparent;
-            cursor: pointer;
-        }
-        /* Quick Filter Styles */
-        .quick-filter-btn {
-            background-color: #fff;
-            color: #6c757d;
-            border: 1px solid #e9ecef;
-            padding: 0.4rem 1.25rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .quick-filter-btn:hover {
-            background-color: #f8f9fa;
-            color: #0d6efd;
-        }
-        .btn-check:checked + .quick-filter-btn {
-            background-color: #0d6efd !important;
-            color: #fff !important;
-            border-color: #0d6efd !important;
-            box-shadow: 0 4px 6px rgba(13, 110, 253, 0.15);
-        }
-    </style>
-
     <!-- Header Section -->
-    <div class="container-fluid px-4 py-3 bg-white border-bottom">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-2">
-                        <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Stock Transfer</li>
-                    </ol>
-                </nav>
-                <h2 class="fw-bold mb-0">Stock Transfer</h2>
-                <p class="text-muted mb-0">Manage and track inventory movements across all locations.</p>
-            </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-primary px-4 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#stockTransferModal">
-                    <i class="fas fa-plus-circle me-2"></i>Make Transfer
-                </button>
+    <div class="container-fluid px-4 py-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">Transfer Lists</h5>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-success btn-sm px-3">
+                        <i class="fas fa-file-excel me-1"></i>Export Excel
+                    </a>
+                    <a href="{{ route('stocktransfer.create') }}" class="btn btn-primary btn-sm px-3">
+                        <i class="fas fa-plus me-1"></i>New Transfer
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
 
     <div class="container-fluid px-4 py-4">
         @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
-                <i class="fas fa-check-circle me-2"></i><strong>Success!</strong> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+            <div class="alert alert-success border-0 shadow-sm mb-4">{{ session('success') }}</div>
         @endif
 
         @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i><strong>Error!</strong> {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+            <div class="alert alert-danger border-0 shadow-sm mb-4">{{ session('error') }}</div>
         @endif
 
         <!-- Filters Section -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body p-4">
-                <form method="GET" action="" id="filterForm" class="row g-3">
-                    <div class="col-lg-3 col-md-6">
-                        <label class="form-label fw-semibold text-muted small text-uppercase">Search Product/Variation</label>
-                        <div class="input-group border rounded-3 overflow-hidden">
-                            <span class="input-group-text bg-white border-0"><i class="fas fa-search text-primary"></i></span>
-                            <input type="text" name="search" class="form-control border-0 px-2" placeholder="Product name, variation, ID..." value="{{ $filters['search'] ?? '' }}">
-                        </div>
+                <!-- Report Type Tabs -->
+                <div class="mb-3">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="report_type" id="daily" value="daily" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="daily">Daily Reports</label>
+                        
+                        <input type="radio" class="btn-check" name="report_type" id="monthly" value="monthly">
+                        <label class="btn btn-outline-primary btn-sm" for="monthly">Monthly Reports</label>
+                        
+                        <input type="radio" class="btn-check" name="report_type" id="yearly" value="yearly">
+                        <label class="btn btn-outline-primary btn-sm" for="yearly">Yearly Reports</label>
                     </div>
+                </div>
 
-                    <div class="col-lg-2 col-md-6">
-                        <label class="form-label fw-semibold text-muted small text-uppercase">From Location</label>
-                        <select class="form-select border rounded-3" name="from_branch_id">
-                            <option value="">All Locations</option>
-                            <optgroup label="Branches">
+                <form method="GET" action="" id="filterForm">
+                    <div class="row g-3">
+                        <!-- Month -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Month</label>
+                            <select name="month" class="form-select">
+                                <option value="">Select Month</option>
+                                @for($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                @endfor
+                            </select>
+                        </div>
+
+                        <!-- Year -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Year</label>
+                            <select name="year" class="form-select">
+                                <option value="">Select Year</option>
+                                @for($y = date('Y'); $y >= date('Y') - 5; $y--)
+                                    <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
+
+                        <!-- Receiver Outlet -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Receiver Outlet</label>
+                            <select name="to_branch_id" class="form-select">
+                                <option value="">All Outlet</option>
                                 @foreach ($branches as $branch)
-                                    <option value="branch_{{ $branch->id }}" {{ ($filters['from_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['from_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    <option value="branch_{{ $branch->id }}" {{ request('to_branch_id') == 'branch_'.$branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                                 @endforeach
-                            </optgroup>
-                            <optgroup label="Warehouses">
                                 @foreach ($warehouses as $warehouse)
-                                    <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['from_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['from_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                    <option value="warehouse_{{ $warehouse->id }}" {{ request('to_branch_id') == 'warehouse_'.$warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                 @endforeach
-                            </optgroup>
-                        </select>
-                    </div>
+                            </select>
+                        </div>
 
-                    <div class="col-lg-2 col-md-6">
-                        <label class="form-label fw-semibold text-muted small text-uppercase">To Location</label>
-                        <select class="form-select border rounded-3" name="to_branch_id">
-                            <option value="">All Locations</option>
-                            <optgroup label="Branches">
-                                @foreach ($branches as $branch)
-                                    <option value="branch_{{ $branch->id }}" {{ ($filters['to_branch_id'] ?? '') == ('branch_' . $branch->id) || ($filters['to_branch_id'] ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                        <!-- Invoice -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Invoice</label>
+                            <select name="invoice_id" class="form-select">
+                                <option value="">All Invoice</option>
+                                @foreach($transfers as $transfer)
+                                    <option value="{{ $transfer->id }}">#{{ $transfer->id }}</option>
                                 @endforeach
-                            </optgroup>
-                            <optgroup label="Warehouses">
-                                @foreach ($warehouses as $warehouse)
-                                    <option value="warehouse_{{ $warehouse->id }}" {{ ($filters['to_branch_id'] ?? '') == ('warehouse_' . $warehouse->id) || ($filters['to_warehouse_id'] ?? '') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Product -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Product</label>
+                            <select name="product_id" class="form-select">
+                                <option value="">All Product</option>
+                                @foreach($transfers->pluck('product')->unique('id') as $product)
+                                    @if($product)
+                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
+                                    @endif
                                 @endforeach
-                            </optgroup>
-                        </select>
-                    </div>
+                            </select>
+                        </div>
 
-                    <div class="col-lg-2 col-md-6">
-                        <label class="form-label fw-semibold text-muted small text-uppercase">Status</label>
-                        <select class="form-select border rounded-3" name="status">
-                            <option value="">All Status</option>
-                            @foreach($statuses as $status)
-                                <option value="{{ $status }}" {{ ($filters['status'] ?? '') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                        <!-- Style Number -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Style Number</label>
+                            <select name="style_number" class="form-select">
+                                <option value="">All Style Number</option>
+                            </select>
+                        </div>
 
-                    <div class="col-lg-3 col-md-12">
-                        <label class="form-label fw-semibold text-muted small text-uppercase">Transfer Date Range</label>
-                        <div class="input-group border rounded-3 overflow-hidden">
-                            <input type="date" name="date_from" class="form-control border-0 border-end" value="{{ $filters['date_from'] ?? '' }}" title="Start Date">
-                            <span class="input-group-text bg-light border-0 px-2 text-muted small">to</span>
-                            <input type="date" name="date_to" class="form-control border-0" value="{{ $filters['date_to'] ?? '' }}" title="End Date">
+                        <!-- Category -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Category</label>
+                            <select name="category_id" class="form-select">
+                                <option value="">All Category</option>
+                            </select>
+                        </div>
+
+                        <!-- Brand -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Brand</label>
+                            <select name="brand_id" class="form-select">
+                                <option value="">All Brand</option>
+                            </select>
+                        </div>
+
+                        <!-- Season -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Season</label>
+                            <select name="season_id" class="form-select">
+                                <option value="">All Season</option>
+                            </select>
+                        </div>
+
+                        <!-- Gender -->
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Gender</label>
+                            <select name="gender_id" class="form-select">
+                                <option value="">All Gender</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div class="col-12 d-flex justify-content-between align-items-center mt-2">
-                        <div class="d-flex align-items-center gap-3">
-                            <label class="fw-semibold text-muted small text-uppercase mb-0">Quick Filter:</label>
-                            <div class="btn-group shadow-sm" role="group">
-                                <input type="radio" class="btn-check" name="quick_filter" id="filter_all" value="" {{ !($filters['quick_filter'] ?? '') ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                <label class="btn quick-filter-btn" for="filter_all">All</label>
-
-                                <input type="radio" class="btn-check" name="quick_filter" id="filter_today" value="today" {{ ($filters['quick_filter'] ?? '') == 'today' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                <label class="btn quick-filter-btn" for="filter_today">Today</label>
-
-                                <input type="radio" class="btn-check" name="quick_filter" id="filter_monthly" value="monthly" {{ ($filters['quick_filter'] ?? '') == 'monthly' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                <label class="btn quick-filter-btn" for="filter_monthly">Monthly</label>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <a href="{{ route('stocktransfer.list') }}" class="btn btn-light border px-4 rounded-3 text-muted">
-                                <i class="fas fa-undo me-2"></i>Reset
-                            </a>
-                            <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
-                                <i class="fas fa-filter me-2"></i>Apply Filters
-                            </button>
-                        </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-search me-2"></i>Search
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
+        <!-- Export Buttons -->
+        <div class="mb-3">
+            <div class="btn-group" role="group">
+                <button class="btn btn-dark btn-sm px-3">CSV</button>
+                <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-dark btn-sm px-3">Excel</a>
+                <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-dark btn-sm px-3">PDF</a>
+                <a href="{{ route('stocktransfer.export.pdf', array_merge(request()->all(), ['action' => 'print'])) }}" target="_blank" class="btn btn-dark btn-sm px-3">Print</a>
+            </div>
+            <input type="text" id="tableSearch" class="form-control form-control-sm d-inline-block ms-2" style="width: 200px;" placeholder="Search...">
+        </div>
+
         <!-- Stock Transfer Listing Table -->
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-4 px-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold mb-1">Transfer History</h5>
-                        <p class="text-muted small mb-0">Overview of all stock movements and their current status.</p>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="btn-group shadow-sm">
-                            <a href="{{ route('stocktransfer.export.pdf', array_merge(request()->all(), ['action' => 'print'])) }}" target="_blank" class="btn btn-sm btn-light border px-3 fw-medium">
-                                <i class="fas fa-print me-1"></i>Print
-                            </a>
-                            <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-sm btn-light border px-3 fw-medium text-danger">
-                                <i class="fas fa-file-pdf me-1"></i>PDF
-                            </a>
-                            <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-sm btn-light border px-3 fw-medium text-success">
-                                <i class="fas fa-file-excel me-1"></i>Excel
-                            </a>
-                        </div>
-                        @if($transfers->total() > 0)
-                            <div class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill">
-                                Total: {{ $transfers->total() }} Records
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0" id="transferTable">
-                        <thead class="bg-light text-muted small text-uppercase fw-bold">
-                            <tr>
-                                <th class="ps-4 border-0 py-3">Product Information</th>
-                                <th class="border-0 py-3">Source & Destination</th>
-                                <th class="border-0 py-3 text-center">Quantity</th>
-                                <th class="border-0 py-3 text-center">Status</th>
-                                <th class="border-0 py-3">Audit Log</th>
-                                <th class="pe-4 border-0 py-3 text-end">Actions</th>
+                        <thead>
+                            <tr style="background-color: #2A5341; color: white; text-transform: uppercase; font-size: 0.8rem; font-weight: 600;">
+                                <th class="ps-3 py-3 border-0 rounded-start">Serial No</th>
+                                <th class="py-3 border-0">Invoice</th>
+                                <th class="py-3 border-0">Date</th>
+                                <th class="py-3 border-0">Outlet (From)</th>
+                                <th class="py-3 border-0">Outlet (To)</th>
+                                <th class="py-3 border-0">Transferred by</th>
+                                <th class="py-3 border-0">Category</th>
+                                <th class="py-3 border-0">Brand</th>
+                                <th class="py-3 border-0">Season</th>
+                                <th class="py-3 border-0">Gender</th>
+                                <th class="py-3 border-0">Product Name</th>
+                                <th class="py-3 border-0">Style Number</th>
+                                <th class="py-3 border-0">Color</th>
+                                <th class="py-3 border-0">Size</th>
+                                <th class="py-3 border-0">Qty</th>
+                                <th class="py-3 border-0">Total Qty</th>
+                                <th class="py-3 border-0">Amount</th>
+                                <th class="py-3 border-0">Paid</th>
+                                <th class="py-3 border-0">Due</th>
+                                <th class="text-center pe-3 py-3 border-0 rounded-end">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse ($transfers as $transfer)
-                                <tr class="transition-all">
-                                    <td class="ps-4">
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-sm me-3 rounded-3 bg-light text-primary d-flex align-items-center justify-content-center">
-                                                <i class="fas fa-box"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold text-dark">{{ $transfer->product->name ?? '-' }}</div>
-                                                @if($transfer->variation_id && $transfer->variation)
-                                                    <small class="text-primary fw-medium">{{ $transfer->variation->name ?? 'Variation #' . $transfer->variation_id }}</small>
-                                                @else
-                                                    <small class="text-muted small">Standard Product</small>
-                                                @endif
-                                            </div>
-                                        </div>
+                            @forelse ($transfers as $index => $transfer)
+                                <tr>
+                                    <td class="ps-3 small">{{ $transfers->firstItem() + $index }}</td>
+                                    <td class="small fw-bold" style="color: #e83e8c;">ST-{{ str_pad($transfer->id, 6, '0', STR_PAD_LEFT) }}</td>
+                                    <td class="small">{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}</td>
+                                    <td class="small">
+                                        @if($transfer->from_type === 'branch')
+                                            {{ $transfer->fromBranch->name ?? '-' }}
+                                        @else
+                                            {{ $transfer->fromWarehouse->name ?? '-' }}
+                                        @endif
                                     </td>
-                                    <td>
-                                        <div class="small mb-1">
-                                            <span class="text-muted me-2">From:</span>
-                                            <span class="fw-medium text-dark">
-                                                @if($transfer->from_type === 'branch')
-                                                    <i class="fas fa-store me-1 x-small text-muted"></i> {{ $transfer->fromBranch->name ?? '-' }}
-                                                @else
-                                                    <i class="fas fa-warehouse me-1 x-small text-muted"></i> {{ $transfer->fromWarehouse->name ?? '-' }}
-                                                @endif
-                                            </span>
-                                        </div>
-                                        <div class="small">
-                                            <span class="text-muted me-3">To:</span>
-                                            <span class="fw-medium text-dark">
-                                                @if($transfer->to_type === 'branch')
-                                                    <i class="fas fa-store me-1 x-small text-muted"></i> {{ $transfer->toBranch->name ?? '-' }}
-                                                @else
-                                                    <i class="fas fa-warehouse me-1 x-small text-muted"></i> {{ $transfer->toWarehouse->name ?? '-' }}
-                                                @endif
-                                            </span>
-                                        </div>
+                                    <td class="small">
+                                        @if($transfer->to_type === 'branch')
+                                            {{ $transfer->toBranch->name ?? '-' }}
+                                        @else
+                                            {{ $transfer->toWarehouse->name ?? '-' }}
+                                        @endif
                                     </td>
-                                    <td class="text-center">
-                                        <span class="fw-bold text-dark fs-6">{{ $transfer->quantity }}</span>
+                                    <td class="small">{{ @$transfer->requestedPerson->name ?? '-' }}</td>
+                                    <td class="small">{{ $transfer->product->category->name ?? '-' }}</td>
+                                    <td class="small">{{ $transfer->product->brand->name ?? '-' }}</td>
+                                    <td class="small">{{ $transfer->product->season->name ?? '-' }}</td>
+                                    <td class="small">{{ $transfer->product->gender->name ?? '-' }}</td>
+                                    <td class="small fw-bold">{{ $transfer->product->name ?? '-' }}</td>
+                                    <td class="small" style="color: #e83e8c;">{{ $transfer->product->style_number ?? '-' }}</td>
+                                    <td class="small">
+                                        @if($transfer->variation && $transfer->variation->combinations)
+                                            @php
+                                                $color = null;
+                                                foreach($transfer->variation->combinations as $combo) {
+                                                    $attrName = strtolower($combo->attribute->name ?? '');
+                                                    if(in_array($attrName, ['color', 'colour', 'colors'])) {
+                                                        $color = $combo->attributeValue->value ?? null;
+                                                        break;
+                                                    }
+                                                }
+                                            @endphp
+                                            {{ $color ?? '-' }}
+                                        @else
+                                            -
+                                        @endif
                                     </td>
-                                    <td class="text-center">
-                                        @php
-                                            $statusClass = [
-                                                'pending' => 'bg-warning-soft text-warning border-warning',
-                                                'approved' => 'bg-info-soft text-info border-info',
-                                                'shipped' => 'bg-primary-soft text-primary border-primary',
-                                                'delivered' => 'bg-success-soft text-success border-success',
-                                                'rejected' => 'bg-danger-soft text-danger border-danger',
-                                            ][$transfer->status] ?? 'bg-secondary-soft text-secondary border-secondary';
-                                        @endphp
-                                        <span class="status-badge {{ $statusClass }}" data-transfer-id="{{ $transfer->id }}" data-current-status="{{ $transfer->status }}">
-                                            <i class="fas fa-circle me-1 x-small" style="font-size: 0.5rem;"></i> {{ ucfirst($transfer->status) }}
-                                        </span>
+                                    <td class="small">
+                                        @if($transfer->variation && $transfer->variation->combinations)
+                                            @php
+                                                $size = null;
+                                                foreach($transfer->variation->combinations as $combo) {
+                                                    $attrName = strtolower($combo->attribute->name ?? '');
+                                                    if(in_array($attrName, ['size', 'sizes'])) {
+                                                        $size = $combo->attributeValue->value ?? null;
+                                                        break;
+                                                    }
+                                                }
+                                            @endphp
+                                            {{ $size ?? '-' }}
+                                        @else
+                                            -
+                                        @endif
                                     </td>
-                                    <td>
-                                        <div class="small text-muted mb-1">
-                                            <i class="far fa-user me-1 x-small"></i> {{@$transfer->requestedPerson->first_name}} {{ @$transfer->requestedPerson->last_name }}
-                                        </div>
-                                        <div class="small text-muted">
-                                            <i class="far fa-clock me-1 x-small"></i> {{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d M, H:i') : '-' }}
-                                        </div>
-                                    </td>
-                                    <td class="pe-4 text-end">
-                                        <div class="d-flex justify-content-end gap-2">
-                                            <a href="{{ route('stocktransfer.show',$transfer->id) }}" class="btn btn-sm btn-light border-0 text-primary" title="View Details">
-                                                <i class="fas fa-eye"></i>
+                                    <td class="small fw-bold">{{ $transfer->quantity }}</td>
+                                    <td class="small">{{ $transfer->quantity }}</td>
+                                    <td class="small">0.00</td>
+                                    <td class="small">0.00</td>
+                                    <td class="small">0.00</td>
+                                    <td class="pe-3">
+                                        <div class="d-flex gap-1 justify-content-end">
+                                            <a href="{{ route('stocktransfer.show',$transfer->id) }}" 
+                                               class="btn btn-sm p-0 d-flex align-items-center justify-content-center border bg-white" 
+                                               style="width: 26px; height: 26px; color: #0dcaf0;" title="View">
+                                                <i class="fas fa-eye fa-xs"></i>
                                             </a>
                                             @if(in_array($transfer->status, ['pending', 'rejected']))
-                                                <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-light border-0 text-danger" title="Delete">
-                                                        <i class="fas fa-trash-alt"></i>
+                                                <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" 
+                                                            class="btn btn-sm p-0 d-flex align-items-center justify-content-center border bg-white" 
+                                                            style="width: 26px; height: 26px; color: #dc3545;" 
+                                                            onclick="return confirm('Are you sure?')" title="Delete">
+                                                        <i class="fas fa-trash fa-xs"></i>
                                                     </button>
                                                 </form>
                                             @endif
@@ -305,26 +290,37 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center py-5">
-                                        <div class="py-4">
-                                            <i class="fas fa-exchange-alt fa-3x text-light mb-3"></i>
-                                            <h6 class="text-muted">No stock transfers found</h6>
-                                            <a href="{{ route('stocktransfer.list') }}" class="btn btn-sm btn-outline-primary mt-2">Clear filters</a>
-                                        </div>
+                                    <td colspan="20" class="text-center py-5 text-muted">
+                                        <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                                        <p>No data available in table</p>
                                     </td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
-            </div>
-            <div class="card-footer bg-white border-0 py-3 px-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted small">
-                        Showing <span class="fw-bold text-dark">{{ $transfers->firstItem() ?? 0 }}</span> to <span class="fw-bold text-dark">{{ $transfers->lastItem() ?? 0 }}</span> of <span class="fw-bold text-dark">{{ $transfers->total() }}</span> transfers
-                    </span>
-                    {{ $transfers->links('vendor.pagination.bootstrap-5') }}
+
+                @if($transfers->hasPages())
+                <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
+                    <div class="small text-muted">
+                        Showing {{ $transfers->firstItem() ?: 0 }} to {{ $transfers->lastItem() ?: 0 }} of {{ $transfers->total() }} entries
+                    </div>
+                    <div>
+                        {{ $transfers->links('vendor.pagination.bootstrap-5') }}
+                    </div>
                 </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- Total Summary -->
+        <div class="mt-3 text-end">
+            <div class="d-inline-block bg-white border rounded px-4 py-2 shadow-sm">
+                <span class="fw-bold">Total Quantity:</span>
+                <span class="text-success fw-bold ms-2">{{ $transfers->sum('quantity') }}</span>
+                <span class="mx-3">|</span>
+                <span class="fw-bold">Total Amount:</span>
+                <span class="text-success fw-bold ms-2">0.00</span>
             </div>
         </div>
 
@@ -472,6 +468,14 @@
                 document.getElementsByName('date_to')[0].value = '';
                 document.getElementById('filterForm').submit();
             }
+
+            // Table search functionality
+            $('#tableSearch').on('keyup', function() {
+                var value = $(this).val().toLowerCase();
+                $('#transferTable tbody tr').filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                });
+            });
 
             document.addEventListener('DOMContentLoaded', function () {
                 // Function to clean up stuck modal backdrop (only called after modal is closed)

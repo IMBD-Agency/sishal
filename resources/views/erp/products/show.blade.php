@@ -25,11 +25,19 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h2 class="fw-bold mb-1">{{ $product->name ?? 'N/A' }}</h2>
-                        <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex flex-wrap align-items-center gap-3">
                             <span class="badge bg-success fs-6 px-3 py-2">{{ $product->status == 'active' ? 'Active' : 'Inactive' }}</span>
-                            <span class="text-muted">SKU: {{ $product->sku ?? 'N/A' }}</span>
-                            <span class="text-muted">•</span>
-                            <span class="text-muted">{{ $product->category->name ?? 'N/A' }}</span>
+                            @if($product->brand)
+                                <span class="badge bg-primary fs-6 px-3 py-2"><i class="fas fa-tag me-1"></i>{{ $product->brand->name }}</span>
+                            @endif
+                            <span class="text-muted">Style No: {{ $product->sku ?? 'N/A' }}</span>
+                            @if($product->style_number)
+                                <span class="text-muted">• Internal Ref: {{ $product->style_number }}</span>
+                            @endif
+                            <span class="text-muted">• Category: {{ $product->category->name ?? 'N/A' }}</span>
+                            @if($product->unit)
+                                <span class="text-muted">• Unit: {{ $product->unit->name }}</span>
+                            @endif
                         </div>
                     </div>
                     <div class="dropdown">
@@ -105,9 +113,38 @@
 
                                 <hr class="my-4">
                                 
+                                <div class="row g-3">
+                                    @if($product->season)
+                                    <div class="col-sm-6">
+                                        <h6 class="fw-bold mb-1 small text-uppercase text-muted">Season</h6>
+                                        <p class="mb-0">{{ $product->season->name }}</p>
+                                    </div>
+                                    @endif
+                                    @if($product->gender)
+                                    <div class="col-sm-6">
+                                        <h6 class="fw-bold mb-1 small text-uppercase text-muted">Gender</h6>
+                                        <p class="mb-0">{{ $product->gender->name }}</p>
+                                    </div>
+                                    @endif
+                                    @if($product->wholesale_price)
+                                    <div class="col-sm-6">
+                                        <h6 class="fw-bold mb-1 small text-uppercase text-muted">Wholesale Price</h6>
+                                        <p class="mb-0">{{ $product->wholesale_price }}৳</p>
+                                    </div>
+                                    @endif
+                                    @if($product->alert_quantity)
+                                    <div class="col-sm-6">
+                                        <h6 class="fw-bold mb-1 small text-uppercase text-muted">Alert Quantity</h6>
+                                        <p class="mb-0">{{ $product->alert_quantity }} units</p>
+                                    </div>
+                                    @endif
+                                </div>
+
+                                <hr class="my-4">
+                                
                                 <div>
                                     <h6 class="fw-bold mb-2">Short Description</h6>
-                                    <p class="text-muted mb-0">{{ $product->short_desc ?? 'N/A' }}</p>
+                                    <p class="text-muted mb-0">{!! $product->short_desc ?? 'N/A' !!}</p>
                                 </div>
                             </div>
                         </div>

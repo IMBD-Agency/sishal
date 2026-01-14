@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'free_delivery', 'show_in_ecommerce'
+        'name', 'slug', 'type', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'alert_quantity', 'free_delivery', 'show_in_ecommerce'
     ];
 
     protected $casts = [
@@ -17,8 +17,10 @@ class Product extends Model
         'free_delivery' => 'boolean',
         'show_in_ecommerce' => 'boolean',
         'price' => 'decimal:2',
+        'wholesale_price' => 'decimal:2',
         'cost' => 'decimal:2',
         'discount' => 'decimal:2',
+        'alert_quantity' => 'integer',
     ];
 
     public function galleries()
@@ -29,6 +31,26 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(ProductServiceCategory::class);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function season()
+    {
+        return $this->belongsTo(Season::class);
+    }
+
+    public function gender()
+    {
+        return $this->belongsTo(Gender::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public function branchStock()
@@ -331,6 +353,22 @@ class Product extends Model
     public function getOriginalPriceAttribute()
     {
         return $this->price;
+    }
+
+    /**
+     * Get the Style No (aliased from sku)
+     */
+    public function getStyleNoAttribute()
+    {
+        return $this->sku;
+    }
+
+    /**
+     * Get the Internal Reference (aliased from style_number)
+     */
+    public function getInternalRefAttribute()
+    {
+        return $this->style_number;
     }
 
 }

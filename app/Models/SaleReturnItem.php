@@ -26,4 +26,9 @@ class SaleReturnItem extends Model
     {
         return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
     }
+
+    public function saleReturn()
+    {
+        return $this->belongsTo(SaleReturn::class, 'sale_return_id');
+    }
 }

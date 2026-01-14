@@ -394,14 +394,14 @@
                                                 <div>
                                                     <div class="fw-semibold">{{ @$item->product->name ?? '-' }}</div>
                                                     @if($item->variation)
-                                                        <div class="small text-muted">SKU: {{ $item->variation->sku ?? '-' }}</div>
+                                                        <div class="small text-muted">Style No: {{ $item->variation->sku ?? '-' }}</div>
                                                         @if($item->variation->name)
                                                             <div class="small text-muted mt-1">
                                                                 <span class="badge bg-info-subtle text-info">Variation: {{ $item->variation->name }}</span>
                                                             </div>
                                                         @endif
                                                     @else
-                                                        <div class="small text-muted">SKU: {{ @$item->product->sku ?? '-' }}</div>
+                                                        <div class="small text-muted">Style No: {{ @$item->product->sku ?? '-' }}</div>
                                                     @endif
                                                 </div>
                                                 <span class="badge bg-primary flex-shrink-0">Qty: {{ $item->quantity }}</span>
@@ -450,7 +450,7 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th class="border-0 fw-bold">Product</th>
-                                            <th class="border-0 fw-bold">SKU</th>
+                                            <th class="border-0 fw-bold">Style No</th>
                                             <th class="border-0 fw-bold text-center">Qty</th>
                                             <th class="border-0 fw-bold text-end">Unit Price</th>
                                             <th class="border-0 fw-bold text-end">Total</th>

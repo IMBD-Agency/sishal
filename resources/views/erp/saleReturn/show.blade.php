@@ -148,7 +148,7 @@
                                         @if($item->variation)
                                             <div class="small text-muted"><i class="fas fa-tags me-1"></i> {{ $item->variation->name }}</div>
                                         @endif
-                                        <div class="small mt-1 text-primary fw-semibold">SKU: {{ $item->product->sku ?? 'N/A' }}</div>
+                                        <div class="small mt-1 text-primary fw-semibold">Style No: {{ $item->product->sku ?? 'N/A' }}</div>
                                     </div>
                                     <div class="col-md-2 text-center">
                                         <div class="info-label">Quantity</div>
