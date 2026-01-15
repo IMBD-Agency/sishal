@@ -29,12 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground();
 
-        // Prune expired database cache entries daily to prevent 3.5GB+ bloat
-        $schedule->call(function () {
-            \Illuminate\Support\Facades\DB::table('cache')
-                ->where('expiration', '<', now()->getTimestamp())
-                ->delete();
-        })->daily();
+        // Prune expired database cache entries to prevent bloat
+        $schedule->command('cache:prune')->hourly();
     })->create();
 
 

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 use App\Models\AdditionalPage;
 use App\Models\ProductServiceCategory;
 
+use Illuminate\Support\Facades\DB;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -25,6 +27,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Garbage Collection for Database Cache (For servers without Cron)
+        // 2% chance to run cleanup on any request
+        if (random_int(1, 100) <= 2) {
+            try {
+                DB::table('cache')
+                    ->where('expiration', '<', now()->getTimestamp())
+                    ->delete();
+            } catch (\Exception $e) {
+                // Fail silently if table doesn't exist or DB is busy
+            }
+        }
+
         Schema::defaultStringLength(191);
         $generalSettings = GeneralSetting::first() ?? new GeneralSetting([
             'site_title' => 'Your Store',
