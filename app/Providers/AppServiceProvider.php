@@ -38,12 +38,12 @@ class AppServiceProvider extends ServiceProvider
                 // Fail silently if table doesn't exist or DB is busy
             }
         }
-
+        
         Schema::defaultStringLength(191);
         $generalSettings = GeneralSetting::first() ?? new GeneralSetting([
             'site_title' => 'Your Store',
             'site_description' => 'Welcome to our online store. Find the best products at great prices.',
-            'site_keywords' => 'online store, shopping, products, deals',
+            'site_keywords' => 'online store',
             'site_logo' => null,
             'site_favicon' => null
         ]);
