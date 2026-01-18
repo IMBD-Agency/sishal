@@ -925,16 +925,36 @@ class OrderController extends Controller
         return view('ecommerce.order-success', compact('orderId', 'pageTitle', 'order'));
     }
 
-    private function generateOrderNumber()
-    {
-        $lastOrder = Order::latest()->first();
-        if (!$lastOrder) {
-            return "SFO1";
-        }
-        // Use order ID directly - much shorter format
-        $orderId = $lastOrder->id + 1;
+    // private function generateOrderNumber()
+    // {
+    //     $lastOrder = Order::latest()->first();
+    //     if (!$lastOrder) {
+    //         return "SFO1";
+    //     }
+    //     // Use order ID directly - much shorter format
+    //     $orderId = $lastOrder->id + 1;
 
-        return "SFO{$orderId}";
+    //     return "SFO{$orderId}";
+    // }
+
+   private function generateOrderNumber()
+    {
+        $lastOrder = Order::latest('id')->first();
+        
+        if (!$lastOrder) {
+            return "SFO580";
+        }
+
+        // Extract numbers from 'SFO123' to decouple from DB ID
+        $lastNumber = (int) preg_replace('/[^0-9]/', '', $lastOrder->order_number);
+        $nextNumber = $lastNumber + 1;
+
+        // Ensure we start from 580 if current sequence is lower
+        if ($nextNumber < 580) {
+            $nextNumber = 580;
+        }
+
+        return "SFO{$nextNumber}";
     }
 
     /**
