@@ -478,7 +478,7 @@
                 if (variations && variations.length > 0) {
                     variationSelect.append('<option value="">Select Variation</option>');
                     variations.forEach(function(v) {
-                        variationSelect.append('<option value="' + v.id + '" data-base-price="' + v.base_price + '" data-discount="' + v.discount + '">' + v.display_name + '</option>');
+                        variationSelect.append('<option value="' + v.id + '" data-base-price="' + v.base_price + '" data-discount="' + v.discount + '" data-stock="' + v.stock + '">' + v.display_name + '</option>');
                     });
                     variationSelect.prop('disabled', false).prop('required', true);
                     row.find('.item-unit').val('');
@@ -491,7 +491,13 @@
                     $.get('/erp/products/' + productId + '/price', function(data) {
                         row.find('.item-unit').val(data.base_price);
                         row.find('.item-discount').val(data.discount);
+                        row.find('.item-qty').attr('data-stock', data.stock);
                         row.find('.item-qty').val(1);
+                        
+                        if (data.stock <= 0) {
+                            alert('Warning: This product is out of stock (Stock: 0)');
+                        }
+                        
                         recalcRow(row);
                     });
                 }
@@ -503,13 +509,34 @@
             var selectedOption = $(this).find('option:selected');
             var basePrice = selectedOption.data('base-price');
             var discount = selectedOption.data('discount') || 0;
+            var stock = selectedOption.data('stock') || 0;
             
             if (basePrice !== undefined) {
                 row.find('.item-unit').val(basePrice);
                 row.find('.item-discount').val(discount);
+                row.find('.item-qty').attr('data-stock', stock);
+                
+                if (stock <= 0) {
+                    alert('Warning: This variation is out of stock (Stock: 0)');
+                }
+                
                 if (!row.find('.item-qty').val()) {
                     row.find('.item-qty').val(1);
                 }
+                recalcRow(row);
+            }
+        });
+
+        // Stock check on quantity change
+        $(document).on('input', '.item-qty', function() {
+            var row = $(this).closest('tr');
+            var qty = parseFloat($(this).val()) || 0;
+            var stock = parseFloat($(this).attr('data-stock')) || 0;
+            var productName = row.find('.product-select option:selected').text() || 'Product';
+
+            if (qty > stock) {
+                alert('Warning: Quantity (' + qty + ') exceeds available stock (' + stock + ') for ' + productName);
+                $(this).val(stock);
                 recalcRow(row);
             }
         });

@@ -756,6 +756,7 @@ class ProductController extends Controller
             $basePrice = ($variation->price && $variation->price > 0) ? (float) $variation->price : (float) $product->price;
             $effectivePrice = (float) $variation->effective_price;
             $hasDiscount = $effectivePrice < $basePrice;
+            $stock = (float) $variation->total_stock;
             
             return [
                 'id' => $variation->id,
@@ -765,7 +766,8 @@ class ProductController extends Controller
                 'price' => $effectivePrice,
                 'base_price' => $basePrice,
                 'discount' => $hasDiscount ? ($basePrice - $effectivePrice) : 0,
-                'has_discount' => $hasDiscount
+                'has_discount' => $hasDiscount,
+                'stock' => $stock
             ];
         });
         
@@ -956,7 +958,8 @@ class ProductController extends Controller
             'price' => $effectivePrice,
             'base_price' => $basePrice,
             'discount' => $hasDiscount ? ($basePrice - $effectivePrice) : 0,
-            'has_discount' => $hasDiscount
+            'has_discount' => $hasDiscount,
+            'stock' => (float) $product->total_variation_stock
         ]);
     }
 
