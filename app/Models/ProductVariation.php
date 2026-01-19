@@ -88,19 +88,29 @@ class ProductVariation extends Model
     }
 
     /**
-     * Get the effective price considering discounts.
+     * Get the effective price considering discounts (including bulk discounts).
      */
     public function getEffectivePriceAttribute(): float
     {
         // Base price is variation price if set, otherwise product price
         $basePrice = ($this->price && $this->price > 0) ? (float) $this->price : (float) $this->product->price;
         
-        // Discount price is variation discount if set, otherwise product discount
-        $discountPrice = ($this->discount && $this->discount > 0) ? (float) $this->discount : (float) ($this->product->discount ?? 0);
+        // 1. Check for specific variation discount price first
+        if ($this->discount && $this->discount > 0 && $this->discount < $basePrice) {
+            return (float) $this->discount;
+        }
         
-        // If discount price is valid and less than base price, it's the effective price
-        if ($discountPrice > 0 && $discountPrice < $basePrice) {
-            return $discountPrice;
+        // 2. Check for product-level discount price
+        // Only apply if variation doesn't have its own price OR if product discount is less than variation price
+        $productDiscount = (float) ($this->product->discount ?? 0);
+        if ($productDiscount > 0 && $productDiscount < $basePrice) {
+            return $productDiscount;
+        }
+        
+        // 3. Check for bulk discounts applied to this product
+        $bulkDiscount = $this->product->getApplicableBulkDiscount();
+        if ($bulkDiscount) {
+            return $bulkDiscount->calculateDiscountedPrice($basePrice);
         }
         
         return $basePrice;
