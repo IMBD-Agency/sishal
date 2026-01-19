@@ -164,10 +164,12 @@
                                             <table class="table table-bordered align-middle" id="itemsTable">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th width="40%">Product</th>
-                                                        <th width="15%">Quantity</th>
-                                                        <th width="15%">Unit Price</th>
-                                                        <th width="15%">Total Price</th>
+                                                        <th width="25%">Product</th>
+                                                        <th width="15%">Variation</th>
+                                                        <th width="10%">Quantity</th>
+                                                        <th width="12%">Unit Price</th>
+                                                        <th width="10%">Discount</th>
+                                                        <th width="13%">Total Price</th>
                                                         <th width="15%">Action</th>
                                                     </tr>
                                                 </thead>
@@ -178,16 +180,23 @@
                                                             <select name="items[{{ $i }}][product_id]" class="form-select product-select" required style="width:100%">
                                                                 <option value="{{ $item->product_id }}" selected>{{ $item->product->name ?? '' }}</option>
                                                             </select>
-                                                            <input type="hidden" name="items[{{ $i }}][variation_id]" value="{{ $item->variation_id ?? '' }}">
-                                                            @if($item->variation)
-                                                                <small class="text-muted d-block mt-1">Variation: {{ $item->variation->name ?? $item->variation->sku }}</small>
-                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            <select name="items[{{ $i }}][variation_id]" class="form-select variation-select" style="width:100%" data-selected="{{ $item->variation_id }}">
+                                                                <option value="">No Variation</option>
+                                                                @if($item->variation)
+                                                                    <option value="{{ $item->variation_id }}" selected>{{ $item->variation->name ?? $item->variation->sku }}</option>
+                                                                @endif
+                                                            </select>
                                                         </td>
                                                         <td>
                                                             <input type="number" name="items[{{ $i }}][quantity]" class="form-control item-qty" value="{{ $item->quantity }}" required>
                                                         </td>
                                                         <td>
                                                             <input type="number" name="items[{{ $i }}][unit_price]" class="form-control item-unit" min="0" step="0.01" value="{{ $item->unit_price }}" required>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" name="items[{{ $i }}][discount]" class="form-control item-discount" min="0" step="0.01" value="{{ $item->discount ?? 0 }}">
                                                         </td>
                                                         <td>
                                                             <input type="number" name="items[{{ $i }}][total_price]" class="form-control item-total" min="0" step="0.01" value="{{ $item->total_price }}" readonly required>
@@ -220,7 +229,7 @@
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Discount Amount</label>
-                                                    <input type="number" name="discount" class="form-control" min="0" step="0.01" value="{{ old('discount', $invoice->discount_apply) }}" id="discountAmount">
+                                                    <input type="number" name="discount_apply" class="form-control" min="0" step="0.01" value="{{ old('discount_apply', $invoice->discount_apply) }}" id="discountAmount">
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
@@ -378,6 +387,16 @@
             }
             initProductSelect2('.product-select');
 
+            // Fix for select2 search focus
+            $(document).on('select2:open', function(e) {
+                window.setTimeout(function () {
+                    const searchField = document.querySelector('.select2-container--open .select2-search__field');
+                    if (searchField) {
+                        searchField.focus();
+                    }
+                }, 10);
+            });
+
             $('#addItemBtn').on('click', function () {
                 setTimeout(function () {
                     initProductSelect2('.product-select');
@@ -389,7 +408,8 @@
         function recalcRow(row) {
             const qty = parseFloat(row.find('.item-qty').val()) || 0;
             const unit = parseFloat(row.find('.item-unit').val()) || 0;
-            const total = qty * unit;
+            const discount = parseFloat(row.find('.item-discount').val()) || 0;
+            const total = (qty * unit) - discount;
             row.find('.item-total').val(total.toFixed(2));
             updateTotals();
         }
@@ -414,7 +434,7 @@
             $('#dueDisplay').text(due.toFixed(2) + '৳');
         }
 
-        $(document).on('input', '.item-qty, .item-unit', function () {
+        $(document).on('input', '.item-qty, .item-unit, .item-discount', function () {
             const row = $(this).closest('tr');
             recalcRow(row);
         });
@@ -422,12 +442,54 @@
         $(document).on('change', '.product-select', function() {
             var row = $(this).closest('tr');
             var productId = $(this).val();
-            if (!productId) return;
-            $.get('/erp/products/' + productId + '/price', function(data) {
-                row.find('.item-unit').val(data.price);
-                row.find('.item-qty').val(1);
-                recalcRow(row);
+            var variationSelect = row.find('.variation-select');
+            
+            if (!productId) {
+                variationSelect.html('<option value="">No Variation</option>').prop('disabled', true);
+                return;
+            }
+
+            // Check if product has variations
+            $.get('/erp/products/' + productId + '/variations-list', function(variations) {
+                variationSelect.empty();
+                
+                if (variations && variations.length > 0) {
+                    variationSelect.append('<option value="">Select Variation</option>');
+                    variations.forEach(function(v) {
+                        variationSelect.append('<option value="' + v.id + '" data-base-price="' + v.base_price + '" data-discount="' + v.discount + '">' + v.display_name + '</option>');
+                    });
+                    variationSelect.prop('disabled', false).prop('required', true);
+                    row.find('.item-unit').val('');
+                    row.find('.item-discount').val(0);
+                } else {
+                    variationSelect.append('<option value="">No Variation</option>');
+                    variationSelect.prop('disabled', true).prop('required', false);
+                    
+                    // Fetch basic product price
+                    $.get('/erp/products/' + productId + '/price', function(data) {
+                        row.find('.item-unit').val(data.base_price);
+                        row.find('.item-discount').val(data.discount);
+                        row.find('.item-qty').val(1);
+                        recalcRow(row);
+                    });
+                }
             });
+        });
+
+        $(document).on('change', '.variation-select', function() {
+            var row = $(this).closest('tr');
+            var selectedOption = $(this).find('option:selected');
+            var basePrice = selectedOption.data('base-price');
+            var discount = selectedOption.data('discount') || 0;
+            
+            if (basePrice !== undefined) {
+                row.find('.item-unit').val(basePrice);
+                row.find('.item-discount').val(discount);
+                if (!row.find('.item-qty').val()) {
+                    row.find('.item-qty').val(1);
+                }
+                recalcRow(row);
+            }
         });
 
         $(document).on('input', '#discountAmount', function () {
@@ -436,17 +498,37 @@
 
         $('#addItemBtn').on('click', function () {
             const row = $('#itemsTable tbody tr:first').clone();
+            
+            // Remove select2 initialization from cloned row
+            row.find('.select2-container').remove();
+            row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').show();
+            
             row.find('select, input').each(function () {
                 const name = $(this).attr('name');
                 if (name) {
                     const newName = name.replace(/\d+/, itemIndex);
                     $(this).attr('name', newName);
                 }
-                if ($(this).is('select')) $(this).val('');
-                else $(this).val('');
+                if ($(this).is('select')) {
+                    $(this).val('');
+                    if ($(this).hasClass('variation-select')) {
+                        $(this).prop('disabled', true).html('<option value="">No Variation</option>');
+                    }
+                }
+                else {
+                    if ($(this).hasClass('item-discount')) {
+                        $(this).val('0');
+                    } else {
+                        $(this).val('');
+                    }
+                }
             });
             row.find('.remove-item').prop('disabled', false);
             $('#itemsTable tbody').append(row);
+            
+            // Re-initialize Select2 for the new product-select
+            initProductSelect2(row.find('.product-select'));
+            
             itemIndex++;
             updateTotals();
         });
@@ -458,9 +540,38 @@
             }
         });
 
-        // Initialize totals on page load
+        // Initialize variations for existing items
+        async function initExistingVariations() {
+            const rows = $('#itemsTable tbody tr');
+            for (let i = 0; i < rows.length; i++) {
+                const row = $(rows[i]);
+                const productId = row.find('.product-select').val();
+                const variationSelect = row.find('.variation-select');
+                const selectedVariationId = variationSelect.data('selected');
+                
+                if (productId) {
+                    try {
+                        const variations = await $.get('/erp/products/' + productId + '/variations-list');
+                        if (variations && variations.length > 0) {
+                            variationSelect.empty();
+                            variationSelect.append('<option value="">Select Variation</option>');
+                            variations.forEach(function(v) {
+                                const selected = (v.id == selectedVariationId) ? 'selected' : '';
+                                variationSelect.append('<option value="' + v.id + '" data-base-price="' + v.base_price + '" data-discount="' + v.discount + '" ' + selected + '>' + v.display_name + '</option>');
+                            });
+                            variationSelect.prop('disabled', false).prop('required', true);
+                        }
+                    } catch (e) {
+                        console.error('Error fetching variations:', e);
+                    }
+                }
+            }
+        }
+
+        // Initialize totals and existing variations on page load
         $(document).ready(function () {
             updateTotals();
+            initExistingVariations();
         });
     </script>
     <!-- Quill Editor CDN -->

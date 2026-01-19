@@ -517,13 +517,63 @@ class PageController extends Controller
     public function search(Request $request)
     {
         $search = $request->search;
-        $products = Product::where('show_in_ecommerce', true)->where(function ($query) use ($search) {
+        $query = Product::where('show_in_ecommerce', true)->where(function ($query) use ($search) {
             $query->where('name', 'like', '%' . $search . '%')
                 ->orWhereHas('category', function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%');
                 });
-        })->paginate(20);
+        });
 
+        // Eager load relationships
+        $products = $query->with([
+            'category',
+            'reviews' => function ($q) {
+                $q->where('is_approved', true);
+            },
+            'branchStock',
+            'warehouseStock',
+            'variations' => function ($q) {
+                $q->where('status', 'active');
+            },
+            'variations.stocks'
+        ])->paginate(20)->appends(['search' => $search]);
+
+        // Pre-calculate ratings, reviews, and stock status
+        $userId = Auth::id();
+        $wishlistedIds = [];
+        if ($userId && $products->count() > 0) {
+            $wishlistedIds = Wishlist::where('user_id', $userId)
+                ->whereIn('product_id', $products->pluck('id'))
+                ->pluck('product_id')
+                ->toArray();
+        }
+
+        foreach ($products as $product) {
+            $product->is_wishlisted = in_array($product->id, $wishlistedIds);
+            $product->avg_rating = $product->reviews->avg('rating') ?? 0;
+            $product->total_reviews = $product->reviews->count();
+
+            // Stock check logic (copied from products method)
+            if ($product->has_variations) {
+                $product->has_stock = false;
+                if ($product->variations && $product->variations->isNotEmpty()) {
+                    foreach ($product->variations as $variation) {
+                        if ($variation->relationLoaded('stocks') && $variation->stocks) {
+                            $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                        } else {
+                            $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                        }
+                        if ($totalQuantity > 0) {
+                            $product->has_stock = true;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                $product->has_stock = $warehouseStock > 0;
+            }
+        }
 
         $pageTitle = 'Search Result';
 

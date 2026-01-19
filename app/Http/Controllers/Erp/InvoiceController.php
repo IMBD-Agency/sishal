@@ -108,6 +108,7 @@ class InvoiceController extends Controller
             'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
             'billing_address_1' => 'required|string',
             'billing_address_2' => 'nullable|string',
@@ -167,6 +168,7 @@ class InvoiceController extends Controller
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
+                    'discount' => $item['discount'] ?? 0,
                     'total_price' => $item['total_price'],
                 ]);
             }
@@ -235,6 +237,7 @@ class InvoiceController extends Controller
             'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
             'billing_address_1' => 'required|string',
             'billing_address_2' => 'nullable|string',
@@ -293,7 +296,8 @@ class InvoiceController extends Controller
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'total_price' => $item['unit_price'] * $item['quantity'],
+                    'discount' => $item['discount'] ?? 0,
+                    'total_price' => $item['total_price'],
                 ]);
             }
             // Update address

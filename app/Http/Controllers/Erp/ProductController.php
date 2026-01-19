@@ -754,20 +754,17 @@ class ProductController extends Controller
             // Price logic: If variation has price, use it; otherwise use product price
             // Then apply discount if exists (variation discount or product discount)
             $basePrice = ($variation->price && $variation->price > 0) ? (float) $variation->price : (float) $product->price;
-            
-            // Check for discount (variation discount first, then product discount)
-            $discount = ($variation->discount && $variation->discount > 0) ? (float) $variation->discount : ((float) ($product->discount ?? 0));
-            $hasDiscount = $discount > 0 && $discount < $basePrice;
-            $displayPrice = $hasDiscount ? $discount : $basePrice;
+            $effectivePrice = (float) $variation->effective_price;
+            $hasDiscount = $effectivePrice < $basePrice;
             
             return [
                 'id' => $variation->id,
                 'name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
                 'display_name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
                 'sku' => $variation->sku,
-                'price' => $displayPrice, // Final price with discount applied
-                'base_price' => $basePrice, // Base price before discount
-                'discount' => $discount,
+                'price' => $effectivePrice,
+                'base_price' => $basePrice,
+                'discount' => $hasDiscount ? ($basePrice - $effectivePrice) : 0,
                 'has_discount' => $hasDiscount
             ];
         });
@@ -950,15 +947,15 @@ class ProductController extends Controller
     public function getPrice($id)
     {
         $product = \App\Models\Product::findOrFail($id);
-        // Return price with discount logic (same as POS)
-        // If has discount, return discount price, otherwise return base price
-        $hasDiscount = $product->discount && $product->discount > 0 && $product->discount < $product->price;
-        $displayPrice = $hasDiscount ? $product->discount : $product->price;
+        
+        $basePrice = (float) $product->price;
+        $effectivePrice = (float) $product->effective_price;
+        $hasDiscount = $effectivePrice < $basePrice;
         
         return response()->json([
-            'price' => (float) $displayPrice,
-            'base_price' => (float) $product->price,
-            'discount' => (float) ($product->discount ?? 0),
+            'price' => $effectivePrice,
+            'base_price' => $basePrice,
+            'discount' => $hasDiscount ? ($basePrice - $effectivePrice) : 0,
             'has_discount' => $hasDiscount
         ]);
     }

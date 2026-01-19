@@ -12,6 +12,7 @@ class InvoiceItem extends Model
         'variation_id',
         'quantity',
         'unit_price',
+        'discount',
         'total_price'
     ];
 

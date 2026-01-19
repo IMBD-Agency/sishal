@@ -224,6 +224,7 @@
                                     <th class="border-0 px-4 py-3 text-muted fw-medium">Product</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium text-center">Qty</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium text-end">Unit Price</th>
+                                    <th class="border-0 px-4 py-3 text-muted fw-medium text-end">Discount</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium text-end">Total</th>
                                 </tr>
                             </thead>
@@ -244,6 +245,7 @@
                                             <span class="badge bg-light text-dark rounded-pill">{{ $item->quantity }}</span>
                                         </td>
                                         <td class="px-4 py-3 text-end">{{ number_format($item->unit_price, 2) }}৳</td>
+                                        <td class="px-4 py-3 text-end text-danger">{{ $item->discount > 0 ? '-' . number_format($item->discount, 2) . '৳' : '-' }}</td>
                                         <td class="px-4 py-3 text-end fw-semibold">{{ number_format($item->total_price, 2) }}৳
                                         </td>
                                     </tr>
