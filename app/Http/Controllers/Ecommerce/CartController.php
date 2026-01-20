@@ -407,7 +407,7 @@ class CartController extends Controller
     {
         $userId = Auth::check() ? Auth::user()->id : null;
         $sessionId = session()->getId();
-        $cartQuery = Cart::with('product')
+        $cartQuery = Cart::with(['product', 'variation'])
             ->when($userId, function ($q) use ($userId) {
                 $q->where('user_id', $userId);
             }, function ($q) use ($sessionId) {
@@ -491,19 +491,10 @@ class CartController extends Controller
             }
             // Calculate price with bulk discount and variation support
             $price = 0;
-            if ($item->variation_id) {
-                $variation = \App\Models\ProductVariation::find($item->variation_id);
-                if ($variation && $variation->price) {
-                    $price = $variation->price;
-                    $bulkDiscount = $product->getApplicableBulkDiscount();
-                    if ($bulkDiscount) {
-                        $price = $bulkDiscount->calculateDiscountedPrice($price);
-                    }
-                } else {
-                    $price = $product->effective_price;
-                }
+            if ($item->variation) {
+                $price = (float) $item->variation->effective_price;
             } else {
-                $price = $product->effective_price;
+                $price = (float) $product->effective_price;
             }
             
             $total = $price * $item->qty;

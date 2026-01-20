@@ -1276,16 +1276,7 @@ class OrderController extends Controller
         if (!$product) return 0;
 
         if ($cart->variation) {
-            // Use variation effective price
-            $price = (float) $cart->variation->effective_price;
-            
-            // Apply bulk discount to variation price (if no direct variation/product discount is set, or as stackable?)
-            // Following existing code logic which applied bulk discount to variations
-            $bulkDiscount = $product->getApplicableBulkDiscount();
-            if ($bulkDiscount) {
-                $price = (float) $bulkDiscount->calculateDiscountedPrice($price);
-            }
-            return $price;
+            return (float) $cart->variation->effective_price;
         }
 
         return (float) $product->effective_price;

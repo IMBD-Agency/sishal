@@ -256,12 +256,6 @@
 
                                             @php
                                                 $price = $cart->variation ? $cart->variation->effective_price : $cart->product->effective_price;
-                                                if ($cart->variation) {
-                                                    $bulkDiscount = $cart->product->getApplicableBulkDiscount();
-                                                    if ($bulkDiscount) {
-                                                        $price = $bulkDiscount->calculateDiscountedPrice($price);
-                                                    }
-                                                }
                                             @endphp
                                             <div class="order-item">
                                                 <img src="{{ asset(@$cart->product->image) }}"
@@ -297,7 +291,7 @@
                                     <div class="price-breakdown">
                                         <div class="price-row">
                                             <span>Subtotal</span>
-                                            <span>{{$cartTotal}}৳</span>
+                                            <span id="subtotalDisplay">{{ number_format($cartTotal, 2) }}৳</span>
                                         </div>
                                         <div class="price-row">
                                             <span>Shipping</span>
@@ -311,7 +305,7 @@
                                         </div>
                                         <div class="price-row">
                                             <span>Tax</span>
-                                            <span>{{ $cartTotal * $taxRate }}৳</span>
+                                            <span id="taxDisplay">{{ number_format($cartTotal * $taxRate, 2) }}৳</span>
                                         </div>
                                         <div class="price-row discount-row" id="couponDiscountRow" style="display: none;">
                                             <span>Coupon Discount</span>
@@ -1346,9 +1340,20 @@
             if (!summary) return;
             const freeDelivery = couponProvidesFreeDelivery || (isFreeDelivery !== null ? isFreeDelivery : hasProductFreeDelivery);
             const computedSummary = prepareSummaryWithCoupon(summary, freeDelivery);
-            const shippingElement = document.querySelector('#shippingDisplay') || document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
-            const totalElement = document.querySelector('#totalDisplay') || document.querySelector('.total-row span:last-child');
-            const buttonElement = document.querySelector('#placeOrderText') || document.querySelector('.btn-place-order');
+            
+            const subtotalElement = document.getElementById('subtotalDisplay');
+            const taxElement = document.getElementById('taxDisplay');
+            const shippingElement = document.getElementById('shippingDisplay') || document.querySelector('.price-breakdown .price-row:nth-child(2) span:last-child');
+            const totalElement = document.getElementById('totalDisplay');
+            const buttonElement = document.getElementById('placeOrderText') || document.querySelector('.btn-place-order');
+            
+            if (subtotalElement) {
+                subtotalElement.textContent = `${computedSummary.formatted_subtotal}৳`;
+            }
+            
+            if (taxElement) {
+                taxElement.textContent = `${computedSummary.formatted_tax}৳`;
+            }
             
             if (shippingElement) {
                 if (freeDelivery) {
@@ -1361,15 +1366,13 @@
             }
             
             if (totalElement) {
-                if (typeof totalElement === 'object' && totalElement.tagName) {
-                    totalElement.textContent = `${computedSummary.formatted_total}৳`;
-                }
+                totalElement.textContent = `${computedSummary.formatted_total}৳`;
             }
             
             if (buttonElement) {
-                if (typeof buttonElement === 'object' && buttonElement.tagName === 'SPAN') {
+                if (buttonElement.tagName === 'SPAN') {
                     buttonElement.textContent = `Place Order - ${computedSummary.formatted_total}৳`;
-                } else if (buttonElement) {
+                } else {
                     buttonElement.innerHTML = `<i class="fas fa-credit-card me-2"></i>Place Order - ${computedSummary.formatted_total}৳`;
                 }
             }
