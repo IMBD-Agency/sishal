@@ -9,6 +9,7 @@
         $gtmId = $general_settings->gtm_container_id ?? null;
     @endphp
 
+    {{-- 
     @if($gtmId)
         <!-- Google Tag Manager -->
         <script>
@@ -24,6 +25,39 @@
             })(window, document, 'script', 'dataLayer', '{{ $gtmId }}');</script>
         <!-- End Google Tag Manager -->
     @endif
+    --}}
+
+    <!-- Security Monitor: Detect Malicious Redirects -->
+    <script>
+        (function() {
+            const blockedDomain = 'ushort.observer';
+            
+            // Monitor for suspicious navigation
+            window.addEventListener('beforeunload', function(e) {
+                if (document.activeElement && document.activeElement.href && document.activeElement.href.includes(blockedDomain)) {
+                    console.error('CRITICAL: Malicious redirect detected to:', document.activeElement.href);
+                }
+            });
+
+            // Intercept dynamic script injections
+            const originalCreateElement = document.createElement;
+            document.createElement = function(tagName) {
+                const element = originalCreateElement.call(document, tagName);
+                if (tagName.toLowerCase() === 'script') {
+                    const originalSetAttribute = element.setAttribute;
+                    element.setAttribute = function(name, value) {
+                        if (name === 'src' && value.includes(blockedDomain)) {
+                            console.error('BLOCKED: Malicious script injection attempt from:', value);
+                            console.trace(); // This will show exactly where the malicious code is hidden
+                            return;
+                        }
+                        return originalSetAttribute.apply(this, arguments);
+                    };
+                }
+                return element;
+            };
+        })();
+    </script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
