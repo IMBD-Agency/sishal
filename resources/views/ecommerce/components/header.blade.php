@@ -9,7 +9,6 @@
         $gtmId = $general_settings->gtm_container_id ?? null;
     @endphp
 
-    {{-- 
     @if($gtmId)
         <!-- Google Tag Manager -->
         <script>
@@ -25,7 +24,6 @@
             })(window, document, 'script', 'dataLayer', '{{ $gtmId }}');</script>
         <!-- End Google Tag Manager -->
     @endif
-    --}}
 
     <!-- Global Security Shield: Layer 4 Protection -->
     <script>

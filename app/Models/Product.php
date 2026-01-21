@@ -333,4 +333,19 @@ class Product extends Model
         return $this->price;
     }
 
+    /**
+     * Clean HTML content from malicious tags like <script> and <meta refresh>
+     */
+    public function getCleanHtml($field)
+    {
+        $content = $this->{$field};
+        if (!$content) return '';
+        
+        // Remove specific malicious patterns found in the hack
+        $content = str_ireplace('<meta http-equiv="refresh"', '<!-- blocked meta -->', $content);
+        $content = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', "", $content);
+        
+        return $content;
+    }
+
 }

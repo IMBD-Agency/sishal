@@ -368,7 +368,6 @@
         </div>
     </div>
 
-    {{--
     @if(isset($order) && $order && ($general_settings->gtm_container_id ?? null))
         <script>
             window.dataLayer = window.dataLayer || [];
@@ -417,5 +416,4 @@
             }
         </script>
     @endif
-    --}}
 @endsection

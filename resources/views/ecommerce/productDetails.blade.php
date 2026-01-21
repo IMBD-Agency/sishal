@@ -3394,8 +3394,7 @@
 
                     @if (!empty($product->short_desc))
                     <div class="mt-2 mb-3 product-short-desc" style="color:#1f2937; font-weight: 600;">
-                        {{-- SECURITY TEST: Escaped to block malware --}}
-                        {{ strip_tags($product->short_desc) }}
+                        {!! $product->getCleanHtml('short_desc') !!}
                     </div>
                     @endif
 
@@ -3708,15 +3707,13 @@
 
             <div id="description" class="tab-content active">
                 <h3>Product Description</h3>
-                {{-- SECURITY TEST: Escaped to block malware --}}
-                {{ strip_tags($product->description) }}
+                {!! $product->getCleanHtml('description') !!}
             </div>
 
             <div id="features" class="tab-content" style="display:none;">
                 <h3>Product Features</h3>
                 @if($product->features)
-                    {{-- SECURITY TEST: Escaped to block malware --}}
-                    {{ strip_tags($product->features) }}
+                    {!! $product->getCleanHtml('features') !!}
                 @endif
             </div>
 
@@ -5125,7 +5122,6 @@
         </div>
     </div>
 
-{{--
 @if(isset($product) && $product && ($general_settings->gtm_container_id ?? null))
 <script>
     window.dataLayer = window.dataLayer || [];
@@ -5145,7 +5141,6 @@
     });
 </script>
 @endif
---}}
 
 @endsection
 
