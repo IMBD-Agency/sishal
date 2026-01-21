@@ -1,1 +1,1 @@
-Clean deployment verified on 2026-01-21. This file ensures Git tracks the build folder.
+Clean deployment verified on 2026-01-21. V2. This file ensures Git tracks the build folder and forces a sync.
