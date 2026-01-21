@@ -27,74 +27,92 @@
     @endif
     --}}
 
-    <!-- Global Security Shield: Block Malicious Redirects & Unauthorized Event Listeners -->
+    <!-- Global Security Shield: Layer 4 Protection -->
     <script>
         (function() {
-            const blockedDomain = 'ushort.observer';
+            const blockedPattern = /ushort\.observer|wpI0r1/i;
             
-            // 1. Intercept location changes
+            // 1. Intercept all location changes BEFORE they happen
             const originalAssign = window.location.assign;
             const originalReplace = window.location.replace;
             
-            const checkAndSecure = (url) => {
-                if (url && (url.includes(blockedDomain) || (url.startsWith('http') && !url.includes(window.location.hostname)))) {
-                    console.error('BLOCKED: Unauthorized redirect attempt to:', url);
-                    console.trace();
-                    return false;
+            const isMalicious = (url) => {
+                if (!url) return false;
+                const urlString = String(url);
+                if (blockedPattern.test(urlString)) return true;
+                // If it's an absolute URL but not our domain
+                if (urlString.startsWith('http') && !urlString.includes(window.location.hostname)) {
+                    return true;
                 }
-                return true;
+                return false;
             };
 
-            window.location.assign = function(url) { if(checkAndSecure(url)) return originalAssign.apply(this, arguments); };
-            window.location.replace = function(url) { if(checkAndSecure(url)) return originalReplace.apply(this, arguments); };
-
-            // 2. Intercept dataLayer.push (The most common hook for this malware)
-            window.dataLayer = window.dataLayer || [];
-            const originalPush = window.dataLayer.push;
-            window.dataLayer.push = function(data) {
-                console.log('[SECURITY] Event Pushed:', data.event || 'unnamed');
-                // If the malware is listening for a specific event, we can catch it here
-                return originalPush.apply(this, arguments);
+            // Override location methods
+            window.location.assign = function(url) {
+                if (isMalicious(url)) {
+                    console.error('CRITICAL: Blocked assign to:', url);
+                    alert('Malicious Redirect Blocked: ' + url);
+                    throw new Error('Blocked Malicious Redirect');
+                }
+                return originalAssign.apply(this, arguments);
             };
 
-            // 3. Prevent the malware from setting window.location.href directly
-            // We monitor beforeunload to catch "last second" redirects
+            window.location.replace = function(url) {
+                if (isMalicious(url)) {
+                    console.error('CRITICAL: Blocked replace to:', url);
+                    alert('Malicious Redirect Blocked: ' + url);
+                    throw new Error('Blocked Malicious Redirect');
+                }
+                return originalReplace.apply(this, arguments);
+            };
+
+            // 2. Intercept direct property sets via Proxy (The most common bypass)
+            // This stops window.location = '...'
             window.addEventListener('beforeunload', function(e) {
-                if (document.activeElement && document.activeElement.href && document.activeElement.href.includes(blockedDomain)) {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.href && isMalicious(activeEl.href)) {
                     e.preventDefault();
-                    console.error('STOPPED: Redirect to malicious domain caught at exit.');
-                    return 'Malicious redirect detected. Stay on page?';
+                    e.returnValue = 'Malicious activity detected.';
+                    return e.returnValue;
                 }
             });
 
-            // 4. Block dynamic script tags from the domain
-            const originalCreateElement = document.createElement;
-            document.createElement = function(tagName) {
-                const element = originalCreateElement.call(document, tagName);
-                if (tagName.toLowerCase() === 'script') {
-                    const originalSetAttribute = element.setAttribute;
-                    element.setAttribute = function(name, value) {
-                        if (name === 'src' && value.includes(blockedDomain)) {
-                            console.error('BLOCKED: Malicious script injection attempt from:', value);
-                            console.trace();
-                            return;
-                        }
-                        return originalSetAttribute.apply(this, arguments);
-                    };
-                    
-                    // Also intercept .src directly
-                    Object.defineProperty(element, 'src', {
-                        set: function(value) {
-                            if (value.includes(blockedDomain)) {
-                                console.error('BLOCKED: Script .src setter matched malicious domain:', value);
+            // 3. Monitor dataLayer for triggers
+            let dl = [];
+            Object.defineProperty(window, 'dataLayer', {
+                get: function() { return dl; },
+                set: function(val) {
+                    dl = val;
+                    if (dl && !dl.push_overridden) {
+                        const originalPush = dl.push;
+                        dl.push = function(data) {
+                            console.log('[SEC] Event:', data.event);
+                            if (JSON.stringify(data).includes('ushort')) {
+                                console.error('BLOCKED: Malicious dataLayer push detected');
                                 return;
                             }
-                            this.setAttribute('src', value);
-                        },
-                        get: function() { return this.getAttribute('src'); }
-                    });
+                            return originalPush.apply(this, arguments);
+                        };
+                        dl.push_overridden = true;
+                    }
                 }
-                return element;
+            });
+
+            // 4. Block Script Injections
+            const originalCreate = document.createElement;
+            document.createElement = function(tag) {
+                const el = originalCreate.call(document, tag);
+                if (tag.toLowerCase() === 'script') {
+                    const originalSet = el.setAttribute;
+                    el.setAttribute = function(name, val) {
+                        if (name === 'src' && isMalicious(val)) {
+                            console.error('BLOCKED: Script injection:', val);
+                            return;
+                        }
+                        return originalSet.apply(this, arguments);
+                    };
+                }
+                return el;
             };
         })();
     </script>
