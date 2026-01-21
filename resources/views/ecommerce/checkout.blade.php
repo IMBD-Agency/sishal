@@ -1840,6 +1840,7 @@
         }
     </script>
     
+    {{--
     @if(isset($carts) && $carts->count() > 0 && ($general_settings->gtm_container_id ?? null))
     <script>
         
@@ -1880,4 +1881,5 @@
         }
     </script>
     @endif
+    --}}
 @endsection

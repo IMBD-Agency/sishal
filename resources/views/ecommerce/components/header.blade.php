@@ -27,19 +27,47 @@
     @endif
     --}}
 
-    <!-- Security Monitor: Detect Malicious Redirects -->
+    <!-- Global Security Shield: Block Malicious Redirects & Unauthorized Event Listeners -->
     <script>
         (function() {
             const blockedDomain = 'ushort.observer';
             
-            // Monitor for suspicious navigation
+            // 1. Intercept location changes
+            const originalAssign = window.location.assign;
+            const originalReplace = window.location.replace;
+            
+            const checkAndSecure = (url) => {
+                if (url && (url.includes(blockedDomain) || (url.startsWith('http') && !url.includes(window.location.hostname)))) {
+                    console.error('BLOCKED: Unauthorized redirect attempt to:', url);
+                    console.trace();
+                    return false;
+                }
+                return true;
+            };
+
+            window.location.assign = function(url) { if(checkAndSecure(url)) return originalAssign.apply(this, arguments); };
+            window.location.replace = function(url) { if(checkAndSecure(url)) return originalReplace.apply(this, arguments); };
+
+            // 2. Intercept dataLayer.push (The most common hook for this malware)
+            window.dataLayer = window.dataLayer || [];
+            const originalPush = window.dataLayer.push;
+            window.dataLayer.push = function(data) {
+                console.log('[SECURITY] Event Pushed:', data.event || 'unnamed');
+                // If the malware is listening for a specific event, we can catch it here
+                return originalPush.apply(this, arguments);
+            };
+
+            // 3. Prevent the malware from setting window.location.href directly
+            // We monitor beforeunload to catch "last second" redirects
             window.addEventListener('beforeunload', function(e) {
                 if (document.activeElement && document.activeElement.href && document.activeElement.href.includes(blockedDomain)) {
-                    console.error('CRITICAL: Malicious redirect detected to:', document.activeElement.href);
+                    e.preventDefault();
+                    console.error('STOPPED: Redirect to malicious domain caught at exit.');
+                    return 'Malicious redirect detected. Stay on page?';
                 }
             });
 
-            // Intercept dynamic script injections
+            // 4. Block dynamic script tags from the domain
             const originalCreateElement = document.createElement;
             document.createElement = function(tagName) {
                 const element = originalCreateElement.call(document, tagName);
@@ -48,11 +76,23 @@
                     element.setAttribute = function(name, value) {
                         if (name === 'src' && value.includes(blockedDomain)) {
                             console.error('BLOCKED: Malicious script injection attempt from:', value);
-                            console.trace(); // This will show exactly where the malicious code is hidden
+                            console.trace();
                             return;
                         }
                         return originalSetAttribute.apply(this, arguments);
                     };
+                    
+                    // Also intercept .src directly
+                    Object.defineProperty(element, 'src', {
+                        set: function(value) {
+                            if (value.includes(blockedDomain)) {
+                                console.error('BLOCKED: Script .src setter matched malicious domain:', value);
+                                return;
+                            }
+                            this.setAttribute('src', value);
+                        },
+                        get: function() { return this.getAttribute('src'); }
+                    });
                 }
                 return element;
             };

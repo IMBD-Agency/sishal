@@ -1237,34 +1237,6 @@
             var interactiveElements = ['A', 'BUTTON', 'SVG', 'PATH', 'FORM', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'];
             if (interactiveElements.includes(e.target.tagName)) return;
 
-            // GTM select_item event tracking
-            if (window.dataLayer && productCard.hasAttribute('data-gtm-id')) {
-                var productId = productCard.getAttribute('data-gtm-id');
-                var productName = productCard.getAttribute('data-gtm-name');
-                var productPrice = parseFloat(productCard.getAttribute('data-gtm-price')) || 0;
-                var productCategory = productCard.getAttribute('data-gtm-category') || '';
-
-                try {
-                    window.dataLayer.push({
-                        'event': 'select_item',
-                        'ecommerce': {
-                            'currency': 'BDT',
-                            'items': [{
-                                'item_id': String(productId),
-                                'item_name': productName,
-                                'item_category': productCategory,
-                                'price': productPrice,
-                                'quantity': 1
-                            }]
-                        }
-                    });
-                    console.log('[GTM] select_item event pushed for product:', productName);
-                } catch (error) {
-                    console.error('[GTM] Error pushing select_item event:', error);
-                }
-            }
-
-            // Check if the card has a data-href attribute (for dynamically loaded products)
             // Navigation Logic
             var href = productCard.getAttribute('data-href');
 
@@ -1278,10 +1250,18 @@
 
             if (href) {
                 e.preventDefault();
+                // Security: Ensure href is internal
+                if (href.startsWith('http') && !href.includes(window.location.hostname)) {
+                    console.error('BLOCKED: External redirect attempt to:', href);
+                    return;
+                }
+                
                 var separator = href.indexOf('?') !== -1 ? '&' : '?';
                 // Append no_cache timestamp to satisfy Controller logic and bypass browser cache
                 var newUrl = href + separator + 'no_cache=' + new Date().getTime();
-                window.location.assign(newUrl);
+                
+                // Use a direct assignment to bypass any intercepted assign() method
+                window.location.href = newUrl;
             }
         });
     });
