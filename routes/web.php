@@ -609,6 +609,10 @@ Route::get('/sync-migrations', function () {
             '2025_11_12_122248_update_bulk_discounts_type_enum_to_include_free_delivery',
             '2025_11_13_054921_add_gtm_container_id_to_general_settings_table',
             '2025_12_24_051629_add_is_ecommerce_to_products_table',
+            '2026_01_13_052907_create_brands_table',
+            '2026_01_13_052908_create_seasons_table',
+            '2026_01_13_052908_create_genders_table',
+            '2026_01_13_052909_create_units_table',
             '2026_01_13_053115_add_extra_fields_to_products_table',
             '2026_01_13_103942_add_manual_sale_fields_to_pos_table',
             '2026_01_19_090950_add_discount_to_invoice_items_table',
@@ -648,6 +652,54 @@ Route::get('/sync-migrations', function () {
     } catch (\Exception $e) {
         return "Sync failed: " . $e->getMessage();
     }
+});
+
+Route::get('/test-db', function () {
+    $output = "<h2>Database Connection Test</h2>";
+    
+    try {
+        $output .= "<div>✓ Route is working</div>";
+        
+        // Test 1: Can we connect to database?
+        $output .= "<div>Testing database connection...</div>";
+        $userCount = DB::table('users')->count();
+        $output .= "<div style='color: green;'>✓ Database connected! Found {$userCount} users</div><br>";
+        
+        // Test 2: Does permissions table exist?
+        $output .= "<div>Checking for permissions table...</div>";
+        $hasPermissions = Schema::hasTable('permissions');
+        if ($hasPermissions) {
+            $permCount = DB::table('permissions')->count();
+            $output .= "<div style='color: green;'>✓ Permissions table exists with {$permCount} permissions</div><br>";
+        } else {
+            $output .= "<div style='color: orange;'>⚠️ No permissions table found</div><br>";
+        }
+        
+        // Test 3: Can we find user 18?
+        $output .= "<div>Looking for user ID 18...</div>";
+        $user = DB::table('users')->where('id', 18)->first();
+        if ($user) {
+            $output .= "<div style='color: green;'>✓ Found user: {$user->name} ({$user->email})</div><br>";
+            
+            if ($hasPermissions) {
+                $userPerms = DB::table('model_has_permissions')
+                    ->where('model_id', 18)
+                    ->where('model_type', 'App\\Models\\User')
+                    ->count();
+                $output .= "<div>User currently has {$userPerms} permissions assigned</div>";
+            }
+        } else {
+            $output .= "<div style='color: red;'>❌ User ID 18 not found</div>";
+        }
+        
+        $output .= "<br><a href='/fix-permissions?user_id=18' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px;'>Try Fix Permissions</a>";
+        
+    } catch (\Exception $e) {
+        $output .= "<div style='color: red;'>ERROR: " . $e->getMessage() . "</div>";
+        $output .= "<pre>" . $e->getTraceAsString() . "</pre>";
+    }
+    
+    return $output;
 });
 
 Route::get('/fix-permissions', function (Request $request) {
