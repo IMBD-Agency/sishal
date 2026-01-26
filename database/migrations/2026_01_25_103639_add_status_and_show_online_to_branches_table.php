@@ -11,10 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('branches', function (Blueprint $table) {
-            $table->string('status')->default('active')->after('contact_info');
-            $table->boolean('show_online')->default(true)->after('status');
-        });
+        if (!Schema::hasColumn('branches', 'status')) {
+            Schema::table('branches', function (Blueprint $table) {
+                $table->string('status')->default('active')->after('contact_info');
+            });
+        }
+        if (!Schema::hasColumn('branches', 'show_online')) {
+            Schema::table('branches', function (Blueprint $table) {
+                $table->boolean('show_online')->default(true)->after('status');
+            });
+        }
     }
 
     /**

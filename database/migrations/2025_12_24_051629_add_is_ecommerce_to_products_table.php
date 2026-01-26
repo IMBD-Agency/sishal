@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->boolean('show_in_ecommerce')->default(true)->after('status');
-        });
+        if (!Schema::hasColumn('products', 'show_in_ecommerce')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->boolean('show_in_ecommerce')->default(true)->after('status');
+            });
+        }
     }
 
     /**

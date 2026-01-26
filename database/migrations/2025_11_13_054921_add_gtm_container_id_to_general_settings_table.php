@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('general_settings', function (Blueprint $table) {
-            $table->string('gtm_container_id')->nullable()->after('cod_percentage');
-        });
+        if (!Schema::hasColumn('general_settings', 'gtm_container_id')) {
+            Schema::table('general_settings', function (Blueprint $table) {
+                $table->string('gtm_container_id')->nullable()->after('cod_percentage');
+            });
+        }
     }
 
     /**

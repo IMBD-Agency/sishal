@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('invoice_items', function (Blueprint $table) {
-            $table->decimal('discount', 15, 2)->default(0)->after('unit_price');
-        });
+        if (!Schema::hasColumn('invoice_items', 'discount')) {
+            Schema::table('invoice_items', function (Blueprint $table) {
+                $table->decimal('discount', 15, 2)->default(0)->after('unit_price');
+            });
+        }
     }
 
     /**
