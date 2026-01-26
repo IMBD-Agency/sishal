@@ -220,7 +220,7 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th class="border-0 fw-bold">Product</th>
-                                            <th class="border-0 fw-bold">SKU</th>
+                                            <th class="border-0 fw-bold">Style No</th>
                                             <th class="border-0 fw-bold text-center">Qty</th>
                                             <th class="border-0 fw-bold text-end">Unit Price</th>
                                             <th class="border-0 fw-bold text-end">Total</th>

@@ -13,7 +13,7 @@
                 <div class="product-info mb-3 p-3 bg-light rounded">
                     <h6 class="mb-2 fw-bold" id="barcodeProductName"></h6>
                     <div class="d-flex justify-content-between text-sm">
-                        <span class="text-muted">SKU:</span>
+                        <span class="text-muted">Style No:</span>
                         <span class="fw-semibold" id="barcodeProductSku"></span>
                     </div>
                     <div class="d-flex justify-content-between text-sm">

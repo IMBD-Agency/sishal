@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'type', 'sku', 'short_desc', 'description', 'features', 'category_id', 'price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'free_delivery', 'show_in_ecommerce'
+        'name', 'slug', 'type', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'alert_quantity', 'free_delivery', 'show_in_ecommerce'
     ];
 
     protected $casts = [
@@ -17,8 +17,10 @@ class Product extends Model
         'free_delivery' => 'boolean',
         'show_in_ecommerce' => 'boolean',
         'price' => 'decimal:2',
+        'wholesale_price' => 'decimal:2',
         'cost' => 'decimal:2',
         'discount' => 'decimal:2',
+        'alert_quantity' => 'integer',
     ];
 
     public function galleries()
@@ -29,6 +31,26 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(ProductServiceCategory::class);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function season()
+    {
+        return $this->belongsTo(Season::class);
+    }
+
+    public function gender()
+    {
+        return $this->belongsTo(Gender::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public function branchStock()
@@ -87,6 +109,14 @@ class Product extends Model
     public function variations()
     {
         return $this->hasMany(ProductVariation::class);
+    }
+
+    /**
+     * Get all stocks through variations.
+     */
+    public function variationStocks()
+    {
+        return $this->hasManyThrough(ProductVariationStock::class, ProductVariation::class, 'product_id', 'variation_id');
     }
 
     /**
@@ -152,15 +182,15 @@ class Product extends Model
     public function getTotalVariationStockAttribute()
     {
         if ($this->has_variations) {
-            return $this->activeVariations()->with('stocks')->get()->sum(function($variation) {
-                return $variation->stocks->sum('quantity');
-            });
+            return $this->activeVariations->sum('available_stock');
         }
         
-        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
+        $activeBranchStock = $this->branchStock()
+            ->whereHas('branch', function($q){ $q->where('show_online', true); })
+            ->sum('quantity') ?? 0;
         
-        return $branchStock + $warehouseStock;
+        return $warehouseStock + $activeBranchStock;
     }
 
     /**
@@ -169,16 +199,7 @@ class Product extends Model
      */
     public function hasStock()
     {
-        if ($this->has_variations) {
-            return $this->activeVariations()->whereHas('stocks', function($query) {
-                $query->where('quantity', '>', 0);
-            })->exists();
-        }
-        
-        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
-        $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
-        
-        return ($branchStock + $warehouseStock) > 0;
+        return $this->total_variation_stock > 0;
     }
 
     /**
@@ -346,6 +367,21 @@ class Product extends Model
         $content = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', "", $content);
         
         return $content;
+    }
+    /**
+     * Get the Style No (aliased from sku)
+     */
+    public function getStyleNoAttribute()
+    {
+        return $this->sku;
+    }
+
+    /**
+     * Get the Internal Reference (aliased from style_number)
+     */
+    public function getInternalRefAttribute()
+    {
+        return $this->style_number;
     }
 
 }

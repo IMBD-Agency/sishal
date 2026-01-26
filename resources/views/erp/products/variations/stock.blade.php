@@ -6,149 +6,145 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0">
-                                <i class="fas fa-boxes me-2"></i>
-                                Manage Stock - {{ $product->name }} ({{ $variation->name }})
-                            </h4>
-                            <a href="{{ route('erp.products.variations.index', $product->id) }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i> Back
-                            </a>
+        <div class="container-fluid px-4 py-4">
+            <!-- Header Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold d-flex align-items-center">
+                        <i class="fas fa-boxes me-2 text-dark"></i>
+                        Manage Stock - <span class="text-muted ms-1">{{ $product->name }} ({{ $variation->name }})</span>
+                    </h5>
+                    <a href="{{ route('erp.products.variations.index', $product->id) }}" class="btn btn-secondary px-4 d-flex align-items-center">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <!-- Add to Branches -->
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white border-bottom py-3">
+                            <h6 class="mb-0 fw-bold text-dark">Add to Branches</h6>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header"><h5 class="mb-0">Add to Branches</h5></div>
-                                        <div class="card-body">
-                                            <form id="branchStockForm">
-                                                @csrf
-                                                <input type="hidden" id="branch_product_id" value="{{ $product->id }}">
-                                                <input type="hidden" id="branch_variation_id" value="{{ $variation->id }}">
-                                                <div class="mb-2">
-                                                    <label class="form-label">Branches</label>
-                                                    <select class="form-select" id="branches" multiple>
-                                                        @foreach($branches as $branch)
-                                                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Quantities (comma separated matching order)</label>
-                                                    <input class="form-control" id="branch_quantities" placeholder="e.g. 5,10"/>
-                                                </div>
-                                                <button type="button" class="btn btn-warning" onclick="submitBranchStock()">
-                                                    <i class="fas fa-plus me-1"></i> Add To Branches
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
+                            <form id="branchStockForm">
+                                <div class="table-responsive" style="max-height: 250px;">
+                                    <table class="table table-sm table-hover align-middle">
+                                        <thead class="bg-light sticky-top">
+                                            <tr>
+                                                <th class="small fw-bold border-0">Branch Name</th>
+                                                <th class="small fw-bold border-0 text-end" style="width: 100px;">Quantity</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($branches as $branch)
+                                                <tr>
+                                                    <td class="small">{{ $branch->name }}</td>
+                                                    <td>
+                                                        <input type="number" class="form-control form-control-sm branch-qty" 
+                                                               data-id="{{ $branch->id }}" placeholder="0" min="0">
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
+                                <button type="button" class="btn btn-cyan text-white w-100 mt-3 fw-bold" onclick="submitBranchStock()">
+                                    <i class="fas fa-plus me-2"></i>Add To Branches
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header"><h5 class="mb-0">Add to Warehouses</h5></div>
-                                        <div class="card-body">
-                                            <form id="warehouseStockForm">
-                                                @csrf
-                                                <input type="hidden" id="warehouse_product_id" value="{{ $product->id }}">
-                                                <input type="hidden" id="warehouse_variation_id" value="{{ $variation->id }}">
-                                                <div class="mb-2">
-                                                    <label class="form-label">Warehouses</label>
-                                                    <select class="form-select" id="warehouses" multiple>
-                                                        @foreach($warehouses as $warehouse)
-                                                            <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Quantities (comma separated matching order)</label>
-                                                    <input class="form-control" id="warehouse_quantities" placeholder="e.g. 5,10"/>
-                                                </div>
-                                                <button type="button" class="btn btn-warning" onclick="submitWarehouseStock()">
-                                                    <i class="fas fa-plus me-1"></i> Add To Warehouses
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="card">
-                                        <div class="card-header d-flex align-items-center justify-content-between">
-                                            <h5 class="mb-0">Current Stock</h5>
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="loadStockLevels()">
-                                                <i class="fas fa-sync-alt me-1"></i> Refresh
-                                            </button>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="stockLevels">
-                                                <div class="text-center text-muted">
-                                                    <i class="fas fa-spinner fa-spin me-2"></i>Loading stock information...
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            <!-- Current Stock Summary -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark">Current Stock</h6>
+                    <button class="btn btn-sm btn-light border text-muted px-3" onclick="loadStockLevels()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="stockLevels">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x text-cyan mb-3"></i>
+                            <p class="text-muted">Loading stock information...</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<style>
+    .btn-cyan { background-color: #198754; border-color: #198754; } /* Syncing with the green theme in image */
+    .btn-cyan:hover { background-color: #157347; border-color: #157347; }
+    .stock-card {
+        border-radius: 12px;
+        transition: transform 0.2s;
+        border: none;
+    }
+    .stock-card:hover { transform: translateY(-3px); }
+    .bg-premium-green {
+        background: linear-gradient(135deg, #198754 0%, #157347 100%);
+    }
+    .table-responsive::-webkit-scrollbar { width: 4px; }
+    .table-responsive::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 10px; }
+</style>
+
 @endsection
 
 @push('scripts')
 <script>
-function parseIds(selector){
-    return Array.from(document.querySelector(selector).selectedOptions).map(o => o.value);
-}
-function parseQuantities(selector){
-    const raw = document.querySelector(selector).value.trim();
-    if(!raw) return [];
-    return raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
-}
 async function submitBranchStock(){
-    const ids = parseIds('#branches');
-    const qty = parseQuantities('#branch_quantities');
-    if(ids.length === 0 || qty.length !== ids.length){
-        alert('Please select branches and provide matching quantities.');
+    const branchItems = [];
+    $('.branch-qty').each(function() {
+        const val = parseInt($(this).val());
+        if (val > 0) {
+            branchItems.push({
+                id: $(this).data('id'),
+                qty: val
+            });
+        }
+    });
+
+    if(branchItems.length === 0){
+        showToast('Please enter quantity for at least one branch.', 'warning');
         return;
     }
+
+    const ids = branchItems.map(i => i.id);
+    const qty = branchItems.map(i => i.qty);
+
     const url = `{{ route('erp.products.variations.stock.branches', [$product->id, $variation->id]) }}`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ branches: ids, quantities: qty })
-    });
-    const data = await res.json();
-    alert(data.message || 'Done');
-    loadStockLevels();
-}
-async function submitWarehouseStock(){
-    const ids = parseIds('#warehouses');
-    const qty = parseQuantities('#warehouse_quantities');
-    if(ids.length === 0 || qty.length !== ids.length){
-        alert('Please select warehouses and provide matching quantities.');
-        return;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 
+                'X-CSRF-TOKEN': '{{ csrf_token() }}', 
+                'Accept': 'application/json', 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ branches: ids, quantities: qty })
+        });
+        const data = await res.json();
+        showToast(data.message || 'Stock updated successfully', 'success');
+        $('.branch-qty').val(''); // Clear inputs
+        loadStockLevels();
+    } catch (e) {
+        showToast('Failed to update stock', 'error');
     }
-    const url = `{{ route('erp.products.variations.stock.warehouses', [$product->id, $variation->id]) }}`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ warehouses: ids, quantities: qty })
-    });
-    const data = await res.json();
-    alert(data.message || 'Done');
-    loadStockLevels();
 }
+
+async function submitWarehouseStock(){
+    // Warehouse stock management disabled for simplified workflow
+    showToast('Warehouse management is currently disabled.', 'info');
+}
+
 async function loadStockLevels(){
     const url = `{{ route('erp.products.variations.stock.levels', [$product->id, $variation->id]) }}`;
     const res = await fetch(url);
@@ -156,24 +152,23 @@ async function loadStockLevels(){
     
     const stockLevelsDiv = document.getElementById('stockLevels');
     
-    // Create a user-friendly display
     let html = `
-        <div class="row mb-3">
+        <div class="row g-3 mb-4">
             <div class="col-md-6">
-                <div class="card bg-primary text-white">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Total Stock</h5>
-                        <h2 class="mb-0">${data.total_stock || 0}</h2>
-                        <small>units</small>
+                <div class="card stock-card bg-premium-green text-white shadow-sm">
+                    <div class="card-body p-4 text-center">
+                        <div class="small opacity-75 text-uppercase fw-bold mb-1">Total Stock</div>
+                        <h2 class="display-4 fw-bold mb-0">${data.total_stock || 0}</h2>
+                        <div class="small opacity-75 mt-1">units</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card bg-success text-white">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Available Stock</h5>
-                        <h2 class="mb-0">${data.available_stock || 0}</h2>
-                        <small>units</small>
+                <div class="card stock-card bg-premium-green text-white shadow-sm">
+                    <div class="card-body p-4 text-center">
+                        <div class="small opacity-75 text-uppercase fw-bold mb-1">Available Stock</div>
+                        <h2 class="display-4 fw-bold mb-0">${data.available_stock || 0}</h2>
+                        <div class="small opacity-75 mt-1">units</div>
                     </div>
                 </div>
             </div>
@@ -181,115 +176,44 @@ async function loadStockLevels(){
     `;
     
     // Branch stocks section
+    html += `<div class="row"><div class="col-md-12 mb-4">`;
+    html += `<h6 class="fw-bold d-flex align-items-center mb-3"><i class="fas fa-store me-2 text-primary"></i> Current Stock Levels (By Branch)</h6>`;
     if (data.branch_stocks && data.branch_stocks.length > 0) {
-        html += `
-            <div class="mb-4">
-                <h6 class="fw-bold text-primary mb-3">
-                    <i class="fas fa-store me-2"></i>Branch Stock
-                </h6>
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Branch Name</th>
-                                <th class="text-center">Total Quantity</th>
-                                <th class="text-center">Available</th>
-                                <th class="text-center">Reserved</th>
-                                <th class="text-center">Last Updated</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
+        html += `<div class="table-responsive border rounded"><table class="table table-sm table-hover mb-0">
+            <thead class="bg-light"><tr><th>Branch</th><th class="text-center">Total</th><th class="text-center">Available</th></tr></thead>
+            <tbody>`;
         data.branch_stocks.forEach(stock => {
-            const lastUpdated = stock.last_updated_at ? new Date(stock.last_updated_at).toLocaleDateString() : 'N/A';
-            html += `
-                <tr>
-                    <td><strong>${stock.branch_name}</strong></td>
-                    <td class="text-center"><span class="badge bg-primary">${stock.quantity}</span></td>
-                    <td class="text-center"><span class="badge bg-success">${stock.available_quantity || stock.quantity}</span></td>
-                    <td class="text-center"><span class="badge bg-warning">${stock.reserved_quantity || 0}</span></td>
-                    <td class="text-center text-muted small">${lastUpdated}</td>
-                </tr>
-            `;
+            html += `<tr>
+                <td class="small fw-bold ps-3">${stock.branch_name}</td>
+                <td class="text-center"><span class="badge bg-light text-dark border">${stock.quantity}</span></td>
+                <td class="text-center"><span class="badge bg-success">${stock.available_quantity || stock.quantity}</span></td>
+            </tr>`;
         });
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
+        html += `</tbody></table></div>`;
     } else {
-        html += `
-            <div class="mb-4">
-                <h6 class="fw-bold text-primary mb-3">
-                    <i class="fas fa-store me-2"></i>Branch Stock
-                </h6>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>No stock available in branches
-                </div>
-            </div>
-        `;
+        html += `<div class="alert alert-light border small text-muted"><i class="fas fa-info-circle me-2"></i>No branch stock records.</div>`;
     }
-    
-    // Warehouse stocks section
-    if (data.warehouse_stocks && data.warehouse_stocks.length > 0) {
-        html += `
-            <div class="mb-4">
-                <h6 class="fw-bold text-success mb-3">
-                    <i class="fas fa-warehouse me-2"></i>Warehouse Stock
-                </h6>
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Warehouse Name</th>
-                                <th class="text-center">Total Quantity</th>
-                                <th class="text-center">Available</th>
-                                <th class="text-center">Reserved</th>
-                                <th class="text-center">Last Updated</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        data.warehouse_stocks.forEach(stock => {
-            const lastUpdated = stock.last_updated_at ? new Date(stock.last_updated_at).toLocaleDateString() : 'N/A';
-            html += `
-                <tr>
-                    <td><strong>${stock.warehouse_name}</strong></td>
-                    <td class="text-center"><span class="badge bg-primary">${stock.quantity}</span></td>
-                    <td class="text-center"><span class="badge bg-success">${stock.available_quantity || stock.quantity}</span></td>
-                    <td class="text-center"><span class="badge bg-warning">${stock.reserved_quantity || 0}</span></td>
-                    <td class="text-center text-muted small">${lastUpdated}</td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    } else {
-        html += `
-            <div class="mb-4">
-                <h6 class="fw-bold text-success mb-3">
-                    <i class="fas fa-warehouse me-2"></i>Warehouse Stock
-                </h6>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>No stock available in warehouses
-                </div>
-            </div>
-        `;
-    }
+    html += `</div></div>`;
     
     stockLevelsDiv.innerHTML = html;
 }
+
+// showToast fallback
+window.showToast = function(message, type = 'info') {
+    const bg = type === 'success' ? '#198754' : (type === 'error' ? '#dc3545' : '#17a2b8');
+    Toastify({
+        text: message,
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        backgroundColor: bg,
+    }).showToast();
+}
+
 document.addEventListener('DOMContentLoaded', loadStockLevels);
 </script>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 @endpush
 
 

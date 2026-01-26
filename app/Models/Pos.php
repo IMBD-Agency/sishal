@@ -8,11 +8,13 @@ class Pos extends Model
 {
     protected $fillable = [
         'sale_number',
+        'challan_number',
         'customer_id',
         'employee_id',
         'sold_by',
         'branch_id',
         'sale_date',
+        'sale_type',
         'sub_total',
         'discount',
         'delivery',
@@ -22,6 +24,10 @@ class Pos extends Model
         'status',
         'invoice_id',
         'notes',
+        'account_type',
+        'account_number',
+        'remarks',
+        'courier_id',
     ];
 
     // Relationships

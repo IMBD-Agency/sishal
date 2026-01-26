@@ -162,7 +162,7 @@
                                     <thead class="bg-light">
                                         <tr>
                                             <th class="ps-4">Product Variation</th>
-                                            <th>SKU</th>
+                                            <th>Style No</th>
                                             <th class="text-center">Sold</th>
                                             <th class="text-end">Revenue</th>
                                             <th class="text-end">Cost</th>

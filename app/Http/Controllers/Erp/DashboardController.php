@@ -101,76 +101,65 @@ class DashboardController extends Controller
 
     private function getStatistics($startDate, $endDate, $range)
     {
-        // Get POS data
-        $currentPosQuery = Pos::query();
-        $currentPosQuery->whereBetween('sale_date', [$startDate, $endDate]);
-        
-        $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
-        $previousEndDate = $startDate->copy()->subDay();
-        $previousPosQuery = Pos::query();
-        $previousPosQuery->whereBetween('sale_date', [$previousStartDate, $previousEndDate]);
-
-        // Get Online Order data
-        $currentOrderQuery = Order::query();
-        $currentOrderQuery->whereBetween('created_at', [$startDate, $endDate]);
-
-        $previousOrderQuery = Order::query();
-        $previousOrderQuery->whereBetween('created_at', [$previousStartDate, $previousEndDate]);
-
-        // Current period stats - combine POS and Online orders
-        // Exclude delivery charges from accounting (only product prices)
-        $currentPosData = $currentPosQuery->get();
-        $currentPosSales = $currentPosData->sum(function($pos) {
-            return $pos->total_amount - ($pos->delivery ?? 0);
-        });
-        $currentPosOrders = $currentPosData->count();
-        
         // Get COD percentage from settings
         $generalSetting = \App\Models\GeneralSetting::first();
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
+
+        // Optimized Aggregates for Current Period
+        $currentPosData = DB::table('pos')
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
+            ->first();
+
+        // Online orders need slightly more logic due to COD percentages
+        $currentOrderQuery = DB::table('orders')
+            ->whereBetween('created_at', [$startDate, $endDate]);
         
-        $currentOrderData = $currentOrderQuery->get();
-        $currentOrderSales = $currentOrderData->sum(function($order) use ($codPercentage) {
-            $revenue = $order->total - ($order->delivery ?? 0);
-            
-            // Apply COD discount for COD orders (cash payment method)
-            if ($order->payment_method === 'cash' && $codPercentage > 0) {
-                $codDiscount = round($order->total * $codPercentage, 2);
-                $revenue = $revenue - $codDiscount;
-            }
-            
-            return $revenue;
-        });
-        $currentOrderOrders = $currentOrderData->count();
+        $currentOrderOrders = $currentOrderQuery->count();
         
-        $currentSales = $currentPosSales + $currentOrderSales;
-        $currentOrders = $currentPosOrders + $currentOrderOrders;
+        // Sum revenue with COD logic directly in SQL if possible, or lean fetch
+        $currentOrderSales = DB::table('orders')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw("SUM(
+                (total - COALESCE(delivery, 0)) - 
+                CASE 
+                    WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
+                    ELSE 0 
+                END
+            ) as total_sales")
+            ->value('total_sales') ?? 0;
+
+        $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
+        $previousEndDate = $startDate->copy()->subDay();
+
+        // Optimized Aggregates for Previous Period
+        $previousPosData = DB::table('pos')
+            ->whereBetween('sale_date', [$previousStartDate, $previousEndDate])
+            ->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
+            ->first();
+
+        $previousOrderSales = DB::table('orders')
+            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
+            ->selectRaw("SUM(
+                (total - COALESCE(delivery, 0)) - 
+                CASE 
+                    WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
+                    ELSE 0 
+                END
+            ) as total_sales")
+            ->value('total_sales') ?? 0;
+
+        $previousOrderOrders = DB::table('orders')
+            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
+            ->count();
+
+        // Combine Totals
+        $currentSales = ($currentPosData->total_sales ?? 0) + $currentOrderSales;
+        $currentOrders = ($currentPosData->total_orders ?? 0) + $currentOrderOrders;
         $currentAvgOrder = $currentOrders > 0 ? $currentSales / $currentOrders : 0;
 
-        // Previous period stats - combine POS and Online orders
-        // Exclude delivery charges from accounting (only product prices)
-        $previousPosData = $previousPosQuery->get();
-        $previousPosSales = $previousPosData->sum(function($pos) {
-            return $pos->total_amount - ($pos->delivery ?? 0);
-        });
-        $previousPosOrders = $previousPosData->count();
-        
-        $previousOrderData = $previousOrderQuery->get();
-        $previousOrderSales = $previousOrderData->sum(function($order) use ($codPercentage) {
-            $revenue = $order->total - ($order->delivery ?? 0);
-            
-            // Apply COD discount for COD orders (cash payment method)
-            if ($order->payment_method === 'cash' && $codPercentage > 0) {
-                $codDiscount = round($order->total * $codPercentage, 2);
-                $revenue = $revenue - $codDiscount;
-            }
-            
-            return $revenue;
-        });
-        $previousOrderOrders = $previousOrderData->count();
-        
-        $previousSales = $previousPosSales + $previousOrderSales;
-        $previousOrders = $previousPosOrders + $previousOrderOrders;
+        $previousSales = ($previousPosData->total_sales ?? 0) + $previousOrderSales;
+        $previousOrders = ($previousPosData->total_orders ?? 0) + $previousOrderOrders;
         $previousAvgOrder = $previousOrders > 0 ? $previousSales / $previousOrders : 0;
 
         // Calculate percentages
@@ -178,10 +167,7 @@ class DashboardController extends Controller
         $ordersPercentage = $previousOrders > 0 ? (($currentOrders - $previousOrders) / $previousOrders) * 100 : 0;
         $avgOrderPercentage = $previousAvgOrder > 0 ? (($currentAvgOrder - $previousAvgOrder) / $previousAvgOrder) * 100 : 0;
 
-        // Customer satisfaction from real review data
         $satisfactionData = $this->getCustomerSatisfaction($startDate, $endDate);
-        $satisfaction = $satisfactionData['rating'];
-        $satisfactionPercentage = $satisfactionData['percentage'];
 
         return [
             'totalSales' => [
@@ -190,7 +176,7 @@ class DashboardController extends Controller
                 'trend' => $salesPercentage >= 0 ? 'up' : 'down'
             ],
             'totalOrders' => [
-                'value' => $currentOrders,
+                'value' => (int)$currentOrders,
                 'percentage' => round($ordersPercentage, 1),
                 'trend' => $ordersPercentage >= 0 ? 'up' : 'down'
             ],
@@ -200,8 +186,8 @@ class DashboardController extends Controller
                 'trend' => $avgOrderPercentage >= 0 ? 'up' : 'down'
             ],
             'customerSatisfaction' => [
-                'value' => $satisfaction,
-                'percentage' => $satisfactionPercentage,
+                'value' => $satisfactionData['rating'],
+                'percentage' => $satisfactionData['percentage'],
                 'trend' => 'up'
             ]
         ];
@@ -362,64 +348,55 @@ class DashboardController extends Controller
     private function getTopSellingItems($startDate, $endDate)
     {
         try {
-            // Get real top selling items from actual sales data
-            $topSellingItems = DB::table('products')
-                ->leftJoin('pos_items', function($join) use ($startDate, $endDate) {
-                    $join->on('products.id', '=', 'pos_items.product_id')
-                         ->whereBetween('pos_items.created_at', [$startDate, $endDate]);
-                })
-                ->leftJoin('order_items', function($join) use ($startDate, $endDate) {
-                    $join->on('products.id', '=', 'order_items.product_id')
-                         ->whereBetween('order_items.created_at', [$startDate, $endDate]);
-                })
-                ->leftJoin('product_service_categories', 'products.category_id', '=', 'product_service_categories.id')
+            // Get POS sales aggregates per product
+            $posSales = DB::table('pos_items')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->select('product_id', DB::raw('SUM(quantity) as pos_qty, SUM(total_price) as pos_rev'))
+                ->groupBy('product_id');
+
+            // Get Online sales aggregates per product
+            $orderSales = DB::table('order_items')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->select('product_id', DB::raw('SUM(quantity) as order_qty, SUM(total_price) as order_rev'))
+                ->groupBy('product_id');
+
+            // Combine using Products table as base
+            $topItems = DB::table('products')
+                ->leftJoinSub($posSales, 'pos_summary', 'products.id', '=', 'pos_summary.product_id')
+                ->leftJoinSub($orderSales, 'order_summary', 'products.id', '=', 'order_summary.product_id')
+                ->leftJoinSub(DB::table('product_service_categories'), 'cats', 'products.category_id', '=', 'cats.id')
                 ->selectRaw('products.name, 
-                    product_service_categories.name as category_name,
-                    COALESCE(SUM(pos_items.quantity), 0) + COALESCE(SUM(order_items.quantity), 0) as total_sold,
-                    COALESCE(SUM(pos_items.total_price), 0) + COALESCE(SUM(order_items.total_price), 0) as total_revenue')
+                    cats.name as category_name,
+                    (COALESCE(pos_summary.pos_qty, 0) + COALESCE(order_summary.order_qty, 0)) as total_sold,
+                    (COALESCE(pos_summary.pos_rev, 0) + COALESCE(order_summary.order_rev, 0)) as total_revenue')
                 ->where('products.type', 'product')
                 ->where('products.status', 'active')
-                ->groupBy('products.id', 'products.name', 'product_service_categories.name')
+                ->where(function($q) {
+                    $q->whereNotNull('pos_summary.product_id')->orWhereNotNull('order_summary.product_id');
+                })
                 ->orderByDesc('total_sold')
-                ->take(3)
+                ->take(5)
                 ->get();
 
-            // Calculate total sales for percentage calculation
-            $totalSales = $topSellingItems->sum('total_sold');
-            
-            // Transform data with icons and colors
+            $totalSoldAll = $topItems->sum('total_sold');
             $colors = ['primary', 'success', 'warning', 'info', 'danger'];
             $icons = ['fas fa-box', 'fas fa-shopping-cart', 'fas fa-star', 'fas fa-trophy', 'fas fa-fire'];
-            
-            return $topSellingItems->map(function ($item, $index) use ($totalSales, $colors, $icons) {
-                $percentage = $totalSales > 0 ? round(($item->total_sold / $totalSales) * 100, 1) : 0;
-                
+
+            return $topItems->map(function ($item, $index) use ($totalSoldAll, $colors, $icons) {
                 return [
                     'name' => $item->name,
                     'category' => $item->category_name ?? 'Uncategorized',
-                    'sales' => $item->total_sold,
+                    'sales' => (float)$item->total_sold,
                     'revenue' => number_format($item->total_revenue, 2),
-                    'percentage' => $percentage,
-                    'icon' => $icons[$index % count($icons)],
-                    'color' => $colors[$index % count($colors)]
+                    'percentage' => $totalSoldAll > 0 ? round(($item->total_sold / $totalSoldAll) * 100, 1) : 0,
+                    'icon' => $icons[$index % 5],
+                    'color' => $colors[$index % 5]
                 ];
             })->toArray();
             
         } catch (\Exception $e) {
             \Log::error('Error getting top selling items: ' . $e->getMessage());
-            
-            // Return fallback data if there's an error
-            return [
-                [
-                    'name' => 'No Data Available',
-                    'category' => 'System',
-                    'sales' => 0,
-                    'revenue' => '0.00',
-                    'percentage' => 0,
-                    'icon' => 'fas fa-exclamation-triangle',
-                    'color' => 'secondary'
-                ]
-            ];
+            return [];
         }
     }
 
@@ -529,20 +506,21 @@ class DashboardController extends Controller
 
     private function getLowStockItems()
     {
-        // Get products where manual management is on and total stock is low
+        // Optimized: Calculate total stock across all sources in SQL
+        // Filters directly in the database to only return the top 5 critical items
         return \App\Models\Product::where('manage_stock', true)
             ->where('status', 'active')
             ->with('category')
-            ->get()
-            ->filter(function($product) {
-                return $product->total_variation_stock < 10;
-            })
+            ->withSum('variationStocks as total_stock', 'quantity')
+            ->having('total_stock', '<', 10)
+            ->orderBy('total_stock', 'asc')
             ->take(5)
+            ->get()
             ->map(function($product) {
                 return [
                     'name' => $product->name,
                     'category' => $product->category->name ?? 'Uncategorized',
-                    'stock' => $product->total_variation_stock,
+                    'stock' => (int)($product->total_stock ?? 0),
                     'sku' => $product->sku
                 ];
             });
@@ -554,55 +532,43 @@ class DashboardController extends Controller
         $generalSetting = \App\Models\GeneralSetting::first();
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
 
-        // Current period
-        $currentPosItems = \App\Models\PosItem::whereBetween('created_at', [$startDate, $endDate])->get();
-        $currentPosRevenue = $currentPosItems->sum('total_price');
-        $currentPosCost = $currentPosItems->sum(function($item) {
-            return $item->quantity * ($item->product->cost ?? 0);
-        });
+        $periods = [
+            'current' => [$startDate, $endDate],
+            'previous' => [$this->getPreviousPeriodStart($startDate, $range), $startDate->copy()->subDay()]
+        ];
 
-        $currentOrderItems = \App\Models\OrderItem::whereBetween('created_at', [$startDate, $endDate])->get();
-        $currentOrderRevenue = $currentOrderItems->sum('total_price');
-        $currentOrderCost = $currentOrderItems->sum(function($item) {
-            return $item->quantity * ($item->product->cost ?? 0);
-        });
+        $metrics = [];
+        foreach ($periods as $key => $period) {
+            // POS Revenue & Cost
+            $pos = DB::table('pos_items')
+                ->join('products', 'pos_items.product_id', '=', 'products.id')
+                ->whereBetween('pos_items.created_at', [$period[0], $period[1]])
+                ->selectRaw('SUM(pos_items.total_price) as revenue, SUM(pos_items.quantity * products.cost) as cost')
+                ->first();
 
-        // Apply COD discount to online revenue
-        $currentOrders = Order::whereBetween('created_at', [$startDate, $endDate])->get();
-        $codDiscount = $currentOrders->where('payment_method', 'cash')->sum(function($order) use ($codPercentage) {
-            return round($order->total * $codPercentage, 2);
-        });
+            // Online Revenue & Cost (excluding delivery)
+            $orders = DB::table('order_items')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->whereBetween('order_items.created_at', [$period[0], $period[1]])
+                ->selectRaw('SUM(order_items.total_price) as revenue, SUM(order_items.quantity * products.cost) as cost')
+                ->first();
 
-        $currentRevenue = $currentPosRevenue + $currentOrderRevenue - $codDiscount;
-        $currentCost = $currentPosCost + $currentOrderCost;
-        $currentProfit = $currentRevenue - $currentCost;
-        $currentMargin = $currentRevenue > 0 ? ($currentProfit / $currentRevenue) * 100 : 0;
+            // COD Discount Aggregate
+            $codDiscount = DB::table('orders')
+                ->whereBetween('created_at', [$period[0], $period[1]])
+                ->where('payment_method', 'cash')
+                ->selectRaw("SUM(ROUND(total * $codPercentage, 2)) as discount")
+                ->value('discount') ?? 0;
 
-        // Previous period
-        $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
-        $previousEndDate = $startDate->copy()->subDay();
+            $rev = ($pos->revenue ?? 0) + ($orders->revenue ?? 0) - $codDiscount;
+            $cost = ($pos->cost ?? 0) + ($orders->cost ?? 0);
+            $metrics[$key] = ['revenue' => $rev, 'cost' => $cost, 'profit' => $rev - $cost];
+        }
 
-        $previousPosItems = \App\Models\PosItem::whereBetween('created_at', [$previousStartDate, $previousEndDate])->get();
-        $previousPosRevenue = $previousPosItems->sum('total_price');
-        $previousPosCost = $previousPosItems->sum(function($item) {
-            return $item->quantity * ($item->product->cost ?? 0);
-        });
-
-        $previousOrderItems = \App\Models\OrderItem::whereBetween('created_at', [$previousStartDate, $previousEndDate])->get();
-        $previousOrderRevenue = $previousOrderItems->sum('total_price');
-        $previousOrderCost = $previousOrderItems->sum(function($item) {
-            return $item->quantity * ($item->product->cost ?? 0);
-        });
-
-        $previousOrders = Order::whereBetween('created_at', [$previousStartDate, $previousEndDate])->get();
-        $previousCodDiscount = $previousOrders->where('payment_method', 'cash')->sum(function($order) use ($codPercentage) {
-            return round($order->total * $codPercentage, 2);
-        });
-
-        $previousRevenue = $previousPosRevenue + $previousOrderRevenue - $previousCodDiscount;
-        $previousCost = $previousPosCost + $previousOrderCost;
-        $previousProfit = $previousRevenue - $previousCost;
-
+        $currentProfit = $metrics['current']['profit'];
+        $previousProfit = $metrics['previous']['profit'];
+        $currentMargin = $metrics['current']['revenue'] > 0 ? ($currentProfit / $metrics['current']['revenue']) * 100 : 0;
+        
         $profitPercentage = $previousProfit > 0 ? (($currentProfit - $previousProfit) / $previousProfit) * 100 : 0;
 
         return [
@@ -620,37 +586,47 @@ class DashboardController extends Controller
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
 
         // POS Sales
-        $posRevenue = Pos::whereBetween('sale_date', [$startDate, $endDate])
-            ->sum(DB::raw('total_amount - COALESCE(delivery, 0)'));
-        $posOrders = Pos::whereBetween('sale_date', [$startDate, $endDate])->count();
+        $posData = DB::table('pos')
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
+            ->first();
+        
+        $posRevenue = $posData->total_sales ?? 0;
+        $posOrders = $posData->total_orders ?? 0;
 
-        // Online Sales
-        $onlineOrders = Order::whereBetween('created_at', [$startDate, $endDate])->get();
-        $onlineRevenue = $onlineOrders->sum(function($order) use ($codPercentage) {
-            $revenue = $order->total - ($order->delivery ?? 0);
-            if ($order->payment_method === 'cash' && $codPercentage > 0) {
-                $codDiscount = round($order->total * $codPercentage, 2);
-                $revenue = $revenue - $codDiscount;
-            }
-            return $revenue;
-        });
-        $onlineOrdersCount = $onlineOrders->count();
+        // Online Sales - Using database aggregate for revenue with COD logic
+        $onlineData = DB::table('orders')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw("COUNT(*) as total_orders, 
+                SUM(
+                    (total - COALESCE(delivery, 0)) - 
+                    CASE 
+                        WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
+                        ELSE 0 
+                    END
+                ) as total_sales")
+            ->first();
+
+        $onlineRevenue = $onlineData->total_sales ?? 0;
+        $onlineOrdersCount = $onlineData->total_orders ?? 0;
 
         // Pending orders (need attention)
-        $pendingOrders = Order::where('status', 'pending')
-            ->orWhere('status', 'approved')
+        $pendingOrders = DB::table('orders')
+            ->whereIn('status', ['pending', 'approved'])
             ->count();
+
+        $totalRevenue = $posRevenue + $onlineRevenue;
 
         return [
             'pos' => [
                 'revenue' => number_format($posRevenue, 2),
                 'orders' => $posOrders,
-                'percentage' => $posRevenue + $onlineRevenue > 0 ? round(($posRevenue / ($posRevenue + $onlineRevenue)) * 100, 1) : 0
+                'percentage' => $totalRevenue > 0 ? round(($posRevenue / $totalRevenue) * 100, 1) : 0
             ],
             'online' => [
                 'revenue' => number_format($onlineRevenue, 2),
                 'orders' => $onlineOrdersCount,
-                'percentage' => $posRevenue + $onlineRevenue > 0 ? round(($onlineRevenue / ($posRevenue + $onlineRevenue)) * 100, 1) : 0
+                'percentage' => $totalRevenue > 0 ? round(($onlineRevenue / $totalRevenue) * 100, 1) : 0
             ],
             'pending' => $pendingOrders
         ];

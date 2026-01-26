@@ -1,619 +1,348 @@
 @extends('erp.master')
 
-@section('title', 'Stock Management')
+@section('title', 'Inventory Dashboard')
 
 @section('body')
-    @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
-        @include('erp.components.header')
+@include('erp.components.sidebar')
 
-        <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="#" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Stock Management</li>
-                        </ol>
-                    </nav>
-                    <h2 class="fw-bold mb-0">Stock Inventory Overview</h2>
-                    <p class="text-muted mb-0">Monitor and manage stock levels across all locations</p>
+<div class="main-content" id="mainContent">
+    @include('erp.components.header')
+
+    <!-- Premium Header -->
+    <div class="glass-header">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                        <li class="breadcrumb-item active text-primary fw-600">Stock Management</li>
+                    </ol>
+                </nav>
+                <div class="d-flex align-items-center gap-2">
+                    <h4 class="fw-bold mb-0 text-dark">Live Inventory</h4>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3 py-1">
+                        Live Tracking
+                    </span>
                 </div>
-                <div class="col-md-4 text-end">
-                    <button class="btn btn-outline-primary" data-bs-toggle="modal"
-                        data-bs-target="#stockAdjustmentModal">
-                        <i class="fas fa-adjust me-2"></i>Stock Adjustment
-                    </button>
+            </div>
+            <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                <a href="{{ route('stock.adjustment.list') }}" class="btn btn-light border shadow-sm fw-bold">
+                    <i class="fas fa-history me-2"></i>History
+                </a>
+                <a href="{{ route('stock.adjustment.create') }}" class="btn btn-create-premium text-nowrap">
+                    <i class="fas fa-sliders-h me-2"></i>New Adjustment
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4 py-4">
+        <!-- Advanced Filters -->
+        <div class="premium-card mb-4">
+            <div class="card-header bg-white border-bottom p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Inventory Filters</h6>
+                    <!-- Report Period Toggles -->
+                    <div class="d-flex gap-3">
+                        <div class="form-check cursor-pointer">
+                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
+                        </div>
+                        <div class="form-check cursor-pointer">
+                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly</label>
+                        </div>
+                        <div class="form-check cursor-pointer">
+                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Yearly</label>
+                        </div>
+                    </div>
                 </div>
+            </div>
+            <div class="card-body p-4">
+                <form method="GET" action="{{ route('productstock.list') }}" id="filterForm">
+                    <div class="row g-3 align-items-end">
+                        <!-- Dynamic Date Fields (Toggle visibility via JS) -->
+                        <div class="col-md-2 date-range-field">
+                            <label class="form-label small fw-bold text-muted text-uppercase">From Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                        </div>
+                        <div class="col-md-2 date-range-field">
+                             <label class="form-label small fw-bold text-muted text-uppercase">To Date</label>
+                            <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                        </div>
+
+                        <div class="col-md-2 month-field" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Select Month</label>
+                            <select name="month" class="form-select">
+                                @foreach(range(1, 12) as $m)
+                                    <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 year-field" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Select Year</label>
+                            <select name="year" class="form-select">
+                                @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
+                                    <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Search Product</label>
+                            <div class="search-wrapper">
+                                <i class="fas fa-search"></i>
+                                <input type="text" class="form-control" placeholder="Name, SKU..." name="search" value="{{ request('search') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Branch Location</label>
+                            <select class="form-select select2-simple" name="branch_id">
+                                <option value="">All Branches</option>
+                                @foreach ($branches as $branch)
+                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Warehouse</label>
+                            <select class="form-select select2-simple" name="warehouse_id">
+                                <option value="">All Warehouses</option>
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-12 mt-4 pt-3 border-top">
+                            <div class="accordion" id="advancedFilters">
+                                <div class="accordion-item border-0">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2 px-0 bg-transparent shadow-none small fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#moreFilters">
+                                            <i class="fas fa-sliders-h me-2"></i>Advanced Options (Category, Brand, Alerts)
+                                        </button>
+                                    </h2>
+                                    <div id="moreFilters" class="accordion-collapse collapse" data-bs-parent="#advancedFilters">
+                                        <div class="accordion-body px-0 py-3">
+                                            <div class="row g-3">
+                                                <div class="col-md-3">
+                                                    <label class="form-label small fw-bold text-muted text-uppercase">Category</label>
+                                                    <select class="form-select select2-simple" name="category_id">
+                                                        <option value="">All Categories</option>
+                                                        @foreach($categories as $category)
+                                                            <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small fw-bold text-muted text-uppercase">Brand</label>
+                                                    <select class="form-select select2-simple" name="brand_id">
+                                                        <option value="">All Brands</option>
+                                                        @foreach ($brands as $brand)
+                                                            <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small fw-bold text-muted text-uppercase">Season</label>
+                                                    <select class="form-select select2-simple" name="season_id">
+                                                        <option value="">All Seasons</option>
+                                                        @foreach ($seasons as $season)
+                                                            <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-check form-switch pt-4">
+                                                        <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockSwitch" value="1" {{ request('low_stock') ? 'checked' : '' }}>
+                                                        <label class="form-check-label fw-bold small text-danger" for="lowStockSwitch">
+                                                            <i class="fas fa-exclamation-circle me-1"></i>Low Stock Only
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <a href="{{ route('productstock.list') }}" class="btn btn-light border fw-bold px-4">
+                                    <i class="fas fa-undo me-2"></i>Reset
+                                </a>
+                                <button type="submit" class="btn btn-create-premium px-5">
+                                    <i class="fas fa-filter me-2"></i>Filter Results
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
 
-        <div class="container-fluid px-4 py-4">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            <!-- Filters Section -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <form method="GET" action="" id="filterForm">
-                        <div class="row g-3 align-items-end">
-                            <div class="col-md-3">
-                                <label class="form-label fw-medium">Search Products</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">
-                                        <i class="fas fa-search text-muted"></i>
-                                    </span>
-                                    <input type="text" class="form-control border-start-0" placeholder="Product name, SKU..." name="search" value="{{ request('search') }}">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">Category</label>
-                                <select class="form-select" id="categoryFilter" name="category_id" style="width: 100%">
-                                    <option value="">All Categories</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">Branch</label>
-                                <select class="form-select" name="branch_id">
-                                    <option value="">All Branches</option>
-                                    @foreach ($branches as $branch)
-                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{$branch->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-medium">Warehouse</label>
-                                <select class="form-select" name="warehouse_id">
-                                    <option value="">All Warehouses</option>
-                                    @foreach ($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>{{$warehouse->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-primary flex-fill" type="submit">
-                                        <i class="fas fa-filter me-2"></i>Filter
-                                    </button>
-                                    <a href="{{ url()->current() }}" class="btn btn-outline-secondary">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+        <!-- Stock Table -->
+        <div class="premium-card shadow-sm">
+            <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2">
+                     <a href="{{ route('productstock.export.excel', request()->all()) }}" class="btn btn-outline-dark btn-sm shadow-sm">
+                        <i class="fas fa-file-excel"></i>
+                    </a>
+                    <a href="{{ route('productstock.export.pdf', request()->all()) }}" class="btn btn-outline-dark btn-sm shadow-sm">
+                        <i class="fas fa-file-pdf"></i>
+                    </a>
+                    <button class="btn btn-outline-dark btn-sm shadow-sm" onclick="window.print()">
+                        <i class="fas fa-print"></i>
+                    </button>
                 </div>
             </div>
-
-            <!-- Stock Listing Table -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Product Stock Details</h5>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <!-- Mobile list -->
-                    <div class="d-md-none">
-                        <div class="list-group list-group-flush">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table premium-table mb-0" id="stockTable">
+                        <thead>
+                             <tr>
+                                <th class="ps-4">Item Details</th>
+                                <th>Style / SKU</th>
+                                <th>Category</th>
+                                <th>Classification</th>
+                                <th class="text-center">Total Stock</th>
+                                <th class="text-center">Distribution</th>
+                                <th class="text-end pe-4">Stock Breakdown</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             @foreach ($productStocks as $stock)
                                 @php
-                                    // Calculate total stock including variations
-                                    if ($stock->has_variations && $stock->variations) {
-                                        // Sum all variation stocks
-                                        $variationBranchStock = 0;
-                                        $variationWarehouseStock = 0;
-                                        foreach ($stock->variations as $variation) {
-                                            if ($variation->stocks) {
-                                                foreach ($variation->stocks as $vStock) {
-                                                    if ($vStock->branch_id) {
-                                                        $variationBranchStock += $vStock->quantity;
-                                                    }
-                                                    if ($vStock->warehouse_id) {
-                                                        $variationWarehouseStock += $vStock->quantity;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        $totalStock = $variationBranchStock + $variationWarehouseStock;
-                                        
-                                        // Aggregate branch and warehouse stock from variations
-                                        $branchStockData = [];
-                                        $warehouseStockData = [];
-                                        $hasNegativeStock = false;
-                                        $negativeLocations = [];
-                                        foreach ($stock->variations as $variation) {
-                                            if ($variation->stocks) {
-                                                foreach ($variation->stocks as $vStock) {
-                                                    if ($vStock->branch_id && $vStock->branch) {
-                                                        $branchName = $vStock->branch->name ?? 'Unknown Branch';
-                                                        if (!isset($branchStockData[$branchName])) {
-                                                            $branchStockData[$branchName] = 0;
-                                                        }
-                                                        $branchStockData[$branchName] += $vStock->quantity;
-                                                        if ($vStock->quantity < 0) {
-                                                            $hasNegativeStock = true;
-                                                            $negativeLocations[] = $branchName . ': ' . $vStock->quantity . ' units';
-                                                        }
-                                                    }
-                                                    if ($vStock->warehouse_id && $vStock->warehouse) {
-                                                        $warehouseName = $vStock->warehouse->name ?? 'Unknown Warehouse';
-                                                        if (!isset($warehouseStockData[$warehouseName])) {
-                                                            $warehouseStockData[$warehouseName] = 0;
-                                                        }
-                                                        $warehouseStockData[$warehouseName] += $vStock->quantity;
-                                                        if ($vStock->quantity < 0) {
-                                                            $hasNegativeStock = true;
-                                                            $negativeLocations[] = $warehouseName . ': ' . $vStock->quantity . ' units';
-                                                        }
-                                                    }
+                                    $totalStock = ($stock->simple_branch_stock ?? 0) + 
+                                                 ($stock->simple_warehouse_stock ?? 0) + 
+                                                 ($stock->var_stock ?? 0);
+
+                                    $branchStockData = [];
+                                    $warehouseStockData = [];
+                                    $hasNegativeStock = false;
+
+                                    if ($stock->has_variations) {
+                                        foreach ($stock->variations as $var) {
+                                            foreach ($var->stocks as $s) {
+                                                if ($s->branch_id) {
+                                                    $name = $s->branch->name ?? 'Unknown';
+                                                    $branchStockData[$name] = ($branchStockData[$name] ?? 0) + $s->quantity;
+                                                    if ($s->quantity < 0) $hasNegativeStock = true;
+                                                } else {
+                                                    $name = $s->warehouse->name ?? 'Unknown';
+                                                    $warehouseStockData[$name] = ($warehouseStockData[$name] ?? 0) + $s->quantity;
+                                                    if ($s->quantity < 0) $hasNegativeStock = true;
                                                 }
                                             }
                                         }
                                     } else {
-                                        // Direct product stock
-                                        $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity');
-                                        $branchStockData = $stock->branchStock->map(function($bs) { 
-                                            return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; 
-                                        })->toArray();
-                                        $warehouseStockData = $stock->warehouseStock->map(function($ws) { 
-                                            return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; 
-                                        })->toArray();
-                                        
-                                        // Check for negative stock in any location
-                                        $hasNegativeStock = false;
-                                        $negativeLocations = [];
-                                        foreach ($stock->branchStock as $bs) {
-                                            if ($bs->quantity < 0) {
-                                                $hasNegativeStock = true;
-                                                $negativeLocations[] = ($bs->branch->name ?? 'Unknown Branch') . ': ' . $bs->quantity . ' units';
-                                            }
+                                        foreach ($stock->branchStock as $s) {
+                                            $name = $s->branch->name ?? 'Unknown';
+                                            $branchStockData[$name] = ($branchStockData[$name] ?? 0) + $s->quantity;
+                                            if ($s->quantity < 0) $hasNegativeStock = true;
                                         }
-                                        foreach ($stock->warehouseStock as $ws) {
-                                            if ($ws->quantity < 0) {
-                                                $hasNegativeStock = true;
-                                                $negativeLocations[] = ($ws->warehouse->name ?? 'Unknown Warehouse') . ': ' . $ws->quantity . ' units';
-                                            }
+                                        foreach ($stock->warehouseStock as $s) {
+                                            $name = $s->warehouse->name ?? 'Unknown';
+                                            $warehouseStockData[$name] = ($warehouseStockData[$name] ?? 0) + $s->quantity;
+                                            if ($s->quantity < 0) $hasNegativeStock = true;
                                         }
                                     }
                                 @endphp
-                                <div class="list-group-item">
-                                    <div class="d-flex align-items-center">
-                                        <img src="{{ asset($stock->image) }}" alt="Product" class="rounded me-3" style="width: 48px; height: 48px; object-fit: cover;">
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold">{{ $stock->name }}</div>
-                                            <div class="small text-muted">SKU: {{ $stock->sku }} • {{ $stock->category->name ?? 'No Category' }}</div>
-                                        </div>
-                                        <div class="text-end">
-                                            <div class="d-flex align-items-center justify-content-end gap-1">
-                                                <div class="fw-bold text-primary">{{ $totalStock }}</div>
-                                                @if(isset($hasNegativeStock) && $hasNegativeStock)
-                                                    <i class="fas fa-exclamation-triangle text-danger" 
-                                                       title="Warning: Negative stock in some locations: {{ implode(', ', $negativeLocations) }}" 
-                                                       data-bs-toggle="tooltip"></i>
-                                                @endif
+                                <tr class="{{ $totalStock <= 5 ? 'bg-danger bg-opacity-10' : '' }}">
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="thumbnail-box me-3" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 6px; overflow: hidden;">
+                                                 @if($stock->image)
+                                                    <img src="{{ asset($stock->image) }}" alt="img" style="width: 100%; height: 100%; object-fit: cover;">
+                                                 @else
+                                                    <i class="fas fa-image text-muted opacity-50 fa-lg"></i>
+                                                 @endif
                                             </div>
-                                            <small class="text-muted">units</small>
-                                            @if(isset($hasNegativeStock) && $hasNegativeStock)
-                                                <small class="text-danger d-block" style="font-size: 0.65rem;">
-                                                    <i class="fas fa-info-circle"></i> Negative stock detected
-                                                </small>
-                                            @endif
+                                            <div>
+                                                <div class="fw-bold text-dark">{{ $stock->name }}</div>
+                                                <div class="small text-muted">{{ number_format($stock->price, 2) }}৳</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="mt-2 d-flex flex-wrap gap-2">
-                                        @if(!$stock->has_variations)
-                                        <button class="btn btn-sm btn-outline-info add-branch-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">Add to branch</button>
-                                        <button class="btn btn-sm btn-outline-success add-warehouse-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">Add to warehouse</button>
+                                    </td>
+                                    <td>
+                                        <code class="text-primary bg-light px-2 py-1 rounded small">{{ $stock->sku }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="category-tag">{{ $stock->category->name ?? '-' }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="small">{{ $stock->brand->name ?? '-' }}</div>
+                                        <div class="small text-muted">{{ $stock->season->name ?? '' }}</div>
+                                    </td>
+                                    <td class="text-center">
+                                         <span class="badge {{ $totalStock > 5 ? 'bg-success' : 'bg-danger' }} fs-6">
+                                            {{ $totalStock }}
+                                        </span>
+                                        @if($hasNegativeStock)
+                                            <i class="fas fa-exclamation-triangle text-warning ms-1" title="Negative Stock Detected"></i>
                                         @endif
-                                        @if(!empty($branchStockData))
-                                            @php
-                                                $branchStockArray = [];
-                                                foreach ($branchStockData as $name => $qty) {
-                                                    $branchStockArray[] = ["branch_name" => $name, "quantity" => $qty];
-                                                }
-                                            @endphp
-                                            <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($branchStockArray)'>{{ count($branchStockData).' Locations' }}</button>
-                                        @endif
-                                        @if(!empty($warehouseStockData))
-                                            @php
-                                                $warehouseStockArray = [];
-                                                foreach ($warehouseStockData as $name => $qty) {
-                                                    $warehouseStockArray[] = ["warehouse_name" => $name, "quantity" => $qty];
-                                                }
-                                            @endphp
-                                            <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($warehouseStockArray)'>{{ count($warehouseStockData).' Warehouses' }}</button>
-                                        @endif
-                                    </div>
-                                </div>
+                                    </td>
+                                    <td class="text-center">
+                                        @php $locCount = count($branchStockData) + count($warehouseStockData); @endphp
+                                        <span class="badge bg-light text-dark border pointer" onclick="$(this).closest('tr').find('.view-breakdown').click()">
+                                            {{ $locCount }} Locations
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <button class="btn btn-action view-breakdown" 
+                                                data-branch-stock='@json($branchStockData)'
+                                                data-warehouse-stock='@json($warehouseStockData)'>
+                                            <i class="fas fa-list-ul"></i>
+                                        </button>
+                                    </td>
+                                </tr>
                             @endforeach
-                        </div>
-                    </div>
-                    <!-- Desktop table -->
-                    <div class="table-responsive d-none d-md-block">
-                        <table class="table table-hover align-middle mb-0" id="stockTable">
-                            <thead class="table-light sticky-top">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+             <!-- Pagination -->
+            <div class="card-footer bg-white border-top-0 py-3 px-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <p class="text-muted small mb-0">Displaying {{ $productStocks->firstItem() }} to {{ $productStocks->lastItem() }} of {{ $productStocks->total() }} items</p>
+                    {{ $productStocks->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Breakdown Modal -->
+    <div class="modal fade" id="stockBreakdownModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-white border-bottom p-4">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-warehouse me-2 text-primary"></i>Stock Distribution</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light small text-uppercase text-muted">
                                 <tr>
-                                    <th class="border-0">Product</th>
-                                    <th class="border-0">SKU</th>
-                                    <th class="border-0">Category</th>
-                                    <th class="border-0 text-center">Total Stock</th>
-                                    <th class="border-0 text-center">Branches</th>
-                                    <th class="border-0 text-center">Warehouses</th>
-                                    <th class="border-0">Status</th>
+                                    <th class="ps-4 py-3">Location Type</th>
+                                    <th class="py-3">Name</th>
+                                    <th class="text-end pe-4 py-3">Available Qty</th>
                                 </tr>
                             </thead>
-                            <tbody id="stockTableBody">
-
-                                @foreach ($productStocks as $stock)
-                                    @php
-                                        // Calculate total stock including variations
-                                        if ($stock->has_variations && $stock->variations) {
-                                            // Sum all variation stocks
-                                            $variationBranchStock = 0;
-                                            $variationWarehouseStock = 0;
-                                            foreach ($stock->variations as $variation) {
-                                                if ($variation->stocks) {
-                                                    foreach ($variation->stocks as $vStock) {
-                                                        if ($vStock->branch_id) {
-                                                            $variationBranchStock += $vStock->quantity;
-                                                        }
-                                                        if ($vStock->warehouse_id) {
-                                                            $variationWarehouseStock += $vStock->quantity;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            $totalStock = $variationBranchStock + $variationWarehouseStock;
-                                            
-                                            // Aggregate branch and warehouse stock from variations
-                                            $branchStockData = [];
-                                            $warehouseStockData = [];
-                                            $hasNegativeStock = false;
-                                            $negativeLocations = [];
-                                            foreach ($stock->variations as $variation) {
-                                                if ($variation->stocks) {
-                                                    foreach ($variation->stocks as $vStock) {
-                                                        if ($vStock->branch_id && $vStock->branch) {
-                                                            $branchName = $vStock->branch->name ?? 'Unknown Branch';
-                                                            if (!isset($branchStockData[$branchName])) {
-                                                                $branchStockData[$branchName] = 0;
-                                                            }
-                                                            $branchStockData[$branchName] += $vStock->quantity;
-                                                            if ($vStock->quantity < 0) {
-                                                                $hasNegativeStock = true;
-                                                                $negativeLocations[] = $branchName . ': ' . $vStock->quantity . ' units';
-                                                            }
-                                                        }
-                                                        if ($vStock->warehouse_id && $vStock->warehouse) {
-                                                            $warehouseName = $vStock->warehouse->name ?? 'Unknown Warehouse';
-                                                            if (!isset($warehouseStockData[$warehouseName])) {
-                                                                $warehouseStockData[$warehouseName] = 0;
-                                                            }
-                                                            $warehouseStockData[$warehouseName] += $vStock->quantity;
-                                                            if ($vStock->quantity < 0) {
-                                                                $hasNegativeStock = true;
-                                                                $negativeLocations[] = $warehouseName . ': ' . $vStock->quantity . ' units';
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            // Direct product stock
-                                            $totalStock = @$stock->branchStock->sum('quantity') + @$stock->warehouseStock->sum('quantity');
-                                            $branchStockData = $stock->branchStock->map(function($bs) { 
-                                                return ["branch_name" => $bs->branch->name ?? '', "quantity" => $bs->quantity]; 
-                                            })->toArray();
-                                            $warehouseStockData = $stock->warehouseStock->map(function($ws) { 
-                                                return ["warehouse_name" => $ws->warehouse->name ?? '', "quantity" => $ws->quantity]; 
-                                            })->toArray();
-                                            
-                                            // Check for negative stock in any location
-                                            $hasNegativeStock = false;
-                                            $negativeLocations = [];
-                                            foreach ($stock->branchStock as $bs) {
-                                                if ($bs->quantity < 0) {
-                                                    $hasNegativeStock = true;
-                                                    $negativeLocations[] = ($bs->branch->name ?? 'Unknown Branch') . ': ' . $bs->quantity . ' units';
-                                                }
-                                            }
-                                            foreach ($stock->warehouseStock as $ws) {
-                                                if ($ws->quantity < 0) {
-                                                    $hasNegativeStock = true;
-                                                    $negativeLocations[] = ($ws->warehouse->name ?? 'Unknown Warehouse') . ': ' . $ws->quantity . ' units';
-                                                }
-                                            }
-                                        }
-                                    @endphp
-                                    <tr class="stock-row" data-product-id="{{ $stock->id }}">
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <img src="{{ asset($stock->image) }}" alt="Product"
-                                                    class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
-                                                <div>
-                                                    <h6 class="mb-1 fw-medium">{{ $stock->name }}</h6>
-                                                    <small class="text-muted">{{ $stock->discount ?? $stock->price}}৳</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td><span class="font-monospace">{{$stock->sku}}</span></td>
-                                        <td><span class="badge bg-light text-dark">{{$stock->category->name ?? 'No Category'}}</span></td>
-                                        <td class="text-center">
-                                            <div class="d-flex align-items-center justify-content-center gap-2">
-                                                <span class="h5 fw-bold text-primary">
-                                                    {{ $totalStock }}
-                                                </span>
-                                                @if(isset($hasNegativeStock) && $hasNegativeStock)
-                                                    <i class="fas fa-exclamation-triangle text-danger" 
-                                                       title="Warning: Negative stock detected in some locations: {{ implode(', ', $negativeLocations) }}. Total shown is sum of all locations." 
-                                                       data-bs-toggle="tooltip"></i>
-                                                @endif
-                                            </div>
-                                            <small class="text-muted d-block">units</small>
-                                            @if(isset($hasNegativeStock) && $hasNegativeStock)
-                                                <small class="text-danger d-block" style="font-size: 0.7rem;">
-                                                    <i class="fas fa-info-circle"></i> Some locations have negative stock
-                                                </small>
-                                            @endif
-                                        </td>
-                                        <td class="text-center">
-                                            @if(!$stock->has_variations)
-                                            <button class="btn btn-sm btn-outline-info add-branch-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">
-                                                Add stock to branch
-                                            </button>
-                                            @endif
-                                            @if(!empty($branchStockData))
-                                                @php
-                                                    $branchStockArray = [];
-                                                    foreach ($branchStockData as $name => $qty) {
-                                                        $branchStockArray[] = ["branch_name" => $name, "quantity" => $qty];
-                                                    }
-                                                @endphp
-                                                <button class="btn btn-sm btn-info branch-stock-list" data-branch-stock='@json($branchStockArray)'>{{ count($branchStockData).' Locations' }}</button>
-                                            @endif
-                                        </td>
-                                        <td class="text-center">
-                                            @if(!$stock->has_variations)
-                                                <button class="btn btn-sm btn-outline-success add-warehouse-stock-btn" data-product-name="{{ $stock->name }}" data-product-id="{{ $stock->id }}">
-                                                    Add stock to warehouse
-                                                </button>
-                                            @endif
-                                            @if(!empty($warehouseStockData))
-                                                @php
-                                                    $warehouseStockArray = [];
-                                                    foreach ($warehouseStockData as $name => $qty) {
-                                                        $warehouseStockArray[] = ["warehouse_name" => $name, "quantity" => $qty];
-                                                    }
-                                                @endphp
-                                                <button class="btn btn-sm btn-success warehouse-stock-list" data-warehouse-stock='@json($warehouseStockArray)'>{{ count($warehouseStockData).' Warehouses' }}</button>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($totalStock > 0)
-                                                <span class="badge bg-success">In Stock</span>
-                                            @else
-                                                <span class="badge bg-danger">Out of Stock</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
+                            <tbody id="stockBreakdownTableBody">
+                                <!-- JS Populated -->
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="card-footer bg-white border-0">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted">
-                            Showing {{ $productStocks->firstItem() }} to {{ $productStocks->lastItem() }} of {{ $productStocks->total() }} products
-                        </span>
-                        {{ $productStocks->links('vendor.pagination.bootstrap-5') }}
-                    </div>
+                <div class="modal-footer border-top-0 bg-light p-3">
+                    <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
-    @include('erp.productStock.components.stockAdjustment',['branches'=>$branches, 'warehouses'=> $warehouses])
-
-    <!-- Add Stock to Branch Modal -->
-    <div class="modal fade" id="addBranchStockModal" tabindex="-1" aria-labelledby="addBranchStockModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addBranchStockModalLabel">Add Stock to Branch - <span id="modalProductName"></span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="addBranchStockForm">
-                    <input type="hidden" id="modalProductId" name="product_id" value="">
-                    <div class="modal-body">
-                        <div class="d-flex gap-2 align-items-end">
-                            <div class="mb-3 w-100">
-                                <label for="branchSelect" class="form-label">Select Branch</label>
-                                <select class="form-select" id="branchSelect" name="branch_id">
-                                    <option value="">Choose branch...</option>
-                                    @foreach ($branches as $branch)
-                                        <option value="{{ $branch->id }}">{{$branch->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-3 w-100">
-                                <label for="stockQuantity" class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="stockQuantity" name="quantity" min="1">
-                            </div>
-                            <button type="button" class="btn btn-outline-primary mb-3" id="addBranchToList">Add</button>
-                        </div>
-                        <div>
-                            <table class="table table-sm mt-3" id="branchStockTable" style="display:none;">
-                                <thead>
-                                    <tr>
-                                        <th>Branch</th>
-                                        <th>Quantity</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Dynamically added rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Add Stock</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Branch Stock List Modal -->
-    <div class="modal fade" id="branchStockListModal" tabindex="-1" aria-labelledby="branchStockListModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="branchStockListModalLabel">Branch Stock List</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Branch</th>
-                                <th>Quantity</th>
-                            </tr>
-                        </thead>
-                        <tbody id="branchStockListTableBody">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Stock to Warehouse Modal -->
-    <div class="modal fade" id="addWarehouseStockModal" tabindex="-1" aria-labelledby="addWarehouseStockModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addWarehouseStockModalLabel">Add Stock to Warehouse - <span id="modalWarehouseProductName"></span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="addWarehouseStockForm">
-                    <input type="hidden" id="modalWarehouseProductId" name="product_id" value="">
-                    <div class="modal-body">
-                        <div class="d-flex gap-2 align-items-end">
-                            <div class="mb-3 w-100">
-                                <label for="warehouseSelect" class="form-label">Select Warehouse</label>
-                                <select class="form-select" id="warehouseSelect" name="warehouse_id">
-                                    <option value="">Choose warehouse...</option>
-                                    @foreach ($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}">{{$warehouse->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-3 w-100">
-                                <label for="warehouseStockQuantity" class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="warehouseStockQuantity" name="quantity" min="1">
-                            </div>
-                            <button type="button" class="btn btn-outline-success mb-3" id="addWarehouseToList">Add</button>
-                        </div>
-                        <div>
-                            <table class="table table-sm mt-3" id="warehouseStockTable" style="display:none;">
-                                <thead>
-                                    <tr>
-                                        <th>Warehouse</th>
-                                        <th>Quantity</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Dynamically added rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">Add Stock</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Warehouse Stock List Modal -->
-    <div class="modal fade" id="warehouseStockListModal" tabindex="-1" aria-labelledby="warehouseStockListModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="warehouseStockListModalLabel">Warehouse Stock List</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Warehouse</th>
-                                <th>Quantity</th>
-                            </tr>
-                        </thead>
-                        <tbody id="warehouseStockListTableBody">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <style>
-        .bg-gradient-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        }
-
-        .bg-gradient-success {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
-        }
-
-        .bg-gradient-warning {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-        }
-
-        .bg-gradient-danger {
-            background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%) !important;
-        }
-
-        .card {
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-        }
-
-        .stock-row:hover {
-            background-color: rgba(13, 110, 253, 0.05);
-        }
-
-        .table th {
-            font-weight: 600;
-            color: #495057;
-            font-size: 0.875rem;
-        }
-
-        .sticky-top {
-            top: 0;
-            z-index: 1020;
-        }
-    </style>
-@endsection
+</div>
 
 @push('scripts')
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -621,273 +350,87 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 <script>
 $(document).ready(function() {
-    let allBranches = @json($branches);
-    let addedBranches = [];
+    $('.select2-simple').select2({ width: '100%', dropdownParent: $('body') });
 
-    function resetModal() {
-        $('#branchSelect').val('');
-        $('#stockQuantity').val('');
-        $('#branchStockTable tbody').empty();
-        $('#branchStockTable').hide();
-        addedBranches = [];
-        $('#branchSelect option').show();
+    // Handle Report Type Toggle
+    function toggleReportFields() {
+        const reportType = $('.report-type-radio:checked').val();
+        
+        if (reportType === 'daily') {
+            $('.date-range-field').show();
+            $('.month-field').hide();
+            $('.year-field').hide();
+        } else if (reportType === 'monthly') {
+            $('.date-range-field').hide();
+            $('.month-field').show();
+            $('.year-field').show();
+        } else if (reportType === 'yearly') {
+            $('.date-range-field').hide();
+            $('.month-field').hide();
+            $('.year-field').show();
+        }
     }
+    toggleReportFields();
+    $('.report-type-radio').on('change', toggleReportFields);
 
-    $('.add-branch-stock-btn').on('click', function(e) {
-        e.preventDefault();
-        var productName = $(this).data('product-name');
-        var productId = $(this).data('product-id');
-        $('#modalProductName').text(productName);
-        $('#modalProductId').val(productId);
-        resetModal();
-        $('#addBranchStockModal').modal('show');
-    });
+    $('.view-breakdown').on('click', function() {
+        var branchData = $(this).data('branch-stock') || [];
+        var warehouseData = $(this).data('warehouse-stock') || [];
 
-    $('#addBranchToList').on('click', function() {
-        let branchId = $('#branchSelect').val();
-        let branchName = $('#branchSelect option:selected').text();
-        let quantity = $('#stockQuantity').val();
+        // Convert object to array if needed (handles PHP's json_encode behavior for associative arrays)
+        var branchStock = (Array.isArray(branchData)) ? branchData : Object.entries(branchData).map(([k,v]) => ({name: k, qty: v}));
+        var warehouseStock = (Array.isArray(warehouseData)) ? warehouseData : Object.entries(warehouseData).map(([k,v]) => ({name: k, qty: v}));
 
-        if (!branchId || !quantity || quantity < 1) {
-            alert('Please select a branch and enter a valid quantity.');
-            return;
+        // Use entries if simple key-value pairs were passed directly
+        if(branchData && !Array.isArray(branchData) && typeof branchData === 'object' && branchStock.length === 0){
+             branchStock = Object.keys(branchData).map(key => ({name: key, qty: branchData[key]}));
+        }
+         if(warehouseData && !Array.isArray(warehouseData) && typeof warehouseData === 'object' && warehouseStock.length === 0){
+             warehouseStock = Object.keys(warehouseData).map(key => ({name: key, qty: warehouseData[key]}));
         }
 
-        $('#branchStockTable tbody').append(`
-            <tr data-branch-id="${branchId}">
-                <td>
-                    <input type="hidden" name="branches[]" value="${branchId}">
-                    ${branchName}
-                </td>
-                <td>
-                    <input type="hidden" name="quantities[]" value="${quantity}">
-                    ${quantity}
-                </td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-branch-row">Remove</button>
-                </td>
-            </tr>
-        `);
-        $('#branchStockTable').show();
-        $('#branchSelect option[value="'+branchId+'"]').hide();
-        $('#branchSelect').val('');
-        $('#stockQuantity').val('');
-        addedBranches.push(branchId);
-    });
-
-    $(document).on('click', '.remove-branch-row', function() {
-        let row = $(this).closest('tr');
-        let branchId = row.data('branch-id');
-        row.remove();
-        $('#branchSelect option[value="'+branchId+'"]').show();
-        addedBranches = addedBranches.filter(id => id != branchId);
-        if ($('#branchStockTable tbody tr').length === 0) {
-            $('#branchStockTable').hide();
-        }
-    });
-
-    $('#addBranchStockModal').on('hidden.bs.modal', function () {
-        resetModal();
-    });
-
-    // Handle form submission
-    $('#addBranchStockForm').on('submit', function(e) {
-        e.preventDefault();
-        var form = $(this);
-        var formData = form.serialize();
-        $.ajax({
-            url: '{{ route('stock.addToBranches') }}',
-            type: 'POST',
-            data: formData,
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if(response.success) {
-                    $('#addBranchStockModal').modal('hide');
-                    location.reload();
-                } else {
-                    alert(response.message || 'Failed to add stock.');
-                }
-            },
-            error: function(xhr) {
-                let msg = 'Failed to add stock.';
-                if(xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                }
-                alert(msg);
-            }
-        });
-    });
-
-    $('.branch-stock-list').on('click', function() {
-        var branchStock = $(this).data('branch-stock') || [];
-        var tbody = $('#branchStockListTableBody');
+        var tbody = $('#stockBreakdownTableBody');
         tbody.empty();
-        if(branchStock.length === 0) {
-            tbody.append('<tr><td colspan="2" class="text-center text-muted">No branch stock found.</td></tr>');
-        } else {
-            branchStock.forEach(function(bs) {
-                tbody.append('<tr><td>' + bs.branch_name + '</td><td>' + bs.quantity + '</td></tr>');
-            });
-            
-        }
-        $('#branchStockListModal').modal('show');
-    });
+        
+        let hasData = false;
 
-    let allWarehouses = @json($warehouses);
-    let addedWarehouses = [];
-
-    function resetWarehouseModal() {
-        $('#warehouseSelect').val('');
-        $('#warehouseStockQuantity').val('');
-        $('#warehouseStockTable tbody').empty();
-        $('#warehouseStockTable').hide();
-        addedWarehouses = [];
-        $('#warehouseSelect option').show();
-    }
-
-    $('.add-warehouse-stock-btn').on('click', function(e) {
-        e.preventDefault();
-        var productName = $(this).data('product-name');
-        var productId = $(this).data('product-id');
-        $('#modalWarehouseProductName').text(productName);
-        $('#modalWarehouseProductId').val(productId);
-        resetWarehouseModal();
-        $('#addWarehouseStockModal').modal('show');
-    });
-
-    $('#addWarehouseToList').on('click', function() {
-        let warehouseId = $('#warehouseSelect').val();
-        let warehouseName = $('#warehouseSelect option:selected').text();
-        let quantity = $('#warehouseStockQuantity').val();
-
-        if (!warehouseId || !quantity || quantity < 1) {
-            alert('Please select a warehouse and enter a valid quantity.');
-            return;
-        }
-
-        $('#warehouseStockTable tbody').append(`
-            <tr data-warehouse-id="${warehouseId}">
-                <td>
-                    <input type="hidden" name="warehouses[]" value="${warehouseId}">
-                    ${warehouseName}
-                </td>
-                <td>
-                    <input type="hidden" name="quantities[]" value="${quantity}">
-                    ${quantity}
-                </td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-warehouse-row">Remove</button>
-                </td>
-            </tr>
-        `);
-        $('#warehouseStockTable').show();
-        $('#warehouseSelect option[value="'+warehouseId+'"]').hide();
-        $('#warehouseSelect').val('');
-        $('#warehouseStockQuantity').val('');
-        addedWarehouses.push(warehouseId);
-    });
-
-    $(document).on('click', '.remove-warehouse-row', function() {
-        let row = $(this).closest('tr');
-        let warehouseId = row.data('warehouse-id');
-        row.remove();
-        $('#warehouseSelect option[value="'+warehouseId+'"]').show();
-        addedWarehouses = addedWarehouses.filter(id => id != warehouseId);
-        if ($('#warehouseStockTable tbody tr').length === 0) {
-            $('#warehouseStockTable').hide();
-        }
-    });
-
-    $('#addWarehouseStockModal').on('hidden.bs.modal', function () {
-        resetWarehouseModal();
-    });
-
-    // Handle form submission
-    $('#addWarehouseStockForm').on('submit', function(e) {
-        e.preventDefault();
-        var form = $(this);
-        var formData = form.serialize();
-        $.ajax({
-            url: '{{ route('stock.addToWarehouses') }}', // You must define this route in your web.php and controller
-            type: 'POST',
-            data: formData,
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if(response.success) {
-                    $('#addWarehouseStockModal').modal('hide');
-                    location.reload();
-                } else {
-                    alert(response.message || 'Failed to add stock.');
-                }
-            },
-            error: function(xhr) {
-                let msg = 'Failed to add stock.';
-                if(xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                }
-                alert(msg);
+        branchStock.forEach(function(item) {
+            let name = item.name || item.branch_name; // Fallback
+            let qty = item.qty || item.quantity;
+            if(name) {
+                hasData = true;
+                tbody.append(`
+                    <tr>
+                        <td class="ps-4"><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Branch</span></td>
+                        <td class="fw-bold text-dark">${name}</td>
+                        <td class="text-end pe-4"><span class="fw-bold ${qty < 5 ? 'text-danger' : 'text-success'}">${qty}</span></td>
+                    </tr>
+                `);
             }
         });
-    });
 
-    $('.warehouse-stock-list').on('click', function() {
-        var warehouseStock = $(this).data('warehouse-stock') || [];
-        var tbody = $('#warehouseStockListTableBody');
-        tbody.empty();
-        if(warehouseStock.length === 0) {
-            tbody.append('<tr><td colspan="2" class="text-center text-muted">No warehouse stock found.</td></tr>');
-        } else {
-            warehouseStock.forEach(function(ws) {
-                tbody.append('<tr><td>' + ws.warehouse_name + '</td><td>' + ws.quantity + '</td></tr>');
-            });
-        }
-        $('#warehouseStockListModal').modal('show');
-    });
-
-    $('#categoryFilter').select2({
-        placeholder: 'Search or select a category',
-        allowClear: true,
-        ajax: {
-            url: '/erp/categories/search',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return {
-                    q: params.term
-                };
-            },
-            processResults: function(data) {
-                return {
-                    results: data.map(function(item) {
-                        return { id: item.id, text: item.display_name || item.name };
-                    })
-                };
-            },
-            cache: true
-        },
-        width: 'resolve',
-    });
-   
-    // Set the selected category if present in the query string
-    var selectedCategory = '{{ request('category_id') }}';
-    if(selectedCategory) {
-        $.ajax({
-            type: 'GET',
-            url: '/erp/categories/search',
-            data: { q: '' },
-            dataType: 'json'
-        }).then(function(data) {
-            var option = data.find(function(cat) { return cat.id == selectedCategory; });
-            if(option) {
-                var newOption = new Option(option.display_name || option.name, option.id, true, true);
-                $('#categoryFilter').append(newOption).trigger('change');
+        warehouseStock.forEach(function(item) {
+             let name = item.name || item.warehouse_name;
+             let qty = item.qty || item.quantity;
+             if(name) {
+                hasData = true;
+                tbody.append(`
+                    <tr>
+                        <td class="ps-4"><span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Warehouse</span></td>
+                        <td class="fw-bold text-dark">${name}</td>
+                        <td class="text-end pe-4"><span class="fw-bold ${qty < 5 ? 'text-danger' : 'text-success'}">${qty}</span></td>
+                    </tr>
+                `);
             }
         });
-    }
+
+        if (!hasData) {
+            tbody.append('<tr><td colspan="3" class="text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-3 opacity-25"></i><p class="mb-0">No stock allocated to specific locations.</p></td></tr>');
+        }
+
+        $('#stockBreakdownModal').modal('show');
+    });
 });
 </script>
 @endpush
+@endsection

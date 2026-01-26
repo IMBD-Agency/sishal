@@ -15,110 +15,153 @@ class PurchaseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Purchase::with(['bill']);
-
-        // Search by purchase id (supports partial match)
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('id', $search)
-                  ->orWhere('id', 'like', "%$search%");
-            });
-        }
-        // Filter by purchase date
-        if ($request->filled('purchase_date')) {
-            $query->whereDate('purchase_date', $request->purchase_date);
-        }
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        // Quick Filter
-        if ($request->filled('quick_filter')) {
-            if ($request->quick_filter == 'today') {
-                $query->whereDate('purchase_date', now()->toDateString());
-            } elseif ($request->quick_filter == 'monthly') {
-                $query->whereMonth('purchase_date', now()->month)
-                      ->whereYear('purchase_date', now()->year);
-            }
-        }
-
-        $purchases = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->all());
-        $branches = Branch::all();
-        return view('erp.purchases.purchaseList', [
-            'purchases' => $purchases,
-            'branches' => $branches,
-            'filters' => $request->only(['search', 'purchase_date', 'status', 'quick_filter'])
+        $query = \App\Models\PurchaseItem::with([
+            'purchase.bill',
+            'purchase.supplier',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
         ]);
+
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+
+        // Calculate Totals before pagination
+        $totalQty = $query->sum('quantity');
+        $totalAmount = $query->sum('total_price');
+
+        $items = $query->latest()->paginate(20)->appends($request->all());
+        
+        // Dropdown Data
+        $suppliers = \App\Models\Supplier::orderBy('name')->get();
+        $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
+        $brands = \App\Models\Brand::orderBy('name')->get();
+        $seasons = \App\Models\Season::orderBy('name')->get();
+        $genders = \App\Models\Gender::orderBy('name')->get();
+        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
+        $branches = Branch::all();
+
+        return view('erp.purchases.purchaseList', compact(
+            'items', 'suppliers', 'categories', 'brands', 'seasons', 'genders', 'products', 
+            'branches', 'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+        ));
     }
 
     public function exportExcel(Request $request)
     {
-        $query = $this->applyFilters($request);
-        $purchases = $query->orderBy('created_at', 'desc')->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'location', 'status', 'total'];
-
-        $exportData = [];
-        $headers = [];
-        $columnMap = [
-            'id' => 'Assign ID',
-            'date' => 'Date',
-            'location' => 'Location',
-            'status' => 'Status',
-            'total' => 'Total Amount'
-        ];
-
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
+
+        $query = \App\Models\PurchaseItem::with([
+            'purchase.bill', 
+            'purchase.supplier', 
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
+        ]);
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->orderBy('created_at', 'desc')->get();
+
+        $headers = [
+            'SL', 'Invoice #', 'Date', 'Supplier', 'Category', 'Brand', 'Season', 'Gender', 
+            'Product', 'Style Ref', 'Color', 'Size', 
+            'Pur. Qty', 'Pur. Value', 'Ret. Qty', 'Ret. Value', 
+            'Act. Qty', 'Act. Value', 'Paid A/C', 'Due A/C', 'Status'
+        ];
         $exportData[] = $headers;
 
-        foreach ($purchases as $purchase) {
-            $row = [];
-            foreach ($selectedColumns as $column) {
-                switch ($column) {
-                    case 'id': $row[] = '#' . $purchase->id; break;
-                    case 'date': $row[] = $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d-m-Y') : '-'; break;
-                    case 'location': 
-                        $loc = '';
-                        if ($purchase->ship_location_type == 'branch') {
-                            $branch = Branch::find($purchase->location_id);
-                            $loc = 'Branch: ' . ($branch->name ?? '-');
-                        } else {
-                            $warehouse = Warehouse::find($purchase->location_id);
-                            $loc = 'Warehouse: ' . ($warehouse->name ?? '-');
-                        }
-                        $row[] = $loc;
-                        break;
-                    case 'status': $row[] = ucfirst($purchase->status); break;
-                    case 'total': $row[] = number_format($purchase->items->sum('total_price'), 2); break;
+        foreach ($items as $index => $item) {
+            $purchase = $item->purchase;
+            $bill = $purchase->bill;
+            $product = $item->product;
+            $variation = $item->variation;
+            
+            // Extract Color and Size
+            $color = '-'; $size = '-';
+            if ($variation && $variation->attributeValues) {
+                foreach($variation->attributeValues as $val) {
+                    $attrName = strtolower($val->attribute->name ?? '');
+                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                        $color = $val->value;
+                    } elseif (str_contains($attrName, 'size')) {
+                        $size = $val->value;
+                    }
                 }
             }
+
+            // Calculations
+            $retQty = $item->returnItems->sum('returned_qty');
+            $retAmt = $item->returnItems->sum('total_price');
+            $actQty = $item->quantity - $retQty;
+            $actAmt = $item->total_price - $retAmt;
+
+            $row = [
+                $index + 1,
+                $bill->bill_number ?? 'P-'.$purchase->id,
+                $purchase->purchase_date,
+                $purchase->supplier->name ?? 'N/A',
+                $product->category->name ?? 'N/A',
+                $product->brand->name ?? 'N/A',
+                $product->season->name ?? 'N/A',
+                $product->gender->name ?? 'N/A',
+                $product->name ?? 'N/A',
+                $product->sku ?? $product->style_number ?? 'N/A',
+                $color,
+                $size,
+                number_format($item->quantity, 2),
+                number_format($item->total_price, 2),
+                number_format($retQty, 2),
+                number_format($retAmt, 2),
+                number_format($actQty, 2),
+                number_format($actAmt, 2),
+                number_format($bill->paid_amount ?? 0, 2),
+                number_format($bill->due_amount ?? 0, 2),
+                ucfirst($purchase->status)
+            ];
             $exportData[] = $row;
         }
 
-        $filename = 'purchase_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+        $filename = 'purchase_audit_report_' . date('Y-m-d_His') . '.xlsx';
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $sheet->setCellValue('A1', 'Purchase Report');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-        
-        foreach ($headers as $index => $header) {
-            $sheet->setCellValue(chr(65 + $index) . '3', $header);
-            $sheet->getStyle(chr(65 + $index) . '3')->getFont()->setBold(true);
-        }
-        
-        $dataRow = 4;
-        foreach ($exportData as $rowIndex => $row) {
-            if ($rowIndex === 0) continue;
-            foreach ($row as $colIndex => $value) {
-                $sheet->setCellValue(chr(65 + $colIndex) . $dataRow, $value);
+        foreach ($exportData as $rowIndex => $rowData) {
+            foreach ($rowData as $colIndex => $value) {
+                $sheet->setCellValue(chr(65 + $colIndex) . ($rowIndex + 1), $value);
             }
-            $dataRow++;
         }
         
         foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
@@ -134,72 +177,97 @@ class PurchaseController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $query = $this->applyFilters($request);
-        $purchases = $query->orderBy('created_at', 'desc')->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'location', 'status', 'total'];
-
-        $columnMap = [
-            'id' => 'Assign ID',
-            'date' => 'Date',
-            'location' => 'Location',
-            'status' => 'Status',
-            'total' => 'Total Amount'
-        ];
-
-        $headers = [];
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $filename = 'purchase_report_' . date('Y-m-d_H-i-s') . '.pdf';
+        $query = \App\Models\PurchaseItem::with([
+            'purchase.bill', 
+            'purchase.supplier', 
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
+        ]);
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->orderBy('created_at', 'desc')->get();
+
+        $filename = 'purchase_audit_report_' . date('Y-m-d_His') . '.pdf';
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.purchases.report-pdf', [
-            'purchases' => $purchases,
-            'headers' => $headers,
-            'selectedColumns' => $selectedColumns,
+            'items' => $items,
             'filters' => $request->all()
         ]);
 
-        $pdf->setPaper('A4', 'portrait');
-        
-        if ($request->input('action') === 'print') {
-            return $pdf->stream($filename);
-        }
-        
+        $pdf->setPaper('A4', 'landscape');
         return $pdf->download($filename);
     }
 
-    private function applyFilters(Request $request)
+    private function applyFilters($query, Request $request, $startDate = null, $endDate = null)
     {
-        $query = Purchase::with(['bill', 'items']);
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('id', $search)
-                  ->orWhere('id', 'like', "%$search%");
+        // Date Filtering
+        if ($startDate && $endDate) {
+            $query->whereHas('purchase', function($q) use ($startDate, $endDate) {
+                $q->whereBetween('purchase_date', [$startDate, $endDate]);
+            });
+        } elseif ($startDate) {
+            $query->whereHas('purchase', function($q) use ($startDate) {
+                $q->whereDate('purchase_date', '>=', $startDate);
+            });
+        } elseif ($endDate) {
+            $query->whereHas('purchase', function($q) use ($endDate) {
+                $q->whereDate('purchase_date', '<=', $endDate);
             });
         }
-        if ($request->filled('purchase_date')) {
-            $query->whereDate('purchase_date', $request->purchase_date);
+
+        // Search by purchase id / invoice
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('purchase', function($q) use ($search) {
+                $q->where('id', 'LIKE', "%$search%")
+                  ->orWhereHas('bill', function($bq) use ($search) {
+                      $bq->where('bill_number', 'LIKE', "%$search%");
+                  });
+            });
+        }
+
+        // Filters from dropdowns
+        if ($request->filled('supplier_id')) {
+            $query->whereHas('purchase', function($q) use ($request) {
+                $q->where('supplier_id', $request->supplier_id);
+            });
         }
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('purchase', function($q) use ($request) {
+                $q->where('status', $request->status);
+            });
         }
-        if ($request->filled('quick_filter')) {
-            if ($request->quick_filter == 'today') {
-                $query->whereDate('purchase_date', now()->toDateString());
-            } elseif ($request->quick_filter == 'yesterday') {
-                $query->whereDate('purchase_date', now()->subDay()->toDateString());
-            } elseif ($request->quick_filter == 'last_7_days') {
-                $query->whereBetween('purchase_date', [now()->subDays(7)->toDateString(), now()->toDateString()]);
-            } elseif ($request->quick_filter == 'monthly') {
-                $query->whereMonth('purchase_date', now()->month)
-                      ->whereYear('purchase_date', now()->year);
-            } elseif ($request->quick_filter == 'yearly') {
-                $query->whereYear('purchase_date', now()->year);
-            }
+        
+        // Filter by Product/Style/Category/Brand/Season/Gender
+        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
+
+        if ($request->filled('style_number') || $request->filled('category_id') || 
+            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
+            
+            $query->whereHas('product', function($q) use ($request) {
+                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+                if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+                if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
+                if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+            });
         }
 
         return $query;
@@ -211,7 +279,9 @@ class PurchaseController extends Controller
         $warehouses = \App\Models\Warehouse::all();
         $products = \App\Models\Product::all();
         $suppliers = \App\Models\Supplier::all();
-        return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers'));
+        // Use DB table directly safely if model is missing
+        $bankAccounts = \DB::table('financial_accounts')->get();
+        return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers', 'bankAccounts'));
     }
 
     public function store(Request $request)
@@ -227,6 +297,9 @@ class PurchaseController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string',
+            'account_id' => 'nullable|integer',
         ]);
     
         DB::beginTransaction();
@@ -251,7 +324,7 @@ class PurchaseController extends Controller
     
             // Add Purchase Items
             foreach ($request->items as $item) {
-                PurchaseItem::create(attributes: [
+                PurchaseItem::create([
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
                     'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
@@ -264,17 +337,57 @@ class PurchaseController extends Controller
     
             // Create Bill (only if supplier is provided)
             if ($request->supplier_id) {
-                PurchaseBill::create([
+                $paid_amount = $request->input('paid_amount', 0);
+                $due_amount = max(0, $totalAmount - $paid_amount);
+                $status = 'unpaid';
+                if ($paid_amount >= $totalAmount) $status = 'paid';
+                elseif ($paid_amount > 0) $status = 'partial';
+
+                $bill = PurchaseBill::create([
                     'supplier_id'   => $request->supplier_id,
                     'purchase_id'   => $purchase->id,
                     'bill_date'     => now()->toDateString(),
                     'total_amount'  => $totalAmount,
-                    'paid_amount'   => 0,
-                    'due_amount'    => $totalAmount,
-                    'status'        => 'unpaid',
+                    'paid_amount'   => $paid_amount,
+                    'due_amount'    => $due_amount,
+                    'status'        => $status,
                     'created_by'    => auth()->id(),
-                    'description'   => 'Auto-generated bill from assign ID: ' . $purchase->id,
+                    'description'   => 'Auto-generated bill from purchase ID: ' . $purchase->id,
                 ]);
+
+                // Record Bill in Ledger (CREDIT the supplier)
+                \App\Models\SupplierLedger::recordTransaction(
+                    $request->supplier_id,
+                    'credit',
+                    $totalAmount,
+                    'Purchase Bill: ' . ($bill->bill_number ?: 'P-'.$purchase->id),
+                    $request->purchase_date,
+                    $bill
+                );
+
+                // If payment made, record Payment and update Ledger
+                if ($paid_amount > 0) {
+                    $payment = \App\Models\SupplierPayment::create([
+                        'supplier_id' => $request->supplier_id,
+                        'purchase_bill_id' => $bill->id,
+                        'payment_date' => $request->purchase_date,
+                        'amount' => $paid_amount,
+                        'payment_method' => $request->payment_method ?? 'cash',
+                        'reference' => 'Initial payment at purchase',
+                        'note' => $request->notes,
+                        'created_by' => auth()->id(),
+                    ]);
+
+                    // Record Payment in Ledger (DEBIT the supplier)
+                    \App\Models\SupplierLedger::recordTransaction(
+                        $request->supplier_id,
+                        'debit',
+                        $paid_amount,
+                        'Payment for Purchase Bill: ' . ($bill->bill_number ?: 'P-'.$purchase->id),
+                        $request->purchase_date,
+                        $payment
+                    );
+                }
             }
     
             DB::commit();

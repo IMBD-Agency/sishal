@@ -24,9 +24,29 @@ class StockTransferController extends Controller
         return view('erp.stockTransfer.stockTransfer', compact('transfers', 'branches', 'warehouses', 'statuses', 'filters'));
     }
 
+    public function create()
+    {
+        $branches = Branch::all();
+        $warehouses = Warehouse::all();
+        return view('erp.stockTransfer.create', compact('branches', 'warehouses'));
+    }
+
     private function applyFilters(Request $request)
     {
-        $query = StockTransfer::with(['product.category', 'variation', 'fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson', 'approvedPerson']);
+        $query = StockTransfer::with([
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'variation.combinations.attribute', 
+            'variation.combinations.attributeValue',
+            'fromBranch', 
+            'fromWarehouse', 
+            'toBranch', 
+            'toWarehouse', 
+            'requestedPerson', 
+            'approvedPerson'
+        ]);
 
         if ($request->filled('from_branch_id')) {
             $fromValue = $request->from_branch_id;
@@ -232,38 +252,104 @@ class StockTransferController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'from_type' => 'required|in:branch,warehouse',
-            'to_type' => 'required|in:branch,warehouse',
-            'product_id' => 'required|exists:products,id',
-            'variation_id' => 'nullable|exists:product_variations,id',
-            'quantity' => 'required|numeric|min:0.01',
-            'type' => 'nullable|in:request,transfer',
-            'status' => 'nullable|in:pending,approved,rejected,shipped,delivered',
-            'notes' => 'nullable|string',
+        // Validate basic transfer information
+        $request->validate([
+            'transfer_date' => 'required|date',
+            'to_outlet' => 'required|string',
+            'items' => 'required|array|min:1',
         ]);
-        // Set from_id based on from_type
-        if ($request->from_type === 'branch') {
-            $validated['from_id'] = $request->from_branch_id;
-        } elseif ($request->from_type === 'warehouse') {
-            $validated['from_id'] = $request->from_warehouse_id;
+
+        // Parse to_outlet to get type and id
+        $toOutlet = $request->to_outlet;
+        if (str_starts_with($toOutlet, 'branch_')) {
+            $toType = 'branch';
+            $toId = str_replace('branch_', '', $toOutlet);
+        } elseif (str_starts_with($toOutlet, 'warehouse_')) {
+            $toType = 'warehouse';
+            $toId = str_replace('warehouse_', '', $toOutlet);
         } else {
-            $validated['from_id'] = null;
+            return redirect()->back()->with('error', 'Invalid receiver outlet selected.');
         }
-        // Set to_id based on to_type
-        if ($request->to_type === 'branch') {
-            $validated['to_id'] = $request->to_branch_id;
-        } elseif ($request->to_type === 'warehouse') {
-            $validated['to_id'] = $request->to_warehouse_id;
+
+        // Process each item and validate stock
+        $transfersCreated = 0;
+        $errors = [];
+
+        foreach ($request->items as $key => $item) {
+            // Skip if no quantity
+            if (!isset($item['quantity']) || $item['quantity'] <= 0) {
+                continue;
+            }
+
+            $productId = $item['product_id'];
+            $variationId = $item['variation_id'] ?? null;
+            $quantity = floatval($item['quantity']);
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            $totalPrice = $quantity * $unitPrice;
+            
+            // Pro-rate the global paid amount across items based on total value
+            // Calculate total dispatch value first for pro-rating
+            $totalDispatchValue = 0;
+            foreach ($request->items as $i) {
+                $totalDispatchValue += floatval($i['quantity'] ?? 0) * floatval($i['unit_price'] ?? 0);
+            }
+            
+            $globalPaid = floatval($request->paid_amount ?? 0);
+            $itemPaid = $totalDispatchValue > 0 ? ($totalPrice / $totalDispatchValue) * $globalPaid : 0;
+            $itemDue = $totalPrice - $itemPaid;
+
+            // Validate stock availability
+            if ($variationId) {
+                $totalStock = ProductVariationStock::where('variation_id', $variationId)->sum('quantity');
+            } else {
+                $totalStock = BranchProductStock::where('product_id', $productId)->sum('quantity') +
+                             WarehouseProductStock::where('product_id', $productId)->sum('quantity');
+            }
+
+            if ($quantity > $totalStock) {
+                $errors[] = "Product/Variation ID {$productId}/{$variationId}: Requested {$quantity}, but only {$totalStock} available.";
+                continue;
+            }
+
+            // Create transfer record
+            try {
+                StockTransfer::create([
+                    'from_type' => 'branch', // Default, can be made dynamic
+                    'from_id' => auth()->user()->branch_id ?? 1, // Use user's branch or default
+                    'to_type' => $toType,
+                    'to_id' => $toId,
+                    'product_id' => $productId,
+                    'variation_id' => $variationId,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'total_price' => $totalPrice,
+                    'paid_amount' => $itemPaid,
+                    'due_amount' => $itemDue,
+                    'sender_account_type' => $request->sender_account_type,
+                    'sender_account_number' => $request->sender_account_number,
+                    'receiver_account_type' => $request->receiver_account_type,
+                    'receiver_account_number' => $request->receiver_account_number,
+                    'type' => 'transfer',
+                    'status' => 'pending',
+                    'requested_by' => auth()->id(),
+                    'requested_at' => $request->transfer_date,
+                    'notes' => $request->note ?? null,
+                ]);
+                $transfersCreated++;
+            } catch (\Exception $e) {
+                $errors[] = "Error creating transfer for product {$productId}: " . $e->getMessage();
+            }
+        }
+
+        if ($transfersCreated > 0) {
+            $message = "Successfully created {$transfersCreated} transfer(s).";
+            if (count($errors) > 0) {
+                $message .= " Errors: " . implode(', ', $errors);
+            }
+            return redirect()->route('stocktransfer.list')->with('success', $message);
         } else {
-            $validated['to_id'] = null;
+            return redirect()->back()->with('error', 'No transfers created. ' . implode(', ', $errors));
         }
-        $validated['requested_by'] = auth()->id();
-        $validated['requested_at'] = now();
-        if (!isset($validated['type'])) $validated['type'] = 'transfer';
-        if (!isset($validated['status'])) $validated['status'] = 'pending';
-        $transfer = StockTransfer::create($validated);
-        return redirect()->back()->with('success', 'Stock transfer created successfully.');
     }
 
     public function updateStatus(Request $request, $id)

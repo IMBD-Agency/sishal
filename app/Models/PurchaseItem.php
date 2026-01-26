@@ -26,4 +26,14 @@ class PurchaseItem extends Model
     {
         return $this->belongsTo(ProductVariation::class, 'variation_id');
     }
+
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class, 'purchase_id');
+    }
+
+    public function returnItems()
+    {
+        return $this->hasMany(PurchaseReturnItem::class, 'purchase_item_id');
+    }
 }

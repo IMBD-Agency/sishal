@@ -50,7 +50,7 @@
                                     <div class="card-header"><h5 class="mb-0">Basic Information</h5></div>
                                     <div class="card-body">
                                         <div class="mb-3">
-                                            <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
+                                            <label for="sku" class="form-label">Style No <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="sku" name="sku" value="{{ old('sku', $variation->sku) }}" required>
                                         </div>
                                         <div class="mb-3">

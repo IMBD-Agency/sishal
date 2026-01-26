@@ -1,282 +1,376 @@
 @extends('erp.master')
 
-@section('title', 'Purchase Management')
+@section('title', 'Purchase List')
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
-            .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
-            .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
-            .bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); }
-            .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
-            
-            .transition-all { transition: all 0.2s ease-in-out; }
-            
-            #purchaseTable tbody tr:hover { 
-                background-color: #f8faff !important;
-                box-shadow: inset 0 0 0 9999px #f8faff;
-            }
-            
-            .x-small { font-size: 0.7rem; }
-            .avatar-sm { width: 32px; height: 32px; font-size: 0.85rem; }
-            
-            .form-select, .form-control { border-color: #f1f3f5; }
-            .form-select:focus, .form-control:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05); }
-            
-            #purchaseTable thead th { letter-spacing: 0.05em; border-bottom: 2px solid #f8f9fa; }
-            #purchaseTable tbody tr { border-bottom: 1px solid #f8f9fa; }
-
-            .quick-filter-btn {
-                background-color: #fff;
-                color: #6c757d;
-                border: 1px solid #e9ecef;
-                padding: 0.4rem 1.25rem;
-                font-size: 0.85rem;
-                font-weight: 500;
-                transition: all 0.2s;
-            }
-            .quick-filter-btn:hover {
-                background-color: #f8f9fa;
-                color: #0d6efd;
-            }
-            .btn-check:checked + .quick-filter-btn {
-                background-color: #0d6efd !important;
-                color: #fff !important;
-                border-color: #0d6efd !important;
-                box-shadow: 0 4px 6px rgba(13, 110, 253, 0.15);
-            }
-        </style>
-
-        <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <!-- Premium Header Area -->
+        <div class="glass-header">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-md-7">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Purchase</li>
+                        <ol class="breadcrumb mb-1 breadcrumb-premium text-uppercase">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted small">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-bold small">Purchase History</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Purchase List</h2>
-                    <p class="text-muted mb-0">Manage inventory purchases from suppliers or warehouses.</p>
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="fw-bold mb-0 text-dark">Purchase Procurement Report</h4>
+                        <span class="badge bg-light text-primary border border-primary small rounded-pill px-3 py-1">{{ $items->total() }} Records</span>
+                    </div>
                 </div>
-                <div class="col-md-4 text-end">
-                    <a href="{{ route('purchase.create') }}" class="btn btn-primary px-4 rounded-pill shadow-sm">
-                        <i class="fas fa-plus-circle me-2"></i>Purchase
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <button type="button" class="btn btn-outline-dark shadow-sm px-4 fw-bold" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Print Registry
+                    </button>
+                    <a href="{{ route('purchase.create') }}" class="btn btn-create-premium text-nowrap">
+                        <i class="fas fa-plus-circle me-2"></i>New Procurement
                     </a>
                 </div>
             </div>
         </div>
 
         <div class="container-fluid px-4 py-4">
-            <!-- Advanced Filters -->
-            <div class="card border-0 shadow-sm mb-4">
+            <!-- Advanced Analytics Filters -->
+            <div class="premium-card mb-4">
+                <div class="card-header bg-white border-bottom p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Procurement Audit Filters</h6>
+                        <div class="d-flex gap-4">
+                            <div class="form-check cursor-pointer">
+                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
+                            </div>
+                            <div class="form-check cursor-pointer">
+                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly View</label>
+                            </div>
+                            <div class="form-check cursor-pointer">
+                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Annual View</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="card-body p-4">
-                    <form method="GET" action="" class="row g-3" id="filterForm">
-                        <div class="col-lg-3 col-md-6">
-                            <label class="form-label fw-semibold small text-muted text-uppercase">Search Purchase ID</label>
-                            <div class="input-group border rounded-3 overflow-hidden">
-                                <span class="input-group-text bg-white border-0"><i class="fas fa-search text-primary"></i></span>
-                                <input type="text" name="search" class="form-control border-0 px-2" placeholder="ID..." value="{{ $filters['search'] ?? '' }}">
+                    <form action="{{ route('purchase.list') }}" method="GET" id="filterForm">
+                        <div class="row g-3">
+                            <div class="col-md-2 date-group daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date Registry</label>
+                                <input type="date" name="start_date" class="form-control shadow-none" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
-                        </div>
-                        
-                        <div class="col-lg-2 col-md-6">
-                            <label class="form-label fw-semibold text-muted small text-uppercase">Status</label>
-                            <select name="status" class="form-select border rounded-3">
-                                <option value="">All Status</option>
-                                <option value="pending" {{ ($filters['status'] ?? '') == 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="received" {{ ($filters['status'] ?? '') == 'received' ? 'selected' : '' }}>Received</option>
-                                <option value="cancelled" {{ ($filters['status'] ?? '') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                            </select>
-                        </div>
-
-                        <div class="col-lg-3 col-md-12">
-                            <label class="form-label fw-semibold small text-muted text-uppercase">Purchase Date</label>
-                            <div class="input-group border rounded-3 overflow-hidden">
-                                <span class="input-group-text bg-white border-0"><i class="far fa-calendar-alt text-primary"></i></span>
-                                <input type="date" name="purchase_date" class="form-control border-0" value="{{ $filters['purchase_date'] ?? '' }}">
+                            <div class="col-md-2 date-group daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date Registry</label>
+                                <input type="date" name="end_date" class="form-control shadow-none" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
-                        </div>
 
-                        <div class="col-12 d-flex justify-content-between align-items-center mt-3">
-                            <div class="d-flex align-items-center gap-3">
-                                <label class="fw-semibold text-muted small text-uppercase mb-0">Quick Filter:</label>
-                                <div class="btn-group shadow-sm" role="group">
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_all" value="" {{ !($filters['quick_filter'] ?? '') ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_all">All</label>
-
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_today" value="today" {{ ($filters['quick_filter'] ?? '') == 'today' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_today">Today</label>
-
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_yesterday" value="yesterday" {{ ($filters['quick_filter'] ?? '') == 'yesterday' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_yesterday">Yesterday</label>
-
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_last7" value="last_7_days" {{ ($filters['quick_filter'] ?? '') == 'last_7_days' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_last7">7 Days</label>
-
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_monthly" value="monthly" {{ ($filters['quick_filter'] ?? '') == 'monthly' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_monthly">Monthly</label>
-
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_yearly" value="yearly" {{ ($filters['quick_filter'] ?? '') == 'yearly' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_yearly">This Year</label>
-                                </div>
+                            <div class="col-md-2 date-group monthly-group" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Month</label>
+                                <select name="month" class="form-select select2-setup shadow-none">
+                                    @foreach(range(1, 12) as $m)
+                                        <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="d-flex gap-2">
-                                <a href="{{ route('purchase.list') }}" class="btn btn-light border px-4 rounded-3 text-muted">
-                                    <i class="fas fa-undo me-2"></i>Reset
-                                </a>
-                                <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
-                                    <i class="fas fa-filter me-2"></i>Apply Filters
+                            <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Year</label>
+                                <select name="year" class="form-select select2-setup shadow-none">
+                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Challan / Inv #</label>
+                                <input type="text" name="search" class="form-control shadow-none" placeholder="Search procurement ID..." value="{{ request('search') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Vested Supplier</label>
+                                <select name="supplier_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Supplier">
+                                    <option value=""></option>
+                                    @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Allocated Product</label>
+                                <select name="product_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Product">
+                                    <option value=""></option>
+                                    @foreach($products as $product)
+                                        <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Style Ref Code</label>
+                                <input type="text" name="style_number" class="form-control shadow-none" placeholder="Style SKU..." value="{{ request('style_number') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Product Category</label>
+                                <select name="category_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Category">
+                                    <option value=""></option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Vested Brand</label>
+                                <select name="brand_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Brand">
+                                    <option value=""></option>
+                                    @foreach($brands as $brand)
+                                        <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Inventory Season</label>
+                                <select name="season_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Season">
+                                    <option value=""></option>
+                                    @foreach($seasons as $season)
+                                        <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Target Gender</label>
+                                <select name="gender_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Gender">
+                                    <option value=""></option>
+                                    @foreach($genders as $gender)
+                                        <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Account Registry</label>
+                                <select name="account" class="form-select select2-setup shadow-none" data-placeholder="Select A/C">
+                                    <option value=""></option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100 shadow-none" style="height: 42px;">
+                                    <i class="fas fa-search me-2"></i>Apply
                                 </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                            <div class="btn-group shadow-none border rounded overflow-hidden">
+                                <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">CSV</button>
+                                <a href="{{ route('purchase.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">EXCEL</a>
+                                <a href="{{ route('purchase.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">PDF</a>
+                                <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="small text-muted fw-bold">Live Data Sync: <span class="text-primary">{{ now()->format('H:i:s') }}</span></span>
+                                <a href="{{ route('purchase.list') }}" class="btn btn-light btn-sm px-4 fw-bold border shadow-none">Flush Filters</a>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- List Table -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-4 px-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="fw-bold mb-1">Purchase History</h5>
-                            <p class="text-muted small mb-0">List of all inventory purchases.</p>
-                        </div>
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="btn-group shadow-sm">
-                                <a href="{{ route('purchase.export.pdf', array_merge(request()->all(), ['action' => 'print'])) }}" target="_blank" class="btn btn-sm btn-light border px-3 fw-medium">
-                                    <i class="fas fa-print me-1"></i>Print
-                                </a>
-                                <a href="{{ route('purchase.export.pdf', request()->all()) }}" class="btn btn-sm btn-light border px-3 fw-medium text-danger">
-                                    <i class="fas fa-file-pdf me-1"></i>PDF
-                                </a>
-                                <a href="{{ route('purchase.export.excel', request()->all()) }}" class="btn btn-sm btn-light border px-3 fw-medium text-success">
-                                    <i class="fas fa-file-excel me-1"></i>Excel
-                                </a>
-                            </div>
-                            @if($purchases->total() > 0)
-                                <div class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill">
-                                    Total: {{ $purchases->total() }} Records
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
+            <!-- Procurement Audit Registry Table -->
+            <div class="premium-card shadow-sm border-0">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="purchaseTable">
-                            <thead class="bg-light text-muted small text-uppercase fw-bold">
+                        <table class="table premium-table compact mb-0">
+                            <thead>
                                 <tr>
-                                    <th class="ps-4 border-0 py-3">Purchase ID</th>
-                                    <th class="border-0 py-3">Location Information</th>
-                                    <th class="border-0 py-3">Purchase Date</th>
-                                    <th class="border-0 py-3 text-center">Status</th>
-                                    <th class="border-0 py-3 text-end">Total Amount</th>
-                                    <th class="pe-4 border-0 py-3 text-end">Actions</th>
+                                    <th class="ps-3">SL</th>
+                                    <th>Invoice #</th>
+                                    <th>Registry Date</th>
+                                    <th>Supplier</th>
+                                    <th class="text-center">Media</th>
+                                    <th>Category</th>
+                                    <th>Brand</th>
+                                    <th>Season</th>
+                                    <th>Gender</th>
+                                    <th style="min-width: 160px;">Product Name</th>
+                                    <th>Style Ref</th>
+                                    <th>Color</th>
+                                    <th>Size</th>
+                                    <th class="text-center">Pur. Qty</th>
+                                    <th class="text-center bg-light">T. Pur. Qty</th>
+                                    <th class="text-end">Pur. Value</th>
+                                    <th class="text-end bg-light">T. Pur. Value</th>
+                                    <th class="text-center text-danger">Ret. Qty</th>
+                                    <th class="text-center text-danger bg-light">T. Ret. Qty</th>
+                                    <th class="text-end text-danger">Ret. Value</th>
+                                    <th class="text-end text-danger bg-light">T. Ret. Value</th>
+                                    <th class="text-center text-success">Act. Qty</th>
+                                    <th class="text-center text-success bg-light">T. Act. Qty</th>
+                                    <th class="text-end text-success">Act. Value</th>
+                                    <th class="text-end text-success bg-light">T. Act. Value</th>
+                                    <th class="text-end text-primary">Paid A/C</th>
+                                    <th class="text-end text-danger">Due A/C</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center pe-3">ACTION</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($purchases as $purchase)
-                                    <tr class="transition-all">
-                                        <td class="ps-4">
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-sm me-3 rounded-3 bg-light text-primary d-flex align-items-center justify-content-center">
-                                                    <i class="fas fa-truck-loading"></i>
-                                                </div>
-                                                <div>
-                                                    <a href="{{ route('purchase.show', $purchase->id) }}" class="text-decoration-none fw-bold text-dark d-block">
-                                                        #{{ $purchase->id }}
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            @php
-                                                $locationName = 'N/A';
-                                                $icon = 'fa-store';
-                                                if ($purchase->ship_location_type === 'branch') {
-                                                    $branch = \App\Models\Branch::find($purchase->location_id);
-                                                    $locationName = $branch ? $branch->name : 'Unknown Branch';
-                                                } elseif ($purchase->ship_location_type === 'warehouse') {
-                                                    $warehouse = \App\Models\Warehouse::find($purchase->location_id);
-                                                    $locationName = $warehouse ? $warehouse->name : 'Unknown Warehouse';
-                                                    $icon = 'fa-warehouse';
+                                @php 
+                                    $grandTotalPurQty = 0; $grandTotalPurAmt = 0;
+                                    $grandTotalRetQty = 0; $grandTotalRetAmt = 0;
+                                    $grandTotalActQty = 0; $grandTotalActAmt = 0;
+                                    $grandTotalPaid = 0; $grandTotalDue = 0;
+                                @endphp
+                                @forelse($items as $index => $item)
+                                    @php
+                                        $purchase = $item->purchase;
+                                        $bill = $purchase->bill;
+                                        $product = $item->product;
+                                        $variation = $item->variation;
+                                        
+                                        $color = '-'; $size = '-';
+                                        if ($variation && $variation->attributeValues) {
+                                            foreach($variation->attributeValues as $val) {
+                                                $attrName = strtolower($val->attribute->name ?? '');
+                                                if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                                                    $color = $val->value;
+                                                } elseif (str_contains($attrName, 'size')) {
+                                                    $size = $val->value;
                                                 }
-                                            @endphp
-                                            <div class="fw-bold text-dark">
-                                                <i class="fas {{ $icon }} me-1 text-muted small"></i> {{ $locationName }}
-                                            </div>
-                                            <small class="text-muted text-uppercase x-small">{{ $purchase->ship_location_type }}</small>
+                                            }
+                                        }
+
+                                        $retQty = $item->returnItems->sum('returned_qty');
+                                        $retAmt = $item->returnItems->sum(function($ri) { return $ri->returned_qty * $ri->unit_price; });
+                                        $actualQty = $item->quantity - $retQty;
+                                        $actualAmt = $item->total_price - $retAmt;
+
+                                        $grandTotalPurQty += $item->quantity;
+                                        $grandTotalPurAmt += $item->total_price;
+                                        $grandTotalRetQty += $retQty;
+                                        $grandTotalRetAmt += $retAmt;
+                                        $grandTotalActQty += $actualQty;
+                                        $grandTotalActAmt += $actualAmt;
+                                    @endphp
+                                    <tr>
+                                        <td class="ps-3 text-muted">{{ $items->firstItem() + $index }}</td>
+                                        <td class="fw-bold text-dark">
+                                            @if($bill && $bill->bill_number) {{ $bill->bill_number }} 
+                                            @else #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }} @endif
                                         </td>
-                                        <td>
-                                            <div class="fw-medium text-dark">
-                                                <i class="far fa-calendar-alt me-1 text-muted small"></i> 
-                                                {{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d M, Y') : '-' }}
+                                        <td>{{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') : '-' }}</td>
+                                        <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
+                                        <td class="text-center">
+                                            <div class="thumbnail-box mx-auto" style="width: 35px; height: 35px;">
+                                                <img src="{{ $product && $product->image ? asset('storage/'.$product->image) : asset('static/default-product.png') }}" alt="P">
                                             </div>
+                                        </td>
+                                        <td class="text-muted">{{ $product->category->name ?? '-' }}</td>
+                                        <td class="text-muted">{{ $product->brand->name ?? '-' }}</td>
+                                        <td class="text-muted">{{ $product->season->name ?? '-' }}</td>
+                                        <td class="text-muted">{{ $product->gender->name ?? '-' }}</td>
+                                        <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
+                                        <td><code class="text-primary bg-light px-2 py-1 rounded small">{{ $product->sku ?? '-' }}</code></td>
+                                        <td class="text-uppercase small fw-bold">{{ $color }}</td>
+                                        <td class="small fw-bold">{{ $size }}</td>
+                                        <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
+                                        <td class="text-center fw-bold bg-light">{{ number_format($item->quantity, 2) }}</td>
+                                        <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>
+                                        <td class="text-end fw-bold bg-light">{{ number_format($item->total_price, 2) }}৳</td>
+                                        
+                                        <td class="text-center text-danger">{{ number_format($retQty, 2) }}</td>
+                                        <td class="text-center text-danger fw-bold bg-light">{{ number_format($retQty, 2) }}</td>
+                                        <td class="text-end text-danger">{{ number_format($retAmt, 2) }}৳</td>
+                                        <td class="text-end text-danger fw-bold bg-light">{{ number_format($retAmt, 2) }}৳</td>
+                                        
+                                        <td class="text-center text-success">{{ number_format($actualQty, 2) }}</td>
+                                        <td class="text-center text-success fw-bold bg-light">{{ number_format($actualQty, 2) }}</td>
+                                        <td class="text-end text-success">{{ number_format($actualAmt, 2) }}৳</td>
+                                        <td class="text-end text-success fw-bold bg-light">{{ number_format($actualAmt, 2) }}৳</td>
+                                        
+                                        <td class="text-end text-primary fw-bold">
+                                            @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
+                                                {{ number_format($bill->paid_amount ?? 0, 2) }}৳
+                                                @php $grandTotalPaid += ($bill->paid_amount ?? 0); @endphp
+                                            @else - @endif
+                                        </td>
+                                        <td class="text-end text-danger fw-bold">
+                                            @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
+                                                {{ number_format($bill->due_amount ?? 0, 2) }}৳
+                                                @php $grandTotalDue += ($bill->due_amount ?? 0); @endphp
+                                            @else - @endif
                                         </td>
                                         <td class="text-center">
                                             @php
-                                                $statusClass = [
-                                                    'pending' => 'bg-warning-soft text-warning border-warning',
-                                                    'received' => 'bg-success-soft text-success border-success',
-                                                    'cancelled' => 'bg-danger-soft text-danger border-danger',
-                                                ][$purchase->status] ?? 'bg-secondary-soft text-secondary border-secondary';
+                                                $statusDot = [
+                                                    'pending' => 'bg-warning',
+                                                    'received' => 'bg-success',
+                                                    'cancelled' => 'bg-danger',
+                                                ][$purchase->status] ?? 'bg-secondary';
                                             @endphp
-                                            <span class="badge border {{ $statusClass }} px-3 py-2 rounded-pill update-status-btn"
-                                                style="cursor:pointer;"
-                                                data-id="{{ $purchase->id }}"
-                                                data-status="{{ $purchase->status }}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#updateStatusModal"
-                                            >
-                                                {{ ucfirst($purchase->status ?? '-') }}
+                                            <span class="status-pill {{ str_replace('bg-', 'status-', $statusDot) }}">
+                                                <i class="fas fa-circle extra-small"></i>{{ ucfirst($purchase->status) }}
                                             </span>
                                         </td>
-                                        <td class="text-end fw-bold">
-                                            ৳{{ number_format($purchase->items->sum('total_price'), 2) }}
-                                        </td>
-                                        <td class="pe-4 text-end">
-                                            <div class="d-flex justify-content-end gap-2">
-                                                <a href="{{ route('purchase.show', $purchase->id) }}" class="btn btn-sm btn-light border-0" title="View Details">
-                                                    <i class="fas fa-eye text-info"></i>
+                                        <td class="pe-3">
+                                            <div class="d-flex gap-2 justify-content-center">
+                                                <a href="{{ route('purchase.show', $purchase->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
+                                                    <i class="fas fa-eye text-primary"></i>
                                                 </a>
-                                                <a href="{{ route('purchase.edit', $purchase->id) }}" class="btn btn-sm btn-light border-0" title="Edit">
-                                                    <i class="fas fa-edit text-primary"></i>
-                                                </a>
-                                                <form action="{{ route('purchase.delete', $purchase->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this assignment?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-light border-0" title="Delete">
-                                                        <i class="fas fa-trash text-danger"></i>
-                                                    </button>
-                                                </form>
                                             </div>
                                         </td>
                                     </tr>
-                                @empty   
+                                @empty
                                     <tr>
-                                        <td colspan="6" class="text-center py-5 text-muted">
-                                            <i class="fas fa-box-open fa-3x mb-3 d-block opacity-25"></i>
-                                            No Assignment Records Found
+                                        <td colspan="29" class="text-center py-5">
+                                            <div class="text-muted opacity-50 py-4">
+                                                <i class="fas fa-file-invoice fa-3x mb-3"></i>
+                                                <h6 class="fw-bold">No Procurement Records Found</h6>
+                                                <p class="small mb-0">Adjust your filters or try scanning a different batch.</p>
+                                            </div>
                                         </td>
-                                    </tr> 
+                                    </tr>
                                 @endforelse
                             </tbody>
+                            <tfoot class="bg-light border-top-0">
+                                <tr class="fw-bold text-dark text-uppercase" style="font-size: 13px;">
+                                    <td colspan="13" class="text-end py-3">Global Registry Totals</td>
+                                    <td class="text-center">{{ number_format($grandTotalPurQty, 2) }}</td>
+                                    <td class="text-center bg-white">{{ number_format($grandTotalPurQty, 2) }}</td>
+                                    <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
+                                    <td class="text-end bg-white">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
+                                    
+                                    <td class="text-center text-danger">{{ number_format($grandTotalRetQty, 2) }}</td>
+                                    <td class="text-center text-danger bg-white">{{ number_format($grandTotalRetQty, 2) }}</td>
+                                    <td class="text-end text-danger">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
+                                    <td class="text-end text-danger bg-white">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
+                                    
+                                    <td class="text-center text-success">{{ number_format($grandTotalActQty, 2) }}</td>
+                                    <td class="text-center text-success bg-white">{{ number_format($grandTotalActQty, 2) }}</td>
+                                    <td class="text-end text-success">{{ number_format($grandTotalActAmt, 2) }}৳</td>
+                                    <td class="text-end text-success bg-white">{{ number_format($grandTotalActAmt, 2) }}৳</td>
+                                    
+                                    <td class="text-end text-primary">{{ number_format($grandTotalPaid, 2) }}৳</td>
+                                    <td class="text-end text-danger">{{ number_format($grandTotalDue, 2) }}৳</td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
-                </div>
-                @if($purchases->hasPages())
-                <div class="card-footer bg-white border-0 py-3 px-4">
+                @if($items->hasPages())
+                <div class="card-footer bg-white py-3 border-top">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted small">
-                            Showing {{ $purchases->firstItem() ?? 0 }} to {{ $purchases->lastItem() ?? 0 }} of {{ $purchases->total() }} records
-                        </span>
-                        {{ $purchases->links('vendor.pagination.bootstrap-5') }}
+                        <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 0.05em;">Registry Batch: {{ $items->firstItem() }} - {{ $items->lastItem() }} of {{ $items->total() }}</small>
+                        {{ $items->links('vendor.pagination.bootstrap-5') }}
                     </div>
                 </div>
                 @endif
@@ -284,74 +378,35 @@
         </div>
     </div>
 
-    <!-- Update Status Modal -->
-    <div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <form method="POST" id="updateStatusForm">
-                @csrf
-                <div class="modal-content border-0 shadow-lg">
-                    <div class="modal-header bg-light border-0 py-3">
-                        <h5 class="modal-title fw-bold" id="updateStatusModalLabel">
-                            <i class="fas fa-sync-alt me-2 text-primary"></i>Update Purchase Status
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <input type="hidden" name="purchase_id" id="modalPurchaseId">
-                        <div class="mb-4 text-center">
-                            <i class="fas fa-info-circle text-info mb-2 fs-2 d-block"></i>
-                            <p class="text-muted mb-0">Note: Changing status to <strong class="text-success">Received</strong> will automatically update the inventory stock at the destination location.</p>
-                        </div>
-                        <div class="mb-3">
-                            <label for="modalStatus" class="form-label fw-semibold">New Status</label>
-                            <select name="status" id="modalStatus" class="form-select border-2 py-2" required>
-                                <option value="pending">Pending</option>
-                                <option value="received">Received</option>
-                                <option value="cancelled">Cancelled</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0 p-4 pt-0">
-                        <button type="button" class="btn btn-light px-4 border" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary px-4 shadow-sm">Save Changes</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
+    <!-- Select2 & jQuery -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        function applyQuickFilter(value) {
-            const form = document.getElementById('filterForm');
-            const quickFilterInput = form.querySelector('input[name="quick_filter"]:checked');
-            
-            // Clear date inputs when using quick filters
-            if (value) {
-                form.querySelector('input[name="purchase_date"]').value = '';
-            }
-            form.submit();
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            var updateStatusForm = document.getElementById('updateStatusForm');
-            var modalStatus = document.getElementById('modalStatus');
-            document.querySelectorAll('.update-status-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var id = this.getAttribute('data-id');
-                    var status = this.getAttribute('data-status');
-                    updateStatusForm.action = '{{ url('/erp/purchases') }}/' + id + '/update-status';
-                    modalStatus.value = status;
-                    
-                    // If already received, prevent changes as stock is already updated
-                    if (status === 'received') {
-                        modalStatus.setAttribute('disabled', 'disabled');
-                        updateStatusForm.querySelector('button[type="submit"]').style.display = 'none';
-                    } else {
-                        modalStatus.removeAttribute('disabled');
-                        updateStatusForm.querySelector('button[type="submit"]').style.display = 'block';
-                    }
-                });
+        $(document).ready(function() {
+            $('.select2-setup').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                allowClear: true,
+                dropdownParent: $('#filterForm')
             });
+
+            const reportRadios = document.querySelectorAll('input[name="report_type"]');
+            function toggleDateGroups() {
+                const type = document.querySelector('input[name="report_type"]:checked').value;
+                document.querySelectorAll('.date-group').forEach(el => el.style.display = 'none');
+                
+                if (type === 'daily') {
+                    document.querySelectorAll('.daily-group').forEach(el => el.style.display = 'block');
+                } else if (type === 'monthly') {
+                    document.querySelectorAll('.monthly-group').forEach(el => el.style.display = 'block');
+                } else if (type === 'yearly') {
+                    document.querySelectorAll('.yearly-group').forEach(el => el.style.display = 'block');
+                }
+            }
+            reportRadios.forEach(radio => radio.addEventListener('change', toggleDateGroups));
+            toggleDateGroups();
         });
     </script>
 @endsection

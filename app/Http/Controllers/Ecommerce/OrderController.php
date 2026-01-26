@@ -905,12 +905,11 @@ class OrderController extends Controller
         $generalSettings = \App\Models\GeneralSetting::first();
         $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
 
-        do {
-            $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $fullNumber = $prefix . $number;
-        } while (Invoice::where('invoice_number', $fullNumber)->exists());
+        $lastInvoice = Invoice::latest('id')->first();
+        $nextId = $lastInvoice ? $lastInvoice->id + 1 : 1;
 
-        return $fullNumber;
+        // Format: INV-000001
+        return $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
     }
 
     public function orderSuccess(string $orderId)
@@ -925,36 +924,13 @@ class OrderController extends Controller
         return view('ecommerce.order-success', compact('orderId', 'pageTitle', 'order'));
     }
 
-    // private function generateOrderNumber()
-    // {
-    //     $lastOrder = Order::latest()->first();
-    //     if (!$lastOrder) {
-    //         return "SFO1";
-    //     }
-    //     // Use order ID directly - much shorter format
-    //     $orderId = $lastOrder->id + 1;
-
-    //     return "SFO{$orderId}";
-    // }
-
-   private function generateOrderNumber()
+    private function generateOrderNumber()
     {
         $lastOrder = Order::latest('id')->first();
-        
-        if (!$lastOrder) {
-            return "SFO580";
-        }
+        $nextId = $lastOrder ? $lastOrder->id + 1 : 1;
 
-        // Extract numbers from 'SFO123' to decouple from DB ID
-        $lastNumber = (int) preg_replace('/[^0-9]/', '', $lastOrder->order_number);
-        $nextNumber = $lastNumber + 1;
-
-        // Ensure we start from 580 if current sequence is lower
-        if ($nextNumber < 580) {
-            $nextNumber = 580;
-        }
-
-        return "SFO{$nextNumber}";
+        // Format: ORD-000001
+        return 'ORD-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
     }
 
     /**

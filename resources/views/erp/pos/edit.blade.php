@@ -61,7 +61,7 @@
                                             <i class="fas fa-barcode"></i>
                                         </span>
                                         <input type="text" class="form-control border-start-0" 
-                                            placeholder="Scan barcode or enter SKU..." 
+                                            placeholder="Scan barcode or enter Style No..." 
                                             id="barcodeInput" 
                                             autocomplete="off">
                                     </div>
@@ -727,12 +727,12 @@
                             }
                         }
                     } else {
-                        showBarcodeError(`Product not found with barcode/SKU: "${barcode}"`);
+                        showBarcodeError(`Product not found with barcode/Style No: "${barcode}"`);
                     }
                 },
                 error: function(xhr) {
                     if (xhr.status === 404) {
-                        showBarcodeError(`Product not found with barcode/SKU: "${barcode}"`);
+                        showBarcodeError(`Product not found with barcode/Style No: "${barcode}"`);
                     } else {
                         showBarcodeError('Error scanning barcode. Please try again.');
                     }

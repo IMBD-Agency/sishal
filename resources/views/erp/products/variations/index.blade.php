@@ -6,161 +6,137 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">
-                        <i class="fas fa-layer-group me-2"></i>
-                        Product Variations - {{ $product->name }}
-                    </h4>
-                    <div>
-                        <a href="{{ route('product.list') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-1"></i> Back to Products
+        <div class="container-fluid px-4 py-4">
+            <!-- Header Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold d-flex align-items-center">
+                        <i class="fas fa-layer-group me-2 text-dark"></i>
+                        Product Variations - <span class="text-muted ms-1">{{ $product->name }}</span>
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <a href="{{ route('product.list') }}" class="btn btn-secondary px-4 d-flex align-items-center">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Products
                         </a>
-                        <a href="{{ route('erp.products.variations.create', $product->id) }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i> Add Variation
+                        <a href="{{ route('erp.products.variations.create', $product->id) }}" class="btn btn-success px-4 d-flex align-items-center">
+                            <i class="fas fa-plus me-2"></i>Add Variation
                         </a>
                     </div>
                 </div>
-                <div class="card-body">
-                    @if(session('success'))
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            {{ session('success') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
+            </div>
 
-                    @if(session('error'))
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            {{ session('error') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
-
-                    @if($product->variations->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="variationTable">
+                            <thead class="bg-dark text-white">
+                                <tr>
+                                    <th class="ps-4">Style No</th>
+                                    <th>Name</th>
+                                    <th>Attributes</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
+                                    <th>Default</th>
+                                    <th class="text-center pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($product->variations as $variation)
                                     <tr>
-                                        <th>SKU</th>
-                                        <th>Name</th>
-                                        <th>Attributes</th>
-                                        <th>Price</th>
-                                        <th>Stock</th>
-                                        <th>Status</th>
-                                        <th>Default</th>
-                                        <th>Actions</th>
+                                        <td class="ps-4">
+                                            <span style="color: #e83e8c; font-weight: 500;">{{ $variation->sku }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @if($variation->image)
+                                                    <img src="{{ asset(ltrim($variation->image,'/')) }}" 
+                                                         class="rounded border me-2" 
+                                                         style="width: 32px; height: 32px; object-fit: cover;">
+                                                @endif
+                                                <span class="fw-bold">{{ $variation->name }}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @foreach($variation->combinations as $combination)
+                                                <span class="badge rounded-pill px-3 py-2 me-1" style="background-color: #0dcaf0; color: #fff; font-weight: 500; font-size: 0.75rem;">
+                                                    {{ $combination->attribute->name }}: {{ $combination->attributeValue->value }}
+                                                </span>
+                                            @endforeach
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-muted">${{ number_format($variation->final_price, 2) }}</span>
+                                        </td>
+                                        <td>
+                                            @php($stock = $variation->total_stock)
+                                            <span class="badge px-3 py-2 rounded {{ $stock > 0 ? 'bg-success' : 'bg-danger' }}" style="font-weight: 500;">
+                                                {{ $stock }} in stock
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge px-3 py-2 rounded bg-success" style="font-weight: 500;">
+                                                {{ ucfirst($variation->status) }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            @if($variation->is_default)
+                                                <i class="fas fa-check-circle text-success fs-5"></i>
+                                            @endif
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="d-flex gap-1 justify-content-end">
+                                                <a href="{{ route('erp.products.variations.show', [$product->id, $variation->id]) }}" 
+                                                   class="btn btn-sm p-0 d-flex align-items-center justify-content-center border" 
+                                                   style="width: 28px; height: 28px; background: #fff; color: #0dcaf0;" title="View">
+                                                    <i class="fas fa-eye fa-xs"></i>
+                                                </a>
+                                                <a href="{{ route('erp.products.variations.edit', [$product->id, $variation->id]) }}" 
+                                                   class="btn btn-sm p-0 d-flex align-items-center justify-content-center border" 
+                                                   style="width: 28px; height: 28px; background: #fff; color: #198754;" title="Edit">
+                                                    <i class="fas fa-edit fa-xs"></i>
+                                                </a>
+                                                <a href="{{ route('erp.products.variations.stock', [$product->id, $variation->id]) }}" 
+                                                   class="btn btn-sm p-0 d-flex align-items-center justify-content-center border" 
+                                                   style="width: 28px; height: 28px; background: #fff; color: #ffc107;" title="Manage Stock">
+                                                    <i class="fas fa-boxes fa-xs"></i>
+                                                </a>
+                                                <button type="button" 
+                                                        class="btn btn-sm p-0 d-flex align-items-center justify-content-center border"
+                                                        style="width: 28px; height: 28px; background: #fff; color: #6c757d;"
+                                                        onclick="toggleStatus({{ $variation->id }})" 
+                                                        title="{{ $variation->status === 'active' ? 'Deactivate' : 'Activate' }}">
+                                                    <i class="fas fa-{{ $variation->status === 'active' ? 'pause' : 'play' }} fa-xs"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm p-0 d-flex align-items-center justify-content-center border"
+                                                        style="width: 28px; height: 28px; background: #fff; color: #dc3545;"
+                                                        onclick="deleteVariation({{ $variation->id }})" 
+                                                        title="Delete">
+                                                    <i class="fas fa-trash fa-xs"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($product->variations as $variation)
-                                        <tr>
-                                            <td>
-                                                <code>{{ $variation->sku }}</code>
-                                            </td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    @if($variation->image)
-                                                        @php($imgPath = ltrim($variation->image,'/'))
-                                                        <img src="{{ asset($imgPath) }}" 
-                                                             alt="{{ $variation->name }}" 
-                                                             class="rounded me-2" 
-                                                             style="width: 40px; height: 40px; object-fit: cover;">
-                                                    @endif
-                                                    <div>
-                                                        <strong>{{ $variation->name }}</strong>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                @foreach($variation->combinations as $combination)
-                                                    <span class="badge bg-info me-1">
-                                                        {{ $combination->attribute->name }}: {{ $combination->attributeValue->value }}
-                                                        @if($combination->attribute->is_color && $combination->attributeValue->color_code)
-                                                            <span class="color-indicator" 
-                                                                  style="background-color: {{ $combination->attributeValue->color_code }}; 
-                                                                         width: 12px; height: 12px; 
-                                                                         display: inline-block; 
-                                                                         border-radius: 50%; 
-                                                                         margin-left: 5px;"></span>
-                                                        @endif
-                                                    </span>
-                                                @endforeach
-                                            </td>
-                                            <td>
-                                                @if($variation->price)
-                                                    <span class="text-success fw-bold">${{ number_format($variation->final_price, 2) }}</span>
-                                                @else
-                                                    <span class="text-muted">${{ number_format($product->price, 2) }}</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ $variation->isInStock() ? 'success' : 'danger' }}">
-                                                    {{ $variation->total_stock }} in stock
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{{ $variation->status === 'active' ? 'success' : 'secondary' }}">
-                                                    {{ ucfirst($variation->status) }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                @if($variation->is_default)
-                                                    <span class="badge bg-warning">
-                                                        <i class="fas fa-star"></i> Default
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <a href="{{ route('erp.products.variations.show', [$product->id, $variation->id]) }}" 
-                                                       class="btn btn-sm btn-outline-info" title="View">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                    <a href="{{ route('erp.products.variations.edit', [$product->id, $variation->id]) }}" 
-                                                       class="btn btn-sm btn-outline-primary" title="Edit">
-                                                        <i class="fas fa-edit"></i>
-                                                    </a>
-                                                    <a href="{{ route('erp.products.variations.stock', [$product->id, $variation->id]) }}" 
-                                                       class="btn btn-sm btn-outline-warning" title="Manage Stock">
-                                                        <i class="fas fa-boxes"></i>
-                                                    </a>
-                                                    <button type="button" 
-                                                            class="btn btn-sm btn-outline-{{ $variation->status === 'active' ? 'secondary' : 'success' }}"
-                                                            onclick="toggleStatus({{ $variation->id }})" 
-                                                            title="{{ $variation->status === 'active' ? 'Deactivate' : 'Activate' }}">
-                                                        <i class="fas fa-{{ $variation->status === 'active' ? 'pause' : 'play' }}"></i>
-                                                    </button>
-                                                    <button type="button" 
-                                                            class="btn btn-sm btn-outline-danger"
-                                                            onclick="deleteVariation({{ $variation->id }})" 
-                                                            title="Delete">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="text-center py-5">
-                            <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No variations found</h5>
-                            <p class="text-muted">This product doesn't have any variations yet.</p>
-                            <a href="{{ route('erp.products.variations.create', $product->id) }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-1"></i> Create First Variation
-                            </a>
-                        </div>
-                    @endif
+                                @empty
+                                    <tr>
+                                        <td colspan="8" class="text-center py-5">
+                                            <div class="text-muted mb-3">
+                                                <i class="fas fa-layer-group fa-3x mb-3"></i>
+                                                <h5>No variations found</h5>
+                                                <p>This product doesn't have any variations yet.</p>
+                                            </div>
+                                            <a href="{{ route('erp.products.variations.create', $product->id) }}" class="btn btn-primary px-4">
+                                                <i class="fas fa-plus me-2"></i>Create First Variation
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">

@@ -12,6 +12,7 @@ use App\Http\Controllers\Erp\ProductVariationStockController;
 use App\Http\Controllers\Erp\BarcodeController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 // Route::get('/', [PageController::class, 'index'])->name('home');
 Route::get('/', [PageController::class, 'index'])->name('ecommerce.home');
@@ -166,6 +167,25 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/warehouses/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'destroy'])->name('warehouses.destroy');
     Route::get('warehouse/show/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'show'])->name('warehouses.show');
 
+    // Master Settings Dashboard
+    Route::get('/master-settings', [\App\Http\Controllers\Erp\MasterSettingController::class, 'index'])->name('master.settings');
+
+    // Attribute Management
+    Route::resource('brands', \App\Http\Controllers\Erp\BrandController::class);
+    Route::resource('seasons', \App\Http\Controllers\Erp\SeasonController::class);
+    Route::resource('genders', \App\Http\Controllers\Erp\GenderController::class);
+    Route::resource('units', \App\Http\Controllers\Erp\UnitController::class);
+    Route::resource('suppliers', \App\Http\Controllers\Erp\SupplierController::class);
+    Route::get('suppliers/{supplier}/ledger', [\App\Http\Controllers\Erp\SupplierController::class, 'ledger'])->name('suppliers.ledger');
+    Route::get('supplier-payments/export-excel', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportExcel'])->name('supplier-payments.export.excel');
+    Route::get('supplier-payments/export-pdf', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportPdf'])->name('supplier-payments.export.pdf');
+    Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
+
+    // Advanced Reporting
+    Route::get('/reports', [\App\Http\Controllers\Erp\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/purchases', [\App\Http\Controllers\Erp\ReportController::class, 'purchaseReport'])->name('reports.purchase');
+    Route::get('/reports/sales', [\App\Http\Controllers\Erp\ReportController::class, 'saleReport'])->name('reports.sale');
+
 
     // Categories
     Route::get('/categories', [\App\Http\Controllers\Erp\ProductController::class, 'categoryList'])->name('category.list');
@@ -183,11 +203,17 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // Products
     Route::get('/products/search', [\App\Http\Controllers\Erp\ProductController::class, 'productSearch'])->name('products.search');
+    Route::get('/products/search-by-style', [\App\Http\Controllers\Erp\ProductController::class, 'searchByStyle'])->name('products.search.by.style');
+    Route::get('/products/{id}/variations-with-stock', [\App\Http\Controllers\Erp\ProductController::class, 'getVariationsWithStock'])->name('products.variations.with.stock');
     Route::get('/products/search-with-filters/{branchId}', [\App\Http\Controllers\Erp\ProductController::class, 'searchProductWithFilters'])->name('product.searchWithFilters');
+    Route::get('/products/search-style', [\App\Http\Controllers\Erp\ProductController::class, 'searchStyleNumber'])->name('products.search.style');
+    Route::get('/products/find-by-style/{styleNumber}', [\App\Http\Controllers\Erp\ProductController::class, 'findProductByStyle'])->name('products.find.by.style');
     Route::post('/products/find-by-barcode/{branchId}', [\App\Http\Controllers\Erp\ProductController::class, 'findProductByBarcode'])->name('products.find.by.barcode');
     Route::delete('/products/gallery/{id}', [\App\Http\Controllers\Erp\ProductController::class, 'deleteGalleryImage'])->name('product.gallery.delete');
     Route::post('/products/gallery', [\App\Http\Controllers\Erp\ProductController::class, 'addGalleryImage'])->name('product.gallery.add');
     Route::get('/products', [\App\Http\Controllers\Erp\ProductController::class, 'index'])->name('product.list');
+    Route::get('/products/export/excel', [\App\Http\Controllers\Erp\ProductController::class, 'exportExcel'])->name('product.export.excel');
+    Route::get('/products/export/pdf', [\App\Http\Controllers\Erp\ProductController::class, 'exportPdf'])->name('product.export.pdf');
     Route::get('/products/new', [\App\Http\Controllers\Erp\ProductController::class, 'create'])->name('product.create');
     Route::post('/products', [\App\Http\Controllers\Erp\ProductController::class, 'store'])->name('product.store');
     Route::get('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'show'])->name('product.show');
@@ -239,13 +265,21 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // Stock
     Route::get('/product-stock', [\App\Http\Controllers\Erp\StockController::class, 'stocklist'])->name('productstock.list');
+    Route::get('/product-stock/export/excel', [App\Http\Controllers\Erp\StockController::class, 'exportStockExcel'])->name('productstock.export.excel');
+    Route::get('/product-stock/export/pdf', [App\Http\Controllers\Erp\StockController::class, 'exportStockPdf'])->name('productstock.export.pdf');
     Route::post('/stock/add-to-branches', [\App\Http\Controllers\Erp\StockController::class, 'addStockToBranches'])->name('stock.addToBranches');
     Route::post('/stock/add-to-warehouses', [App\Http\Controllers\Erp\StockController::class, 'addStockToWarehouses'])->name('stock.addToWarehouses');
     Route::post('/stock/adjust', [\App\Http\Controllers\Erp\StockController::class, 'adjustStock'])->name('stock.adjust');
+    Route::get('/stock/adjustment', [\App\Http\Controllers\Erp\StockController::class, 'adjustmentCreate'])->name('stock.adjustment.create');
+    Route::get('/stock/adjustment-list', [\App\Http\Controllers\Erp\StockController::class, 'adjustmentList'])->name('stock.adjustment.list');
+    Route::get('/stock/adjustment-excel', [\App\Http\Controllers\Erp\StockController::class, 'exportAdjustmentExcel'])->name('stock.adjustment.excel');
+    Route::get('/stock/adjustment-pdf', [\App\Http\Controllers\Erp\StockController::class, 'exportAdjustmentPdf'])->name('stock.adjustment.pdf');
+    Route::post('/stock/adjustment/store', [\App\Http\Controllers\Erp\StockController::class, 'storeAdjustment'])->name('stock.adjustment.store');
     Route::get('/stock/current', [\App\Http\Controllers\Erp\StockController::class, 'getCurrentStock'])->name('stock.current');
 
     // Transfers
     Route::get('/stock-transfer', [\App\Http\Controllers\Erp\StockTransferController::class, 'index'])->name('stocktransfer.list');
+    Route::get('/stock-transfer/create', [\App\Http\Controllers\Erp\StockTransferController::class, 'create'])->name('stocktransfer.create');
     Route::get('/stock-transfer/export-excel', [\App\Http\Controllers\Erp\StockTransferController::class, 'exportExcel'])->name('stocktransfer.export.excel');
     Route::get('/stock-transfer/export-pdf', [\App\Http\Controllers\Erp\StockTransferController::class, 'exportPdf'])->name('stocktransfer.export.pdf');
     Route::get('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'show'])->name('stocktransfer.show');
@@ -260,6 +294,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Sale Return
     Route::get('/sale-return/export-excel', [\App\Http\Controllers\Erp\SaleReturnController::class, 'exportExcel'])->name('saleReturn.export.excel');
     Route::get('/sale-return/export-pdf', [\App\Http\Controllers\Erp\SaleReturnController::class, 'exportPdf'])->name('saleReturn.export.pdf');
+    Route::get('/sale-return/search-invoice', [\App\Http\Controllers\Erp\SaleReturnController::class, 'searchInvoice'])->name('saleReturn.search.invoice');
     Route::get('/sale-return', [\App\Http\Controllers\Erp\SaleReturnController::class, 'index'])->name('saleReturn.list');
     Route::get('/sale-return/create', [\App\Http\Controllers\Erp\SaleReturnController::class, 'create'])->name('saleReturn.create');
     Route::post('/sale-return/store', [\App\Http\Controllers\Erp\SaleReturnController::class, 'store'])->name('saleReturn.store');
@@ -283,15 +318,20 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/purchases/search', [\App\Http\Controllers\Erp\PurchaseController::class, 'searchPurchase'])->name('purchase.search');
     Route::get('/purchases/{id}/items', [\App\Http\Controllers\Erp\PurchaseController::class, 'getItemByPurchase'])->name('purchase.items');
 
-    // Purchase Return - Commented out
-    // Route::get('/purchase-return', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'index'])->name('purchaseReturn.list');
-    // Route::get('/purchase-return/create', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'create'])->name('purchaseReturn.create');
-    // Route::post('/purchase-return/store', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'store'])->name('purchaseReturn.store');
-    // Route::get('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'show'])->name('purchaseReturn.show');
-    // Route::get('/purchase-return/{id}/edit', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'edit'])->name('purchaseReturn.edit');
-    // Route::put('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'update'])->name('purchaseReturn.update');
-    // Route::post('/purchase-return/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'updateReturnStatus'])->name('purchaseReturn.updateStatus');
-    // Route::get('/purchase-return/stock/{productId}/{fromId}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getStockByType'])->name('purchaseReturn.stock');
+    // Purchase Return
+    Route::get('/purchase-return/export-excel', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'exportExcel'])->name('purchaseReturn.export.excel');
+    Route::get('/purchase-return/export-pdf', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'exportPdf'])->name('purchaseReturn.export.pdf');
+    Route::get('/purchase-return', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'index'])->name('purchaseReturn.list');
+    Route::get('/purchase-return/create', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'create'])->name('purchaseReturn.create');
+    Route::get('/purchase-return/search-invoice', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'searchPurchaseByInvoice'])->name('purchaseReturn.search.invoice');
+    Route::get('/purchase-return/search-invoice-detail', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'searchInvoice'])->name('purchaseReturn.search.invoice.detail');
+    Route::get('/purchase-return/purchase/{purchaseId}/items', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getPurchaseItems'])->name('purchaseReturn.purchase.items');
+    Route::post('/purchase-return/store', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'store'])->name('purchaseReturn.store');
+    Route::get('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'show'])->name('purchaseReturn.show');
+    Route::get('/purchase-return/{id}/edit', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'edit'])->name('purchaseReturn.edit');
+    Route::put('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'update'])->name('purchaseReturn.update');
+    Route::post('/purchase-return/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'updateReturnStatus'])->name('purchaseReturn.updateStatus');
+    Route::get('/purchase-return/stock/{productId}/{fromId}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getStockByType'])->name('purchaseReturn.stock');
 
     // Customer
     // Customers
@@ -313,6 +353,9 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/pos/search', [\App\Http\Controllers\Erp\PosController::class, 'posSearch'])->name('pos.search');
     Route::get('/pos/create', [\App\Http\Controllers\Erp\PosController::class, 'addPos'])->name('pos.add');
     Route::post('/pos/store', [\App\Http\Controllers\Erp\PosController::class, 'makeSale'])->name('pos.store');
+
+    Route::get('/pos/store/manual', [\App\Http\Controllers\Erp\PosController::class, 'manualSaleCreate'])->name('pos.manual.create');
+    Route::post('/pos/store/manual', [\App\Http\Controllers\Erp\PosController::class, 'manualSaleStore'])->name('pos.manual.store');
 
     // POS Report Routes (must come before /pos/{id} to avoid route conflicts)
     Route::get('/pos/report-data', [\App\Http\Controllers\Erp\PosController::class, 'getReportData'])->name('pos.report.data');
@@ -461,6 +504,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/settings', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'storeUpdate'])->name('settings.update');
     Route::post('/admin/test-smtp', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'testSmtp'])->name('admin.test.smtp');
     
+    
     // Shipping Methods
     Route::resource('shipping-methods', \App\Http\Controllers\Erp\ShippingMethodController::class);
 });
@@ -552,5 +596,10 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //         ]);
 //     }
 // })->name('test.contact.email');
+
+Route::get('/run-update', function () {
+    Artisan::call('migrate');
+    return "Database updated successfully!";
+});
 
 require __DIR__ . '/auth.php';

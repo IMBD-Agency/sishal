@@ -14,6 +14,14 @@ class StockTransfer extends Model
         'product_id',
         'variation_id',
         'quantity',
+        'unit_price',
+        'total_price',
+        'paid_amount',
+        'due_amount',
+        'sender_account_type',
+        'sender_account_number',
+        'receiver_account_type',
+        'receiver_account_number',
         'type',
         'status',
         'requested_by',
@@ -26,6 +34,9 @@ class StockTransfer extends Model
         'delivered_at',
         'notes',
     ];
+
+
+    
 
     public function product()
     {
@@ -67,3 +78,6 @@ class StockTransfer extends Model
         return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
     }
 }
+
+
+

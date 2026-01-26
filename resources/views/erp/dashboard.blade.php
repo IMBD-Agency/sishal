@@ -317,7 +317,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="flex-grow-1">
                                         <div class="fw-bold text-gray-800">{{ $item['name'] }}</div>
-                                        <div class="small text-muted">{{ $item['category'] }} • SKU: {{ $item['sku'] }}</div>
+                                        <div class="small text-muted">{{ $item['category'] }} • Style No: {{ $item['sku'] }}</div>
                                     </div>
                                     <div>
                                         <span class="stock-badge {{ $item['stock'] < 5 ? 'stock-critical' : 'stock-low' }}">
