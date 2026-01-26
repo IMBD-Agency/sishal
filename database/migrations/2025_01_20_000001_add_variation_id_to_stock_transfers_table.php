@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('stock_transfers', function (Blueprint $table) {
-            $table->unsignedBigInteger('variation_id')->nullable()->after('product_id');
-            $table->foreign('variation_id')->references('id')->on('product_variations')->onDelete('set null');
-        });
+        if (!Schema::hasColumn('stock_transfers', 'variation_id')) {
+            Schema::table('stock_transfers', function (Blueprint $table) {
+                $table->unsignedBigInteger('variation_id')->nullable()->after('product_id');
+                $table->foreign('variation_id')->references('id')->on('product_variations')->onDelete('set null');
+            });
+        }
     }
 
     /**
