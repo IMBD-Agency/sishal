@@ -745,6 +745,28 @@ Route::get('/run-update', function () {
 });
 
 
+Route::get('/fix-branches-table', function () {
+    try {
+        if (!Schema::hasColumn('branches', 'status')) {
+            Schema::table('branches', function ($table) {
+                $table->string('status')->default('active')->after('contact_info');
+            });
+            echo "✓ Added 'status' column.<br>";
+        }
+        
+        if (!Schema::hasColumn('branches', 'show_online')) {
+            Schema::table('branches', function ($table) {
+                $table->boolean('show_online')->default(true)->after('status');
+            });
+            echo "✓ Added 'show_online' column.<br>";
+        }
+        
+        return "<strong>Successfully updated branches table!</strong>";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
 Route::get('/debug-final', function () {
     ini_set('display_errors', 1);
     error_reporting(E_ALL);
