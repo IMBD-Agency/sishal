@@ -650,6 +650,66 @@ Route::get('/sync-migrations', function () {
     }
 });
 
+Route::get('/fix-permissions', function () {
+    try {
+        // Get all admin users (you can adjust this query based on your setup)
+        $adminUsers = DB::table('users')->where('role', 'admin')->orWhere('email', 'like', '%admin%')->get();
+        
+        if ($adminUsers->isEmpty()) {
+            return "No admin users found. Please specify admin user ID in URL: /fix-permissions?user_id=1";
+        }
+
+        $output = "<h2>Permission Fix Report</h2>";
+        
+        // Check if permissions table exists
+        if (!Schema::hasTable('permissions')) {
+            $output .= "<div style='color: orange;'>⚠️ Permissions table doesn't exist. Your app might not use Spatie permissions.</div>";
+            $output .= "<br><strong>Granting superuser access instead...</strong><br>";
+            
+            foreach ($adminUsers as $user) {
+                DB::table('users')->where('id', $user->id)->update(['role' => 'superadmin']);
+                $output .= "<div style='color: green;'>✓ Updated user: {$user->name} ({$user->email}) to superadmin</div>";
+            }
+            
+            return $output;
+        }
+
+        // Get all permissions
+        $permissions = DB::table('permissions')->get();
+        
+        foreach ($adminUsers as $user) {
+            $output .= "<br><strong>Processing: {$user->name} ({$user->email})</strong><br>";
+            $granted = 0;
+            
+            foreach ($permissions as $permission) {
+                $exists = DB::table('model_has_permissions')
+                    ->where('permission_id', $permission->id)
+                    ->where('model_type', 'App\\Models\\User')
+                    ->where('model_id', $user->id)
+                    ->exists();
+                
+                if (!$exists) {
+                    DB::table('model_has_permissions')->insert([
+                        'permission_id' => $permission->id,
+                        'model_type' => 'App\\Models\\User',
+                        'model_id' => $user->id
+                    ]);
+                    $granted++;
+                }
+            }
+            
+            $output .= "<div style='color: green;'>✓ Granted {$granted} new permissions</div>";
+        }
+
+        $output .= "<br><strong>✅ All admin users now have full permissions!</strong><br>";
+        $output .= "<a href='/erp/dashboard' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; display: inline-block;'>Go to Dashboard</a>";
+        
+        return $output;
+    } catch (\Exception $e) {
+        return "Permission fix failed: " . $e->getMessage() . "<br><br>Stack trace:<br><pre>" . $e->getTraceAsString() . "</pre>";
+    }
+});
+
 Route::get('/run-update', function () {
     try {
         Artisan::call('migrate', ['--force' => true]);
