@@ -37,7 +37,9 @@ class PosController extends Controller
         $categories = ProductServiceCategory::all();
         $branches = Branch::all();
         $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
-        return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts'));
+        $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
+        $customers = Customer::orderBy('name')->get();
+        return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts', 'shippingMethods', 'customers'));
     }
 
     public function makeSale(Request $request)
@@ -66,6 +68,8 @@ class PosController extends Controller
             'customer_state' => 'nullable|string|required_with:customer_address',
             'customer_zip_code' => 'nullable|string|required_with:customer_address',
             'customer_country' => 'nullable|string',
+            'sale_type' => 'nullable|string',
+            'courier_id' => 'nullable|exists:shipping_methods,id',
         ]);
 
         DB::beginTransaction();
@@ -87,6 +91,8 @@ class PosController extends Controller
             $pos->estimated_delivery_time = $request->estimated_delivery_time;
             $pos->status = 'pending'; // or 'pending' if you want manual approval
             $pos->notes = $request->notes;
+            $pos->sale_type = $request->sale_type ?? 'MRP';
+            $pos->courier_id = $request->courier_id;
             $pos->save();
 
             if($request->customer_type == 'new-customer') {
@@ -953,12 +959,11 @@ class PosController extends Controller
         $generalSettings = GeneralSetting::first();
         $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
         
-        do {
-            $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $fullNumber = $prefix . $number;
-        } while (\App\Models\Invoice::where('invoice_number', $fullNumber)->exists());
+        $lastInvoice = \App\Models\Invoice::latest('id')->first();
+        $nextId = $lastInvoice ? $lastInvoice->id + 1 : 1;
         
-        return $fullNumber;
+        // Format: INV-000001
+        return $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
     }
 
 
@@ -1195,16 +1200,11 @@ class PosController extends Controller
 
     private function generateSaleNumber()
     {
-        $today = now();
-        $dateString = $today->format('dmy');
+        $lastSale = Pos::latest('id')->first();
+        $nextId = $lastSale ? $lastSale->id + 1 : 1;
         
-        $lastSale = Pos::latest()->first();
-        if (!$lastSale) {
-            return "sfp-{$dateString}01";
-        }
-        $serialNumber = str_pad($lastSale->id + 1, 2, '0', STR_PAD_LEFT);
-        
-        return "sfp-{$dateString}{$serialNumber}";
+        // Format: POS-000001
+        return 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
     }
 
     /**

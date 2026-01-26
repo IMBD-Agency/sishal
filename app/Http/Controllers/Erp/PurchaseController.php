@@ -82,70 +82,86 @@ class PurchaseController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = $this->applyFilters($request, $startDate, $endDate);
-        $purchases = $query->orderBy('created_at', 'desc')->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'location', 'status', 'total'];
+        $query = \App\Models\PurchaseItem::with([
+            'purchase.bill', 
+            'purchase.supplier', 
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
+        ]);
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->orderBy('created_at', 'desc')->get();
 
-        $exportData = [];
-        $headers = [];
-        $columnMap = [
-            'id' => 'Assign ID',
-            'date' => 'Date',
-            'location' => 'Location',
-            'status' => 'Status',
-            'total' => 'Total Amount'
+        $headers = [
+            'SL', 'Invoice #', 'Date', 'Supplier', 'Category', 'Brand', 'Season', 'Gender', 
+            'Product', 'Style Ref', 'Color', 'Size', 
+            'Pur. Qty', 'Pur. Value', 'Ret. Qty', 'Ret. Value', 
+            'Act. Qty', 'Act. Value', 'Paid A/C', 'Due A/C', 'Status'
         ];
-
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
-        }
         $exportData[] = $headers;
 
-        foreach ($purchases as $purchase) {
-            $row = [];
-            foreach ($selectedColumns as $column) {
-                switch ($column) {
-                    case 'id': $row[] = '#' . $purchase->id; break;
-                    case 'date': $row[] = $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d-m-Y') : '-'; break;
-                    case 'location': 
-                        $loc = '';
-                        if ($purchase->ship_location_type == 'branch') {
-                            $branch = Branch::find($purchase->location_id);
-                            $loc = 'Branch: ' . ($branch->name ?? '-');
-                        } else {
-                            $warehouse = Warehouse::find($purchase->location_id);
-                            $loc = 'Warehouse: ' . ($warehouse->name ?? '-');
-                        }
-                        $row[] = $loc;
-                        break;
-                    case 'status': $row[] = ucfirst($purchase->status); break;
-                    case 'total': $row[] = number_format($purchase->items->sum('total_price'), 2); break;
+        foreach ($items as $index => $item) {
+            $purchase = $item->purchase;
+            $bill = $purchase->bill;
+            $product = $item->product;
+            $variation = $item->variation;
+            
+            // Extract Color and Size
+            $color = '-'; $size = '-';
+            if ($variation && $variation->attributeValues) {
+                foreach($variation->attributeValues as $val) {
+                    $attrName = strtolower($val->attribute->name ?? '');
+                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                        $color = $val->value;
+                    } elseif (str_contains($attrName, 'size')) {
+                        $size = $val->value;
+                    }
                 }
             }
+
+            // Calculations
+            $retQty = $item->returnItems->sum('returned_qty');
+            $retAmt = $item->returnItems->sum('total_price');
+            $actQty = $item->quantity - $retQty;
+            $actAmt = $item->total_price - $retAmt;
+
+            $row = [
+                $index + 1,
+                $bill->bill_number ?? 'P-'.$purchase->id,
+                $purchase->purchase_date,
+                $purchase->supplier->name ?? 'N/A',
+                $product->category->name ?? 'N/A',
+                $product->brand->name ?? 'N/A',
+                $product->season->name ?? 'N/A',
+                $product->gender->name ?? 'N/A',
+                $product->name ?? 'N/A',
+                $product->sku ?? $product->style_number ?? 'N/A',
+                $color,
+                $size,
+                number_format($item->quantity, 2),
+                number_format($item->total_price, 2),
+                number_format($retQty, 2),
+                number_format($retAmt, 2),
+                number_format($actQty, 2),
+                number_format($actAmt, 2),
+                number_format($bill->paid_amount ?? 0, 2),
+                number_format($bill->due_amount ?? 0, 2),
+                ucfirst($purchase->status)
+            ];
             $exportData[] = $row;
         }
 
-        $filename = 'purchase_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+        $filename = 'purchase_audit_report_' . date('Y-m-d_His') . '.xlsx';
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $sheet->setCellValue('A1', 'Purchase Report');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-        
-        foreach ($headers as $index => $header) {
-            $sheet->setCellValue(chr(65 + $index) . '3', $header);
-            $sheet->getStyle(chr(65 + $index) . '3')->getFont()->setBold(true);
-        }
-        
-        $dataRow = 4;
-        foreach ($exportData as $rowIndex => $row) {
-            if ($rowIndex === 0) continue;
-            foreach ($row as $colIndex => $value) {
-                $sheet->setCellValue(chr(65 + $colIndex) . $dataRow, $value);
+        foreach ($exportData as $rowIndex => $rowData) {
+            foreach ($rowData as $colIndex => $value) {
+                $sheet->setCellValue(chr(65 + $colIndex) . ($rowIndex + 1), $value);
             }
-            $dataRow++;
         }
         
         foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
@@ -176,39 +192,26 @@ class PurchaseController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = $this->applyFilters($request, $startDate, $endDate);
-        $purchases = $query->orderBy('created_at', 'desc')->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'location', 'status', 'total'];
+        $query = \App\Models\PurchaseItem::with([
+            'purchase.bill', 
+            'purchase.supplier', 
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
+        ]);
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->orderBy('created_at', 'desc')->get();
 
-        $columnMap = [
-            'id' => 'Assign ID',
-            'date' => 'Date',
-            'location' => 'Location',
-            'status' => 'Status',
-            'total' => 'Total Amount'
-        ];
-
-        $headers = [];
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
-        }
-
-        $filename = 'purchase_report_' . date('Y-m-d_H-i-s') . '.pdf';
+        $filename = 'purchase_audit_report_' . date('Y-m-d_His') . '.pdf';
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.purchases.report-pdf', [
-            'purchases' => $purchases,
-            'headers' => $headers,
-            'selectedColumns' => $selectedColumns,
+            'items' => $items,
             'filters' => $request->all()
         ]);
 
-        $pdf->setPaper('A4', 'portrait');
-        
-        if ($request->input('action') === 'print') {
-            return $pdf->stream($filename);
-        }
-        
+        $pdf->setPaper('A4', 'landscape');
         return $pdf->download($filename);
     }
 

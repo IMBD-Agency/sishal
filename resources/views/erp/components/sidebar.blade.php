@@ -29,6 +29,8 @@
             @endcan
         </div>
         @endcanany
+        {{-- Warehouse module hidden to simplify workflow - Consolidated with Suppliers/Branches --}}
+        {{-- 
         <div class="nav-item">
             <a href="{{ route('warehouses.index') }}" class="nav-link {{ request()->is('erp/warehouses*') ? ' active' : '' }}">
                 <div class="d-flex align-items-center">
@@ -37,6 +39,7 @@
                 </div>
             </a>
         </div>
+        --}}
         @canany(['view employee list'])
         <div class="nav-item">
             <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">

@@ -57,17 +57,14 @@
                                 <div class="form-section-title"><i class="fas fa-info-circle me-2"></i>Purchase Info</div>
                                 
                                 <div class="mb-4">
-                                    <label class="form-label fw-semibold small text-muted text-uppercase">Ship To Location Type</label>
-                                    <select name="ship_location_type" id="ship_location_type" class="form-select border-2 rounded-3" required>
-                                        <option value="branch" {{ $purchase->ship_location_type == 'branch' ? 'selected' : '' }}>Branch</option>
-                                        <option value="warehouse" {{ $purchase->ship_location_type == 'warehouse' ? 'selected' : '' }}>Warehouse</option>
-                                    </select>
+                                    <label class="form-label fw-semibold small text-muted text-uppercase">Target Branch (Delivery)</label>
+                                    <input type="hidden" name="ship_location_type" value="branch">
                                 </div>
                                 
                                 <div class="mb-4">
-                                    <label for="location_id" class="form-label fw-semibold small text-muted text-uppercase">Destination Location</label>
+                                    <label for="location_id" class="form-label fw-semibold small text-muted text-uppercase">Destination Branch</label>
                                     <select name="location_id" id="location_id" class="form-select border-2 rounded-3" required>
-                                        @foreach(($purchase->ship_location_type == 'branch' ? $branches : $warehouses) as $loc)
+                                        @foreach($branches as $loc)
                                             <option value="{{ $loc->id }}" {{ $purchase->location_id == $loc->id ? 'selected' : '' }}>{{ $loc->name }}</option>
                                         @endforeach
                                     </select>
@@ -303,12 +300,15 @@
 
         const branches = @json($branches);
         const warehouses = @json($warehouses);
+        // ship_location_type is now forced to 'branch'
+        /*
         document.getElementById('ship_location_type').addEventListener('change', function() {
             const select = document.getElementById('location_id');
             select.innerHTML = '<option value="">Select Location</option>';
             const data = this.value === 'branch' ? branches : (this.value === 'warehouse' ? warehouses : []);
             data.forEach(loc => select.innerHTML += `<option value="${loc.id}">${loc.name}</option>`);
         });
+        */
 
         function handleProductChange(selectEl) {
             const $s = $(selectEl);

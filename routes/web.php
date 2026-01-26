@@ -12,6 +12,7 @@ use App\Http\Controllers\Erp\ProductVariationStockController;
 use App\Http\Controllers\Erp\BarcodeController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 // Route::get('/', [PageController::class, 'index'])->name('home');
 Route::get('/', [PageController::class, 'index'])->name('ecommerce.home');
@@ -176,6 +177,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('units', \App\Http\Controllers\Erp\UnitController::class);
     Route::resource('suppliers', \App\Http\Controllers\Erp\SupplierController::class);
     Route::get('suppliers/{supplier}/ledger', [\App\Http\Controllers\Erp\SupplierController::class, 'ledger'])->name('suppliers.ledger');
+    Route::get('supplier-payments/export-excel', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportExcel'])->name('supplier-payments.export.excel');
+    Route::get('supplier-payments/export-pdf', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportPdf'])->name('supplier-payments.export.pdf');
     Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
 
     // Advanced Reporting
@@ -209,6 +212,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/products/gallery/{id}', [\App\Http\Controllers\Erp\ProductController::class, 'deleteGalleryImage'])->name('product.gallery.delete');
     Route::post('/products/gallery', [\App\Http\Controllers\Erp\ProductController::class, 'addGalleryImage'])->name('product.gallery.add');
     Route::get('/products', [\App\Http\Controllers\Erp\ProductController::class, 'index'])->name('product.list');
+    Route::get('/products/export/excel', [\App\Http\Controllers\Erp\ProductController::class, 'exportExcel'])->name('product.export.excel');
+    Route::get('/products/export/pdf', [\App\Http\Controllers\Erp\ProductController::class, 'exportPdf'])->name('product.export.pdf');
     Route::get('/products/new', [\App\Http\Controllers\Erp\ProductController::class, 'create'])->name('product.create');
     Route::post('/products', [\App\Http\Controllers\Erp\ProductController::class, 'store'])->name('product.store');
     Route::get('/products/{product}', [\App\Http\Controllers\Erp\ProductController::class, 'show'])->name('product.show');
@@ -260,9 +265,16 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // Stock
     Route::get('/product-stock', [\App\Http\Controllers\Erp\StockController::class, 'stocklist'])->name('productstock.list');
+    Route::get('/product-stock/export/excel', [App\Http\Controllers\Erp\StockController::class, 'exportStockExcel'])->name('productstock.export.excel');
+    Route::get('/product-stock/export/pdf', [App\Http\Controllers\Erp\StockController::class, 'exportStockPdf'])->name('productstock.export.pdf');
     Route::post('/stock/add-to-branches', [\App\Http\Controllers\Erp\StockController::class, 'addStockToBranches'])->name('stock.addToBranches');
     Route::post('/stock/add-to-warehouses', [App\Http\Controllers\Erp\StockController::class, 'addStockToWarehouses'])->name('stock.addToWarehouses');
     Route::post('/stock/adjust', [\App\Http\Controllers\Erp\StockController::class, 'adjustStock'])->name('stock.adjust');
+    Route::get('/stock/adjustment', [\App\Http\Controllers\Erp\StockController::class, 'adjustmentCreate'])->name('stock.adjustment.create');
+    Route::get('/stock/adjustment-list', [\App\Http\Controllers\Erp\StockController::class, 'adjustmentList'])->name('stock.adjustment.list');
+    Route::get('/stock/adjustment-excel', [\App\Http\Controllers\Erp\StockController::class, 'exportAdjustmentExcel'])->name('stock.adjustment.excel');
+    Route::get('/stock/adjustment-pdf', [\App\Http\Controllers\Erp\StockController::class, 'exportAdjustmentPdf'])->name('stock.adjustment.pdf');
+    Route::post('/stock/adjustment/store', [\App\Http\Controllers\Erp\StockController::class, 'storeAdjustment'])->name('stock.adjustment.store');
     Route::get('/stock/current', [\App\Http\Controllers\Erp\StockController::class, 'getCurrentStock'])->name('stock.current');
 
     // Transfers
@@ -306,7 +318,9 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/purchases/search', [\App\Http\Controllers\Erp\PurchaseController::class, 'searchPurchase'])->name('purchase.search');
     Route::get('/purchases/{id}/items', [\App\Http\Controllers\Erp\PurchaseController::class, 'getItemByPurchase'])->name('purchase.items');
 
-    // Purchase Return - Commented out
+    // Purchase Return
+    Route::get('/purchase-return/export-excel', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'exportExcel'])->name('purchaseReturn.export.excel');
+    Route::get('/purchase-return/export-pdf', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'exportPdf'])->name('purchaseReturn.export.pdf');
     Route::get('/purchase-return', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'index'])->name('purchaseReturn.list');
     Route::get('/purchase-return/create', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'create'])->name('purchaseReturn.create');
     Route::get('/purchase-return/search-invoice', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'searchPurchaseByInvoice'])->name('purchaseReturn.search.invoice');
@@ -490,6 +504,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/settings', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'storeUpdate'])->name('settings.update');
     Route::post('/admin/test-smtp', [\App\Http\Controllers\Erp\GeneralSettingsController::class, 'testSmtp'])->name('admin.test.smtp');
     
+    
     // Shipping Methods
     Route::resource('shipping-methods', \App\Http\Controllers\Erp\ShippingMethodController::class);
 });
@@ -581,5 +596,10 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //         ]);
 //     }
 // })->name('test.contact.email');
+
+Route::get('/run-update', function () {
+    Artisan::call('migrate');
+    return "Database updated successfully!";
+});
 
 require __DIR__ . '/auth.php';

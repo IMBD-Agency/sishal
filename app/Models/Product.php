@@ -112,6 +112,14 @@ class Product extends Model
     }
 
     /**
+     * Get all stocks through variations.
+     */
+    public function variationStocks()
+    {
+        return $this->hasManyThrough(ProductVariationStock::class, ProductVariation::class, 'product_id', 'variation_id');
+    }
+
+    /**
      * Get active product variations.
      */
     public function activeVariations()
@@ -174,15 +182,15 @@ class Product extends Model
     public function getTotalVariationStockAttribute()
     {
         if ($this->has_variations) {
-            return $this->activeVariations()->with('stocks')->get()->sum(function($variation) {
-                return $variation->stocks->sum('quantity');
-            });
+            return $this->activeVariations->sum('available_stock');
         }
         
-        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
+        $activeBranchStock = $this->branchStock()
+            ->whereHas('branch', function($q){ $q->where('show_online', true); })
+            ->sum('quantity') ?? 0;
         
-        return $branchStock + $warehouseStock;
+        return $warehouseStock + $activeBranchStock;
     }
 
     /**
@@ -191,16 +199,7 @@ class Product extends Model
      */
     public function hasStock()
     {
-        if ($this->has_variations) {
-            return $this->activeVariations()->whereHas('stocks', function($query) {
-                $query->where('quantity', '>', 0);
-            })->exists();
-        }
-        
-        $branchStock = $this->branchStock()->sum('quantity') ?? 0;
-        $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
-        
-        return ($branchStock + $warehouseStock) > 0;
+        return $this->total_variation_stock > 0;
     }
 
     /**

@@ -22,7 +22,7 @@
 
             <div class="row g-4 mb-4">
                 <!-- Add to Branches -->
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-white border-bottom py-3">
                             <h6 class="mb-0 fw-bold text-dark">Add to Branches</h6>
@@ -52,43 +52,6 @@
                                 </div>
                                 <button type="button" class="btn btn-cyan text-white w-100 mt-3 fw-bold" onclick="submitBranchStock()">
                                     <i class="fas fa-plus me-2"></i>Add To Branches
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Add to Warehouses -->
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white border-bottom py-3">
-                            <h6 class="mb-0 fw-bold text-dark">Add to Warehouses</h6>
-                        </div>
-                        <div class="card-body">
-                            <form id="warehouseStockForm">
-                                <div class="table-responsive" style="max-height: 250px;">
-                                    <table class="table table-sm table-hover align-middle">
-                                        <thead class="bg-light sticky-top">
-                                            <tr>
-                                                <th class="small fw-bold border-0">Warehouse Name</th>
-                                                <th class="small fw-bold border-0 text-end" style="width: 100px;">Quantity</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($warehouses as $warehouse)
-                                                <tr>
-                                                    <td class="small">{{ $warehouse->name }}</td>
-                                                    <td>
-                                                        <input type="number" class="form-control form-control-sm warehouse-qty" 
-                                                               data-id="{{ $warehouse->id }}" placeholder="0" min="0">
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <button type="button" class="btn btn-cyan text-white w-100 mt-3 fw-bold" onclick="submitWarehouseStock()">
-                                    <i class="fas fa-plus me-2"></i>Add To Warehouses
                                 </button>
                             </form>
                         </div>
@@ -178,43 +141,8 @@ async function submitBranchStock(){
 }
 
 async function submitWarehouseStock(){
-    const warehouseItems = [];
-    $('.warehouse-qty').each(function() {
-        const val = parseInt($(this).val());
-        if (val > 0) {
-            warehouseItems.push({
-                id: $(this).data('id'),
-                qty: val
-            });
-        }
-    });
-
-    if(warehouseItems.length === 0){
-        showToast('Please enter quantity for at least one warehouse.', 'warning');
-        return;
-    }
-
-    const ids = warehouseItems.map(i => i.id);
-    const qty = warehouseItems.map(i => i.qty);
-
-    const url = `{{ route('erp.products.variations.stock.warehouses', [$product->id, $variation->id]) }}`;
-    try {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 
-                'X-CSRF-TOKEN': '{{ csrf_token() }}', 
-                'Accept': 'application/json', 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({ warehouses: ids, quantities: qty })
-        });
-        const data = await res.json();
-        showToast(data.message || 'Stock updated successfully', 'success');
-        $('.warehouse-qty').val(''); // Clear inputs
-        loadStockLevels();
-    } catch (e) {
-        showToast('Failed to update stock', 'error');
-    }
+    // Warehouse stock management disabled for simplified workflow
+    showToast('Warehouse management is currently disabled.', 'info');
 }
 
 async function loadStockLevels(){
@@ -248,8 +176,8 @@ async function loadStockLevels(){
     `;
     
     // Branch stocks section
-    html += `<div class="row"><div class="col-md-6 mb-4">`;
-    html += `<h6 class="fw-bold d-flex align-items-center mb-3"><i class="fas fa-store me-2 text-primary"></i> Branch Stock</h6>`;
+    html += `<div class="row"><div class="col-md-12 mb-4">`;
+    html += `<h6 class="fw-bold d-flex align-items-center mb-3"><i class="fas fa-store me-2 text-primary"></i> Current Stock Levels (By Branch)</h6>`;
     if (data.branch_stocks && data.branch_stocks.length > 0) {
         html += `<div class="table-responsive border rounded"><table class="table table-sm table-hover mb-0">
             <thead class="bg-light"><tr><th>Branch</th><th class="text-center">Total</th><th class="text-center">Available</th></tr></thead>
@@ -264,26 +192,6 @@ async function loadStockLevels(){
         html += `</tbody></table></div>`;
     } else {
         html += `<div class="alert alert-light border small text-muted"><i class="fas fa-info-circle me-2"></i>No branch stock records.</div>`;
-    }
-    html += `</div>`;
-    
-    // Warehouse stocks section
-    html += `<div class="col-md-6 mb-4">`;
-    html += `<h6 class="fw-bold d-flex align-items-center mb-3"><i class="fas fa-warehouse me-2 text-success"></i> Warehouse Stock</h6>`;
-    if (data.warehouse_stocks && data.warehouse_stocks.length > 0) {
-        html += `<div class="table-responsive border rounded"><table class="table table-sm table-hover mb-0">
-            <thead class="bg-light"><tr><th>Warehouse</th><th class="text-center">Total</th><th class="text-center">Available</th></tr></thead>
-            <tbody>`;
-        data.warehouse_stocks.forEach(stock => {
-            html += `<tr>
-                <td class="small fw-bold ps-3">${stock.warehouse_name}</td>
-                <td class="text-center"><span class="badge bg-light text-dark border">${stock.quantity}</span></td>
-                <td class="text-center"><span class="badge bg-success">${stock.available_quantity || stock.quantity}</span></td>
-            </tr>`;
-        });
-        html += `</tbody></table></div>`;
-    } else {
-        html += `<div class="alert alert-light border small text-muted"><i class="fas fa-info-circle me-2"></i>No warehouse stock records.</div>`;
     }
     html += `</div></div>`;
     

@@ -4,109 +4,80 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            .select2-container--bootstrap-5 .select2-selection { 
-                font-size: 0.85rem; 
-                min-height: 38px;
-                display: flex;
-                align-items: center;
-                border: 1px solid #d1d5db !important;
-                border-radius: 8px !important;
-            }
-            .form-label { font-size: 0.85rem; font-weight: 700; color: #374151; }
-            .table-report thead th { 
-                background: #2d5a4c; 
-                color: #fff; 
-                font-size: 0.7rem; 
-                font-weight: 700; 
-                text-transform: uppercase; 
-                padding: 10px 5px; 
-                white-space: nowrap;
-                vertical-align: middle;
-                border: 1px solid #3d6a5c;
-            }
-            .table-report tbody td { 
-                font-size: 0.8rem; 
-                vertical-align: middle; 
-                padding: 8px 5px;
-                border: 1px solid #dee2e6;
-            }
-            .table-report tfoot td {
-                font-weight: 800;
-                background: #f8f9fa;
-                font-size: 0.85rem;
-            }
-            .btn-report {
-                padding: 5px 12px;
-                font-size: 0.8rem;
-                font-weight: 600;
-            }
-            .product-img {
-                width: 40px;
-                height: 40px;
-                object-fit: cover;
-                border-radius: 4px;
-                border: 1px solid #eee;
-            }
-        </style>
-
-        <div class="container-fluid px-2 py-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold mb-0">Purchase List</h4>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success btn-sm px-3"><i class="fas fa-file-excel me-1"></i> Export Excel</button>
-                    <a href="{{ route('purchase.create') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
-                        <i class="fas fa-plus me-1"></i> New Purchase
+        <!-- Premium Header Area -->
+        <div class="glass-header">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 breadcrumb-premium text-uppercase">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted small">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-bold small">Purchase History</li>
+                        </ol>
+                    </nav>
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="fw-bold mb-0 text-dark">Purchase Procurement Report</h4>
+                        <span class="badge bg-light text-primary border border-primary small rounded-pill px-3 py-1">{{ $items->total() }} Records</span>
+                    </div>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <button type="button" class="btn btn-outline-dark shadow-sm px-4 fw-bold" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Print Registry
+                    </button>
+                    <a href="{{ route('purchase.create') }}" class="btn btn-create-premium text-nowrap">
+                        <i class="fas fa-plus-circle me-2"></i>New Procurement
                     </a>
                 </div>
             </div>
+        </div>
 
-            <!-- Advanced Filters -->
-            <div class="card border-0 shadow-sm rounded-3 mb-3">
-                <div class="card-body p-3">
-                    <form action="{{ route('purchase.list') }}" method="GET" id="filterForm">
-                        <div class="mb-3">
-                            <div class="d-flex gap-4">
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold small" for="dailyReport">Daily Reports</label>
-                                </div>
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold small" for="monthlyReport">Monthly Reports</label>
-                                </div>
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold small" for="yearlyReport">Yearly Reports</label>
-                                </div>
+        <div class="container-fluid px-4 py-4">
+            <!-- Advanced Analytics Filters -->
+            <div class="premium-card mb-4">
+                <div class="card-header bg-white border-bottom p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Procurement Audit Filters</h6>
+                        <div class="d-flex gap-4">
+                            <div class="form-check cursor-pointer">
+                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
+                            </div>
+                            <div class="form-check cursor-pointer">
+                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly View</label>
+                            </div>
+                            <div class="form-check cursor-pointer">
+                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Annual View</label>
                             </div>
                         </div>
-
-                        <div class="row g-2">
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ route('purchase.list') }}" method="GET" id="filterForm">
+                        <div class="row g-3">
                             <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small mb-1">Start Date *</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date Registry</label>
+                                <input type="date" name="start_date" class="form-control shadow-none" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small mb-1">End Date *</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date Registry</label>
+                                <input type="date" name="end_date" class="form-control shadow-none" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
-                            <!-- Monthly/Yearly groups hidden by JS -->
                             <div class="col-md-2 date-group monthly-group" style="display: none;">
-                                <label class="form-label small mb-1">Month *</label>
-                                <select name="month" class="form-select form-select-sm select2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Month</label>
+                                <select name="month" class="form-select select2-setup shadow-none">
                                     @foreach(range(1, 12) as $m)
                                         <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
-                                <label class="form-label small mb-1">Year *</label>
-                                <select name="year" class="form-select form-select-sm select2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Year</label>
+                                <select name="year" class="form-select select2-setup shadow-none">
                                     @foreach(range(date('Y'), date('Y') - 10) as $y)
                                         <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endforeach
@@ -114,13 +85,13 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Challan *</label>
-                                <input type="text" name="search" class="form-control form-control-sm" placeholder="All Challan" value="{{ request('search') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Challan / Inv #</label>
+                                <input type="text" name="search" class="form-control shadow-none" placeholder="Search procurement ID..." value="{{ request('search') }}">
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Supplier *</label>
-                                <select name="supplier_id" class="form-select form-select-sm select2" data-placeholder="All Supplier">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Vested Supplier</label>
+                                <select name="supplier_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Supplier">
                                     <option value=""></option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
@@ -129,8 +100,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Product *</label>
-                                <select name="product_id" class="form-select form-select-sm select2" data-placeholder="All Product">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Allocated Product</label>
+                                <select name="product_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Product">
                                     <option value=""></option>
                                     @foreach($products as $product)
                                         <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
@@ -139,13 +110,13 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Style Number *</label>
-                                <input type="text" name="style_number" class="form-control form-control-sm" placeholder="All Style Number" value="{{ request('style_number') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Style Ref Code</label>
+                                <input type="text" name="style_number" class="form-control shadow-none" placeholder="Style SKU..." value="{{ request('style_number') }}">
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Category *</label>
-                                <select name="category_id" class="form-select form-select-sm select2" data-placeholder="All Category">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Product Category</label>
+                                <select name="category_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Category">
                                     <option value=""></option>
                                     @foreach($categories as $category)
                                         <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
@@ -154,8 +125,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Brand *</label>
-                                <select name="brand_id" class="form-select form-select-sm select2" data-placeholder="All Brand">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Vested Brand</label>
+                                <select name="brand_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Brand">
                                     <option value=""></option>
                                     @foreach($brands as $brand)
                                         <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
@@ -164,8 +135,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Season *</label>
-                                <select name="season_id" class="form-select form-select-sm select2" data-placeholder="All Season">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Inventory Season</label>
+                                <select name="season_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Season">
                                     <option value=""></option>
                                     @foreach($seasons as $season)
                                         <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
@@ -174,8 +145,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Gender *</label>
-                                <select name="gender_id" class="form-select form-select-sm select2" data-placeholder="All Gender">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Target Gender</label>
+                                <select name="gender_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Gender">
                                     <option value=""></option>
                                     @foreach($genders as $gender)
                                         <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
@@ -184,80 +155,79 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Select Account *</label>
-                                <select name="account" class="form-select form-select-sm select2" data-placeholder="All Account">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Account Registry</label>
+                                <select name="account" class="form-select select2-setup shadow-none" data-placeholder="Select A/C">
                                     <option value=""></option>
                                 </select>
                             </div>
 
                             <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-info text-white btn-sm w-100 fw-bold border-0 shadow-sm" style="background-color: #17a2b8; height: 31px;">
-                                    <i class="fas fa-search me-1"></i> Search
+                                <button type="submit" class="btn btn-primary w-100 shadow-none" style="height: 42px;">
+                                    <i class="fas fa-search me-2"></i>Apply
                                 </button>
                             </div>
                         </div>
 
-                        <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
-                            <div class="btn-group shadow-sm">
-                                <button type="button" class="btn btn-dark btn-sm px-3">CSV</button>
-                                <button type="button" class="btn btn-dark btn-sm px-3">Excel</button>
-                                <button type="button" class="btn btn-dark btn-sm px-3">PDF</button>
-                                <button type="button" class="btn btn-dark btn-sm px-3">Print</button>
+                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                            <div class="btn-group shadow-none border rounded overflow-hidden">
+                                <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">CSV</button>
+                                <a href="{{ route('purchase.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">EXCEL</a>
+                                <a href="{{ route('purchase.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">PDF</a>
+                                <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
                             </div>
-                            <a href="{{ route('purchase.list') }}" class="btn btn-light btn-sm px-3 border shadow-sm">Clear All</a>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="small text-muted fw-bold">Live Data Sync: <span class="text-primary">{{ now()->format('H:i:s') }}</span></span>
+                                <a href="{{ route('purchase.list') }}" class="btn btn-light btn-sm px-4 fw-bold border shadow-none">Flush Filters</a>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Table -->
-            <div class="card border-0 shadow-sm rounded-3">
+            <!-- Procurement Audit Registry Table -->
+            <div class="premium-card shadow-sm border-0">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-report table-bordered mb-0">
+                        <table class="table premium-table compact mb-0">
                             <thead>
                                 <tr>
-                                    <th>Serial No</th>
-                                    <th>Invoice</th>
-                                    <th>Date</th>
+                                    <th class="ps-3">SL</th>
+                                    <th>Invoice #</th>
+                                    <th>Registry Date</th>
                                     <th>Supplier</th>
-                                    <th>Image</th>
+                                    <th class="text-center">Media</th>
                                     <th>Category</th>
                                     <th>Brand</th>
                                     <th>Season</th>
                                     <th>Gender</th>
-                                    <th>Product Name</th>
-                                    <th>Style Number</th>
-                                    <th>COLOR</th>
+                                    <th style="min-width: 160px;">Product Name</th>
+                                    <th>Style Ref</th>
+                                    <th>Color</th>
                                     <th>Size</th>
-                                    <th>Purchase Qty</th>
-                                    <th>Total Purchase Qty</th>
-                                    <th>Purchase Amount</th>
-                                    <th>Total Purchase Amount</th>
-                                    <th>Purchase Return Qty</th>
-                                    <th>Total Purchase Return Qty</th>
-                                    <th>Purchase Return Amount</th>
-                                    <th>Total Purchase Return Amount</th>
-                                    <th>Actual Purchase Qty</th>
-                                    <th>Total Actual Purchase Qty</th>
-                                    <th>Actual Purchase Amount</th>
-                                    <th>Total Actual Purchase Amount</th>
-                                    <th>Total Paid Amount</th>
-                                    <th>Total Due Amount</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
+                                    <th class="text-center">Pur. Qty</th>
+                                    <th class="text-center bg-light">T. Pur. Qty</th>
+                                    <th class="text-end">Pur. Value</th>
+                                    <th class="text-end bg-light">T. Pur. Value</th>
+                                    <th class="text-center text-danger">Ret. Qty</th>
+                                    <th class="text-center text-danger bg-light">T. Ret. Qty</th>
+                                    <th class="text-end text-danger">Ret. Value</th>
+                                    <th class="text-end text-danger bg-light">T. Ret. Value</th>
+                                    <th class="text-center text-success">Act. Qty</th>
+                                    <th class="text-center text-success bg-light">T. Act. Qty</th>
+                                    <th class="text-end text-success">Act. Value</th>
+                                    <th class="text-end text-success bg-light">T. Act. Value</th>
+                                    <th class="text-end text-primary">Paid A/C</th>
+                                    <th class="text-end text-danger">Due A/C</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center pe-3">ACTION</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @php 
-                                    $grandTotalPurQty = 0;
-                                    $grandTotalPurAmt = 0;
-                                    $grandTotalRetQty = 0;
-                                    $grandTotalRetAmt = 0;
-                                    $grandTotalActQty = 0;
-                                    $grandTotalActAmt = 0;
-                                    $grandTotalPaid = 0;
-                                    $grandTotalDue = 0;
+                                    $grandTotalPurQty = 0; $grandTotalPurAmt = 0;
+                                    $grandTotalRetQty = 0; $grandTotalRetAmt = 0;
+                                    $grandTotalActQty = 0; $grandTotalActAmt = 0;
+                                    $grandTotalPaid = 0; $grandTotalDue = 0;
                                 @endphp
                                 @forelse($items as $index => $item)
                                     @php
@@ -266,8 +236,7 @@
                                         $product = $item->product;
                                         $variation = $item->variation;
                                         
-                                        $color = '-';
-                                        $size = '-';
+                                        $color = '-'; $size = '-';
                                         if ($variation && $variation->attributeValues) {
                                             foreach($variation->attributeValues as $val) {
                                                 $attrName = strtolower($val->attribute->name ?? '');
@@ -281,12 +250,9 @@
 
                                         $retQty = $item->returnItems->sum('returned_qty');
                                         $retAmt = $item->returnItems->sum(function($ri) { return $ri->returned_qty * $ri->unit_price; });
-                                        
                                         $actualQty = $item->quantity - $retQty;
                                         $actualAmt = $item->total_price - $retAmt;
 
-                                        // We sum invoice totals only once per invoice to avoid double counting in grand totals
-                                        // But for single item display, it's complex. Let's just sum lines for now.
                                         $grandTotalPurQty += $item->quantity;
                                         $grandTotalPurAmt += $item->total_price;
                                         $grandTotalRetQty += $retQty;
@@ -295,115 +261,115 @@
                                         $grandTotalActAmt += $actualAmt;
                                     @endphp
                                     <tr>
-                                        <td class="text-center">{{ $items->firstItem() + $index }}</td>
-                                        <td class="fw-bold">
-                                            @if($bill && $bill->bill_number) 
-                                                {{ $bill->bill_number }} 
-                                            @else 
-                                                #{{ $purchase->id }} 
-                                            @endif
+                                        <td class="ps-3 text-muted">{{ $items->firstItem() + $index }}</td>
+                                        <td class="fw-bold text-dark">
+                                            @if($bill && $bill->bill_number) {{ $bill->bill_number }} 
+                                            @else #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }} @endif
                                         </td>
                                         <td>{{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') : '-' }}</td>
-                                        <td>{{ $purchase->supplier->name ?? '-' }}</td>
+                                        <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
                                         <td class="text-center">
-                                            @if($product && $product->image)
-                                                <img src="{{ asset('storage/'.$product->image) }}" class="product-img" alt="IMG">
-                                            @else
-                                                <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width:40px;height:40px;">
-                                                    <i class="fas fa-image text-muted small"></i>
-                                                </div>
-                                            @endif
+                                            <div class="thumbnail-box mx-auto" style="width: 35px; height: 35px;">
+                                                <img src="{{ $product && $product->image ? asset('storage/'.$product->image) : asset('static/default-product.png') }}" alt="P">
+                                            </div>
                                         </td>
-                                        <td>{{ $product->category->name ?? '-' }}</td>
-                                        <td>{{ $product->brand->name ?? '-' }}</td>
-                                        <td>{{ $product->season->name ?? '-' }}</td>
-                                        <td>{{ $product->gender->name ?? '-' }}</td>
-                                        <td class="fw-bold" style="min-width: 150px;">{{ $product->name ?? '-' }}</td>
-                                        <td>{{ $product->sku ?? '-' }}</td>
-                                        <td class="text-uppercase">{{ $color }}</td>
-                                        <td>{{ $size }}</td>
-                                        <td class="text-center">{{ $item->quantity }}</td>
-                                        <td class="text-center fw-bold">{{ $item->quantity }}</td>
-                                        <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
-                                        <td class="text-end fw-bold">{{ number_format($item->total_price, 2) }}</td>
+                                        <td class="text-muted">{{ $product->category->name ?? '-' }}</td>
+                                        <td class="text-muted">{{ $product->brand->name ?? '-' }}</td>
+                                        <td class="text-muted">{{ $product->season->name ?? '-' }}</td>
+                                        <td class="text-muted">{{ $product->gender->name ?? '-' }}</td>
+                                        <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
+                                        <td><code class="text-primary bg-light px-2 py-1 rounded small">{{ $product->sku ?? '-' }}</code></td>
+                                        <td class="text-uppercase small fw-bold">{{ $color }}</td>
+                                        <td class="small fw-bold">{{ $size }}</td>
+                                        <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
+                                        <td class="text-center fw-bold bg-light">{{ number_format($item->quantity, 2) }}</td>
+                                        <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>
+                                        <td class="text-end fw-bold bg-light">{{ number_format($item->total_price, 2) }}৳</td>
                                         
-                                        <td class="text-center text-danger">{{ $retQty }}</td>
-                                        <td class="text-center text-danger fw-bold">{{ $retQty }}</td>
-                                        <td class="text-end text-danger">{{ number_format($retAmt, 2) }}</td>
-                                        <td class="text-end text-danger fw-bold">{{ number_format($retAmt, 2) }}</td>
+                                        <td class="text-center text-danger">{{ number_format($retQty, 2) }}</td>
+                                        <td class="text-center text-danger fw-bold bg-light">{{ number_format($retQty, 2) }}</td>
+                                        <td class="text-end text-danger">{{ number_format($retAmt, 2) }}৳</td>
+                                        <td class="text-end text-danger fw-bold bg-light">{{ number_format($retAmt, 2) }}৳</td>
                                         
-                                        <td class="text-center text-success">{{ $actualQty }}</td>
-                                        <td class="text-center text-success fw-bold">{{ $actualQty }}</td>
-                                        <td class="text-end text-success">{{ number_format($actualAmt, 2) }}</td>
-                                        <td class="text-end text-success fw-bold">{{ number_format($actualAmt, 2) }}</td>
+                                        <td class="text-center text-success">{{ number_format($actualQty, 2) }}</td>
+                                        <td class="text-center text-success fw-bold bg-light">{{ number_format($actualQty, 2) }}</td>
+                                        <td class="text-end text-success">{{ number_format($actualAmt, 2) }}৳</td>
+                                        <td class="text-end text-success fw-bold bg-light">{{ number_format($actualAmt, 2) }}৳</td>
                                         
-                                        <td class="text-end">
+                                        <td class="text-end text-primary fw-bold">
                                             @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
-                                                {{ number_format($bill->paid_amount ?? 0, 2) }}
+                                                {{ number_format($bill->paid_amount ?? 0, 2) }}৳
                                                 @php $grandTotalPaid += ($bill->paid_amount ?? 0); @endphp
-                                            @else
-                                                -
-                                            @endif
+                                            @else - @endif
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end text-danger fw-bold">
                                             @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
-                                                {{ number_format($bill->due_amount ?? 0, 2) }}
+                                                {{ number_format($bill->due_amount ?? 0, 2) }}৳
                                                 @php $grandTotalDue += ($bill->due_amount ?? 0); @endphp
-                                            @else
-                                                -
-                                            @endif
+                                            @else - @endif
                                         </td>
                                         <td class="text-center">
                                             @php
-                                                $statusClass = [
+                                                $statusDot = [
                                                     'pending' => 'bg-warning',
                                                     'received' => 'bg-success',
                                                     'cancelled' => 'bg-danger',
                                                 ][$purchase->status] ?? 'bg-secondary';
                                             @endphp
-                                            <span class="badge {{ $statusClass }} text-white x-small px-2 py-1 rounded-pill">{{ ucfirst($purchase->status) }}</span>
+                                            <span class="status-pill {{ str_replace('bg-', 'status-', $statusDot) }}">
+                                                <i class="fas fa-circle extra-small"></i>{{ ucfirst($purchase->status) }}
+                                            </span>
                                         </td>
-                                        <td>
-                                            <a href="{{ route('purchase.show', $purchase->id) }}" class="btn btn-sm btn-info text-white p-1" style="width:24px;height:24px;"><i class="fas fa-eye"></i></a>
+                                        <td class="pe-3">
+                                            <div class="d-flex gap-2 justify-content-center">
+                                                <a href="{{ route('purchase.show', $purchase->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
+                                                    <i class="fas fa-eye text-primary"></i>
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="29" class="text-center py-5 text-muted">No data available in table</td>
+                                        <td colspan="29" class="text-center py-5">
+                                            <div class="text-muted opacity-50 py-4">
+                                                <i class="fas fa-file-invoice fa-3x mb-3"></i>
+                                                <h6 class="fw-bold">No Procurement Records Found</h6>
+                                                <p class="small mb-0">Adjust your filters or try scanning a different batch.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="13" class="text-end">Grand Total</td>
-                                    <td class="text-center">{{ number_format($grandTotalPurQty) }}</td>
-                                    <td class="text-center">{{ number_format($grandTotalPurQty) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}</td>
+                            <tfoot class="bg-light border-top-0">
+                                <tr class="fw-bold text-dark text-uppercase" style="font-size: 13px;">
+                                    <td colspan="13" class="text-end py-3">Global Registry Totals</td>
+                                    <td class="text-center">{{ number_format($grandTotalPurQty, 2) }}</td>
+                                    <td class="text-center bg-white">{{ number_format($grandTotalPurQty, 2) }}</td>
+                                    <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
+                                    <td class="text-end bg-white">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
                                     
-                                    <td class="text-center">{{ number_format($grandTotalRetQty) }}</td>
-                                    <td class="text-center">{{ number_format($grandTotalRetQty) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalRetAmt, 2) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalRetAmt, 2) }}</td>
+                                    <td class="text-center text-danger">{{ number_format($grandTotalRetQty, 2) }}</td>
+                                    <td class="text-center text-danger bg-white">{{ number_format($grandTotalRetQty, 2) }}</td>
+                                    <td class="text-end text-danger">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
+                                    <td class="text-end text-danger bg-white">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
                                     
-                                    <td class="text-center">{{ number_format($grandTotalActQty) }}</td>
-                                    <td class="text-center">{{ number_format($grandTotalActQty) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalActAmt, 2) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalActAmt, 2) }}</td>
+                                    <td class="text-center text-success">{{ number_format($grandTotalActQty, 2) }}</td>
+                                    <td class="text-center text-success bg-white">{{ number_format($grandTotalActQty, 2) }}</td>
+                                    <td class="text-end text-success">{{ number_format($grandTotalActAmt, 2) }}৳</td>
+                                    <td class="text-end text-success bg-white">{{ number_format($grandTotalActAmt, 2) }}৳</td>
                                     
-                                    <td class="text-end">{{ number_format($grandTotalPaid, 2) }}</td>
-                                    <td class="text-end">{{ number_format($grandTotalDue, 2) }}</td>
+                                    <td class="text-end text-primary">{{ number_format($grandTotalPaid, 2) }}৳</td>
+                                    <td class="text-end text-danger">{{ number_format($grandTotalDue, 2) }}৳</td>
                                     <td></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
-                </div>
                 @if($items->hasPages())
-                <div class="card-footer bg-white py-2">
+                <div class="card-footer bg-white py-3 border-top">
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Showing {{ $items->firstItem() }} to {{ $items->lastItem() }} of {{ $items->total() }} entries</small>
+                        <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 0.05em;">Registry Batch: {{ $items->firstItem() }} - {{ $items->lastItem() }} of {{ $items->total() }}</small>
                         {{ $items->links('vendor.pagination.bootstrap-5') }}
                     </div>
                 </div>
@@ -419,10 +385,11 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
-            $('.select2').select2({
+            $('.select2-setup').select2({
                 theme: 'bootstrap-5',
                 width: '100%',
-                allowClear: true
+                allowClear: true,
+                dropdownParent: $('#filterForm')
             });
 
             const reportRadios = document.querySelectorAll('input[name="report_type"]');

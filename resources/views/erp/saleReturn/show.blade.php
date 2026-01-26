@@ -4,90 +4,38 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            .detail-card {
-                border-radius: 16px;
-                border: none;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            }
-            .info-label {
-                font-size: 0.75rem;
-                font-weight: 700;
-                text-uppercase: uppercase;
-                letter-spacing: 0.05em;
-                color: #94a3b8;
-                margin-bottom: 0.25rem;
-            }
-            .info-value {
-                font-weight: 600;
-                color: #1e293b;
-                font-size: 1rem;
-            }
-            .status-badge {
-                padding: 0.5rem 1rem;
-                border-radius: 8px;
-                font-weight: 700;
-                font-size: 0.85rem;
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
-            }
-            .bg-warning-soft { background-color: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
-            .bg-success-soft { background-color: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
-            .bg-danger-soft { background-color: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
-            .bg-info-soft { background-color: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
-            
-            .product-box {
-                padding: 1.25rem;
-                border-radius: 12px;
-                background: #fff;
-                border: 1px solid #e2e8f0;
-                transition: all 0.2s;
-            }
-            .product-box:hover {
-                border-color: #cbd5e1;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            }
-        </style>
-
-        <!-- Header -->
-        <div class="container-fluid px-4 py-4 bg-white border-bottom mb-4">
+        <div class="glass-header">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-md-7">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ route('saleReturn.list') }}" class="text-decoration-none">Sale Returns</a></li>
-                            <li class="breadcrumb-item active">Return Details</li>
+                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('saleReturn.list') }}" class="text-decoration-none text-muted">Returns</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Details</li>
                         </ol>
                     </nav>
                     <div class="d-flex align-items-center gap-3">
-                        <h2 class="fw-bold mb-0">Return #SR-{{ str_pad($saleReturn->id, 5, '0', STR_PAD_LEFT) }}</h2>
+                        <h4 class="fw-bold mb-0 text-dark text-nowrap">Return #SR-{{ str_pad($saleReturn->id, 5, '0', STR_PAD_LEFT) }}</h4>
                         @php
-                            $statusClass = 'bg-secondary-soft';
-                            $statusIcon = 'fa-circle';
-                            if($saleReturn->status === 'pending') { $statusClass = 'bg-warning-soft'; $statusIcon = 'fa-clock'; }
-                            elseif($saleReturn->status === 'approved') { $statusClass = 'bg-success-soft'; $statusIcon = 'fa-check-circle'; }
-                            elseif($saleReturn->status === 'rejected') { $statusClass = 'bg-danger-soft'; $statusIcon = 'fa-times-circle'; }
-                            elseif($saleReturn->status === 'processed') { $statusClass = 'bg-info-soft'; $statusIcon = 'fa-sync'; }
+                            $statusClass = 'badge bg-secondary';
+                            if($saleReturn->status === 'pending') $statusClass = 'badge bg-warning';
+                            elseif($saleReturn->status === 'approved') $statusClass = 'badge bg-success';
+                            elseif($saleReturn->status === 'rejected') $statusClass = 'badge bg-danger';
+                            elseif($saleReturn->status === 'processed') $statusClass = 'badge bg-info';
                         @endphp
-                        <span class="status-badge {{ $statusClass }}">
-                            <i class="fas {{ $statusIcon }}"></i> {{ ucfirst($saleReturn->status) }}
-                        </span>
+                        <span class="{{ $statusClass }} py-2 px-3">{{ ucfirst($saleReturn->status) }}</span>
                     </div>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="btn-group gap-2">
-                        <a href="{{ route('saleReturn.edit', $saleReturn->id) }}" class="btn btn-white border px-3 rounded-3">
-                            <i class="fas fa-edit me-1 text-primary"></i> Edit
-                        </a>
-                        <a href="{{ route('saleReturn.list') }}" class="btn btn-primary px-4 rounded-3">
-                            <i class="fas fa-list me-1"></i> Return List
-                        </a>
-                    </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <a href="{{ route('saleReturn.edit', $saleReturn->id) }}" class="btn btn-light fw-bold shadow-sm">
+                        <i class="fas fa-edit me-2"></i>Edit
+                    </a>
+                    <a href="{{ route('saleReturn.list') }}" class="btn btn-create-premium text-nowrap">
+                        <i class="fas fa-list me-2"></i>Return List
+                    </a>
                 </div>
             </div>
         </div>
@@ -96,20 +44,20 @@
             <div class="row g-4">
                 <!-- Main Information -->
                 <div class="col-lg-12">
-                    <div class="card detail-card mb-4">
+                    <div class="premium-card mb-4">
                         <div class="card-body p-4">
                             <div class="row g-4">
                                 <div class="col-md-3">
-                                    <div class="info-label">Customer Name</div>
-                                    <div class="info-value">{{ $saleReturn->customer->name ?? 'N/A' }}</div>
+                                    <div class="form-label small fw-bold text-muted text-uppercase">Customer Name</div>
+                                    <div class="fw-bold text-dark fs-5">{{ $saleReturn->customer->name ?? 'N/A' }}</div>
                                     <small class="text-muted">{{ $saleReturn->customer->phone ?? '' }}</small>
                                 </div>
                                 <div class="col-md-3">
-                                    <div class="info-label">Original POS Sale</div>
-                                    <div class="info-value">
+                                    <div class="form-label small fw-bold text-muted text-uppercase">Original POS Sale</div>
+                                    <div class="fw-bold fs-5">
                                         @if($saleReturn->posSale)
-                                            <a href="{{ route('pos.show', $saleReturn->pos_sale_id) }}" class="text-decoration-none">
-                                                #POS-{{ $saleReturn->pos_sale_id }}
+                                            <a href="{{ route('pos.show', $saleReturn->pos_sale_id) }}" class="text-decoration-none text-primary">
+                                                #{{ $saleReturn->posSale->sale_number }}
                                             </a>
                                         @else
                                             N/A
@@ -117,16 +65,16 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="info-label">Return Date</div>
-                                    <div class="info-value">{{ date('d M, Y', strtotime($saleReturn->return_date)) }}</div>
+                                    <div class="form-label small fw-bold text-muted text-uppercase">Return Date</div>
+                                    <div class="fw-bold text-dark fs-5">{{ date('d M, Y', strtotime($saleReturn->return_date)) }}</div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="info-label">Refund Type</div>
-                                    <div class="info-value"><span class="badge bg-light text-dark fw-bold">{{ ucfirst($saleReturn->refund_type) }}</span></div>
+                                    <div class="form-label small fw-bold text-muted text-uppercase">Refund Type</div>
+                                    <div><span class="badge bg-light text-dark fw-bold">{{ ucfirst($saleReturn->refund_type) }}</span></div>
                                 </div>
                                 <div class="col-md-2 text-end">
-                                    <div class="info-label">Grand Total</div>
-                                    <div class="info-value text-primary fs-4">৳{{ number_format($saleReturn->items->sum('total_price'), 2) }}</div>
+                                    <div class="form-label small fw-bold text-muted text-uppercase text-end">Grand Total</div>
+                                    <div class="fw-bold text-success fs-3">৳{{ number_format($saleReturn->items->sum('total_price'), 2) }}</div>
                                 </div>
                             </div>
                         </div>
@@ -150,21 +98,21 @@
                                         @endif
                                         <div class="small mt-1 text-primary fw-semibold">Style No: {{ $item->product->sku ?? 'N/A' }}</div>
                                     </div>
-                                    <div class="col-md-2 text-center">
-                                        <div class="info-label">Quantity</div>
-                                        <div class="info-value">{{ $item->returned_qty }}</div>
+                                    <div class="col-md-2 text-center text-md-start">
+                                        <div class="form-label small fw-bold text-muted text-uppercase">Quantity</div>
+                                        <div class="fw-bold text-dark fs-5">{{ $item->returned_qty }}</div>
                                     </div>
-                                    <div class="col-md-2 text-center">
-                                        <div class="info-label">Unit Price</div>
-                                        <div class="info-value">৳{{ number_format($item->unit_price, 2) }}</div>
+                                    <div class="col-md-2 text-center text-md-start">
+                                        <div class="form-label small fw-bold text-muted text-uppercase">Unit Price</div>
+                                        <div class="fw-bold text-dark fs-5">৳{{ number_format($item->unit_price, 2) }}</div>
                                     </div>
                                     <div class="col-md-2 text-end">
-                                        <div class="info-label">Row Total</div>
-                                        <div class="info-value">৳{{ number_format($item->total_price, 2) }}</div>
+                                        <div class="form-label small fw-bold text-muted text-uppercase text-end">Row Total</div>
+                                        <div class="fw-bold text-primary fs-5">৳{{ number_format($item->total_price, 2) }}</div>
                                     </div>
                                     @if($item->reason)
                                     <div class="col-12 mt-3 pt-3 border-top">
-                                        <div class="info-label">Item Reason</div>
+                                        <div class="form-label small fw-bold text-muted text-uppercase">Item Reason</div>
                                         <div class="text-muted small italic">"{{ $item->reason }}"</div>
                                     </div>
                                     @endif
@@ -177,14 +125,14 @@
 
                 <!-- Secondary Info -->
                 <div class="col-lg-4">
-                    <div class="card detail-card mb-4 overflow-hidden">
-                        <div class="card-header bg-white py-3">
-                            <h6 class="fw-bold mb-0">Location & Staff</h6>
+                    <div class="premium-card mb-4 overflow-hidden">
+                        <div class="card-header bg-white py-3 border-bottom">
+                            <h6 class="mb-0 fw-bold text-uppercase text-muted small">Location & Staff</h6>
                         </div>
                         <div class="list-group list-group-flush">
                             <div class="list-group-item p-3">
-                                <div class="info-label">Restocked At</div>
-                                <div class="info-value d-flex align-items-center gap-2">
+                                <div class="form-label small fw-bold text-muted text-uppercase">Restocked At</div>
+                                <div class="fw-bold text-dark fs-5 d-flex align-items-center gap-2">
                                     <i class="fas fa-warehouse text-muted small"></i>
                                     {{ ucfirst($saleReturn->return_to_type) }}:
                                     @if($saleReturn->return_to_type === 'branch')
@@ -198,18 +146,18 @@
                             </div>
                             @if($saleReturn->reason)
                             <div class="list-group-item p-3 bg-light">
-                                <div class="info-label">Primary Reason</div>
-                                <div class="info-value text-dark fw-normal">{{ $saleReturn->reason }}</div>
+                                <div class="form-label small fw-bold text-muted text-uppercase text-end">Primary Reason</div>
+                                <div class="text-dark fw-normal">{{ $saleReturn->reason }}</div>
                             </div>
                             @endif
                         </div>
                     </div>
 
                     @if($saleReturn->notes)
-                    <div class="card detail-card bg-primary-subtle border-0">
+                    <div class="premium-card bg-primary-subtle border-0">
                         <div class="card-body">
-                            <div class="info-label text-primary">Internal Notes</div>
-                            <div class="info-value text-primary-emphasis fw-normal" style="white-space: pre-line;">{{ $saleReturn->notes }}</div>
+                            <div class="form-label small fw-bold text-primary text-uppercase">Internal Notes</div>
+                            <div class="text-primary-emphasis fw-normal" style="white-space: pre-line;">{{ $saleReturn->notes }}</div>
                         </div>
                     </div>
                     @endif

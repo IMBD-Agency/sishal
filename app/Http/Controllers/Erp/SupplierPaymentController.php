@@ -14,14 +14,29 @@ class SupplierPaymentController extends Controller
 {
     public function index(Request $request)
     {
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
         $query = SupplierPayment::with('supplier', 'bill');
 
-        // Date range filter
-        if ($request->filled('start_date')) {
-            $query->whereDate('payment_date', '>=', $request->start_date);
+        if ($startDate) {
+            $query->whereDate('payment_date', '>=', $startDate);
         }
-        if ($request->filled('end_date')) {
-            $query->whereDate('payment_date', '<=', $request->end_date);
+        if ($endDate) {
+            $query->whereDate('payment_date', '<=', $endDate);
         }
 
         // Payment number filter
@@ -44,14 +59,111 @@ class SupplierPaymentController extends Controller
             $query->where('payment_method', $request->payment_method);
         }
 
-        $payments = $query->latest()->paginate(20);
+        $payments = $query->latest()->paginate(20)->appends($request->all());
         
         // Get filter data
         $suppliers = Supplier::orderBy('name')->get();
         $allPayments = SupplierPayment::select('id', 'reference')->get();
         $allBills = PurchaseBill::select('id', 'bill_number')->get();
 
-        return view('erp.supplier-payments.index', compact('payments', 'suppliers', 'allPayments', 'allBills'));
+        return view('erp.supplier-payments.index', compact(
+            'payments', 'suppliers', 'allPayments', 'allBills', 
+            'reportType', 'startDate', 'endDate'
+        ));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
+        $query = SupplierPayment::with('supplier', 'bill');
+        if ($startDate) $query->whereDate('payment_date', '>=', $startDate);
+        if ($endDate) $query->whereDate('payment_date', '<=', $endDate);
+        
+        if ($request->filled('payment_no') && $request->payment_no != 'all') $query->where('id', $request->payment_no);
+        if ($request->filled('challan_no') && $request->challan_no != 'all') $query->where('purchase_bill_id', $request->challan_no);
+        if ($request->filled('supplier_id') && $request->supplier_id != 'all') $query->where('supplier_id', $request->supplier_id);
+        if ($request->filled('payment_method') && $request->payment_method != 'all') $query->where('payment_method', $request->payment_method);
+
+        $payments = $query->latest()->get();
+
+        $filename = 'supplier_payments_' . date('Y-m-d_H-i-s') . '.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', 'Supplier Payment Report');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        
+        $headers = ['Voucher ID', 'Payment Date', 'Supplier', 'Bill No', 'Amount', 'Method', 'Recorded By'];
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue(chr(65 + $index) . '3', $header);
+            $sheet->getStyle(chr(65 + $index) . '3')->getFont()->setBold(true);
+        }
+        
+        $dataRow = 4;
+        foreach ($payments as $payment) {
+            $sheet->setCellValue('A' . $dataRow, 'SP-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT));
+            $sheet->setCellValue('B' . $dataRow, $payment->payment_date->format('d-m-Y'));
+            $sheet->setCellValue('C' . $dataRow, $payment->supplier->name ?? '-');
+            $sheet->setCellValue('D' . $dataRow, $payment->bill->bill_number ?? 'Advance');
+            $sheet->setCellValue('E' . $dataRow, $payment->amount);
+            $sheet->setCellValue('F' . $dataRow, strtoupper($payment->payment_method));
+            $sheet->setCellValue('G' . $dataRow, $payment->creator->name ?? 'System');
+            $dataRow++;
+        }
+        
+        foreach (range('A', 'G') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filePath = storage_path('app/public/' . $filename);
+        $writer->save($filePath);
+        
+        return response()->download($filePath, $filename)->deleteFileAfterSend();
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
+        $query = SupplierPayment::with('supplier', 'bill', 'creator');
+        if ($startDate) $query->whereDate('payment_date', '>=', $startDate);
+        if ($endDate) $query->whereDate('payment_date', '<=', $endDate);
+        
+        if ($request->filled('payment_no') && $request->payment_no != 'all') $query->where('id', $request->payment_no);
+        if ($request->filled('challan_no') && $request->challan_no != 'all') $query->where('purchase_bill_id', $request->challan_no);
+        if ($request->filled('supplier_id') && $request->supplier_id != 'all') $query->where('supplier_id', $request->supplier_id);
+        if ($request->filled('payment_method') && $request->payment_method != 'all') $query->where('payment_method', $request->payment_method);
+
+        $payments = $query->latest()->get();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.supplier-payments.report-pdf', compact('payments', 'startDate', 'endDate'));
+        return $pdf->download('supplier_payments_' . date('Y-m-d') . '.pdf');
     }
 
     public function create(Request $request)

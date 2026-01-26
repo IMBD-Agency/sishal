@@ -63,8 +63,10 @@ class BranchController extends Controller
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'contact_info' => 'required|string|max:255',
-            'manager_id' => 'nullable|exists:users,id'
+            'manager_id' => 'nullable|exists:users,id',
+            'show_online' => 'nullable'
         ]);
+        $validated['show_online'] = $request->has('show_online');
         $branch = Branch::create($validated);
         return redirect()->route('branches.index')->with('status', 'Branch created successfully!');
     }
@@ -80,40 +82,39 @@ class BranchController extends Controller
             
             // Dynamic counts
             $employees_count = $branch->employees->count();
-            $warehouses_count = $branch->warehouses->count();
-        // Automatically ensure BranchProductStock records exist for any product that has variation stock records in this branch
-        $variableProductIdsWithRecords = \App\Models\ProductVariationStock::where('branch_id', $id)
-            ->whereNull('warehouse_id')
-            ->with('variation.product')
-            ->get()
-            ->pluck('variation.product_id')
-            ->unique();
-
-        foreach ($variableProductIdsWithRecords as $pid) {
-            if ($pid) {
-                \App\Models\BranchProductStock::firstOrCreate([
-                    'branch_id' => $id,
-                    'product_id' => $pid,
-                ], [
-                    'quantity' => 0,
-                    'updated_by' => auth()->id() ?? 1,
-                    'last_updated_at' => now(),
-                ]);
-            }
-        }
-
-        // Get branch products with stock info (all products, not limited)
-        $branch_products = $branch->branchProductStocks()
-            ->whereHas('product')
-            ->with(['product.category', 'product.variations.stocks' => function ($q) use ($id) {
-                $q->where('branch_id', $id)->whereNull('warehouse_id');
-            }])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $products_count = $branch_products->count();
             
-          
+            // Automatically ensure BranchProductStock records exist for any product that has variation stock records in this branch
+            $variableProductIdsWithRecords = \App\Models\ProductVariationStock::where('branch_id', $id)
+                ->whereNull('warehouse_id')
+                ->with('variation.product')
+                ->get()
+                ->pluck('variation.product_id')
+                ->unique();
+
+            foreach ($variableProductIdsWithRecords as $pid) {
+                if ($pid) {
+                    \App\Models\BranchProductStock::firstOrCreate([
+                        'branch_id' => $id,
+                        'product_id' => $pid,
+                    ], [
+                        'quantity' => 0,
+                        'updated_by' => auth()->id() ?? 1,
+                        'last_updated_at' => now(),
+                    ]);
+                }
+            }
+
+            // Get branch products with stock info (all products, not limited)
+            $branch_products = $branch->branchProductStocks()
+                ->whereHas('product')
+                ->with(['product.category', 'product.variations.stocks' => function ($q) use ($id) {
+                    $q->where('branch_id', $id)->whereNull('warehouse_id');
+                }])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $products_count = $branch_products->count();
+            
             // Get recent sales (last 10)
             $recent_sales = $branch->pos()
                 ->with(['customer', 'invoice'])
@@ -131,7 +132,6 @@ class BranchController extends Controller
                 'branch', 
                 'products_count', 
                 'employees_count', 
-                'warehouses_count',
                 'recent_sales',
                 'branch_products',
                 'employees'
@@ -166,8 +166,10 @@ class BranchController extends Controller
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'contact_info' => 'required|string|max:255',
-            'manager_id' => 'nullable|exists:users,id'
+            'manager_id' => 'nullable|exists:users,id',
+            'show_online' => 'nullable'
         ]);
+        $validated['show_online'] = $request->has('show_online');
         $branch->update($validated);
         return redirect()->route('branches.index')->with('status', 'Branch updated successfully!');
     }

@@ -4,71 +4,24 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            .form-section-title {
-                font-size: 0.85rem;
-                font-weight: 700;
-                text-uppercase: uppercase;
-                letter-spacing: 0.05em;
-                color: #6c757d;
-                margin-bottom: 1.5rem;
-                display: flex;
-                align-items: center;
-            }
-            .form-section-title::after {
-                content: '';
-                flex: 1;
-                height: 1px;
-                background: #e9ecef;
-                margin-left: 1rem;
-            }
-            .card { border-radius: 12px; }
-            .form-control, .form-select {
-                padding: 0.6rem 0.8rem;
-                border-color: #e9ecef;
-                border-radius: 8px;
-            }
-            .form-control:focus, .form-select:focus {
-                border-color: #0d6efd;
-                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05);
-            }
-            .input-group-text { border-radius: 8px 0 0 8px; border-color: #e9ecef; background: #f8f9fa; }
-            .product-row { transition: all 0.2s; }
-            .product-row:hover { background-color: #fcfdfe; }
-            .btn-remove { 
-                width: 32px; height: 32px; 
-                display: flex; align-items: center; justify-content: center;
-                border-radius: 8px; transition: all 0.2s;
-            }
-            .btn-remove:hover { background-color: #dc3545; color: white; }
-            .select2-container--default .select2-selection--single {
-                height: 42px !important;
-                border: 1px solid #e9ecef !important;
-                border-radius: 8px !important;
-                display: flex;
-                align-items: center;
-            }
-        </style>
-
-        <!-- Header -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <div class="glass-header">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-md-7">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ route('saleReturn.list') }}" class="text-decoration-none">Sale Returns</a></li>
-                            <li class="breadcrumb-item active">Edit Return #{{ $saleReturn->id }}</li>
+                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('saleReturn.list') }}" class="text-decoration-none text-muted">Returns</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Edit Return</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Edit Sale Return</h2>
-                    <p class="text-muted mb-0">Update information for return reference #SR-{{ str_pad($saleReturn->id, 5, '0', STR_PAD_LEFT) }}</p>
+                    <h4 class="fw-bold mb-0 text-dark">Adjust Sale Return</h4>
+                    <small class="text-muted">#SR-{{ str_pad($saleReturn->id, 5, '0', STR_PAD_LEFT) }}</small>
                 </div>
-                <div class="col-md-4 text-end">
-                    <a href="{{ route('saleReturn.list') }}" class="btn btn-light border px-4 rounded-3">
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <a href="{{ route('saleReturn.list') }}" class="btn btn-light fw-bold shadow-sm">
                         <i class="fas fa-arrow-left me-2"></i>Back to List
                     </a>
                 </div>
@@ -92,33 +45,33 @@
                 <div class="row g-4">
                     <!-- Left Column: Basic Info -->
                     <div class="col-lg-4">
-                        <div class="card border-0 shadow-sm mb-4">
+                        <div class="premium-card mb-4">
                             <div class="card-body p-4">
-                                <div class="form-section-title">Return Source</div>
+                                <h6 class="fw-bold mb-3 text-uppercase text-muted small"><i class="fas fa-history me-2 text-primary"></i>Return Source</h6>
                                 
                                 <div class="mb-3">
-                                    <label for="pos_sale_id" class="form-label fw-bold small">POS Sale Reference <span class="text-danger">*</span></label>
+                                    <label for="pos_sale_id" class="form-label small fw-bold text-muted text-uppercase">POS Sale Reference</label>
                                     <select name="pos_sale_id" id="pos_sale_id" class="form-select" required>
-                                        <option value="{{ $saleReturn->pos_sale_id }}" selected>POS #{{ $saleReturn->pos_sale_id }}</option>
+                                        <option value="{{ $saleReturn->pos_sale_id }}" selected>POS #{{ $saleReturn->posSale->sale_number ?? $saleReturn->pos_sale_id }}</option>
                                     </select>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="customer_id" class="form-label fw-bold small">Customer <span class="text-secondary">(Auto-filled)</span></label>
+                                    <label for="customer_id" class="form-label small fw-bold text-muted text-uppercase">Customer</label>
                                     <select name="customer_id" id="customer_id" class="form-select">
                                         <option value="{{ $saleReturn->customer_id }}" selected>{{ $saleReturn->customer->name }}</option>
                                     </select>
                                 </div>
 
-                                <div class="form-section-title mt-4">Return Details</div>
+                                <h6 class="fw-bold mb-3 mt-4 text-uppercase text-muted small"><i class="fas fa-info-circle me-2 text-primary"></i>Return Details</h6>
 
                                 <div class="mb-3">
-                                    <label for="return_date" class="form-label fw-bold small">Return Date <span class="text-danger">*</span></label>
+                                    <label for="return_date" class="form-label small fw-bold text-muted text-uppercase">Return Date</label>
                                     <input type="date" name="return_date" id="return_date" class="form-control" value="{{ $saleReturn->return_date }}" required>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="refund_type" class="form-label fw-bold small">Refund Method <span class="text-danger">*</span></label>
+                                    <label for="refund_type" class="form-label small fw-bold text-muted text-uppercase">Refund Method</label>
                                     <select name="refund_type" id="refund_type" class="form-select" required>
                                         <option value="none" {{ $saleReturn->refund_type == 'none' ? 'selected' : '' }}>No Refund</option>
                                         <option value="cash" {{ $saleReturn->refund_type == 'cash' ? 'selected' : '' }}>Cash Refund</option>
@@ -128,35 +81,37 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="return_to_type" class="form-label fw-bold small">Restock Location <span class="text-danger">*</span></label>
-                                    <select name="return_to_type" id="return_to_type" class="form-select mb-2" required>
-                                        <option value="">Select Location Type</option>
-                                        <option value="branch" {{ $saleReturn->return_to_type == 'branch' ? 'selected' : '' }}>Branch Office</option>
-                                        <option value="warehouse" {{ $saleReturn->return_to_type == 'warehouse' ? 'selected' : '' }}>Central Warehouse</option>
-                                        <option value="employee" {{ $saleReturn->return_to_type == 'employee' ? 'selected' : '' }}>Field Employee</option>
-                                    </select>
-                                    <select name="return_to_id" id="return_to_id" class="form-select" required>
-                                        @if($saleReturn->return_to_id)
-                                            <option value="{{ $saleReturn->return_to_id }}" selected>
-                                                @if($saleReturn->return_to_type == 'branch') {{ $saleReturn->branch->name ?? 'Branch' }}
-                                                @elseif($saleReturn->return_to_type == 'warehouse') {{ $saleReturn->warehouse->name ?? 'Warehouse' }}
-                                                @elseif($saleReturn->return_to_type == 'employee') {{ $saleReturn->employee->user->first_name ?? 'Employee' }} @endif
-                                            </option>
-                                        @endif
-                                    </select>
+                                    <label for="return_to_type" class="form-label small fw-bold text-muted text-uppercase">Restock Location</label>
+                                    <div class="input-group mb-2">
+                                        <select name="return_to_type" id="return_to_type" class="form-select" style="max-width: 120px;" required>
+                                            <option value="">Type</option>
+                                            <option value="branch" {{ $saleReturn->return_to_type == 'branch' ? 'selected' : '' }}>Branch</option>
+                                            <option value="warehouse" {{ $saleReturn->return_to_type == 'warehouse' ? 'selected' : '' }}>Warehouse</option>
+                                            <option value="employee" {{ $saleReturn->return_to_type == 'employee' ? 'selected' : '' }}>Employee</option>
+                                        </select>
+                                        <select name="return_to_id" id="return_to_id" class="form-select" required>
+                                            @if($saleReturn->return_to_id)
+                                                <option value="{{ $saleReturn->return_to_id }}" selected>
+                                                    @if($saleReturn->return_to_type == 'branch') {{ $saleReturn->branch->name ?? 'Branch' }}
+                                                    @elseif($saleReturn->return_to_type == 'warehouse') {{ $saleReturn->warehouse->name ?? 'Warehouse' }}
+                                                    @elseif($saleReturn->return_to_type == 'employee') {{ $saleReturn->employee->user->first_name ?? 'Employee' }} @endif
+                                                </option>
+                                            @endif
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card border-0 shadow-sm">
+                        <div class="premium-card">
                             <div class="card-body p-4">
-                                <div class="form-section-title">Additional Info</div>
+                                <h6 class="fw-bold mb-3 text-uppercase text-muted small"><i class="fas fa-sticky-note me-2 text-primary"></i>Additional Info</h6>
                                 <div class="mb-3">
-                                    <label for="reason" class="form-label fw-bold small">Primary Reason</label>
+                                    <label for="reason" class="form-label small fw-bold text-muted text-uppercase">Primary Reason</label>
                                     <input type="text" name="reason" id="reason" class="form-control" value="{{ $saleReturn->reason }}" placeholder="e.g., Damaged item">
                                 </div>
                                 <div class="mb-0">
-                                    <label for="notes" class="form-label fw-bold small">Internal Notes</label>
+                                    <label for="notes" class="form-label small fw-bold text-muted text-uppercase">Internal Notes</label>
                                     <textarea name="notes" id="notes" class="form-control" rows="3">{{ $saleReturn->notes }}</textarea>
                                 </div>
                             </div>
@@ -165,25 +120,25 @@
 
                     <!-- Right Column: Table -->
                     <div class="col-lg-8">
-                        <div class="card border-0 shadow-sm h-100">
+                        <div class="premium-card h-100">
                             <div class="card-header bg-white border-bottom p-4">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="fw-bold mb-0">Return Items</h5>
-                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" id="addItemRow">
-                                        <i class="fas fa-plus me-1"></i>Add Item
+                                    <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-shopping-basket me-2 text-primary"></i>Return Items</h6>
+                                    <button type="button" class="btn btn-light fw-bold shadow-sm btn-sm px-3" id="addItemRow">
+                                        <i class="fas fa-plus me-1 text-primary"></i>Add Item
                                     </button>
                                 </div>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table align-middle mb-0" id="itemsTable">
-                                        <thead class="bg-light text-muted small text-uppercase">
+                                    <table class="table premium-table mb-0" id="itemsTable">
+                                        <thead>
                                             <tr>
-                                                <th class="ps-4 py-3" style="width: 40%;">Product Specification</th>
-                                                <th class="py-3" style="width: 15%;">Qty</th>
-                                                <th class="py-3" style="width: 20%;">Price (৳)</th>
-                                                <th class="py-3">Reason</th>
-                                                <th class="pe-4 py-3"></th>
+                                                <th class="ps-4" style="width: 40%;">Product Specification</th>
+                                                <th style="width: 15%;">Qty</th>
+                                                <th style="width: 20%;">Price (৳)</th>
+                                                <th>Reason</th>
+                                                <th class="pe-4"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -226,8 +181,8 @@
                                 </div>
                             </div>
                             <div class="card-footer bg-light border-0 p-4 text-end">
-                                <button type="submit" class="btn btn-primary px-5 py-2 rounded-3 shadow-sm fw-bold">
-                                    <i class="fas fa-save me-2"></i>Update Return
+                                <button type="submit" class="btn btn-create-premium px-5 py-2">
+                                    <i class="fas fa-save me-2"></i>SAVE RETURN UPDATES
                                 </button>
                             </div>
                         </div>

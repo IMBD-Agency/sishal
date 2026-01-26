@@ -76,6 +76,155 @@ class PurchaseReturnController extends Controller
         ));
     }
 
+    public function exportExcel(Request $request)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
+        $query = \App\Models\PurchaseReturnItem::with([
+            'purchaseReturn.purchase.supplier', 
+            'purchaseReturn.purchase.bill', 
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'purchaseItem.variation'
+        ]);
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->orderBy('created_at', 'desc')->get();
+
+        $headers = [
+            'SL', 'Return Date', 'Return #', 'Original Inv #', 'Source', 'Supplier', 'Mobile', 
+            'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style #', 
+            'Color', 'Size', 'Ret. Qty', 'Ret. Amount', 'Status'
+        ];
+        $exportData[] = $headers;
+
+        foreach ($items as $index => $item) {
+            $return = $item->purchaseReturn;
+            $purchase = $return->purchase;
+            $product = $item->product;
+            $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
+            $supplier = $purchase->supplier;
+
+            // Extract Color and Size
+            $color = '-'; $size = '-';
+            if ($variation && $variation->attributeValues) {
+                foreach($variation->attributeValues as $val) {
+                    $attrName = strtolower($val->attribute->name ?? '');
+                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                        $color = $val->value;
+                    } elseif (str_contains($attrName, 'size')) {
+                        $size = $val->value;
+                    }
+                }
+            }
+
+            // Source
+            $source = 'N/A';
+            if ($item->return_from_type == 'branch') {
+                $branch = \App\Models\Branch::find($item->return_from_id);
+                $source = 'Branch: ' . ($branch->name ?? $item->return_from_id);
+            } elseif ($item->return_from_type == 'warehouse') {
+                $warehouse = \App\Models\Warehouse::find($item->return_from_id);
+                $source = 'Warehouse: ' . ($warehouse->name ?? $item->return_from_id);
+            }
+
+            $row = [
+                $index + 1,
+                $return->return_date,
+                'RET-'.str_pad($return->id, 5, '0', STR_PAD_LEFT),
+                $purchase->bill->bill_number ?? 'P-'.$purchase->id,
+                $source,
+                $supplier->name ?? 'N/A',
+                $supplier->mobile ?? 'N/A',
+                $product->category->name ?? 'N/A',
+                $product->brand->name ?? 'N/A',
+                $product->season->name ?? 'N/A',
+                $product->gender->name ?? 'N/A',
+                $product->name ?? 'N/A',
+                $product->sku ?? $product->style_number ?? 'N/A',
+                $color,
+                $size,
+                $item->returned_qty,
+                number_format($item->total_price, 2),
+                ucfirst($return->status)
+            ];
+            $exportData[] = $row;
+        }
+
+        $filename = 'purchase_return_audit_' . date('Y-m-d_His') . '.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        foreach ($exportData as $rowIndex => $rowData) {
+            foreach ($rowData as $colIndex => $value) {
+                $sheet->setCellValue(chr(65 + $colIndex) . ($rowIndex + 1), $value);
+            }
+        }
+        
+        foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filePath = storage_path('app/public/' . $filename);
+        $writer->save($filePath);
+        
+        return response()->download($filePath, $filename)->deleteFileAfterSend();
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
+        $query = \App\Models\PurchaseReturnItem::with([
+            'purchaseReturn.purchase.supplier', 
+            'purchaseReturn.purchase.bill', 
+            'product.category', 
+            'product.brand', 
+            'product.season', 
+            'product.gender',
+            'purchaseItem.variation'
+        ]);
+        $query = $this->applyFilters($query, $request, $startDate, $endDate);
+        $items = $query->orderBy('created_at', 'desc')->get();
+
+        $filename = 'purchase_return_audit_' . date('Y-m-d_His') . '.pdf';
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.purchaseReturn.report-pdf', [
+            'items' => $items,
+            'filters' => $request->all()
+        ]);
+
+        $pdf->setPaper('A4', 'landscape');
+        return $pdf->download($filename);
+    }
+
     private function applyFilters($query, Request $request, $startDate = null, $endDate = null)
     {
         // Date Filtering on the related PurchaseReturn

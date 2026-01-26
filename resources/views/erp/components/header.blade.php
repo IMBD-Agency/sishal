@@ -1,5 +1,5 @@
 <div class="header">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-center w-100">
         <div class="d-flex align-items-center">
             <button class="btn btn-link d-md-none me-3 p-0" id="sidebarToggle">
                 <i class="fas fa-bars fs-5"></i>

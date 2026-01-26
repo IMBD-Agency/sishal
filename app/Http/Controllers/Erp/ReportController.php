@@ -249,33 +249,36 @@ class ReportController extends Controller
             }
         }
 
-        $posItems = $posQuery->get()->map(function($item) {
+        // Summary Statistics - Calculated in DB for performance
+        $posSummary = (clone $posQuery)->selectRaw('SUM(quantity) as total_qty, SUM(total_price) as total_amount, SUM(0) as total_discount')->first();
+        $orderSummary = (clone $orderQuery)->selectRaw('SUM(quantity) as total_qty, SUM(total_price) as total_amount, SUM(0) as total_discount')->first();
+
+        $summary = [
+            'total_qty' => ($posSummary->total_qty ?? 0) + ($orderSummary->total_qty ?? 0),
+            'total_amount' => ($posSummary->total_amount ?? 0) + ($orderSummary->total_amount ?? 0),
+            'total_discount' => ($posSummary->total_discount ?? 0) + ($orderSummary->total_discount ?? 0),
+        ];
+        $summary['total_net'] = $summary['total_amount'] - $summary['total_discount'];
+
+        // On-screen List: Limit to top 200 for browser performance
+        // (Full data still available via Export)
+        $posItems = $posQuery->take(100)->get()->map(function($item) {
             $item->source = 'POS';
             $item->date = $item->pos->sale_date;
             $item->invoice = $item->pos->invoice_number;
             $item->customer_name = $item->pos->customer->name ?? 'Walk-in';
-            $item->created_by_name = $item->pos->employee->full_name ?? ($item->pos->creator->first_name ?? 'System');
             return $item;
         });
 
-        $orderItems = $orderQuery->get()->map(function($item) {
+        $orderItems = $orderQuery->take(100)->get()->map(function($item) {
             $item->source = 'Online';
             $item->date = $item->order->created_at;
             $item->invoice = '#' . $item->order->id;
             $item->customer_name = $item->order->customer->first_name ?? ($item->order->first_name . ' ' . $item->order->last_name);
-            $item->created_by_name = 'Customer';
             return $item;
         });
 
         $allItems = $posItems->concat($orderItems)->sortByDesc('date');
-
-        // Summary Statistics
-        $summary = [
-            'total_qty' => $allItems->sum('quantity'),
-            'total_amount' => $allItems->sum('total_price'),
-            'total_discount' => $allItems->sum('discount'),
-            'total_net' => $allItems->sum('total_price') - $allItems->sum('discount'),
-        ];
 
         $customers = Customer::orderBy('name')->get();
         $employees = User::whereHas('employee')->get();

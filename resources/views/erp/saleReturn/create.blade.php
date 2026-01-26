@@ -4,91 +4,47 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            .form-section-title {
-                font-size: 0.85rem;
-                font-weight: 700;
-                text-uppercase: uppercase;
-                letter-spacing: 0.05em;
-                color: #374151;
-                margin-bottom: 1rem;
-                display: flex;
-                align-items: center;
-            }
-            .form-section-title::after {
-                content: '';
-                flex: 1;
-                height: 1px;
-                background: #e5e7eb;
-                margin-left: 1rem;
-            }
-            .card { border-radius: 12px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-            .form-label { font-size: 0.85rem; font-weight: 600; color: #4b5563; }
-            .form-control, .form-select {
-                padding: 0.6rem 0.8rem;
-                border-color: #d1d5db;
-                border-radius: 8px;
-                font-size: 0.9rem;
-            }
-            .form-control:focus {
-                border-color: #3b82f6;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            }
-            .btn-primary { background-color: #2563eb; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600; }
-            .btn-primary:hover { background-color: #1d4ed8; }
-            
-            .table-items thead th {
-                background: #f9fafb;
-                font-size: 0.75rem;
-                font-weight: 700;
-                text-transform: uppercase;
-                color: #6b7280;
-                padding: 12px;
-                border-bottom: 2px solid #e5e7eb;
-            }
-            .table-items tbody td {
-                padding: 12px;
-                vertical-align: middle;
-                border-bottom: 1px solid #f3f4f6;
-                font-size: 0.85rem;
-            }
-            .product-info-badge {
-                font-size: 0.7rem;
-                padding: 2px 8px;
-                border-radius: 4px;
-                background: #f3f4f6;
-                color: #4b5563;
-                margin-right: 4px;
-            }
-        </style>
+        <div class="glass-header">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('saleReturn.list') }}" class="text-decoration-none text-muted">Returns</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Create</li>
+                        </ol>
+                    </nav>
+                    <h4 class="fw-bold mb-0 text-dark">Process Sale Return</h4>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <a href="{{ route('saleReturn.list') }}" class="btn btn-light fw-bold shadow-sm">
+                        <i class="fas fa-list me-2"></i>Return List
+                    </a>
+                </div>
+            </div>
+        </div>
 
         <div class="container-fluid px-4 py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 class="fw-bold mb-0">Return</h4>
-                </div>
-                <a href="{{ route('saleReturn.list') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-                    <i class="fas fa-list me-1"></i> Return List
-                </a>
-            </div>
-
             <!-- Invoice Search Card -->
-            <div class="card mb-4">
+            <div class="premium-card mb-4">
                 <div class="card-header bg-white py-3 border-bottom">
-                    <h6 class="mb-0 fw-bold text-dark">Return Information</h6>
+                    <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-search me-2 text-primary"></i>Find Original Sale</h6>
                 </div>
                 <div class="card-body p-4">
-                    <div class="row items-center">
-                        <div class="col-md-6">
-                            <label class="form-label">Invoice No.<span class="text-danger">*</span></label>
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Invoice / Sale Number</label>
                             <div class="input-group">
-                                <input type="text" id="invoice_search" class="form-control" placeholder="Invoice Number" aria-label="Invoice Number">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-file-invoice"></i></span>
+                                <input type="text" id="invoice_search" class="form-control border-start-0" placeholder="e.g. POS-000001">
                             </div>
-                            <button type="button" id="btnSearch" class="btn btn-primary mt-3 px-4">
-                                <i class="fas fa-search me-2"></i> Search
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" id="btnSearch" class="btn btn-create-premium w-100">
+                                <i class="fas fa-search me-2"></i>Search
                             </button>
                         </div>
                     </div>
@@ -103,19 +59,19 @@
                 <div class="row g-4">
                     <!-- Left: Metadata -->
                     <div class="col-lg-12">
-                        <div class="card mb-4">
+                        <div class="premium-card mb-4">
                             <div class="card-body p-4">
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label">Customer</label>
-                                        <input type="text" id="customer_display" class="form-control bg-light" readonly>
+                                        <label class="form-label small fw-bold text-muted text-uppercase">Customer</label>
+                                        <input type="text" id="customer_display" class="form-control bg-light fw-bold" readonly>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Return Date *</label>
+                                        <label class="form-label small fw-bold text-muted text-uppercase">Return Date</label>
                                         <input type="date" name="return_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Refund Method *</label>
+                                        <label class="form-label small fw-bold text-muted text-uppercase">Refund Method</label>
                                         <select name="refund_type" class="form-select" required>
                                             <option value="none">No Refund</option>
                                             <option value="cash">Cash Refund</option>
@@ -124,14 +80,16 @@
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Restock To *</label>
-                                        <select name="return_to_type" id="return_to_type" class="form-select mb-2" required>
-                                            <option value="branch">Branch</option>
-                                            <option value="warehouse">Warehouse</option>
-                                        </select>
-                                        <select name="return_to_id" id="return_to_id" class="form-select" required>
-                                            <option value="">Select Location</option>
-                                        </select>
+                                        <label class="form-label small fw-bold text-muted text-uppercase">Restock Location</label>
+                                        <div class="input-group">
+                                            <select name="return_to_type" id="return_to_type" class="form-select" style="max-width: 120px;" required>
+                                                <option value="branch">Branch</option>
+                                                <option value="warehouse">Warehouse</option>
+                                            </select>
+                                            <select name="return_to_id" id="return_to_id" class="form-select" required>
+                                                <option value="">Select...</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -140,42 +98,42 @@
 
                     <!-- Items Table -->
                     <div class="col-lg-12">
-                        <div class="card">
-                            <div class="card-header bg-white py-3 border-bottom">
-                                <h6 class="mb-0 fw-bold">Return Items</h6>
+                        <div class="premium-card">
+                            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-shopping-basket me-2 text-primary"></i>Return Items</h6>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table table-items mb-0" id="itemsTable">
+                                    <table class="table premium-table mb-0" id="itemsTable">
                                         <thead>
                                             <tr>
-                                                <th style="width: 50px;">SL.</th>
-                                                <th>Product Name</th>
+                                                <th class="text-center" style="width: 50px;">#</th>
+                                                <th>Product Information</th>
                                                 <th class="text-center">Sale Qty</th>
-                                                <th class="text-center">Return Qty</th>
-                                                <th class="text-end">Unit Price</th>
-                                                <th class="text-end">Total Price</th>
-                                                <th>Reason</th>
+                                                <th class="text-center" style="width: 120px;">Return Qty</th>
+                                                <th class="text-end" style="width: 140px;">Unit Price</th>
+                                                <th class="text-end" style="width: 140px;">Subtotal</th>
+                                                <th>Return Reason</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <!-- Items will be populated here -->
                                         </tbody>
-                                        <tfoot>
-                                            <tr class="fw-bold bg-light">
-                                                <td colspan="3" class="text-end">Total Return Qty:</td>
-                                                <td id="totalReturnQty" class="text-center">0</td>
-                                                <td class="text-end">Grand Total:</td>
-                                                <td id="grandTotal" class="text-end">0.00</td>
+                                        <tfoot class="bg-light">
+                                            <tr class="fw-bold">
+                                                <td colspan="3" class="text-end text-uppercase small text-muted">Totals</td>
+                                                <td id="totalReturnQty" class="text-center text-primary h6 mb-0">0</td>
+                                                <td></td>
+                                                <td id="grandTotal" class="text-end text-success h5 mb-0">0.00</td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
                             </div>
-                            <div class="card-footer bg-white p-4 text-end">
-                                <button type="submit" class="btn btn-success px-5 py-2 fw-bold">
-                                    <i class="fas fa-check-circle me-2"></i> Submit Return
+                            <div class="card-footer bg-white p-4 text-end border-top">
+                                <button type="submit" class="btn btn-create-premium px-5 py-2">
+                                    <i class="fas fa-check-circle me-2"></i>COMPLETE RETURN PROCESS
                                 </button>
                             </div>
                         </div>

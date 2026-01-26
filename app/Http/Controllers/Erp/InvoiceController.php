@@ -778,11 +778,10 @@ class InvoiceController extends Controller
         $generalSettings = GeneralSetting::first();
         $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
         
-        do {
-            $number = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $fullNumber = $prefix . $number;
-        } while (Invoice::where('invoice_number', $fullNumber)->exists());
+        $lastInvoice = Invoice::latest('id')->first();
+        $nextId = $lastInvoice ? $lastInvoice->id + 1 : 1;
         
-        return $fullNumber;
+        // Format: INV-000001
+        return $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
     }
 }

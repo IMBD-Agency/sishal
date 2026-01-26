@@ -143,12 +143,21 @@
                     </div>
                     <div class="card-body p-4">
                         <!-- Top Row: General Info & Style Search -->
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-3">
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-2">
                                 <label for="purchase_date" class="form-label">Purchase Date *</label>
                                 <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="branch_id" class="form-label">Receive At (Branch) *</label>
+                                <select name="location_id" id="branch_id" class="form-select" required>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                                <input type="hidden" name="ship_location_type" value="branch">
+                            </div>
+                            <div class="col-md-3">
                                 <label for="supplier_id" class="form-label">Select Supplier *</label>
                                 <select name="supplier_id" id="supplier_id" class="form-select select2-supplier" required>
                                     <option value="">Select One</option>
@@ -157,7 +166,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-4">
                                 <label for="styleNumberSearch" class="form-label">Style Number Search (Auto-Add) *</label>
                                 <select id="styleNumberSearch" class="form-select"></select>
                             </div>
@@ -251,9 +260,7 @@
                     </div>
                 </div>
 
-                <!-- Mandatory Hidden Fields -->
-                <input type="hidden" name="ship_location_type" value="warehouse">
-                <input type="hidden" name="location_id" value="1">
+                <!-- Location logic handled in header row -->
             </form>
         </div>
     </div>

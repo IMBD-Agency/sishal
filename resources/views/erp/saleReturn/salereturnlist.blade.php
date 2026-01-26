@@ -4,64 +4,30 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            .select2-container--bootstrap-5 .select2-selection { 
-                font-size: 0.85rem; 
-                min-height: 38px;
-                display: flex;
-                align-items: center;
-                border: 1px solid #dee2e6 !important;
-                border-radius: 8px !important;
-            }
-            .form-label { font-size: 0.85rem; font-weight: 700; color: #374151; }
-            .table-report thead th { 
-                background: #2d5a4c; 
-                color: #fff; 
-                font-size: 0.65rem; 
-                font-weight: 700; 
-                text-transform: uppercase; 
-                padding: 10px 5px; 
-                white-space: nowrap;
-                vertical-align: middle;
-                border: 1px solid #3d6a5c;
-                text-align: center;
-            }
-            .table-report tbody td { 
-                font-size: 0.75rem; 
-                vertical-align: middle; 
-                padding: 6px 4px;
-                border: 1px solid #dee2e6;
-            }
-            .table-report tfoot td {
-                font-weight: 800;
-                background: #f8f9fa;
-                font-size: 0.8rem;
-            }
-            .product-img {
-                width: 35px;
-                height: 35px;
-                object-fit: cover;
-                border-radius: 4px;
-                border: 1px solid #eee;
-            }
-            /* Custom Scrollbar for wide table */
-            .table-responsive::-webkit-scrollbar { height: 8px; }
-            .table-responsive::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-        </style>
-
-        <div class="container-fluid px-2 py-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold mb-0">Return List</h4>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-success btn-sm px-3" onclick="exportData('excel')"><i class="fas fa-file-excel me-1"></i> Export Excel</button>
-                    <a href="{{ route('saleReturn.create') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
-                        <i class="fas fa-plus me-1"></i> New Return
+        <div class="glass-header">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Return History</li>
+                        </ol>
+                    </nav>
+                    <h4 class="fw-bold mb-0 text-dark">Full Sale Return Report</h4>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <button type="button" class="btn btn-light fw-bold shadow-sm" onclick="exportData('excel')">
+                        <i class="fas fa-file-excel me-2"></i>Export Excel
+                    </button>
+                    <a href="{{ route('saleReturn.create') }}" class="btn btn-create-premium text-nowrap">
+                        <i class="fas fa-plus me-2"></i>New Return
                     </a>
                 </div>
             </div>
+        </div>
 
             <!-- Advanced Filters -->
             <div class="card border-0 shadow-sm rounded-3 mb-3">
@@ -86,16 +52,16 @@
 
                         <div class="row g-2">
                             <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small mb-1">Start Date *</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date *</label>
                                 <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small mb-1">End Date *</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date *</label>
                                 <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 date-group monthly-group" style="display: none;">
-                                <label class="form-label small mb-1">Month *</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month *</label>
                                 <select name="month" class="form-select form-select-sm select2">
                                     @foreach(range(1, 12) as $m)
                                         <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
@@ -103,7 +69,7 @@
                                 </select>
                             </div>
                             <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
-                                <label class="form-label small mb-1">Year *</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year *</label>
                                 <select name="year" class="form-select form-select-sm select2">
                                     @foreach(range(date('Y'), date('Y') - 10) as $y)
                                         <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -112,13 +78,13 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Invoice *</label>
-                                <input type="text" name="search" class="form-control form-control-sm" placeholder="All Invoice" value="{{ request('search') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Invoice</label>
+                                <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="{{ request('search') }}">
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Customer *</label>
-                                <select name="customer_id" class="form-select form-select-sm select2" data-placeholder="All Customer">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
+                                <select name="customer_id" class="form-select form-select-sm select2" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($customers as $customer)
                                         <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
@@ -127,8 +93,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Product *</label>
-                                <select name="product_id" class="form-select form-select-sm select2" data-placeholder="All Product">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
+                                <select name="product_id" class="form-select form-select-sm select2" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($products as $product)
                                         <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
@@ -137,13 +103,13 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Style Number *</label>
-                                <input type="text" name="style_number" class="form-control form-control-sm" placeholder="All Style Number" value="{{ request('style_number') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style #</label>
+                                <input type="text" name="style_number" class="form-control form-control-sm" placeholder="Style..." value="{{ request('style_number') }}">
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Category *</label>
-                                <select name="category_id" class="form-select form-select-sm select2" data-placeholder="All Category">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
+                                <select name="category_id" class="form-select form-select-sm select2" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($categories as $category)
                                         <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
@@ -152,8 +118,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Brand *</label>
-                                <select name="brand_id" class="form-select form-select-sm select2" data-placeholder="All Brand">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
+                                <select name="brand_id" class="form-select form-select-sm select2" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($brands as $brand)
                                         <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
@@ -162,8 +128,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Season *</label>
-                                <select name="season_id" class="form-select form-select-sm select2" data-placeholder="All Season">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
+                                <select name="season_id" class="form-select form-select-sm select2" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($seasons as $season)
                                         <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
@@ -172,8 +138,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Gender *</label>
-                                <select name="gender_id" class="form-select form-select-sm select2" data-placeholder="All Gender">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
+                                <select name="gender_id" class="form-select form-select-sm select2" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($genders as $gender)
                                         <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
@@ -182,8 +148,8 @@
                             </div>
 
                             <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-info text-white btn-sm w-100 fw-bold border-0 shadow-sm" style="background-color: #17a2b8; height: 31px;">
-                                    <i class="fas fa-search me-1"></i> Search
+                                <button type="submit" class="btn btn-create-premium btn-sm w-100" style="height: 31px;">
+                                    <i class="fas fa-search small"></i>
                                 </button>
                             </div>
                         </div>
@@ -193,11 +159,10 @@
                                 <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('csv')">CSV</button>
                                 <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('excel')">Excel</button>
                                 <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('pdf')">PDF</button>
-                                <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('print')">Print</button>
                             </div>
                             <div class="d-flex align-items-center gap-3">
-                                <span class="small text-muted">Total: <strong>{{ $items->total() }}</strong> Records</span>
-                                <a href="{{ route('saleReturn.list') }}" class="btn btn-light btn-sm px-3 border shadow-sm">Clear All</a>
+                                <span class="small text-muted">Records: <strong>{{ $items->total() }}</strong></span>
+                                <a href="{{ route('saleReturn.list') }}" class="btn btn-light btn-sm px-3 border shadow-sm">Reset</a>
                             </div>
                         </div>
                     </form>
@@ -205,16 +170,16 @@
             </div>
 
             <!-- Table -->
-            <div class="card border-0 shadow-sm rounded-3">
+            <div class="premium-card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-report table-bordered mb-0">
-                            <thead>
+                        <table class="table premium-table compact-reporting-table mb-0">
+                            <thead class="bg-light">
                                 <tr>
-                                    <th>Serial No</th>
+                                    <th class="text-center">SL</th>
                                     <th>Date</th>
-                                    <th>R-Inv. No.</th>
-                                    <th>S-Inv. No.</th>
+                                    <th>R-Inv No</th>
+                                    <th>S-Inv No</th>
                                     <th>Customer</th>
                                     <th>Mobile</th>
                                     <th>Outlet</th>
@@ -222,16 +187,16 @@
                                     <th>Brand</th>
                                     <th>Season</th>
                                     <th>Gender</th>
-                                    <th>Product Name</th>
-                                    <th>Style Number</th>
+                                    <th style="min-width: 140px;">Product Name</th>
+                                    <th>Style #</th>
                                     <th>Color</th>
                                     <th>Size</th>
-                                    <th>Qty</th>
-                                    <th>Total Qty</th>
-                                    <th>Total Amount</th>
-                                    <th>Charge Amount</th>
-                                    <th>Paid Amount</th>
-                                    <th>Option</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-center">T.Qty</th>
+                                    <th class="text-end">T.Amount</th>
+                                    <th class="text-end">Charge</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -243,7 +208,6 @@
                                         $return = $item->saleReturn;
                                         $product = $item->product;
                                         $variation = $item->variation;
-                                        
                                         if (!$return) continue;
 
                                         $color = '-'; $size = '-';
@@ -259,10 +223,14 @@
                                         $gAmt += $item->total_price;
                                     @endphp
                                     <tr>
-                                        <td class="text-center">{{ $items->firstItem() + $index }}</td>
+                                        <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
                                         <td class="text-center">{{ $return->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-' }}</td>
-                                        <td class="fw-bold">#SR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</td>
-                                        <td>{{ $return->posSale->sale_number ?? '-' }}</td>
+                                        <td class="fw-bold text-dark">#SR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</td>
+                                        <td>
+                                             <a href="{{ route('pos.show', $return->pos_sale_id) }}" class="text-decoration-none text-primary fw-600">
+                                                {{ $return->posSale->sale_number ?? '-' }}
+                                             </a>
+                                        </td>
                                         <td>{{ $return->customer->name ?? 'Walk-in' }}</td>
                                         <td>{{ $return->customer->phone ?? '-' }}</td>
                                         <td>{{ $return->branch->name ?? '-' }}</td>
@@ -270,7 +238,7 @@
                                         <td>{{ $product->brand->name ?? '-' }}</td>
                                         <td>{{ $product->season->name ?? '-' }}</td>
                                         <td>{{ $product->gender->name ?? '-' }}</td>
-                                        <td style="min-width: 120px;">{{ $product->name ?? '-' }}</td>
+                                        <td>{{ $product->name ?? '-' }}</td>
                                         <td>{{ $product->style_number ?? '-' }}</td>
                                         <td>{{ $color }}</td>
                                         <td>{{ $size }}</td>
@@ -280,16 +248,18 @@
                                         <td class="text-end">0.00</td>
                                         <td class="text-end">0.00</td>
                                         <td class="text-center">
-                                            <a href="{{ route('saleReturn.show', $return->id) }}" class="btn btn-sm btn-info text-white px-2 py-1"><i class="fas fa-eye small"></i></a>
+                                            <a href="{{ route('saleReturn.show', $return->id) }}" class="btn btn-action btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="21" class="text-center py-5 text-muted">No records found</td></tr>
                                 @endforelse
                             </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="15" class="text-end">Grand Total</td>
+                            <tfoot class="bg-light">
+                                <tr class="fw-bold text-dark text-uppercase">
+                                    <td colspan="15" class="text-end">Grand Totals</td>
                                     <td class="text-center">{{ $gQty }}</td>
                                     <td class="text-center">{{ $gQty }}</td>
                                     <td class="text-end">{{ number_format($gAmt, 2) }}</td>

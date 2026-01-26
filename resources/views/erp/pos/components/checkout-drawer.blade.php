@@ -193,17 +193,40 @@
                                         <select class="form-input" id="drawerPaymentMethod" style="border-radius: 12px;">
                                             <option value="cash" selected>💵 Cash</option>
                                             <option value="mobile">📱 Mobile Payment</option>
+                                            <option value="bank">🏦 Bank Transfer</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div class="col-12 mb-3">
                                     <div class="form-group">
-                                        <label for="drawerPaidAmountInput" class="form-label">
-                                            <i class="fas fa-money-check-alt me-1"></i>Paid Amount (৳) *
+                                        <label for="drawerCourierSelect" class="form-label">
+                                            <i class="fas fa-truck me-1"></i>Select Courier (For Delivery)
                                         </label>
-                                        <input type="number" class="form-input" id="drawerPaidAmountInput" placeholder="0.00" min="0" step="0.01">
-                                        <small class="text-muted">Leave empty to auto-fill with total amount</small>
+                                        <select class="form-input" id="drawerCourierSelect" style="border-radius: 12px;">
+                                            <option value="">No Courier / In-Store Pickup</option>
+                                            @foreach($shippingMethods as $method)
+                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <div class="form-group">
+                                        <label for="drawerPaidAmountInput" class="form-label d-flex justify-content-between">
+                                            <span><i class="fas fa-money-check-alt me-1"></i>Paid Amount (৳) *</span>
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-primary fw-bold" id="btnFullPaid">Full Paid</button>
+                                        </label>
+                                        <input type="number" class="form-input form-control-lg fw-bold text-primary" id="drawerPaidAmountInput" placeholder="0.00" min="0" step="0.01" style="font-size: 1.5rem; text-align: right;">
+                                        
+                                        <!-- Quick Cash Buttons -->
+                                        <div class="d-flex gap-2 mt-2 flex-wrap">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1 quick-cash" data-amount="100">৳100</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1 quick-cash" data-amount="500">৳500</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1 quick-cash" data-amount="1000">৳1000</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1 quick-cash" data-amount="5000">৳5000</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -219,6 +242,8 @@
             <form id="posCheckoutForm" method="POST" action="{{ isset($pos) ? route('pos.update', $pos->id) : route('pos.store') }}">
                 @csrf
                 <input type="hidden" id="hiddenBranchId" name="branch_id" value="{{ isset($pos) ? $pos->branch_id : '' }}">
+                <input type="hidden" id="hiddenSaleType" name="sale_type" value="MRP">
+                <input type="hidden" id="hiddenCourierId" name="courier_id" value="">
                 <button type="submit" class="checkout-button" id="drawerCheckoutBtn">
                     <i class="fas fa-lock" id="checkoutIcon"></i>
                     <i class="fas fa-spinner fa-spin" id="checkoutSpinner" style="display: none;"></i>
@@ -942,6 +967,22 @@ $(document).ready(function() {
 
     // Load customers on page load
     loadExistingCustomers();
+
+    // Full Paid button logic
+    $('#btnFullPaid').on('click', function() {
+        const totalText = $('#drawerCartTotal').text().trim();
+        const total = parseFloat(totalText.replace(/[^\d.]/g, '')) || 0;
+        $('#drawerPaidAmountInput').val(total.toFixed(2));
+        updateDrawerTotals();
+    });
+
+    // Quick Cash logic
+    $(document).on('click', '.quick-cash', function() {
+        const amount = parseFloat($(this).data('amount'));
+        const currentVal = parseFloat($('#drawerPaidAmountInput').val()) || 0;
+        $('#drawerPaidAmountInput').val((currentVal + amount).toFixed(2));
+        updateDrawerTotals();
+    });
 });
 
 // Function to show loading state
@@ -1057,6 +1098,10 @@ $('#posCheckoutForm').on('submit', function(e) {
     const accountId = $('#drawerBankAccount').val() || null;
     const notes = $('#drawerOrderNotes').val() || '';
     
+    // Get sale type from POS page toggle
+    const saleType = $('#saleTypeFilter').val() || 'MRP';
+    const courierId = $('#drawerCourierSelect').val() || '';
+    
     // Validate required fields
     if (!saleDate) {
         hideCheckoutLoading();
@@ -1128,6 +1173,12 @@ $('#posCheckoutForm').on('submit', function(e) {
     }
     if (notes) {
         form.append('<input type="hidden" class="dynamic-input" name="notes" value="'+escapeHtml(notes)+'">');
+    }
+    
+    // Add sale type and courier
+    form.append('<input type="hidden" class="dynamic-input" name="sale_type" value="'+escapeHtml(saleType)+'">');
+    if (courierId) {
+        form.append('<input type="hidden" class="dynamic-input" name="courier_id" value="'+escapeHtml(courierId)+'">');
     }
 
     // Read cart from sessionStorage (already validated above)

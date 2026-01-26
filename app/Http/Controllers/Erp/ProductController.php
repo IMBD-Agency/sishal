@@ -263,60 +263,42 @@ class ProductController extends Controller
                 $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
             }
 
-            $query = Product::query();
+            $query = Product::with(['category', 'brand', 'season', 'gender']);
+
+            // Optimized Database Aggregation for Stock levels
+            $query->withSum(['branchStock as total_branch_stock', 'warehouseStock as total_warehouse_stock', 'variationStocks as total_variation_stock'], 'quantity');
 
             // Date Filters
-            if ($startDate) {
-                $query->where('created_at', '>=', $startDate);
-            }
-            if ($endDate) {
-                $query->where('created_at', '<=', $endDate);
-            }
+            if ($startDate) { $query->where('created_at', '>=', $startDate); }
+            if ($endDate) { $query->where('created_at', '<=', $endDate); }
 
             // Relationship Filters
-            if ($request->filled('category_id')) {
-                $query->where('category_id', $request->category_id);
-            }
-            if ($request->filled('brand_id')) {
-                $query->where('brand_id', $request->brand_id);
-            }
-            if ($request->filled('season_id')) {
-                $query->where('season_id', $request->season_id);
-            }
-            if ($request->filled('gender_id')) {
-                $query->where('gender_id', $request->gender_id);
-            }
+            if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
+            if ($request->filled('brand_id')) { $query->where('brand_id', $request->brand_id); }
+            if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
+            if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
 
-            // Search by Name or SKU
+            // Search Logic (Name, SKU, Style)
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'like', "%$search%")
-                      ->orWhere('sku', 'like', "%$search%");
+                      ->orWhere('sku', 'like', "%$search%")
+                      ->orWhere('style_number', 'like', "%$search%");
                 });
             }
 
-            // Specific Product Search (dropdown)
-            if ($request->filled('product_id')) {
-                $query->where('id', $request->product_id);
-            }
+            if ($request->filled('product_id')) { $query->where('id', $request->product_id); }
+            if ($request->filled('style_number')) { $query->where('style_number', 'like', "%$request->style_number%"); }
 
-            // Style Number Search
-            if ($request->filled('style_number')) {
-                $query->where('style_number', 'like', "%$request->style_number%");
-            }
-
-            $products = $query->with(['category', 'brand', 'season', 'gender', 'variations.stocks', 'branchStock', 'warehouseStock'])
-                ->latest()
-                ->paginate(10)
-                ->withQueryString();
+            $products = $query->latest()->paginate(15)->withQueryString();
 
             // Fetch lists for filters
             $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
-            $brands = Brand::orderBy('name')->get();
-            $seasons = Season::orderBy('name')->get();
-            $genders = Gender::orderBy('name')->get();
-            $allProducts = Product::orderBy('name')->get(); // For product dropdown
+            $brands = Brand::where('status', 'active')->orderBy('name')->get();
+            $seasons = Season::where('status', 'active')->orderBy('name')->get();
+            $genders = Gender::all();
+            $allProducts = Product::orderBy('name')->get(['id', 'name']);
 
             return view('erp.products.productList', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'reportType', 'startDate', 'endDate'));
         }
@@ -324,6 +306,50 @@ class ProductController extends Controller
             abort(403, 'Unauthorized action.');
         }
     }
+
+    public function exportExcel(Request $request)
+    {
+        $products = Product::where(function($q) use ($request) {
+            if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+            if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+            if ($request->filled('search')) $q->where('name', 'like', "%{$request->search}%");
+        })->with(['category', 'brand'])->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $headers = ['Entry Date', 'Product Name', 'Style #', 'Category', 'Brand', 'MRP', 'Cost'];
+        foreach($headers as $k => $h) { $sheet->setCellValue(chr(65+$k).'1', $h); }
+        
+        $row = 2;
+        foreach($products as $p) {
+            $sheet->setCellValue('A'.$row, $p->created_at->format('d/m/Y'));
+            $sheet->setCellValue('B'.$row, $p->name);
+            $sheet->setCellValue('C'.$row, $p->style_number ?? $p->sku);
+            $sheet->setCellValue('D'.$row, $p->category->name ?? '-');
+            $sheet->setCellValue('E'.$row, $p->brand->name ?? '-');
+            $sheet->setCellValue('F'.$row, $p->price);
+            $sheet->setCellValue('G'.$row, $p->cost);
+            $row++;
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'product_list_' . date('Ymd_His') . '.xlsx';
+        $path = storage_path('app/public/' . $filename);
+        $writer->save($path);
+        return response()->download($path)->deleteFileAfterSend(true);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $products = Product::where(function($q) use ($request) {
+            if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+            if ($request->filled('search')) $q->where('name', 'like', "%{$request->search}%");
+        })->with(['category', 'brand'])->limit(100)->get(); 
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.products.product-export-pdf', compact('products'));
+        return $pdf->download('product_report_' . date('Y-m-d') . '.pdf');
+    }
+
 
     public function create()
     {
@@ -1190,7 +1216,18 @@ class ProductController extends Controller
                         'quantity' => $totalVariationStock,
                         'last_updated_at' => $lastUpdatedAt
                     ],
-                    'total_stock' => $totalVariationStock
+                    'total_stock' => $totalVariationStock,
+                    'variations' => $product->variations->map(function($v) use ($branchId) {
+                         // Find stock for this variation in this branch
+                         $stock = $v->stocks->where('branch_id', $branchId)->whereNull('warehouse_id')->first();
+                         return [
+                             'id' => $v->id,
+                             'name' => $v->name, // e.g. "Color: Red, Size: XL"
+                             'price' => $v->price ?? null, // Override price if set
+                             'sku' => $v->sku,
+                             'stock' => $stock ? $stock->quantity : 0
+                         ];
+                    })->values()
                 ];
             } else {
                 // For products without variations, use branch stock

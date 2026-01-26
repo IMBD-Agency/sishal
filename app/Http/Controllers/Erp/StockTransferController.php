@@ -284,6 +284,19 @@ class StockTransferController extends Controller
             $productId = $item['product_id'];
             $variationId = $item['variation_id'] ?? null;
             $quantity = floatval($item['quantity']);
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            $totalPrice = $quantity * $unitPrice;
+            
+            // Pro-rate the global paid amount across items based on total value
+            // Calculate total dispatch value first for pro-rating
+            $totalDispatchValue = 0;
+            foreach ($request->items as $i) {
+                $totalDispatchValue += floatval($i['quantity'] ?? 0) * floatval($i['unit_price'] ?? 0);
+            }
+            
+            $globalPaid = floatval($request->paid_amount ?? 0);
+            $itemPaid = $totalDispatchValue > 0 ? ($totalPrice / $totalDispatchValue) * $globalPaid : 0;
+            $itemDue = $totalPrice - $itemPaid;
 
             // Validate stock availability
             if ($variationId) {
@@ -308,6 +321,14 @@ class StockTransferController extends Controller
                     'product_id' => $productId,
                     'variation_id' => $variationId,
                     'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'total_price' => $totalPrice,
+                    'paid_amount' => $itemPaid,
+                    'due_amount' => $itemDue,
+                    'sender_account_type' => $request->sender_account_type,
+                    'sender_account_number' => $request->sender_account_number,
+                    'receiver_account_type' => $request->receiver_account_type,
+                    'receiver_account_number' => $request->receiver_account_number,
                     'type' => 'transfer',
                     'status' => 'pending',
                     'requested_by' => auth()->id(),

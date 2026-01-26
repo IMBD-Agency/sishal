@@ -12,6 +12,7 @@ class Branch extends Model
         'contact_info',
         'status',
         'manager_id',
+        'show_online',
     ];
 
     public function products()
