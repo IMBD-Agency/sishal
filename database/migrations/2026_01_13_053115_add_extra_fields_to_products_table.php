@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->foreignId('brand_id')->nullable()->after('category_id')->constrained('brands');
-            $table->foreignId('season_id')->nullable()->after('brand_id')->constrained('seasons');
-            $table->foreignId('gender_id')->nullable()->after('season_id')->constrained('genders');
-            $table->foreignId('unit_id')->nullable()->after('gender_id')->constrained('units');
-            $table->decimal('wholesale_price', 12, 2)->nullable()->after('price');
-            $table->integer('alert_quantity')->nullable()->after('manage_stock');
-            $table->string('style_number')->nullable()->after('sku');
-        });
+        if (!Schema::hasColumn('products', 'style_number')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->foreignId('brand_id')->nullable()->after('category_id')->constrained('brands');
+                $table->foreignId('season_id')->nullable()->after('brand_id')->constrained('seasons');
+                $table->foreignId('gender_id')->nullable()->after('season_id')->constrained('genders');
+                $table->foreignId('unit_id')->nullable()->after('gender_id')->constrained('units');
+                $table->decimal('wholesale_price', 12, 2)->nullable()->after('price');
+                $table->integer('alert_quantity')->nullable()->after('manage_stock');
+                $table->string('style_number')->nullable()->after('sku');
+            });
+        }
     }
 
     /**

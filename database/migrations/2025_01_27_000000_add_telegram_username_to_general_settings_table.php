@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('general_settings', function (Blueprint $table) {
-            $table->string('telegram_username')->nullable()->after('whatsapp_url');
-        });
+        if (!Schema::hasColumn('general_settings', 'telegram_username')) {
+            Schema::table('general_settings', function (Blueprint $table) {
+                $table->string('telegram_username')->nullable()->after('whatsapp_url');
+            });
+        }
     }
 
     /**
