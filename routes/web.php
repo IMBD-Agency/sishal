@@ -641,125 +641,6 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //                 $output .= "<div style='color: gray;'>○ Already tracked: {$migration}</div>";
 //                 $skipped++;
 //             }
-//         }
-
-//         $output .= "<br><strong>Summary:</strong><br>";
-//         $output .= "✅ Newly marked: {$marked}<br>";
-//         $output .= "○ Already tracked: {$skipped}<br>";
-//         $output .= "<br><a href='/run-update' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px;'>Now Run Migrations →</a>";
-
-//         return $output;
-//     } catch (\Exception $e) {
-//         return "Sync failed: " . $e->getMessage();
-//     }
-// });
-
-Route::get('/clear-cache', function () {
-    try {
-        Artisan::call('view:clear');
-        Artisan::call('route:clear');
-        Artisan::call('config:clear');
-        Artisan::call('cache:clear');
-        
-        return "Cache cleared successfully!<br><pre>" . Artisan::output() . "</pre>";
-    } catch (\Exception $e) {
-        return "Cache clear failed: " . $e->getMessage();
-    }
-});
-
-Route::get('/debug-products-page', function () {
-    ini_set('display_errors', 1);
-    error_reporting(E_ALL);
-    
-    echo "<h1>Product Page Debugger product list show </h1>";
-    
-    try {
-        // 1. Test Tables Existence
-        echo "<h3>1. Checking Tables...</h3>";
-        $tables = ['products', 'brands', 'seasons', 'genders', 'product_service_categories'];
-        foreach($tables as $t) {
-            echo "Table '$t': " . (Schema::hasTable($t) ? "<span style='color:green'>Found</span>" : "<span style='color:red'>MISSING</span>") . "<br>";
-        }
-
-        // 2. Test Basic Query
-        echo "<h3>2. Testing Basic Query...</h3>";
-        $products = \App\Models\Product::with(['category'])->latest()->take(1)->get();
-        echo "Fetched " . $products->count() . " product(s).<br>";
-
-        if ($products->count() > 0) {
-            $p = $products->first();
-            echo "First Product ID: " . $p->id . "<br>";
-            
-            // 3. Test Problematic Relationships
-            echo "<h3>3. Testing Relationships individually...</h3>";
-            
-            echo "<strong>Brand:</strong> ";
-            try { 
-                $res = $p->brand; 
-                echo "OK (" . ($res ? $res->name : 'null') . ")";
-            } catch(\Exception $e) { echo "<span style='color:red'>FAILED: " . $e->getMessage() . "</span>"; }
-            echo "<br>";
-
-            echo "<strong>Season:</strong> ";
-            try { 
-                $res = $p->season; 
-                echo "OK (" . ($res ? $res->name : 'null') . ")";
-            } catch(\Exception $e) { echo "<span style='color:red'>FAILED: " . $e->getMessage() . "</span>"; }
-            echo "<br>";
-
-            echo "<strong>Gender:</strong> ";
-            try { 
-                $res = $p->gender; 
-                echo "OK (" . ($res ? $res->name : 'null') . ")";
-            } catch(\Exception $e) { echo "<span style='color:red'>FAILED: " . $e->getMessage() . "</span>"; }
-            echo "<br>";
-        }
-
-        // 4. Test View Loading
-        echo "<h3>4. Testing View Rendering...</h3>";
-        
-        $viewPath = resource_path('views/erp/products');
-        echo "Checking directory: $viewPath<br>";
-        if (is_dir($viewPath)) {
-            $files = scandir($viewPath);
-            echo "Files in directory:<br><ul>";
-            foreach($files as $file) {
-                echo "<li>$file</li>";
-            }
-            echo "</ul>";
-        } else {
-            echo "<span style='color:red'>Directory NOT FOUND: $viewPath</span><br>";
-        }
-
-        $viewCaps = 'erp.products.productList';
-        $viewSmall = 'erp.products.productlist';
-        
-        if (view()->exists($viewCaps)) {
-            echo "<span style='color:green'>✓ View '$viewCaps' exists.</span><br>";
-        } else {
-             echo "<span style='color:red'>✗ View '$viewCaps' NOT FOUND.</span><br>";
-        }
-        
-        if (view()->exists($viewSmall)) {
-            echo "<span style='color:green'>✓ View '$viewSmall' exists.</span><br>";
-        } else {
-             echo "<span style='color:red'>✗ View '$viewSmall' NOT FOUND.</span><br>";
-        }
-
-    } catch (\Exception $e) {
-        echo "<h2 style='color:red'>FATAL ERROR:</h2>";
-        echo "<strong>" . $e->getMessage() . "</strong>";
-        echo "<pre>" . $e->getTraceAsString() . "</pre>";
-    }
-});
-
-// Route::get('/fix-permissions', function (Request $request) {
-//     ini_set('display_errors', 1);
-//     error_reporting(E_ALL);
-    
-//     try {
-//         $output = "<h2>Permission Fix Report</h2>";
-//         $output .= "<div>Starting permission fix for user ID: " . ($request->user_id ?? 'auto-detect') . "</div><br>";
         
 //         // Allow specifying user ID via URL parameter
 //         if ($request->has('user_id')) {
@@ -863,5 +744,41 @@ Route::get('/run-update', function () {
     }
 });
 
+
+Route::get('/debug-final', function () {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+    
+    try {
+        echo "<h1>Final Diagnostics</h1>";
+        
+        // Test 1: Permission Check
+        echo "<h3>1. Permission Check</h3>";
+        if (auth()->check()) {
+            echo "User logged in: " . auth()->user()->email . "<br>";
+            echo "Has 'view products list': " . (auth()->user()->hasPermissionTo('view products list') ? 'YES' : 'NO') . "<br>";
+        } else {
+            echo "NOT LOGGED IN (This could be the issue if middleware is redirecting incorrectly)<br>";
+        }
+
+        // Test 2: Full Controller Execution Simulation
+        echo "<h3>2. Simulating ProductController@index</h3>";
+        $controller = app()->make(\App\Http\Controllers\Erp\ProductController::class);
+        $request = request();
+        
+        ob_start();
+        $response = $controller->index($request);
+        $html = ob_get_clean();
+        
+        echo "Controller returned successfully!<br>";
+        echo "Response type: " . get_class($response) . "<br>";
+        
+    } catch (\Exception $e) {
+        echo "<h2 style='color:red'>ERROR DETECTED:</h2>";
+        echo "<strong>Message:</strong> " . $e->getMessage() . "<br>";
+        echo "<strong>File:</strong> " . $e->getFile() . " on line " . $e->getLine() . "<br>";
+        echo "<h3>Stack Trace:</h3><pre>" . $e->getTraceAsString() . "</pre>";
+    }
+});
 
 require __DIR__ . '/auth.php';
