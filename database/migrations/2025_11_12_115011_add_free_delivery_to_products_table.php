@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->boolean('free_delivery')->default(false)->after('status')->comment('Enable free delivery for this product');
-        });
+        if (!Schema::hasColumn('products', 'free_delivery')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->boolean('free_delivery')->default(false)->after('status')->comment('Enable free delivery for this product');
+            });
+        }
     }
 
     /**
