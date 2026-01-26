@@ -654,52 +654,67 @@ Route::get('/sync-migrations', function () {
     }
 });
 
-Route::get('/test-db', function () {
-    $output = "<h2>Database Connection Test</h2>";
+Route::get('/debug-products-page', function () {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+    
+    echo "<h1>Product Page Debugger</h1>";
     
     try {
-        $output .= "<div>✓ Route is working</div>";
-        
-        // Test 1: Can we connect to database?
-        $output .= "<div>Testing database connection...</div>";
-        $userCount = DB::table('users')->count();
-        $output .= "<div style='color: green;'>✓ Database connected! Found {$userCount} users</div><br>";
-        
-        // Test 2: Does permissions table exist?
-        $output .= "<div>Checking for permissions table...</div>";
-        $hasPermissions = Schema::hasTable('permissions');
-        if ($hasPermissions) {
-            $permCount = DB::table('permissions')->count();
-            $output .= "<div style='color: green;'>✓ Permissions table exists with {$permCount} permissions</div><br>";
-        } else {
-            $output .= "<div style='color: orange;'>⚠️ No permissions table found</div><br>";
+        // 1. Test Tables Existence
+        echo "<h3>1. Checking Tables...</h3>";
+        $tables = ['products', 'brands', 'seasons', 'genders', 'product_service_categories'];
+        foreach($tables as $t) {
+            echo "Table '$t': " . (Schema::hasTable($t) ? "<span style='color:green'>Found</span>" : "<span style='color:red'>MISSING</span>") . "<br>";
         }
-        
-        // Test 3: Can we find user 18?
-        $output .= "<div>Looking for user ID 18...</div>";
-        $user = DB::table('users')->where('id', 18)->first();
-        if ($user) {
-            $output .= "<div style='color: green;'>✓ Found user: {$user->name} ({$user->email})</div><br>";
+
+        // 2. Test Basic Query
+        echo "<h3>2. Testing Basic Query...</h3>";
+        $products = \App\Models\Product::with(['category'])->latest()->take(1)->get();
+        echo "Fetched " . $products->count() . " product(s).<br>";
+
+        if ($products->count() > 0) {
+            $p = $products->first();
+            echo "First Product ID: " . $p->id . "<br>";
             
-            if ($hasPermissions) {
-                $userPerms = DB::table('model_has_permissions')
-                    ->where('model_id', 18)
-                    ->where('model_type', 'App\\Models\\User')
-                    ->count();
-                $output .= "<div>User currently has {$userPerms} permissions assigned</div>";
-            }
-        } else {
-            $output .= "<div style='color: red;'>❌ User ID 18 not found</div>";
+            // 3. Test Problematic Relationships
+            echo "<h3>3. Testing Relationships individually...</h3>";
+            
+            echo "<strong>Brand:</strong> ";
+            try { 
+                $res = $p->brand; 
+                echo "OK (" . ($res ? $res->name : 'null') . ")";
+            } catch(\Exception $e) { echo "<span style='color:red'>FAILED: " . $e->getMessage() . "</span>"; }
+            echo "<br>";
+
+            echo "<strong>Season:</strong> ";
+            try { 
+                $res = $p->season; 
+                echo "OK (" . ($res ? $res->name : 'null') . ")";
+            } catch(\Exception $e) { echo "<span style='color:red'>FAILED: " . $e->getMessage() . "</span>"; }
+            echo "<br>";
+
+            echo "<strong>Gender:</strong> ";
+            try { 
+                $res = $p->gender; 
+                echo "OK (" . ($res ? $res->name : 'null') . ")";
+            } catch(\Exception $e) { echo "<span style='color:red'>FAILED: " . $e->getMessage() . "</span>"; }
+            echo "<br>";
         }
-        
-        $output .= "<br><a href='/fix-permissions?user_id=18' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px;'>Try Fix Permissions</a>";
-        
+
+        // 4. Test View Loading
+        echo "<h3>4. Testing View Rendering...</h3>";
+        if (view()->exists('erp.products.productList')) {
+            echo "<span style='color:green'>View file exists.</span><br>";
+        } else {
+             echo "<span style='color:red'>View file 'erp.products.productList' NOT FOUND.</span><br>";
+        }
+
     } catch (\Exception $e) {
-        $output .= "<div style='color: red;'>ERROR: " . $e->getMessage() . "</div>";
-        $output .= "<pre>" . $e->getTraceAsString() . "</pre>";
+        echo "<h2 style='color:red'>FATAL ERROR:</h2>";
+        echo "<strong>" . $e->getMessage() . "</strong>";
+        echo "<pre>" . $e->getTraceAsString() . "</pre>";
     }
-    
-    return $output;
 });
 
 Route::get('/fix-permissions', function (Request $request) {
