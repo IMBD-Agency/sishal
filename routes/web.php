@@ -737,10 +737,35 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 
 Route::get('/run-update', function () {
     try {
+        // 1. Clear Caches first so new changes are seen
+        Artisan::call('route:clear');
+        Artisan::call('view:clear');
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
+        echo "✓ All caches cleared.<br>";
+
+        // 2. Fix the missing columns in branches table
+        if (!Schema::hasColumn('branches', 'status')) {
+            Schema::table('branches', function ($table) {
+                $table->string('status')->default('active')->after('contact_info');
+            });
+            echo "✓ Added 'status' column to branches.<br>";
+        }
+        
+        if (!Schema::hasColumn('branches', 'show_online')) {
+            Schema::table('branches', function ($table) {
+                $table->boolean('show_online')->default(true)->after('status');
+            });
+            echo "✓ Added 'show_online' column to branches.<br>";
+        }
+
+        // 3. Run any pending migrations
         Artisan::call('migrate', ['--force' => true]);
-        return "Database updated successfully!<br><pre>" . Artisan::output() . "</pre>";
+        echo "✓ Migrations checked.<br>";
+        
+        return "<strong>System update complete!</strong><br><br><a href='/products' style='padding:10px; background:green; color:white; text-decoration:none;'>Go to Products Page</a>";
     } catch (\Exception $e) {
-        return "Migration failed: " . $e->getMessage();
+        return "Update failed: " . $e->getMessage();
     }
 });
 
