@@ -651,47 +651,62 @@ Route::get('/sync-migrations', function () {
 });
 
 Route::get('/fix-permissions', function (Request $request) {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+    
     try {
         $output = "<h2>Permission Fix Report</h2>";
+        $output .= "<div>Starting permission fix for user ID: " . ($request->user_id ?? 'auto-detect') . "</div><br>";
         
         // Allow specifying user ID via URL parameter
         if ($request->has('user_id')) {
+            $output .= "<div>Looking for user with ID {$request->user_id}...</div>";
             $adminUsers = DB::table('users')->where('id', $request->user_id)->get();
+            $output .= "<div>Found " . $adminUsers->count() . " user(s)</div><br>";
         } else {
+            $output .= "<div>Auto-detecting admin users...</div>";
             // Get currently logged in user or all users with 'admin' in email
             $adminUsers = DB::table('users')->where('email', 'like', '%admin%')->get();
             
             if ($adminUsers->isEmpty()) {
+                $output .= "<div>No admin emails found, getting first user...</div>";
                 // If no admin emails found, just get the first user (likely the owner)
                 $adminUsers = DB::table('users')->orderBy('id')->limit(1)->get();
             }
+            $output .= "<div>Found " . $adminUsers->count() . " user(s)</div><br>";
         }
         
         if ($adminUsers->isEmpty()) {
-            return "No users found. Please specify user ID in URL: /fix-permissions?user_id=1";
+            return $output . "<div style='color: red;'>❌ No users found. Please specify user ID in URL: /fix-permissions?user_id=18</div>";
         }
 
         // Check if permissions table exists
+        $output .= "<div>Checking if permissions table exists...</div>";
         if (!Schema::hasTable('permissions')) {
             $output .= "<div style='color: orange;'>⚠️ Permissions table doesn't exist.</div>";
-            $output .= "<div style='color: green;'>✓ Your app doesn't use role-based permissions, so 500 errors are likely from something else.</div>";
+            $output .= "<div style='color: green;'>✓ Your app doesn't use Spatie role-based permissions.</div>";
             $output .= "<br><strong>Users found:</strong><br>";
             foreach ($adminUsers as $user) {
                 $output .= "<div>• {$user->name} ({$user->email})</div>";
             }
+            $output .= "<br><div style='color: blue;'>ℹ️ The 500 errors are NOT from missing permissions. Check your Laravel logs for the actual error.</div>";
             return $output;
         }
+        
+        $output .= "<div style='color: green;'>✓ Permissions table exists</div><br>";
 
         // Get all permissions
+        $output .= "<div>Loading all permissions...</div>";
         $permissions = DB::table('permissions')->get();
+        $output .= "<div>Found {$permissions->count()} permissions in database</div><br>";
         
         if ($permissions->isEmpty()) {
-            $output .= "<div style='color: orange;'>⚠️ No permissions found in database. Run seeders first.</div>";
+            $output .= "<div style='color: orange;'>⚠️ No permissions found in database. Run: php artisan db:seed --class=PermissionSeeder</div>";
             return $output;
         }
         
         foreach ($adminUsers as $user) {
-            $output .= "<br><strong>Processing: {$user->name} ({$user->email})</strong><br>";
+            $output .= "<br><strong>Processing: {$user->name} ({$user->email}) [ID: {$user->id}]</strong><br>";
             $granted = 0;
             $skipped = 0;
             
@@ -728,7 +743,11 @@ Route::get('/fix-permissions', function (Request $request) {
         
         return $output;
     } catch (\Exception $e) {
-        return "Permission fix failed: " . $e->getMessage() . "<br><br>Stack trace:<br><pre>" . $e->getTraceAsString() . "</pre>";
+        return "<h2>Error Details</h2>" . 
+               "<div style='color: red;'><strong>Error:</strong> " . $e->getMessage() . "</div>" .
+               "<br><strong>File:</strong> " . $e->getFile() . 
+               "<br><strong>Line:</strong> " . $e->getLine() .
+               "<br><br><strong>Stack trace:</strong><br><pre>" . $e->getTraceAsString() . "</pre>";
     }
 });
 
