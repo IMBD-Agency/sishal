@@ -650,36 +650,50 @@ Route::get('/sync-migrations', function () {
     }
 });
 
-Route::get('/fix-permissions', function () {
+Route::get('/fix-permissions', function (Request $request) {
     try {
-        // Get all admin users (you can adjust this query based on your setup)
-        $adminUsers = DB::table('users')->where('role', 'admin')->orWhere('email', 'like', '%admin%')->get();
-        
-        if ($adminUsers->isEmpty()) {
-            return "No admin users found. Please specify admin user ID in URL: /fix-permissions?user_id=1";
-        }
-
         $output = "<h2>Permission Fix Report</h2>";
         
+        // Allow specifying user ID via URL parameter
+        if ($request->has('user_id')) {
+            $adminUsers = DB::table('users')->where('id', $request->user_id)->get();
+        } else {
+            // Get currently logged in user or all users with 'admin' in email
+            $adminUsers = DB::table('users')->where('email', 'like', '%admin%')->get();
+            
+            if ($adminUsers->isEmpty()) {
+                // If no admin emails found, just get the first user (likely the owner)
+                $adminUsers = DB::table('users')->orderBy('id')->limit(1)->get();
+            }
+        }
+        
+        if ($adminUsers->isEmpty()) {
+            return "No users found. Please specify user ID in URL: /fix-permissions?user_id=1";
+        }
+
         // Check if permissions table exists
         if (!Schema::hasTable('permissions')) {
-            $output .= "<div style='color: orange;'>⚠️ Permissions table doesn't exist. Your app might not use Spatie permissions.</div>";
-            $output .= "<br><strong>Granting superuser access instead...</strong><br>";
-            
+            $output .= "<div style='color: orange;'>⚠️ Permissions table doesn't exist.</div>";
+            $output .= "<div style='color: green;'>✓ Your app doesn't use role-based permissions, so 500 errors are likely from something else.</div>";
+            $output .= "<br><strong>Users found:</strong><br>";
             foreach ($adminUsers as $user) {
-                DB::table('users')->where('id', $user->id)->update(['role' => 'superadmin']);
-                $output .= "<div style='color: green;'>✓ Updated user: {$user->name} ({$user->email}) to superadmin</div>";
+                $output .= "<div>• {$user->name} ({$user->email})</div>";
             }
-            
             return $output;
         }
 
         // Get all permissions
         $permissions = DB::table('permissions')->get();
         
+        if ($permissions->isEmpty()) {
+            $output .= "<div style='color: orange;'>⚠️ No permissions found in database. Run seeders first.</div>";
+            return $output;
+        }
+        
         foreach ($adminUsers as $user) {
             $output .= "<br><strong>Processing: {$user->name} ({$user->email})</strong><br>";
             $granted = 0;
+            $skipped = 0;
             
             foreach ($permissions as $permission) {
                 $exists = DB::table('model_has_permissions')
@@ -689,19 +703,27 @@ Route::get('/fix-permissions', function () {
                     ->exists();
                 
                 if (!$exists) {
-                    DB::table('model_has_permissions')->insert([
-                        'permission_id' => $permission->id,
-                        'model_type' => 'App\\Models\\User',
-                        'model_id' => $user->id
-                    ]);
-                    $granted++;
+                    try {
+                        DB::table('model_has_permissions')->insert([
+                            'permission_id' => $permission->id,
+                            'model_type' => 'App\\Models\\User',
+                            'model_id' => $user->id
+                        ]);
+                        $granted++;
+                    } catch (\Exception $e) {
+                        // Skip if already exists (duplicate key error)
+                        $skipped++;
+                    }
+                } else {
+                    $skipped++;
                 }
             }
             
             $output .= "<div style='color: green;'>✓ Granted {$granted} new permissions</div>";
+            $output .= "<div style='color: gray;'>○ Already had {$skipped} permissions</div>";
         }
 
-        $output .= "<br><strong>✅ All admin users now have full permissions!</strong><br>";
+        $output .= "<br><strong>✅ Permission sync complete!</strong><br>";
         $output .= "<a href='/erp/dashboard' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; display: inline-block;'>Go to Dashboard</a>";
         
         return $output;
