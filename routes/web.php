@@ -597,68 +597,68 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //     }
 // })->name('test.contact.email');
 
-Route::get('/sync-migrations', function () {
-    try {
-        $migrationsToMark = [
-            '2025_11_09_084537_add_type_and_value_to_bulk_discounts_table',
-            '2025_11_10_085613_add_free_delivery_to_coupons_table',
-            '2025_11_10_093510_add_cod_percentage_to_general_settings_table',
-            '2025_11_12_110836_add_features_to_products_table',
-            '2025_11_12_115011_add_free_delivery_to_products_table',
-            '2025_11_12_120257_add_free_delivery_to_bulk_discounts_table',
-            '2025_11_12_122248_update_bulk_discounts_type_enum_to_include_free_delivery',
-            '2025_11_13_054921_add_gtm_container_id_to_general_settings_table',
-            '2025_12_24_051629_add_is_ecommerce_to_products_table',
-            '2026_01_13_052907_create_brands_table',
-            '2026_01_13_052908_create_seasons_table',
-            '2026_01_13_052908_create_genders_table',
-            '2026_01_13_052909_create_units_table',
-            '2026_01_13_053115_add_extra_fields_to_products_table',
-            '2026_01_13_103942_add_manual_sale_fields_to_pos_table',
-            '2026_01_19_090950_add_discount_to_invoice_items_table',
-            '2025_01_20_000000_add_variation_id_to_sale_return_items_table',
-            '2025_01_20_000001_add_variation_id_to_stock_transfers_table',
-            '2025_01_27_000000_add_telegram_username_to_general_settings_table',
-            '2026_01_25_103639_add_status_and_show_online_to_branches_table',
-        ];
+// Route::get('/sync-migrations', function () {
+//     try {
+//         $migrationsToMark = [
+//             '2025_11_09_084537_add_type_and_value_to_bulk_discounts_table',
+//             '2025_11_10_085613_add_free_delivery_to_coupons_table',
+//             '2025_11_10_093510_add_cod_percentage_to_general_settings_table',
+//             '2025_11_12_110836_add_features_to_products_table',
+//             '2025_11_12_115011_add_free_delivery_to_products_table',
+//             '2025_11_12_120257_add_free_delivery_to_bulk_discounts_table',
+//             '2025_11_12_122248_update_bulk_discounts_type_enum_to_include_free_delivery',
+//             '2025_11_13_054921_add_gtm_container_id_to_general_settings_table',
+//             '2025_12_24_051629_add_is_ecommerce_to_products_table',
+//             '2026_01_13_052907_create_brands_table',
+//             '2026_01_13_052908_create_seasons_table',
+//             '2026_01_13_052908_create_genders_table',
+//             '2026_01_13_052909_create_units_table',
+//             '2026_01_13_053115_add_extra_fields_to_products_table',
+//             '2026_01_13_103942_add_manual_sale_fields_to_pos_table',
+//             '2026_01_19_090950_add_discount_to_invoice_items_table',
+//             '2025_01_20_000000_add_variation_id_to_sale_return_items_table',
+//             '2025_01_20_000001_add_variation_id_to_stock_transfers_table',
+//             '2025_01_27_000000_add_telegram_username_to_general_settings_table',
+//             '2026_01_25_103639_add_status_and_show_online_to_branches_table',
+//         ];
 
-        $output = "<h2>Migration Sync Report</h2>";
-        $batch = DB::table('migrations')->max('batch') + 1;
-        $marked = 0;
-        $skipped = 0;
+//         $output = "<h2>Migration Sync Report</h2>";
+//         $batch = DB::table('migrations')->max('batch') + 1;
+//         $marked = 0;
+//         $skipped = 0;
 
-        foreach ($migrationsToMark as $migration) {
-            $exists = DB::table('migrations')->where('migration', $migration)->exists();
+//         foreach ($migrationsToMark as $migration) {
+//             $exists = DB::table('migrations')->where('migration', $migration)->exists();
             
-            if (!$exists) {
-                DB::table('migrations')->insert([
-                    'migration' => $migration,
-                    'batch' => $batch
-                ]);
-                $output .= "<div style='color: green;'>✓ Marked as complete: {$migration}</div>";
-                $marked++;
-            } else {
-                $output .= "<div style='color: gray;'>○ Already tracked: {$migration}</div>";
-                $skipped++;
-            }
-        }
+//             if (!$exists) {
+//                 DB::table('migrations')->insert([
+//                     'migration' => $migration,
+//                     'batch' => $batch
+//                 ]);
+//                 $output .= "<div style='color: green;'>✓ Marked as complete: {$migration}</div>";
+//                 $marked++;
+//             } else {
+//                 $output .= "<div style='color: gray;'>○ Already tracked: {$migration}</div>";
+//                 $skipped++;
+//             }
+//         }
 
-        $output .= "<br><strong>Summary:</strong><br>";
-        $output .= "✅ Newly marked: {$marked}<br>";
-        $output .= "○ Already tracked: {$skipped}<br>";
-        $output .= "<br><a href='/run-update' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px;'>Now Run Migrations →</a>";
+//         $output .= "<br><strong>Summary:</strong><br>";
+//         $output .= "✅ Newly marked: {$marked}<br>";
+//         $output .= "○ Already tracked: {$skipped}<br>";
+//         $output .= "<br><a href='/run-update' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px;'>Now Run Migrations →</a>";
 
-        return $output;
-    } catch (\Exception $e) {
-        return "Sync failed: " . $e->getMessage();
-    }
-});
+//         return $output;
+//     } catch (\Exception $e) {
+//         return "Sync failed: " . $e->getMessage();
+//     }
+// });
 
 Route::get('/debug-products-page', function () {
     ini_set('display_errors', 1);
     error_reporting(E_ALL);
     
-    echo "<h1>Product Page Debugger</h1>";
+    echo "<h1>Product Page Debugger product list show </h1>";
     
     try {
         // 1. Test Tables Existence
@@ -717,106 +717,106 @@ Route::get('/debug-products-page', function () {
     }
 });
 
-Route::get('/fix-permissions', function (Request $request) {
-    ini_set('display_errors', 1);
-    error_reporting(E_ALL);
+// Route::get('/fix-permissions', function (Request $request) {
+//     ini_set('display_errors', 1);
+//     error_reporting(E_ALL);
     
-    try {
-        $output = "<h2>Permission Fix Report</h2>";
-        $output .= "<div>Starting permission fix for user ID: " . ($request->user_id ?? 'auto-detect') . "</div><br>";
+//     try {
+//         $output = "<h2>Permission Fix Report</h2>";
+//         $output .= "<div>Starting permission fix for user ID: " . ($request->user_id ?? 'auto-detect') . "</div><br>";
         
-        // Allow specifying user ID via URL parameter
-        if ($request->has('user_id')) {
-            $output .= "<div>Looking for user with ID {$request->user_id}...</div>";
-            $adminUsers = DB::table('users')->where('id', $request->user_id)->get();
-            $output .= "<div>Found " . $adminUsers->count() . " user(s)</div><br>";
-        } else {
-            $output .= "<div>Auto-detecting admin users...</div>";
-            // Get currently logged in user or all users with 'admin' in email
-            $adminUsers = DB::table('users')->where('email', 'like', '%admin%')->get();
+//         // Allow specifying user ID via URL parameter
+//         if ($request->has('user_id')) {
+//             $output .= "<div>Looking for user with ID {$request->user_id}...</div>";
+//             $adminUsers = DB::table('users')->where('id', $request->user_id)->get();
+//             $output .= "<div>Found " . $adminUsers->count() . " user(s)</div><br>";
+//         } else {
+//             $output .= "<div>Auto-detecting admin users...</div>";
+//             // Get currently logged in user or all users with 'admin' in email
+//             $adminUsers = DB::table('users')->where('email', 'like', '%admin%')->get();
             
-            if ($adminUsers->isEmpty()) {
-                $output .= "<div>No admin emails found, getting first user...</div>";
-                // If no admin emails found, just get the first user (likely the owner)
-                $adminUsers = DB::table('users')->orderBy('id')->limit(1)->get();
-            }
-            $output .= "<div>Found " . $adminUsers->count() . " user(s)</div><br>";
-        }
+//             if ($adminUsers->isEmpty()) {
+//                 $output .= "<div>No admin emails found, getting first user...</div>";
+//                 // If no admin emails found, just get the first user (likely the owner)
+//                 $adminUsers = DB::table('users')->orderBy('id')->limit(1)->get();
+//             }
+//             $output .= "<div>Found " . $adminUsers->count() . " user(s)</div><br>";
+//         }
         
-        if ($adminUsers->isEmpty()) {
-            return $output . "<div style='color: red;'>❌ No users found. Please specify user ID in URL: /fix-permissions?user_id=18</div>";
-        }
+//         if ($adminUsers->isEmpty()) {
+//             return $output . "<div style='color: red;'>❌ No users found. Please specify user ID in URL: /fix-permissions?user_id=18</div>";
+//         }
 
-        // Check if permissions table exists
-        $output .= "<div>Checking if permissions table exists...</div>";
-        if (!Schema::hasTable('permissions')) {
-            $output .= "<div style='color: orange;'>⚠️ Permissions table doesn't exist.</div>";
-            $output .= "<div style='color: green;'>✓ Your app doesn't use Spatie role-based permissions.</div>";
-            $output .= "<br><strong>Users found:</strong><br>";
-            foreach ($adminUsers as $user) {
-                $output .= "<div>• {$user->name} ({$user->email})</div>";
-            }
-            $output .= "<br><div style='color: blue;'>ℹ️ The 500 errors are NOT from missing permissions. Check your Laravel logs for the actual error.</div>";
-            return $output;
-        }
+//         // Check if permissions table exists
+//         $output .= "<div>Checking if permissions table exists...</div>";
+//         if (!Schema::hasTable('permissions')) {
+//             $output .= "<div style='color: orange;'>⚠️ Permissions table doesn't exist.</div>";
+//             $output .= "<div style='color: green;'>✓ Your app doesn't use Spatie role-based permissions.</div>";
+//             $output .= "<br><strong>Users found:</strong><br>";
+//             foreach ($adminUsers as $user) {
+//                 $output .= "<div>• {$user->name} ({$user->email})</div>";
+//             }
+//             $output .= "<br><div style='color: blue;'>ℹ️ The 500 errors are NOT from missing permissions. Check your Laravel logs for the actual error.</div>";
+//             return $output;
+//         }
         
-        $output .= "<div style='color: green;'>✓ Permissions table exists</div><br>";
+//         $output .= "<div style='color: green;'>✓ Permissions table exists</div><br>";
 
-        // Get all permissions
-        $output .= "<div>Loading all permissions...</div>";
-        $permissions = DB::table('permissions')->get();
-        $output .= "<div>Found {$permissions->count()} permissions in database</div><br>";
+//         // Get all permissions
+//         $output .= "<div>Loading all permissions...</div>";
+//         $permissions = DB::table('permissions')->get();
+//         $output .= "<div>Found {$permissions->count()} permissions in database</div><br>";
         
-        if ($permissions->isEmpty()) {
-            $output .= "<div style='color: orange;'>⚠️ No permissions found in database. Run: php artisan db:seed --class=PermissionSeeder</div>";
-            return $output;
-        }
+//         if ($permissions->isEmpty()) {
+//             $output .= "<div style='color: orange;'>⚠️ No permissions found in database. Run: php artisan db:seed --class=PermissionSeeder</div>";
+//             return $output;
+//         }
         
-        foreach ($adminUsers as $user) {
-            $output .= "<br><strong>Processing: {$user->name} ({$user->email}) [ID: {$user->id}]</strong><br>";
-            $granted = 0;
-            $skipped = 0;
+//         foreach ($adminUsers as $user) {
+//             $output .= "<br><strong>Processing: {$user->name} ({$user->email}) [ID: {$user->id}]</strong><br>";
+//             $granted = 0;
+//             $skipped = 0;
             
-            foreach ($permissions as $permission) {
-                $exists = DB::table('model_has_permissions')
-                    ->where('permission_id', $permission->id)
-                    ->where('model_type', 'App\\Models\\User')
-                    ->where('model_id', $user->id)
-                    ->exists();
+//             foreach ($permissions as $permission) {
+//                 $exists = DB::table('model_has_permissions')
+//                     ->where('permission_id', $permission->id)
+//                     ->where('model_type', 'App\\Models\\User')
+//                     ->where('model_id', $user->id)
+//                     ->exists();
                 
-                if (!$exists) {
-                    try {
-                        DB::table('model_has_permissions')->insert([
-                            'permission_id' => $permission->id,
-                            'model_type' => 'App\\Models\\User',
-                            'model_id' => $user->id
-                        ]);
-                        $granted++;
-                    } catch (\Exception $e) {
-                        // Skip if already exists (duplicate key error)
-                        $skipped++;
-                    }
-                } else {
-                    $skipped++;
-                }
-            }
+//                 if (!$exists) {
+//                     try {
+//                         DB::table('model_has_permissions')->insert([
+//                             'permission_id' => $permission->id,
+//                             'model_type' => 'App\\Models\\User',
+//                             'model_id' => $user->id
+//                         ]);
+//                         $granted++;
+//                     } catch (\Exception $e) {
+//                         // Skip if already exists (duplicate key error)
+//                         $skipped++;
+//                     }
+//                 } else {
+//                     $skipped++;
+//                 }
+//             }
             
-            $output .= "<div style='color: green;'>✓ Granted {$granted} new permissions</div>";
-            $output .= "<div style='color: gray;'>○ Already had {$skipped} permissions</div>";
-        }
+//             $output .= "<div style='color: green;'>✓ Granted {$granted} new permissions</div>";
+//             $output .= "<div style='color: gray;'>○ Already had {$skipped} permissions</div>";
+//         }
 
-        $output .= "<br><strong>✅ Permission sync complete!</strong><br>";
-        $output .= "<a href='/erp/dashboard' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; display: inline-block;'>Go to Dashboard</a>";
+//         $output .= "<br><strong>✅ Permission sync complete!</strong><br>";
+//         $output .= "<a href='/erp/dashboard' style='padding: 10px 20px; background: #198754; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; display: inline-block;'>Go to Dashboard</a>";
         
-        return $output;
-    } catch (\Exception $e) {
-        return "<h2>Error Details</h2>" . 
-               "<div style='color: red;'><strong>Error:</strong> " . $e->getMessage() . "</div>" .
-               "<br><strong>File:</strong> " . $e->getFile() . 
-               "<br><strong>Line:</strong> " . $e->getLine() .
-               "<br><br><strong>Stack trace:</strong><br><pre>" . $e->getTraceAsString() . "</pre>";
-    }
-});
+//         return $output;
+//     } catch (\Exception $e) {
+//         return "<h2>Error Details</h2>" . 
+//                "<div style='color: red;'><strong>Error:</strong> " . $e->getMessage() . "</div>" .
+//                "<br><strong>File:</strong> " . $e->getFile() . 
+//                "<br><strong>Line:</strong> " . $e->getLine() .
+//                "<br><br><strong>Stack trace:</strong><br><pre>" . $e->getTraceAsString() . "</pre>";
+//     }
+// });
 
 Route::get('/run-update', function () {
     try {
@@ -827,18 +827,5 @@ Route::get('/run-update', function () {
     }
 });
 
-// Route::get('/run-update', function (Request $request) {
-//     try {
-//         if ($request->has('status')) {
-//             Artisan::call('migrate:status');
-//             return "<pre>" . Artisan::output() . "</pre>";
-//         }
-        
-//         Artisan::call('migrate', ['--force' => true]);
-//         return "Database updated successfully!<br><pre>" . Artisan::output() . "</pre>";
-//     } catch (\Exception $e) {
-//         return "Migration failed: " . $e->getMessage();
-//     }
-// });
 
 require __DIR__ . '/auth.php';
