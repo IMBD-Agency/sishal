@@ -300,7 +300,7 @@ class ProductController extends Controller
             $genders = Gender::all();
             $allProducts = Product::orderBy('name')->get(['id', 'name']);
 
-            return view('erp.products.productlist', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'reportType', 'startDate', 'endDate'));
+            return view('erp.products.productList', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'reportType', 'startDate', 'endDate'));
         }
         else{
             abort(403, 'Unauthorized action.');

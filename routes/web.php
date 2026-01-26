@@ -654,6 +654,19 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //     }
 // });
 
+Route::get('/clear-cache', function () {
+    try {
+        Artisan::call('view:clear');
+        Artisan::call('route:clear');
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
+        
+        return "Cache cleared successfully!<br><pre>" . Artisan::output() . "</pre>";
+    } catch (\Exception $e) {
+        return "Cache clear failed: " . $e->getMessage();
+    }
+});
+
 Route::get('/debug-products-page', function () {
     ini_set('display_errors', 1);
     error_reporting(E_ALL);
@@ -704,10 +717,33 @@ Route::get('/debug-products-page', function () {
 
         // 4. Test View Loading
         echo "<h3>4. Testing View Rendering...</h3>";
-        if (view()->exists('erp.products.productList')) {
-            echo "<span style='color:green'>View file exists.</span><br>";
+        
+        $viewPath = resource_path('views/erp/products');
+        echo "Checking directory: $viewPath<br>";
+        if (is_dir($viewPath)) {
+            $files = scandir($viewPath);
+            echo "Files in directory:<br><ul>";
+            foreach($files as $file) {
+                echo "<li>$file</li>";
+            }
+            echo "</ul>";
         } else {
-             echo "<span style='color:red'>View file 'erp.products.productList' NOT FOUND.</span><br>";
+            echo "<span style='color:red'>Directory NOT FOUND: $viewPath</span><br>";
+        }
+
+        $viewCaps = 'erp.products.productList';
+        $viewSmall = 'erp.products.productlist';
+        
+        if (view()->exists($viewCaps)) {
+            echo "<span style='color:green'>✓ View '$viewCaps' exists.</span><br>";
+        } else {
+             echo "<span style='color:red'>✗ View '$viewCaps' NOT FOUND.</span><br>";
+        }
+        
+        if (view()->exists($viewSmall)) {
+            echo "<span style='color:green'>✓ View '$viewSmall' exists.</span><br>";
+        } else {
+             echo "<span style='color:red'>✗ View '$viewSmall' NOT FOUND.</span><br>";
         }
 
     } catch (\Exception $e) {
