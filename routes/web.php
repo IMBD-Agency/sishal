@@ -761,17 +761,25 @@ Route::get('/debug-final', function () {
             echo "NOT LOGGED IN (This could be the issue if middleware is redirecting incorrectly)<br>";
         }
 
-        // Test 2: Full Controller Execution Simulation
-        echo "<h3>2. Simulating ProductController@index</h3>";
+        // Test 2: Full Controller Execution & RENDERING Simulation
+        echo "<h3>2. Simulating ProductController@index RENDERING</h3>";
         $controller = app()->make(\App\Http\Controllers\Erp\ProductController::class);
         $request = request();
         
-        ob_start();
-        $response = $controller->index($request);
-        $html = ob_get_clean();
+        $view = $controller->index($request);
         
-        echo "Controller returned successfully!<br>";
-        echo "Response type: " . get_class($response) . "<br>";
+        if ($view instanceof \Illuminate\View\View) {
+            echo "Controller returned a valid View object.<br>";
+            echo "Attempting to render view: <strong>" . $view->getName() . "</strong>...<br>";
+            
+            // This is where the 500 error usually happens (during render)
+            $html = $view->render();
+            
+            echo "<span style='color:green'>✓ View rendered successfully!</span><br>";
+            echo "HTML Length: " . strlen($html) . " characters.<br>";
+        } else {
+            echo "Controller did not return a View object. Type: " . gettype($view) . "<br>";
+        }
         
     } catch (\Exception $e) {
         echo "<h2 style='color:red'>ERROR DETECTED:</h2>";
