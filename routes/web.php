@@ -606,4 +606,18 @@ Route::get('/run-update', function () {
     }
 });
 
+// Route::get('/run-update', function (Request $request) {
+//     try {
+//         if ($request->has('status')) {
+//             Artisan::call('migrate:status');
+//             return "<pre>" . Artisan::output() . "</pre>";
+//         }
+        
+//         Artisan::call('migrate', ['--force' => true]);
+//         return "Database updated successfully!<br><pre>" . Artisan::output() . "</pre>";
+//     } catch (\Exception $e) {
+//         return "Migration failed: " . $e->getMessage();
+//     }
+// });
+
 require __DIR__ . '/auth.php';
