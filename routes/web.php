@@ -598,8 +598,12 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 // })->name('test.contact.email');
 
 Route::get('/run-update', function () {
-    Artisan::call('migrate');
-    return "Database updated successfully!";
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return "Database updated successfully!<br><pre>" . Artisan::output() . "</pre>";
+    } catch (\Exception $e) {
+        return "Migration failed: " . $e->getMessage();
+    }
 });
 
 require __DIR__ . '/auth.php';
