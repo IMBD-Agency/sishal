@@ -86,8 +86,8 @@
                         </div>
 
                          <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Invoice No</label>
-                            <input type="text" class="form-control form-control-sm" placeholder="Invoice..." name="search" value="{{ request('search') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
+                            <input type="text" class="form-control form-control-sm border-primary" placeholder="Sale #, Customer, Product..." name="search" value="{{ request('search') }}">
                         </div>
                          <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
@@ -179,10 +179,14 @@
                      <button onclick="exportData('excel')" class="btn btn-outline-dark btn-sm shadow-sm"><i class="fas fa-file-excel me-1"></i> Excel</button>
                      <button onclick="exportData('pdf')" class="btn btn-outline-dark btn-sm shadow-sm"><i class="fas fa-file-pdf me-1"></i> PDF</button>
                 </div>
+                <div class="search-wrapper-premium">
+                    <input type="text" id="salesSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
+                    <i class="fas fa-search search-icon-premium"></i>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table premium-table compact-reporting-table table-bordered mb-0">
+                    <table class="table premium-table compact-reporting-table table-bordered mb-0" id="salesTable">
                         <thead class="bg-light">
                             <tr>
                                 <th class="text-center" style="min-width: 40px;">#</th>
@@ -371,9 +375,6 @@
 </div>
 
 @push('scripts')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
         $('.select2-simple').select2({
@@ -396,6 +397,19 @@
         }
         reportRadios.forEach(radio => radio.addEventListener('change', toggleDateGroups));
         toggleDateGroups();
+
+        // Quick Search Table Functionality with Debounce
+        let salesSearchTimeout;
+        $('#salesSearch').on('input', function() {
+            const value = $(this).val().toLowerCase();
+            clearTimeout(salesSearchTimeout);
+            
+            salesSearchTimeout = setTimeout(function() {
+                $('#salesTable tbody tr').filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                });
+            }, 300);
+        });
     });
 
     function exportData(format) {

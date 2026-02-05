@@ -6,30 +6,30 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <!-- Premium Header -->
+        <div class="glass-header">
             <div class="row align-items-center">
-                <div class="col-md-6">
+                <div class="col-md-7">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}"
-                                    class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Journal Entries</li>
+                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Accounting & Finance</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Journal Entries</h2>
-                    <p class="text-muted mb-0">Manage double-entry bookkeeping journal entries and transactions.</p>
-                </div>
-                <div class="col-md-6 text-end">
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-                            data-bs-target="#addJournalModal">
-                            <i class="fas fa-plus me-2"></i>Add Journal
-                        </button>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="fw-bold mb-0 text-dark">Journal Entries</h4>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1">
+                            Double Entry Log
+                        </span>
                     </div>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <button type="button" class="btn btn-light border shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addJournalModal">
+                        <i class="fas fa-plus me-2 text-primary"></i>New Journal
+                    </button>
+                    <button class="btn btn-create-premium text-nowrap">
+                        <i class="fas fa-download me-2"></i>Export Report
+                    </button>
                 </div>
             </div>
         </div>
@@ -61,64 +61,101 @@
                 </div>
             @endif
 
-            <!-- Journal Summary Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Journals</h6>
-                                    <h3 class="mb-0">{{ $journals->count() ?? 0 }}</h3>
+            <!-- Filter Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-3">
+                    <form action="{{ route('journal.list') }}" method="GET">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label for="start_date" class="form-label text-muted small fw-bold">From Date</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar-alt text-primary"></i></span>
+                                    <input type="date" class="form-control border-start-0 ps-0" id="start_date" name="start_date" 
+                                           value="{{ request('start_date') }}">
                                 </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-book fa-2x"></i>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="end_date" class="form-label text-muted small fw-bold">To Date</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar-alt text-primary"></i></span>
+                                    <input type="date" class="form-control border-start-0 ps-0" id="end_date" name="end_date" 
+                                           value="{{ request('end_date') }}">
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="search" class="form-label text-muted small fw-bold">Search</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-primary"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="search" name="search" 
+                                           placeholder="Voucher No, Memo..." value="{{ request('search') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary flex-grow-1">
+                                        <i class="fas fa-filter me-2"></i>Filter
+                                    </button>
+                                    <a href="{{ route('journal.list') }}" class="btn btn-light border flex-grow-1" title="Reset Filters">
+                                        <i class="fas fa-undo text-secondary"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Journal Summary Bar -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="premium-card bg-primary bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-primary text-white rounded-3 p-2">
+                                <i class="fas fa-book fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-primary opacity-75">Total Journals</div>
+                                <div class="h5 mb-0 fw-bold text-primary">{{ $journals->count() ?? 0 }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Debit</h6>
-                                    <h3 class="mb-0">{{ number_format($journals->sum('total_debit') ?? 0, 2) }}৳</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-arrow-down fa-2x"></i>
-                                </div>
+                <div class="col-md-3">
+                    <div class="premium-card bg-success bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-success text-white rounded-3 p-2">
+                                <i class="fas fa-arrow-down fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-success opacity-75">Total Debit</div>
+                                <div class="h5 mb-0 fw-bold text-success">৳{{ number_format($journals->sum('total_debit') ?? 0, 2) }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-warning text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Credit</h6>
-                                    <h3 class="mb-0">{{ number_format($journals->sum('total_credit') ?? 0, 2) }}৳</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-arrow-up fa-2x"></i>
-                                </div>
+                <div class="col-md-3">
+                    <div class="premium-card bg-warning bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-warning text-white rounded-3 p-2">
+                                <i class="fas fa-arrow-up fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-warning opacity-75">Total Credit</div>
+                                <div class="h5 mb-0 fw-bold text-warning">৳{{ number_format($journals->sum('total_credit') ?? 0, 2) }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Balanced</h6>
-                                    <h3 class="mb-0">
-                                        {{ $journals->where('total_debit', '=', 'total_credit')->count() ?? 0 }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-balance-scale fa-2x"></i>
+                <div class="col-md-3">
+                    <div class="premium-card bg-info bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-info text-white rounded-3 p-2">
+                                <i class="fas fa-balance-scale fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-info opacity-75">Balanced Journals</div>
+                                <div class="h5 mb-0 fw-bold text-info">
+                                    {{ $journals->filter(fn($j) => $j->isBalanced())->count() }}
                                 </div>
                             </div>
                         </div>
@@ -127,44 +164,33 @@
             </div>
 
             <!-- Journal Entries Table -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-list me-2"></i>Journal Entries
-                            </h5>
-                            <span class="badge bg-light text-dark">{{ $journals->count() ?? 0 }} Entries</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Voucher No</th>
-                                            <th>Date</th>
-                                            <th>Memo</th>
-                                            <th>Type</th>
-                                            <th>Total Debit</th>
-                                            <th>Total Credit</th>
-                                            <th>Balance</th>
-                                            <th>Created By</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
+            <div class="premium-card shadow-sm mb-5">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table premium-table mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Voucher No</th>
+                                    <th>Date</th>
+                                    <th>Memo</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Total Debit</th>
+                                    <th class="text-end">Total Credit</th>
+                                    <th class="text-center">Status</th>
+                                    <th>Created By</th>
+                                    <th class="text-center pe-4">Actions</th>
+                                </tr>
+                            </thead>
                                     <tbody>
-                                        @forelse($journals ?? [] as $index => $journal)
+                                        @forelse($journals ?? [] as $journal)
                                             <tr>
-                                                <td>{{ $index + 1 }}</td>
-                                                <td>
-                                                    <span class="badge bg-primary">{{ $journal->voucher_no }}</span>
+                                                <td class="ps-4">
+                                                    <span class="badge bg-light text-primary border border-primary border-opacity-25 px-2 py-1">{{ $journal->voucher_no }}</span>
                                                 </td>
-                                                <td>{{ $journal->entry_date->format('M d, Y') }}</td>
+                                                <td class="text-dark fw-500">{{ $journal->entry_date->format('d M, Y') }}</td>
                                                 <td>
-                                                    <div class="text-truncate" style="max-width: 200px;"
-                                                        title="{{ $journal->description }}">
-                                                        {{ $journal->description ?? 'No description' }}
+                                                    <div class="text-truncate text-muted small" style="max-width: 250px;" title="{{ $journal->description }}">
+                                                        {{ $journal->description ?? 'N/A' }}
                                                     </div>
                                                 </td>
                                                 <td>
@@ -179,49 +205,44 @@
                                                             ];
                                                             $color = $typeColors[$journal->type] ?? 'bg-secondary';
                                                         @endphp
-                                                        <span class="badge {{ $color }}">{{ $journal->type }}</span>
+                                                        <span class="badge {{ $color }} bg-opacity-10 text-{{ str_replace('bg-', '', $color) }} border border-{{ str_replace('bg-', '', $color) }} border-opacity-25 px-2 py-1">
+                                                            {{ $journal->type }}
+                                                        </span>
                                                     @else
-                                                        <span class="badge bg-light text-dark">General</span>
+                                                        <span class="badge bg-light text-dark border px-2 py-1">General</span>
                                                     @endif
                                                 </td>
-                                                <td>
-                                                    <span class="badge bg-success">
-                                                        {{ number_format($journal->total_debit, 2) }}৳
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-warning">
-                                                        {{ number_format($journal->total_credit, 2) }}৳
-                                                    </span>
-                                                </td>
-                                                <td>
+                                                <td class="text-end fw-bold text-success">৳{{ number_format($journal->total_debit, 2) }}</td>
+                                                <td class="text-end fw-bold text-warning">৳{{ number_format($journal->total_credit, 2) }}</td>
+                                                <td class="text-center">
                                                     @if($journal->isBalanced())
-                                                        <span class="badge bg-success">
-                                                            <i class="fas fa-check me-1"></i>Balanced
+                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 py-1 px-2">
+                                                            <i class="fas fa-check-circle me-1"></i>Balanced
                                                         </span>
                                                     @else
-                                                        <span class="badge bg-danger">
-                                                            <i class="fas fa-times me-1"></i>Unbalanced
+                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 py-1 px-2">
+                                                            <i class="fas fa-times-circle me-1"></i>Unbalanced
                                                         </span>
                                                     @endif
                                                 </td>
-                                                <td>{{ $journal->createdBy->first_name . ' ' . $journal->createdBy->last_name ?? 'N/A' }}
+                                                <td class="small text-muted">
+                                                    {{ $journal->createdBy ? ($journal->createdBy->first_name . ' ' . $journal->createdBy->last_name) : 'N/A' }}
                                                 </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="{{ route('journal.show', $journal->id) }}"
-                                                            class="btn btn-outline-info" title="View">
+                                                <td class="text-center pe-4">
+                                                    <div class="btn-group btn-group-sm rounded-3 overflow-hidden border shadow-sm">
+                                                        <a href="{{ route('journal.show', $journal->id) }}" class="btn btn-white text-primary" title="View">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
-                                                        <button type="button" class="btn btn-outline-primary"
+                                                        <button type="button" class="btn btn-white text-info"
                                                             onclick="editJournal({{ $journal->id }}, '{{ $journal->entry_date->format('Y-m-d') }}', '{{ addslashes($journal->description) }}', '{{ $journal->type }}')"
                                                             title="Edit">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
-                                                        <button type="button" class="btn btn-outline-danger"
-                                                            onclick="deleteJournal({{ $journal->id }}, '{{ $journal->voucher_no }}')"
+                                                        <button type="button" class="btn btn-white text-danger delete-journal-btn"
+                                                            data-journal-id="{{ $journal->id }}"
+                                                            data-voucher-no="{{ $journal->voucher_no }}"
                                                             title="Delete">
-                                                            <i class="fas fa-trash"></i>
+                                                            <i class="fas fa-trash-alt"></i>
                                                         </button>
                                                     </div>
                                                 </td>
@@ -345,17 +366,117 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteJournalModal" tabindex="-1" aria-labelledby="deleteJournalModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title" id="deleteJournalModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-trash-alt fa-3x text-danger opacity-50"></i>
+                    </div>
+                    <p class="text-center mb-0">Are you sure you want to delete the journal entry:</p>
+                    <p class="text-center fw-bold fs-5 text-dark mb-3" id="deleteJournalVoucherNo"></p>
+                    <p class="text-center text-muted small mb-0">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn">
+                        <i class="fas fa-trash-alt me-2"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
             let entryRowCount = 0;
             const chartAccounts = @json($chartAccounts ?? []);
             const financialAccounts = @json($financialAccounts ?? []);
+            let deleteJournalId = null;
+
+            // Define deleteJournal function in global scope so onclick can access it
+            function deleteJournal(id, voucherNo) {
+                // Store the journal ID for later use
+                deleteJournalId = id;
+                
+                // Set the voucher number in the modal
+                $('#deleteJournalVoucherNo').text(voucherNo);
+                
+                // Show the custom modal using Bootstrap 5 API
+                const modalElement = document.getElementById('deleteJournalModal');
+                if (modalElement) {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                }
+            }
 
             $(document).ready(function () {
                 // Initialize with at least 2 entry rows
                 addEntryRow();
                 addEntryRow();
+
+                // Handle delete confirmation button click
+                $('#confirmDeleteBtn').on('click', function() {
+                    if (deleteJournalId === null) return;
+
+                    // Disable the button and show loading state
+                    const $btn = $(this);
+                    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
+
+                    $.ajax({
+                        url: '{{ route("journal.destroy", ":id") }}'.replace(':id', deleteJournalId),
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                // Hide modal
+                                $('#deleteJournalModal').modal('hide');
+                                
+                                // Show success message (you can use a toast notification here)
+                                location.reload();
+                            } else {
+                                alert('Error: ' + response.message);
+                                $btn.prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete');
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error(xhr.responseText);
+                            alert('An error occurred while deleting the journal entry.');
+                            $btn.prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete');
+                        }
+                    });
+                });
+
+                // Reset the delete button when modal is hidden
+                $('#deleteJournalModal').on('hidden.bs.modal', function() {
+                    deleteJournalId = null;
+                    $('#confirmDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete');
+                });
+
+                // Handle delete button clicks using event delegation
+                $(document).on('click', '.delete-journal-btn', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const journalId = $(this).data('journal-id');
+                    const voucherNo = $(this).data('voucher-no');
+                    
+                    console.log('Delete button clicked via event delegation!', journalId, voucherNo);
+                    
+                    // Call the delete function
+                    deleteJournal(journalId, voucherNo);
+                });
 
                 // Handle form submission
                 $('#journalForm').on('submit', function () {
@@ -512,7 +633,7 @@
 
                 // Fetch journal entries via AJAX
                 $.ajax({
-                    url: '{{ url("erp/journal") }}/' + id + '/entries',
+                    url: '{{ route("journal.show", ":id") }}'.replace(':id', id) + '/entries',
                     type: 'GET',
                     success: function (response) {
                         if (response.entries && response.entries.length > 0) {
@@ -584,26 +705,6 @@
                         updateTotals();
                     }
                 });
-            }
-
-            function deleteJournal(id, voucherNo) {
-                if (confirm('Are you sure you want to delete the journal entry "' + voucherNo + '"?')) {
-                    $.ajax({
-                        url: '{{ url("erp/journal") }}/' + id,
-                        type: 'DELETE',
-                        data: { _token: $('meta[name="csrf-token"]').attr('content') },
-                        success: function (response) {
-                            if (response.success) {
-                                location.reload();
-                            } else {
-                                alert('Error: ' + response.message);
-                            }
-                        },
-                        error: function (xhr, status, error) {
-                            alert('An error occurred while deleting the journal entry.');
-                        }
-                    });
-                }
             }
         </script>
     @endpush

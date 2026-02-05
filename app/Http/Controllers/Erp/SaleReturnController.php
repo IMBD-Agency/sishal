@@ -85,7 +85,7 @@ class SaleReturnController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = \App\Models\SaleReturnItem::with([
+        $query = \App\Models\SaleReturnItem::whereHas("saleReturn")->with([
             'saleReturn.customer', 'saleReturn.posSale', 'saleReturn.branch',
             'product.category', 'product.brand', 'product.season', 'product.gender',
             'variation.attributeValues.attribute'
@@ -109,6 +109,8 @@ class SaleReturnController extends Controller
         $rowNum = 2;
         foreach ($items as $index => $item) {
             $return = $item->saleReturn;
+            if (!$return) continue;
+            
             $product = $item->product;
             $variation = $item->variation;
             
@@ -123,18 +125,18 @@ class SaleReturnController extends Controller
 
             $data = [
                 $index + 1,
-                $return->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-',
-                '#SR-' . str_pad($return->id, 5, '0', STR_PAD_LEFT),
-                $return->posSale->sale_number ?? '-',
-                $return->customer->name ?? 'Walk-in',
-                $return->customer->phone ?? '-',
-                $return->branch->name ?? '-',
-                $product->category->name ?? '-',
-                $product->brand->name ?? '-',
-                $product->season->name ?? '-',
-                $product->gender->name ?? '-',
-                $product->name ?? '-',
-                $product->style_number ?? '-',
+                $return?->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-',
+                '#SR-' . str_pad($return?->id ?? 0, 5, '0', STR_PAD_LEFT),
+                $return?->posSale?->sale_number ?? '-',
+                $return?->customer?->name ?? 'Walk-in',
+                $return?->customer?->phone ?? '-',
+                $return?->branch?->name ?? '-',
+                $product?->category?->name ?? '-',
+                $product?->brand?->name ?? '-',
+                $product?->season?->name ?? '-',
+                $product?->gender?->name ?? '-',
+                $product?->name ?? '-',
+                $product?->style_number ?? '-',
                 $color,
                 $size,
                 $item->returned_qty,
@@ -167,7 +169,7 @@ class SaleReturnController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = \App\Models\SaleReturnItem::with([
+        $query = \App\Models\SaleReturnItem::whereHas("saleReturn")->with([
             'saleReturn.customer', 'saleReturn.posSale', 'saleReturn.branch',
             'product.category', 'product.brand', 'product.season', 'product.gender',
             'variation.attributeValues.attribute'
@@ -203,16 +205,22 @@ class SaleReturnController extends Controller
             });
         }
 
-        // Search by sale number / invoice
+        // Search by sale number / invoice / customer / product / salesperson
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->whereHas('saleReturn.posSale', function($sq) use ($search) {
-                    $sq->where('sale_number', 'LIKE', "%{$search}%");
+                $q->whereHas('saleReturn', function($sq) use ($search) {
+                    $sq->whereHas('posSale', function($psq) use ($search) {
+                        $psq->where('sale_number', 'LIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('customer', function($cq) use ($search) {
+                        $cq->where('name', 'LIKE', "%{$search}%")
+                          ->orWhere('phone', 'LIKE', "%{$search}%");
+                    });
                 })
-                ->orWhereHas('saleReturn.customer', function($cq) use ($search) {
-                    $cq->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('phone', 'LIKE', "%{$search}%");
+                ->orWhereHas('product', function($prq) use ($search) {
+                    $prq->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('style_number', 'LIKE', "%{$search}%");
                 });
             });
         }

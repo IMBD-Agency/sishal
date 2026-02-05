@@ -7,127 +7,7 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            :root {
-                --primary-teal: #17a2b8;
-                --primary-hover: #138496;
-                --danger-red: #dc3545;
-                --danger-hover: #c82333;
-                --gray-light: #f9fafb;
-                --border-color: #d1d5db;
-                --text-main: #1f2937;
-                --text-muted: #6b7280;
-            }
 
-            .purchase-card { 
-                background: #fff;
-                border-radius: 6px; 
-                border: 1px solid #e5e7eb; 
-                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); 
-            }
-            .purchase-card-header { 
-                background: #fff; 
-                border-bottom: 1px solid #f3f4f6; 
-                padding: 1.25rem 1.5rem; 
-                font-weight: 700; 
-                color: var(--text-main);
-                font-size: 1.1rem;
-            }
-            .form-label { 
-                font-size: 0.85rem; 
-                font-weight: 700; 
-                color: #374151; 
-                margin-bottom: 0.5rem; 
-            }
-            .form-control, .form-select { 
-                border-radius: 4px; 
-                border: 1px solid var(--border-color); 
-                font-size: 0.9rem; 
-                padding: 0.6rem 0.75rem;
-                transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-            }
-            .form-control:focus, .form-select:focus { 
-                border-color: var(--primary-teal); 
-                box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.1); 
-                outline: 0;
-            }
-            
-            #itemsTable thead th { 
-                background: var(--gray-light); 
-                color: var(--text-muted); 
-                font-size: 0.7rem; 
-                font-weight: 700; 
-                text-transform: uppercase; 
-                letter-spacing: 0.05em; 
-                padding: 0.75rem 0.5rem; 
-                border-bottom: 2px solid #f3f4f6; 
-            }
-            #itemsTable tbody td { 
-                padding: 0.75rem 0.5rem; 
-                border-bottom: 1px solid #f3f4f6; 
-                font-size: 0.85rem; 
-                vertical-align: middle;
-            }
-            
-            .summary-label { 
-                font-size: 0.95rem; 
-                font-weight: 700; 
-                color: var(--text-main); 
-                text-align: right; 
-                padding-right: 1.5rem; 
-            }
-            .summary-input { 
-                background: var(--gray-light) !important; 
-                font-weight: 700; 
-                border-color: #e5e7eb; 
-                text-align: right; 
-                font-size: 1rem;
-            }
-            
-            .btn-teal { 
-                background-color: var(--primary-teal); 
-                color: #fff; 
-                border: none; 
-                padding: 0.75rem 2rem; 
-                border-radius: 4px; 
-                font-weight: 600;
-                transition: background-color 0.2s;
-            }
-            .btn-teal:hover { background-color: var(--primary-hover); color: #fff; }
-            .btn-red { 
-                background-color: var(--danger-red); 
-                color: #fff; 
-                border: none; 
-                padding: 0.75rem 2rem; 
-                border-radius: 4px; 
-                font-weight: 600;
-                transition: background-color 0.2s;
-            }
-            .btn-red:hover { background-color: var(--danger-hover); color: #fff; }
-            
-            .select2-container--default .select2-selection--single { 
-                border: 1px solid var(--border-color); 
-                border-radius: 4px; 
-                height: 42px; 
-            }
-            .select2-container--default .select2-selection--single .select2-selection__rendered { 
-                line-height: 40px; 
-                font-size: 0.9rem; 
-                color: #374151; 
-                padding-left: 0.75rem;
-            }
-            .select2-container--default .select2-selection--single .select2-selection__arrow { height: 40px; }
-            
-            .variant-tag {
-                display: inline-block;
-                padding: 0.1rem 0.5rem;
-                border-radius: 9999px;
-                background: #eff6ff;
-                color: #1e40af;
-                font-size: 0.75rem;
-                font-weight: 600;
-            }
-        </style>
 
         <div class="container-fluid px-4 py-4 bg-white border-bottom mb-4">
             <h2 class="fw-bold mb-0" style="font-size: 26px; color: var(--text-main);">Purchase</h2>
@@ -149,17 +29,26 @@
                                 <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                             </div>
                             <div class="col-md-3">
-                                <label for="branch_id" class="form-label">Receive At (Branch) *</label>
-                                <select name="location_id" id="branch_id" class="form-select" required>
-                                    @foreach($branches as $branch)
-                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                                    @endforeach
+                                <label for="location_selector" class="form-label">Receive At (Location) *</label>
+                                <select id="location_selector" class="form-select" required>
+                                    <option value="">Select Location</option>
+                                    <optgroup label="Branches">
+                                        @foreach($branches as $branch)
+                                            <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Warehouses">
+                                        @foreach($warehouses as $warehouse)
+                                            <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 </select>
-                                <input type="hidden" name="ship_location_type" value="branch">
+                                <input type="hidden" name="location_id" id="location_id" value="">
+                                <input type="hidden" name="ship_location_type" id="ship_location_type" value="">
                             </div>
                             <div class="col-md-3">
                                 <label for="supplier_id" class="form-label">Select Supplier *</label>
-                                <select name="supplier_id" id="supplier_id" class="form-select select2-supplier" required>
+                                <select name="supplier_id" id="supplier_id" class="form-select select2 select2-premium-42" required>
                                     <option value="">Select One</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
@@ -167,14 +56,14 @@
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label for="styleNumberSearch" class="form-label">Style Number Search (Auto-Add) *</label>
-                                <select id="styleNumberSearch" class="form-select"></select>
+                                <label for="styleNumberSearch" class="form-label">Product Search (Name/Style/SKU) *</label>
+                                <select id="styleNumberSearch" class="form-select select2-premium-42"></select>
                             </div>
                         </div>
 
                         <!-- Product Table -->
                         <div class="table-responsive mb-5">
-                            <table class="table align-middle" id="itemsTable">
+                            <table class="table premium-form-table" id="itemsTable">
                                 <thead>
                                     <tr>
                                         <th width="60">IMAGE</th>
@@ -265,19 +154,32 @@
         </div>
     </div>
 
-    <!-- Scripting Engine -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    
+    @push('scripts')
     <script>
         $(document).ready(function() {
-            // Global Select2 for static inputs
-            $('.select2-supplier').select2({ width: '100%', placeholder: 'Select Supplier' });
+            // New Location Selector Logic
+            $('#location_selector').on('change', function() {
+                const val = $(this).val();
+                if (!val) {
+                    $('#ship_location_type').val('');
+                    $('#location_id').val('');
+                    return;
+                }
+                
+                const parts = val.split('_');
+                if (parts.length === 2) {
+                    $('#ship_location_type').val(parts[0]);
+                    $('#location_id').val(parts[1]);
+                }
+            });
+
+            // Supplier dropdown is handled by global .select2 class in master.blade.php
+
 
             // ENHANCED: Auto-add on Style Number Select
             $('#styleNumberSearch').select2({
-                placeholder: 'Search Style Number...',
+                theme: 'bootstrap-5',
+                placeholder: 'Search by Name, Style or SKU...',
                 allowClear: true,
                 width: '100%',
                 ajax: {
@@ -461,4 +363,5 @@
             $('#due_amount_display').val(dueVal.toFixed(2));
         }
     </script>
+    @endpush
 @endsection

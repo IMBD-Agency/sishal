@@ -38,67 +38,55 @@
 
     <div class="container-fluid px-4 py-4">
         <!-- Advanced Filters -->
-        <div class="premium-card mb-4">
-            <div class="card-header bg-white border-bottom p-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Inventory Filters</h6>
+        <div class="premium-card mb-3 shadow-sm">
+            <div class="card-body p-3">
+                <form method="GET" action="{{ route('productstock.list') }}" id="filterForm" autocomplete="off">
                     <!-- Report Period Toggles -->
-                    <div class="d-flex gap-3">
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
+                    <div class="d-flex gap-4 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
                         </div>
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly</label>
+                        <div class="form-check">
+                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
                         </div>
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Yearly</label>
+                        <div class="form-check">
+                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="card-body p-4">
-                <form method="GET" action="{{ route('productstock.list') }}" id="filterForm">
-                    <div class="row g-3 align-items-end">
-                        <!-- Dynamic Date Fields (Toggle visibility via JS) -->
+
+                    <div class="row g-2 align-items-end">
                         <div class="col-md-2 date-range-field">
-                            <label class="form-label small fw-bold text-muted text-uppercase">From Date</label>
-                            <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
                         </div>
                         <div class="col-md-2 date-range-field">
-                             <label class="form-label small fw-bold text-muted text-uppercase">To Date</label>
-                            <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
                         </div>
 
                         <div class="col-md-2 month-field" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Select Month</label>
-                            <select name="month" class="form-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
+                            <select name="month" class="form-select form-select-sm">
                                 @foreach(range(1, 12) as $m)
                                     <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-2 year-field" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Select Year</label>
-                            <select name="year" class="form-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
+                            <select name="year" class="form-select form-select-sm">
                                 @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
                                     <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                 @endforeach
                             </select>
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Search Product</label>
-                            <div class="search-wrapper">
-                                <i class="fas fa-search"></i>
-                                <input type="text" class="form-control" placeholder="Name, SKU..." name="search" value="{{ request('search') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Branch Location</label>
-                            <select class="form-select select2-simple" name="branch_id">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
+                            <select class="form-select form-select-sm select2-simple" name="branch_id" data-placeholder="All Branches">
                                 <option value="">All Branches</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
@@ -106,73 +94,56 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Warehouse</label>
-                            <select class="form-select select2-simple" name="warehouse_id">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Warehouse</label>
+                            <select class="form-select form-select-sm select2-simple" name="warehouse_id" data-placeholder="All Warehouses">
                                 <option value="">All Warehouses</option>
-                                @foreach ($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                @foreach ($warehouses as $wh)
+                                    <option value="{{ $wh->id }}" {{ request('warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-
-                        <div class="col-12 mt-4 pt-3 border-top">
-                            <div class="accordion" id="advancedFilters">
-                                <div class="accordion-item border-0">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed py-2 px-0 bg-transparent shadow-none small fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#moreFilters">
-                                            <i class="fas fa-sliders-h me-2"></i>Advanced Options (Category, Brand, Alerts)
-                                        </button>
-                                    </h2>
-                                    <div id="moreFilters" class="accordion-collapse collapse" data-bs-parent="#advancedFilters">
-                                        <div class="accordion-body px-0 py-3">
-                                            <div class="row g-3">
-                                                <div class="col-md-3">
-                                                    <label class="form-label small fw-bold text-muted text-uppercase">Category</label>
-                                                    <select class="form-select select2-simple" name="category_id">
-                                                        <option value="">All Categories</option>
-                                                        @foreach($categories as $category)
-                                                            <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label small fw-bold text-muted text-uppercase">Brand</label>
-                                                    <select class="form-select select2-simple" name="brand_id">
-                                                        <option value="">All Brands</option>
-                                                        @foreach ($brands as $brand)
-                                                            <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label small fw-bold text-muted text-uppercase">Season</label>
-                                                    <select class="form-select select2-simple" name="season_id">
-                                                        <option value="">All Seasons</option>
-                                                        @foreach ($seasons as $season)
-                                                            <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <div class="form-check form-switch pt-4">
-                                                        <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockSwitch" value="1" {{ request('low_stock') ? 'checked' : '' }}>
-                                                        <label class="form-check-label fw-bold small text-danger" for="lowStockSwitch">
-                                                            <i class="fas fa-exclamation-circle me-1"></i>Low Stock Only
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
+                            <select class="form-select form-select-sm select2-simple" name="category_id" data-placeholder="All Categories">
+                                <option value="">All Categories</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
+                            <select class="form-select form-select-sm select2-simple" name="brand_id" data-placeholder="All Brands">
+                                <option value="">All Brands</option>
+                                @foreach ($brands as $brand)
+                                    <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 mt-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
+                            <select class="form-select form-select-sm select2-simple" name="season_id" data-placeholder="All Seasons">
+                                <option value="">All Seasons</option>
+                                @foreach ($seasons as $season)
+                                    <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 mt-2">
+                            <div class="form-check form-switch pt-1">
+                                <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockSwitch" value="1" {{ request('low_stock') ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-danger" for="lowStockSwitch">Low Stock Only</label>
                             </div>
-                            <div class="d-flex justify-content-end gap-2 mt-3">
-                                <a href="{{ route('productstock.list') }}" class="btn btn-light border fw-bold px-4">
-                                    <i class="fas fa-undo me-2"></i>Reset
-                                </a>
-                                <button type="submit" class="btn btn-create-premium px-5">
-                                    <i class="fas fa-filter me-2"></i>Filter Results
+                        </div>
+
+                        <div class="col-md-2 mt-2">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
+                                    <i class="fas fa-search me-1"></i>Search
                                 </button>
+                                <a href="{{ route('productstock.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
+                                    <i class="fas fa-undo me-1"></i>Reset
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -180,37 +151,89 @@
             </div>
         </div>
 
-        <!-- Stock Table -->
-        <div class="premium-card shadow-sm">
-            <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                <div class="d-flex gap-2">
-                     <a href="{{ route('productstock.export.excel', request()->all()) }}" class="btn btn-outline-dark btn-sm shadow-sm">
-                        <i class="fas fa-file-excel"></i>
-                    </a>
-                    <a href="{{ route('productstock.export.pdf', request()->all()) }}" class="btn btn-outline-dark btn-sm shadow-sm">
-                        <i class="fas fa-file-pdf"></i>
-                    </a>
-                    <button class="btn btn-outline-dark btn-sm shadow-sm" onclick="window.print()">
-                        <i class="fas fa-print"></i>
-                    </button>
+        <!-- Inventory Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 bg-primary text-white">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Total Stock Items</h6>
+                                <h2 class="fw-bold mb-0">{{ number_format($totalStockQty) }}</h2>
+                            </div>
+                            <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-boxes fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 bg-success text-white">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Total Stock Value</h6>
+                                <h2 class="fw-bold mb-0">৳ {{ number_format($totalStockValue, 2) }}</h2>
+                            </div>
+                            <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-coins fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 bg-info text-white">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Active Products</h6>
+                                <h2 class="fw-bold mb-0">{{ $productStocks->total() }}</h2>
+                            </div>
+                            <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-tag fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 pt-2 border-top">
+            <div class="btn-group shadow-none border rounded overflow-hidden">
+                 <a href="{{ route('productstock.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">EXCEL</a>
+                <a href="{{ route('productstock.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">PDF</a>
+                <button class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
+            </div>
+            <div class="search-wrapper-premium">
+                <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium" placeholder="Live search items...">
+                <i class="fas fa-search search-icon-premium"></i>
+            </div>
+        </div>
+        <div class="premium-card shadow-sm">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table premium-table mb-0" id="stockTable">
+                    <table class="table premium-table reporting-table mb-0" id="stockTable">
                         <thead>
                              <tr>
-                                <th class="ps-4">Item Details</th>
+                                <th class="ps-3">SL</th>
+                                <th>Item Details</th>
                                 <th>Style / SKU</th>
                                 <th>Category</th>
-                                <th>Classification</th>
+                                <th>Brand</th>
+                                <th>Season</th>
+                                <th>Gender</th>
+                                <th class="text-end">Pur. Price</th>
+                                <th class="text-end">MRP</th>
                                 <th class="text-center">Total Stock</th>
-                                <th class="text-center">Distribution</th>
-                                <th class="text-end pe-4">Stock Breakdown</th>
+                                <th class="text-end">Stock Value</th>
+                                <th class="text-center">Locations</th>
+                                <th class="text-center pe-3">ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($productStocks as $stock)
+                            @foreach ($productStocks as $index => $stock)
                                 @php
                                     $totalStock = ($stock->simple_branch_stock ?? 0) + 
                                                  ($stock->simple_warehouse_stock ?? 0) + 
@@ -248,9 +271,10 @@
                                     }
                                 @endphp
                                 <tr class="{{ $totalStock <= 5 ? 'bg-danger bg-opacity-10' : '' }}">
-                                    <td class="ps-4">
+                                    <td class="ps-3 text-muted">{{ $productStocks->firstItem() + $index }}</td>
+                                    <td>
                                         <div class="d-flex align-items-center">
-                                            <div class="thumbnail-box me-3" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 6px; overflow: hidden;">
+                                            <div class="thumbnail-box me-3" style="width: 38px; height: 38px;">
                                                  @if($stock->image)
                                                     <img src="{{ asset($stock->image) }}" alt="img" style="width: 100%; height: 100%; object-fit: cover;">
                                                  @else
@@ -269,10 +293,11 @@
                                     <td>
                                         <span class="category-tag">{{ $stock->category->name ?? '-' }}</span>
                                     </td>
-                                    <td>
-                                        <div class="small">{{ $stock->brand->name ?? '-' }}</div>
-                                        <div class="small text-muted">{{ $stock->season->name ?? '' }}</div>
-                                    </td>
+                                    <td>{{ $stock->brand->name ?? '-' }}</td>
+                                    <td class="text-uppercase small">{{ $stock->season->name ?? 'ALL' }}</td>
+                                    <td class="text-uppercase small">{{ $stock->gender->name ?? 'ALL' }}</td>
+                                    <td class="text-end fw-bold">{{ number_format($stock->cost, 2) }}</td>
+                                    <td class="text-end fw-bold">{{ number_format($stock->price, 2) }}</td>
                                     <td class="text-center">
                                          <span class="badge {{ $totalStock > 5 ? 'bg-success' : 'bg-danger' }} fs-6">
                                             {{ $totalStock }}
@@ -281,17 +306,20 @@
                                             <i class="fas fa-exclamation-triangle text-warning ms-1" title="Negative Stock Detected"></i>
                                         @endif
                                     </td>
+                                    <td class="text-end fw-bold">
+                                        {{ number_format($totalStock * $stock->cost, 2) }}
+                                    </td>
                                     <td class="text-center">
                                         @php $locCount = count($branchStockData) + count($warehouseStockData); @endphp
                                         <span class="badge bg-light text-dark border pointer" onclick="$(this).closest('tr').find('.view-breakdown').click()">
                                             {{ $locCount }} Locations
                                         </span>
                                     </td>
-                                    <td class="text-end pe-4">
+                                    <td class="text-center pe-3">
                                         <button class="btn btn-action view-breakdown" 
                                                 data-branch-stock='@json($branchStockData)'
                                                 data-warehouse-stock='@json($warehouseStockData)'>
-                                            <i class="fas fa-list-ul"></i>
+                                            <i class="fas fa-eye"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -345,13 +373,8 @@
 </div>
 
 @push('scripts')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 <script>
 $(document).ready(function() {
-    $('.select2-simple').select2({ width: '100%', dropdownParent: $('body') });
-
     // Handle Report Type Toggle
     function toggleReportFields() {
         const reportType = $('.report-type-radio:checked').val();
@@ -429,6 +452,19 @@ $(document).ready(function() {
         }
 
         $('#stockBreakdownModal').modal('show');
+    });
+
+    // Debounced Live Search
+    let searchTimeout;
+    $('#tableSearch').on('input', function() {
+        clearTimeout(searchTimeout);
+        const value = $(this).val().toLowerCase();
+        searchTimeout = setTimeout(function() {
+            $("#stockTable tbody tr").filter(function() {
+                const text = $(this).text().toLowerCase();
+                $(this).toggle(text.indexOf(value) > -1);
+            });
+        }, 300);
     });
 });
 </script>

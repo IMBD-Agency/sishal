@@ -295,9 +295,6 @@
 </div>
 
 @push('scripts')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
 <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
@@ -309,7 +306,15 @@ function slugify(text) {
 
 $(document).ready(function() {
     // Initialize Select2
-    $('.select2-simple').select2({ width: '100%' });
+    $('.select2-simple, .attribute-select').select2({ width: '100%' });
+    
+    // Global Focus for Select2
+    $(document).on('select2:open', () => {
+        const searchField = document.querySelector('.select2-search__field');
+        if (searchField) {
+            searchField.focus();
+        }
+    });
     
     $('#category_id').select2({
         placeholder: 'Search Categories...',
@@ -386,6 +391,8 @@ $(document).ready(function() {
                 </div>
             </div>`;
         $('#attributes-container').append(row);
+        // Initialize Select2 on the new row
+        $('#attributes-container .attribute-row:last-child .attribute-select').select2({ width: '100%' });
         attributeCount++;
         $('.remove-attribute').show();
     });

@@ -36,9 +36,9 @@
 
             <div class="row justify-content-center">
                 <div class="col-lg-10">
-                    <div class="premium-card">
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
                         <div class="card-header bg-white border-bottom p-4">
-                            <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-wallet me-2 text-primary"></i>Payment Details & Allocation</h6>
+                            <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-wallet me-2 text-primary"></i>Disbursement Configuration</h6>
                         </div>
                         <div class="card-body p-4 p-xl-5">
                             <form action="{{ route('supplier-payments.store') }}" method="POST" id="paymentForm">
@@ -46,56 +46,58 @@
                                 
                                 <div class="row g-4 mb-5">
                                     <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Payment Date <span class="text-danger">*</span></label>
-                                        <input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Voucher Number</label>
-                                        <input type="text" class="form-control bg-light fw-bold text-primary" value="SP-{{ str_pad((App\Models\SupplierPayment::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT) }}" readonly>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Select Supplier <span class="text-danger">*</span></label>
-                                        <select name="supplier_id" id="supplier_id" class="form-select select2-simple" required>
-                                            <option value="">Choose Supplier</option>
-                                            @foreach($suppliers as $supplier)
-                                                <option value="{{ $supplier->id }}" {{ $selectedSupplierId == $supplier->id ? 'selected' : '' }}
-                                                        data-balance="{{ $supplier->balance }}">
-                                                    {{ $supplier->name }} (Payable: {{ number_format($supplier->balance, 2) }}৳)
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Allocate to Due Bill <span class="text-danger">*</span></label>
-                                        <select name="purchase_bill_id" id="purchase_bill_id" class="form-select select2-simple" required>
-                                            <option value="">Choose Bill Reference</option>
-                                            @if(!empty($bills))
-                                                @foreach($bills as $bill)
-                                                    <option value="{{ $bill->id }}" data-due="{{ $bill->due_amount }}">
-                                                        {{ $bill->bill_number }} (Due: {{ number_format($bill->due_amount, 2) }}৳)
+                                        <div class="p-3 bg-light rounded-4 h-100">
+                                            <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">1. Select Target Supplier <span class="text-danger">*</span></label>
+                                            <select name="supplier_id" id="supplier_id" class="form-select select2 shadow-none" required>
+                                                <option value="">Choose Supplier</option>
+                                                @foreach($suppliers as $supplier)
+                                                    <option value="{{ $supplier->id }}" {{ $selectedSupplierId == $supplier->id ? 'selected' : '' }}
+                                                            data-balance="{{ $supplier->balance }}">
+                                                        {{ $supplier->name }} (Payable: {{ number_format($supplier->balance, 2) }}৳)
                                                     </option>
                                                 @endforeach
-                                            @endif
-                                        </select>
+                                            </select>
+                                            <div class="mt-2 small text-muted">Select provider to retrieve pending obligations</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-light rounded-4 h-100">
+                                            <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">2. Search Bill/Invoice <span class="text-danger">*</span></label>
+                                            <select name="purchase_bill_id" id="purchase_bill_id" class="form-select select2 shadow-none" required>
+                                                <option value="">Search by Reference #</option>
+                                                @if(!empty($bills))
+                                                    @foreach($bills as $bill)
+                                                        <option value="{{ $bill->id }}" data-due="{{ $bill->due_amount }}">
+                                                            {{ $bill->bill_number }} (Due: {{ number_format($bill->due_amount, 2) }}৳)
+                                                        </option>
+                                                    @endforeach
+                                                @endif
+                                            </select>
+                                            <div class="mt-2 small text-muted">Only unpaid or partially paid bills are listed</div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="premium-card mb-5 border">
+                                <div class="premium-card mb-5 border-0 shadow-sm overflow-hidden">
+                                    <div class="bg-dark p-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="text-white mb-0 small fw-bold text-uppercase"><i class="fas fa-list-check me-2 text-success"></i>Payment Allocation</h6>
+                                        <div id="allocationBadge" class="badge bg-success rounded-pill px-3 py-2 fw-bold d-none">1 BILL SELECTED</div>
+                                    </div>
                                     <div class="table-responsive">
                                         <table class="table premium-table align-middle mb-0">
                                             <thead class="bg-light">
                                                 <tr>
                                                     <th class="ps-4">Reference No.</th>
                                                     <th class="text-end">Balance Due</th>
-                                                    <th class="text-end allocation-col">Allocation Amount</th>
+                                                    <th class="text-center allocation-col">Payment Amount</th>
                                                     <th class="text-center">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="challanTableBody">
                                                 <tr class="text-center text-muted">
                                                     <td colspan="4" class="py-5">
-                                                        <i class="fas fa-receipt fa-2x mb-2 opacity-25"></i>
-                                                        <p class="small mb-0">Select a bill from the dropdown above to allocate payment.</p>
+                                                        <div class="opacity-25 mb-2"><i class="fas fa-hand-holding-dollar fa-3x"></i></div>
+                                                        <p class="small mb-0 fw-bold">Select a bill from Step 2 to add for disbursement.</p>
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -104,34 +106,37 @@
                                 </div>
 
                                 <div class="row g-4">
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Total Amount (৳)</label>
-                                        <input type="number" step="0.01" name="amount" id="total_amount" class="form-control h-100 fw-bold fs-5 text-success" placeholder="0.00" required readonly>
+                                    <div class="col-md-3">
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Voucher Date</label>
+                                        <input type="date" name="payment_date" class="form-control form-control-lg bg-light" value="{{ date('Y-m-d') }}" required>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Financial Account <span class="text-danger">*</span></label>
-                                        <select name="payment_method" id="payment_method" class="form-select h-100" required>
-                                            <option value="">Choose Account</option>
-                                            <option value="cash">Petty Cash / Counter</option>
-                                            <option value="bank_transfer">Corporate Bank A/C</option>
-                                            <option value="check">Cheque Disbursement</option>
-                                            <option value="bkash">bKash (Business)</option>
-                                            <option value="nagad">Nagad (Business)</option>
+                                    <div class="col-md-3">
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Total Pay (৳)</label>
+                                        <input type="number" step="0.01" name="amount" id="total_amount" class="form-control form-control-lg fw-bold text-primary bg-light" placeholder="0.00" required readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Payment Method <span class="text-danger">*</span></label>
+                                        <select name="payment_method" id="payment_method" class="form-select form-select-lg" required>
+                                            <option value="">Choose Method</option>
+                                            <option value="cash">Cash Fund</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="check">Cheque Pay</option>
+                                            <option value="bkash">bKash Merchant</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Txn Reference <span class="text-danger">*</span></label>
-                                        <input type="text" name="reference" class="form-control h-100" placeholder="Cheque # / Txn ID" required>
+                                    <div class="col-md-3">
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Txn / Ref ID <span class="text-danger">*</span></label>
+                                        <input type="text" name="reference" class="form-control form-control-lg" placeholder="Txn ID / Ref" required>
                                     </div>
                                     <div class="col-12 mt-4">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Internal Remarks</label>
-                                        <textarea name="note" class="form-control" rows="3" placeholder="Optional audit trail notes..."></textarea>
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Transaction Memo</label>
+                                        <textarea name="note" class="form-control border-dashed" rows="2" placeholder="Optional notes for internal audit..."></textarea>
                                     </div>
                                 </div>
 
-                                <div class="mt-5 pt-4 border-top text-center">
-                                    <button type="submit" class="btn btn-create-premium px-5 py-3">
-                                        <i class="fas fa-check-circle me-2"></i>COMPLETE DISBURSEMENT
+                                <div class="mt-5 text-center">
+                                    <button type="submit" class="btn btn-create-premium px-5 py-3 rounded-pill fw-bold shadow-lg">
+                                        <i class="fas fa-shield-check me-2"></i>CONFIRM DISBURSEMENT & RECORD
                                     </button>
                                 </div>
                             </form>

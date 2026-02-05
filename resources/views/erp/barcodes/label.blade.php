@@ -1,260 +1,151 @@
-@extends('erp.master')
-
-@section('title', 'Print Barcode Label')
-
-@section('body')
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Barcode Label - {{ $name }}</title>
+    <meta charset="UTF-8">
+    <title>Barcode Label - {{ $sku }}</title>
     <style>
-        @media print {
-            body {
-                margin: 0;
-                padding: 0;
-                background: white;
-            }
-            
-            .no-print {
-                display: none !important;
-            }
-            
-            .print-container {
-                max-width: none;
-                margin: 0;
-                padding: 0;
-                background: white;
-                box-shadow: none;
-            }
-            
-            .labels-grid {
-                display: block;
-                margin: 0;
-                padding: 0;
-                gap: 0;
-            }
-            
-            .barcode-label {
-                border: none !important;
-                page-break-inside: avoid;
-                page-break-after: auto;
-                margin: 0;
-                padding: 10px 5px;
-            }
-            
-            @page {
-                size: auto;
-                margin: 5mm;
-            }
-        }
-
-        * {
+        @page {
             margin: 0;
-            padding: 0;
+            size: 38mm 25mm; /* Standard single label size */
+        }
+        
+        * {
             box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
         }
 
         body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial Narrow', Arial, sans-serif;
+            background-color: white;
         }
 
-        .print-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
+        .no-print-area {
+            background-color: #f8f9fa;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-bottom: 2px solid #dee2e6;
+            text-align: center;
         }
 
-        .controls {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 6px;
+        @media print {
+            .no-print-area {
+                display: none !important;
+            }
+        }
+
+        .label-page {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+            justify-content: space-between;
+            width: 38mm;
+            height: 25mm;
+            overflow: hidden;
+            padding: 1.5mm 1mm;
+            position: relative;
+            page-break-after: always;
+            border: 0.1mm solid transparent; /* Helps with alignment */
+        }
+
+        .company-name {
+            font-size: 9pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 0.2mm;
+            color: #000;
+            text-align: center;
+            width: 100%;
+            line-height: 1;
+        }
+
+        .product-name {
+            font-size: 7.5pt;
+            margin-bottom: 0.5mm;
+            color: #111;
+            text-align: center;
+            width: 100%;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.1;
+            font-weight: 500;
+        }
+
+        .barcode-svg {
+            width: 100%;
+            height: 8.5mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0.2mm;
+        }
+
+        .barcode-svg img {
+            max-width: 98%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .sku-text {
+            font-size: 7pt;
+            font-weight: 700;
+            font-family: 'Courier New', Courier, monospace;
+            margin-bottom: 0.3mm;
+            margin-top: 0.2mm;
+            letter-spacing: 0.5px;
+        }
+
+        .price-text {
+            border-top: 0.3pt solid #000;
+            width: 95%;
+            text-align: center;
+            padding-top: 0.5mm;
+            font-size: 10pt;
+            font-weight: 900;
+            color: #000;
+            line-height: 1;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 12px 30px;
+            background: #28a745;
+            color: white;
             border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-
-        .labels-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
-            justify-content: flex-start;
-        }
-
-        .barcode-label {
-            width: 2in;
-            height: 1in;
-            border: 1px solid #ddd;
-            padding: 8px 6px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            background: white;
-            page-break-inside: avoid;
-            box-sizing: border-box;
-            position: relative;
-        }
-
-        .barcode-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-        }
-
-        .barcode-image {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 3px;
-            padding: 2px 0;
-        }
-
-        .barcode-image img {
-            max-width: 90%;
-            height: auto;
-            max-height: 45px;
-            display: block;
-        }
-
-        .sku {
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
-            font-size: 10px;
-            color: #000;
-            margin-top: 1px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .info-section {
-            background: #e9ecef;
-            padding: 15px;
             border-radius: 6px;
-            margin-bottom: 20px;
-        }
-
-        .info-section h3 {
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #495057;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            font-size: 14px;
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: #6c757d;
-        }
-
-        .info-value {
-            color: #212529;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 18px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
         }
     </style>
 </head>
 <body>
-    <div class="print-container">
-        <!-- Controls (hidden when printing) -->
-        <div class="controls no-print">
-            <div>
-                <h2 style="margin: 0; font-size: 18px; color: #333;">Barcode Labels</h2>
-                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6c757d;">{{ $quantity }} label(s) ready to print</p>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="window.print()" class="btn btn-primary">
-                    <i class="fas fa-print"></i> Print Labels
-                </button>
-                <button onclick="window.close()" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Close
-                </button>
-            </div>
-        </div>
-
-        <!-- Product Information (hidden when printing) -->
-        <div class="info-section no-print">
-            <h3>Product Information</h3>
-            <div class="info-item">
-                <span class="info-label">Product:</span>
-                <span class="info-value">{{ $name }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Style No:</span>
-                <span class="info-value">{{ $sku }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Price:</span>
-                <span class="info-value">{{ number_format($price, 2) }}৳</span>
-            </div>
-        </div>
-
-        <!-- Labels Grid -->
-        <div class="labels-grid">
-            @for ($i = 0; $i < $quantity; $i++)
-                <div class="barcode-label">
-                    <div class="barcode-container">
-                        <div class="barcode-image">
-                            <img src="{{ $barcodeBase64 }}" alt="Barcode" style="max-width: 90%; height: auto; max-height: 45px;">
-                        </div>
-                        <div class="sku">{{ strtoupper($sku) }}</div>
-                    </div>
-                </div>
-            @endfor
-        </div>
+    <div class="no-print-area">
+        <h3 style="margin-bottom: 15px;">Printer Ready: {{ $quantity }} Labels for {{ $sku }}</h3>
+        <button class="btn" onclick="window.print()">
+            Click to Start Printing Labels
+        </button>
+        <p style="margin-top: 10px; font-size: 12px; color: #666;">
+            Make sure your printer settings are set to <strong>38mm x 25mm</strong> (or your sticker size) and <strong>Margins: None</strong>.
+        </p>
     </div>
 
+    @for ($i = 0; $i < $quantity; $i++)
+    <div class="label-page">
+        <div class="product-name">{{ $name }}</div>
+        <div class="barcode-svg">
+            <img src="{{ $barcodeBase64 }}" alt="Barcode">
+        </div>
+        <div class="sku-text">{{ strtoupper($sku) }}</div>
+        <div class="price-text">MRP: ৳{{ number_format($price, 2) }}</div>
+    </div>
+    @endfor
+
     <script>
-        // Auto-print when page loads (optional)
-        // window.onload = function() {
-        //     setTimeout(function() {
-        //         window.print();
-        //     }, 500);
-        // };
+        // Optional: auto trigger print
+        // window.onload = function() { window.print(); }
     </script>
 </body>
 </html>
-@endsection

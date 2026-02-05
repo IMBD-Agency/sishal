@@ -12,6 +12,56 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class BarcodeController extends Controller
 {
     /**
+     * Dedicated page for barcode generation
+     */
+    public function index()
+    {
+        return view('erp.barcodes.index');
+    }
+
+    /**
+     * Search product by style number for barcode generation
+     */
+    public function searchByStyle(Request $request)
+    {
+        $styleNo = $request->query('style_no');
+        
+        if (!$styleNo) {
+            return response()->json(['success' => false, 'message' => 'Style number is required']);
+        }
+
+        $product = Product::where('sku', $styleNo)
+            ->orWhere('style_number', $styleNo)
+            ->with(['variations'])
+            ->first();
+
+        if (!$product) {
+            return response()->json(['success' => false, 'message' => 'Product not found']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'style_number' => $product->style_number,
+                'price' => $product->price,
+                'has_variations' => $product->has_variations,
+                'variations' => $product->variations->map(function($v) use ($product) {
+                    return [
+                        'id' => $v->id,
+                        'name' => $v->name,
+                        'display_name' => $v->display_name ?? $v->name,
+                        'sku' => $v->sku,
+                        'price' => $v->price ?? $product->price,
+                    ];
+                })
+            ]
+        ]);
+    }
+
+    /**
      * Generate barcode for a single product
      */
     public function generateProductBarcode($productId)
@@ -124,8 +174,8 @@ class BarcodeController extends Controller
             $name = $product->name . ' - ' . ($variation->display_name ?? $variation->name);
         }
 
-        // Generate barcode with same quality as PDF for consistency
-        $barcodeSvg = $this->generateLinearBarcode($sku, 3, 55);
+        // Generate barcode with optimized height for sticker labels
+        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 40);
         
         // Convert SVG to base64 data URI for better browser rendering
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
@@ -157,8 +207,8 @@ class BarcodeController extends Controller
             $name = $product->name . ' - ' . ($variation->display_name ?? $variation->name);
         }
 
-        // Generate barcode with higher quality for PDF
-        $barcodeSvg = $this->generateLinearBarcode($sku, 3, 55);
+        // Generate barcode with optimized size for small PDF labels
+        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 40);
         
         // Convert SVG to base64 data URI for better PDF compatibility
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
@@ -166,9 +216,9 @@ class BarcodeController extends Controller
         // Get quantity from request (default 1)
         $quantity = request('quantity', 1);
 
-        // Generate PDF with A4 size for better printing
-        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity'));
-        $pdf->setPaper('a4', 'portrait');
+        // Generate PDF with the exact sticker size (38mm x 25mm)
+        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price'));
+        $pdf->setPaper([0, 0, 107.71, 70.86], 'portrait');
         
         return $pdf->download('barcode-' . $sku . '.pdf');
     }

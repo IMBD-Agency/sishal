@@ -1,6 +1,6 @@
 @extends('erp.master')
 
-@section('title', 'Product Catalog')
+@section('title', 'Product List')
 
 @section('body')
 @include('erp.components.sidebar')
@@ -8,30 +8,15 @@
 <div class="main-content" id="mainContent">
     @include('erp.components.header')
 
-    <!-- Premium Header -->
+    <!-- Top Header -->
     <div class="glass-header">
         <div class="row align-items-center">
-            <div class="col-md-7">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
-                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
-                        <li class="breadcrumb-item active text-primary fw-600">Product Management</li>
-                    </ol>
-                </nav>
-                <div class="d-flex align-items-center gap-2">
-                    <h4 class="fw-bold mb-0 text-dark">Master Catalog</h4>
-                    <span class="badge bg-light text-primary border border-primary small rounded-pill px-3 py-1">{{ $products->total() }} Items</span>
-                </div>
+            <div class="col-md-6">
+                <h4 class="fw-bold mb-0 text-dark">Product List</h4>
             </div>
-            <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                 <a href="{{ route('product.export.excel', request()->all()) }}" class="btn btn-outline-dark shadow-sm">
-                    <i class="fas fa-file-excel small"></i>
-                </a>
-                <a href="{{ route('product.export.pdf', request()->all()) }}" class="btn btn-outline-dark shadow-sm">
-                    <i class="fas fa-file-pdf small"></i>
-                </a>
-                <a href="{{ route('product.create') }}" class="btn btn-create-premium text-nowrap">
-                    <i class="fas fa-plus-circle me-2"></i>Add Product
+            <div class="col-md-6 text-md-end">
+                <a href="{{ route('product.create') }}" class="btn btn-primary fw-bold shadow-sm">
+                    <i class="fas fa-plus me-2"></i>New Product
                 </a>
             </div>
         </div>
@@ -39,44 +24,38 @@
 
     <div class="container-fluid px-4 py-4">
         <!-- Advanced Filters -->
-        <div class="premium-card mb-4">
-            <div class="card-header bg-white border-bottom p-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Targeted Search</h6>
-                    <!-- Report Period Toggles -->
-                    <div class="d-flex gap-3">
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">
-                                Custom Range
-                            </label>
+        <div class="premium-card mb-3 shadow-sm">
+            <div class="card-body p-3">
+                <form action="{{ route('product.list') }}" method="GET" id="filterForm" autocomplete="off">
+                    <!-- Report type toggles -->
+                    <div class="d-flex gap-4 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
                         </div>
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly</label>
+                        <div class="form-check">
+                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
                         </div>
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Yearly</label>
+                        <div class="form-check">
+                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ route('product.list') }}" method="GET" id="filterForm">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3 date-range-field">
-                            <label class="form-label small fw-bold text-muted text-uppercase">From Date</label>
-                            <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-2 date-range-field">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                         </div>
-                        <div class="col-md-3 date-range-field">
-                            <label class="form-label small fw-bold text-muted text-uppercase">To Date</label>
-                            <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                        <div class="col-md-2 date-range-field">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                         </div>
 
                         <div class="col-md-2 month-field" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Month</label>
-                            <select name="month" class="form-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
+                            <select name="month" class="form-select form-select-sm">
                                 @foreach(range(1, 12) as $m)
                                     <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                 @endforeach
@@ -84,77 +63,82 @@
                         </div>
                         
                         <div class="col-md-2 year-field" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Fiscal Year</label>
-                            <select name="year" class="form-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
+                            <select name="year" class="form-select form-select-sm">
                                 @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
                                     <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                 @endforeach
                             </select>
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Category</label>
-                            <select name="category_id" class="form-select select2-simple">
-                                <option value="">All Categories</option>
-                                @foreach($categories as $cat)
-                                    <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
+                            <select name="product_id" class="form-select form-select-sm select2-simple" data-placeholder="All Product">
+                                <option value="">All Product</option>
+                                @foreach($allProducts as $p)
+                                    <option value="{{ $p->id }}" {{ request('product_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Brand</label>
-                            <select name="brand_id" class="form-select select2-simple">
-                                <option value="">All Brands</option>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style Number</label>
+                            <select name="style_number" class="form-select form-select-sm select2-simple" data-placeholder="All Style Number">
+                                <option value="">All Style Number</option>
+                                @foreach($allStyleNumbers as $style)
+                                    <option value="{{ $style }}" {{ request('style_number') == $style ? 'selected' : '' }}>{{ $style }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
+                            <select name="category_id" class="form-select form-select-sm select2-simple" data-placeholder="All Category">
+                                <option value="">All Category</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>{{ $cat->full_path_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
+                            <select name="brand_id" class="form-select form-select-sm select2-simple" data-placeholder="All Brand">
+                                <option value="">All Brand</option>
                                 @foreach($brands as $brand)
                                     <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-12 mt-4 pt-3 border-top">
-                            <div class="accordion" id="advancedFilters">
-                                <div class="accordion-item border-0">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed py-2 px-0 bg-transparent shadow-none small fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#moreFilters">
-                                            <i class="fas fa-sliders-h me-2"></i>More Filters (Season, Gender, Style No.)
-                                        </button>
-                                    </h2>
-                                    <div id="moreFilters" class="accordion-collapse collapse" data-bs-parent="#advancedFilters">
-                                        <div class="accordion-body px-0 py-3">
-                                            <div class="row g-3">
-                                                <div class="col-md-4">
-                                                    <label class="form-label small fw-bold text-muted text-uppercase">Style Code</label>
-                                                    <input type="text" name="style_number" class="form-control" placeholder="Search Style..." value="{{ request('style_number') }}">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label small fw-bold text-muted text-uppercase">Season</label>
-                                                    <select name="season_id" class="form-select select2-simple">
-                                                        <option value="">All Seasons</option>
-                                                        @foreach($seasons as $season)
-                                                            <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label small fw-bold text-muted text-uppercase">Target Gender</label>
-                                                    <select name="gender_id" class="form-select select2-simple">
-                                                        <option value="">All Genders</option>
-                                                        @foreach($genders as $gender)
-                                                            <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-end gap-2 mt-3">
-                                <a href="{{ route('product.list') }}" class="btn btn-light border fw-bold px-4">
-                                    <i class="fas fa-undo me-2"></i>Clear
-                                </a>
-                                <button type="submit" class="btn btn-create-premium px-5">
-                                    <i class="fas fa-search me-2"></i>Apply Filters
+
+                        <div class="col-md-2 mt-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
+                            <select name="season_id" class="form-select form-select-sm select2-simple" data-placeholder="All Season">
+                                <option value="">All Season</option>
+                                @foreach($seasons as $season)
+                                    <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 mt-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
+                            <select name="gender_id" class="form-select form-select-sm select2-simple" data-placeholder="All Gender">
+                                <option value="">All Gender</option>
+                                @foreach($genders as $gender)
+                                    <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 mt-2">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
+                                    <i class="fas fa-search me-1"></i>Search
                                 </button>
+                                <a href="{{ route('product.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
+                                    <i class="fas fa-undo me-1"></i>Reset
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -162,93 +146,86 @@
             </div>
         </div>
 
+        <!-- Export and Table Search -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="btn-group shadow-sm">
+                <a href="{{ route('product.export.csv', request()->all()) }}" class="btn btn-secondary btn-sm fw-bold">CSV</a>
+                <a href="{{ route('product.export.excel', request()->all()) }}" class="btn btn-secondary btn-sm fw-bold">Excel</a>
+                <a href="{{ route('product.export.pdf', request()->all()) }}" class="btn btn-secondary btn-sm fw-bold">PDF</a>
+                <button class="btn btn-secondary btn-sm fw-bold" onclick="window.print()">Print</button>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small fw-bold text-muted mb-0">Search:</label>
+                <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input">
+            </div>
+        </div>
+
         <!-- Product Table -->
         <div class="premium-card shadow-sm">
-            <div class="card-header bg-white border-bottom p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="search-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="tableSearch" class="form-control" placeholder="Live search in table...">
-                    </div>
-                </div>
-            </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table premium-table mb-0" id="productTable">
+                    <table class="table premium-table reporting-table mb-0" id="productTable">
                         <thead>
                             <tr>
-                                <th class="ps-4">Preview</th>
-                                <th>Item Descriptor</th>
-                                <th>Style / SKU</th>
-                                <th>Classification</th>
-                                <th>Financials (MRP)</th>
-                                <th class="text-end pe-4">Actions</th>
+                                <th class="text-center">#SN.</th>
+                                <th>Entry Date</th>
+                                <th class="text-center">Image</th>
+                                <th>Product Name</th>
+                                <th>Style Number</th>
+                                <th>Category</th>
+                                <th>Brand</th>
+                                <th>Season</th>
+                                <th>Gender</th>
+                                <th class="text-end">Purchase Price</th>
+                                <th class="text-end">MRP</th>
+                                <th class="text-end">Whole Sale</th>
+                                <th class="text-center">Ooption</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($products as $index => $product)
                             <tr>
-                                <td class="ps-4">
-                                    <div class="thumbnail-box" style="width: 50px; height: 50px;">
+                                <td class="text-center">{{ $products->firstItem() + $index }}</td>
+                                <td>{{ $product->created_at->format('d-m-Y') }}</td>
+                                <td class="text-center">
+                                    <div class="thumbnail-box mx-auto product-thumb-container">
                                         @if($product->image)
-                                            <img src="{{ asset($product->image) }}" alt="{{ $product->name }}">
+                                            <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="product-thumb-img">
                                         @else
-                                            <i class="fas fa-image text-muted opacity-50"></i>
+                                            <i class="fas fa-shopping-cart text-muted opacity-50 small"></i>
                                         @endif
                                     </div>
                                 </td>
                                 <td>
-                                    <a href="{{ route('product.show', $product->id) }}" class="text-decoration-none">
-                                        <div class="fw-bold text-dark">{{ $product->name }}</div>
-                                        <div class="text-muted d-flex gap-2 small">
-                                            @if($product->season) <span><i class="fas fa-sun me-1 opacity-50"></i>{{ $product->season->name }}</span> @endif
-                                            @if($product->brand) <span><i class="fas fa-tag me-1 opacity-50"></i>{{ $product->brand->name }}</span> @endif
-                                        </div>
+                                    <a href="{{ route('product.show', $product->id) }}" class="text-info text-decoration-none fw-bold">
+                                        {{ $product->name }}
                                     </a>
                                 </td>
-                                <td>
-                                    <div class="d-flex flex-column">
-                                        <code class="text-primary bg-light px-2 py-1 rounded small mb-1">{{ $product->sku }}</code>
-                                        @if($product->style_number)
-                                        <span class="text-muted small">Style: {{ $product->style_number }}</span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="category-tag">
-                                        {{ $product->category->name ?? 'General' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="fw-bold text-dark">৳{{ number_format($product->price, 2) }}</div>
-                                    <div class="small text-muted text-decoration-line-through">Cost: ৳{{ number_format($product->cost, 2) }}</div>
-                                </td>
-                                <td class="pe-4 text-end">
-                                    <div class="d-flex gap-2 justify-content-end">
-                                        <button class="btn btn-action" title="Barcode" onclick="openBarcodeModal({{ $product->id }})">
-                                            <i class="fas fa-barcode"></i>
-                                        </button>
-                                        <a href="{{ route('erp.products.variations.index', $product->id) }}" class="btn btn-action" title="Variations">
-                                            <i class="fas fa-layer-group"></i>
-                                        </a>
-                                        <a href="{{ route('product.edit', $product->id) }}" class="btn btn-action" title="Edit">
-                                            <i class="fas fa-pen-nib"></i>
-                                        </a>
-                                        <a href="{{ route('product.show', $product->id) }}" class="btn btn-action" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
+                                <td>{{ $product->style_number ?? $product->sku }}</td>
+                                <td>{{ $product->category->name ?? '-' }}</td>
+                                <td>{{ $product->brand->name ?? '-' }}</td>
+                                <td>{{ strtoupper($product->season->name ?? 'ALL') }}</td>
+                                <td>{{ strtoupper($product->gender->name ?? 'ALL') }}</td>
+                                <td class="text-end fw-bold">{{ number_format($product->cost, 2) }}</td>
+                                <td class="text-end fw-bold">{{ number_format($product->price, 2) }}</td>
+                                <td class="text-end fw-bold">{{ number_format($product->wholesale_price ?? 0, 2) }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{{ route('product.show', $product->id) }}" class="btn btn-info btn-xs text-white" title="View"><i class="fas fa-eye fa-xs"></i></a>
+                                        <a href="{{ route('product.edit', $product->id) }}" class="btn btn-success btn-xs" title="Edit"><i class="fas fa-edit fa-xs"></i></a>
+                                        <form action="{{ route('product.delete', $product->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-danger btn-xs" title="Delete" onclick="return confirm('Are you sure?')"><i class="fas fa-trash fa-xs"></i></button>
+                                        </form>
+                                        <a href="{{ route('erp.products.variations.index', $product->id) }}" class="btn btn-secondary btn-xs text-white" title="Variations"><i class="fas fa-layer-group fa-xs"></i></a>
+                                         <a href="{{ route('barcodes.index') }}?style_no={{ $product->style_number ?? $product->sku }}" class="btn btn-warning btn-xs text-white" title="Barcode"><i class="fas fa-barcode fa-xs"></i></a>
                                     </div>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <div class="py-4">
-                                        <i class="fas fa-box-open fa-3x text-light mb-3"></i>
-                                        <h5 class="text-muted">Catalog Empty</h5>
-                                        <p class="text-muted small mb-0">No products match the current filters.</p>
-                                    </div>
-                                </td>
+                                <td colspan="13" class="text-center py-4">No data found</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -257,38 +234,28 @@
             </div>
             
             <!-- Pagination -->
-            <div class="card-footer bg-white border-top-0 py-3 px-4">
+            <div class="card-footer bg-white border-top-0 py-2 px-3">
                 <div class="d-flex justify-content-between align-items-center">
-                    <p class="text-muted small mb-0">Displaying {{ $products->firstItem() }} to {{ $products->lastItem() }} of {{ $products->total() }} items</p>
+                    <p class="text-muted small mb-0">Showing {{ $products->firstItem() }} to {{ $products->lastItem() }} of {{ $products->total() }} entries</p>
                     {{ $products->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
                 </div>
             </div>
         </div>
     </div>
-
-    @include('erp.pos.components.barcode-modal')
 </div>
 
 @push('scripts')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     var products = @json($products->items());
 
     if (typeof showToast !== 'function') {
         window.showToast = function(message, type = 'info') {
-            // Placeholder for toast notification
             console.log(type.toUpperCase() + ": " + message);
         };
     }
 
     $(document).ready(function() {
-        $('.select2-simple').select2({
-            width: '100%',
-            dropdownParent: $('body')
-        });
-
+        // Report type toggle logic
         function toggleReportFields() {
             const reportType = $('.report-type-radio:checked').val();
             
@@ -310,11 +277,16 @@
         toggleReportFields();
         $('.report-type-radio').on('change', toggleReportFields);
 
-        $('#tableSearch').on('keyup', function() {
+        let searchTimeout;
+        $('#tableSearch').on('input', function() {
+            clearTimeout(searchTimeout);
             const value = $(this).val().toLowerCase();
-            $("#productTable tbody tr").filter(function() {
-                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-            });
+            searchTimeout = setTimeout(function() {
+                $("#productTable tbody tr").filter(function() {
+                    const text = $(this).text().toLowerCase();
+                    $(this).toggle(text.indexOf(value) > -1);
+                });
+            }, 300); // 300ms debounce delay
         });
     });
 </script>

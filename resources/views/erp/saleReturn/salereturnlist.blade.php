@@ -78,13 +78,13 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Invoice</label>
-                                <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="{{ request('search') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
+                                <input type="text" name="search" class="form-control form-control-sm border-primary" placeholder="Sale #, Customer, Product..." value="{{ request('search') }}">
                             </div>
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
-                                <select name="customer_id" class="form-select form-select-sm select2" data-placeholder="All">
+                                <select name="customer_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($customers as $customer)
                                         <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
@@ -94,7 +94,7 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
-                                <select name="product_id" class="form-select form-select-sm select2" data-placeholder="All">
+                                <select name="product_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($products as $product)
                                         <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
@@ -109,7 +109,7 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
-                                <select name="category_id" class="form-select form-select-sm select2" data-placeholder="All">
+                                <select name="category_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($categories as $category)
                                         <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
@@ -119,7 +119,7 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
-                                <select name="brand_id" class="form-select form-select-sm select2" data-placeholder="All">
+                                <select name="brand_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($brands as $brand)
                                         <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
@@ -129,7 +129,7 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
-                                <select name="season_id" class="form-select form-select-sm select2" data-placeholder="All">
+                                <select name="season_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($seasons as $season)
                                         <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
@@ -139,7 +139,7 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
-                                <select name="gender_id" class="form-select form-select-sm select2" data-placeholder="All">
+                                <select name="gender_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
                                     <option value=""></option>
                                     @foreach($genders as $gender)
                                         <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
@@ -171,9 +171,16 @@
 
             <!-- Table -->
             <div class="premium-card">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Return Data List</h6>
+                    <div class="search-wrapper-premium">
+                        <input type="text" id="returnSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
+                        <i class="fas fa-search search-icon-premium"></i>
+                    </div>
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table compact-reporting-table mb-0">
+                        <table class="table premium-table compact-reporting-table mb-0" id="returnTable">
                             <thead class="bg-light">
                                 <tr>
                                     <th class="text-center">SL</th>
@@ -283,18 +290,9 @@
         </div>
     </div>
 
-    <!-- Select2 & jQuery -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Select2 Configuration -->
     <script>
         $(document).ready(function() {
-            $('.select2').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                allowClear: true
-            });
 
             const reportRadios = document.querySelectorAll('input[name="report_type"]');
             function toggleDateGroups() {
@@ -311,6 +309,19 @@
             }
             reportRadios.forEach(radio => radio.addEventListener('change', toggleDateGroups));
             toggleDateGroups();
+
+            // Quick Search Table Functionality with Debounce
+            let returnSearchTimeout;
+            $('#returnSearch').on('input', function() {
+                const value = $(this).val().toLowerCase();
+                clearTimeout(returnSearchTimeout);
+                
+                returnSearchTimeout = setTimeout(function() {
+                    $('#returnTable tbody tr').filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                    });
+                }, 300);
+            });
         });
 
         function exportData(format) {

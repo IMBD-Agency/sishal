@@ -115,6 +115,49 @@
                                                 <input type="text" name="invoice_prefix" class="form-control" placeholder="INV" value="{{ $settings->invoice_prefix ?? 'INV' }}">
                                                 <small class="text-muted">Prefix for invoice numbers (e.g., INV, B SF)</small>
                                             </div>
+
+                                            <div class="col-12 mt-4">
+                                                <h5 class="fw-semibold text-dark mb-3">E-commerce Fulfillment</h5>
+                                                <p class="text-muted small">Select where stock should be deducted from when an online order is placed.</p>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium">Fulfillment Source Type</label>
+                                                <select name="ecommerce_source_type" id="ecommerceSourceType" class="form-select">
+                                                    <option value="">-- Auto-Assign (Any Warehouse) --</option>
+                                                    <option value="warehouse" {{ ($settings->ecommerce_source_type ?? '') == 'warehouse' ? 'selected' : '' }}>Specific Warehouse</option>
+                                                    <option value="branch" {{ ($settings->ecommerce_source_type ?? '') == 'branch' ? 'selected' : '' }}>Specific Branch @if(count($settings_branches) == 0) (No Branches Found) @endif</option>
+                                                </select>
+                                                <small class="text-muted">Choose 'Auto-Assign' to let the system pick from any warehouse with stock.</small>
+                                            </div>
+                                            
+                                            <div class="col-md-6" id="ecommerceSourceIdWrapper" style="display: none;">
+                                                <label class="form-label fw-medium">Select Location</label>
+                                                
+                                                <!-- Warehouse Select -->
+                                                <select name="ecommerce_source_id_warehouse" id="ecommerceSourceIdWarehouse" class="form-select ecommerce-source-select" disabled>
+                                                    <option value="">-- Select Warehouse --</option>
+                                                    @foreach($settings_warehouses as $wh)
+                                                        <option value="{{ $wh->id }}" {{ ($settings->ecommerce_source_type ?? '') == 'warehouse' && ($settings->ecommerce_source_id ?? '') == $wh->id ? 'selected' : '' }}>
+                                                            {{ $wh->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+
+                                                <!-- Branch Select -->
+                                                <select name="ecommerce_source_id_branch" id="ecommerceSourceIdBranch" class="form-select ecommerce-source-select" disabled style="display: none;">
+                                                    <option value="">-- Select Branch --</option>
+                                                    @foreach($settings_branches as $branch)
+                                                        <option value="{{ $branch->id }}" {{ ($settings->ecommerce_source_type ?? '') == 'branch' && ($settings->ecommerce_source_id ?? '') == $branch->id ? 'selected' : '' }}>
+                                                            {{ $branch->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                
+                                                <!-- Hidden real input -->
+                                                <input type="hidden" name="ecommerce_source_id" id="realEcommerceSourceId" value="{{ $settings->ecommerce_source_id ?? '' }}">
+                                            </div>
+
                                         </div>
                                     </div>
 
@@ -600,6 +643,56 @@
                 resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>An error occurred while testing SMTP configuration.</div>';
             });
         };
+        // E-commerce Fulfillment Settings Handler
+        const sourceTypeSelect = document.getElementById('ecommerceSourceType');
+        const sourceIdWrapper = document.getElementById('ecommerceSourceIdWrapper');
+        const warehouseSelect = document.getElementById('ecommerceSourceIdWarehouse');
+        const branchSelect = document.getElementById('ecommerceSourceIdBranch');
+        const realSourceIdInput = document.getElementById('realEcommerceSourceId');
+
+        function updateEcommerceSourceVisibility() {
+            const type = sourceTypeSelect.value;
+            
+            if (type === 'warehouse' || type === 'branch') {
+                sourceIdWrapper.style.display = 'block';
+                
+                if (type === 'warehouse') {
+                    warehouseSelect.style.display = 'block';
+                    warehouseSelect.disabled = false;
+                    branchSelect.style.display = 'none';
+                    branchSelect.disabled = true;
+                    // Set initial value if needed
+                    realSourceIdInput.value = warehouseSelect.value;
+                } else {
+                    warehouseSelect.style.display = 'none';
+                    warehouseSelect.disabled = true;
+                    branchSelect.style.display = 'block';
+                    branchSelect.disabled = false;
+                    // Set initial value if needed
+                    realSourceIdInput.value = branchSelect.value;
+                }
+            } else {
+                sourceIdWrapper.style.display = 'none';
+                warehouseSelect.disabled = true;
+                branchSelect.disabled = true;
+                realSourceIdInput.value = '';
+            }
+        }
+
+        if (sourceTypeSelect) {
+            sourceTypeSelect.addEventListener('change', updateEcommerceSourceVisibility);
+            
+            // Handle updates to hidden input
+            warehouseSelect.addEventListener('change', function() {
+                realSourceIdInput.value = this.value;
+            });
+            branchSelect.addEventListener('change', function() {
+                realSourceIdInput.value = this.value;
+            });
+
+            // Init on load
+            updateEcommerceSourceVisibility();
+        }
     });
 </script>
 @endpush

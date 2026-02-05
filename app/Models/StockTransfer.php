@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class StockTransfer extends Model
 {
     protected $fillable = [
+        'invoice_number',
         'from_type',
         'from_id',
         'to_type',

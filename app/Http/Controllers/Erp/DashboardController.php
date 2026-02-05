@@ -18,31 +18,29 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $dateRange = $request->get('range', 'week');
-        $startDate = $this->getStartDate($dateRange);
-        $endDate = Carbon::now();
+        $branchId = $this->getRestrictedBranchId() ?? 0;
+        
+        // Cache dashboard for 5 minutes (300 seconds)
+        $cacheKey = "dash_v1_{$branchId}_{$dateRange}";
+        
+        $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function() use ($dateRange) {
+            $startDate = $this->getStartDate($dateRange);
+            $endDate = Carbon::now();
 
-        $stats = $this->getStatistics($startDate, $endDate, $dateRange);
-        $salesOverview = $this->getSalesOverview($startDate, $endDate, $dateRange);
-        $orderStatus = $this->getOrderStatus($startDate, $endDate);
-        $currentInvoices = $this->getCurrentInvoices();
-        $topSellingItems = $this->getTopSellingItems($startDate, $endDate);
-        $lowStockItems = $this->getLowStockItems();
-        $locationPerformance = $this->getLocationPerformance($startDate, $endDate);
-        $profitMetrics = $this->getProfitMetrics($startDate, $endDate, $dateRange);
-        $channelBreakdown = $this->getChannelBreakdown($startDate, $endDate);
+            return [
+                'siteTitle' => \App\Models\GeneralSetting::value('site_title') ?? 'ERP',
+                'financialKPIs' => $this->getFinancialKPIs(),
+                'topSellingItems' => $this->getTopSellingItems($startDate, $endDate),
+                'todayPurchases' => $this->getTodayPurchaseStats(),
+                'todayExpenses' => $this->getTodayExpenseStats(),
+                'outletPerformance' => $this->getOutletSummary(),
+                'lowStockDetailed' => $this->getLowStockDetailed(),
+                'recentSalesDetailed' => $this->getRecentSalesDetailed(),
+                'salesQtyChart' => $this->getRecentSalesQtyChart()
+            ];
+        });
 
-        return view('erp.dashboard', [
-            'range' => $dateRange,
-            'stats' => $stats,
-            'salesOverview' => $salesOverview,
-            'orderStatus' => $orderStatus,
-            'currentInvoices' => $currentInvoices,
-            'topSellingItems' => $topSellingItems,
-            'lowStockItems' => $lowStockItems,
-            'locationPerformance' => $locationPerformance,
-            'profitMetrics' => $profitMetrics,
-            'channelBreakdown' => $channelBreakdown
-        ]);
+        return view('erp.dashboard', array_merge($data, ['range' => $dateRange]));
     }
 
     public function getDashboardData(Request $request)
@@ -105,53 +103,73 @@ class DashboardController extends Controller
         $generalSetting = \App\Models\GeneralSetting::first();
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
 
+        $branchId = $this->getRestrictedBranchId();
+
         // Optimized Aggregates for Current Period
-        $currentPosData = DB::table('pos')
-            ->whereBetween('sale_date', [$startDate, $endDate])
-            ->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
+        $currentPosQuery = DB::table('pos')
+            ->whereBetween('sale_date', [$startDate, $endDate]);
+        
+        if ($branchId) {
+            $currentPosQuery->where('branch_id', $branchId);
+        }
+        
+        $currentPosData = $currentPosQuery->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
             ->first();
 
-        // Online orders need slightly more logic due to COD percentages
-        $currentOrderQuery = DB::table('orders')
-            ->whereBetween('created_at', [$startDate, $endDate]);
+        // Online orders restricted for branch-level users
+        $currentOrderSales = 0;
+        $currentOrderOrders = 0;
         
-        $currentOrderOrders = $currentOrderQuery->count();
-        
-        // Sum revenue with COD logic directly in SQL if possible, or lean fetch
-        $currentOrderSales = DB::table('orders')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->selectRaw("SUM(
-                (total - COALESCE(delivery, 0)) - 
-                CASE 
-                    WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
-                    ELSE 0 
-                END
-            ) as total_sales")
-            ->value('total_sales') ?? 0;
+        if (!$branchId) {
+            $currentOrderOrders = DB::table('orders')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->count();
+            
+            $currentOrderSales = DB::table('orders')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw("SUM(
+                    (total - COALESCE(delivery, 0)) - 
+                    CASE 
+                        WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
+                        ELSE 0 
+                    END
+                ) as total_sales")
+                ->value('total_sales') ?? 0;
+        }
 
         $previousStartDate = $this->getPreviousPeriodStart($startDate, $range);
         $previousEndDate = $startDate->copy()->subDay();
 
         // Optimized Aggregates for Previous Period
-        $previousPosData = DB::table('pos')
-            ->whereBetween('sale_date', [$previousStartDate, $previousEndDate])
-            ->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
+        $previousPosQuery = DB::table('pos')
+            ->whereBetween('sale_date', [$previousStartDate, $previousEndDate]);
+            
+        if ($branchId) {
+            $previousPosQuery->where('branch_id', $branchId);
+        }
+        
+        $previousPosData = $previousPosQuery->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
             ->first();
 
-        $previousOrderSales = DB::table('orders')
-            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
-            ->selectRaw("SUM(
-                (total - COALESCE(delivery, 0)) - 
-                CASE 
-                    WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
-                    ELSE 0 
-                END
-            ) as total_sales")
-            ->value('total_sales') ?? 0;
+        $previousOrderSales = 0;
+        $previousOrderOrders = 0;
+        
+        if (!$branchId) {
+            $previousOrderSales = DB::table('orders')
+                ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
+                ->selectRaw("SUM(
+                    (total - COALESCE(delivery, 0)) - 
+                    CASE 
+                        WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
+                        ELSE 0 
+                    END
+                ) as total_sales")
+                ->value('total_sales') ?? 0;
 
-        $previousOrderOrders = DB::table('orders')
-            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
-            ->count();
+            $previousOrderOrders = DB::table('orders')
+                ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
+                ->count();
+        }
 
         // Combine Totals
         $currentSales = ($currentPosData->total_sales ?? 0) + $currentOrderSales;
@@ -211,11 +229,19 @@ class DashboardController extends Controller
 
     private function getSalesOverview($startDate, $endDate, $range)
     {
+        $branchId = $this->getRestrictedBranchId();
+        
         // Get POS data
         $posQuery = Pos::query();
+        if ($branchId) {
+            $posQuery->where('branch_id', $branchId);
+        }
         
-        // Get Online Order data
+        // Get Online Order data (blocked if branch restricted)
         $orderQuery = Order::query();
+        if ($branchId) {
+            $orderQuery->whereRaw('1 = 0'); // Empty set
+        }
         
         switch ($range) {
             case 'day':
@@ -307,18 +333,27 @@ class DashboardController extends Controller
 
     private function getOrderStatus($startDate, $endDate)
     {
+        $branchId = $this->getRestrictedBranchId();
+        
         // Get POS status data
-        $posStatuses = Pos::whereBetween('sale_date', [$startDate, $endDate])
-                               ->selectRaw('status, COUNT(*) as count')
+        $posSubQuery = Pos::whereBetween('sale_date', [$startDate, $endDate]);
+        if ($branchId) {
+            $posSubQuery->where('branch_id', $branchId);
+        }
+        
+        $posStatuses = $posSubQuery->selectRaw('status, COUNT(*) as count')
                                ->groupBy('status')
                                ->get();
 
         // Get Online Order status data
-        $orderQuery = Order::query();
-        $orderQuery->whereBetween('created_at', [$startDate, $endDate]);
-        $orderStatuses = $orderQuery->selectRaw('status, COUNT(*) as count')
-                                   ->groupBy('status')
-                                   ->get();
+        $orderStatuses = collect();
+        if (!$branchId) {
+            $orderQuery = Order::query();
+            $orderQuery->whereBetween('created_at', [$startDate, $endDate]);
+            $orderStatuses = $orderQuery->selectRaw('status, COUNT(*) as count')
+                                       ->groupBy('status')
+                                       ->get();
+        }
 
         // Combine status counts
         $pending = ($posStatuses->where('status', 'pending')->first()->count ?? 0) + 
@@ -347,28 +382,43 @@ class DashboardController extends Controller
 
     private function getTopSellingItems($startDate, $endDate)
     {
+        $branchId = $this->getRestrictedBranchId();
         try {
             // Get POS sales aggregates per product
-            $posSales = DB::table('pos_items')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->select('product_id', DB::raw('SUM(quantity) as pos_qty, SUM(total_price) as pos_rev'))
+            $posQuery = DB::table('pos_items')
+                ->whereBetween('created_at', [$startDate, $endDate]);
+            
+            if ($branchId) {
+                $posQuery->whereHas('pos', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+            }
+
+            $posSales = $posQuery->select('product_id', DB::raw('SUM(quantity) as pos_qty, SUM(total_price) as pos_rev'))
                 ->groupBy('product_id');
 
-            // Get Online sales aggregates per product
-            $orderSales = DB::table('order_items')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->select('product_id', DB::raw('SUM(quantity) as order_qty, SUM(total_price) as order_rev'))
-                ->groupBy('product_id');
+            // Get Online sales (only if not restricted to a branch)
+            $orderSales = null;
+            if (!$branchId) {
+                $orderSales = DB::table('order_items')
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->select('product_id', DB::raw('SUM(quantity) as order_qty, SUM(total_price) as order_rev'))
+                    ->groupBy('product_id');
+            }
 
             // Combine using Products table as base
-            $topItems = DB::table('products')
-                ->leftJoinSub($posSales, 'pos_summary', 'products.id', '=', 'pos_summary.product_id')
-                ->leftJoinSub($orderSales, 'order_summary', 'products.id', '=', 'order_summary.product_id')
-                ->leftJoinSub(DB::table('product_service_categories'), 'cats', 'products.category_id', '=', 'cats.id')
+            $query = DB::table('products')
+                ->leftJoinSub($posSales, 'pos_summary', 'products.id', '=', 'pos_summary.product_id');
+                
+            if ($orderSales) {
+                $query->leftJoinSub($orderSales, 'order_summary', 'products.id', '=', 'order_summary.product_id');
+            }
+            
+            $topItems = $query->leftJoinSub(DB::table('product_service_categories'), 'cats', 'products.category_id', '=', 'cats.id')
                 ->selectRaw('products.name, 
                     cats.name as category_name,
-                    (COALESCE(pos_summary.pos_qty, 0) + COALESCE(order_summary.order_qty, 0)) as total_sold,
-                    (COALESCE(pos_summary.pos_rev, 0) + COALESCE(order_summary.order_rev, 0)) as total_revenue')
+                    (COALESCE(pos_summary.pos_qty, 0) + ' . ($orderSales ? 'COALESCE(order_summary.order_qty, 0)' : '0') . ') as total_sold,
+                    (COALESCE(pos_summary.pos_rev, 0) + ' . ($orderSales ? 'COALESCE(order_summary.order_rev, 0)' : '0') . ') as total_revenue')
                 ->where('products.type', 'product')
                 ->where('products.status', 'active')
                 ->where(function($q) {
@@ -402,7 +452,12 @@ class DashboardController extends Controller
 
     private function getLocationPerformance($startDate, $endDate)
     {
+        $branchId = $this->getRestrictedBranchId();
         $query = Pos::query();
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
         $locations = $query->join('branches', 'pos.branch_id', '=', 'branches.id')
                           ->selectRaw('branches.name, SUM(pos.total_amount - COALESCE(pos.delivery, 0)) as total_sales')
@@ -419,7 +474,14 @@ class DashboardController extends Controller
 
     private function getCurrentInvoices()
     {
+        $branchId = $this->getRestrictedBranchId();
         $query = Invoice::query();
+        
+        if ($branchId) {
+            $query->whereHas('pos', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        }
 
         return $query->with(['pos.customer'])
                     ->latest()
@@ -506,13 +568,22 @@ class DashboardController extends Controller
 
     private function getLowStockItems()
     {
+        $branchId = $this->getRestrictedBranchId();
+        
         // Optimized: Calculate total stock across all sources in SQL
-        // Filters directly in the database to only return the top 5 critical items
-        return \App\Models\Product::where('manage_stock', true)
+        $query = \App\Models\Product::where('manage_stock', true)
             ->where('status', 'active')
-            ->with('category')
-            ->withSum('variationStocks as total_stock', 'quantity')
-            ->having('total_stock', '<', 10)
+            ->with('category');
+            
+        if ($branchId) {
+            $query->withSum(['variationStocks as total_stock' => function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            }], 'quantity');
+        } else {
+            $query->withSum('variationStocks as total_stock', 'quantity');
+        }
+        
+        return $query->having('total_stock', '<', 10)
             ->orderBy('total_stock', 'asc')
             ->take(5)
             ->get()
@@ -528,6 +599,8 @@ class DashboardController extends Controller
 
     private function getProfitMetrics($startDate, $endDate, $range)
     {
+        $branchId = $this->getRestrictedBranchId();
+        
         // Get COD percentage from settings
         $generalSetting = \App\Models\GeneralSetting::first();
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
@@ -540,29 +613,44 @@ class DashboardController extends Controller
         $metrics = [];
         foreach ($periods as $key => $period) {
             // POS Revenue & Cost
-            $pos = DB::table('pos_items')
+            $posQuery = DB::table('pos_items')
                 ->join('products', 'pos_items.product_id', '=', 'products.id')
-                ->whereBetween('pos_items.created_at', [$period[0], $period[1]])
-                ->selectRaw('SUM(pos_items.total_price) as revenue, SUM(pos_items.quantity * products.cost) as cost')
+                ->whereBetween('pos_items.created_at', [$period[0], $period[1]]);
+            
+            if ($branchId) {
+                $posQuery->whereHas('pos', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+            }
+
+            $pos = $posQuery->selectRaw('SUM(pos_items.total_price) as revenue, SUM(pos_items.quantity * products.cost) as cost')
                 ->first();
 
-            // Online Revenue & Cost (excluding delivery)
-            $orders = DB::table('order_items')
-                ->join('products', 'order_items.product_id', '=', 'products.id')
-                ->whereBetween('order_items.created_at', [$period[0], $period[1]])
-                ->selectRaw('SUM(order_items.total_price) as revenue, SUM(order_items.quantity * products.cost) as cost')
-                ->first();
+            // Online Revenue & Cost (blocked if branch restricted)
+            $orderRevenue = 0;
+            $orderCost = 0;
+            $codDiscount = 0;
 
-            // COD Discount Aggregate
-            $codDiscount = DB::table('orders')
-                ->whereBetween('created_at', [$period[0], $period[1]])
-                ->where('payment_method', 'cash')
-                ->selectRaw("SUM(ROUND(total * $codPercentage, 2)) as discount")
-                ->value('discount') ?? 0;
+            if (!$branchId) {
+                $orders = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereBetween('order_items.created_at', [$period[0], $period[1]])
+                    ->selectRaw('SUM(order_items.total_price) as revenue, SUM(order_items.quantity * products.cost) as cost')
+                    ->first();
+                
+                $orderRevenue = $orders->revenue ?? 0;
+                $orderCost = $orders->cost ?? 0;
 
-            $rev = ($pos->revenue ?? 0) + ($orders->revenue ?? 0) - $codDiscount;
-            $cost = ($pos->cost ?? 0) + ($orders->cost ?? 0);
-            $metrics[$key] = ['revenue' => $rev, 'cost' => $cost, 'profit' => $rev - $cost];
+                $codDiscount = DB::table('orders')
+                    ->whereBetween('created_at', [$period[0], $period[1]])
+                    ->where('payment_method', 'cash')
+                    ->selectRaw("SUM(ROUND(total * $codPercentage, 2)) as discount")
+                    ->value('discount') ?? 0;
+            }
+
+            $rev = ($pos->revenue ?? 0) + $orderRevenue - $codDiscount;
+            $totalCost = ($pos->cost ?? 0) + $orderCost;
+            $metrics[$key] = ['revenue' => $rev, 'cost' => $totalCost, 'profit' => $rev - $totalCost];
         }
 
         $currentProfit = $metrics['current']['profit'];
@@ -581,39 +669,52 @@ class DashboardController extends Controller
 
     private function getChannelBreakdown($startDate, $endDate)
     {
+        $branchId = $this->getRestrictedBranchId();
+        
         // Get COD percentage
         $generalSetting = \App\Models\GeneralSetting::first();
         $codPercentage = $generalSetting ? ($generalSetting->cod_percentage / 100) : 0.00;
 
         // POS Sales
-        $posData = DB::table('pos')
-            ->whereBetween('sale_date', [$startDate, $endDate])
-            ->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
+        $posQuery = DB::table('pos')
+            ->whereBetween('sale_date', [$startDate, $endDate]);
+            
+        if ($branchId) {
+            $posQuery->where('branch_id', $branchId);
+        }
+        
+        $posData = $posQuery->selectRaw('COUNT(*) as total_orders, SUM(total_amount - COALESCE(delivery, 0)) as total_sales')
             ->first();
         
         $posRevenue = $posData->total_sales ?? 0;
         $posOrders = $posData->total_orders ?? 0;
 
         // Online Sales - Using database aggregate for revenue with COD logic
-        $onlineData = DB::table('orders')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->selectRaw("COUNT(*) as total_orders, 
-                SUM(
-                    (total - COALESCE(delivery, 0)) - 
-                    CASE 
-                        WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
-                        ELSE 0 
-                    END
-                ) as total_sales")
-            ->first();
+        $onlineRevenue = 0;
+        $onlineOrdersCount = 0;
+        $pendingOrders = 0;
+        
+        if (!$branchId) {
+            $onlineData = DB::table('orders')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw("COUNT(*) as total_orders, 
+                    SUM(
+                        (total - COALESCE(delivery, 0)) - 
+                        CASE 
+                            WHEN payment_method = 'cash' THEN ROUND(total * $codPercentage, 2)
+                            ELSE 0 
+                        END
+                    ) as total_sales")
+                ->first();
 
-        $onlineRevenue = $onlineData->total_sales ?? 0;
-        $onlineOrdersCount = $onlineData->total_orders ?? 0;
+            $onlineRevenue = $onlineData->total_sales ?? 0;
+            $onlineOrdersCount = $onlineData->total_orders ?? 0;
 
-        // Pending orders (need attention)
-        $pendingOrders = DB::table('orders')
-            ->whereIn('status', ['pending', 'approved'])
-            ->count();
+            // Pending orders (need attention)
+            $pendingOrders = DB::table('orders')
+                ->whereIn('status', ['pending', 'approved'])
+                ->count();
+        }
 
         $totalRevenue = $posRevenue + $onlineRevenue;
 
@@ -629,6 +730,258 @@ class DashboardController extends Controller
                 'percentage' => $totalRevenue > 0 ? round(($onlineRevenue / $totalRevenue) * 100, 1) : 0
             ],
             'pending' => $pendingOrders
+        ];
+    }
+
+    private function getTodayPurchaseStats()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        $today = Carbon::today();
+        
+        // Today's Gross Purchase
+        $grossQuery = DB::table('purchase_items')
+            ->join('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+            ->whereDate('purchases.purchase_date', $today);
+            
+        if ($branchId) {
+            $grossQuery->where('purchases.branch_id', $branchId);
+        }
+            
+        $gross = $grossQuery->selectRaw('SUM(purchase_items.total_price) as total_amount, SUM(purchase_items.quantity) as total_qty')
+            ->first();
+
+        // Today's Actual Purchase (Billed)
+        $actualQuery = DB::table('purchase_bills')
+            ->whereDate('bill_date', $today);
+            
+        if ($branchId) {
+            $actualQuery->where('branch_id', $branchId);
+        }
+            
+        $actual = $actualQuery->selectRaw('SUM(total_amount) as total_amount')
+            ->first();
+
+        return [
+            'gross_amount' => number_format($gross->total_amount ?? 0, 2),
+            'gross_qty' => (int)($gross->total_qty ?? 0),
+            'actual_amount' => number_format($actual->total_amount ?? 0, 2),
+            'actual_qty' => (int)($gross->total_qty ?? 0)
+        ];
+    }
+
+    private function getTodayExpenseStats()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        $query = DB::table('journals')
+            ->whereDate('entry_date', Carbon::today())
+            ->whereNotNull('expense_account_id');
+            
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+            
+        return number_format($query->sum('voucher_amount'), 2);
+    }
+
+    private function getOutletSummary()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        
+        $query = \App\Models\Branch::query();
+        if ($branchId) {
+            $query->where('id', $branchId);
+        }
+        
+        $branches = $query->get();
+        $today = Carbon::today();
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
+
+        return $branches->map(function($branch) use ($today, $monthStart, $monthEnd) {
+            // Today's Sales
+            $todaySales = DB::table('pos')
+                ->where('branch_id', $branch->id)
+                ->whereDate('sale_date', $today)
+                ->selectRaw('SUM(total_amount - COALESCE(delivery, 0)) as amount')
+                ->value('amount') ?? 0;
+
+            $todayQty = DB::table('pos_items')
+                ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
+                ->where('pos.branch_id', $branch->id)
+                ->whereDate('pos.sale_date', $today)
+                ->sum('pos_items.quantity');
+
+            // Monthly Sales
+            $monthSales = DB::table('pos')
+                ->where('branch_id', $branch->id)
+                ->whereBetween('sale_date', [$monthStart, $monthEnd])
+                ->selectRaw('SUM(total_amount - COALESCE(delivery, 0)) as amount')
+                ->value('amount') ?? 0;
+
+            $monthQty = DB::table('pos_items')
+                ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
+                ->where('pos.branch_id', $branch->id)
+                ->whereBetween('sale_date', [$monthStart, $monthEnd])
+                ->sum('pos_items.quantity');
+
+            return [
+                'name' => $branch->name,
+                'today_amount' => $todaySales,
+                'today_qty' => $todayQty,
+                'month_amount' => $monthSales,
+                'month_qty' => $monthQty
+            ];
+        });
+    }
+
+    private function getLowStockDetailed()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        
+        $query = \App\Models\ProductVariationStock::with(['variation.product.category', 'variation.product.brand', 'variation.product.season', 'variation.product.gender', 'variation.combinations.attribute', 'variation.combinations.attributeValue', 'branch'])
+            ->where('quantity', '<', 10)
+            ->orderBy('quantity', 'asc')
+            ->take(8);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        return $query->get()->map(function($stock) {
+            $variation = $stock->variation;
+            $product = $variation->product ?? null;
+            $size = 'N/A';
+            $color = 'N/A';
+            
+            if ($variation) {
+                foreach ($variation->combinations as $combo) {
+                    if (stripos($combo->attribute->name, 'size') !== false) $size = $combo->attributeValue->value;
+                    if (stripos($combo->attribute->name, 'color') !== false) $color = $combo->attributeValue->value;
+                }
+            }
+
+            return [
+                'branch' => $stock->branch->name ?? 'N/A',
+                'category' => $product->category->name ?? 'N/A',
+                'brand' => $product->brand->name ?? 'N/A',
+                'season' => $product->season->name ?? 'N/A',
+                'gender' => $product->gender->name ?? 'N/A',
+                'product_name' => $product->name ?? 'N/A',
+                'style_number' => $product->sku ?? 'N/A',
+                'size' => $size,
+                'color' => $color,
+                'limit' => 10,
+                'current' => $stock->quantity
+            ];
+        });
+    }
+
+    private function getRecentSalesDetailed()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        
+        $query = \App\Models\Pos::with(['customer', 'branch', 'invoice'])
+            ->latest('sale_date')
+            ->take(10);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        return $query->get()->map(function($sale) {
+            $paid = DB::table('payments')->where('pos_id', $sale->id)->sum('amount');
+            return [
+                'invoice_no' => $sale->sale_number,
+                'challan_no' => $sale->challan_number ?? 'N/A',
+                'date' => $sale->sale_date,
+                'customer' => $sale->customer->name ?? 'Guest',
+                'total' => $sale->total_amount,
+                'paid' => $paid,
+                'due' => $sale->total_amount - $paid,
+                'status' => $sale->status
+            ];
+        });
+    }
+
+    private function getRecentSalesQtyChart()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        $startDate = Carbon::today()->subDays(6);
+        
+        $query = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
+            ->whereDate('pos.sale_date', '>=', $startDate)
+            ->selectRaw('DATE(pos.sale_date) as date, SUM(pos_items.quantity) as total_qty, SUM(pos_items.total_price) as total_rev')
+            ->groupBy('date');
+        
+        if ($branchId) {
+            $query->where('pos.branch_id', $branchId);
+        }
+        
+        $results = $query->get()->keyBy('date');
+        
+        $labels = [];
+        $qtyData = [];
+        $revData = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::today()->subDays($i);
+            $dateStr = $date->toDateString();
+            $labels[] = $date->format('D, M d');
+            
+            $stats = $results->get($dateStr);
+            $qtyData[] = (int)($stats->total_qty ?? 0);
+            $revData[] = (float)($stats->total_rev ?? 0);
+        }
+
+        return [
+            'labels' => $labels,
+            'qtyData' => $qtyData,
+            'revData' => $revData
+        ];
+    }
+
+    private function getFinancialKPIs()
+    {
+        $branchId = $this->getRestrictedBranchId();
+        $today = Carbon::today();
+
+        // Optimized Sales Query
+        $salesQuery = DB::table('pos')->whereDate('sale_date', $today);
+        if ($branchId) $salesQuery->where('branch_id', $branchId);
+        $posSales = $salesQuery->sum('total_amount');
+
+        // Online Sales
+        $onlineSales = 0;
+        if (!$branchId) {
+            $onlineSales = DB::table('orders')->whereDate('created_at', $today)->sum('total');
+        }
+        $totalSalesValue = $posSales + $onlineSales;
+
+        // Optimized Collection (Single query)
+        $collectionQuery = DB::table('payments')->whereDate('payment_date', $today);
+        if ($branchId) {
+            $collectionQuery->whereIn('pos_id', function($q) use ($branchId, $today) {
+                $q->from('pos')->select('id')->where('branch_id', $branchId)->whereDate('sale_date', $today);
+            });
+        }
+        $totalCollection = $collectionQuery->sum('amount');
+
+        // Optimized Due Calculation (Single aggregate join instead of loop)
+        $dueQuery = DB::table('pos')
+            ->leftJoin('payments', 'pos.id', '=', 'payments.pos_id')
+            ->whereDate('pos.sale_date', $today)
+            ->selectRaw('SUM(pos.total_amount) as total_amt, SUM(COALESCE(payments.amount, 0)) as total_paid');
+            
+        if ($branchId) $dueQuery->where('pos.branch_id', $branchId);
+        
+        $dueData = $dueQuery->first();
+        $totalDue = ($dueData->total_amt ?? 0) - ($dueData->total_paid ?? 0);
+
+        return [
+            'total_sales' => number_format($totalSalesValue, 2),
+            'total_collection' => number_format($totalCollection, 2),
+            'total_due' => number_format(max(0, $totalDue), 2)
         ];
     }
 }

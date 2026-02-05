@@ -50,6 +50,8 @@
             @foreach($items as $index => $item)
                 @php
                     $return = $item->saleReturn;
+                    if (!$return) continue;
+
                     $product = $item->product;
                     $variation = $item->variation;
                     

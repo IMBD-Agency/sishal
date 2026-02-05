@@ -294,13 +294,14 @@ class ProductController extends Controller
             $products = $query->latest()->paginate(15)->withQueryString();
 
             // Fetch lists for filters
-            $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
+            $categories = ProductServiceCategory::where('status', 'active')->get()->sortBy('full_path_name');
             $brands = Brand::where('status', 'active')->orderBy('name')->get();
             $seasons = Season::where('status', 'active')->orderBy('name')->get();
             $genders = Gender::all();
             $allProducts = Product::orderBy('name')->get(['id', 'name']);
+            $allStyleNumbers = Product::whereNotNull('style_number')->orderBy('style_number')->distinct()->pluck('style_number');
 
-            return view('erp.products.productlist', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'reportType', 'startDate', 'endDate'));
+            return view('erp.products.productlist', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'allStyleNumbers', 'reportType', 'startDate', 'endDate'));
         }
         else{
             abort(403, 'Unauthorized action.');
@@ -337,6 +338,51 @@ class ProductController extends Controller
         $path = storage_path('app/public/' . $filename);
         $writer->save($path);
         return response()->download($path)->deleteFileAfterSend(true);
+    }
+
+    public function exportCsv(Request $request)
+    {
+        $products = Product::where(function($q) use ($request) {
+            if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+            if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+            if ($request->filled('search')) $q->where('name', 'like', "%{$request->search}%");
+        })->with(['category', 'brand', 'season', 'gender'])->get();
+
+        $filename = "product_list_" . date('Y-m-d_His') . ".csv";
+        $headers = array(
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        );
+
+        $columns = array('SN', 'Entry Date', 'Product Name', 'Style #', 'Category', 'Brand', 'Season', 'Gender', 'Purchase Price', 'MRP', 'Wholesale Price');
+
+        $callback = function() use($products, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($products as $index => $p) {
+                fputcsv($file, array(
+                    $index + 1,
+                    $p->created_at->format('d-m-Y'),
+                    $p->name,
+                    $p->style_number ?? $p->sku,
+                    $p->category->name ?? '-',
+                    $p->brand->name ?? '-',
+                    $p->season->name ?? 'ALL',
+                    $p->gender->name ?? 'ALL',
+                    $p->cost,
+                    $p->price,
+                    $p->wholesale_price ?? 0
+                ));
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function exportPdf(Request $request)
@@ -766,30 +812,31 @@ class ProductController extends Controller
     public function searchCategory(Request $request)
     {
         $q = $request->q;
-        $query = ProductServiceCategory::with('parent');
+        
+        // Fetch categories with status active (optional, depends on your preference)
+        $query = ProductServiceCategory::query()->where('status', 'active');
+        
+        // If searching, we fetch all to build their paths and then filter
+        // or we can do multiple OR likes if the hierarchy is shallow.
+        // For best UX with parent > child, we'll fetch a larger set and filter by path.
+        $categories = $query->get();
+        
         if ($q) {
-            $query->where(function($qry) use ($q) {
-                $qry->where('name', 'like', "%$q%")
-                    ->orWhere('description', 'like', "%$q%")
-                    ->orWhere('status', 'like', "%$q%");
+            $q = strtolower($q);
+            $categories = $categories->filter(function($category) use ($q) {
+                return str_contains(strtolower($category->full_path_name), $q) || 
+                       str_contains(strtolower($category->description), $q);
             });
         }
-        $categories = $query->orderBy('name')->limit(20)->get(['id', 'name', 'parent_id']);
         
-        // Format categories with parent information for subcategories
-        $formatted = $categories->map(function($category) {
-            $displayName = $category->name;
-            if ($category->parent_id && $category->parent) {
-                $displayName = $category->parent->name . ' > ' . $category->name;
-            }
+        $formatted = $categories->sortBy('full_path_name')->take(30)->map(function($category) {
             return [
                 'id' => $category->id,
                 'name' => $category->name,
-                'display_name' => $displayName,
+                'display_name' => $category->full_path_name,
                 'parent_id' => $category->parent_id,
-                'parent_name' => $category->parent ? $category->parent->name : null
             ];
-        });
+        })->values();
         
         return response()->json($formatted);
     }
@@ -851,7 +898,7 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
-    public function getVariationsWithStock($productId)
+    public function getVariationsWithStock(Request $request, $productId)
     {
         $product = Product::with([
             'variations.stocks' => function($query) {
@@ -861,12 +908,24 @@ class ProductController extends Controller
             'variations.combinations.attributeValue'
         ])->findOrFail($productId);
         
+        $locationType = $request->query('location_type');
+        $locationId = $request->query('location_id');
+
         if (!$product->has_variations) {
             return response()->json([]);
         }
         
-        $variations = $product->variations->map(function($variation) {
-            $totalStock = $variation->stocks->sum('quantity');
+        $variations = $product->variations->map(function($variation) use ($locationType, $locationId) {
+            // Calculate stock based on location filter if provided, otherwise sum all
+            if ($locationType && $locationId) {
+                if ($locationType === 'branch') {
+                    $totalStock = $variation->stocks->where('branch_id', $locationId)->sum('quantity');
+                } else {
+                    $totalStock = $variation->stocks->where('warehouse_id', $locationId)->sum('quantity');
+                }
+            } else {
+                $totalStock = $variation->stocks->sum('quantity');
+            }
             
             // Extract size and color from combinations
             $size = null;
@@ -1270,39 +1329,53 @@ class ProductController extends Controller
     }
 
     /**
-     * Search products by Style Number
+     * Search products by Style Number (and SKU/Name)
      */
     public function searchStyleNumber(Request $request)
     {
         $q = $request->q;
         $query = Product::query();
+        
         if ($q) {
-            $query->where('style_number', 'like', "%$q%");
+            $query->where(function($sub) use ($q) {
+                $sub->where('style_number', 'like', "%$q%")
+                    ->orWhere('sku', 'like', "%$q%")
+                    ->orWhere('name', 'like', "%$q%");
+            });
         }
-        $styles = $query->whereNotNull('style_number')
-            ->where('style_number', '!=', '')
-            ->groupBy('style_number')
-            ->limit(20)
-            ->pluck('style_number');
+        
+        // Removed strict style_number filters to allow all products to be found
+        $products = $query->limit(20)->get(['id', 'name', 'style_number', 'sku']);
             
-        $results = $styles->map(function($style) {
-            return ['id' => $style, 'text' => $style];
+        $results = $products->map(function($product) {
+            $desc = $product->style_number ?: ($product->sku ?: 'No Style/SKU');
+            return [
+                'id' => $product->id, 
+                'text' => $product->name . " [" . $desc . "]"
+            ];
         });
         
         return response()->json(['results' => $results]);
     }
 
     /**
-     * Find product and its variations by Style Number
+     * Find product and its variations by Identity (ID, Style Number, or SKU)
      */
-    public function findProductByStyle($styleNumber)
+    public function findProductByStyle($identity)
     {
-        $products = Product::with(['category', 'brand', 'season', 'gender', 'variations.combinations.attributeValue.attribute'])
-            ->where('style_number', $styleNumber)
-            ->get();
+        $query = Product::with(['category', 'brand', 'season', 'gender', 'variations.combinations.attributeValue.attribute']);
+        
+        // Search by ID first (most reliable), then fallback to style_number or SKU
+        $query->where(function($q) use ($identity) {
+            $q->where('id', $identity)
+              ->orWhere('style_number', $identity)
+              ->orWhere('sku', $identity);
+        });
+
+        $products = $query->get();
 
         if ($products->isEmpty()) {
-            return response()->json(['success' => false, 'message' => 'Product not found with this Style Number'], 404);
+            return response()->json(['success' => false, 'message' => 'Product not found with this identity'], 404);
         }
 
         $results = $products->map(function($product) {
@@ -1343,6 +1416,7 @@ class ProductController extends Controller
                 'season' => $product->season->name ?? '-',
                 'gender' => $product->gender->name ?? '-',
                 'style_number' => $product->style_number,
+                'sku' => $product->sku,
                 'price' => $product->price,
                 'wholesale_price' => $product->wholesale_price,
                 'cost' => $product->cost,

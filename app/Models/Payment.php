@@ -20,9 +20,15 @@ class Payment extends Model
         'gateway_response',
         'transaction_id',
         'payment_reference',
+        'customer_id',
+        'user_id',
     ];
 
     // Relationships
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
     public function pos()
     {
         return $this->belongsTo(\App\Models\Pos::class, 'pos_id');

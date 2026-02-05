@@ -13,6 +13,7 @@ class Branch extends Model
         'status',
         'manager_id',
         'show_online',
+        'warehouse_id',
     ];
 
     public function products()
@@ -25,9 +26,9 @@ class Branch extends Model
         return $this->hasMany(\App\Models\Employee::class);
     }
 
-    public function warehouses()
+    public function warehouse()
     {
-        return $this->hasMany(\App\Models\Warehouse::class);
+        return $this->belongsTo(\App\Models\Warehouse::class);
     }
 
     public function manager()

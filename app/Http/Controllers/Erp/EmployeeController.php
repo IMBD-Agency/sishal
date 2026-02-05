@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Balance;
 use App\Models\Pos;
 use App\Models\User;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 
@@ -21,7 +22,7 @@ class EmployeeController extends Controller
         if (!auth()->user()->hasPermissionTo('view employee list')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Employee::with('user','balance');
+        $query = Employee::with('user','balance','branch');
         if ($request->filled('name')) {
             $query->whereHas('user', function($q) use ($request) {
                 $q->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $request->name . '%']);
@@ -49,7 +50,8 @@ class EmployeeController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $roles = Role::all();
-        return view('erp.employees.create', compact('roles'));
+        $branches = Branch::all();
+        return view('erp.employees.create', compact('roles', 'branches'));
     }
 
     /**
@@ -65,7 +67,8 @@ class EmployeeController extends Controller
             'password' => 'required|string|min:6|confirmed',
             'branch_id' => 'nullable|exists:branches,id',
             'role' => 'nullable|string|max:255',
-            'phone' => 'required|string|max:20'
+            'phone' => 'required|string|max:20',
+            'salary' => 'nullable|numeric|min:0'
         ]);
 
         $user = new User();
@@ -83,6 +86,7 @@ class EmployeeController extends Controller
         $employee->branch_id = $request->branch_id;
         $employee->designation = $request->role;
         $employee->phone = $request->phone;
+        $employee->salary = $request->salary ?? 0;
         $employee->status = $request->status;
 
         $employee->save();
@@ -134,7 +138,8 @@ class EmployeeController extends Controller
         }
         $employee = Employee::with(['user', 'branch'])->findOrFail($id);
         $roles = Role::all();
-        return view('erp.employees.edit', compact('employee', 'roles'));
+        $branches = Branch::all();
+        return view('erp.employees.edit', compact('employee', 'roles', 'branches'));
     }
 
     /**
@@ -149,6 +154,7 @@ class EmployeeController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'role' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
+            'salary' => 'nullable|numeric|min:0',
             'status' => 'required|in:active,inactive',
         ]);
         $user = $employee->user;
@@ -163,6 +169,7 @@ class EmployeeController extends Controller
         $employee->branch_id = $validated['branch_id'];
         $employee->designation = $validated['role'];
         $employee->phone = $validated['phone'];
+        $employee->salary = $validated['salary'] ?? 0;
         $employee->status = $validated['status'];
         $employee->save();
         return redirect()->route('employees.index')->with('status', 'Employee updated successfully!');

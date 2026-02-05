@@ -6,373 +6,310 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-        <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        
+        <!-- Premium Header (Glass Style) -->
+        <div class="glass-header">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-md-7">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}"
-                                    class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Ledger Summary</li>
+                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Accounting & Finance</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Ledger Summary</h2>
-                    <p class="text-muted mb-0">View and manage ledger summaries for your financial records.</p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                            <i class="fas fa-filter me-2"></i>Filter
-                        </button>
-                        <button class="btn btn-primary" onclick="exportLedger()">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="fw-bold mb-0 text-dark">General Ledger Summary</h4>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1">
+                            Consolidated Report
+                        </span>
                     </div>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <button class="btn btn-light border shadow-sm fw-bold" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Print Ledger
+                    </button>
+                    <button class="btn btn-create-premium text-nowrap" onclick="exportLedger()">
+                        <i class="fas fa-file-pdf me-2"></i>Download PDF
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Filter Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <form id="ledgerFilterForm">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="account_filter" class="form-label">Chart of Account</label>
-                        <select class="form-control" id="account_filter" name="account_id">
-                            <option value="">All Accounts</option>
-                            @foreach($chartAccounts ?? [] as $account)
-                                <option value="{{ $account->id }}" {{ request('account_id') == $account->id ? 'selected' : '' }}>
-                                    {{ $account->name }} ({{ $account->code }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="start_date" class="form-label">From Date</label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" 
-                               value="{{ request('start_date', date('Y-m-01')) }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="end_date" class="form-label">To Date</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" 
-                               value="{{ request('end_date', date('Y-m-d')) }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="type_filter" class="form-label">Account Type</label>
-                        <select class="form-control" id="type_filter" name="account_type">
-                            <option value="">All Types</option>
-                            <option value="Asset" {{ request('account_type') == 'Asset' ? 'selected' : '' }}>Asset</option>
-                            <option value="Liability" {{ request('account_type') == 'Liability' ? 'selected' : '' }}>Liability</option>
-                            <option value="Equity" {{ request('account_type') == 'Equity' ? 'selected' : '' }}>Equity</option>
-                            <option value="Income" {{ request('account_type') == 'Income' ? 'selected' : '' }}>Income</option>
-                            <option value="Expense" {{ request('account_type') == 'Expense' ? 'selected' : '' }}>Expense</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-search me-2"></i>Generate Report
-                        </button>
-                        <a href="{{ route('ledger.index') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-undo me-2"></i>Reset
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <!-- Ledger Summary Content -->
         <div class="container-fluid px-4 py-4">
-            <!-- Summary Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Debits</h6>
-                                    <h4 class="mb-0">৳{{ number_format($totalDebits ?? 0, 2) }}</h4>
+            <!-- Advanced Filters (Matching productStockList UI) -->
+            <div class="premium-card mb-3 shadow-sm">
+                <div class="card-body p-3">
+                    <form action="{{ route('ledger.index') }}" method="GET" id="filterForm" autocomplete="off">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate->format('Y-m-d') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate->format('Y-m-d') }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Account Filter</label>
+                                <select class="form-select form-select-sm select2-simple" name="account_id" data-placeholder="All Chart Accounts">
+                                    <option value="">All Chart Accounts</option>
+                                    @foreach($chartAccounts as $account)
+                                        <option value="{{ $account->id }}" {{ request('account_id') == $account->id ? 'selected' : '' }}>
+                                            {{ $account->name }} ({{ $account->code }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
+                                <select class="form-select form-select-sm select2-simple" name="account_type" data-placeholder="All Categories">
+                                    <option value="">All Categories</option>
+                                    <option value="Asset" {{ request('account_type') == 'Asset' ? 'selected' : '' }}>Asset</option>
+                                    <option value="Liability" {{ request('account_type') == 'Liability' ? 'selected' : '' }}>Liability</option>
+                                    <option value="Income" {{ request('account_type') == 'Income' ? 'selected' : '' }}>Income</option>
+                                    <option value="Revenue" {{ request('account_type') == 'Revenue' ? 'selected' : '' }}>Revenue</option>
+                                    <option value="Expense" {{ request('account_type') == 'Expense' ? 'selected' : '' }}>Expense</option>
+                                    <option value="Equity" {{ request('account_type') == 'Equity' ? 'selected' : '' }}>Equity</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Keywords</label>
+                                <input type="text" name="search" class="form-control form-control-sm" placeholder="Voucher # or Account..." value="{{ request('search') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm">
+                                        <i class="fas fa-search me-1"></i>Search
+                                    </button>
+                                    <a href="{{ route('ledger.index') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm">
+                                        <i class="fas fa-undo me-1"></i>Reset
+                                    </a>
                                 </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-arrow-down fa-2x"></i>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Summary Bar (Premium Design) -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="premium-card bg-primary bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-primary text-white rounded-3 p-2">
+                                <i class="fas fa-arrow-down fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-primary opacity-75">Total Debits</div>
+                                <div class="h5 mb-0 fw-bold text-primary">৳{{ number_format($totalDebits, 2) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="premium-card bg-success bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-success text-white rounded-3 p-2">
+                                <i class="fas fa-arrow-up fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-success opacity-75">Total Credits</div>
+                                <div class="h5 mb-0 fw-bold text-success">৳{{ number_format($totalCredits, 2) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    @php $net = $totalDebits - $totalCredits; @endphp
+                    <div class="premium-card bg-info bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-info text-white rounded-3 p-2">
+                                <i class="fas fa-balance-scale fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-info opacity-75">Net Position</div>
+                                <div class="h5 mb-0 fw-bold text-info">
+                                    ৳{{ number_format(abs($net), 2) }} 
+                                    <small class="fw-normal">({{ $net >= 0 ? 'Dr' : 'Cr' }})</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Credits</h6>
-                                    <h4 class="mb-0">৳{{ number_format($totalCredits ?? 0, 2) }}</h4>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-arrow-up fa-2x"></i>
-                                </div>
+                    <div class="premium-card bg-dark bg-opacity-10 border-0">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="icon-box me-3 bg-dark text-white rounded-3 p-2">
+                                <i class="fas fa-receipt fa-lg"></i>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Net Balance</h6>
-                                    <h4 class="mb-0">৳{{ number_format(($totalDebits ?? 0) - ($totalCredits ?? 0), 2) }}</h4>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-balance-scale fa-2x"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-warning text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Entries</h6>
-                                    <h4 class="mb-0">{{ $totalEntries ?? 0 }}</h4>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-list fa-2x"></i>
-                                </div>
+                            <div>
+                                <div class="text-uppercase small fw-bold text-dark opacity-75">Total Entries</div>
+                                <div class="h5 mb-0 fw-bold text-dark">{{ $totalEntries }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Ledger Table -->
-            <div class="card">
-                <div class="card-header bg-white">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h5 class="mb-0">Ledger Entries</h5>
-                        </div>
-                        <div class="col-md-6 text-end">
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-primary" onclick="printLedger()">
-                                    <i class="fas fa-print me-1"></i>Print
-                                </button>
-                                <button type="button" class="btn btn-outline-success" onclick="exportPDF()">
-                                    <i class="fas fa-file-pdf me-1"></i>PDF
-                                </button>
-                                <button type="button" class="btn btn-outline-info" onclick="exportExcel()">
-                                    <i class="fas fa-file-excel me-1"></i>Excel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="btn-group shadow-sm">
+                    <button class="btn btn-secondary btn-sm fw-bold" onclick="exportExcel()">Excel</button>
+                    <button class="btn btn-secondary btn-sm fw-bold" onclick="exportLedger()">PDF</button>
+                    <button class="btn btn-secondary btn-sm fw-bold" onclick="window.print()">Print</button>
                 </div>
-                <div class="card-body">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small fw-bold text-muted mb-0">Live Search:</label>
+                    <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input" placeholder="Search in current page...">
+                </div>
+            </div>
+
+            <!-- Ledger Table (Premium Style) -->
+            <div class="premium-card shadow-sm mb-5">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover" id="ledgerTable">
-                            <thead class="table-light">
+                        <table class="table premium-table mb-0 align-middle" id="ledgerTable">
+                            <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Voucher No</th>
-                                    <th>Account</th>
-                                    <th>Description</th>
-                                    <th>Debit</th>
-                                    <th>Credit</th>
-                                    <th>Balance</th>
-                                    <th>Actions</th>
+                                    <th class="ps-4">Date</th>
+                                    <th>Voucher Details</th>
+                                    <th>Account Name</th>
+                                    <th class="text-end">Debit</th>
+                                    <th class="text-end">Credit</th>
+                                    <th class="text-end">Position</th>
+                                    <th class="text-center pe-4">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($ledgerEntries ?? [] as $entry)
+                                @forelse($ledgerEntries as $entry)
                                     <tr>
-                                        <td>{{ $entry->journal->entry_date->format('M d, Y') }}</td>
+                                        <td class="ps-4 text-dark fw-500">{{ \Carbon\Carbon::parse($entry->journal->entry_date)->format('d M, Y') }}</td>
                                         <td>
-                                            <span class="badge bg-info">{{ $entry->journal->voucher_no }}</span>
-                                        </td>
-                                        <td>
-                                            <div class="fw-semibold">
-                                                <a href="{{ route('ledger.account', $entry->chartOfAccount->id) }}" 
-                                                   class="text-decoration-none text-primary">
-                                                    {{ $entry->chartOfAccount->name }}
-                                                </a>
+                                            <div class="d-flex flex-column">
+                                                <span class="badge bg-light text-dark border mb-1 align-self-start py-1 px-2 fw-normal">{{ $entry->journal->voucher_no }}</span>
+                                                <span class="text-muted small text-truncate" style="max-width: 250px;" title="{{ $entry->journal->description }}">{{ $entry->journal->description }}</span>
                                             </div>
-                                            <small class="text-muted">{{ $entry->chartOfAccount->code }}</small>
                                         </td>
                                         <td>
-                                            <div>{{ $entry->journal->description }}</div>
-                                            @if($entry->memo)
-                                                <small class="text-muted">{{ $entry->memo }}</small>
-                                            @endif
+                                            <div class="fw-bold text-primary mb-0">{{ $entry->chartOfAccount->name }}</div>
+                                            <div class="text-muted small fs-xs text-uppercase">{{ $entry->chartOfAccount->code }}</div>
                                         </td>
-                                        <td>
+                                        <td class="text-end">
                                             @if($entry->debit > 0)
                                                 <span class="text-danger fw-bold">৳{{ number_format($entry->debit, 2) }}</span>
                                             @else
-                                                <span class="text-muted">-</span>
+                                                <span class="text-muted opacity-50">-</span>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="text-end">
                                             @if($entry->credit > 0)
                                                 <span class="text-success fw-bold">৳{{ number_format($entry->credit, 2) }}</span>
                                             @else
-                                                <span class="text-muted">-</span>
+                                                <span class="text-muted opacity-50">-</span>
                                             @endif
                                         </td>
-                                        <td>
-                                            @php
-                                                $balance = $entry->running_balance ?? 0;
-                                                $balanceClass = $balance >= 0 ? 'text-success' : 'text-danger';
-                                            @endphp
-                                            <span class="fw-bold {{ $balanceClass }}">৳{{ number_format($balance, 2) }}</span>
+                                        <td class="text-end fw-bold">
+                                            @php $bal = $entry->debit - $entry->credit; @endphp
+                                            <span class="{{ $bal >= 0 ? 'text-primary' : 'text-danger' }}">
+                                                ৳{{ number_format(abs($bal), 2) }}
+                                                <small class="fw-normal text-muted fs-xs">{{ $bal >= 0 ? 'Dr' : 'Cr' }}</small>
+                                            </span>
                                         </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary" title="View Details" 
-                                                        onclick="viewEntry({{ $entry->id }})">
+                                        <td class="text-center pe-4">
+                                            <div class="btn-group btn-group-sm rounded-3 overflow-hidden border shadow-sm">
+                                                <a href="{{ route('journal.show', $entry->journal_id) }}" class="btn btn-white text-primary" title="View Voucher">
                                                     <i class="fas fa-eye"></i>
-                                                </button>
-                                                <button class="btn btn-outline-info" title="View Journal" 
-                                                        onclick="viewJournal({{ $entry->journal_id }})">
+                                                </a>
+                                                <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}" class="btn btn-white text-info" title="View Full Account Ledger">
                                                     <i class="fas fa-book"></i>
-                                                </button>
+                                                </a>
+                                                <form action="{{ route('journal.destroy', $entry->journal_id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this journal?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-white text-danger" title="Delete Journal">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted py-4">
-                                            <i class="fas fa-inbox fa-2x mb-3"></i>
-                                            <p>No ledger entries found</p>
-                                            <p class="small">Try adjusting your filters or date range</p>
+                                        <td colspan="7" class="text-center py-5">
+                                            <div class="py-5">
+                                                <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                                                    <i class="fas fa-search-dollar fa-2x text-muted"></i>
+                                                </div>
+                                                <h5 class="text-dark fw-bold">No Records Found</h5>
+                                                <p class="text-muted mx-auto" style="max-width: 300px;">Adjust your filters or date range to find the transactions you're looking for.</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
+                </div>
 
-                    <!-- Pagination -->
-                    @if(isset($ledgerEntries) && $ledgerEntries->hasPages())
-                        <div class="d-flex justify-content-center mt-4">
-                            {{ $ledgerEntries->links() }}
+                <!-- Correct Pagination UI -->
+                @if($ledgerEntries->hasPages())
+                    <div class="card-footer bg-white border-top-0 py-3 px-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <p class="text-muted small mb-0">Displaying {{ $ledgerEntries->firstItem() }} to {{ $ledgerEntries->lastItem() }} of {{ $ledgerEntries->total() }} entries</p>
+                            {{ $ledgerEntries->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
                         </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- View Entry Modal -->
-    <div class="modal fade" id="viewEntryModal" tabindex="-1" aria-labelledby="viewEntryModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewEntryModalLabel">Ledger Entry Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="entryDetails">
-                    <!-- Entry details will be loaded here -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
 
     @push('scripts')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Extra styles if not in premium-theme.css */
+        .fw-500 { font-weight: 500; }
+        .fw-600 { font-weight: 600; }
+        .btn-white { background: #fff; border: none; }
+        .btn-white:hover { background: #f8f9fc; }
+        .fs-xs { font-size: 0.7rem; }
+        
+        @media print {
+            .sidebar, #sidebar, .main-content > .header, .navbar, .glass-header .breadcrumb, .sticky-top, .btn-group, .card-footer, form, .btn-create-premium, #mainContent > .header { 
+                display: none !important; 
+            }
+            .main-content { margin-left: 0 !important; width: 100% !important; padding: 0 !important; }
+            .card, .premium-card { border: none !important; box-shadow: none !important; background: transparent !important; }
+            body { background: white !important; }
+            .container-fluid { padding: 0 !important; }
+            .table { width: 100% !important; border: 1px solid #ddd !important; }
+            .glass-header { padding: 0 !important; border: none !important; margin-bottom: 20px !important; }
+        }
+    </style>
     <script>
         $(document).ready(function() {
-            // Auto-submit form when filters change
-            $('#account_filter, #type_filter').on('change', function() {
-                $('#ledgerFilterForm').submit();
-            });
-
-            // Date range validation
-            $('#start_date, #end_date').on('change', function() {
-                const startDate = $('#start_date').val();
-                const endDate = $('#end_date').val();
-                
-                if (startDate && endDate && startDate > endDate) {
-                    alert('Start date cannot be after end date!');
-                    $(this).val('');
-                }
+            // Live Search Logic
+            let searchTimeout;
+            $('#tableSearch').on('input', function() {
+                clearTimeout(searchTimeout);
+                const value = $(this).val().toLowerCase();
+                searchTimeout = setTimeout(function() {
+                    $("#ledgerTable tbody tr").filter(function() {
+                        const text = $(this).text().toLowerCase();
+                        $(this).toggle(text.indexOf(value) > -1);
+                    });
+                }, 300);
             });
         });
 
-        function resetFilters() {
-            $('#account_filter').val('');
-            $('#type_filter').val('');
-            $('#start_date').val('{{ date('Y-m-01') }}');
-            $('#end_date').val('{{ date('Y-m-d') }}');
-            $('#ledgerFilterForm').submit();
-        }
-
-        function viewEntry(entryId) {
-            $.get(`/ledger/${entryId}`)
-                .done(function(data) {
-                    $('#entryDetails').html(`
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>Entry Information</h6>
-                                <table class="table table-sm">
-                                    <tr><td>Entry ID:</td><td>${data.entry.id}</td></tr>
-                                    <tr><td>Date:</td><td>${data.entry.journal.entry_date}</td></tr>
-                                    <tr><td>Voucher:</td><td>${data.entry.journal.voucher_no}</td></tr>
-                                    <tr><td>Account:</td><td>${data.entry.chart_of_account.name}</td></tr>
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>Amount Details</h6>
-                                <table class="table table-sm">
-                                    <tr><td>Debit:</td><td>৳${parseFloat(data.entry.debit).toFixed(2)}</td></tr>
-                                    <tr><td>Credit:</td><td>৳${parseFloat(data.entry.credit).toFixed(2)}</td></tr>
-                                    <tr><td>Memo:</td><td>${data.entry.memo || '-'}</td></tr>
-                                </table>
-                            </div>
-                        </div>
-                    `);
-                    $('#viewEntryModal').modal('show');
-                })
-                .fail(function() {
-                    alert('Failed to load entry details');
-                });
-        }
-
-        function viewJournal(journalId) {
-            window.open(`/journal/${journalId}`, '_blank');
-        }
-
         function exportLedger() {
-            const form = $('#ledgerFilterForm');
             const url = new URL(window.location);
-            const params = new URLSearchParams(form.serialize());
-            // Default to PDF export for the main button
-            params.append('export', 'pdf');
-            window.open(`${url.pathname}?${params.toString()}`, '_blank');
-        }
-
-        function printLedger() {
-            window.print();
-        }
-
-        function exportPDF() {
-            const form = $('#ledgerFilterForm');
-            const url = new URL(window.location);
-            const params = new URLSearchParams(form.serialize());
-            params.append('export', 'pdf');
-            window.open(`${url.pathname}?${params.toString()}`, '_blank');
+            url.searchParams.set('export', 'pdf');
+            window.open(url.toString(), '_blank');
         }
 
         function exportExcel() {
-            const form = $('#ledgerFilterForm');
             const url = new URL(window.location);
-            const params = new URLSearchParams(form.serialize());
-            params.append('export', 'excel');
-            window.open(`${url.pathname}?${params.toString()}`, '_blank');
+            url.searchParams.set('export', 'excel');
+            window.open(url.toString(), '_blank');
         }
     </script>
     @endpush

@@ -58,10 +58,12 @@ class PurchaseController extends Controller
         $genders = \App\Models\Gender::orderBy('name')->get();
         $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
         $branches = Branch::all();
+        $warehouses = \App\Models\Warehouse::all();
+        $bankAccounts = \DB::table('financial_accounts')->get();
 
         return view('erp.purchases.purchaseList', compact(
             'items', 'suppliers', 'categories', 'brands', 'seasons', 'genders', 'products', 
-            'branches', 'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+            'branches', 'warehouses', 'bankAccounts', 'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
         ));
     }
 
@@ -252,6 +254,18 @@ class PurchaseController extends Controller
         if ($request->filled('status')) {
             $query->whereHas('purchase', function($q) use ($request) {
                 $q->where('status', $request->status);
+            });
+        }
+
+        // Location Filters
+        if ($request->filled('branch_id')) {
+            $query->whereHas('purchase', function($q) use ($request) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $request->branch_id);
+            });
+        }
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('purchase', function($q) use ($request) {
+                $q->where('ship_location_type', 'warehouse')->where('location_id', $request->warehouse_id);
             });
         }
         

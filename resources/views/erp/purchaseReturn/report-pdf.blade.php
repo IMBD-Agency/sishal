@@ -66,6 +66,8 @@
             @foreach($items as $index => $item)
                 @php
                     $return = $item->purchaseReturn;
+                    if (!$return) continue;
+                    
                     $purchase = $return->purchase;
                     $product = $item->product;
                     $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
@@ -101,7 +103,7 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="text-center">{{ date('d-m-Y', strtotime($return->return_date)) }}</td>
                     <td class="fw-bold text-danger">RET-{{ str_pad($return->id, 4, '0', STR_PAD_LEFT) }}</td>
-                    <td class="text-center fw-bold">#{{ $purchase->bill->bill_number ?? $purchase->id }}</td>
+                    <td class="text-center fw-bold">#{{ $purchase ? ($purchase->bill->bill_number ?? $purchase->id) : 'N/A' }}</td>
                     <td class="text-center small">{{ $source }}</td>
                     <td>{{ $purchase->supplier->name ?? 'N/A' }}</td>
                     <td class="text-center">{{ $product->category->name ?? '-' }}</td>

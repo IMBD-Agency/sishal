@@ -7,54 +7,7 @@
 <div class="main-content bg-light min-vh-100" id="mainContent">
     @include('erp.components.header')
 
-    <style>
-        .report-filter-card {
-            border: none;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            border-radius: 0.75rem;
-        }
-        .table-header-custom {
-            background-color: #3d6b52 !important;
-            color: white !important;
-        }
-        .badge-adjustment {
-            font-size: 0.8rem;
-            padding: 0.4em 0.8em;
-        }
-        .form-label-small {
-            font-size: 0.75rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-            color: #4b5563;
-        }
-        .btn-export {
-            background-color: #6b7280;
-            color: white;
-            border: none;
-            padding: 0.4rem 1rem;
-            font-size: 0.85rem;
-        }
-        .btn-export:hover {
-            background-color: #4b5563;
-            color: white;
-        }
-        #loading-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-        }
-        .table-card-relative { position: relative; }
-        .select2-container--default .select2-selection--single {
-            height: 31px; border-radius: .25rem; border: 1px solid #dee2e6;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height:31px; font-size: 0.875rem;
-        }
-    </style>
+
 
     <div class="container-fluid px-4 py-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -65,7 +18,7 @@
         </div>
 
         <!-- Filters -->
-        <div class="card report-filter-card mb-4">
+        <div class="card premium-card report-filter-card mb-4">
             <div class="card-body p-4">
                 <form action="{{ route('stock.adjustment.list') }}" method="GET" id="filterForm">
                     <div class="d-flex gap-4 mb-3">
@@ -132,7 +85,7 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label-small">Season *</label>
-                            <select name="season_id" class="form-select form-select-sm filter-select">
+                                <select name="season_id" class="form-select form-select-sm filter-select select2-premium-42">
                                 <option value="">All Season</option>
                                 @foreach($seasons as $season)
                                     <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>

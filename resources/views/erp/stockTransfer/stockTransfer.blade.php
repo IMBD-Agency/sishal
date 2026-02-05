@@ -121,11 +121,16 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Invoice</label>
-                                <select name="invoice_id" class="form-select shadow-none">
-                                    <option value="">All Invoices</option>
-                                    @foreach($transfers as $transfer)
-                                        <option value="{{ $transfer->id }}" {{ request('invoice_id') == $transfer->id ? 'selected' : '' }}>#{{ $transfer->id }}</option>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Invoice No</label>
+                                <input type="text" name="invoice_number" class="form-control shadow-none" placeholder="Search invoice..." value="{{ request('invoice_number') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Source Location</label>
+                                <select name="from_branch_id" class="form-select shadow-none">
+                                    <option value="">All Sources</option>
+                                    @foreach ($branches as $branch)
+                                        <option value="branch_{{ $branch->id }}" {{ request('from_branch_id') == 'branch_'.$branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -142,37 +147,58 @@
                                 </select>
                             </div>
 
-                            <!-- Expanded Metrics -->
+                            <!-- Additional Product Filters -->
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style Number</label>
-                                <select name="style_number" class="form-select shadow-none text-muted">
+                                <select name="style_number" class="form-select shadow-none">
                                     <option value="">All Style Numbers</option>
+                                    @foreach($styleNumbers as $styleNumber)
+                                        <option value="{{ $styleNumber }}" {{ request('style_number') == $styleNumber ? 'selected' : '' }}>{{ $styleNumber }}</option>
+                                    @endforeach
                                 </select>
                             </div>
+                            
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
-                                <select name="category_id" class="form-select shadow-none text-muted">
+                                <select name="category_id" class="form-select shadow-none">
                                     <option value="">All Categories</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
+                            
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
-                                <select name="brand_id" class="form-select shadow-none text-muted">
+                                <select name="brand_id" class="form-select shadow-none">
                                     <option value="">All Brands</option>
+                                    @foreach($brands as $brand)
+                                        <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
+                            
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
-                                <select name="season_id" class="form-select shadow-none text-muted">
+                                <select name="season_id" class="form-select shadow-none">
                                     <option value="">All Seasons</option>
+                                    @foreach($seasons as $season)
+                                        <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
+                            
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
-                                <select name="gender_id" class="form-select shadow-none text-muted">
+                                <select name="gender_id" class="form-select shadow-none">
                                     <option value="">All Genders</option>
+                                    @foreach($genders as $gender)
+                                        <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
+
+
                         </div>
 
                         <div class="d-flex gap-2 mt-4 pt-2">
@@ -190,10 +216,10 @@
             <!-- Table Section Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex gap-2">
-                    <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-outline-dark btn-sm fw-bold shadow-sm">
+                    <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-outline-dark btn-sm fw-bold shadow-sm no-loader" target="_blank">
                         <i class="fas fa-file-excel me-1 text-success"></i> Excel
                     </a>
-                    <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-outline-dark btn-sm fw-bold shadow-sm">
+                    <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-outline-dark btn-sm fw-bold shadow-sm no-loader" target="_blank">
                         <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
                     </a>
                 </div>
@@ -211,98 +237,65 @@
                             <thead>
                                     <tr>
                                         <th class="ps-3">SL</th>
-                                        <th>Invoice</th>
+                                        <th>Invoice No</th>
                                         <th>Date</th>
                                         <th>Source</th>
                                         <th>Destination</th>
-                                        <th>Personnel</th>
-                                        <th>Category</th>
-                                        <th>Brand</th>
-                                        <th>Season</th>
-                                        <th>Gender</th>
-                                        <th>Product Name</th>
-                                        <th>Style No</th>
-                                        <th>Color</th>
-                                        <th>Size</th>
-                                        <th class="text-center">Qty</th>
-                                        <th class="text-end">Amount</th>
-                                        <th class="text-end">Paid</th>
-                                        <th class="text-end">Due</th>
-                                        <th class="text-center pe-3">ACTION</th>
+                                        <th>Requested By</th>
+                                        <th class="text-center">Total Items</th>
+                                        <th class="text-end">Total Amount</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-center pe-3">Action</th>
                                     </tr>
 </thead>
                             <tbody>
                                 @forelse ($transfers as $index => $transfer)
                                     <tr>
                                         <td class="ps-3 text-muted">{{ $transfers->firstItem() + $index }}</td>
-                                        <td class="fw-bold text-dark">ST-{{ str_pad($transfer->id, 6, '0', STR_PAD_LEFT) }}</td>
+                                        <td class="fw-bold text-dark">
+                                            @if($transfer->invoice_number)
+                                                {{ $transfer->invoice_number }}
+                                            @else
+                                                <span class="text-muted small">N/A (ID: {{ $transfer->id }})</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}</td>
-                                        <td>{{ $transfer->fromBranch->name ?? 'Main Store' }}</td>
-                                        <td>{{ $transfer->toBranch->name ?? 'Main Store' }}</td>
-                                        <td>{{ @$transfer->requestedPerson->name ?? '-' }}</td>
-                                        <td>{{ $transfer->product->category->name ?? '-' }}</td>
-                                        <td>{{ $transfer->product->brand->name ?? '-' }}</td>
-                                        <td>{{ $transfer->product->season->name ?? '-' }}</td>
-                                        <td>{{ $transfer->product->gender->name ?? '-' }}</td>
-                                        <td class="fw-bold">{{ $transfer->product->name ?? '-' }}</td>
-                                        <td class="text-pink fw-bold">{{ $transfer->product->style_number ?? '-' }}</td>
+                                        <td>{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}</td>
+                                        <td>{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}</td>
                                         <td>
-                                            @if($transfer->variation && $transfer->variation->combinations)
-                                                @php
-                                                    $color = null;
-                                                    foreach($transfer->variation->combinations as $combo) {
-                                                        $attrName = strtolower($combo->attribute->name ?? '');
-                                                        if(in_array($attrName, ['color', 'colour', 'colors'])) {
-                                                            $color = $combo->attributeValue->value ?? null;
-                                                            break;
-                                                        }
-                                                    }
-                                                @endphp
-                                                {{ $color ?? '-' }}
-                                            @else
-                                                -
-                                            @endif
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-xs bg-light rounded-circle text-primary me-2 d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:10px;">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                {{ $transfer->requestedPerson->name ?? 'System' }}
+                                            </div>
                                         </td>
-                                        <td>
-                                            @if($transfer->variation && $transfer->variation->combinations)
-                                                @php
-                                                    $size = null;
-                                                    foreach($transfer->variation->combinations as $combo) {
-                                                        $attrName = strtolower($combo->attribute->name ?? '');
-                                                        if(in_array($attrName, ['size', 'sizes'])) {
-                                                            $size = $combo->attributeValue->value ?? null;
-                                                            break;
-                                                        }
-                                                    }
-                                                @endphp
-                                                {{ $size ?? '-' }}
-                                            @else
-                                                -
-                                            @endif
+                                        <td class="text-center">
+                                            <span class="badge bg-light text-dark border">{{ $transfer->item_count }} Items</span>
                                         </td>
-                                        <td class="text-center fw-bold">{{ number_format($transfer->quantity, 2) }}</td>
-                                        <td class="text-end fw-bold">{{ number_format($transfer->total_price, 2) }}</td>
-                                        <td class="text-end text-success fw-bold">{{ number_format($transfer->paid_amount, 2) }}</td>
-                                        <td class="text-end text-danger fw-bold">{{ number_format($transfer->due_amount, 2) }}</td>
-                                        <td class="pe-3">
+                                        <td class="text-end fw-bold">{{ number_format($transfer->grouped_total_price ?? $transfer->total_amount ?? 0, 2) }}৳</td>
+                                        <td class="text-center">
+                                            @php
+                                                $statusClass = match($transfer->status) {
+                                                    'approved' => 'success',
+                                                    'rejected' => 'danger',
+                                                    'shipped' => 'info',
+                                                    'delivered' => 'primary',
+                                                    default => 'warning'
+                                                };
+                                            @endphp
+                                            <span class="badge bg-{{ $statusClass }}">{{ ucfirst($transfer->status) }}</span>
+                                        </td>
+                                        <td class="pe-3 text-center">
                                             <div class="d-flex gap-2 justify-content-center">
-                                                <a href="{{ route('stocktransfer.show',$transfer->id) }}" class="action-circle" title="View Detail">
+                                                <a href="{{ route('stocktransfer.show', $transfer->id) }}" class="action-circle" title="View Details">
                                                     <i class="fas fa-eye text-primary"></i>
                                                 </a>
-                                                <button type="button" class="action-circle status-badge" 
-                                                        data-transfer-id="{{ $transfer->id }}" 
-                                                        data-current-status="{{ $transfer->status }}" 
-                                                        title="Change Status">
-                                                    <i class="fas fa-cog text-secondary"></i>
-                                                </button>
-                                                @if(in_array($transfer->status, ['pending', 'rejected']))
-                                                    <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline">
-                                                        @csrf @method('DELETE')
-                                                        <button type="submit" class="action-circle" onclick="return confirm('Are you sure you want to delete this transfer?')" title="Delete">
-                                                            <i class="fas fa-trash text-danger"></i>
-                                                        </button>
-                                                    </form>
-                                                @endif
+                                                <!-- Only allow status update if we handle invoice-level status. For now, button triggers for 'id' which is one item. 
+                                                     Ideally, we should update status for the whole invoice. 
+                                                     Let's disable direct status update from list for now to encourage detail view? 
+                                                     Or assume updating one updates all? (Requires backend change). 
+                                                     Let's keep it simple: View Detail to manage. -->
                                             </div>
                                         </td>
                                     </tr>

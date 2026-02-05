@@ -77,27 +77,39 @@
                 <!-- Statistics and Recent Purchases -->
                 <div class="col-lg-8">
                     <div class="row g-4 mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="premium-card bg-primary text-white border-0 shadow-lg" style="background: linear-gradient(45deg, #1e293b, #334155) !important;">
-                                <div class="card-body p-4 p-xl-5">
+                                <div class="card-body p-4">
                                     <div class="d-flex align-items-center justify-content-between mb-3 text-white">
                                         <h6 class="fw-bold mb-0 text-uppercase small opacity-75">Procurement Orders</h6>
-                                        <i class="fas fa-shopping-bag fa-2x opacity-25"></i>
+                                        <i class="fas fa-shopping-bag fa-xl opacity-25"></i>
                                     </div>
-                                    <h2 class="fw-bold mb-0 text-white">{{ $supplier->purchases->count() }}</h2>
+                                    <h3 class="fw-bold mb-0 text-white">{{ $supplier->purchases->count() }}</h3>
                                     <p class="small mb-0 mt-2 opacity-50">Total transaction count</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="premium-card bg-success text-white border-0 shadow-lg" style="background: linear-gradient(45deg, #0f172a, #1e293b) !important;">
-                                <div class="card-body p-4 p-xl-5">
+                                <div class="card-body p-4">
                                     <div class="d-flex align-items-center justify-content-between mb-3 text-white">
                                         <h6 class="fw-bold mb-0 text-uppercase small opacity-75">Total Volume (৳)</h6>
-                                        <i class="fas fa-chart-line fa-2x opacity-25"></i>
+                                        <i class="fas fa-chart-line fa-xl opacity-25"></i>
                                     </div>
-                                    <h2 class="fw-bold mb-0 text-white">{{ number_format($supplier->bills->sum('total_amount'), 2) }}৳</h2>
+                                    <h3 class="fw-bold mb-0 text-white">{{ number_format($supplier->bills->sum('total_amount'), 2) }}</h3>
                                     <p class="small mb-0 mt-2 opacity-50">Cumulative spend history</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="premium-card bg-danger text-white border-0 shadow-lg" style="background: linear-gradient(45deg, #7f1d1d, #991b1b) !important;">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center justify-content-between mb-3 text-white">
+                                        <h6 class="fw-bold mb-0 text-uppercase small opacity-75">Current Payable (owe)</h6>
+                                        <i class="fas fa-money-bill-wave fa-xl opacity-25"></i>
+                                    </div>
+                                    <h3 class="fw-bold mb-0 text-white">{{ number_format($supplier->balance, 2) }}</h3>
+                                    <p class="small mb-0 mt-2 opacity-50">Immediate liability balance</p>
                                 </div>
                             </div>
                         </div>

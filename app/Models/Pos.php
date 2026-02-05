@@ -28,6 +28,8 @@ class Pos extends Model
         'account_number',
         'remarks',
         'courier_id',
+        'exchange_amount',
+        'original_pos_id',
     ];
 
     // Relationships
@@ -59,5 +61,10 @@ class Pos extends Model
     public function branch()
     {
         return $this->belongsTo(\App\Models\Branch::class,'branch_id');
+    }
+
+    public function originalPos()
+    {
+        return $this->belongsTo(\App\Models\Pos::class, 'original_pos_id');
     }
 }

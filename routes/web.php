@@ -10,6 +10,9 @@ use App\Http\Controllers\Erp\ProductVariationController;
 use App\Http\Controllers\Erp\VariationAttributeController;
 use App\Http\Controllers\Erp\ProductVariationStockController;
 use App\Http\Controllers\Erp\BarcodeController;
+use App\Http\Controllers\Erp\ChartOfAccountController;
+use App\Http\Controllers\Erp\JournalController;
+use App\Http\Controllers\Erp\DoubleEntryReportController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -157,6 +160,13 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('warehouse-product-stocks', \App\Http\Controllers\Erp\WarehouseProductStockController::class);
     Route::resource('branch-product-stocks', \App\Http\Controllers\Erp\BranchProductStockController::class);
     Route::resource('employee-product-stocks', \App\Http\Controllers\Erp\EmployeeProductStockController::class);
+    
+    // Salary Payment Routes
+    Route::get('/salary', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'index'])->name('salary.index');
+    Route::get('/salary/create', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'create'])->name('salary.create');
+    Route::post('/salary/store', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'store'])->name('salary.store');
+    Route::get('/salary/details', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'getSalaryDetails'])->name('salary.details');
+
     Route::get('/employees/fetch', [\App\Http\Controllers\Erp\EmployeeController::class, 'fetchEmployees']);
     Route::get('/branches/{branch}/non-branch-employees', [\App\Http\Controllers\Erp\BranchController::class, 'getNonBranchEmployee'])->name('branches.non_branch_employees');
     Route::post('/branches/{branch}/add-employee/{employee}', [\App\Http\Controllers\Erp\BranchController::class, 'addEmployee'])->name('branches.add_employee');
@@ -182,9 +192,18 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
 
     // Advanced Reporting
+    Route::resource('money-receipt', \App\Http\Controllers\Erp\MoneyReceiptController::class);
+    Route::get('/money-receipt/get-due-invoices/{customerId}', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'getDueInvoices'])->name('money-receipt.get-due-invoices');
+
     Route::get('/reports', [\App\Http\Controllers\Erp\ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/purchases', [\App\Http\Controllers\Erp\ReportController::class, 'purchaseReport'])->name('reports.purchase');
     Route::get('/reports/sales', [\App\Http\Controllers\Erp\ReportController::class, 'saleReport'])->name('reports.sale');
+    Route::get('/reports/profit-loss', [\App\Http\Controllers\Erp\ReportController::class, 'profitLossReport'])->name('reports.profit-loss');
+    Route::get('/reports/customer', [\App\Http\Controllers\Erp\ReportController::class, 'customerReport'])->name('reports.customer');
+    Route::get('/reports/customer/{id}/ledger', [\App\Http\Controllers\Erp\ReportController::class, 'customerLedger'])->name('reports.customer.ledger');
+    Route::get('/reports/supplier', [\App\Http\Controllers\Erp\ReportController::class, 'supplierReport'])->name('reports.supplier-summary');
+    Route::get('/reports/supplier/{id}/ledger', [\App\Http\Controllers\Erp\ReportController::class, 'supplierLedger'])->name('reports.supplier.ledger');
+    Route::get('/reports/stock', [\App\Http\Controllers\Erp\ReportController::class, 'stockReport'])->name('reports.stock');
 
 
     // Categories
@@ -213,6 +232,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/products/gallery', [\App\Http\Controllers\Erp\ProductController::class, 'addGalleryImage'])->name('product.gallery.add');
     Route::get('/products', [\App\Http\Controllers\Erp\ProductController::class, 'index'])->name('product.list');
     Route::get('/products/export/excel', [\App\Http\Controllers\Erp\ProductController::class, 'exportExcel'])->name('product.export.excel');
+    Route::get('/products/export/csv', [\App\Http\Controllers\Erp\ProductController::class, 'exportCsv'])->name('product.export.csv');
     Route::get('/products/export/pdf', [\App\Http\Controllers\Erp\ProductController::class, 'exportPdf'])->name('product.export.pdf');
     Route::get('/products/new', [\App\Http\Controllers\Erp\ProductController::class, 'create'])->name('product.create');
     Route::post('/products', [\App\Http\Controllers\Erp\ProductController::class, 'store'])->name('product.store');
@@ -224,12 +244,14 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/products/{id}/sale-price', [\App\Http\Controllers\Erp\ProductController::class, 'getSalePrice']);
     Route::get('/products/{productId}/variations-list', [\App\Http\Controllers\Erp\ProductController::class, 'getProductVariations'])->name('products.variations.list');
 
-    // Barcode Generation Routes
-    Route::get('/barcodes/product/{productId}', [BarcodeController::class, 'generateProductBarcode'])->name('barcodes.product');
-    Route::get('/barcodes/variation/{productId}/{variationId}', [BarcodeController::class, 'generateVariationBarcode'])->name('barcodes.variation');
-    Route::post('/barcodes/bulk', [BarcodeController::class, 'generateBulkBarcodes'])->name('barcodes.bulk');
-    Route::get('/barcodes/print/{productId}/{variationId?}', [BarcodeController::class, 'printBarcodeLabel'])->name('barcodes.print');
-    Route::get('/barcodes/download/{productId}/{variationId?}', [BarcodeController::class, 'downloadBarcodePDF'])->name('barcodes.download');
+    // Barcode Management
+    Route::get('/barcodes', [\App\Http\Controllers\Erp\BarcodeController::class, 'index'])->name('barcodes.index');
+    Route::get('/barcodes/search', [\App\Http\Controllers\Erp\BarcodeController::class, 'searchByStyle'])->name('barcodes.search');
+    Route::get('/barcodes/product/{productId}', [\App\Http\Controllers\Erp\BarcodeController::class, 'generateProductBarcode'])->name('barcodes.product');
+    Route::get('/barcodes/variation/{productId}/{variationId}', [\App\Http\Controllers\Erp\BarcodeController::class, 'generateVariationBarcode'])->name('barcodes.variation');
+    Route::post('/barcodes/bulk', [\App\Http\Controllers\Erp\BarcodeController::class, 'generateBulkBarcodes'])->name('barcodes.bulk');
+    Route::get('/barcodes/print/{productId}/{variationId?}', [\App\Http\Controllers\Erp\BarcodeController::class, 'printBarcodeLabel'])->name('barcodes.print');
+    Route::get('/barcodes/download/{productId}/{variationId?}', [\App\Http\Controllers\Erp\BarcodeController::class, 'downloadBarcodePDF'])->name('barcodes.download');
 
     // Product Variations
     Route::prefix('products/{productId}/variations')->group(function () {
@@ -289,8 +311,6 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
 
 
-
-
     // Sale Return
     Route::get('/sale-return/export-excel', [\App\Http\Controllers\Erp\SaleReturnController::class, 'exportExcel'])->name('saleReturn.export.excel');
     Route::get('/sale-return/export-pdf', [\App\Http\Controllers\Erp\SaleReturnController::class, 'exportPdf'])->name('saleReturn.export.pdf');
@@ -303,6 +323,12 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::put('/sale-return/{id}', [\App\Http\Controllers\Erp\SaleReturnController::class, 'update'])->name('saleReturn.update');
     Route::delete('/sale-return/{id}', [\App\Http\Controllers\Erp\SaleReturnController::class, 'destroy'])->name('saleReturn.delete');
     Route::post('/sale-return/{id}/update-status', [\App\Http\Controllers\Erp\SaleReturnController::class, 'updateReturnStatus'])->name('saleReturn.updateStatus');
+
+    // Exchange
+    Route::get('/exchange', [\App\Http\Controllers\Erp\ExchangeController::class, 'index'])->name('exchange.list');
+    Route::get('/exchange/create', [\App\Http\Controllers\Erp\ExchangeController::class, 'create'])->name('exchange.create');
+    Route::get('/exchange/search-invoice', [\App\Http\Controllers\Erp\ExchangeController::class, 'searchInvoice'])->name('exchange.search.invoice');
+    Route::post('/exchange/store', [\App\Http\Controllers\Erp\ExchangeController::class, 'store'])->name('exchange.store');
 
     // Purchase
     Route::get('/purchases', [\App\Http\Controllers\Erp\PurchaseController::class, 'index'])->name('purchase.list');
@@ -507,6 +533,53 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     
     // Shipping Methods
     Route::resource('shipping-methods', \App\Http\Controllers\Erp\ShippingMethodController::class);
+
+    // Journal Entry Actions (Line Items)
+    Route::get('/journal-entry/{id}', [JournalController::class, 'showEntry'])->name('journal.entry.show');
+    Route::put('/journal-entry/{id}', [JournalController::class, 'updateEntry'])->name('journal.entry.update');
+    Route::delete('/journal-entry/{id}', [JournalController::class, 'destroyEntry'])->name('journal.entry.destroy');
+
+    // Double Entry Accounting
+    Route::prefix('double-entry')->group(function () {
+        // Chart of Accounts
+        Route::get('/chart-of-accounts', [ChartOfAccountController::class, 'index'])->name('chart-of-account.index');
+        Route::post('/chart-of-accounts', [ChartOfAccountController::class, 'store'])->name('chart-of-account.store');
+        Route::put('/chart-of-accounts/{id}', [ChartOfAccountController::class, 'update'])->name('chart-of-account.update');
+        Route::delete('/chart-of-accounts/{id}', [ChartOfAccountController::class, 'destroy'])->name('chart-of-account.destroy');
+        
+        Route::post('/chart-of-account-parents', [ChartOfAccountController::class, 'storeParent'])->name('chart-of-account.parent.store');
+        Route::put('/chart-of-account-parents/{id}', [ChartOfAccountController::class, 'updateParent'])->name('chart-of-account.parent.update');
+        Route::delete('/chart-of-account-parents/{id}', [ChartOfAccountController::class, 'destroyParent'])->name('chart-of-account.parent.destroy');
+
+        Route::post('/account-types', [ChartOfAccountController::class, 'storeType'])->name('account-type.store');
+        Route::get('/get-sub-types/{id}', [ChartOfAccountController::class, 'getSubTypes']);
+        Route::get('/get-next-code/{typeId}', [ChartOfAccountController::class, 'getNextCode']);
+
+        // Journals (Vouchers)
+        Route::get('/journals', [JournalController::class, 'index'])->name('journal.list');
+        Route::post('/journals', [JournalController::class, 'store'])->name('journal.store');
+        Route::get('/journals/{id}', [JournalController::class, 'show'])->name('journal.show');
+        Route::put('/journals/{id}', [JournalController::class, 'update'])->name('journal.update');
+        Route::delete('/journals/{id}', [JournalController::class, 'destroy'])->name('journal.destroy');
+        Route::post('/journals/{id}/entries', [JournalController::class, 'storeEntry'])->name('journal.entry.store');
+
+        // New Vouchers (Simplified UI)
+        Route::get('/vouchers', [\App\Http\Controllers\Erp\VoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/create', [\App\Http\Controllers\Erp\VoucherController::class, 'create'])->name('vouchers.create');
+        Route::post('/vouchers', [\App\Http\Controllers\Erp\VoucherController::class, 'store'])->name('vouchers.store');
+        Route::delete('/vouchers/{id}', [\App\Http\Controllers\Erp\VoucherController::class, 'destroy'])->name('vouchers.destroy');
+        
+        // Accounting Reports
+        Route::get('/ledger', [DoubleEntryReportController::class, 'ledgerIndex'])->name('ledger.index');
+        Route::get('/ledger/{id}', [DoubleEntryReportController::class, 'ledgerAccount'])->name('ledger.account');
+        Route::get('/trial-balance', [DoubleEntryReportController::class, 'trialBalance'])->name('trialBalance.index');
+        Route::get('/balance-sheet', [DoubleEntryReportController::class, 'balanceSheet'])->name('balanceSheet.index');
+        Route::get('/profit-loss', [DoubleEntryReportController::class, 'profitLoss'])->name('profitLoss.index');
+    });
+
+    // Alias routes if views expect them at root ERP
+    Route::get('/erp/chart-of-account', [ChartOfAccountController::class, 'index']);
+    Route::get('/erp/journal', [JournalController::class, 'index']);
 });
 Route::get('/wishlist/count', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'wishlistCount'])->name('wihslist.count');
 Route::post('/add-remove-wishlist/{productId}', [\App\Http\Controllers\Ecommerce\WishlistController::class, 'addToWishlist'])->name('wishlist.add');

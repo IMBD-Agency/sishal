@@ -7,69 +7,7 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            :root {
-                --primary-blue: #0ea5e9;
-                --primary-hover: #0284c7;
-                --danger-red: #ef4444;
-                --text-main: #0f172a;
-                --border-color: #e2e8f0;
-            }
 
-            .adjustment-card {
-                background: #fff;
-                border: 0;
-                box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-                border-radius: 12px;
-            }
-
-            .page-title {
-                font-size: 1.5rem;
-                font-weight: 700;
-                color: var(--text-main);
-                margin-bottom: 0.5rem;
-            }
-
-            .form-label {
-                font-weight: 600;
-                font-size: 0.875rem;
-                color: #475569;
-                margin-bottom: 0.5rem;
-            }
-
-            .table thead th {
-                background: #f8fafc;
-                font-size: 0.75rem;
-                font-weight: 700;
-                text-transform: uppercase;
-                color: #64748b;
-                border-bottom: 1px solid var(--border-color);
-                padding: 1rem 0.75rem;
-            }
-
-            .table td {
-                padding: 1rem 0.75rem;
-                vertical-align: middle;
-            }
-
-            .select2-container--default .select2-selection--single {
-                height: 42px;
-                border-color: var(--border-color);
-                border-radius: 8px;
-            }
-
-            .select2-container--default .select2-selection--single .select2-selection__rendered {
-                line-height: 40px;
-                padding-left: 12px;
-            }
-
-            .input-qty {
-                width: 100px;
-                border-radius: 6px;
-                text-align: center;
-                font-weight: 600;
-            }
-        </style>
 
         <div class="container-fluid px-4 py-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -96,7 +34,7 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Branch (Adjustment Location) *</label>
-                                <select name="branch_id" id="branch_id" class="form-select select2-simple" required>
+                                <select name="branch_id" id="branch_id" class="form-select select2-simple select2-premium-42" required>
                                     <option value="">Select Branch</option>
                                     @foreach($branches as $branch)
                                         <option value="{{ $branch->id }}">{{ $branch->name }}</option>
@@ -104,7 +42,7 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Product (Search by Name or Style Number) *</label>
+                                <label class="form-label">Product (Search by Name, Style or SKU) *</label>
                                 <select id="product_search" class="form-select">
                                     <option value="">Select One</option>
                                 </select>
@@ -112,7 +50,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="table table-hover border">
+                            <table class="table table-hover border premium-form-table">
                                 <thead>
                                     <tr>
                                         <th>Image</th>
@@ -146,10 +84,10 @@
                         </div>
 
                         <div class="d-flex justify-content-center gap-3 mt-5">
-                            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold">
+                            <button type="submit" class="btn btn-teal px-5 py-2 fw-bold">
                                 <i class="fas fa-save me-2"></i>Submit
                             </button>
-                            <a href="{{ route('productstock.list') }}" class="btn btn-danger px-5 py-2 fw-bold">
+                            <a href="{{ route('productstock.list') }}" class="btn btn-red px-5 py-2 fw-bold">
                                 <i class="fas fa-arrow-left me-2"></i>Back
                             </a>
                         </div>
@@ -168,7 +106,7 @@
             $('.select2-simple').select2();
 
             $('#product_search').select2({
-                placeholder: 'Search by Product Name or Style Number...',
+                placeholder: 'Search by Name, Style or SKU...',
                 ajax: {
                     url: '{{ route('products.search.style') }}',
                     dataType: 'json',

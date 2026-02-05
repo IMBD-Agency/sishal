@@ -26,7 +26,7 @@ class StockController extends Controller
         $seasons = \App\Models\Season::where('status', 'active')->orderBy('name')->get();
         $genders = \App\Models\Gender::all();
 
-        $query = Product::select('id', 'name', 'sku', 'style_number', 'price', 'category_id', 'brand_id', 'season_id', 'gender_id', 'image', 'has_variations')
+        $query = Product::select('id', 'name', 'sku', 'style_number', 'price', 'cost', 'category_id', 'brand_id', 'season_id', 'gender_id', 'image', 'has_variations')
             ->with([
                 'category:id,name', 
                 'brand:id,name',
@@ -90,6 +90,17 @@ class StockController extends Controller
             });
         }
 
+        // Calculate Totals for Summary (before pagination)
+        $summaryQuery = clone $query;
+        $summaryData = $summaryQuery->get();
+        $totalStockQty = $summaryData->sum(function($p) {
+            return ($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0) + ($p->var_stock ?? 0);
+        });
+        $totalStockValue = $summaryData->sum(function($p) {
+            $qty = ($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0) + ($p->var_stock ?? 0);
+            return $qty * $p->cost;
+        });
+
         $productStocks = $query->latest()->paginate(20)->appends($request->except('page'));
 
         // Load breakdown relations ONLY for the the 20 items on the current page
@@ -101,7 +112,8 @@ class StockController extends Controller
         ]);
         
         return view('erp.productStock.productStockList', compact(
-            'productStocks', 'branches', 'warehouses', 'categories', 'brands', 'seasons', 'genders'
+            'productStocks', 'branches', 'warehouses', 'categories', 'brands', 'seasons', 'genders',
+            'totalStockQty', 'totalStockValue'
         ));
     }
 
@@ -112,7 +124,7 @@ class StockController extends Controller
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $headers = ['Name', 'Style Number', 'Category', 'Brand', 'Total Stock'];
+        $headers = ['Name', 'Style Number', 'Category', 'Brand', 'Season', 'Gender', 'Purchase Price', 'MRP', 'Total Stock', 'Stock Value'];
         foreach ($headers as $key => $header) {
             $sheet->setCellValue(chr(65 + $key) . '1', $header);
         }
@@ -130,7 +142,12 @@ class StockController extends Controller
             $sheet->setCellValue('B' . $row, $product->style_number ?? $product->sku);
             $sheet->setCellValue('C' . $row, $product->category->name ?? '-');
             $sheet->setCellValue('D' . $row, $product->brand->name ?? '-');
-            $sheet->setCellValue('E' . $row, $total);
+            $sheet->setCellValue('E' . $row, $product->season->name ?? 'ALL');
+            $sheet->setCellValue('F' . $row, $product->gender->name ?? 'ALL');
+            $sheet->setCellValue('G' . $row, number_format($product->cost, 2));
+            $sheet->setCellValue('H' . $row, number_format($product->price, 2));
+            $sheet->setCellValue('I' . $row, $total);
+            $sheet->setCellValue('J' . $row, number_format($total * $product->cost, 2));
             $row++;
         }
         

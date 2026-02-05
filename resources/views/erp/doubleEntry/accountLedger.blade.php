@@ -3,6 +3,20 @@
 @section('title', 'Account Ledger - ' . $account->name)
 
 @section('body')
+    <style>
+        @media print {
+            .main-content { margin-left: 0 !important; padding: 0 !important; }
+            .sidebar, .navbar, .btn, .breadcrumb, .modal, .card-header .btn-group, .actions-column, th:last-child, td:last-child { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .container-fluid { padding: 0 !important; }
+            .table-responsive { overflow: visible !important; }
+            .table-dark { background-color: #fff !important; color: #000 !important; }
+            .table-dark th { color: #000 !important; border-bottom: 2px solid #000 !important; }
+            body { background: white !important; }
+        }
+        .italic { font-style: italic; }
+        .border-top-2 { border-top: 2px solid #dee2e6 !important; }
+    </style>
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
@@ -123,83 +137,106 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover" id="accountLedgerTable">
-                            <thead class="table-light">
+                        <table class="table table-hover align-middle" id="accountLedgerTable">
+                            <thead class="table-dark">
                                 <tr>
                                     <th>Date</th>
                                     <th>Voucher No</th>
-                                    <th>Description</th>
-                                    <th>Memo</th>
-                                    <th>Debit</th>
-                                    <th>Credit</th>
-                                    <th>Balance</th>
-                                    <th>Actions</th>
+                                    <th>Description / Particulars</th>
+                                    <th class="text-end">Debit</th>
+                                    <th class="text-end">Credit</th>
+                                    <th class="text-end">Balance</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
+                                <!-- Opening Balance Row -->
+                                <tr class="bg-light fw-bold">
+                                    <td>{{ $startDate->format('M d, Y') }}</td>
+                                    <td colspan="2" class="text-muted italic">Opening Balance (Brought Forward)</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">
+                                        @php $openingAbs = abs($openingBalance); @endphp
+                                        <span>৳{{ number_format($openingAbs, 2) }}</span>
+                                        <small class="badge {{ $openingBalance >= 0 ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $openingBalance >= 0 ? 'Dr' : 'Cr' }}
+                                        </small>
+                                    </td>
+                                    <td></td>
+                                </tr>
+
                                 @forelse($entries as $entry)
                                     <tr>
                                         <td>{{ $entry->journal->entry_date->format('M d, Y') }}</td>
                                         <td>
-                                            <span class="badge bg-info">{{ $entry->journal->voucher_no }}</span>
+                                            <span class="badge bg-secondary">{{ $entry->journal->voucher_no }}</span>
                                         </td>
                                         <td>
-                                            <div>{{ $entry->journal->description }}</div>
-                                            @if($entry->financialAccount)
-                                                <small class="text-muted">{{ $entry->financialAccount->provider_name }}</small>
-                                            @endif
-                                        </td>
-                                        <td>
+                                            <div class="fw-bold">{{ $entry->journal->description }}</div>
                                             @if($entry->memo)
-                                                <span class="text-muted">{{ Str::limit($entry->memo, 50) }}</span>
-                                            @else
-                                                <span class="text-muted">-</span>
+                                                <small class="text-muted">Memo: {{ $entry->memo }}</small>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="text-end">
                                             @if($entry->debit > 0)
                                                 <span class="text-danger fw-bold">৳{{ number_format($entry->debit, 2) }}</span>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="text-end">
                                             @if($entry->credit > 0)
                                                 <span class="text-success fw-bold">৳{{ number_format($entry->credit, 2) }}</span>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="text-end">
                                             @php
                                                 $balance = $entry->running_balance;
-                                                $balanceClass = $balance >= 0 ? 'text-success' : 'text-danger';
+                                                $absBalance = abs($balance);
+                                                $balanceSide = $balance >= 0 ? 'Dr' : 'Cr';
+                                                $balanceClass = $balance >= 0 ? 'text-primary' : 'text-danger';
                                             @endphp
-                                            <span class="fw-bold {{ $balanceClass }}">৳{{ number_format($balance, 2) }}</span>
+                                            <span class="fw-bold {{ $balanceClass }}">৳{{ number_format($absBalance, 2) }}</span>
+                                            <small class="ms-1 text-muted fw-normal">{{ $balanceSide }}</small>
                                         </td>
-                                        <td>
+                                        <td class="text-center">
                                             <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary" title="View Details" 
-                                                        onclick="viewEntry({{ $entry->id }})">
+                                                <a href="{{ route('journal.show', $entry->journal_id) }}" class="btn btn-outline-primary" title="View Voucher">
                                                     <i class="fas fa-eye"></i>
-                                                </button>
-                                                <button class="btn btn-outline-info" title="View Journal" 
-                                                        onclick="viewJournal({{ $entry->journal_id }})">
-                                                    <i class="fas fa-book"></i>
-                                                </button>
+                                                </a>
                                             </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted py-4">
-                                            <i class="fas fa-inbox fa-2x mb-3"></i>
-                                            <p>No ledger entries found for this account</p>
-                                            <p class="small">Try adjusting your date range</p>
+                                        <td colspan="7" class="text-center text-muted py-5">
+                                            <i class="fas fa-search fa-3x mb-3 text-light"></i>
+                                            <p>No ledger entries found for this period.</p>
                                         </td>
                                     </tr>
                                 @endforelse
                             </tbody>
+                            <tfoot class="bg-light fw-bold border-top-2">
+                                <tr>
+                                    <td colspan="3" class="text-end">Total for Period:</td>
+                                    <td class="text-end text-danger">৳{{ number_format($totalDebits, 2) }}</td>
+                                    <td class="text-end text-success">৳{{ number_format($totalCredits, 2) }}</td>
+                                    <td class="text-end">
+                                        @php 
+                                            $closingBalance = $entries->isEmpty() ? $openingBalance : $entries->last()->running_balance; 
+                                            $closingAbs = abs($closingBalance);
+                                        @endphp
+                                        <span>৳{{ number_format($closingAbs, 2) }}</span>
+                                        <span class="badge {{ $closingBalance >= 0 ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $closingBalance >= 0 ? 'Dr' : 'Cr' }}
+                                        </span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>

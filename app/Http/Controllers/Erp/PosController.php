@@ -36,6 +36,13 @@ class PosController extends Controller
     {
         $categories = ProductServiceCategory::all();
         $branches = Branch::all();
+        
+        // Branch Isolation: Check if user is an employee with a branch
+        $user = auth()->user();
+        if ($user && $user->employee && $user->employee->branch_id) {
+            $branches = $branches->where('id', $user->employee->branch_id);
+        }
+
         $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
         $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
         $customers = Customer::orderBy('name')->get();
@@ -317,7 +324,8 @@ class PosController extends Controller
         $items = $query->latest()->paginate(20)->appends($request->all());
         
         // Dropdown Data
-        $branches = Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
         $customers = Customer::orderBy('name')->get();
         $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
         $brands = \App\Models\Brand::orderBy('name')->get();
@@ -348,22 +356,35 @@ class PosController extends Controller
             });
         }
 
-        // Search by sale number / invoice
+        // Search by sale number / invoice / customer / product / salesperson
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->whereHas('pos', function($q) use ($search) {
-                $q->where('sale_number', 'LIKE', "%$search%")
-                  ->orWhereHas('customer', function($cq) use ($search) {
-                      $cq->where('name', 'LIKE', "%$search%")
-                        ->orWhere('phone', 'LIKE', "%$search%");
-                  });
+            $query->where(function($q) use ($search) {
+                $q->whereHas('pos', function($pq) use ($search) {
+                    $pq->where('sale_number', 'LIKE', "%$search%")
+                      ->orWhereHas('customer', function($cq) use ($search) {
+                          $cq->where('name', 'LIKE', "%$search%")
+                            ->orWhere('phone', 'LIKE', "%$search%");
+                      })
+                      ->orWhereHas('soldBy', function($sq) use ($search) {
+                          $sq->where('first_name', 'LIKE', "%$search%")
+                            ->orWhere('last_name', 'LIKE', "%$search%");
+                      });
+                })
+                ->orWhereHas('product', function($prq) use ($search) {
+                    $prq->where('name', 'LIKE', "%$search%")
+                        ->orWhere('style_number', 'LIKE', "%$search%");
+                });
             });
         }
 
         // Filters from dropdowns
-        if ($request->filled('branch_id')) {
-            $query->whereHas('pos', function($q) use ($request) {
-                $q->where('branch_id', $request->branch_id);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
+
+        if ($selectedBranchId) {
+            $query->whereHas('pos', function($q) use ($selectedBranchId) {
+                $q->where('branch_id', $selectedBranchId);
             });
         }
         if ($request->filled('customer_id')) {
@@ -1450,6 +1471,7 @@ class PosController extends Controller
             // Payment Recording
             if ($request->paid_amount > 0) {
                 Payment::create([
+                    'customer_id' => $pos->customer_id,
                     'payment_for' => 'pos',
                     'pos_id' => $pos->id,
                     'invoice_id' => $invoice->id,

@@ -93,6 +93,50 @@ class ApiController extends Controller
                 $products = $this->salesAnalytics->getTopSellingProducts($limit, $days);
             }
             
+            // Filter products based on ecommerce fulfillment settings
+            $generalSetting = \App\Models\GeneralSetting::first();
+            if ($generalSetting && $generalSetting->ecommerce_source_type && $generalSetting->ecommerce_source_id) {
+                $sourceType = $generalSetting->ecommerce_source_type;
+                $sourceId = $generalSetting->ecommerce_source_id;
+                
+                $products = $products->filter(function($product) use ($sourceType, $sourceId) {
+                    // Load relationships if not already loaded
+                    if (!$product->relationLoaded('branchStock')) {
+                        $product->load('branchStock', 'warehouseStock', 'variations.stocks');
+                    }
+                    
+                    if ($sourceType === 'branch') {
+                        // Check if product has stock in this branch
+                        if ($product->has_variations) {
+                            $hasStock = $product->variations->where('status', 'active')
+                                ->flatMap->stocks
+                                ->where('branch_id', $sourceId)
+                                ->sum('quantity') > 0;
+                        } else {
+                            $hasStock = $product->branchStock
+                                ->where('branch_id', $sourceId)
+                                ->sum('quantity') > 0;
+                        }
+                        return $hasStock;
+                    } elseif ($sourceType === 'warehouse') {
+                        // Check if product has stock in this warehouse
+                        if ($product->has_variations) {
+                            $hasStock = $product->variations->where('status', 'active')
+                                ->flatMap->stocks
+                                ->where('warehouse_id', $sourceId)
+                                ->sum('quantity') > 0;
+                        } else {
+                            $hasStock = $product->warehouseStock
+                                ->where('warehouse_id', $sourceId)
+                                ->sum('quantity') > 0;
+                        }
+                        return $hasStock;
+                    }
+                    
+                    return true; // If no source configured, show all
+                })->values(); // Re-index the collection
+            }
+            
             // Check if products collection is empty or null
             if (!$products || $products->isEmpty()) {
                 Log::warning('No top selling products found', [
@@ -229,8 +273,14 @@ class ApiController extends Controller
             $limit = min($request->get('limit', 20), 50); // Cap at 50 to prevent memory issues
             $useCache = $request->get('cache', true);
             
-            $cacheKey = "new_arrivals_products_{$limit}";
-            $fullResponseCacheKey = "new_arrivals_full_response_{$limit}";
+            // Get ecommerce settings for cache key and filtering
+            $generalSetting = \App\Models\GeneralSetting::first();
+            $ecommerceSourceType = $generalSetting->ecommerce_source_type ?? 'all';
+            $ecommerceSourceId = $generalSetting->ecommerce_source_id ?? '0';
+            $settingsHash = md5($ecommerceSourceType . '_' . $ecommerceSourceId);
+            
+            $cacheKey = "new_arrivals_products_{$limit}_{$settingsHash}";
+            $fullResponseCacheKey = "new_arrivals_full_response_{$limit}_{$settingsHash}";
             
             // Try to get cached full response first (without user-specific wishlist data)
             if ($useCache && !$userId) {
@@ -242,10 +292,13 @@ class ApiController extends Controller
             
             // Get new arrivals with caching (eager load relationships to avoid N+1 queries)
             // Optimized query with select specific columns to reduce memory usage
+            
+            // Get ecommerce settings for filtering (variables already set above)
+            
             if ($useCache) {
-                $products = Cache::remember($cacheKey, 300, function () use ($limit) {
+                $products = Cache::remember($cacheKey, 300, function () use ($limit, $ecommerceSourceType, $ecommerceSourceId) {
                     try {
-                        return \App\Models\Product::select([
+                        $query = \App\Models\Product::select([
                             'products.id', 'products.name', 'products.slug', 'products.price', 
                             'products.discount', 'products.image', 'products.category_id',
                             'products.has_variations', 'products.status', 'products.created_at'
@@ -256,18 +309,40 @@ class ApiController extends Controller
                                 $q->select('id', 'product_id', 'rating', 'is_approved')
                                   ->where('is_approved', true);
                             },
-                            'branchStock:id,product_id,quantity',
-                            'warehouseStock:id,product_id,quantity',
+                            'branchStock:id,product_id,branch_id,quantity',
+                            'warehouseStock:id,product_id,warehouse_id,quantity',
                             'variations' => function($q) {
                                 $q->select('id', 'product_id', 'status')
                                   ->where('status', 'active')
-                                  ->with(['stocks:id,variation_id,quantity']);
+                                  ->with(['stocks:id,variation_id,branch_id,warehouse_id,quantity']);
                             }
                         ])
                         ->where('type', 'product')
                         ->where('status', 'active')
-                        ->where('show_in_ecommerce', true)
-                        ->orderByDesc('created_at')
+                        ->where('show_in_ecommerce', true);
+                        
+                        // Apply Stock Filtering
+                        if ($ecommerceSourceType && $ecommerceSourceId) {
+                            if ($ecommerceSourceType === 'branch') {
+                                $query->where(function($q) use ($ecommerceSourceId) {
+                                    $q->whereHas('branchStock', function($subQ) use ($ecommerceSourceId) {
+                                        $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                    })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                        $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                    });
+                                });
+                            } elseif ($ecommerceSourceType === 'warehouse') {
+                                $query->where(function($q) use ($ecommerceSourceId) {
+                                    $q->whereHas('warehouseStock', function($subQ) use ($ecommerceSourceId) {
+                                        $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                    })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                        $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                    });
+                                });
+                            }
+                        }
+                        
+                        return $query->orderByDesc('created_at')
                         ->take($limit)
                         ->get()
                         ->map(function ($product) {
@@ -297,7 +372,7 @@ class ApiController extends Controller
                     }
                 });
             } else {
-                $products = \App\Models\Product::select([
+                $query = \App\Models\Product::select([
                     'products.id', 'products.name', 'products.slug', 'products.price', 
                     'products.discount', 'products.image', 'products.category_id',
                     'products.has_variations', 'products.status', 'products.created_at'
@@ -308,18 +383,40 @@ class ApiController extends Controller
                         $q->select('id', 'product_id', 'rating', 'is_approved')
                           ->where('is_approved', true);
                     },
-                    'branchStock:id,product_id,quantity',
-                    'warehouseStock:id,product_id,quantity',
+                    'branchStock:id,product_id,branch_id,quantity',
+                    'warehouseStock:id,product_id,warehouse_id,quantity',
                     'variations' => function($q) {
                         $q->select('id', 'product_id', 'status')
                           ->where('status', 'active')
-                          ->with(['stocks:id,variation_id,quantity']);
+                          ->with(['stocks:id,variation_id,branch_id,warehouse_id,quantity']);
                     }
                 ])
                 ->where('type', 'product')
                 ->where('status', 'active')
-                ->where('show_in_ecommerce', true)
-                ->orderByDesc('created_at')
+                ->where('show_in_ecommerce', true);
+                
+                // Apply Stock Filtering
+                if ($ecommerceSourceType && $ecommerceSourceId) {
+                    if ($ecommerceSourceType === 'branch') {
+                        $query->where(function($q) use ($ecommerceSourceId) {
+                            $q->whereHas('branchStock', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            });
+                        });
+                    } elseif ($ecommerceSourceType === 'warehouse') {
+                        $query->where(function($q) use ($ecommerceSourceId) {
+                            $q->whereHas('warehouseStock', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            });
+                        });
+                    }
+                }
+                
+                $products = $query->orderByDesc('created_at')
                 ->take($limit)
                 ->get()
                 ->map(function ($product) {
@@ -485,15 +582,22 @@ class ApiController extends Controller
             }
             
             $userId = Auth::id();
+            $userId = Auth::id();
             $limit = $request->get('limit', 20);
             $useCache = $request->get('cache', true);
             
-            $cacheKey = "best_deals_products_{$limit}";
+            // Get ecommerce settings for cache key and filtering
+            $generalSetting = \App\Models\GeneralSetting::first();
+            $ecommerceSourceType = $generalSetting->ecommerce_source_type ?? 'all';
+            $ecommerceSourceId = $generalSetting->ecommerce_source_id ?? '0';
+            $settingsHash = md5($ecommerceSourceType . '_' . $ecommerceSourceId);
+            
+            $cacheKey = "best_deals_products_{$limit}_{$settingsHash}";
             
             // Get best deals products (products with discount > 0) - eager load relationships
             if ($useCache) {
-                $products = Cache::remember($cacheKey, 300, function () use ($limit) {
-                    return \App\Models\Product::with([
+                $products = Cache::remember($cacheKey, 300, function () use ($limit, $ecommerceSourceType, $ecommerceSourceId) {
+                    $query = \App\Models\Product::with([
                         'category',
                         'reviews' => function($q) {
                             $q->where('is_approved', true);
@@ -505,8 +609,30 @@ class ApiController extends Controller
                         ->where('type', 'product')
                         ->where('status', 'active')
                         ->where('show_in_ecommerce', true)
-                        ->where('discount', '>', 0)
-                        ->orderByDesc('discount')
+                        ->where('discount', '>', 0);
+                    
+                    // Apply Stock Filtering
+                    if ($ecommerceSourceType && $ecommerceSourceId) {
+                        if ($ecommerceSourceType === 'branch') {
+                            $query->where(function($q) use ($ecommerceSourceId) {
+                                $q->whereHas('branchStock', function($subQ) use ($ecommerceSourceId) {
+                                    $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                    $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                });
+                            });
+                        } elseif ($ecommerceSourceType === 'warehouse') {
+                            $query->where(function($q) use ($ecommerceSourceId) {
+                                $q->whereHas('warehouseStock', function($subQ) use ($ecommerceSourceId) {
+                                    $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                    $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                                });
+                            });
+                        }
+                    }
+                    
+                    return $query->orderByDesc('discount')
                         ->orderByDesc('created_at')
                         ->take($limit)
                         ->get()
@@ -530,7 +656,7 @@ class ApiController extends Controller
                         });
                 });
             } else {
-                $products = \App\Models\Product::with([
+                $query = \App\Models\Product::with([
                     'category',
                     'reviews' => function($q) {
                         $q->where('is_approved', true);
@@ -542,8 +668,30 @@ class ApiController extends Controller
                     ->where('type', 'product')
                     ->where('status', 'active')
                     ->where('show_in_ecommerce', true)
-                    ->where('discount', '>', 0)
-                    ->orderByDesc('discount')
+                    ->where('discount', '>', 0);
+                
+                // Apply Stock Filtering
+                if ($ecommerceSourceType && $ecommerceSourceId) {
+                    if ($ecommerceSourceType === 'branch') {
+                        $query->where(function($q) use ($ecommerceSourceId) {
+                            $q->whereHas('branchStock', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            });
+                        });
+                    } elseif ($ecommerceSourceType === 'warehouse') {
+                        $query->where(function($q) use ($ecommerceSourceId) {
+                            $q->whereHas('warehouseStock', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            });
+                        });
+                    }
+                }
+                
+                $products = $query->orderByDesc('discount')
                     ->orderByDesc('created_at')
                     ->take($limit)
                     ->get()

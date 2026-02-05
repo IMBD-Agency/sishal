@@ -85,6 +85,25 @@
                             </div>
 
                             <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Branch</label>
+                                <select name="branch_id" class="form-select select2-setup shadow-none" data-placeholder="All Branches">
+                                    <option value=""></option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Warehouse</label>
+                                <select name="warehouse_id" class="form-select select2-setup shadow-none" data-placeholder="All Warehouses">
+                                    <option value=""></option>
+                                    @foreach($warehouses as $wh)
+                                        <option value="{{ $wh->id }}" {{ request('warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Challan / Inv #</label>
                                 <input type="text" name="search" class="form-control shadow-none" placeholder="Search procurement ID..." value="{{ request('search') }}">
                             </div>
@@ -158,6 +177,9 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Account Registry</label>
                                 <select name="account" class="form-select select2-setup shadow-none" data-placeholder="Select A/C">
                                     <option value=""></option>
+                                    @foreach($bankAccounts as $account)
+                                        <option value="{{ $account->id }}" {{ request('account') == $account->id ? 'selected' : '' }}>{{ $account->provider_name }} ({{ $account->account_number }})</option>
+                                    @endforeach
                                 </select>
                             </div>
 
@@ -186,9 +208,16 @@
 
             <!-- Procurement Audit Registry Table -->
             <div class="premium-card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-muted small text-uppercase"><i class="fas fa-list me-2 text-primary"></i>Audit Registry</h6>
+                    <div class="search-wrapper-premium">
+                        <input type="text" id="procurementSearch" class="form-control rounded-pill search-input-premium" placeholder="Search by Invoice, Supplier, Registry...">
+                        <i class="fas fa-search search-icon-premium"></i>
+                    </div>
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table compact mb-0">
+                        <table class="table premium-table compact mb-0" id="procurementTable">
                             <thead>
                                 <tr>
                                     <th class="ps-3">SL</th>
@@ -262,9 +291,11 @@
                                     @endphp
                                     <tr>
                                         <td class="ps-3 text-muted">{{ $items->firstItem() + $index }}</td>
-                                        <td class="fw-bold text-dark">
-                                            @if($bill && $bill->bill_number) {{ $bill->bill_number }} 
-                                            @else #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }} @endif
+                                        <td class="fw-bold">
+                                            <a href="{{ route('purchase.show', $purchase->id) }}" class="text-decoration-none text-primary">
+                                                @if($bill && $bill->bill_number) {{ $bill->bill_number }} 
+                                                @else #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }} @endif
+                                            </a>
                                         </td>
                                         <td>{{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') : '-' }}</td>
                                         <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
@@ -378,19 +409,9 @@
         </div>
     </div>
 
-    <!-- Select2 & jQuery -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Select2 Configuration -->
     <script>
         $(document).ready(function() {
-            $('.select2-setup').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                allowClear: true,
-                dropdownParent: $('#filterForm')
-            });
 
             const reportRadios = document.querySelectorAll('input[name="report_type"]');
             function toggleDateGroups() {
@@ -407,6 +428,19 @@
             }
             reportRadios.forEach(radio => radio.addEventListener('change', toggleDateGroups));
             toggleDateGroups();
+
+            // Quick Search Table Functionality with Debounce
+            let searchTimeout;
+            $('#procurementSearch').on('input', function() {
+                const value = $(this).val().toLowerCase();
+                clearTimeout(searchTimeout);
+                
+                searchTimeout = setTimeout(function() {
+                    $('#procurementTable tbody tr').filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                    });
+                }, 300);
+            });
         });
     </script>
 @endsection

@@ -23,8 +23,24 @@
                                     <i class="fas fa-th-large fa-2x"></i>
                                 </div>
                                 <h5 class="fw-bold text-dark mb-1">Product Category</h5>
-                                <p class="text-muted small mb-3">Organize products into groups</p>
+                                <p class="text-muted small mb-3">Main organization groups</p>
                                 <div class="badge bg-primary rounded-pill px-3">{{ $stats['categories'] }} Items</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Product Subcategories -->
+                <div class="col-md-4 col-xl-3">
+                    <a href="{{ route('subcategory.list') }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up overflow-hidden">
+                            <div class="card-body p-4 text-center">
+                                <div class="icon-box bg-primary bg-opacity-10 text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 70px; height: 70px;">
+                                    <i class="fas fa-sitemap fa-2x"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-1">Subcategories</h5>
+                                <p class="text-muted small mb-3">Manage nested product groups</p>
+                                <div class="badge bg-primary rounded-pill px-3">{{ $stats['subcategories'] }} Items</div>
                             </div>
                         </div>
                     </a>
@@ -39,7 +55,7 @@
                                     <i class="fas fa-certificate fa-2x"></i>
                                 </div>
                                 <h5 class="fw-bold text-dark mb-1">Product Brand</h5>
-                                <p class="text-muted small mb-3">Manage product manufacturing brands</p>
+                                <p class="text-muted small mb-3">Manufacturing brands</p>
                                 <div class="badge bg-success rounded-pill px-3">{{ $stats['brands'] }} Items</div>
                             </div>
                         </div>
@@ -55,7 +71,7 @@
                                     <i class="fas fa-balance-scale fa-2x"></i>
                                 </div>
                                 <h5 class="fw-bold text-dark mb-1">Product Unit</h5>
-                                <p class="text-muted small mb-3">Measurement units (Pcs, Kg, Yard)</p>
+                                <p class="text-muted small mb-3">Measurement units</p>
                                 <div class="badge bg-info rounded-pill px-3">{{ $stats['units'] }} Items</div>
                             </div>
                         </div>
@@ -71,7 +87,7 @@
                                     <i class="fas fa-cloud-sun fa-2x"></i>
                                 </div>
                                 <h5 class="fw-bold text-dark mb-1">Product Season</h5>
-                                <p class="text-muted small mb-3">Summer, Winter, Autumn, Spring</p>
+                                <p class="text-muted small mb-3">Seasonal collections</p>
                                 <div class="badge bg-warning text-dark rounded-pill px-3">{{ $stats['seasons'] }} Items</div>
                             </div>
                         </div>
@@ -87,14 +103,14 @@
                                     <i class="fas fa-venus-mars fa-2x"></i>
                                 </div>
                                 <h5 class="fw-bold text-dark mb-1">Product Gender</h5>
-                                <p class="text-muted small mb-3">Mens, Womens, Kids, Unisex</p>
+                                <p class="text-muted small mb-3">Categorize by gender</p>
                                 <div class="badge bg-danger rounded-pill px-3">{{ $stats['genders'] }} Items</div>
                             </div>
                         </div>
                     </a>
                 </div>
 
-                <!-- Attributes (Color/Size) -->
+                <!-- Variation Attributes (Color/Size) -->
                 <div class="col-md-4 col-xl-3">
                     <a href="{{ route('erp.variation-attributes.index') }}" class="text-decoration-none">
                         <div class="card border-0 shadow-sm rounded-4 h-100 transition-up overflow-hidden">
@@ -102,9 +118,25 @@
                                 <div class="icon-box bg-secondary bg-opacity-10 text-secondary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 70px; height: 70px;">
                                     <i class="fas fa-sliders-h fa-2x"></i>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-1">Product Style/Size</h5>
-                                <p class="text-muted small mb-3">Manage Colors, Sizes, and more</p>
-                                <div class="badge bg-secondary rounded-pill px-3">{{ $stats['attributes'] }} Items</div>
+                                <h5 class="fw-bold text-dark mb-1">Style/Variation</h5>
+                                <p class="text-muted small mb-3">Colors, Sizes, and more</p>
+                                <div class="badge bg-secondary rounded-pill px-3">{{ $stats['variation_attributes'] }} Items</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- General Attributes -->
+                <div class="col-md-4 col-xl-3">
+                    <a href="{{ route('attribute.list') }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up overflow-hidden">
+                            <div class="card-body p-4 text-center">
+                                <div class="icon-box bg-dark bg-opacity-10 text-dark rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 70px; height: 70px;">
+                                    <i class="fas fa-list-ul fa-2x"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-1">Product Attributes</h5>
+                                <p class="text-muted small mb-3">General property settings</p>
+                                <div class="badge bg-dark rounded-pill px-3">{{ $stats['attributes'] }} Items</div>
                             </div>
                         </div>
                     </a>

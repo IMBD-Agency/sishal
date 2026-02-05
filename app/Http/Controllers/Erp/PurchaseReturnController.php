@@ -114,10 +114,12 @@ class PurchaseReturnController extends Controller
 
         foreach ($items as $index => $item) {
             $return = $item->purchaseReturn;
+            if (!$return) continue;
+            
             $purchase = $return->purchase;
             $product = $item->product;
             $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
-            $supplier = $purchase->supplier;
+            $supplier = $purchase ? $purchase->supplier : null;
 
             // Extract Color and Size
             $color = '-'; $size = '-';
@@ -146,7 +148,7 @@ class PurchaseReturnController extends Controller
                 $index + 1,
                 $return->return_date,
                 'RET-'.str_pad($return->id, 5, '0', STR_PAD_LEFT),
-                $purchase->bill->bill_number ?? 'P-'.$purchase->id,
+                $purchase ? ($purchase->bill->bill_number ?? 'P-'.$purchase->id) : 'N/A',
                 $source,
                 $supplier->name ?? 'N/A',
                 $supplier->mobile ?? 'N/A',

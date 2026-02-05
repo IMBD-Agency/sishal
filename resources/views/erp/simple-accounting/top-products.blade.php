@@ -28,10 +28,10 @@
                     <p class="text-muted mb-0">Discover your best-performing products by revenue, profit, and volume</p>
                 </div>
                 <div class="btn-group">
-                    <a href="{{ route('simple-accounting.top-products-export-excel', request()->all()) }}" class="btn btn-outline-success">
+                    <a href="{{ route('simple-accounting.top-products-export-excel', request()->all()) }}" class="btn btn-outline-success no-loader" target="_blank">
                         <i class="fas fa-file-excel me-2"></i> Excel
                     </a>
-                    <a href="{{ route('simple-accounting.top-products-export-pdf', request()->all()) }}" class="btn btn-outline-danger">
+                    <a href="{{ route('simple-accounting.top-products-export-pdf', request()->all()) }}" class="btn btn-outline-danger no-loader" target="_blank">
                         <i class="fas fa-file-pdf me-2"></i> PDF
                     </a>
                 </div>
@@ -40,8 +40,9 @@
             <!-- Advanced Filter Bar -->
             <div class="filter-bar">
                 <form method="GET" action="{{ route('simple-accounting.top-products') }}">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-2">
+                    <!-- Main Filters Row -->
+                    <div class="row g-3">
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold">Time Range</label>
                             <select class="form-select" name="range" id="range" onchange="this.form.submit()">
                                 <option value="today" {{ $dateRange == 'today' ? 'selected' : '' }}>Today</option>
@@ -53,20 +54,7 @@
                             </select>
                         </div>
 
-                        <div id="customDateRange" class="col-md-3 {{ $dateRange != 'custom' ? 'd-none' : '' }}">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold">From</label>
-                                    <input type="date" class="form-control" name="date_from" value="{{ $startDate->format('Y-m-d') }}">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold">To</label>
-                                    <input type="date" class="form-control" name="date_to" value="{{ $endDate->format('Y-m-d') }}">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold">Branch</label>
                             <select class="form-select" name="branch_id" onchange="this.form.submit()">
                                 <option value="">All Branches</option>
@@ -76,12 +64,65 @@
                             </select>
                         </div>
 
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold">Category</label>
                             <select class="form-select" name="category_id" onchange="this.form.submit()">
                                 <option value="">All Categories</option>
                                 @foreach($categories as $cat)
                                     <option value="{{ $cat->id }}" {{ $categoryId == $cat->id ? 'selected' : '' }}>{{ $cat->display_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Search Product</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0" name="search" value="{{ $search }}" placeholder="Name, Style, SKU...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Range Row (Conditional) -->
+                    <div id="customDateRange" class="row g-3 mt-1 {{ $dateRange != 'custom' ? 'd-none' : '' }}">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">From</label>
+                            <input type="date" class="form-control" name="date_from" value="{{ $startDate->format('Y-m-d') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">To</label>
+                            <input type="date" class="form-control" name="date_to" value="{{ $endDate->format('Y-m-d') }}">
+                        </div>
+                    </div>
+
+                    <!-- Secondary Filters & Actions Row -->
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Brand</label>
+                            <select class="form-select" name="brand_id" onchange="this.form.submit()">
+                                <option value="">All Brands</option>
+                                @foreach($brands as $brand)
+                                    <option value="{{ $brand->id }}" {{ $brandId == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Season</label>
+                            <select class="form-select" name="season_id" onchange="this.form.submit()">
+                                <option value="">All Seasons</option>
+                                @foreach($seasons as $season)
+                                    <option value="{{ $season->id }}" {{ $seasonId == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Gender</label>
+                            <select class="form-select" name="gender_id" onchange="this.form.submit()">
+                                <option value="">All Genders</option>
+                                @foreach($genders as $gender)
+                                    <option value="{{ $gender->id }}" {{ $genderId == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -93,13 +134,19 @@
                                 <option value="10" {{ $limit == 10 ? 'selected' : '' }}>Top 10</option>
                                 <option value="20" {{ $limit == 20 ? 'selected' : '' }}>Top 20</option>
                                 <option value="50" {{ $limit == 50 ? 'selected' : '' }}>Top 50</option>
+                                <option value="100" {{ $limit == 100 ? 'selected' : '' }}>Top 100</option>
                             </select>
                         </div>
 
-                        <div class="col-md-1">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter"></i>
-                            </button>
+                        <div class="col-md-4">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success flex-grow-1">
+                                    <i class="fas fa-filter me-1"></i> Filter
+                                </button>
+                                <a href="{{ route('simple-accounting.top-products') }}" class="btn btn-outline-secondary px-3" title="Reset Filters">
+                                    <i class="fas fa-undo"></i> Reset
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -128,8 +175,15 @@
                                             <tr>
                                                 <td><span class="rank-badge {{ $index < 3 ? 'rank-'.($index+1) : 'rank-other' }}">{{ $index + 1 }}</span></td>
                                                 <td>
-                                                    <div class="fw-bold">{{ $data['product']->name }}</div>
-                                                    <small class="text-muted">{{ $data['product']->category->name ?? 'N/A' }}</small>
+                                                    <div class="d-flex align-items-center">
+                                                        @if($data['product']->image)
+                                                            <img src="{{ asset($data['product']->image) }}" class="rounded me-2" width="30" height="30" style="object-fit: cover;">
+                                                        @endif
+                                                        <div>
+                                                            <div class="fw-bold">{{ $data['product']->name }}</div>
+                                                            <small class="text-muted">Style: {{ $data['product']->style_number ?? $data['product']->sku ?? 'N/A' }}</small>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td class="text-end fw-bold text-success">{{ number_format($data['revenue'], 2) }}</td>
                                                 <td class="text-end">{{ $data['quantity_sold'] }}</td>
@@ -155,6 +209,7 @@
                                         <tr>
                                             <th>Rank</th>
                                             <th>Product</th>
+                                            <th class="text-end">Cost</th>
                                             <th class="text-end">Profit</th>
                                             <th class="text-end">Margin</th>
                                         </tr>
@@ -164,9 +219,17 @@
                                             <tr>
                                                 <td><span class="rank-badge {{ $index < 3 ? 'rank-'.($index+1) : 'rank-other' }}">{{ $index + 1 }}</span></td>
                                                 <td>
-                                                    <div class="fw-bold">{{ $data['product']->name }}</div>
-                                                    <small class="text-muted">{{ $data['product']->category->name ?? 'N/A' }}</small>
+                                                    <div class="d-flex align-items-center">
+                                                        @if($data['product']->image)
+                                                            <img src="{{ asset($data['product']->image) }}" class="rounded me-2" width="30" height="30" style="object-fit: cover;">
+                                                        @endif
+                                                        <div>
+                                                            <div class="fw-bold">{{ $data['product']->name }}</div>
+                                                            <small class="text-muted">Style: {{ $data['product']->style_number ?? $data['product']->sku ?? 'N/A' }}</small>
+                                                        </div>
+                                                    </div>
                                                 </td>
+                                                <td class="text-end text-muted">{{ number_format($data['cost'], 2) }}</td>
                                                 <td class="text-end fw-bold text-primary">{{ number_format($data['profit'], 2) }}</td>
                                                 <td class="text-end">
                                                     @php $margin = $data['revenue'] > 0 ? ($data['profit'] / $data['revenue']) * 100 : 0; @endphp
@@ -196,10 +259,11 @@
                                         <tr>
                                             <th>Rank</th>
                                             <th>Product</th>
-                                            <th>Category</th>
-                                            <th class="text-center">Quantity Sold</th>
+                                            <th>Style No.</th>
+                                            <th class="text-center">Stock</th>
+                                            <th class="text-center">Sold</th>
                                             <th class="text-end">Revenue</th>
-                                            <th class="text-end">Avg Price</th>
+                                            <th class="text-end">Profit</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -214,12 +278,20 @@
                                                         <div class="fw-bold">{{ $data['product']->name }}</div>
                                                     </div>
                                                 </td>
-                                                <td>{{ $data['product']->category->name ?? 'N/A' }}</td>
+                                                <td>{{ $data['product']->style_number ?? $data['product']->sku ?? 'N/A' }}</td>
+                                                <td class="text-center">
+                                                    @php 
+                                                        $stock = $data['product']->total_variation_stock;
+                                                    @endphp
+                                                    <span class="badge {{ $stock <= ($data['product']->alert_quantity ?? 5) ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info' }}">
+                                                        {{ $stock }}
+                                                    </span>
+                                                </td>
                                                 <td class="text-center">
                                                     <span class="badge bg-warning-subtle text-warning fs-6 px-3">{{ $data['quantity_sold'] }}</span>
                                                 </td>
                                                 <td class="text-end">{{ number_format($data['revenue'], 2) }}</td>
-                                                <td class="text-end text-muted">{{ number_format($data['quantity_sold'] > 0 ? $data['revenue'] / $data['quantity_sold'] : 0, 2) }}</td>
+                                                <td class="text-end fw-bold text-primary">{{ number_format($data['profit'], 2) }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>

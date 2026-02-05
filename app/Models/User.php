@@ -68,4 +68,44 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Review::class);
     }
 
+    /**
+     * Get the branch assigned to this user (via employee record)
+     */
+    public function getBranch()
+    {
+        return $this->employee ? $this->employee->branch : null;
+    }
+
+    /**
+     * Check if user has access to a specific branch
+     */
+    public function canAccessBranch($branchId)
+    {
+        // Admins can access all branches
+        if ($this->is_admin || $this->hasRole('Super Admin')) {
+            return true;
+        }
+
+        // Check if user's employee record matches the branch
+        if ($this->employee && $this->employee->branch_id == $branchId) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user should be restricted to their branch
+     */
+    public function isBranchRestricted()
+    {
+        // Admins are not restricted
+        if ($this->is_admin || $this->hasRole('Super Admin')) {
+            return false;
+        }
+
+        // Users with employee records are restricted to their branch
+        return $this->employee && $this->employee->branch_id;
+    }
+
 }

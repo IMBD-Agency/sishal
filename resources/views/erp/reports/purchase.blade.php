@@ -136,6 +136,30 @@
                             </div>
 
                             <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Branch</label>
+                                <select name="branch_id" class="form-select select2" data-placeholder="Select Branch">
+                                    <option value=""></option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Warehouse</label>
+                                <select name="warehouse_id" class="form-select select2" data-placeholder="Select Warehouse">
+                                    <option value=""></option>
+                                    @foreach($warehouses as $wh)
+                                        <option value="{{ $wh->id }}" {{ request('warehouse_id') == $wh->id ? 'selected' : '' }}>
+                                            {{ $wh->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase">Brand *</label>
                                 <select name="brand_id" class="form-select select2" data-placeholder="Select an option">
                                     <option value=""></option>

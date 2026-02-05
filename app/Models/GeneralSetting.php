@@ -35,5 +35,7 @@ class GeneralSetting extends Model
         'tax_rate',
         'cod_percentage',
         'gtm_container_id',
+        'ecommerce_source_type',
+        'ecommerce_source_id',
     ];
 }

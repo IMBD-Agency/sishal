@@ -90,126 +90,13 @@
                 </div>
             </div>
         </div>
-
-        <!-- Inventory Database -->
-        <div class="premium-card shadow-sm">
-            <div class="card-header bg-white p-4 border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
-                    <h5 class="fw-bold mb-1 text-dark">Location Inventory</h5>
-                    <p class="text-muted small mb-0">Operational catalog of products assigned to this specific outlet.</p>
-                </div>
-                <div class="search-wrapper">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="productSearch" class="form-control" placeholder="Quick SKU or name search...">
-                </div>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table premium-table mb-0" id="productsTable">
-                        <thead>
-                            <tr>
-                                <th>Specification</th>
-                                <th>Serial Hash</th>
-                                <th class="text-end">MSRP Price</th>
-                                <th class="text-center">Region</th>
-                                <th class="text-center">Available Stock</th>
-                                <th class="text-end">Management</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($branch_products as $product)
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="thumbnail-box" style="width: 44px; height: 44px;">
-                                            @if($product->product?->image)
-                                                <img src="{{ asset($product->product->image) }}" alt="">
-                                            @else
-                                                <i class="fas fa-box text-light"></i>
-                                            @endif
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-dark mb-0">{{ $product->product?->name ?? 'Corrupt Data Node' }}</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">System Ref: #{{ $product->product?->id }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <code class="bg-light px-2 py-1 rounded text-primary" style="font-size: 0.75rem;">{{ $product->product?->sku ?? 'NO-SKU' }}</code>
-                                </td>
-                                <td class="text-end">
-                                    <div class="fw-bold text-success">৳{{ number_format(($product->product?->discount && $product->product?->discount > 0) ? $product->product?->discount : ($product->product?->price ?? 0), 2) }}</div>
-                                    <div class="text-muted text-decoration-line-through small" style="font-size: 0.7rem;">৳{{ number_format($product->product?->price ?? 0, 2) }}</div>
-                                </td>
-                                <td class="text-center">
-                                    <span class="category-tag">
-                                        {{ $product->product?->category?->name ?? 'Unassigned' }}
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    @php
-                                        $qty = $product->quantity;
-                                        $statusClass = $qty > 10 ? 'status-active' : ($qty > 0 ? 'bg-warning bg-opacity-10 text-warning border-warning border-opacity-25' : 'status-inactive');
-                                    @endphp
-                                    <div class="status-pill {{ $statusClass }}">
-                                        {{ $qty }} Units
-                                    </div>
-                                    @if($product->product?->has_variations)
-                                        <div class="text-muted mt-1 fw-bold" style="font-size: 0.6rem;">(Split Variants)</div>
-                                    @endif
-                                </td>
-                                <td class="text-end">
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <a href="/erp/product/{{ $product->product_id }}/details" class="btn btn-action" title="Full Timeline">
-                                            <i class="fas fa-history"></i>
-                                        </a>
-                                        @if($qty <= 0)
-                                        <form action="{{ route('branches.products.remove', $product->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Deregister this empty track?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="btn btn-action text-danger">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </form>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <i class="fas fa-boxes fa-3x text-light mb-3"></i>
-                                    <h5 class="fw-bold text-secondary">Inventory Empty</h5>
-                                    <p class="text-muted small">No items currently registered to this physical node.</p>
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const search = document.getElementById('productSearch');
-    const table = document.getElementById('productsTable');
-    
-    if (search && table) {
-        search.addEventListener('keyup', function() {
-            const val = this.value.toLowerCase();
-            const rows = table.querySelectorAll('tbody tr');
-            
-            rows.forEach(row => {
-                if (row.cells.length > 1) { // Skip empty row
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(val) ? '' : 'none';
-                }
-            });
-        });
-    }
+    // Branch details page initialized
 });
 </script>
 @endpush

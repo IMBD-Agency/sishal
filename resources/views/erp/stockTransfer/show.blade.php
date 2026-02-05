@@ -1,28 +1,33 @@
 @extends('erp.master')
 
-@section('title', 'Transfer Voucher Details')
+@section('title', 'Transfer Invoice')
 
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
 
-        <!-- Premium Header -->
-        <div class="glass-header">
+        <div class="glass-header no-print">
             <div class="row align-items-center">
                 <div class="col-md-7">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-1 breadcrumb-premium">
                             <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{{ route('stocktransfer.list') }}" class="text-decoration-none text-muted">Stock Transfer</a></li>
-                            <li class="breadcrumb-item active text-primary fw-600">Voucher Details</li>
+                            <li class="breadcrumb-item active text-primary fw-600">Invoice Details</li>
                         </ol>
                     </nav>
-                    <h4 class="fw-bold mb-0 text-dark">Transfer Voucher #{{ str_pad($transfer->id, 6, '0', STR_PAD_LEFT) }}</h4>
+                    <h4 class="fw-bold mb-0 text-dark">
+                        @if($transfer->invoice_number)
+                            Invoice #{{ $transfer->invoice_number }}
+                        @else
+                            Transfer Voucher #{{ str_pad($transfer->id, 6, '0', STR_PAD_LEFT) }}
+                        @endif
+                    </h4>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
                     <button onclick="window.print()" class="btn btn-light fw-bold shadow-sm">
-                        <i class="fas fa-print me-2"></i>Print Voucher
+                        <i class="fas fa-print me-2"></i>Print Invoice
                     </button>
                     <a href="{{ route('stocktransfer.list') }}" class="btn btn-create-premium">
                         <i class="fas fa-list me-2"></i>Back to History
@@ -33,126 +38,234 @@
 
         <div class="container-fluid px-4 py-4">
             <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="premium-card overflow-hidden">
-                        <!-- High Impact Status Header -->
-                        <div class="card-header bg-dark text-white p-5 text-center position-relative">
-                            <div class="position-absolute top-0 end-0 p-3 opacity-25">
-                                <i class="fas fa-shipping-fast fa-4x text-white"></i>
+                <div class="col-lg-10">
+                    <!-- Print-Ready Invoice -->
+                    <div class="invoice-container bg-white shadow-sm">
+                        <!-- Company Header -->
+                        @php
+                            $settings = \App\Models\GeneralSetting::first();
+                        @endphp
+                        <div class="invoice-header border-bottom pb-3 mb-4">
+                            <div class="text-center mb-2">
+                                <h2 class="fw-bold text-dark mb-2">{{ $settings->site_title ?? config('app.name', 'Your Company Name') }}</h2>
                             </div>
-                            <div class="small text-uppercase tracking-widest opacity-50 mb-2">Total Quantity Transferred</div>
-                            <h1 class="display-4 fw-bold mb-0">{{ number_format($transfer->quantity, 0) }} Units</h1>
-                            <div class="mt-3">
-                                <span class="badge {{ $transfer->status === 'delivered' ? 'bg-success' : ($transfer->status === 'rejected' ? 'bg-danger' : 'bg-info') }} px-3 py-2 rounded-pill fw-bold text-uppercase">
-                                    Status: {{ $transfer->status }}
-                                </span>
+                            <div class="text-center">
+                                <p class="text-muted small mb-1">{{ $settings->contact_address ?? 'Address Line 1, City, Country' }}</p>
+                                <p class="text-muted small mb-0">
+                                    Phone: {{ $settings->contact_phone ?? '+880-XXX-XXXXXX' }} | 
+                                    Email: {{ $settings->contact_email ?? 'info@company.com' }}
+                                    @if($settings->website_url)
+                                     | {{ $settings->website_url }}
+                                    @endif
+                                </p>
                             </div>
                         </div>
 
-                        <div class="card-body p-4 p-xl-5">
-                            <!-- Information Grid -->
-                            <div class="row g-4 mb-5 pb-4 border-bottom">
-                                <div class="col-md-6">
-                                    <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Source Location (From)</label>
-                                    <h6 class="fw-bold text-dark mb-0">
+                        <!-- Invoice Title -->
+                        <div class="text-center mb-4">
+                            <h3 class="fw-bold text-uppercase mb-1" style="letter-spacing: 2px;">Stock Transfer Invoice</h3>
+                            <p class="text-muted mb-0">
+                                @if($transfer->invoice_number)
+                                    Invoice No: <strong>{{ $transfer->invoice_number }}</strong>
+                                @else
+                                    Voucher No: <strong>ST-{{ str_pad($transfer->id, 6, '0', STR_PAD_LEFT) }}</strong>
+                                @endif
+                            </p>
+                        </div>
+
+                        <!-- Invoice Info Grid -->
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="fw-bold text-uppercase small text-muted mb-2">From</h6>
+                                    <p class="mb-0 fw-bold">
                                         @if($transfer->from_type === 'branch')
-                                            Branch: {{ $transfer->fromBranch->name ?? '-' }}
+                                            {{ $transfer->fromBranch->name ?? '-' }}
                                         @else
-                                            Warehouse: {{ $transfer->fromWarehouse->name ?? '-' }}
+                                            {{ $transfer->fromWarehouse->name ?? '-' }}
                                         @endif
-                                    </h6>
+                                    </p>
                                 </div>
-                                <div class="col-md-6 text-md-end">
-                                    <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Destination Target (To)</label>
-                                    <h6 class="fw-bold text-dark mb-0">
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="fw-bold text-uppercase small text-muted mb-2">To</h6>
+                                    <p class="mb-0 fw-bold">
                                         @if($transfer->to_type === 'branch')
-                                            Branch: {{ $transfer->toBranch->name ?? '-' }}
+                                            {{ $transfer->toBranch->name ?? '-' }}
                                         @else
-                                            Warehouse: {{ $transfer->toWarehouse->name ?? '-' }}
+                                            {{ $transfer->toWarehouse->name ?? '-' }}
                                         @endif
-                                    </h6>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Product Details</label>
-                                    <h6 class="fw-bold text-primary mb-0">{{ $transfer->product->name ?? '-' }}</h6>
-                                    <p class="small text-muted mb-0">Style No: {{ $transfer->product->style_number ?? '-' }} | Variant: {{ $transfer->variation->name ?? 'Standard' }}</p>
-                                </div>
-                                <div class="col-md-6 text-md-end">
-                                    <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Initiation Date</label>
-                                    <h6 class="fw-bold text-dark mb-0">{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d F, Y') : '-' }}</h6>
-                                    <p class="small text-muted mb-0">Timestamp: {{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('h:i A') : '-' }}</p>
-                                </div>
-                            </div>
-
-                            <!-- Workflow History -->
-                            <div class="mb-5">
-                                <h6 class="fw-bold text-uppercase text-muted extra-small mb-3">Workflow Audit Trail</h6>
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <div class="p-3 bg-light rounded-3">
-                                            <span class="extra-small fw-bold text-muted d-block uppercase mb-1">Approved At</span>
-                                            <span class="small fw-bold">{{ $transfer->approved_at ? \Carbon\Carbon::parse($transfer->approved_at)->format('d/m/Y') : 'Waiting...' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="p-3 bg-light rounded-3">
-                                            <span class="extra-small fw-bold text-muted d-block uppercase mb-1">Shipped At</span>
-                                            <span class="small fw-bold">{{ $transfer->shipped_at ? \Carbon\Carbon::parse($transfer->shipped_at)->format('d/m/Y') : 'Waiting...' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="p-3 bg-light rounded-3">
-                                            <span class="extra-small fw-bold text-muted d-block uppercase mb-1">Delivered At</span>
-                                            <span class="small fw-bold">{{ $transfer->delivered_at ? \Carbon\Carbon::parse($transfer->delivered_at)->format('d/m/Y') : 'Waiting...' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="p-3 bg-light rounded-3 h-100">
-                                            <span class="extra-small fw-bold text-muted d-block uppercase mb-1">Category</span>
-                                            <span class="small fw-bold">{{ $transfer->product->category->name ?? '-' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Remarks Block -->
-                            <div class="p-4 bg-light rounded-4 border mb-5">
-                                <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Internal Instructions/Notes</label>
-                                <p class="small text-dark mb-0 font-italic">"{{ $transfer->notes ?: 'No additional notes provided for this consignment.' }}"</p>
-                            </div>
-
-                            <!-- Personnel Block -->
-                            <div class="pt-4 border-top">
-                                <div class="row align-items-center">
-                                    <div class="col-md-6">
-                                        <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Requested By</label>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <div class="avatar-xs bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold small">
-                                                {{ strtoupper(substr($transfer->requestedPerson->name ?? 'A', 0, 1)) }}
-                                            </div>
-                                            <span class="small fw-bold text-dark">{{ $transfer->requestedPerson->name ?? 'Admin User' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mt-3 mt-md-0 text-md-end">
-                                        <label class="extra-small fw-bold text-muted text-uppercase d-block mb-1">Final Approval</label>
-                                        <span class="small fw-bold text-dark">{{ $transfer->approvedPerson->name ?? 'Pending Authorization' }}</span>
-                                    </div>
+                                    </p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Card Actions -->
-                        @if(in_array($transfer->status, ['pending', 'rejected']))
-                        <div class="card-footer bg-white border-top p-4 text-center">
-                            <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this transfer? This action cannot be undone.');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-outline-danger px-4 fw-bold">
-                                    <i class="fas fa-trash-alt me-2"></i>VOID TRANSFER
-                                </button>
-                            </form>
+                        <div class="row mb-4">
+                            <div class="col-4">
+                                <p class="mb-1"><strong class="text-muted small">Date:</strong></p>
+                                <p class="fw-bold">{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d M Y') : '-' }}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="mb-1"><strong class="text-muted small">Requested By:</strong></p>
+                                <p class="fw-bold">{{ $transfer->requestedPerson->name ?? 'Admin User' }}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="mb-1"><strong class="text-muted small">Status:</strong></p>
+                                <p>
+                                    <span class="badge {{ $transfer->status === 'delivered' ? 'bg-success' : ($transfer->status === 'rejected' ? 'bg-danger' : ($transfer->status === 'approved' ? 'bg-info' : 'bg-warning')) }} px-3 py-1">
+                                        {{ strtoupper($transfer->status) }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Items Table -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-uppercase small text-muted mb-3">Transfer Items</h6>
+                            <table class="table table-bordered invoice-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;" class="text-center">#</th>
+                                        <th>Product Description</th>
+                                        <th style="width: 200px;">Attributes</th>
+                                        <th style="width: 100px;" class="text-center">Quantity</th>
+                                        <th style="width: 120px;" class="text-end">Unit Price</th>
+                                        <th style="width: 120px;" class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($transfers as $index => $item)
+                                    <tr>
+                                        <td class="text-center text-muted">{{ $index + 1 }}</td>
+                                        <td>
+                                            <div class="fw-bold">{{ $item->product->name ?? '-' }}</div>
+                                            <div class="small text-muted">SKU: {{ $item->product->style_number ?? 'N/A' }}</div>
+                                        </td>
+                                        <td>
+                                            @if($item->variation)
+                                                @php
+                                                    $color = null; $size = null;
+                                                    if($item->variation->combinations) {
+                                                        foreach($item->variation->combinations as $combo) {
+                                                            $name = strtolower($combo->attribute->name ?? '');
+                                                            if(in_array($name, ['color','colour'])) $color = $combo->attributeValue->value ?? '';
+                                                            if(in_array($name, ['size','sizes'])) $size = $combo->attributeValue->value ?? '';
+                                                        }
+                                                    }
+                                                @endphp
+                                                <span class="badge bg-light text-dark border me-1 small">{{ $size ?? '-' }}</span>
+                                                <span class="badge bg-light text-dark border small">{{ $color ?? '-' }}</span>
+                                            @else
+                                                <span class="text-muted small">Standard</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center fw-bold">{{ number_format($item->quantity, 0) }}</td>
+                                        <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
+                                        <td class="text-end fw-bold">{{ number_format($item->total_price, 2) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">TOTAL</td>
+                                        <td class="text-center fw-bold text-primary">{{ number_format($transfers->sum('quantity'), 0) }}</td>
+                                        <td></td>
+                                        <td class="text-end fw-bold text-success fs-5">{{ number_format($transfers->sum('total_price'), 2) }} ৳</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Notes Section -->
+                        @if($transfer->notes)
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-uppercase small text-muted mb-2">Notes / Remarks</h6>
+                            <div class="border rounded p-3 bg-light">
+                                <p class="mb-0 small">{{ $transfer->notes }}</p>
+                            </div>
                         </div>
                         @endif
+
+                        <!-- Signature Section -->
+                        <div class="row mt-5 pt-4 border-top">
+                            <div class="col-4 text-center">
+                                <div class="border-top pt-2 mt-5 d-inline-block" style="min-width: 200px;">
+                                    <p class="mb-0 small fw-bold">Prepared By</p>
+                                    <p class="mb-0 small text-muted">{{ $transfer->requestedPerson->name ?? 'Admin' }}</p>
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div class="border-top pt-2 mt-5 d-inline-block" style="min-width: 200px;">
+                                    <p class="mb-0 small fw-bold">Approved By</p>
+                                    <p class="mb-0 small text-muted">{{ $transfer->approvedPerson->name ?? '___________' }}</p>
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div class="border-top pt-2 mt-5 d-inline-block" style="min-width: 200px;">
+                                    <p class="mb-0 small fw-bold">Received By</p>
+                                    <p class="mb-0 small text-muted">___________</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="text-center mt-4 pt-3 border-top">
+                            <p class="small text-muted mb-0">This is a computer-generated document. No signature is required.</p>
+                            <p class="small text-muted mb-0">Printed on: {{ now()->format('d M Y, h:i A') }}</p>
+                        </div>
+
+                        <!-- Action Buttons (No Print) -->
+                        <div class="no-print mt-4 pt-4 border-top">
+                            <div class="d-flex flex-wrap justify-content-center gap-3">
+                                @if($transfer->status == 'pending')
+                                    <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="status" value="approved">
+                                        <button type="submit" class="btn btn-success px-5 fw-bold" onclick="return confirm('Approve this transfer invoice? Source stock will be deducted for all items.')">
+                                            <i class="fas fa-check-circle me-2"></i>APPROVE INVOICE
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="status" value="rejected">
+                                        <button type="submit" class="btn btn-warning px-4 fw-bold text-white" onclick="return confirm('Reject this transfer invoice?')">
+                                            <i class="fas fa-times-circle me-2"></i>REJECT
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($transfer->status == 'approved')
+                                    <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="status" value="shipped">
+                                        <button type="submit" class="btn btn-info px-5 fw-bold text-white" onclick="return confirm('Mark this invoice as Shipped?')">
+                                            <i class="fas fa-shipping-fast me-2"></i>MARK AS SHIPPED
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($transfer->status == 'shipped')
+                                    <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="status" value="delivered">
+                                        <button type="submit" class="btn btn-primary px-5 fw-bold" onclick="return confirm('Mark this invoice as Delivered? Stock will be added to destination for all items.')">
+                                            <i class="fas fa-box-open me-2"></i>CONFIRM DELIVERY
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if(in_array($transfer->status, ['pending', 'rejected']))
+                                    <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger px-4 fw-bold">
+                                            <i class="fas fa-trash-alt me-2"></i>VOID TRANSFER
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -164,6 +277,78 @@
     <style>
         .breadcrumb-premium { font-size: 0.85rem; }
         .extra-small { font-size: 0.72rem; }
-        .avatar-xs { width: 30px; height: 30px; }
+        
+        /* Invoice Styles */
+        .invoice-container {
+            padding: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .invoice-header h2 {
+            color: #2c3e50;
+            font-size: 28px;
+        }
+        
+        .invoice-table {
+            font-size: 14px;
+        }
+        
+        .invoice-table thead th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            padding: 12px 8px;
+        }
+        
+        .invoice-table tbody td {
+            padding: 10px 8px;
+            vertical-align: middle;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            
+            .invoice-container, .invoice-container * {
+                visibility: visible;
+            }
+            
+            .invoice-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .invoice-table {
+                page-break-inside: auto;
+            }
+            
+            .invoice-table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            thead {
+                display: table-header-group;
+            }
+            
+            tfoot {
+                display: table-footer-group;
+            }
+            
+            @page {
+                margin: 1cm;
+            }
+        }
     </style>
 @endpush

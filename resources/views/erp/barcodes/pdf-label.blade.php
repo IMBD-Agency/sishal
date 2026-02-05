@@ -3,8 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Barcode Labels</title>
+    <title>Barcode Labels - {{ $sku }}</title>
     <style>
+        @page {
+            size: 108pt 71pt; /* Approx 38mm x 25mm */
+            margin: 0;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -12,89 +17,74 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Helvetica', 'Arial', sans-serif;
             background: white;
-            margin: 10pt;
-        }
-
-        .labels-container {
-            display: block;
+            width: 108pt;
+            height: 71pt;
         }
 
         .label-page {
-            width: 144pt; /* 2 inches */
-            height: 72pt; /* 1 inch */
-            display: inline-block;
+            width: 108pt;
+            height: 71pt;
+            padding: 4pt;
             text-align: center;
-            padding: 6pt;
-            border: 0.5pt solid #ddd;
+            display: block;
             position: relative;
-            margin: 5pt;
-            vertical-align: top;
+            page-break-after: always;
+        }
+
+        .product-name {
+            font-size: 7pt;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 2pt;
+            height: 16pt;
+            overflow: hidden;
+            line-height: 8pt;
+            text-align: center;
         }
 
         .barcode-container {
             width: 100%;
-            height: 100%;
-            display: table;
+            height: 28pt;
+            text-align: center;
+            margin-bottom: 1pt;
         }
 
-        .barcode-content {
-            display: table-cell;
-            vertical-align: middle;
+        .barcode-container img {
+            width: 95%;
+            height: 28pt;
+        }
+
+        .sku-text {
+            font-size: 7pt;
+            font-weight: bold;
+            font-family: 'Courier', monospace;
+            margin-bottom: 1pt;
             text-align: center;
         }
 
-        .barcode-image {
-            margin: 0 auto 3pt auto;
+        .price-text {
+            border-top: 0.5pt solid #000;
+            width: 100%;
             text-align: center;
-        }
-
-        .barcode-image img {
-            max-width: 130pt;
-            height: auto;
-            max-height: 42pt;
-            display: inline-block;
-        }
-
-        .sku {
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
+            padding-top: 1pt;
             font-size: 9pt;
+            font-weight: bold;
             color: #000;
-            letter-spacing: 0.5pt;
-            text-transform: uppercase;
-            text-align: center;
-            margin-top: 2pt;
-        }
-
-        @page {
-            size: A4 portrait;
-            margin: 10pt;
-        }
-
-        @media print {
-            body {
-                margin: 0;
-                padding: 0;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="labels-container">
-        @for ($i = 0; $i < $quantity; $i++)
-            <div class="label-page">
-                <div class="barcode-container">
-                    <div class="barcode-content">
-                        <div class="barcode-image">
-                            <img src="{{ $barcodeBase64 }}" alt="Barcode">
-                        </div>
-                        <div class="sku">{{ strtoupper($sku) }}</div>
-                    </div>
-                </div>
+    @for ($i = 0; $i < $quantity; $i++)
+        <div class="label-page">
+            <div class="product-name">{{ $name }}</div>
+            <div class="barcode-container">
+                <img src="{{ $barcodeBase64 }}" alt="Barcode">
             </div>
-        @endfor
-    </div>
+            <div class="sku-text">{{ strtoupper($sku) }}</div>
+            <div class="price-text">MRP: ৳{{ number_format($price, 2) }}</div>
+        </div>
+    @endfor
 </body>
 </html>

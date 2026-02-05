@@ -9,19 +9,20 @@ class Warehouse extends Model
     protected $fillable = [
         'name',
         'location',
+        'contact_phone',
+        'contact_email',
         'manager_id',
-        'branch_id',
         'status'
     ];
 
     public function manager()
     {
-        return $this->belongsTo(\App\Models\User::class, 'manager_id');
+        return $this->belongsTo(\App\Models\Employee::class, 'manager_id');
     }
 
-    public function branch()
+    public function branches()
     {
-        return $this->belongsTo(\App\Models\Branch::class, 'branch_id');
+        return $this->hasMany(\App\Models\Branch::class);
     }
 
     public function warehouseProductStocks()

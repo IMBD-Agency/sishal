@@ -10,18 +10,83 @@ use App\Models\StockTransfer;
 use App\Models\Warehouse;
 use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StockTransferController extends Controller
 {
     public function index(Request $request)
     {
         $query = $this->applyFilters($request);
-        $transfers = $query->orderBy('requested_at','desc')->paginate(15)->appends($request->except('page'));
+
+        // Group by invoice_number to show as "Invoices" instead of individual items
+        // For records without invoice_number (old ones), we'll group them by ID so they appear individually
+        // Since we can't easily mix grouped and non-grouped in one query efficiently without raw SQL,
+        // we will fetch the latest item for each invoice or the item itself if no invoice.
+        
+        // Use a subquery strategy to get the "Representative" transfer for each invoice
+        // BUT strict mode makes this hard.
+        // EASIER: Just list them. If user wants "Like invoice", they usually mean Create One Invoice.
+        // Viewing them in list: we can visually group them in blade if they are consecutive?
+        // NO, pagination breaks that.
+        
+        // Let's use a distinct approach on invoice_number where it exists
+        $transfers = StockTransfer::select('invoice_number', \DB::raw('MAX(id) as id'), \DB::raw('COUNT(*) as item_count'), \DB::raw('SUM(total_price) as total_amount'), \DB::raw('MAX(requested_at) as requested_at'), \DB::raw('MAX(status) as status'))
+            ->whereNotNull('invoice_number')
+            ->groupBy('invoice_number')
+            ->orderBy('requested_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(15);
+        
+        // If we want to support old records without invoice number, we'd need a UNION.
+        // For now, let's assume we proceed with new "Invoice" style transfers.
+        // Or better: update old records to have an invoice number? Too risky.
+        
+        // Let's try to include both: records with invoice_number (grouped) AND records without (individual).
+        // This is complex for pagination.
+        // Simple fallback: Show ALL, but in the LIST VIEW (Blade), simple records show as is.
+        // BUT the user request is "Invoice in one".
+        
+        // LET'S STICK TO THE ORIGINAL QUERY but we will modify the BLADE to visualy group?
+        // No, user specifically asked "Invoice in one". This implies a list of "Dispatch Notes".
+        
+        // Adjusted Strategy: 
+        // We will default to showing a list of "Transfers" (Grouped).
+        // If needed we can drill down.
+        
+        // Since I just added the column, all previous are NULL.
+        // I will display records with invoice_number as a SINGLE ROW.
+        // Records without invoice_number (old) will display as SINGLE ROW each.
+        
+        // We can mimic this by generating a fake invoice ID for nulls in the select?
+        // "COALESCE(invoice_number, CONCAT('INDIV-', id)) as group_id"
+        
+        $transfers = StockTransfer::select(
+                \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
+                \DB::raw('MAX(id) as id'), // To link to details
+                \DB::raw('COUNT(*) as item_count'),
+                \DB::raw('SUM(total_price) as grouped_total_price'),
+                'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at' // Assuming these are same for the group
+            )
+            ->with(['fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson'])
+            ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at')
+            ->orderBy('requested_at', 'desc')
+            ->paginate(15);
         $branches = Branch::all();
         $warehouses = Warehouse::all();
         $statuses = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
+        
+        // Get filter options
+        $categories = \App\Models\ProductServiceCategory::all();
+        $brands = \App\Models\Brand::all();
+        $seasons = \App\Models\Season::all();
+        $genders = \App\Models\Gender::all();
+        $styleNumbers = \App\Models\Product::whereNotNull('style_number')
+            ->distinct()
+            ->pluck('style_number');
+        
         $filters = $request->only(['search', 'from_branch_id', 'from_warehouse_id', 'to_branch_id', 'to_warehouse_id', 'status', 'date_from', 'date_to', 'variation_id', 'quick_filter']);
-        return view('erp.stockTransfer.stockTransfer', compact('transfers', 'branches', 'warehouses', 'statuses', 'filters'));
+        
+        return view('erp.stockTransfer.stockTransfer', compact('transfers', 'branches', 'warehouses', 'statuses', 'filters', 'categories', 'brands', 'seasons', 'genders', 'styleNumbers'));
     }
 
     public function create()
@@ -94,6 +159,44 @@ class StockTransferController extends Controller
         if ($request->filled('variation_id')) {
             $query->where('variation_id', $request->variation_id);
         }
+        
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+        
+        if ($request->filled('invoice_number')) {
+            $query->where('invoice_number', 'like', '%' . $request->invoice_number . '%');
+        }
+        
+        if ($request->filled('style_number')) {
+            $query->whereHas('product', function($q) use ($request) {
+                $q->where('style_number', $request->style_number);
+            });
+        }
+        
+        if ($request->filled('category_id')) {
+            $query->whereHas('product', function($q) use ($request) {
+                $q->where('category_id', $request->category_id);
+            });
+        }
+        
+        if ($request->filled('brand_id')) {
+            $query->whereHas('product', function($q) use ($request) {
+                $q->where('brand_id', $request->brand_id);
+            });
+        }
+        
+        if ($request->filled('season_id')) {
+            $query->whereHas('product', function($q) use ($request) {
+                $q->where('season_id', $request->season_id);
+            });
+        }
+        
+        if ($request->filled('gender_id')) {
+            $query->whereHas('product', function($q) use ($request) {
+                $q->where('gender_id', $request->gender_id);
+            });
+        }
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -104,6 +207,14 @@ class StockTransferController extends Controller
         }
         if ($request->filled('date_to')) {
             $query->whereDate('requested_at', '<=', $request->date_to);
+        }
+        
+        if ($request->filled('month')) {
+            $query->whereMonth('requested_at', $request->month);
+        }
+        
+        if ($request->filled('year')) {
+            $query->whereYear('requested_at', $request->year);
         }
 
         if ($request->filled('quick_filter')) {
@@ -247,33 +358,69 @@ class StockTransferController extends Controller
     public function show($id)
     {
         $transfer = StockTransfer::with(['product.category', 'variation'])->findOrFail($id);
-        return view('erp.stockTransfer.show', compact('transfer'));
+        
+        if ($transfer->invoice_number) {
+            $transfers = StockTransfer::with(['product.category', 'variation'])
+                ->where('invoice_number', $transfer->invoice_number)
+                ->get();
+        } else {
+            $transfers = collect([$transfer]);
+        }
+        
+        return view('erp.stockTransfer.show', compact('transfer', 'transfers'));
     }
 
     public function store(Request $request)
     {
         // Validate basic transfer information
-        $request->validate([
-            'transfer_date' => 'required|date',
-            'to_outlet' => 'required|string',
-            'items' => 'required|array|min:1',
-        ]);
+    $request->validate([
+        'transfer_date' => 'required|date',
+        'from_outlet' => 'required|string',
+        'to_outlet' => 'required|string',
+        'items' => 'required|array|min:1',
+    ]);
 
-        // Parse to_outlet to get type and id
-        $toOutlet = $request->to_outlet;
-        if (str_starts_with($toOutlet, 'branch_')) {
-            $toType = 'branch';
-            $toId = str_replace('branch_', '', $toOutlet);
-        } elseif (str_starts_with($toOutlet, 'warehouse_')) {
-            $toType = 'warehouse';
-            $toId = str_replace('warehouse_', '', $toOutlet);
-        } else {
-            return redirect()->back()->with('error', 'Invalid receiver outlet selected.');
-        }
+    // Parse to_outlet
+    $toOutlet = $request->to_outlet;
+    if (str_starts_with($toOutlet, 'branch_')) {
+        $toType = 'branch';
+        $toId = str_replace('branch_', '', $toOutlet);
+    } elseif (str_starts_with($toOutlet, 'warehouse_')) {
+        $toType = 'warehouse';
+        $toId = str_replace('warehouse_', '', $toOutlet);
+    } else {
+        return redirect()->back()->with('error', 'Invalid receiver outlet selected.');
+    }
+
+    // Parse from_outlet
+    $fromOutlet = $request->from_outlet;
+    if (str_starts_with($fromOutlet, 'branch_')) {
+        $fromType = 'branch';
+        $fromId = str_replace('branch_', '', $fromOutlet);
+    } elseif (str_starts_with($fromOutlet, 'warehouse_')) {
+        $fromType = 'warehouse';
+        $fromId = str_replace('warehouse_', '', $fromOutlet);
+    } else {
+        return redirect()->back()->with('error', 'Invalid sender outlet selected.');
+    }    
 
         // Process each item and validate stock
         $transfersCreated = 0;
         $errors = [];
+
+        // Generate sequential invoice number for this batch
+        $today = date('Ymd');
+        $lastInvoice = StockTransfer::where('invoice_number', 'like', "TRF-{$today}-%")
+            ->orderBy('invoice_number', 'desc')
+            ->first();
+        
+        if ($lastInvoice && preg_match('/TRF-\d{8}-(\d+)/', $lastInvoice->invoice_number, $matches)) {
+            $nextNumber = intval($matches[1]) + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        
+        $invoiceNumber = 'TRF-' . $today . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
         foreach ($request->items as $key => $item) {
             // Skip if no quantity
@@ -298,13 +445,22 @@ class StockTransferController extends Controller
             $itemPaid = $totalDispatchValue > 0 ? ($totalPrice / $totalDispatchValue) * $globalPaid : 0;
             $itemDue = $totalPrice - $itemPaid;
 
-            // Validate stock availability
-            if ($variationId) {
-                $totalStock = ProductVariationStock::where('variation_id', $variationId)->sum('quantity');
+            // Validate stock availability based on Source Location
+        if ($variationId) {
+            $query = ProductVariationStock::where('variation_id', $variationId);
+            if ($fromType === 'branch') {
+                $query->where('branch_id', $fromId);
             } else {
-                $totalStock = BranchProductStock::where('product_id', $productId)->sum('quantity') +
-                             WarehouseProductStock::where('product_id', $productId)->sum('quantity');
+                $query->where('warehouse_id', $fromId);
             }
+            $totalStock = $query->sum('quantity');
+        } else {
+            if ($fromType === 'branch') {
+                $totalStock = BranchProductStock::where('product_id', $productId)->where('branch_id', $fromId)->sum('quantity');
+            } else {
+                $totalStock = WarehouseProductStock::where('product_id', $productId)->where('warehouse_id', $fromId)->sum('quantity');
+            }
+        }    
 
             if ($quantity > $totalStock) {
                 $errors[] = "Product/Variation ID {$productId}/{$variationId}: Requested {$quantity}, but only {$totalStock} available.";
@@ -312,12 +468,12 @@ class StockTransferController extends Controller
             }
 
             // Create transfer record
-            try {
-                StockTransfer::create([
-                    'from_type' => 'branch', // Default, can be made dynamic
-                    'from_id' => auth()->user()->branch_id ?? 1, // Use user's branch or default
-                    'to_type' => $toType,
-                    'to_id' => $toId,
+        try {
+            StockTransfer::create([
+                'from_type' => $fromType,
+                'from_id' => $fromId,
+                'to_type' => $toType,
+                'to_id' => $toId,
                     'product_id' => $productId,
                     'variation_id' => $variationId,
                     'quantity' => $quantity,
@@ -334,6 +490,7 @@ class StockTransferController extends Controller
                     'requested_by' => auth()->id(),
                     'requested_at' => $request->transfer_date,
                     'notes' => $request->note ?? null,
+                    'invoice_number' => $invoiceNumber,
                 ]);
                 $transfersCreated++;
             } catch (\Exception $e) {
@@ -354,169 +511,221 @@ class StockTransferController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        $transfer = StockTransfer::find($id);
-
-        if($request->status == 'approved')
-        {
-            $transfer->status = $request->status;
-            $transfer->approved_by = auth()->id();
-            $transfer->approved_at = now();
-
-            // Handle variation stock or regular product stock
-            if ($transfer->variation_id) {
-                // Use ProductVariationStock for variations
-                if($transfer->from_type == 'branch'){
-                    $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
-                        ->where('branch_id', $transfer->from_id)
-                        ->whereNull('warehouse_id')
-                        ->first();
-                    $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
-                    if (!$vStock || $availableQty < $transfer->quantity) {
-                        return redirect()->back()->with('error', 'Insufficient stock. Available: ' . $availableQty . ', Requested: ' . $transfer->quantity);
-                    }
-                    $vStock->quantity -= $transfer->quantity;
-                    if ($vStock->quantity < 0) $vStock->quantity = 0;
-                    $vStock->save();
-                } else {
-                    $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
-                        ->where('warehouse_id', $transfer->from_id)
-                        ->whereNull('branch_id')
-                        ->first();
-                    $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
-                    if (!$vStock || $availableQty < $transfer->quantity) {
-                        return redirect()->back()->with('error', 'Insufficient stock. Available: ' . $availableQty . ', Requested: ' . $transfer->quantity);
-                    }
-                    $vStock->quantity -= $transfer->quantity;
-                    if ($vStock->quantity < 0) $vStock->quantity = 0;
-                    $vStock->save();
-                }
-            } else {
-                // Use regular BranchProductStock/WarehouseProductStock for products without variations
-                if($transfer->from_type == 'branch'){
-                    $branchStock = BranchProductStock::where('product_id', $transfer->product_id)->where('branch_id', $transfer->from_id)->first();
-                    if ($branchStock && $branchStock->quantity >= $transfer->quantity) {
-                        $branchStock->quantity -= $transfer->quantity;
-                        $branchStock->save();
-                    } else {
-                        return redirect()->back()->with('error', 'Insufficient stock');
-                    }
-                }else{
-                    $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
-                    if ($warehouseStock && $warehouseStock->quantity >= $transfer->quantity) {
-                        $warehouseStock->quantity -= $transfer->quantity;
-                        $warehouseStock->save();
-                    } else {
-                        return redirect()->back()->with('error', 'Insufficient stock');
-                    }
-                }
-            }
-
-        }elseif($request->status == 'shipped' && $transfer->status == 'approved'){
-            $transfer->status = $request->status;
-            $transfer->shipped_by = auth()->id();
-            $transfer->shipped_at = now();
-        }elseif($request->status == 'delivered' && $transfer->status == 'shipped'){
-            $transfer->status = $request->status;
-            $transfer->delivered_by = auth()->id();
-            $transfer->delivered_at = now();
-
-            // Handle variation stock or regular product stock
-            if ($transfer->variation_id) {
-                // Use ProductVariationStock for variations
-                if ($transfer->to_type == 'branch') {
-                    $vStock = ProductVariationStock::firstOrNew([
-                        'variation_id' => $transfer->variation_id,
-                        'branch_id' => $transfer->to_id,
-                        'warehouse_id' => null
-                    ]);
-                    $vStock->quantity = ($vStock->quantity ?? 0) + $transfer->quantity;
-                    $vStock->updated_by = auth()->id();
-                    $vStock->last_updated_at = now();
-                    $vStock->save();
-                } else {
-                    $vStock = ProductVariationStock::firstOrNew([
-                        'variation_id' => $transfer->variation_id,
-                        'warehouse_id' => $transfer->to_id,
-                        'branch_id' => null
-                    ]);
-                    $vStock->quantity = ($vStock->quantity ?? 0) + $transfer->quantity;
-                    $vStock->updated_by = auth()->id();
-                    $vStock->last_updated_at = now();
-                    $vStock->save();
-                }
-            } else {
-                // Use regular BranchProductStock/WarehouseProductStock for products without variations
-                if ($transfer->to_type == 'branch') {
-                    $branchStock = BranchProductStock::firstOrNew([
-                        'product_id' => $transfer->product_id,
-                        'branch_id' => $transfer->to_id
-                    ]);
-                    $branchStock->quantity = ($branchStock->quantity ?? 0) + $transfer->quantity;
-                    $branchStock->save();
-                } else {
-                    $warehouseStock = WarehouseProductStock::firstOrNew([
-                        'product_id' => $transfer->product_id,
-                        'warehouse_id' => $transfer->to_id,
-                        'updated_by' => auth()->id()
-                    ]);
-                    $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $transfer->quantity;
-                    $warehouseStock->save();
-                }
-            }
-        }elseif($request->status == 'rejected' && $transfer->status != 'delivered'){
-            $transfer->status = $request->status;
-            $transfer->approved_by = null;
-            $transfer->approved_at = null;
-            $transfer->shipped_by = null;
-            $transfer->shipped_at = null;
-            $transfer->delivered_by = null;
-            $transfer->delivered_at = null;
-
-            // Restore stock back to source location
-            if ($transfer->variation_id) {
-                // Use ProductVariationStock for variations
-                if($transfer->from_type == 'branch'){
-                    $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
-                        ->where('branch_id', $transfer->from_id)
-                        ->whereNull('warehouse_id')
-                        ->first();
-                    if ($vStock) {
-                        $vStock->quantity += $transfer->quantity;
-                        $vStock->save();
-                    }
-                } else {
-                    $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
-                        ->where('warehouse_id', $transfer->from_id)
-                        ->whereNull('branch_id')
-                        ->first();
-                    if ($vStock) {
-                        $vStock->quantity += $transfer->quantity;
-                        $vStock->save();
-                    }
-                }
-            } else {
-                // Use regular BranchProductStock/WarehouseProductStock for products without variations
-                if($transfer->from_type == 'branch'){
-                    $branchStock = BranchProductStock::where('product_id', $transfer->product_id)->where('branch_id', $transfer->from_id)->first();
-                    if ($branchStock) {
-                        $branchStock->quantity += $transfer->quantity;
-                        $branchStock->save();
-                    }
-                }else{
-                    $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
-                    if ($warehouseStock) {
-                        $warehouseStock->quantity += $transfer->quantity;
-                        $warehouseStock->save();
-                    }
-                }
-            }
-        }else{
-            $transfer->status = $request->status;
+        $primaryTransfer = StockTransfer::findOrFail($id);
+        
+        // Identify the batch: if invoice_number exists, get all; otherwise just this one
+        if ($primaryTransfer->invoice_number) {
+            $transfers = StockTransfer::where('invoice_number', $primaryTransfer->invoice_number)->get();
+        } else {
+            $transfers = collect([$primaryTransfer]);
         }
 
-        $transfer->save();
+        // Phase 1: Pre-validation (Crucial for atomic invoice approval)
+        if ($request->status == 'approved') {
+            foreach ($transfers as $transfer) {
+                if ($transfer->status == 'approved') continue; // Already approved
 
-        return redirect()->back()->with('success', 'Transfer status updated successfully.');
+                if ($transfer->variation_id) {
+                     // Check Variation Stock
+                     if($transfer->from_type == 'branch'){
+                         $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
+                             ->where('branch_id', $transfer->from_id)
+                             ->whereNull('warehouse_id')
+                             ->first();
+                         $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                         if (!$vStock || $availableQty < $transfer->quantity) {
+                             return redirect()->back()->with('error', "Insufficient stock for product '{$transfer->product->name}' (Var: {$transfer->variation->name}) at source branch. Available: {$availableQty}, Requested: {$transfer->quantity}");
+                         }
+                     } else {
+                         // Warehouse Variation
+                         $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
+                             ->where('warehouse_id', $transfer->from_id)
+                             ->whereNull('branch_id')
+                             ->first();
+                         $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                         if (!$vStock || $availableQty < $transfer->quantity) {
+                             return redirect()->back()->with('error', "Insufficient stock for product '{$transfer->product->name}' (Var: {$transfer->variation->name}) at source warehouse. Available: {$availableQty}, Requested: {$transfer->quantity}");
+                         }
+                     }
+                } else {
+                    // Check Regular Stock
+                    if($transfer->from_type == 'branch'){
+                         $branchStock = BranchProductStock::where('product_id', $transfer->product_id)->where('branch_id', $transfer->from_id)->first();
+                         if (!$branchStock || $branchStock->quantity < $transfer->quantity) {
+                             return redirect()->back()->with('error', "Insufficient stock for product '{$transfer->product->name}' at source branch.");
+                         }
+                    } else {
+                         $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
+                         if (!$warehouseStock || $warehouseStock->quantity < $transfer->quantity) {
+                             return redirect()->back()->with('error', "Insufficient stock for product '{$transfer->product->name}' at source warehouse.");
+                         }
+                    }
+                }
+            }
+        }
+
+        // Phase 2: Apply Status Updates and Stock Changes
+        DB::beginTransaction();
+        try {
+            foreach ($transfers as $transfer) {
+                // Skip if status matches (idempotency, though some transitions might be valid re-entries, simplified here)
+                if ($transfer->status == $request->status) continue;
+
+                if($request->status == 'approved')
+                {
+                    $transfer->status = $request->status;
+                    $transfer->approved_by = auth()->id();
+                    $transfer->approved_at = now();
+                    $transfer->save(); // Save status first
+
+                    // Deduct Stock
+                    if ($transfer->variation_id) {
+                        if($transfer->from_type == 'branch'){
+                            $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
+                                ->where('branch_id', $transfer->from_id)
+                                ->whereNull('warehouse_id')
+                                ->first();
+                            if ($vStock) {
+                                $vStock->quantity -= $transfer->quantity;
+                                if ($vStock->quantity < 0) $vStock->quantity = 0;
+                                $vStock->save();
+                            }
+                        } else {
+                            $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
+                                ->where('warehouse_id', $transfer->from_id)
+                                ->whereNull('branch_id')
+                                ->first();
+                            if ($vStock) {
+                                $vStock->quantity -= $transfer->quantity;
+                                if ($vStock->quantity < 0) $vStock->quantity = 0;
+                                $vStock->save();
+                            }
+                        }
+                    } else {
+                        if($transfer->from_type == 'branch'){
+                            $branchStock = BranchProductStock::where('product_id', $transfer->product_id)->where('branch_id', $transfer->from_id)->first();
+                            if ($branchStock) {
+                                $branchStock->quantity -= $transfer->quantity;
+                                $branchStock->save();
+                            }
+                        }else{
+                            $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
+                            if ($warehouseStock) {
+                                $warehouseStock->quantity -= $transfer->quantity;
+                                $warehouseStock->save();
+                            }
+                        }
+                    }
+
+                }elseif($request->status == 'shipped' && $transfer->status == 'approved'){
+                    $transfer->status = $request->status;
+                    $transfer->shipped_by = auth()->id();
+                    $transfer->shipped_at = now();
+                    $transfer->save();
+                }elseif($request->status == 'delivered' && $transfer->status == 'shipped'){
+                    $transfer->status = $request->status;
+                    $transfer->delivered_by = auth()->id();
+                    $transfer->delivered_at = now();
+                    $transfer->save();
+
+                    // Add Stock to Destination
+                    if ($transfer->variation_id) {
+                        if ($transfer->to_type == 'branch') {
+                            $vStock = ProductVariationStock::firstOrNew([
+                                'variation_id' => $transfer->variation_id,
+                                'branch_id' => $transfer->to_id,
+                                'warehouse_id' => null
+                            ]);
+                            $vStock->quantity = ($vStock->quantity ?? 0) + $transfer->quantity;
+                            $vStock->updated_by = auth()->id();
+                            $vStock->last_updated_at = now();
+                            $vStock->save();
+                        } else {
+                            $vStock = ProductVariationStock::firstOrNew([
+                                'variation_id' => $transfer->variation_id,
+                                'warehouse_id' => $transfer->to_id,
+                                'branch_id' => null
+                            ]);
+                            $vStock->quantity = ($vStock->quantity ?? 0) + $transfer->quantity;
+                            $vStock->updated_by = auth()->id();
+                            $vStock->last_updated_at = now();
+                            $vStock->save();
+                        }
+                    } else {
+                        if ($transfer->to_type == 'branch') {
+                            $branchStock = BranchProductStock::firstOrNew([
+                                'product_id' => $transfer->product_id,
+                                'branch_id' => $transfer->to_id
+                            ]);
+                            $branchStock->quantity = ($branchStock->quantity ?? 0) + $transfer->quantity;
+                            $branchStock->save();
+                        } else {
+                            $warehouseStock = WarehouseProductStock::firstOrNew([
+                                'product_id' => $transfer->product_id,
+                                'warehouse_id' => $transfer->to_id,
+                                'updated_by' => auth()->id()
+                            ]);
+                            $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $transfer->quantity;
+                            $warehouseStock->save();
+                        }
+                    }
+                }elseif($request->status == 'rejected' && $transfer->status != 'delivered'){
+                    $oldStatus = $transfer->status;
+                    $transfer->status = $request->status;
+                    $transfer->approved_by = null; // Clear approvals? Maybe keep history? Just following old logic.
+                    // Actually, usually you keep approval history, but old code cleared it. Strict adhesion to old logic:
+                    $transfer->approved_by = null; $transfer->approved_at = null;
+                    $transfer->shipped_by = null; $transfer->shipped_at = null;
+                    $transfer->delivered_by = null; $transfer->delivered_at = null;
+                    $transfer->save();
+        
+                    // Restore stock IF it was previously deducted (i.e. if it was approved/shipped)
+                    // If it was just pending, no stock was deducted.
+                    if (in_array($oldStatus, ['approved', 'shipped'])) {
+                        if ($transfer->variation_id) {
+                            if($transfer->from_type == 'branch'){
+                                $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
+                                    ->where('branch_id', $transfer->from_id)
+                                    ->whereNull('warehouse_id')
+                                    ->first();
+                                if ($vStock) {
+                                    $vStock->quantity += $transfer->quantity;
+                                    $vStock->save();
+                                }
+                            } else {
+                                $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
+                                    ->where('warehouse_id', $transfer->from_id)
+                                    ->whereNull('branch_id')
+                                    ->first();
+                                if ($vStock) {
+                                    $vStock->quantity += $transfer->quantity;
+                                    $vStock->save();
+                                }
+                            }
+                        } else {
+                            if($transfer->from_type == 'branch'){
+                                $branchStock = BranchProductStock::where('product_id', $transfer->product_id)->where('branch_id', $transfer->from_id)->first();
+                                if ($branchStock) {
+                                    $branchStock->quantity += $transfer->quantity;
+                                    $branchStock->save();
+                                }
+                            }else{
+                                $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
+                                if ($warehouseStock) {
+                                    $warehouseStock->quantity += $transfer->quantity;
+                                    $warehouseStock->save();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            DB::commit();
+            return redirect()->back()->with('success', 'Status updated for Invoice ' . ($primaryTransfer->invoice_number ?? $primaryTransfer->id));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Error updating status: ' . $e->getMessage());
+        }
     }
 
     public function destroy($id)

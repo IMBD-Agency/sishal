@@ -2,411 +2,241 @@
 
 @section('title', 'Dashboard')
 
-@push('head')
-<style>
-    .premium-card {
-        border: none;
-        border-radius: 1.25rem;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        overflow: hidden;
-        background: white;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-    }
-    .stat-trend {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-    }
-    .stat-trend.up {
-        background: #dcfce7;
-        color: #16a34a;
-    }
-    .stat-trend.down {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-    .product-item {
-        padding: 0.75rem;
-        border-bottom: 1px solid #f3f4f6;
-        transition: background 0.2s ease;
-    }
-    .product-item:hover {
-        background: #f9fafb;
-    }
-    .product-item:last-child {
-        border-bottom: none;
-    }
-    .stock-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.375rem;
-        font-weight: 600;
-    }
-    .stock-critical {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-    .stock-low {
-        background: #fef3c7;
-        color: #92400e;
-    }
-</style>
-@endpush
-
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
-        <div class="container-fluid p-3 p-md-4">
-            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-4">
-                <div>
-                    <h2 class="fw-bold text-gray-800 mb-1">Dashboard Overview</h2>
-                    <p class="text-muted mb-0">Monitor your business performance and key metrics</p>
-                </div>
-                <form method="GET">
-                    <select id="range-select" name="range" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
-                        <option value="day" {{ ($range ?? 'week')==='day' ? 'selected' : '' }}>Today</option>
-                        <option value="week" {{ ($range ?? 'week')==='week' ? 'selected' : '' }}>Last 7 days</option>
-                        <option value="month" {{ ($range ?? 'week')==='month' ? 'selected' : '' }}>Last 30 days</option>
-                        <option value="year" {{ ($range ?? 'week')==='year' ? 'selected' : '' }}>Last 12 months</option>
-                    </select>
-                </form>
-            </div>
+        
+        <div class="container-fluid p-2 p-md-4">
+            <h1 class="dash-welcome-title">{{ $siteTitle }}</h1>
 
-            <!-- Stats Cards -->
-            <div class="row g-4 mb-4">
-                <!-- Row 1: Primary Metrics -->
-                <div class="col-12 col-md-6 col-xl-3">
-                    <div class="stats-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1 small">Total Revenue</p>
-                                <h3 class="mb-2"><span id="stat-total-sales">{{ $stats['totalSales']['value'] ?? '0.00' }}</span>৳</h3>
-                                <span class="stat-trend {{ $stats['totalSales']['trend'] ?? 'up' }}">
-                                    <i class="fas fa-arrow-{{ $stats['totalSales']['trend'] === 'up' ? 'up' : 'down' }} me-1"></i>
-                                    {{ abs($stats['totalSales']['percentage'] ?? 0) }}%
-                                </span>
-                            </div>
-                            <div class="stats-icon green">
-                                <i class="fas fa-dollar-sign"></i>
-                            </div>
-                        </div>
+            <!-- Financial KPI Row -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="dash-card" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); min-height: 140px;">
+                        <h2>{{ $financialKPIs['total_sales'] }}</h2>
+                        <p>Today's Total Sales</p>
+                        <i class="fas fa-cash-register icon-bg"></i>
                     </div>
                 </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <div class="stats-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1 small">Total Profit</p>
-                                <h3 class="mb-2"><span id="stat-profit">{{ $profitMetrics['profit'] ?? '0.00' }}</span>৳</h3>
-                                <span class="stat-trend {{ $profitMetrics['trend'] ?? 'up' }}">
-                                    <i class="fas fa-arrow-{{ $profitMetrics['trend'] === 'up' ? 'up' : 'down' }} me-1"></i>
-                                    {{ abs($profitMetrics['percentage'] ?? 0) }}%
-                                </span>
-                            </div>
-                            <div class="stats-icon green">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                        </div>
+                <div class="col-md-4">
+                    <div class="dash-card" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); min-height: 140px;">
+                        <h2>{{ $financialKPIs['total_collection'] }}</h2>
+                        <p>Today's Total Collection</p>
+                        <i class="fas fa-hand-holding-usd icon-bg"></i>
                     </div>
                 </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <div class="stats-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1 small">Profit Margin</p>
-                                <h3 class="mb-2"><span id="stat-margin">{{ $profitMetrics['margin'] ?? '0.0' }}</span>%</h3>
-                                <small class="text-muted">Gross margin</small>
-                            </div>
-                            <div class="stats-icon purple">
-                                <i class="fas fa-percentage"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <div class="stats-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1 small">Pending Orders</p>
-                                <h3 class="mb-2 text-warning"><span id="stat-pending">{{ $channelBreakdown['pending'] ?? 0 }}</span></h3>
-                                <small class="text-muted">Need attention</small>
-                            </div>
-                            <div class="stats-icon orange">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Row 2: Secondary Metrics -->
-                <div class="col-12 col-md-6 col-xl-4">
-                    <div class="stats-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1 small">Total Orders</p>
-                                <h3 class="mb-2" id="stat-total-orders">{{ $stats['totalOrders']['value'] ?? 0 }}</h3>
-                                <span class="stat-trend {{ $stats['totalOrders']['trend'] ?? 'up' }}">
-                                    <i class="fas fa-arrow-{{ $stats['totalOrders']['trend'] === 'up' ? 'up' : 'down' }} me-1"></i>
-                                    {{ abs($stats['totalOrders']['percentage'] ?? 0) }}%
-                                </span>
-                            </div>
-                            <div class="stats-icon blue">
-                                <i class="fas fa-shopping-cart"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6 col-xl-4">
-                    <div class="stats-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <p class="text-muted mb-1 small">Avg. Order Value</p>
-                                <h3 class="mb-2"><span id="stat-avg-order">{{ $stats['averageOrder']['value'] ?? '0.00' }}</span>৳</h3>
-                                <span class="stat-trend {{ $stats['averageOrder']['trend'] ?? 'up' }}">
-                                    <i class="fas fa-arrow-{{ $stats['averageOrder']['trend'] === 'up' ? 'up' : 'down' }} me-1"></i>
-                                    {{ abs($stats['averageOrder']['percentage'] ?? 0) }}%
-                                </span>
-                            </div>
-                            <div class="stats-icon blue">
-                                <i class="fas fa-shopping-bag"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-12 col-xl-4">
-                    <div class="stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="flex-grow-1">
-                                <p class="mb-1 small opacity-75">Sales Channels</p>
-                                <div class="d-flex gap-4 mt-2">
-                                    <div>
-                                        <div class="small opacity-75">POS</div>
-                                        <div class="h5 mb-0 fw-bold">{{ $channelBreakdown['pos']['percentage'] ?? 0 }}%</div>
-                                        <div class="small opacity-75">{{ $channelBreakdown['pos']['orders'] ?? 0 }} orders</div>
-                                    </div>
-                                    <div>
-                                        <div class="small opacity-75">Online</div>
-                                        <div class="h5 mb-0 fw-bold">{{ $channelBreakdown['online']['percentage'] ?? 0 }}%</div>
-                                        <div class="small opacity-75">{{ $channelBreakdown['online']['orders'] ?? 0 }} orders</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <i class="fas fa-store fa-2x opacity-50"></i>
-                            </div>
-                        </div>
+                <div class="col-md-4">
+                    <div class="dash-card" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); min-height: 140px;">
+                        <h2>{{ $financialKPIs['total_due'] }}</h2>
+                        <p>Today's Total Due</p>
+                        <i class="fas fa-file-invoice icon-bg"></i>
                     </div>
                 </div>
             </div>
 
-            <div class="row mb-4">
-                <!-- Revenue Chart -->
-                <div class="col-12 col-lg-8 mb-4">
-                    <div class="premium-card">
-                        <div class="card-header bg-white border-0 p-4">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5 class="mb-1 fw-bold">Revenue Overview</h5>
-                                    <p class="text-muted small mb-0">Sales performance over time</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body pt-0">
-                            <div style="height: 300px;">
-                                <canvas id="chart-revenue"></canvas>
-                            </div>
-                            <div class="mt-3 d-flex justify-content-around text-center border-top pt-3">
-                                <div>
-                                    <div class="small text-muted">Total</div>
-                                    <div class="fw-bold" id="revenue-total">{{ $salesOverview['totalSales'] ?? '0.00' }}৳</div>
-                                </div>
-                                <div>
-                                    <div class="small text-muted">Average</div>
-                                    <div class="fw-bold" id="revenue-avg">{{ $salesOverview['average'] ?? '0.00' }}৳</div>
-                                </div>
-                                <div>
-                                    <div class="small text-muted">Peak Day</div>
-                                    <div class="fw-bold" id="revenue-peak">{{ $salesOverview['peakDay'] ?? 'N/A' }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Operations Summary Cards -->
+            <div class="dash-summary-cards mb-4">
+                <div class="dash-card">
+                    <h2>{{ $todayPurchases['gross_amount'] }}</h2>
+                    <p>Today's Purchase</p>
+                    <i class="fas fa-shopping-basket icon-bg"></i>
                 </div>
-
-                <!-- Order Status -->
-                <div class="col-12 col-lg-4 mb-4">
-                    <div class="premium-card h-100">
-                        <div class="card-header bg-white border-0 p-4">
-                            <h5 class="mb-1 fw-bold">Order Status</h5>
-                            <p class="text-muted small mb-0">Distribution by status</p>
-                        </div>
-                        <div class="card-body">
-                            @if(($orderStatus['total'] ?? 0) > 0)
-                                <div style="height: 250px;">
-                                    <canvas id="chart-status"></canvas>
-                                </div>
-                            @else
-                                <div class="text-center text-muted py-5">
-                                    <i class="fas fa-chart-pie fa-3x mb-3 opacity-25"></i>
-                                    <p>No order data for selected range</p>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
+                <div class="dash-card">
+                    <h2>{{ str_pad($todayPurchases['gross_qty'], 2, '0', STR_PAD_LEFT) }}</h2>
+                    <p>Today's Purchase Qty</p>
+                    <i class="fas fa-chart-bar icon-bg"></i>
+                </div>
+                <div class="dash-card">
+                    <h2>{{ $todayPurchases['actual_amount'] }}</h2>
+                    <p>Today's Actual Purchase</p>
+                    <i class="fas fa-shopping-basket icon-bg"></i>
+                </div>
+                <div class="dash-card">
+                    <h2>{{ str_pad($todayPurchases['actual_qty'], 2, '0', STR_PAD_LEFT) }}</h2>
+                    <p>Today's Actual Purchase Qty</p>
+                    <i class="fas fa-chart-bar icon-bg"></i>
+                </div>
+                <div class="dash-card card-alt">
+                    <h2>{{ $todayExpenses }}</h2>
+                    <p>Today's Expense</p>
+                    <i class="fas fa-file-invoice-dollar icon-bg"></i>
                 </div>
             </div>
 
-            <div class="row mb-4">
+            <div class="row">
                 <!-- Top Selling Products -->
-                <div class="col-12 col-lg-6 mb-4">
-                    <div class="premium-card h-100">
-                        <div class="card-header bg-white border-0 p-4">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5 class="mb-1 fw-bold">Top Selling Products</h5>
-                                    <p class="text-muted small mb-0">Best performers this period</p>
-                                </div>
-                                <a href="{{ route('simple-accounting.top-products') }}" class="btn btn-sm btn-outline-primary">View All</a>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            @forelse($topSellingItems ?? [] as $item)
-                            <div class="product-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <div class="fw-bold text-gray-800">{{ $item['name'] }}</div>
-                                        <div class="small text-muted">{{ $item['category'] }}</div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="fw-bold text-primary">{{ $item['sales'] }} sold</div>
-                                        <div class="small text-muted">{{ $item['revenue'] }}৳</div>
-                                    </div>
-                                </div>
-                            </div>
-                            @empty
-                            <div class="text-center text-muted py-5">
-                                <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
-                                <p>No sales data available</p>
-                            </div>
-                            @endforelse
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Low Stock Alert -->
-                <div class="col-12 col-lg-6 mb-4">
-                    <div class="premium-card h-100">
-                        <div class="card-header bg-white border-0 p-4">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5 class="mb-1 fw-bold">Low Stock Alert</h5>
-                                    <p class="text-muted small mb-0">Products running low</p>
-                                </div>
-                                <a href="{{ route('simple-accounting.stock-value') }}" class="btn btn-sm btn-outline-warning">Manage Stock</a>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            @forelse($lowStockItems ?? [] as $item)
-                            <div class="product-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <div class="fw-bold text-gray-800">{{ $item['name'] }}</div>
-                                        <div class="small text-muted">{{ $item['category'] }} • Style No: {{ $item['sku'] }}</div>
-                                    </div>
-                                    <div>
-                                        <span class="stock-badge {{ $item['stock'] < 5 ? 'stock-critical' : 'stock-low' }}">
-                                            {{ $item['stock'] }} left
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            @empty
-                            <div class="text-center text-muted py-5">
-                                <i class="fas fa-check-circle fa-3x mb-3 opacity-25 text-success"></i>
-                                <p>All products are well stocked</p>
-                            </div>
-                            @endforelse
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Online Orders (Actionable) -->
-            <div class="premium-card">
-                <div class="card-header bg-white border-0 p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-1 fw-bold">Recent Online Orders</h5>
-                            <p class="text-muted small mb-0">Orders requiring processing & fulfillment</p>
-                        </div>
-                        <a href="{{ route('order.list') }}" class="btn btn-sm btn-outline-primary">View All Orders</a>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-custom mb-0 align-middle">
+                <div class="col-lg-5">
+                    <div class="dash-section-header">Top Selling Products</div>
+                    <div class="dash-table-container table-responsive">
+                        <table class="premium-table compact table-hover w-100 mb-0">
                             <thead>
-                                <tr class="small text-uppercase">
-                                    <th class="ps-4">Order ID</th>
-                                    <th>Customer</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th class="text-end">Amount</th>
-                                    <th class="text-end pe-4">Action</th>
+                                <tr>
+                                    <th>Product Details</th>
+                                    <th class="text-center">Sold</th>
+                                    <th class="text-center">Revenue</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @php
-                                    $recentOrders = \App\Models\Order::with('customer')
-                                        ->whereIn('status', ['pending', 'approved', 'processing'])
-                                        ->latest()
-                                        ->limit(5)
-                                        ->get();
-                                @endphp
-                                @forelse($recentOrders as $order)
+                                @foreach($topSellingItems as $item)
                                 <tr>
-                                    <td class="fw-bold ps-4">#{{ $order->id }}</td>
                                     <td>
-                                        <div class="fw-semibold">{{ $order->customer->first_name ?? $order->name ?? 'Guest' }} {{ $order->customer->last_name ?? '' }}</div>
-                                        <div class="small text-muted">{{ $order->customer->phone ?? $order->phone }}</div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="action-circle me-2 bg-{{ $item['color'] }}-soft text-{{ $item['color'] }}">
+                                                <i class="{{ $item['icon'] }}"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">{{ $item['name'] }}</div>
+                                                <div class="extra-small text-muted">{{ $item['category'] }}</div>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td class="text-nowrap small">{{ $order->created_at->format('M d, Y') }}</td>
-                                    <td>
-                                        <span class="badge 
-                                            @if($order->status === 'pending') bg-warning
-                                            @elseif($order->status === 'approved') bg-info
-                                            @elseif($order->status === 'processing') bg-primary
-                                            @else bg-secondary
-                                            @endif">
-                                            {{ ucfirst($order->status) }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end fw-bold">{{ number_format($order->total, 2) }}৳</td>
-                                    <td class="text-end pe-4">
-                                        <a href="{{ route('order.show', $order->id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    </td>
+                                    <td class="text-center fw-bold">{{ (int)$item['sales'] }}</td>
+                                    <td class="text-center text-success fw-bold">{{ $item['revenue'] }}</td>
                                 </tr>
-                                @empty
+                                @endforeach
+                            </tbody>
+                        </table>
+                        <a href="{{ route('simple-accounting.top-products') }}" class="dash-btn-more">View More</a>
+                    </div>
+                </div>
+
+                <!-- Outlet Performance -->
+                <div class="col-lg-7">
+                    <div class="dash-section-header blue">Outlet Monthly Performance</div>
+                    <div class="dash-table-container table-responsive">
+                        <table class="premium-table compact table-hover w-100 mb-0">
+                            <thead>
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-5">
-                                        <i class="fas fa-check-circle fa-3x mb-3 opacity-25 text-success"></i>
-                                        <p>All orders processed! No pending orders.</p>
-                                    </td>
+                                    <th>Outlet</th>
+                                    <th class="text-center">Today Sales</th>
+                                    <th class="text-center">Today Qty</th>
+                                    <th class="text-center">Month Sales</th>
+                                    <th class="text-center">Month Qty</th>
                                 </tr>
-                                @endforelse
+                            </thead>
+                            <tbody>
+                                @php $gtAmountMonth = 0; $gtQtyMonth = 0; @endphp
+                                @foreach($outletPerformance as $outlet)
+                                    @php 
+                                        $gtAmountMonth += $outlet['month_amount']; 
+                                        $gtQtyMonth += $outlet['month_qty']; 
+                                    @endphp
+                                    <tr>
+                                        <td class="fw-bold">{{ $outlet['name'] }}</td>
+                                        <td class="text-center">{{ number_format($outlet['today_amount'], 2) }}</td>
+                                        <td class="text-center">{{ $outlet['today_qty'] }}</td>
+                                        <td class="text-center fw-bold text-primary">{{ number_format($outlet['month_amount'], 2) }}</td>
+                                        <td class="text-center">{{ $outlet['month_qty'] }}</td>
+                                    </tr>
+                                @endforeach
+                                <tr class="fw-bold" style="background: #f8fafc;">
+                                    <td class="text-end pe-4">Total</td>
+                                    <td colspan="2"></td>
+                                    <td class="text-center text-success">{{ number_format($gtAmountMonth, 2) }}</td>
+                                    <td class="text-center text-success">{{ $gtQtyMonth }}</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
+
+            <!-- Low Stock Products Information -->
+            <div class="dash-section-header blue mt-4">Low Stock Products Information</div>
+            <div class="dash-table-container table-responsive">
+                <table class="premium-table compact table-hover w-100 mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 60px;">#SN.</th>
+                            <th>Outlet</th>
+                            <th>Category</th>
+                            <th>Brand</th>
+                            <th>Product Name</th>
+                            <th>Style</th>
+                            <th>Size</th>
+                            <th class="text-center">Limit</th>
+                            <th class="text-center">Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($lowStockDetailed as $index => $item)
+                        <tr>
+                            <td class="text-center">{{ $index + 1 }}</td>
+                            <td>{{ $item['branch'] }}</td>
+                            <td>{{ $item['category'] }}</td>
+                            <td>{{ $item['brand'] }}</td>
+                            <td>{{ $item['product_name'] }}</td>
+                            <td>{{ $item['style_number'] }}</td>
+                            <td class="text-center">{{ $item['size'] }}</td>
+                            <td class="text-center">{{ $item['limit'] }}</td>
+                            <td class="text-center text-danger fw-bold">{{ $item['current'] }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                <a href="{{ route('productstock.list') }}" class="dash-btn-more">View More</a>
+            </div>
+
+            <!-- Recent Sales -->
+            <div class="dash-section-header">Recent Sales</div>
+            <div class="dash-table-container table-responsive">
+                <table class="premium-table compact table-hover w-100 mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 60px;">No.</th>
+                            <th>Invoice / Challan</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th class="text-center">Total</th>
+                            <th class="text-center">Paid</th>
+                            <th class="text-center">Due</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($recentSalesDetailed as $index => $sale)
+                        <tr>
+                            <td class="text-center">{{ $index + 1 }}</td>
+                            <td>
+                                <div class="fw-bold">{{ $sale['invoice_no'] }}</div>
+                                <div class="extra-small text-muted">CH: {{ $sale['challan_no'] }}</div>
+                            </td>
+                            <td>{{ $sale['date'] }}</td>
+                            <td>{{ $sale['customer'] }}</td>
+                            <td class="text-center fw-bold">{{ number_format($sale['total'], 2) }}</td>
+                            <td class="text-center text-success">{{ number_format($sale['paid'], 2) }}</td>
+                            <td class="text-center text-danger">{{ number_format($sale['due'], 2) }}</td>
+                            <td class="text-center">
+                                <span class="badge @if($sale['status'] == 'delivered') bg-success @else bg-primary @endif">
+                                    {{ ucfirst($sale['status']) }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                <a href="{{ route('pos.list') }}" class="dash-btn-more">View More</a>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="dash-chart-card premium-shadow border-0">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 class="dash-chart-title mb-1">Sales Performance Trends</h3>
+                        <p class="text-muted small mb-0">Analysis of daily quantity and revenue for the last 7 days</p>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Last 7 Days
+                        </button>
+                    </div>
+                </div>
+                <div style="height: 420px; position: relative;">
+                    <canvas id="salesTrendsChart"></canvas>
+                </div>
+            </div>
+
         </div>
     </div>
 @endsection
@@ -414,86 +244,123 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-(function(){
-    const revenueLabels = @json($salesOverview['labels'] ?? []);
-    const revenueData = @json(array_map('floatval', $salesOverview['data'] ?? []));
-    const ctxRev = document.getElementById('chart-revenue');
-    if (ctxRev) {
-        new Chart(ctxRev, {
-            type: 'line',
-            data: { 
-                labels: revenueLabels, 
-                datasets: [{ 
-                    label: 'Sales', 
-                    data: revenueData, 
-                    borderColor: 'rgb(25, 135, 84)', 
-                    backgroundColor: 'rgba(25, 135, 84, 0.1)', 
-                    fill: true, 
-                    tension: 0.4,
-                    borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }] 
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: { size: 14 },
-                        bodyFont: { size: 13 }
-                    }
-                }, 
-                scales: { 
-                    y: { 
-                        beginAtZero: true,
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                    },
-                    x: {
-                        grid: { display: false }
-                    }
-                } 
-            }
-        });
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('salesTrendsChart').getContext('2d');
+    const chartLabels = @json($salesQtyChart['labels']);
+    const qtyData = @json($salesQtyChart['qtyData']);
+    const revData = @json($salesQtyChart['revData']);
 
-    const statusTotal = {{ $orderStatus['total'] ?? 0 }};
-    const statusCanvas = document.getElementById('chart-status');
-    if (statusCanvas && statusTotal > 0) {
-        new Chart(statusCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: ['Pending','Delivered','Shipping','Cancelled'],
-                datasets: [{ 
-                    data: [
-                        {{ $orderStatus['pending'] ?? 0 }}, 
-                        {{ $orderStatus['delivered'] ?? 0 }}, 
-                        {{ $orderStatus['shipping'] ?? 0 }}, 
-                        {{ $orderStatus['cancelled'] ?? 0 }}
-                    ], 
-                    backgroundColor: ['#fbbf24','#10b981','#3b82f6','#ef4444'],
-                    borderWidth: 0
-                }]
+    // Create Gradients
+    const gradientRev = ctx.createLinearGradient(0, 0, 0, 400);
+    gradientRev.addColorStop(0, 'rgba(15, 118, 110, 0.2)');
+    gradientRev.addColorStop(1, 'rgba(15, 118, 110, 0)');
+
+    const gradientQty = ctx.createLinearGradient(0, 0, 0, 400);
+    gradientQty.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+    gradientQty.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: 'Revenue (৳)',
+                    data: revData,
+                    borderColor: '#0f766e',
+                    backgroundColor: gradientRev,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#0f766e',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    yAxisID: 'yRevenue'
+                },
+                {
+                    label: 'Quantity',
+                    data: qtyData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: gradientQty,
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#3b82f6',
+                    pointBorderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    yAxisID: 'yQty'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
             },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                plugins: { 
-                    legend: { 
-                        position: 'bottom',
-                        labels: {
-                            padding: 15,
-                            font: { size: 12 }
-                        }
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: { size: 12, weight: '600' }
                     }
                 },
-                cutout: '65%'
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { size: 13 },
+                    bodyFont: { size: 13 },
+                    padding: 12,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.datasetIndex === 0) {
+                                label += context.raw.toLocaleString() + ' ৳';
+                            } else {
+                                label += context.raw;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                yRevenue: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true,
+                    title: { display: true, text: 'Revenue (৳)', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
+                    ticks: { color: '#64748b' }
+                },
+                yQty: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    title: { display: true, text: 'Quantity', font: { weight: 'bold' } },
+                    grid: { display: false },
+                    ticks: { color: '#64748b' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#64748b', font: { size: 11 } }
+                }
             }
-        });
-    }
-})();
+        }
+    });
+});
 </script>
 @endpush

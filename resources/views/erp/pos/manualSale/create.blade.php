@@ -65,9 +65,9 @@
                                     <div class="col-12 mt-5 pt-5 border-top">
                                         <div class="row g-4 align-items-end">
                                             <div class="col-md-4">
-                                                <label class="form-label small fw-bold text-primary text-uppercase mb-2">Select Style Number (SKU)</label>
+                                                <label class="form-label small fw-bold text-primary text-uppercase mb-2">Select Product (Name/Style/SKU)</label>
                                                 <select id="styleNumberSelect" class="form-select">
-                                                    <option value="">Search by Style Number...</option>
+                                                    <option value="">Search by Name, Style or SKU...</option>
                                                 </select>
                                             </div>
                                             <div class="col-md-4">
@@ -256,12 +256,9 @@
     <input type="hidden" id="subtotalInput" name="sub_total" value="0">
     <input type="hidden" id="totalAmountInput" name="total_amount" value="0">
 
+@endsection
 
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
+@push('scripts')
     <script>
         $(document).ready(function() {
             // Select2 initialization
@@ -270,7 +267,7 @@
             $('#styleNumberSelect').select2({
                 theme: 'classic',
                 width: '100%',
-                placeholder: 'Search by Style Number...',
+                placeholder: 'Search by Name, Style or SKU...',
                 ajax: {
                     url: "{{ route('products.search.style') }}",
                     dataType: 'json',
@@ -521,4 +518,4 @@
             });
         });
     </script>
-@endsection
+@endpush

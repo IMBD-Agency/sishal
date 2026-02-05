@@ -57,8 +57,20 @@ class Product extends Model
     {
         return $this->hasMany(BranchProductStock::class);
     }
+    
+    // Alias for plural usage in reports
+    public function branchStocks()
+    {
+        return $this->hasMany(BranchProductStock::class);
+    }
 
     public function warehouseStock()
+    {
+        return $this->hasMany(WarehouseProductStock::class);
+    }
+
+    // Alias for plural usage in reports
+    public function warehouseStocks()
     {
         return $this->hasMany(WarehouseProductStock::class);
     }

@@ -11,13 +11,34 @@ class SupplierController extends Controller
     public function index(Request $request)
     {
         $query = Supplier::query();
+        
+        // Search by multiple fields
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('email', 'like', '%' . $request->search . '%')
-                  ->orWhere('phone', 'like', '%' . $request->search . '%');
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%$search%")
+                  ->orWhere('email', 'LIKE', "%$search%")
+                  ->orWhere('phone', 'LIKE', "%$search%")
+                  ->orWhere('company_name', 'LIKE', "%$search%")
+                  ->orWhere('tax_number', 'LIKE', "%$search%");
+            });
         }
-        $suppliers = $query->latest()->paginate(10);
-        return view('erp.suppliers.index', compact('suppliers'));
+
+        // Dropdown Filters
+        if ($request->filled('city')) {
+            $query->where('city', $request->city);
+        }
+        if ($request->filled('country')) {
+            $query->where('country', $request->country);
+        }
+
+        $suppliers = $query->latest()->paginate(20)->appends($request->all());
+        
+        // Get unique cities and countries for filters
+        $cities = Supplier::whereNotNull('city')->pluck('city')->unique()->sort();
+        $countries = Supplier::whereNotNull('country')->pluck('country')->unique()->sort();
+
+        return view('erp.suppliers.index', compact('suppliers', 'cities', 'countries'));
     }
 
     public function create()

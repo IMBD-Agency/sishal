@@ -87,6 +87,7 @@
                                     <th style="width: 80px;">SL</th>
                                     <th>Personnel Identity</th>
                                     <th>Contact Details</th>
+                                    <th class="text-center">Assigned Branch</th>
                                     <th class="text-center">Role / Designation</th>
                                     <th class="text-center">Status</th>
                                     @canany(['employee view', 'employee edit', 'employee delete'])
@@ -114,6 +115,20 @@
                                                 <span class="text-dark small fw-600"><i class="fas fa-envelope me-2 opacity-50"></i>{{ $employee->user->email ?? 'no-email' }}</span>
                                                 <span class="text-muted small mt-1"><i class="fas fa-phone me-2 opacity-50"></i>{{ $employee->phone ?? 'no-phone' }}</span>
                                             </div>
+                                        </td>
+                                        <td class="text-center">
+                                            @if($employee->branch)
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3 mb-1">
+                                                        <i class="fas fa-store tiny-icon me-1"></i>{{ $employee->branch->name }}
+                                                    </span>
+                                                    <small class="text-muted" style="font-size: 0.7rem;">{{ $employee->branch->location }}</small>
+                                                </div>
+                                            @else
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-3">
+                                                    <i class="fas fa-globe tiny-icon me-1"></i>Global Access
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="text-center">
                                             <span class="category-tag">

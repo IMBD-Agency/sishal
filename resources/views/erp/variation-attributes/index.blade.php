@@ -7,83 +7,7 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         
-        <style>
-            :root {
-                --primary-indigo: #4f46e5;
-                --primary-hover: #4338ca;
-                --gray-50: #f9fafb;
-                --gray-100: #f3f4f6;
-                --gray-200: #e5e7eb;
-                --gray-700: #374151;
-            }
 
-            .premium-card {
-                background: #fff;
-                border: 1px solid var(--gray-200);
-                border-radius: 16px;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-                overflow: hidden;
-            }
-
-            .premium-table thead th {
-                background: var(--gray-50);
-                padding: 1rem 1.5rem;
-                font-size: 0.75rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: var(--gray-700);
-                border-bottom: 1px solid var(--gray-200);
-            }
-
-            .premium-table tbody td {
-                padding: 1.25rem 1.5rem;
-                vertical-align: middle;
-                color: #111827;
-                border-bottom: 1px solid var(--gray-100);
-            }
-
-            .value-chip {
-                background: #f1f5f9;
-                color: #475569;
-                padding: 4px 10px;
-                border-radius: 6px;
-                font-size: 0.75rem;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                border: 1px solid #e2e8f0;
-            }
-
-            .color-dot {
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                border: 1px solid rgba(0,0,0,0.1);
-            }
-
-            .btn-action {
-                width: 32px;
-                height: 32px;
-                padding: 0;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 8px;
-                transition: all 0.2s;
-            }
-
-            .status-badge {
-                padding: 4px 12px;
-                border-radius: 9999px;
-                font-size: 0.75rem;
-                font-weight: 600;
-            }
-
-            .status-active { background: #dcfce7; color: #166534; }
-            .status-inactive { background: #f1f5f9; color: #475569; }
-        </style>
 
         <div class="container-fluid px-4 py-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -162,7 +86,7 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="status-badge status-{{ $attribute->status }}">
+                                        <span class="status-pill status-{{ $attribute->status }}">
                                             {{ ucfirst($attribute->status) }}
                                         </span>
                                     </td>

@@ -59,21 +59,6 @@
             </form>
         </div>
 
-        <!-- Debug Section (Temporary) -->
-        @if(config('app.debug'))
-        <div class="container-fluid px-4 py-3 bg-warning">
-            <div class="row">
-                <div class="col-12">
-                    <h6>Debug Info - Account Types Found:</h6>
-                    <ul>
-                        @foreach($accountTypes as $type)
-                            <li><strong>{{ $type->name }}</strong> ({{ $type->accounts->count() }} accounts)</li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        </div>
-        @endif
 
         <!-- Profit & Loss Content -->
         <div class="container-fluid px-4 py-4">

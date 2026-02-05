@@ -111,6 +111,14 @@
                                             <option value="inactive" {{ old('status', $employee->status) == 'inactive' ? 'selected' : '' }}>Suspended / Inactive</option>
                                         </select>
                                     </div>
+
+                                    <div class="mb-3">
+                                        <label for="salary" class="form-label">Monthly Salary <span class="text-danger small">(Base)</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light ps-3 pe-3">৳</span>
+                                            <input type="number" step="0.01" class="form-control" id="salary" name="salary" value="{{ old('salary', $employee->salary) }}" placeholder="0.00">
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="col-12 mt-4">

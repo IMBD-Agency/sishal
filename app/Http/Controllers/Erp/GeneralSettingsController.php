@@ -19,7 +19,11 @@ class GeneralSettingsController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $settings = GeneralSetting::first();
-        return view('erp.settings.settings',compact('settings'));
+        // Fetch branches and warehouses for e-commerce fulfillment settings
+        $settings_branches = \App\Models\Branch::all();
+        $settings_warehouses = \App\Models\Warehouse::all();
+        
+        return view('erp.settings.settings', compact('settings', 'settings_branches', 'settings_warehouses'));
     }
 
     public function storeUpdate(Request $request)
@@ -52,6 +56,8 @@ class GeneralSettingsController extends Controller
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'cod_percentage' => 'nullable|numeric|min:0|max:100',
             'gtm_container_id' => 'nullable|string|max:20|regex:/^GTM-[A-Z0-9]+$/',
+            'ecommerce_source_type' => 'nullable|in:branch,warehouse',
+            'ecommerce_source_id' => 'nullable|integer',
         ]);
 
         // Get the settings row (create if not exists)

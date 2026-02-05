@@ -22,7 +22,13 @@ class PageController extends Controller
 {
     public function index(Request $request)
     {
-        $cacheKey = 'home_page_data';
+        // Get general setting for cache key
+        $generalSetting = Cache::remember('general_settings', 3600, function () {
+            return GeneralSetting::first();
+        });
+        $settingsHash = md5(($generalSetting->ecommerce_source_type ?? 'all') . '_' . ($generalSetting->ecommerce_source_id ?? '0'));
+        
+        $cacheKey = "home_page_data_{$settingsHash}";
         $useCache = !$request->has('no_cache');
 
         // Try to get cached home page data first
@@ -84,12 +90,43 @@ class PageController extends Controller
         });
 
         // Cache best deal products (5 minutes)
-        $bestDealProducts = Cache::remember('best_deal_products_home', 300, function () {
-            return Product::where('type', 'product')
+        $generalSetting = Cache::remember('general_settings', 3600, function () {
+            return GeneralSetting::first();
+        });
+        
+        $settingsHash = md5(($generalSetting->ecommerce_source_type ?? 'all') . '_' . ($generalSetting->ecommerce_source_id ?? '0'));
+        
+        $bestDealProducts = Cache::remember("best_deal_products_home_{$settingsHash}", 300, function () use ($generalSetting) {
+            $query = Product::where('type', 'product')
                 ->where('status', 'active')
                 ->where('show_in_ecommerce', true)
-                ->where('discount', '>', 0)
-                ->orderByDesc('discount')
+                ->where('discount', '>', 0);
+            
+            // Apply Stock Filtering
+            if ($generalSetting && $generalSetting->ecommerce_source_type && $generalSetting->ecommerce_source_id) {
+                $sourceType = $generalSetting->ecommerce_source_type;
+                $sourceId = $generalSetting->ecommerce_source_id;
+                
+                if ($sourceType === 'branch') {
+                    $query->where(function($q) use ($sourceId) {
+                        $q->whereHas('branchStock', function($subQ) use ($sourceId) {
+                            $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                        })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                            $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                        });
+                    });
+                } elseif ($sourceType === 'warehouse') {
+                    $query->where(function($q) use ($sourceId) {
+                        $q->whereHas('warehouseStock', function($subQ) use ($sourceId) {
+                            $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                        })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                            $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                        });
+                    });
+                }
+            }
+            
+            return $query->orderByDesc('discount')
                 ->orderByDesc('created_at')
                 ->take(10)
                 ->get();
@@ -118,7 +155,12 @@ class PageController extends Controller
     public function products(Request $request)
     {
         // Create cache key based on request parameters
-        $cacheKey = 'products_list_' . md5(serialize($request->all()));
+        $generalSetting = Cache::remember('general_settings', 3600, function () {
+            return GeneralSetting::first();
+        });
+        $settingsHash = md5(($generalSetting->ecommerce_source_type ?? 'all') . '_' . ($generalSetting->ecommerce_source_id ?? '0'));
+        
+        $cacheKey = 'products_list_' . md5(serialize($request->all())) . '_' . $settingsHash;
 
         // Check if we should use cache (not for admin or when cache is disabled)
         $useCache = !$request->has('no_cache') && !$request->has('admin');
@@ -140,6 +182,34 @@ class PageController extends Controller
             ])
             ->get();
         $query = Product::where('show_in_ecommerce', true);
+
+        // Apply Stock Filtering based on General Settings
+        $generalSetting = Cache::remember('general_settings', 3600, function () {
+            return GeneralSetting::first();
+        });
+
+        if ($generalSetting && $generalSetting->ecommerce_source_type && $generalSetting->ecommerce_source_id) {
+            $sourceType = $generalSetting->ecommerce_source_type;
+            $sourceId = $generalSetting->ecommerce_source_id;
+
+            if ($sourceType === 'branch') {
+                $query->where(function($q) use ($sourceId) {
+                    $q->whereHas('branchStock', function($subQ) use ($sourceId) {
+                        $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                    })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                        $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                    });
+                });
+            } elseif ($sourceType === 'warehouse') {
+                $query->where(function($q) use ($sourceId) {
+                    $q->whereHas('warehouseStock', function($subQ) use ($sourceId) {
+                        $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                    })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                        $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                    });
+                });
+            }
+        }
 
         // Get the highest price of all products (cached for 1 hour)
         $maxProductPrice = Cache::remember('max_product_price', 3600, function () {
@@ -254,6 +324,15 @@ class PageController extends Controller
                 ->toArray();
         }
 
+        // Get settings again for loop usage if not already fetched (though it should be)
+        if (!isset($generalSetting)) {
+            $generalSetting = Cache::remember('general_settings', 3600, function () {
+                return GeneralSetting::first();
+            });
+        }
+        $ecommerceSourceType = $generalSetting->ecommerce_source_type ?? null;
+        $ecommerceSourceId = $generalSetting->ecommerce_source_id ?? null;
+
         foreach ($products as $product) {
             // Add wishlist status
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
@@ -263,35 +342,53 @@ class PageController extends Controller
             $product->total_reviews = $product->reviews->count();
 
             // Pre-calculate stock status (avoid N+1 queries)
-            // For ecommerce: Only check warehouse stock, not branch stock
-            // Check if product has variations - if so, check variation stocks
-            if ($product->has_variations) {
-                // For products with variations, check if any active variation has warehouse stock
-                $product->has_stock = false;
-                if ($product->variations && $product->variations->isNotEmpty()) {
+            $product->has_stock = false;
+            
+            if ($ecommerceSourceType && $ecommerceSourceId) {
+                 // STRICT CHECK against configured source
+                 if ($product->has_variations) {
                     foreach ($product->variations as $variation) {
-                        // Check if variation has stocks loaded
-                        if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
-                            // Use loaded relationship collection - only count warehouse stock
-                            $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
-                            if ($totalQuantity > 0) {
-                                $product->has_stock = true;
-                                break; // Found at least one variation with stock, no need to check further
-                            }
+                        $qty = 0;
+                        if ($ecommerceSourceType === 'branch') {
+                             $qty = $variation->stocks->where('branch_id', $ecommerceSourceId)->sum('quantity');
                         } else {
-                            // Fallback: use query builder if relationship not loaded - only warehouse stock
-                            $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                             $qty = $variation->stocks->where('warehouse_id', $ecommerceSourceId)->sum('quantity');
+                        }
+                        if ($qty > 0) {
+                            $product->has_stock = true;
+                            break;
+                        }
+                    }
+                 } else {
+                     if ($ecommerceSourceType === 'branch') {
+                        $qty = $product->branchStock->where('branch_id', $ecommerceSourceId)->sum('quantity');
+                        $product->has_stock = $qty > 0;
+                     } else {
+                        $qty = $product->warehouseStock->where('warehouse_id', $ecommerceSourceId)->sum('quantity');
+                        $product->has_stock = $qty > 0;
+                     }
+                 }
+            } else {
+                // FALLBACK Legacy Check (Warehouse Only)
+                if ($product->has_variations) {
+                    if ($product->variations && $product->variations->isNotEmpty()) {
+                        foreach ($product->variations as $variation) {
+                            $totalQuantity = 0;
+                            if ($variation->relationLoaded('stocks') && $variation->stocks !== null) {
+                                $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                            } else {
+                                $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                            }
                             if ($totalQuantity > 0) {
                                 $product->has_stock = true;
                                 break;
                             }
                         }
                     }
+                } else {
+                    $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                    $product->has_stock = $warehouseStock > 0;
                 }
-            } else {
-                // For products without variations, only check warehouse stock (not branch stock)
-                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = $warehouseStock > 0;
             }
         }
 
@@ -524,6 +621,34 @@ class PageController extends Controller
                 });
         });
 
+        // Apply Stock Filtering based on General Settings
+        $generalSetting = Cache::remember('general_settings', 3600, function () {
+            return GeneralSetting::first();
+        });
+
+        if ($generalSetting && $generalSetting->ecommerce_source_type && $generalSetting->ecommerce_source_id) {
+            $sourceType = $generalSetting->ecommerce_source_type;
+            $sourceId = $generalSetting->ecommerce_source_id;
+
+            if ($sourceType === 'branch') {
+                $query->where(function($q) use ($sourceId) {
+                    $q->whereHas('branchStock', function($subQ) use ($sourceId) {
+                        $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                    })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                        $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                    });
+                });
+            } elseif ($sourceType === 'warehouse') {
+                $query->where(function($q) use ($sourceId) {
+                    $q->whereHas('warehouseStock', function($subQ) use ($sourceId) {
+                        $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                    })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                        $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                    });
+                });
+            }
+        }
+
         // Eager load relationships
         $products = $query->with([
             'category',
@@ -548,30 +673,67 @@ class PageController extends Controller
                 ->toArray();
         }
 
+        // Get settings again for loop usage if not already fetched
+        if (!isset($generalSetting)) {
+            $generalSetting = Cache::remember('general_settings', 3600, function () {
+                return GeneralSetting::first();
+            });
+        }
+        $ecommerceSourceType = $generalSetting->ecommerce_source_type ?? null;
+        $ecommerceSourceId = $generalSetting->ecommerce_source_id ?? null;
+
         foreach ($products as $product) {
             $product->is_wishlisted = in_array($product->id, $wishlistedIds);
             $product->avg_rating = $product->reviews->avg('rating') ?? 0;
             $product->total_reviews = $product->reviews->count();
 
-            // Stock check logic (copied from products method)
-            if ($product->has_variations) {
-                $product->has_stock = false;
-                if ($product->variations && $product->variations->isNotEmpty()) {
+            // Pre-calculate stock status (avoid N+1 queries)
+            $product->has_stock = false;
+            
+            if ($ecommerceSourceType && $ecommerceSourceId) {
+                 // STRICT CHECK against configured source
+                 if ($product->has_variations) {
                     foreach ($product->variations as $variation) {
-                        if ($variation->relationLoaded('stocks') && $variation->stocks) {
-                            $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                        $qty = 0;
+                        if ($ecommerceSourceType === 'branch') {
+                             $qty = $variation->stocks->where('branch_id', $ecommerceSourceId)->sum('quantity');
                         } else {
-                            $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                             $qty = $variation->stocks->where('warehouse_id', $ecommerceSourceId)->sum('quantity');
                         }
-                        if ($totalQuantity > 0) {
+                        if ($qty > 0) {
                             $product->has_stock = true;
                             break;
                         }
                     }
-                }
+                 } else {
+                     if ($ecommerceSourceType === 'branch') {
+                        $qty = $product->branchStock->where('branch_id', $ecommerceSourceId)->sum('quantity');
+                        $product->has_stock = $qty > 0;
+                     } else {
+                        $qty = $product->warehouseStock->where('warehouse_id', $ecommerceSourceId)->sum('quantity');
+                        $product->has_stock = $qty > 0;
+                     }
+                 }
             } else {
-                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                $product->has_stock = $warehouseStock > 0;
+                // FALLBACK Legacy Check
+                if ($product->has_variations) {
+                    if ($product->variations && $product->variations->isNotEmpty()) {
+                        foreach ($product->variations as $variation) {
+                            if ($variation->relationLoaded('stocks') && $variation->stocks) {
+                                $totalQuantity = $variation->stocks->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                            } else {
+                                $totalQuantity = $variation->stocks()->whereNotNull('warehouse_id')->whereNull('branch_id')->sum('quantity') ?? 0;
+                            }
+                            if ($totalQuantity > 0) {
+                                $product->has_stock = true;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
+                    $product->has_stock = $warehouseStock > 0;
+                }
             }
         }
 
@@ -713,7 +875,13 @@ class PageController extends Controller
     public function bestDeals(Request $request)
     {
         $pageTitle = 'Best Deal';
-        $cacheKey = 'best_deals_page_' . md5(serialize($request->except(['page', '_token'])));
+        
+        $generalSetting = Cache::remember('general_settings', 3600, function () {
+            return GeneralSetting::first();
+        });
+        $settingsHash = md5(($generalSetting->ecommerce_source_type ?? 'all') . '_' . ($generalSetting->ecommerce_source_id ?? '0'));
+        
+        $cacheKey = 'best_deals_page_' . md5(serialize($request->except(['page', '_token']))) . '_' . $settingsHash;
         $useCache = !$request->has('no_cache') && !$request->ajax() && !$request->get('infinite_scroll', false);
 
         // Try to get cached page data first (only for non-AJAX requests)
@@ -729,6 +897,30 @@ class PageController extends Controller
         $query = Product::where('type', 'product')
             ->where('status', 'active')
             ->where('show_in_ecommerce', true);
+
+        // Apply Stock Filtering based on General Settings (using already fetched settings)
+        if ($generalSetting && $generalSetting->ecommerce_source_type && $generalSetting->ecommerce_source_id) {
+            $sourceType = $generalSetting->ecommerce_source_type;
+            $sourceId = $generalSetting->ecommerce_source_id;
+
+            if ($sourceType === 'branch') {
+                $query->where(function($q) use ($sourceId) {
+                    $q->whereHas('branchStock', function($subQ) use ($sourceId) {
+                        $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                    })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                        $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                    });
+                });
+            } elseif ($sourceType === 'warehouse') {
+                $query->where(function($q) use ($sourceId) {
+                    $q->whereHas('warehouseStock', function($subQ) use ($sourceId) {
+                        $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                    })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                        $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                    });
+                });
+            }
+        }
 
         // Prioritize discounted products, then sort by numbers in product name
         $query->orderByDesc('discount')
@@ -845,6 +1037,34 @@ class PageController extends Controller
                 ->where('status', 'active')
                 ->where('show_in_ecommerce', true)
                 ->where('type', 'product');
+
+            // Apply Stock Filtering based on General Settings
+            $generalSetting = Cache::remember('general_settings', 3600, function () {
+                return GeneralSetting::first();
+            });
+
+            if ($generalSetting && $generalSetting->ecommerce_source_type && $generalSetting->ecommerce_source_id) {
+                $sourceType = $generalSetting->ecommerce_source_type;
+                $sourceId = $generalSetting->ecommerce_source_id;
+
+                if ($sourceType === 'branch') {
+                    $query->where(function($q) use ($sourceId) {
+                        $q->whereHas('branchStock', function($subQ) use ($sourceId) {
+                            $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                        })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                            $subQ->where('branch_id', $sourceId)->where('quantity', '>', 0);
+                        });
+                    });
+                } elseif ($sourceType === 'warehouse') {
+                    $query->where(function($q) use ($sourceId) {
+                        $q->whereHas('warehouseStock', function($subQ) use ($sourceId) {
+                            $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                        })->orWhereHas('variations.stocks', function($subQ) use ($sourceId) {
+                            $subQ->where('warehouse_id', $sourceId)->where('quantity', '>', 0);
+                        });
+                    });
+                }
+            }
 
             // Category filter - include child categories
             if ($request->has('categories') && is_array($request->categories) && count($request->categories)) {

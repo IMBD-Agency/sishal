@@ -1,6 +1,6 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-        <thead class="table-header-custom">
+        <thead class="bg-erp-success text-white">
             <tr>
                 <th class="ps-3">Serial No</th>
                 <th>Invoice</th>

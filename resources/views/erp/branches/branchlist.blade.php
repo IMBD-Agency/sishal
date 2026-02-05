@@ -95,7 +95,7 @@
 
                 <!-- Mobile List -->
                 <div class="d-md-none" id="branchesListMobile">
-                    <!-- Loaded via AJAX -->
+                <!-- Loaded via AJAX -->
                 </div>
             </div>
             <div class="card-footer bg-white py-3 border-top">

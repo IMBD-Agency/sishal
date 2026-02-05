@@ -26,6 +26,7 @@
             <tr>
                 <th width="5%">#</th>
                 <th>Product</th>
+                <th>Style No.</th>
                 <th>Category</th>
                 <th class="text-end">Qty Sold</th>
                 <th class="text-end">Revenue</th>
@@ -37,9 +38,10 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $data['product']->name }}</td>
+                    <td>{{ $data['product']->style_number ?? $data['product']->sku ?? 'N/A' }}</td>
                     <td>{{ $data['product']->category->name ?? 'N/A' }}</td>
                     <td class="text-end">{{ $data['quantity_sold'] }}</td>
-                    <td class="text-end fw-bold">{{ number_format($data['revenue'], 2) }} TK</td>
+                    <td class="text-end fw-bold">{{ number_format($data['revenue'], 2) }}</td>
                     <td class="text-end {{ $data['profit'] >= 0 ? 'profit-pos' : 'profit-neg' }}">{{ number_format($data['profit'], 2) }}</td>
                 </tr>
             @endforeach
@@ -52,10 +54,11 @@
             <tr>
                 <th width="5%">#</th>
                 <th>Product</th>
-                <th>Category</th>
-                <th class="text-end">Qty Sold</th>
+                <th>Style No.</th>
+                <th class="text-end">Cost</th>
                 <th class="text-end">Revenue</th>
                 <th class="text-end">Profit</th>
+                <th class="text-end">Margin</th>
             </tr>
         </thead>
         <tbody>
@@ -63,10 +66,13 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $data['product']->name }}</td>
-                    <td>{{ $data['product']->category->name ?? 'N/A' }}</td>
-                    <td class="text-end">{{ $data['quantity_sold'] }}</td>
-                    <td class="text-end">{{ number_format($data['revenue'], 2) }} TK</td>
-                    <td class="text-end fw-bold {{ $data['profit'] >= 0 ? 'profit-pos' : 'profit-neg' }}">{{ number_format($data['profit'], 2) }} TK</td>
+                    <td>{{ $data['product']->style_number ?? $data['product']->sku ?? 'N/A' }}</td>
+                    <td class="text-end">{{ number_format($data['cost'], 2) }}</td>
+                    <td class="text-end">{{ number_format($data['revenue'], 2) }}</td>
+                    <td class="text-end fw-bold {{ $data['profit'] >= 0 ? 'profit-pos' : 'profit-neg' }}">{{ number_format($data['profit'], 2) }}</td>
+                    <td class="text-end">
+                        {{ $data['revenue'] > 0 ? number_format(($data['profit'] / $data['revenue']) * 100, 1) : 0 }}%
+                    </td>
                 </tr>
             @endforeach
         </tbody>

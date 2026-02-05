@@ -165,8 +165,8 @@
                             <div class="d-flex gap-2">
                                 <div class="btn-group shadow-none border rounded overflow-hidden">
                                     <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">CSV</button>
-                                    <a href="{{ route('purchaseReturn.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">EXCEL</a>
-                                    <a href="{{ route('purchaseReturn.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">PDF</a>
+                                    <a href="{{ route('purchaseReturn.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end no-loader" target="_blank">EXCEL</a>
+                                    <a href="{{ route('purchaseReturn.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end no-loader" target="_blank">PDF</a>
                                     <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
                                 </div>
                             </div>
@@ -208,9 +208,16 @@
 
             <!-- Procurement Return Registry Table -->
             <div class="premium-card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-muted small text-uppercase"><i class="fas fa-undo-alt me-2 text-success"></i>Return Audit Registry</h6>
+                    <div class="search-wrapper-premium">
+                        <input type="text" id="returnSearch" class="form-control rounded-pill search-input-premium" placeholder="Search by Return ID, Invoice, Supplier...">
+                        <i class="fas fa-search search-icon-premium"></i>
+                    </div>
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table compact mb-0">
+                        <table class="table premium-table compact mb-0" id="returnTable">
                             <thead>
                                 <tr>
                                     <th class="ps-3">SL</th>
@@ -240,6 +247,8 @@
                                 @forelse($items as $index => $item)
                                     @php
                                         $return = $item->purchaseReturn;
+                                        if (!$return) continue;
+                                        
                                         $purchase = $return->purchase;
                                         $product = $item->product;
                                         $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
@@ -276,8 +285,8 @@
                                                 <span class="badge bg-light text-dark border"><i class="fas fa-warehouse me-1 text-warning small"></i>{{ $item->warehouse->name ?? '-' }}</span>
                                             @endif
                                         </td>
-                                        <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
-                                        <td class="text-muted small">{{ $purchase->supplier->phone ?? '-' }}</td>
+                                        <td class="fw-bold">{{ $purchase?->supplier?->name ?? '-' }}</td>
+                                        <td class="text-muted small">{{ $purchase?->supplier?->phone ?? '-' }}</td>
                                         <td class="text-muted small">{{ $product->category->name ?? '-' }}</td>
                                         <td class="text-muted small">{{ $product->brand->name ?? '-' }}</td>
                                         <td class="text-muted small">{{ $product->season->name ?? '-' }}</td>
@@ -337,18 +346,21 @@
         </div>
     </div>
 
-    <!-- Select2 & jQuery -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Select2 Configuration -->
     <script>
         $(document).ready(function() {
-            $('.select2-setup').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                allowClear: true,
-                dropdownParent: $('#filterForm')
+
+            // Quick Search Table Functionality with Debounce
+            let returnSearchTimeout;
+            $('#returnSearch').on('input', function() {
+                const value = $(this).val().toLowerCase();
+                clearTimeout(returnSearchTimeout);
+                
+                returnSearchTimeout = setTimeout(function() {
+                    $('#returnTable tbody tr').filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                    });
+                }, 300);
             });
         });
     </script>

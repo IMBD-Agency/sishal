@@ -15,14 +15,13 @@ class WarehouseController extends Controller
      */
     public function index()
     {
-        $warehouses = Warehouse::with(['manager', 'branch'])
+        $warehouses = Warehouse::with(['manager.user'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
         
-        $users = \App\Models\User::where('is_admin', 1)->get();
-        $branches = \App\Models\Branch::all();
+        $employees = \App\Models\Employee::with('user')->get();
         
-        return view('erp.warehouses.index', compact('warehouses', 'users', 'branches'));
+        return view('erp.warehouses.index', compact('warehouses', 'employees'));
     }
 
     /**
@@ -30,9 +29,8 @@ class WarehouseController extends Controller
      */
     public function create()
     {
-        $users = \App\Models\User::where('is_admin', 1)->get();
-        $branches = \App\Models\Branch::all(); // Optional for linking to branch
-        return view('erp.warehouses.create', compact('users', 'branches'));
+        $employees = \App\Models\Employee::with('user')->get();
+        return view('erp.warehouses.create', compact('employees'));
     }
 
     /**
@@ -43,13 +41,15 @@ class WarehouseController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
-            'manager_id' => 'nullable|exists:users,id',
-            'branch_id' => 'nullable|exists:branches,id' // Make optional for ecommerce warehouses
+            'contact_phone' => 'nullable|string|max:20',
+            'contact_email' => 'nullable|email|max:255',
+            'manager_id' => 'nullable|exists:employees,id',
+            'status' => 'required|in:active,inactive'
         ]);
 
         $warehouse = Warehouse::create($validated);
 
-        return redirect()->route('warehouses.show', $warehouse->id)
+        return redirect()->route('warehouses.index')
             ->with('success', 'Warehouse created successfully!');
     }
 
@@ -59,90 +59,13 @@ class WarehouseController extends Controller
     public function show(string $id)
     {
         $warehouse = Warehouse::with([
-            'manager',
-            'branch.employees.user.roles',
-            'warehouseProductStocks.product.category'
+            'manager.user',
+            'branches' => function($query) {
+                $query->withCount(['employees', 'branchProductStocks']);
+            }
         ])->findOrFail($id);
 
-        // Get product-level stocks (for products without variations)
-        $productStocks = $warehouse->warehouseProductStocks()
-            ->with(['product.category'])
-            ->get();
-
-        // Get variation-level stocks (for products with variations)
-        $variationStocks = ProductVariationStock::where('warehouse_id', $id)
-            ->whereNull('branch_id')
-            ->with(['variation.product' => function($query) {
-                $query->with('category');
-            }])
-            ->get();
-
-        // Aggregate variation stocks by product
-        $variationStockByProduct = [];
-        foreach ($variationStocks as $vStock) {
-            if ($vStock->variation && $vStock->variation->product) {
-                $productId = $vStock->variation->product->id;
-                if (!isset($variationStockByProduct[$productId])) {
-                    $variationStockByProduct[$productId] = [
-                        'product' => $vStock->variation->product,
-                        'quantity' => 0,
-                        'stock_type' => 'variation'
-                    ];
-                }
-                $variationStockByProduct[$productId]['quantity'] += $vStock->quantity;
-            }
-        }
-
-        // Combine product-level and variation-level stocks
-        $allProducts = collect();
-        
-        // Add product-level stocks
-        foreach ($productStocks as $stock) {
-            // Only include if product doesn't have variations (to avoid duplicates)
-            if (!$stock->product || !$stock->product->has_variations) {
-                $allProducts->push([
-                    'product' => $stock->product,
-                    'quantity' => $stock->quantity,
-                    'stock_type' => 'product',
-                    'created_at' => $stock->created_at
-                ]);
-            }
-        }
-
-        // Add variation-level stocks (aggregated by product)
-        foreach ($variationStockByProduct as $productId => $data) {
-            $allProducts->push([
-                'product' => $data['product'],
-                'quantity' => $data['quantity'],
-                'stock_type' => 'variation',
-                'created_at' => $data['product']->created_at ?? now()
-            ]);
-        }
-
-        // Sort by created_at and get recent 10
-        $recent_products = $allProducts->sortByDesc('created_at')->take(10)->values();
-
-        // Dynamic counts - count unique products
-        $products_count = $allProducts->count();
-        $employees_count = $warehouse->branch ? $warehouse->branch->employees->count() : 0;
-
-        // Get employees with their roles through branch
-        $employees = collect();
-        if ($warehouse->branch) {
-            $employees = $warehouse->branch->employees()
-                ->with(['user.roles'])
-                ->orderBy('created_at', 'desc')
-                ->limit(5)
-                ->get();
-        }
-
-        return view('erp.warehouses.show', compact(
-            'warehouse',
-            'products_count',
-            'employees_count',
-            'recent_products',
-            'employees'
-        ));
+        return view('erp.warehouses.show', compact('warehouse'));
     }
 
     /**
@@ -161,17 +84,14 @@ class WarehouseController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
-            'manager_id' => 'nullable|exists:users,id',
-            'branch_id' => 'nullable|exists:branches,id' // Make optional for ecommerce warehouses
+            'contact_phone' => 'nullable|string|max:20',
+            'contact_email' => 'nullable|email|max:255',
+            'manager_id' => 'nullable|exists:employees,id',
+            'status' => 'required|in:active,inactive'
         ]);
 
         $warehouse = Warehouse::findOrFail($id);
-        $warehouse->name = $validated['name'];
-        $warehouse->location = $validated['location'];
-        $warehouse->manager_id = $validated['manager_id'] ?? null;
-        $warehouse->branch_id = $validated['branch_id'] ?? null; // Allow null for ecommerce warehouses
-
-        $warehouse->save();
+        $warehouse->update($validated);
 
         return redirect()->back()->with('success', 'Warehouse updated successfully!');
     }

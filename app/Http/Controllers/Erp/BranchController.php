@@ -64,6 +64,7 @@ class BranchController extends Controller
             'location' => 'required|string|max:255',
             'contact_info' => 'required|string|max:255',
             'manager_id' => 'nullable|exists:users,id',
+            'warehouse_id' => 'nullable|exists:warehouses,id',
             'show_online' => 'nullable'
         ]);
         $validated['show_online'] = $request->has('show_online');
@@ -77,7 +78,7 @@ class BranchController extends Controller
     public function show($id)
     {
         if(Auth::user()->hasPermissionTo('view branch details')){
-            $branch = Branch::with(['manager', 'employees.user', 'warehouses.manager', 'branchProductStocks.product', 'pos.invoice'])
+            $branch = Branch::with(['manager', 'employees.user', 'warehouse', 'branchProductStocks.product', 'pos.invoice'])
                 ->findOrFail($id);
             
             // Dynamic counts
@@ -167,6 +168,7 @@ class BranchController extends Controller
             'location' => 'required|string|max:255',
             'contact_info' => 'required|string|max:255',
             'manager_id' => 'nullable|exists:users,id',
+            'warehouse_id' => 'nullable|exists:warehouses,id',
             'show_online' => 'nullable'
         ]);
         $validated['show_online'] = $request->has('show_online');

@@ -119,7 +119,7 @@
                                 <label class="terminal-section-title d-block mb-1">Discount</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-tag"></i></span>
-                                    <input type="number" class="form-control border-start-0 text-end fw-bold" id="discountInput" name="discount" value="0">
+                                    <input type="text" class="form-control border-start-0 text-end fw-bold" id="discountInput" name="discount" value="0" placeholder="0 or 10%">
                                 </div>
                             </div>
                             <div class="col-6">
@@ -224,6 +224,30 @@
                     <button type="button" class="btn btn-success" id="saveQuickCustomer">
                         <i class="fas fa-save me-1"></i>Save Customer
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Order Success Modal -->
+    <div class="modal fade" id="orderSuccessModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-body text-center p-5">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-5x text-success animate__animated animate__bounceIn"></i>
+                    </div>
+                    <h3 class="fw-bold mb-2">Order Completed!</h3>
+                    <p class="text-muted mb-4">The sale has been recorded successfully.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="#" id="printReceiptBtn" target="_blank" class="btn btn-primary btn-lg py-3">
+                            <i class="fas fa-print me-2"></i>PRINT RECEIPT
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary py-2" onclick="location.reload()">
+                            <i class="fas fa-plus me-2"></i>NEW SALE (F4)
+                        </button>
+                        <a href="{{ route('pos.list') }}" class="btn btn-link text-muted">Go to Sale History</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -573,7 +597,16 @@ $(document).ready(function() {
 
     function calculateTotals() {
         let subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        let discount = parseFloat($('#discountInput').val()) || 0;
+        let discountInput = $('#discountInput').val().toString() || '0';
+        let discount = 0;
+
+        if (discountInput.includes('%')) {
+            let percent = parseFloat(discountInput.replace('%', '')) || 0;
+            discount = (subtotal * percent) / 100;
+        } else {
+            discount = parseFloat(discountInput) || 0;
+        }
+
         let delivery = parseFloat($('#deliveryInput').val()) || 0;
         
         let finalTotal = (subtotal + delivery) - discount;
@@ -672,7 +705,15 @@ $(document).ready(function() {
         });
 
         let subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        let discount = parseFloat($('#discountInput').val()) || 0;
+        let discountInput = $('#discountInput').val().toString() || '0';
+        let discount = 0;
+        if (discountInput.includes('%')) {
+            let percent = parseFloat(discountInput.replace('%', '')) || 0;
+            discount = (subtotal * percent) / 100;
+        } else {
+            discount = parseFloat(discountInput) || 0;
+        }
+
         let delivery = parseFloat($('#deliveryInput').val()) || 0;
         let totalAmount = (subtotal + delivery) - discount;
         let customerId = $('#customerSelect').val();
@@ -698,10 +739,15 @@ $(document).ready(function() {
             data: formData,
             success: function(res) {
                 if(res.success) {
-                    showSuccess('Sale completed successfully! Opening history...');
-                    setTimeout(() => {
-                        window.location.href = "{{ route('pos.list') }}";
-                    }, 1500);
+                    showSuccess('Sale completed successfully!');
+                    
+                    // Configure Success Modal
+                    const printUrl = "{{ route('pos.print', ':id') }}".replace(':id', res.sale_id || res.id);
+                    $('#printReceiptBtn').attr('href', printUrl);
+                    $('#orderSuccessModal').modal('show');
+                    
+                    // Auto-print? (Optional but good for UX)
+                    // window.open(printUrl, '_blank');
                 } else {
                     showError(res.message || 'Something went wrong');
                     $btn.prop('disabled', false).html('<i class="fas fa-check-circle me-2"></i>COMPLETE ORDER');
@@ -719,6 +765,7 @@ $(document).ready(function() {
     // F2 Shortcut
     $(document).keydown(function(e) {
         if(e.key === 'F2') { e.preventDefault(); $('#barcodeInput').focus(); }
+        if(e.key === 'F4') { e.preventDefault(); location.reload(); }
     });
 
 });

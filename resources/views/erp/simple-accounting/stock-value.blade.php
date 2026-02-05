@@ -25,10 +25,10 @@
                     <p class="text-muted mb-0">Monitor inventory levels, valuation, and identify low stock items</p>
                 </div>
                 <div class="btn-group">
-                    <a href="{{ route('simple-accounting.stock-export-excel', request()->all()) }}" class="btn btn-outline-success">
+                    <a href="{{ route('simple-accounting.stock-export-excel', request()->all()) }}" class="btn btn-outline-success no-loader" target="_blank">
                         <i class="fas fa-file-excel me-2"></i> Excel
                     </a>
-                    <a href="{{ route('simple-accounting.stock-export-pdf', request()->all()) }}" class="btn btn-outline-danger">
+                    <a href="{{ route('simple-accounting.stock-export-pdf', request()->all()) }}" class="btn btn-outline-danger no-loader" target="_blank">
                         <i class="fas fa-file-pdf me-2"></i> PDF
                     </a>
                 </div>

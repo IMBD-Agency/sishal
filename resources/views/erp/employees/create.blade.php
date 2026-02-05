@@ -120,15 +120,42 @@
                                                 <option value="inactive">Suspended / Draft</option>
                                             </select>
                                         </div>
+                                        <div class="col-md-12 mt-3">
+                                            <label for="salary" class="form-label">Monthly Salary <span class="text-danger small">(Base)</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-light ps-3 pe-3">৳</span>
+                                                <input type="number" step="0.01" class="form-control" id="salary" name="salary" value="{{ old('salary') }}" placeholder="0.00">
+                                            </div>
+                                            <small class="text-muted">This will be used as the default amount in Salary Payments.</small>
+                                        </div>
                                     </div>
-                                    
-                                    {{-- Branch selection hidden for ecommerce only business --}}
-                                    {{-- 
-                                    <div class="mt-3">
-                                        <label class="form-label">Assigned Branch (Optional)</label>
-                                        <select class="form-select" id="branch_id" name="branch_id"></select>
+                                </div>
+
+                                <!-- Operational Assignment -->
+                                <div class="col-12 mt-4">
+                                    <h6 class="text-muted text-uppercase fw-bold small mb-3 border-top pt-4">
+                                        <i class="fas fa-code-branch me-2 text-info"></i>Branch Assignment
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-12">
+                                            <label for="branch_id" class="form-label">Assigned Branch <span class="text-muted small">(Optional)</span></label>
+                                            <select class="form-select" id="branch_id" name="branch_id">
+                                                <option value="">-- No Branch (Admin/Global Access) --</option>
+                                                @foreach($branches as $branch)
+                                                    <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
+                                                        {{ $branch->name }} - {{ $branch->location }}
+                                                        @if($branch->warehouse)
+                                                            (Warehouse: {{ $branch->warehouse->name }})
+                                                        @endif
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Employees assigned to a branch will only see data from that branch. Leave empty for admin-level access.
+                                            </small>
+                                        </div>
                                     </div>
-                                    --}}
                                 </div>
 
                                 <div class="col-12 mt-4">

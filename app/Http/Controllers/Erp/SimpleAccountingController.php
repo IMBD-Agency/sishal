@@ -14,6 +14,9 @@ use App\Models\BranchProductStock;
 use App\Models\WarehouseProductStock;
 use App\Models\ProductVariationStock;
 use App\Models\ProductServiceCategory;
+use App\Models\Brand;
+use App\Models\Season;
+use App\Models\Gender;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -33,6 +36,12 @@ class SimpleAccountingController extends Controller
         $categoryId = $request->get('category_id');
         $branchId = $request->get('branch_id');
         
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branchId = $restrictedBranchId;
+            $source = 'pos';
+        }
+
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subWeek()->startOfDay();
             $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
@@ -54,7 +63,7 @@ class SimpleAccountingController extends Controller
         $variationProfits = $this->getVariationProfits($startDate, $endDate, $source, $categoryId, $branchId);
 
         $categories = $this->getFormattedCategories();
-        $branches = Branch::all();
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
 
         return view('erp.simple-accounting.sales-summary', compact(
             'salesData',
@@ -82,6 +91,12 @@ class SimpleAccountingController extends Controller
         $categoryId = $request->get('category_id');
         $source = $request->get('source', 'all');
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branchId = $restrictedBranchId;
+            $source = 'pos';
+        }
+
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subMonth()->startOfDay();
             $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
@@ -100,7 +115,7 @@ class SimpleAccountingController extends Controller
         $variationProfits = $this->getVariationProfits($startDate, $endDate, $source, $categoryId, $branchId);
 
         $categories = $this->getFormattedCategories();
-        $branches = Branch::all();
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
 
         return view('erp.simple-accounting.sales-report', compact(
             'productProfits',
@@ -127,7 +142,17 @@ class SimpleAccountingController extends Controller
         $categoryId = $request->get('category_id');
         $branchId = $request->get('branch_id');
         $limit = $request->get('limit', 10);
+        $search = $request->get('search');
+        $brandId = $request->get('brand_id');
+        $seasonId = $request->get('season_id');
+        $genderId = $request->get('gender_id');
         
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branchId = $restrictedBranchId;
+            $source = 'pos';
+        }
+
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subMonth()->startOfDay();
             $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
@@ -137,12 +162,16 @@ class SimpleAccountingController extends Controller
         }
 
         // Get top products with filters
-        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId);
-        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId);
-        $topByQuantity = $this->getTopProductsByQuantity($startDate, $endDate, $limit, $source, $categoryId, $branchId);
+        $filters = compact('search', 'brandId', 'seasonId', 'genderId');
+        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByQuantity = $this->getTopProductsByQuantity($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
 
         $categories = $this->getFormattedCategories();
-        $branches = Branch::all();
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
+        $brands = Brand::all();
+        $seasons = Season::all();
+        $genders = Gender::all();
 
         return view('erp.simple-accounting.top-products', compact(
             'topByRevenue',
@@ -155,8 +184,15 @@ class SimpleAccountingController extends Controller
             'categoryId',
             'branchId',
             'limit',
+            'search',
+            'brandId',
+            'seasonId',
+            'genderId',
             'categories',
-            'branches'
+            'branches',
+            'brands',
+            'seasons',
+            'genders'
         ));
     }
 
@@ -169,12 +205,17 @@ class SimpleAccountingController extends Controller
         $categoryId = $request->get('category_id');
         $lowStock = $request->get('low_stock');
         
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branchId = $restrictedBranchId;
+        }
+
         $productStockValues = $this->getProductStockValues($branchId, $categoryId, $lowStock);
         $categoryStockValues = $this->getCategoryStockValues($branchId, $categoryId, $lowStock);
         $totalStockValue = $productStockValues->sum('total_value');
 
         $categories = $this->getFormattedCategories();
-        $branches = Branch::all();
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
 
         return view('erp.simple-accounting.stock-value', compact(
             'productStockValues',
@@ -681,7 +722,7 @@ class SimpleAccountingController extends Controller
     /**
      * Get product profits
      */
-    private function getProductProfits($startDate, $endDate, $source = 'all', $categoryId = null, $branchId = null)
+    private function getProductProfits($startDate, $endDate, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
     {
         // Get COD percentage from settings
         $generalSetting = \App\Models\GeneralSetting::first();
@@ -700,6 +741,32 @@ class SimpleAccountingController extends Controller
                 });
             }
 
+            if ($search) {
+                $ordersQuery->whereHas('items.product', function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('style_number', 'like', "%{$search}%")
+                      ->orWhere('sku', 'like', "%{$search}%");
+                });
+            }
+
+            if ($brandId) {
+                $ordersQuery->whereHas('items.product', function($q) use ($brandId) {
+                    $q->where('brand_id', $brandId);
+                });
+            }
+
+            if ($seasonId) {
+                $ordersQuery->whereHas('items.product', function($q) use ($seasonId) {
+                    $q->where('season_id', $seasonId);
+                });
+            }
+
+            if ($genderId) {
+                $ordersQuery->whereHas('items.product', function($q) use ($genderId) {
+                    $q->where('gender_id', $genderId);
+                });
+            }
+
             $orders = $ordersQuery->get();
         }
 
@@ -715,6 +782,32 @@ class SimpleAccountingController extends Controller
             if ($categoryId) {
                 $posItemsQuery->whereHas('product', function($q) use ($categoryId) {
                     $q->where('category_id', $categoryId);
+                });
+            }
+
+            if ($search) {
+                $posItemsQuery->whereHas('product', function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('style_number', 'like', "%{$search}%")
+                      ->orWhere('sku', 'like', "%{$search}%");
+                });
+            }
+
+            if ($brandId) {
+                $posItemsQuery->whereHas('product', function($q) use ($brandId) {
+                    $q->where('brand_id', $brandId);
+                });
+            }
+
+            if ($seasonId) {
+                $posItemsQuery->whereHas('product', function($q) use ($seasonId) {
+                    $q->where('season_id', $seasonId);
+                });
+            }
+
+            if ($genderId) {
+                $posItemsQuery->whereHas('product', function($q) use ($genderId) {
+                    $q->where('gender_id', $genderId);
                 });
             }
 
@@ -859,27 +952,27 @@ class SimpleAccountingController extends Controller
     /**
      * Get top products by revenue
      */
-    private function getTopProductsByRevenue($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null)
+    private function getTopProductsByRevenue($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
         return $productProfits->sortByDesc('revenue')->take($limit);
     }
 
     /**
      * Get top products by profit
      */
-    private function getTopProductsByProfit($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null)
+    private function getTopProductsByProfit($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
         return $productProfits->sortByDesc('profit')->take($limit);
     }
 
     /**
      * Get top products by quantity sold
      */
-    private function getTopProductsByQuantity($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null)
+    private function getTopProductsByQuantity($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
         return $productProfits->sortByDesc('quantity_sold')->take($limit);
     }
 
@@ -893,6 +986,10 @@ class SimpleAccountingController extends Controller
         $categoryId = $request->get('category_id');
         $branchId = $request->get('branch_id');
         $limit = $request->get('limit', 10);
+        $search = $request->get('search');
+        $brandId = $request->get('brand_id');
+        $seasonId = $request->get('season_id');
+        $genderId = $request->get('gender_id');
 
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subMonth()->startOfDay();
@@ -902,8 +999,8 @@ class SimpleAccountingController extends Controller
             $endDate = Carbon::now();
         }
 
-        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId);
-        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId);
+        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -920,7 +1017,7 @@ class SimpleAccountingController extends Controller
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
         
-        $headers = ['Rank', 'Product', 'Category', 'Qty Sold', 'Revenue', 'Profit'];
+        $headers = ['Rank', 'Product', 'Style No.', 'Category', 'Qty Sold', 'Revenue', 'Profit'];
         $col = 'A';
         foreach ($headers as $h) {
             $sheet->setCellValue($col . $row, $h);
@@ -932,10 +1029,11 @@ class SimpleAccountingController extends Controller
         foreach ($topByRevenue as $index => $data) {
             $sheet->setCellValue('A' . $row, $index + 1);
             $sheet->setCellValue('B' . $row, $data['product']->name);
-            $sheet->setCellValue('C' . $row, $data['product']->category->name ?? 'N/A');
-            $sheet->setCellValue('D' . $row, $data['quantity_sold']);
-            $sheet->setCellValue('E' . $row, $data['revenue']);
-            $sheet->setCellValue('F' . $row, $data['profit']);
+            $sheet->setCellValue('C' . $row, $data['product']->style_number ?? $data['product']->sku ?? 'N/A');
+            $sheet->setCellValue('D' . $row, $data['product']->category->name ?? 'N/A');
+            $sheet->setCellValue('E' . $row, $data['quantity_sold']);
+            $sheet->setCellValue('F' . $row, $data['revenue']);
+            $sheet->setCellValue('G' . $row, $data['profit']);
             $row++;
         }
 
@@ -955,10 +1053,11 @@ class SimpleAccountingController extends Controller
         foreach ($topByProfit as $index => $data) {
             $sheet->setCellValue('A' . $row, $index + 1);
             $sheet->setCellValue('B' . $row, $data['product']->name);
-            $sheet->setCellValue('C' . $row, $data['product']->category->name ?? 'N/A');
-            $sheet->setCellValue('D' . $row, $data['quantity_sold']);
-            $sheet->setCellValue('E' . $row, $data['revenue']);
-            $sheet->setCellValue('F' . $row, $data['profit']);
+            $sheet->setCellValue('C' . $row, $data['product']->style_number ?? $data['product']->sku ?? 'N/A');
+            $sheet->setCellValue('D' . $row, $data['product']->category->name ?? 'N/A');
+            $sheet->setCellValue('E' . $row, $data['quantity_sold']);
+            $sheet->setCellValue('F' . $row, $data['revenue']);
+            $sheet->setCellValue('G' . $row, $data['profit']);
             $row++;
         }
 
@@ -982,6 +1081,10 @@ class SimpleAccountingController extends Controller
         $categoryId = $request->get('category_id');
         $branchId = $request->get('branch_id');
         $limit = $request->get('limit', 10);
+        $search = $request->get('search');
+        $brandId = $request->get('brand_id');
+        $seasonId = $request->get('season_id');
+        $genderId = $request->get('gender_id');
 
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subMonth()->startOfDay();
@@ -991,8 +1094,8 @@ class SimpleAccountingController extends Controller
             $endDate = Carbon::now();
         }
 
-        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId);
-        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId);
+        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
 
         $pdf = Pdf::loadView('erp.simple-accounting.exports.top-products-pdf', [
             'topByRevenue' => $topByRevenue,

@@ -13,103 +13,129 @@
                 <p class="text-muted mb-0">Centralized hub for all your business analytics and reports</p>
             </div>
 
-            <div class="row g-4">
-                <!-- Procurement Reports -->
-                <div class="col-12 mt-5">
-                    <h5 class="fw-bold text-dark mb-3 d-flex align-items-center">
-                        <i class="fas fa-truck-loading me-2 text-primary"></i> Procurement & Inventory
-                    </h5>
+            <!-- Procurement & Inventory Section -->
+            <div class="mb-5">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-2">
+                        <i class="fas fa-truck-loading text-primary fs-5"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-0">Procurement & Inventory</h5>
                 </div>
                 
-                <div class="col-md-4">
-                    <a href="{{ route('reports.purchase') }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
-                            <div class="card-body p-4">
-                                <div class="avatar-md bg-primary-subtle rounded-3 d-flex align-items-center justify-content-center mb-3">
-                                    <i class="fas fa-file-invoice-dollar fs-4 text-primary"></i>
+                <div class="row g-4">
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.supplier-summary') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-warning bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-users-cog fs-4 text-warning"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Supplier Report</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Detailed list of suppliers, total purchases, and dues analysis.</p>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Itemized Purchase Report</h5>
-                                <p class="text-muted small mb-0">Detailed list of all items purchased from suppliers with filtering options.</p>
                             </div>
-                        </div>
-                    </a>
+                        </a>
+                    </div>
                 </div>
+            </div>
 
-                <div class="col-md-4">
-                    <a href="{{ route('simple-accounting.stock-value') }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
-                            <div class="card-body p-4">
-                                <div class="avatar-md bg-info-subtle rounded-3 d-flex align-items-center justify-content-center mb-3">
-                                    <i class="fas fa-boxes fs-4 text-info"></i>
+            <!-- Sales & Performance Section -->
+            <div class="mb-5">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-success bg-opacity-10 p-2 rounded-3 me-2">
+                        <i class="fas fa-chart-line text-success fs-5"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-0">Sales & Performance</h5>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('simple-accounting.sales-summary') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-primary bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-chart-line fs-4 text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Sales Analytics</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Comprehensive sales analysis, trends, and profit margins.</p>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Stock Value Report</h5>
-                                <p class="text-muted small mb-0">Inventory valuation and current stock levels across all branches.</p>
                             </div>
-                        </div>
-                    </a>
-                </div>
+                        </a>
+                    </div>
 
-                <div class="col-md-4">
-                    <a href="{{ route('suppliers.index') }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
-                            <div class="card-body p-4">
-                                <div class="avatar-md bg-warning-subtle rounded-3 d-flex align-items-center justify-content-center mb-3">
-                                    <i class="fas fa-users-cog fs-4 text-warning"></i>
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('simple-accounting.top-products') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-danger bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-fire fs-4 text-danger"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Top Selling Products</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Identify your best-performing products by volume and revenue.</p>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Supplier Ledgers</h5>
-                                <p class="text-muted small mb-0">Detailed transaction history and balances for each supplier.</p>
                             </div>
-                        </div>
-                    </a>
+                        </a>
+                    </div>
                 </div>
+            </div>
 
-                <!-- Sales & Performance -->
-                <div class="col-12 mt-5">
-                    <h5 class="fw-bold text-dark mb-3 d-flex align-items-center">
-                        <i class="fas fa-chart-line me-2 text-success"></i> Sales & Performance
-                    </h5>
+            <!-- Financial & Accounts Section -->
+            <div class="mb-5">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-warning bg-opacity-10 p-2 rounded-3 me-2">
+                        <i class="fas fa-coins text-warning fs-5"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-0">Financial & Accounts</h5>
                 </div>
-
-                <div class="col-md-4">
-                    <a href="{{ route('reports.sale') }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
-                            <div class="card-body p-4">
-                                <div class="avatar-md bg-success-subtle rounded-3 d-flex align-items-center justify-content-center mb-3">
-                                    <i class="fas fa-chart-line fs-4 text-success"></i>
+                
+                <div class="row g-4">
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.profit-loss') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-warning bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-balance-scale fs-4 text-warning"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Profit & Loss</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Comprehensive income statement with revenue vs. costs.</p>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Detailed Sale Report</h5>
-                                <p class="text-muted small mb-0">High-detail sales analysis with itemized variations, customers, and employee tracking.</p>
                             </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-md-4">
-                    <a href="{{ route('simple-accounting.sales-report') }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
-                            <div class="card-body p-4">
-                                <div class="avatar-md bg-indigo-subtle rounded-3 d-flex align-items-center justify-content-center mb-3">
-                                    <i class="fas fa-list-ul fs-4 text-indigo text-primary"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.customer') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-info bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-users fs-4 text-info"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Customer Summary</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Customer sales history, revenue contribution, and balances.</p>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Sales Summary</h5>
-                                <p class="text-muted small mb-0">Aggregate sales trends daily, weekly, and monthly.</p>
                             </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-md-4">
-                    <a href="{{ route('simple-accounting.top-products') }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
-                            <div class="card-body p-4">
-                                <div class="avatar-md bg-danger-subtle rounded-3 d-flex align-items-center justify-content-center mb-3">
-                                    <i class="fas fa-fire fs-4 text-danger"></i>
-                                </div>
-                                <h5 class="fw-bold text-dark mb-2">Top Selling Products</h5>
-                                <p class="text-muted small mb-0">Identify your best-performing products by volume and revenue.</p>
-                            </div>
-                        </div>
-                    </a>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -117,15 +143,17 @@
 
     <style>
         .transition-up {
-            transition: transform 0.3s ease, shadow 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
         }
         .transition-up:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+            border-color: rgba(0,0,0,0.05);
         }
         .avatar-md {
             width: 48px;
             height: 48px;
+            flex-shrink: 0;
         }
     </style>
 @endsection

@@ -83,4 +83,21 @@ class ProductServiceCategory extends Model
             $child->loadNestedChildren();
         }
     }
+    /**
+     * Get the full path name of the category (e.g., Parent > Sub > Child)
+     * 
+     * @return string
+     */
+    public function getFullPathNameAttribute()
+    {
+        $path = [$this->name];
+        $parent = $this->parent;
+        
+        while ($parent) {
+            array_unshift($path, $parent->name);
+            $parent = $parent->parent;
+        }
+        
+        return implode(' > ', $path);
+    }
 }

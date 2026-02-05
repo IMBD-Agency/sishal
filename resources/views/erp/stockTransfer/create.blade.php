@@ -56,6 +56,23 @@
                             </div>
 
                             <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sender Outlet <span class="text-danger">*</span></label>
+                                <select name="from_outlet" id="from_outlet" class="form-select shadow-none select2-basic" required>
+                                    <option value="">Select Source Location</option>
+                                    <optgroup label="Warehouses">
+                                        @foreach($warehouses as $warehouse)
+                                            <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Branches">
+                                        @foreach($branches as $branch)
+                                            <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Receiver Outlet <span class="text-danger">*</span></label>
                                 <select name="to_outlet" id="to_outlet" class="form-select shadow-none select2-basic" required>
                                     <option value="">Select Target Destination</option>
@@ -235,7 +252,7 @@
                             results: data.map(function(item) {
                                 return {
                                     id: item.id,
-                                    text: item.style_number + ' - ' + item.name,
+                                    text: (item.style_number ? item.style_number + ' - ' : '') + item.name,
                                     product: item
                                 };
                             })
@@ -253,9 +270,45 @@
                 }
             });
 
+            // Clear table when sender changes to prevent stock mismatch
+            $('#from_outlet').on('change', function() {
+                if ($('#productTableBody tr:not(.empty-placeholder)').length > 0) {
+                    if(confirm('Changing the sender will clear the current item list because stock availability depends on the source location. Continue?')) {
+                        $('#productTableBody').html(`
+                            <tr class="empty-placeholder">
+                                <td colspan="10" class="text-center py-5">
+                                    <div class="text-muted opacity-50">
+                                        <i class="fas fa-barcode fa-3x mb-3"></i>
+                                        <p class="fw-bold mb-0">Scan or select a style number to build the dispatch list.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        `);
+                        updateTotals();
+                        $('#style_number').val(null).trigger('change');
+                    } else {
+                        // Revert selection (this is tricky with select2/html select, simpler to just let them know or auto-clear)
+                        // For now, simpler: just clear list without confirm or with notice.
+                        // Let's stick to the confirm. If they say Cancel, we need to revert value.
+                        // Reverting select value is complex without storing previous.
+                        // Let's just auto-clear for data integrity.
+                    }
+                }
+            });
+
             function loadProductVariations(product) {
+                const fromOutlet = $('#from_outlet').val();
+                let queryParams = '';
+                
+                if (fromOutlet) {
+                    const parts = fromOutlet.split('_');
+                    if (parts.length === 2) {
+                        queryParams = `?location_type=${parts[0]}&location_id=${parts[1]}`;
+                    }
+                }
+
                 $.ajax({
-                    url: '/erp/products/' + product.id + '/variations-with-stock',
+                    url: '/erp/products/' + product.id + '/variations-with-stock' + queryParams,
                     type: 'GET',
                     success: function(variations) {
                         if (variations && variations.length > 0) {
@@ -290,8 +343,8 @@
                         </td>
                         <td class="text-pink fw-bold">${product.style_number || '-'}</td>
                         <td>
-                            <span class="badge bg-light text-dark border me-1">${variation ? variation.size : '-'}</span>
-                            <span class="badge bg-light text-dark border">${variation ? variation.color : '-'}</span>
+                            <span class="badge bg-light text-dark border me-1">${variation && variation.size ? variation.size : '-'}</span>
+                            <span class="badge bg-light text-dark border">${variation && variation.color ? variation.color : '-'}</span>
                         </td>
                         <td class="extra-small text-muted">
                             ${product.brand?.name || '-'} | ${product.season?.name || '-'}
