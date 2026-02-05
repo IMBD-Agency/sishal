@@ -17,18 +17,19 @@
         .main-content { margin-left: var(--sidebar-width); padding-top: 70px; min-height: 100vh; }
         .header { position: fixed; top: 0; right: 0; left: var(--sidebar-width); height: 70px; z-index: 1020; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 1.5rem; }
         
-        /* Sidebar Brand & Logo - CRITICAL FIX */
-        .sidebar-brand { padding: 0 1.5rem; background: #ffffff; height: 90px; display: flex; align-items: center; border-bottom: 2px solid #f8fafc; position: sticky; top: 0; z-index: 10; }
+        /* Sidebar Brand & Logo - Left Aligned */
+        .sidebar-brand { padding: 0 1.5rem; background: #ffffff; height: 90px; display: flex; align-items: center; border-bottom: 2px solid #f8fafc; position: sticky; top: 0; z-index: 10; justify-content: flex-start; }
         .brand-logo-link { display: block; width: 100%; height: 60px; background-size: contain; background-repeat: no-repeat; background-position: left center; }
         
-        /* Navigation Styles */
+        /* Navigation Styles - Strictly Left Aligned */
         .sidebar-nav { padding-bottom: 3rem; }
-        .sidebar-category-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; padding: 1.5rem 1rem 0.5rem 1rem; display: block; }
+        .sidebar-category-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; padding: 1.5rem 1rem 0.5rem 1rem; display: block; text-align: left; }
         .nav-item { margin: 4px 12px; }
-        .nav-link { color: #475569; padding: 12px 16px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+        .nav-link { color: #475569; padding: 12px 16px; border-radius: 8px; text-decoration: none; display: flex !important; align-items: center !important; justify-content: flex-start !important; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+        .nav-link span { text-align: left; margin-left: 0; }
         .nav-link:hover { background: #f1f5f9; color: var(--primary-color); }
         .nav-link.active { background: #ecfdf5; color: var(--primary-color); font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .nav-icon { width: 20px; margin-right: 12px; font-size: 1.1rem; text-align: center; }
+        .nav-icon { width: 20px; margin-right: 12px !important; font-size: 1.1rem; text-align: center; flex-shrink: 0; }
 
         /* Responsive */
         @media (max-width: 768px) {
