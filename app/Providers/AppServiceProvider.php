@@ -27,6 +27,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force HTTPS for assets (Critical for Live Server behind Proxy)
+        if (config('app.env') === 'production' || config('app.env') === 'live') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Garbage Collection for Database Cache (For servers without Cron)
         // 2% chance to run cleanup on any request
         if (random_int(1, 100) <= 2) {
