@@ -809,4 +809,14 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 // });
 
 
+// Route to run migrations from web
+Route::get('/migrate-db', function() {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 require __DIR__ . '/auth.php';
