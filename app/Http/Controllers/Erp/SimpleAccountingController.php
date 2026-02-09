@@ -1348,7 +1348,7 @@ class SimpleAccountingController extends Controller
                 if ($categoryId && $item->product->category_id != $categoryId) continue;
 
                 $variationId = $item->variation_id ?? 0;
-                $key = $item->product_id . '_' . $variationId;
+                $key = $item->product_id . '_' . $variationId . '_Online';
                 
                 $itemRevenue = $item->unit_price * $item->quantity;
                 $itemCodDiscount = ($orderCodDiscount > 0 && $orderItemsTotal > 0) ? 
@@ -1396,7 +1396,7 @@ class SimpleAccountingController extends Controller
             if ($categoryId && $item->product->category_id != $categoryId) continue;
 
             $variationId = $item->variation_id ?? 0;
-            $key = $item->product_id . '_' . $variationId;
+            $key = $item->product_id . '_' . $variationId . '_POS';
             
             $revenue = $item->unit_price * $item->quantity;
             $cost = ($item->product->cost ?? 0) * $item->quantity;

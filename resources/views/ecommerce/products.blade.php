@@ -335,34 +335,12 @@
             </div>
         </div>
     </div>
-    <div id="toast-container"
-        style="position: fixed; top: 24px; right: 24px; z-index: 16000; display: flex; flex-direction: column; gap: 10px;">
-    </div>
+
 @endsection
 
 @push('scripts')
     <script>
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = 'custom-toast ' + type;
-            toast.innerHTML = `
-                <div class="toast-content">
-                    <span class="toast-icon">${type === 'error' ? '❌' : ''}</span>
-                    <span class="toast-message">${message}</span>
-                    <button class="toast-close" onclick="this.parentElement.parentElement.classList.add('hide'); setTimeout(()=>this.parentElement.parentElement.remove(), 400);">&times;</button>
-                </div>
-                <div class="toast-progress"></div>
-            `;
-            document.getElementById('toast-container').appendChild(toast);
-            // Animate progress bar
-            setTimeout(() => {
-                toast.querySelector('.toast-progress').style.width = '0%';
-            }, 10);
-            setTimeout(() => {
-                toast.classList.add('hide');
-                setTimeout(() => toast.remove(), 400);
-            }, 2500);
-        }
+
 
         // AJAX Filtering Function
         function getActiveFilterRoot(){

@@ -12,7 +12,8 @@
         html { scrollbar-gutter: stable; }
         
         /* Critical Layout Styles */
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; opacity: 0; transition: opacity 0.3s ease; }
+        body.loaded { opacity: 1; }
         .sidebar { width: var(--sidebar-width); position: fixed; left: 0; top: 0; height: 100vh; background: #fff; z-index: 1050; border-right: 1px solid #E5E7EB; overflow-y: auto; }
         .main-content { margin-left: var(--sidebar-width); padding-top: 70px; min-height: 100vh; }
         .header { position: fixed; top: 0; right: 0; left: var(--sidebar-width); height: 70px; z-index: 1020; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 1.5rem; }

@@ -56,7 +56,7 @@ class VoucherController extends Controller
         $customers = Customer::orderBy('name')->take(200)->get();
         $suppliers = Supplier::orderBy('name')->take(200)->get();
         $expenseAccounts = ChartOfAccount::whereHas('type', function($q) {
-            $q->whereIn('name', ['Expense', 'Expenses', 'Income', 'Revenue']);
+            $q->whereIn('name', ['Expense', 'Revenue']);
         })->take(200)->get();
 
         return view('erp.vouchers.index', compact('vouchers', 'startDate', 'endDate', 'customers', 'suppliers', 'expenseAccounts', 'reportType', 'totals'));
@@ -67,7 +67,7 @@ class VoucherController extends Controller
         $voucherNo = 'V-' . date('Ymd') . '-' . str_pad(Journal::count() + 1, 4, '0', STR_PAD_LEFT);
         
         // Fetch Expense/Revenue Accounts
-    $expenseTypeIds = ChartOfAccountType::whereIn('name', ['Expense', 'Expenses', 'Income', 'Revenue'])->pluck('id');
+    $expenseTypeIds = ChartOfAccountType::whereIn('name', ['Expense', 'Revenue'])->pluck('id');
     
     $expenseAccounts = ChartOfAccount::whereIn('type_id', $expenseTypeIds)
         ->orWhereHas('parent', function($q) use ($expenseTypeIds) {
@@ -75,7 +75,7 @@ class VoucherController extends Controller
         })->get();
     
     // Fetch Asset Accounts (Cash/Bank)
-    $assetTypeIds = ChartOfAccountType::whereIn('name', ['Asset', 'Assets'])->pluck('id');
+    $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
     
     $paymentAccounts = ChartOfAccount::whereIn('type_id', $assetTypeIds)
         ->orWhereHas('parent', function($q) use ($assetTypeIds) {
@@ -90,7 +90,7 @@ class VoucherController extends Controller
             ->get();
     }
 
-        $expenseTypeId = ChartOfAccountType::whereIn('name', ['Expense', 'Expenses'])->first()->id ?? 15;
+        $expenseTypeId = ChartOfAccountType::where('name', 'Expense')->first()->id ?? 15;
 
         $branches = Branch::all();
         $customers = Customer::all();

@@ -193,9 +193,9 @@ class DoubleEntryReportController extends Controller
     {
         $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
         
-        $assetTypes = \App\Models\ChartOfAccountType::whereIn('name', ['Asset', 'Assets'])->pluck('id');
-        $liabilityTypes = \App\Models\ChartOfAccountType::whereIn('name', ['Liability', 'Liabilities'])->pluck('id');
-        $equityTypes = \App\Models\ChartOfAccountType::whereIn('name', ['Equity', 'Equities'])->pluck('id');
+        $assetTypes = \App\Models\ChartOfAccountType::where('name', 'Asset')->pluck('id');
+        $liabilityTypes = \App\Models\ChartOfAccountType::where('name', 'Liability')->pluck('id');
+        $equityTypes = \App\Models\ChartOfAccountType::where('name', 'Equity')->pluck('id');
 
         $getAccounts = function($typeIds, $category) use ($endDate) {
             if ($typeIds->isEmpty()) return collect();
@@ -249,8 +249,8 @@ class DoubleEntryReportController extends Controller
         $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
         
         // Fetch ALL relevant types to handle duplicates (e.g., "Revenue" AND "Income")
-        $revenueTypes = \App\Models\ChartOfAccountType::whereIn('name', ['Revenue', 'Income'])->pluck('id');
-        $expenseTypes = \App\Models\ChartOfAccountType::whereIn('name', ['Expenses', 'Expense'])->pluck('id');
+        $revenueTypes = \App\Models\ChartOfAccountType::where('name', 'Revenue')->pluck('id');
+        $expenseTypes = \App\Models\ChartOfAccountType::where('name', 'Expense')->pluck('id');
 
         $getAccounts = function($typeIds, $category) use ($startDate, $endDate) {
             if ($typeIds->isEmpty()) return collect();

@@ -138,6 +138,7 @@
                                 </tr>
                             </tbody>
                         </table>
+                        <a href="{{ route('branches.index') }}" class="dash-btn-more">View Branches</a>
                     </div>
                 </div>
             </div>

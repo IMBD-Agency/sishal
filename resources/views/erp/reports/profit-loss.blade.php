@@ -4,176 +4,188 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content bg-light min-vh-100" id="mainContent">
+    <div class="main-content bg-white min-vh-100" id="mainContent">
         @include('erp.components.header')
         
         <div class="container-fluid px-4 py-4">
-            <h4 class="mb-4 text-dark">Profit / Loss Reports</h4>
+            <!-- Simple Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                <div>
+                    <h4 class="fw-bold mb-0 text-dark">Profit & Loss Report</h4>
+                    <p class="text-muted small mb-0">{{ $startDate->format('d M, Y') }} - {{ $endDate->format('d M, Y') }}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> Print
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Export
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
+                            <li><a class="dropdown-item py-2" href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}">PDF Version</a></li>
+                            <li><a class="dropdown-item py-2" href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}">Excel Sheet</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
-            <!-- Filter Section -->
-            <div class="card border-0 shadow-sm rounded-3 mb-4">
-                <div class="card-body">
+            <!-- Filters -->
+            <div class="card border shadow-sm mb-4">
+                <div class="card-body p-3">
                     <form method="GET" action="{{ route('reports.profit-loss') }}" id="filterForm">
-                        <div class="mb-3">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="report_type" id="daily" value="daily" checked onclick="setDateRange('daily')">
-                                <label class="form-check-label fw-bold" for="daily">Daily Reports</label>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Report Period</label>
+                                <div class="d-flex gap-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="report_type" id="daily" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }} onclick="setDateRange('daily')">
+                                        <label class="form-check-label small" for="daily">Daily</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="report_type" id="monthly" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }} onclick="setDateRange('monthly')">
+                                        <label class="form-check-label small" for="monthly">Monthly</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="report_type" id="yearly" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }} onclick="setDateRange('yearly')">
+                                        <label class="form-check-label small" for="yearly">Yearly</label>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="report_type" id="monthly" value="monthly" onclick="setDateRange('monthly')">
-                                <label class="form-check-label fw-bold" for="monthly">Monthly Reports</label>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Branch</label>
+                                <select name="branch_id" class="form-select form-select-sm">
+                                    <option value="">Consolidated View</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ ($branchId ?? '') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="report_type" id="yearly" value="yearly" onclick="setDateRange('yearly')">
-                                <label class="form-check-label fw-bold" for="yearly">Yearly Reports</label>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold">Start Date</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ $startDate->format('Y-m-d') }}">
                             </div>
-                        </div>
-
-                        <div class="row align-items-end">
-                            <div class="col-md-4 mb-3 mb-md-0">
-                                <label class="form-label small fw-bold">Start Date *</label>
-                                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ $startDate->format('Y-m-d') }}">
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold">End Date</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ $endDate->format('Y-m-d') }}">
                             </div>
-                            <div class="col-md-4 mb-3 mb-md-0">
-                                <label class="form-label small fw-bold">End Date *</label>
-                                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ $endDate->format('Y-m-d') }}">
-                            </div>
-                            <div class="col-md-4">
-                                <button type="submit" class="btn btn-info text-white fw-bold"><i class="fas fa-search me-1"></i> Search</button>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-dark btn-sm w-100">Analyze</button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Report Table -->
-            <div class="card border-0 shadow-sm rounded-3">
+            <!-- Detailed Report Table -->
+            <div class="card border shadow-sm">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-bordered mb-0">
-                            <thead>
-                                <tr class="bg-success text-white">
-                                    <th class="w-50 text-center py-2">Income</th>
-                                    <th class="w-50 text-center py-2">Expense</th>
+                        <table class="table table-bordered mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="w-50 text-center py-3 text-uppercase small text-secondary">Income & Revenue Sources</th>
+                                    <th class="w-50 text-center py-3 text-uppercase small text-secondary">Expenses & Outflows</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <!-- Row 1 -->
                                 <tr>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Sales Amount</span>
-                                            <span>{{ number_format($salesAmount, 2) }}</span>
-                                        </div>
+                                    <td class="p-0 align-top">
+                                        <table class="table table-sm table-borderless mb-0">
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Sales Revenue</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($salesAmount, 2) }}</td>
+                                            </tr>
+                                            @foreach($creditVoucherDetails as $detail)
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">{{ $detail->name }}</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($detail->amount, 2) }}</td>
+                                            </tr>
+                                            @endforeach
+                                            @if($creditVoucherDetails->isEmpty() && $creditVoucher > 0)
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Credit Vouchers (General)</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($creditVoucher, 2) }}</td>
+                                            </tr>
+                                            @endif
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Money Receipts</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($moneyReceipt, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Purchase Returns</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($purchaseReturnAmount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Exchange Adjustments</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($exchangeAmount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Transfers In</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($senderTransferAmount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary border-top">Stock Valuation (Asset)</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-muted border-top">Tk. {{ number_format($stockAmount, 2) }}</td>
+                                            </tr>
+                                        </table>
                                     </td>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Purchase Amount</span>
-                                            <span>{{ number_format($purchaseAmount, 2) }}</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Row 2 -->
-                                <tr>
-                                    <td class="p-0 bg-light">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Credit Voucher</span>
-                                            <span>{{ number_format($creditVoucher, 2) }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-0 bg-light">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Debit Voucher</span>
-                                            <span>{{ number_format($debitVoucher, 2) }}</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Row 3 -->
-                                <tr>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Stock Amount</span>
-                                            <span>{{ number_format($stockAmount, 2) }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Employee Payment</span>
-                                            <span>{{ number_format($employeePayment, 2) }}</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Row 4 -->
-                                <tr>
-                                    <td class="p-0 bg-light">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Money Receipt</span>
-                                            <span>{{ number_format($moneyReceipt, 2) }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-0 bg-light">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Supplier Pay</span>
-                                            <span>{{ number_format($supplierPay, 2) }}</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Row 5 -->
-                                <tr>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Purchase Returns</span>
-                                            <span>{{ number_format($purchaseReturnAmount, 2) }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Sales Returns</span>
-                                            <span>{{ number_format($salesReturnAmount, 2) }}</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Row 6 -->
-                                <tr>
-                                    <td class="p-0 bg-light">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Exchange Amount</span>
-                                            <span>{{ number_format($exchangeAmount, 2) }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-0 bg-light">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <!-- Empty Cell -->
-                                        </div>
-                                    </td>
-                                </tr>
-                                <!-- Row 7 -->
-                                <tr>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Sender Transfer Amount</span>
-                                            <span>{{ number_format($senderTransferAmount, 2) }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2">
-                                            <span>Receiver Transfer Amount</span>
-                                            <span>{{ number_format($receiverTransferAmount, 2) }}</span>
-                                        </div>
+                                    <td class="p-0 align-top border-start">
+                                        <table class="table table-sm table-borderless mb-0">
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Cost of Goods Sold</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($cogsAmount, 2) }}</td>
+                                            </tr>
+                                            @if($purchaseAmount > 0)
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Purchase (Inventory)</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($purchaseAmount, 2) }}</td>
+                                            </tr>
+                                            @endif
+                                            @foreach($debitVoucherDetails as $detail)
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">{{ $detail->name }}</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($detail->amount, 2) }}</td>
+                                            </tr>
+                                            @endforeach
+                                            @if($debitVoucherDetails->isEmpty() && $debitVoucher > 0)
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Debit Vouchers (General)</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($debitVoucher, 2) }}</td>
+                                            </tr>
+                                            @endif
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Employee Salaries</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($employeePayment, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Supplier Payments</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($supplierPay, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Sales Returns</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($salesReturnAmount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Transfers Out</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($receiverTransferAmount, 2) }}</td>
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                                 <!-- Totals -->
-                                <tr class="fw-bold">
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2 border-top">
-                                            <span>Total Income</span>
-                                            <span>{{ number_format($totalIncome, 2) }}</span>
+                                <tr class="bg-light">
+                                    <td class="p-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold text-uppercase small text-dark">Total Gross Income</span>
+                                            <span class="fw-bold fs-5 text-dark">Tk. {{ number_format($totalIncome, 2) }}</span>
                                         </div>
                                     </td>
-                                    <td class="p-0">
-                                        <div class="d-flex justify-content-between p-2 border-top">
-                                            <span>Total Expense</span>
-                                            <span>{{ number_format($totalExpense, 2) }}</span>
+                                    <td class="p-3 border-start">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold text-uppercase small text-dark">Total Gross Expenses</span>
+                                            <span class="fw-bold fs-5 text-danger">Tk. {{ number_format($totalExpense, 2) }}</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -183,9 +195,11 @@
                 </div>
             </div>
 
-            <!-- Net Profit -->
-            <div class="text-center mt-4">
-                <h5 class="fw-bold fs-5">Net Profit / Loss <span class="ms-3 {{ $netProfit >= 0 ? 'text-success' : 'text-danger' }}">{{ number_format($netProfit, 2) }}</span></h5>
+            <!-- Net Result -->
+            <div class="mt-4 p-4 border rounded text-center shadow-sm {{ ($totalIncome - $totalExpense) >= 0 ? 'bg-success text-white' : 'bg-danger text-white' }}">
+                <h6 class="text-uppercase fw-bold mb-1 opacity-75">Net Performance Result</h6>
+                <h1 class="fw-bold mb-0">Tk. {{ number_format($totalIncome - $totalExpense, 2) }}</h1>
+                <p class="mb-0 fw-bold small mt-2">{{ ($totalIncome - $totalExpense) >= 0 ? 'Surplus (Profit)' : 'Deficit (Loss)' }} for this period</p>
             </div>
 
         </div>

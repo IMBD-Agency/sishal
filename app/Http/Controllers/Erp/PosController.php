@@ -172,14 +172,16 @@ class PosController extends Controller
 
             // Save POS items
             foreach ($request->items as $item) {
+                $product = Product::find($item['product_id']);
                 $createdItem = PosItem::create([
                     'pos_sale_id' => $pos->id,
                     'product_id' => $item['product_id'],
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
+                    'unit_cost' => $product->cost ?? 0,
                     'total_price' => $item['total_price'],
-                    'current_position_type' => 'branch', // Explicitly set to branch for POS orders
+                    'current_position_type' => 'branch',
                     'current_position_id' => $request->branch_id
                 ]);
 
@@ -576,12 +578,14 @@ class PosController extends Controller
                 }
 
                 // Create POS item
+                $product = Product::find($item['product_id']);
                 $posItem = new PosItem();
                 $posItem->pos_sale_id = $pos->id;
                 $posItem->product_id = $item['product_id'];
                 $posItem->variation_id = $item['variation_id'] ?? null;
                 $posItem->quantity = $item['quantity'];
                 $posItem->unit_price = $item['unit_price'];
+                $posItem->unit_cost = $product->cost ?? 0;
                 $posItem->total_price = $item['quantity'] * $item['unit_price'];
                 $posItem->current_position_type = 'branch';
                 $posItem->current_position_id = $request->branch_id;

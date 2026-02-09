@@ -7,284 +7,249 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}"
-                                    class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Profit & Loss Statement</li>
-                        </ol>
-                    </nav>
-                    <h2 class="fw-bold mb-0">Profit & Loss Statement</h2>
-                    <p class="text-muted mb-0">View and manage profit and loss for your financial records.</p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                            <i class="fas fa-filter me-2"></i>Filter
-                        </button>
-                        <button class="btn btn-primary" onclick="exportProfitLoss()">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filter Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <form id="profitLossFilterForm" method="GET">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-3">
-                        <label for="start_date" class="form-label">From Date</label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" 
-                               value="{{ $startDate ?? date('Y-m-01') }}" max="{{ date('Y-m-d') }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="end_date" class="form-label">To Date</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" 
-                               value="{{ $endDate ?? date('Y-m-d') }}" max="{{ date('Y-m-d') }}">
-                    </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search me-2"></i>Generate Report
-                        </button>
-                        <a href="{{ route('profitLoss.index') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-undo me-2"></i>Reset
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-
-        <!-- Profit & Loss Content -->
         <div class="container-fluid px-4 py-4">
-            <!-- Summary Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Revenue</h6>
-                                    <h4 class="mb-0">৳{{ $profitLossData['totals']['revenue_formatted'] ?? '0.00' }}</h4>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-arrow-up fa-2x"></i>
-                                </div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold text-dark mb-1">Profit & Loss Statement</h2>
+                    <p class="text-muted mb-0">Double-entry accounting performance overview</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary d-flex align-items-center gap-2 shadow-sm bg-white" onclick="printProfitLoss()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle d-flex align-items-center gap-2 shadow-sm" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download"></i> Export Report
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
+                            <li><a class="dropdown-item py-2" href="#" onclick="exportPDF()"><i class="far fa-file-pdf me-2 text-danger"></i> Export as PDF</a></li>
+                            <li><a class="dropdown-item py-2" href="#" onclick="exportExcel()"><i class="far fa-file-excel me-2 text-success"></i> Export as Excel</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Filter Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-body p-4">
+                    <form id="profitLossFilterForm" method="GET" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">From Date</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="far fa-calendar-alt"></i></span>
+                                <input type="date" class="form-control bg-light border-start-0 ps-0" name="start_date" 
+                                       value="{{ $startDate }}" max="{{ date('Y-m-d') }}">
                             </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">To Date</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="far fa-calendar-check"></i></span>
+                                <input type="date" class="form-control bg-light border-start-0 ps-0" name="end_date" 
+                                       value="{{ $endDate }}" max="{{ date('Y-m-d') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-dark w-100 fw-bold py-2 shadow-sm">
+                                    <i class="fas fa-sync-alt me-2"></i>Generate Statement
+                                </button>
+                                <a href="{{ route('profitLoss.index') }}" class="btn btn-outline-light border text-dark fw-bold py-2 px-3 shadow-sm bg-white">
+                                    <i class="fas fa-undo"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Premium Summary Widgets -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-3">
+                    <div class="card border-0 rounded-4 overflow-hidden shadow-sm h-100" 
+                         style="background: linear-gradient(135deg, #0f172a 0%, #334155 100%);">
+                        <div class="card-body p-4 text-white">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="bg-white bg-opacity-10 p-2 rounded-3">
+                                    <i class="fas fa-coins fa-lg"></i>
+                                </div>
+                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill">Revenue</span>
+                            </div>
+                            <h3 class="fw-bold mb-1">৳{{ $profitLossData['totals']['revenue_formatted'] ?? '0.00' }}</h3>
+                            <p class="text-white-50 small mb-0">Total Income generated</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-danger text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Expenses</h6>
-                                    <h4 class="mb-0">৳{{ $profitLossData['totals']['expenses_formatted'] ?? '0.00' }}</h4>
+                    <div class="card border-0 rounded-4 overflow-hidden shadow-sm h-100" 
+                         style="background: linear-gradient(135deg, #be123c 0%, #fb7185 100%);">
+                        <div class="card-body p-4 text-white">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="bg-white bg-opacity-10 p-2 rounded-3">
+                                    <i class="fas fa-wallet fa-lg"></i>
                                 </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-arrow-down fa-2x"></i>
-                                </div>
+                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill">Expenses</span>
                             </div>
+                            <h3 class="fw-bold mb-1">৳{{ $profitLossData['totals']['expenses_formatted'] ?? '0.00' }}</h3>
+                            <p class="text-white-50 small mb-0">Operational costs incurred</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Net Profit/Loss</h6>
-                                    <h4 class="mb-0">৳{{ $profitLossData['totals']['net_profit_formatted'] ?? '0.00' }}</h4>
+                    @php
+                        $netProfit = $profitLossData['totals']['net_profit'] ?? 0;
+                        $profitGradient = $netProfit >= 0 
+                            ? 'linear-gradient(135deg, #047857 0%, #10b981 100%)' 
+                            : 'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)';
+                    @endphp
+                    <div class="card border-0 rounded-4 overflow-hidden shadow-sm h-100" style="background: {{ $profitGradient }};">
+                        <div class="card-body p-4 text-white">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="bg-white bg-opacity-10 p-2 rounded-3">
+                                    <i class="fas fa-chart-line fa-lg"></i>
                                 </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-calculator fa-2x"></i>
-                                </div>
+                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill">Net Result</span>
                             </div>
+                            <h3 class="fw-bold mb-1">৳{{ $profitLossData['totals']['net_profit_formatted'] ?? '0.00' }}</h3>
+                            <p class="text-white-50 small mb-0">{{ $netProfit >= 0 ? 'Surplus for period' : 'Deficit for period' }}</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-warning text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Profit Margin</h6>
-                                    <h4 class="mb-0">{{ $profitLossData['totals']['profit_percentage'] ?? '0.0' }}%</h4>
+                    <div class="card border-0 rounded-4 overflow-hidden shadow-sm h-100" 
+                         style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
+                        <div class="card-body p-4 text-white">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="bg-white bg-opacity-10 p-2 rounded-3">
+                                    <i class="fas fa-percentage fa-lg"></i>
                                 </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-percentage fa-2x"></i>
-                                </div>
+                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill">Margin</span>
                             </div>
+                            <h3 class="fw-bold mb-1">{{ $profitLossData['totals']['profit_percentage'] ?? '0.0' }}%</h3>
+                            <p class="text-white-50 small mb-0">Revenue to profit ratio</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Profit & Loss Statement -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <h5 class="mb-0">Profit & Loss Statement</h5>
-                                    <small class="text-muted">Period: {{ date('M d, Y', strtotime($startDate)) }} to {{ date('M d, Y', strtotime($endDate)) }}</small>
-                                </div>
-                                <div class="col-md-6 text-end">
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-outline-primary" onclick="printProfitLoss()">
-                                            <i class="fas fa-print me-1"></i>Print
-                                        </button>
-                                        <button type="button" class="btn btn-outline-success" onclick="exportPDF()">
-                                            <i class="fas fa-file-pdf me-1"></i>PDF
-                                        </button>
-                                        <button type="button" class="btn btn-outline-info" onclick="exportExcel()">
-                                            <i class="fas fa-file-excel me-1"></i>Excel
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="profitLossTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 15%;">Account Code</th>
-                                            <th style="width: 50%;">Account Name</th>
-                                            <th style="width: 20%; text-align: right;">Amount</th>
-                                            <th style="width: 15%; text-align: center;">Type</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Revenue Section -->
-                                        <tr class="table-success">
-                                            <td colspan="4" class="fw-bold">
-                                                <i class="fas fa-arrow-up me-2"></i>REVENUE
-                                            </td>
-                                        </tr>
-                                        @forelse($profitLossData['revenue'] ?? [] as $revenue)
-                                            <tr>
-                                                <td><span class="badge bg-success">{{ $revenue['code'] }}</span></td>
-                                                <td>{{ $revenue['name'] }}</td>
-                                                <td class="text-end">
-                                                    <span class="text-success fw-bold">৳{{ $revenue['formatted_balance'] }}</span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="badge bg-success">Income</span>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted py-3">
-                                                    <i class="fas fa-inbox me-2"></i>No revenue accounts found for this period
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                        <tr class="table-success">
-                                            <td colspan="2" class="fw-bold">Total Revenue</td>
-                                            <td class="text-end fw-bold">৳{{ $profitLossData['totals']['revenue_formatted'] ?? '0.00' }}</td>
-                                            <td></td>
-                                        </tr>
+            <!-- Statement Section -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="fw-bold text-dark mb-0">Financial Statement</h4>
+                        <span class="text-muted small">Comprehensive breakdown of all accounts</span>
+                    </div>
+                    <div class="badge bg-light text-dark border px-3 py-2 rounded-3">
+                        <i class="far fa-clock me-1"></i>
+                        {{ date('d M Y', strtotime($startDate)) }} — {{ date('d M Y', strtotime($endDate)) }}
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0" id="profitLossTable">
+                            <thead>
+                                <tr class="bg-light border-bottom">
+                                    <th class="ps-4 py-3 text-uppercase small fw-bold text-muted" style="width: 15%;">Account Code</th>
+                                    <th class="py-3 text-uppercase small fw-bold text-muted" style="width: 50%;">Account Name</th>
+                                    <th class="py-3 text-uppercase small fw-bold text-muted text-end" style="width: 20%;">Amount</th>
+                                    <th class="py-3 text-uppercase small fw-bold text-muted text-center pe-4" style="width: 15%;">Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- REVENUE SECTION -->
+                                <tr class="bg-opacity-10" style="background-color: #f1f5f9;">
+                                    <td colspan="4" class="ps-4 py-3 fw-bold text-dark border-bottom border-top">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-success p-1 rounded-circle me-2" style="width: 8px; height: 8px;"></div>
+                                            INCOME / REVENUE ACCOUNTS
+                                        </div>
+                                    </td>
+                                </tr>
+                                @forelse($profitLossData['revenue'] ?? [] as $revenue)
+                                    <tr class="border-bottom">
+                                        <td class="ps-4">
+                                            <span class="badge bg-light text-dark border fw-semibold px-2">#{{ $revenue['code'] }}</span>
+                                        </td>
+                                        <td class="fw-semibold text-dark">{{ $revenue['name'] }}</td>
+                                        <td class="text-end fw-bold text-success">
+                                            ৳{{ $revenue['formatted_balance'] }}
+                                        </td>
+                                        <td class="text-center pe-4">
+                                            <span class="badge bg-success-subtle text-success border border-success border-opacity-25 rounded-pill px-3">Income</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-5 bg-white">
+                                            <div class="mb-2"><i class="fas fa-box-open fa-3x opacity-25"></i></div>
+                                            No revenue accounts found for this period
+                                        </td>
+                                    </tr>
+                                @endforelse
+                                <tr class="bg-light bg-opacity-50">
+                                    <td colspan="2" class="ps-4 py-3 fw-bold text-dark">Total Consolidated Income</td>
+                                    <td class="text-end py-3 fw-bold text-dark fs-5">৳{{ $profitLossData['totals']['revenue_formatted'] ?? '0.00' }}</td>
+                                    <td class="pe-4"></td>
+                                </tr>
 
-                                        <!-- Expenses Section -->
-                                        <tr class="table-danger">
-                                            <td colspan="4" class="fw-bold">
-                                                <i class="fas fa-arrow-down me-2"></i>EXPENSES
-                                            </td>
-                                        </tr>
-                                        @forelse($profitLossData['expenses'] ?? [] as $expense)
-                                            <tr>
-                                                <td><span class="badge bg-danger">{{ $expense['code'] }}</span></td>
-                                                <td>{{ $expense['name'] }}</td>
-                                                <td class="text-end">
-                                                    <span class="text-danger fw-bold">৳{{ $expense['formatted_balance'] }}</span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="badge bg-danger">Expense</span>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted py-3">
-                                                    <i class="fas fa-inbox me-2"></i>No expense accounts found for this period
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                        <tr class="table-danger">
-                                            <td colspan="2" class="fw-bold">Total Expenses</td>
-                                            <td class="text-end fw-bold">৳{{ $profitLossData['totals']['expenses_formatted'] ?? '0.00' }}</td>
-                                            <td></td>
-                                        </tr>
+                                <!-- EXPENSES SECTION -->
+                                <tr class="bg-opacity-10" style="background-color: #f1f5f9;">
+                                    <td colspan="4" class="ps-4 py-3 fw-bold text-dark border-bottom border-top">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-danger p-1 rounded-circle me-2" style="width: 8px; height: 8px;"></div>
+                                            EXPENDITURE / OPERATING ACCOUNTS
+                                        </div>
+                                    </td>
+                                </tr>
+                                @forelse($profitLossData['expenses'] ?? [] as $expense)
+                                    <tr class="border-bottom">
+                                        <td class="ps-4">
+                                            <span class="badge bg-light text-dark border fw-semibold px-2">#{{ $expense['code'] }}</span>
+                                        </td>
+                                        <td class="fw-semibold text-dark">{{ $expense['name'] }}</td>
+                                        <td class="text-end fw-bold text-danger">
+                                            ৳{{ $expense['formatted_balance'] }}
+                                        </td>
+                                        <td class="text-center pe-4">
+                                            <span class="badge bg-danger-subtle text-danger border border-danger border-opacity-25 rounded-pill px-3">Expense</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-5 bg-white">
+                                            <div class="mb-2"><i class="fas fa-box-open fa-3x opacity-25"></i></div>
+                                            No expense accounts found for this period
+                                        </td>
+                                    </tr>
+                                @endforelse
+                                <tr class="bg-light bg-opacity-50">
+                                    <td colspan="2" class="ps-4 py-3 fw-bold text-dark">Total Consolidated Expenses</td>
+                                    <td class="text-end py-3 fw-bold text-dark fs-5">৳{{ $profitLossData['totals']['expenses_formatted'] ?? '0.00' }}</td>
+                                    <td class="pe-4"></td>
+                                </tr>
 
-                                        <!-- Net Profit/Loss Section -->
-                                        <tr class="table-info">
-                                            <td colspan="2" class="fw-bold">
-                                                <i class="fas fa-calculator me-2"></i>NET PROFIT/LOSS
-                                            </td>
-                                            <td class="text-end fw-bold">
-                                                @php
-                                                    $netProfit = $profitLossData['totals']['net_profit'] ?? 0;
-                                                    $profitClass = $netProfit >= 0 ? 'text-success' : 'text-danger';
-                                                @endphp
-                                                <span class="{{ $profitClass }}">৳{{ $profitLossData['totals']['net_profit_formatted'] ?? '0.00' }}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge {{ $netProfit >= 0 ? 'bg-success' : 'bg-danger' }}">
-                                                    {{ $netProfit >= 0 ? 'Profit' : 'Loss' }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                                <!-- THE BOTTOM LINE -->
+                                <tr style="background-color: #0f172a;" class="text-white">
+                                    <td colspan="2" class="ps-4 py-4 fw-bold fs-5">
+                                        <i class="fas fa-balance-scale me-2 text-info"></i>
+                                        THE BOTTOM LINE (NET {{ $netProfit >= 0 ? 'PROFIT' : 'LOSS' }})
+                                    </td>
+                                    <td class="text-end py-4 fw-bold fs-4 {{ $netProfit >= 0 ? 'text-info' : 'text-danger' }}">
+                                        ৳{{ $profitLossData['totals']['net_profit_formatted'] ?? '0.00' }}
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <span class="badge bg-white bg-opacity-20 text-white border-0 px-4 py-2 rounded-pill">
+                                            {{ $netProfit >= 0 ? 'Net Surplus' : 'Net Deficit' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Financial Metrics -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">
-                                <i class="fas fa-chart-line me-2"></i>FINANCIAL METRICS
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row text-center">
-                                <div class="col-md-3">
-                                    <h6 class="text-muted">Total Revenue</h6>
-                                    <h4 class="text-success">৳{{ $profitLossData['totals']['revenue_formatted'] ?? '0.00' }}</h4>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6 class="text-muted">Total Expenses</h6>
-                                    <h4 class="text-danger">৳{{ $profitLossData['totals']['expenses_formatted'] ?? '0.00' }}</h4>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6 class="text-muted">Net Profit/Loss</h6>
-                                    @php
-                                        $netProfit = $profitLossData['totals']['net_profit'] ?? 0;
-                                        $profitClass = $netProfit >= 0 ? 'text-success' : 'text-danger';
-                                    @endphp
-                                    <h4 class="{{ $profitClass }}">৳{{ $profitLossData['totals']['net_profit_formatted'] ?? '0.00' }}</h4>
-                                </div>
-                                <div class="col-md-3">
-                                    <h6 class="text-muted">Profit Margin</h6>
-                                    <h4 class="text-info">{{ $profitLossData['totals']['profit_percentage'] ?? '0.0' }}%</h4>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 

@@ -178,32 +178,23 @@
     <link rel="icon"
         href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) : asset('static/default-site-icon.webp') }}"
         type="image/x-icon">
-    <!-- Preload critical resources -->
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style"
-        onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" as="style"
-        onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css" as="style"
-        onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" as="style"
-        onload="this.onload=null;this.rel='stylesheet'">
+    <!-- Critical Styles: Loaded synchronously to prevent Layout Shift (CLS) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" rel="stylesheet">
     <link href="{{ asset('ecommerce.css') }}?v={{ @filemtime(public_path('ecommerce.css')) }}" rel="stylesheet" />
 
-    <!-- Fallback for non-JS browsers -->
-    <noscript>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" rel="stylesheet">
-    </noscript>
-
-    <!-- Removed Turbo CDN to fix JavaScript functionality issues -->
     @stack('styles')
     @vite(['resources/js/app.js'])
     <style>
-        html,
+        html {
+            scrollbar-gutter: stable; /* Prevent horizontal jump when scrollbar appears */
+        }
         body {
             font-family: 'Segoe UI', 'SegoeUI', 'Helvetica Neue', Helvetica, Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
     </style>
 </head>

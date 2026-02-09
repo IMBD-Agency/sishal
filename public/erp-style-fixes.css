@@ -16,6 +16,23 @@
     --text-muted: #6b7280;
 }
 
+/* Page Transitions */
+.main-content {
+    animation: fadeInSlide 0.4s ease-out;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Premium Wrapper Cards */
 .purchase-card,
 .adjustment-card {
@@ -249,4 +266,28 @@
     color: #1e40af;
     font-size: 0.75rem;
     font-weight: 700;
+}
+
+/* Report Page Specific Enhancements */
+.report-type-toggle .btn-check+.btn {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-weight: 600;
+    padding: 0.4rem 1.2rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.report-type-toggle .btn-check:checked+.btn {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    transform: translateY(-1px);
+}
+
+.report-type-toggle .btn-check:not(:checked)+.btn:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    color: #334155;
 }

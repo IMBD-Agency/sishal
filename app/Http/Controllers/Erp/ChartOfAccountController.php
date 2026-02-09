@@ -14,7 +14,14 @@ class ChartOfAccountController extends Controller
 {
     public function index()
     {
-        $accountTypes = ChartOfAccountType::with('subTypes')->get();
+        // Only show singular account types (hide duplicates like Assets, Liabilities, etc.)
+        $singularTypes = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
+        $accountTypes = ChartOfAccountType::with('subTypes')
+            ->whereIn('name', $singularTypes)
+            ->get()
+            ->unique('name')  // Remove duplicate names after fetching
+            ->values();  // Reset array keys
+            
         $accountParents = ChartOfAccountParent::with(['type', 'subType', 'accounts'])->get();
         $chartOfAccounts = ChartOfAccount::with(['parent', 'type', 'subType', 'createdBy'])->get();
 

@@ -166,6 +166,10 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/salary/create', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'create'])->name('salary.create');
     Route::post('/salary/store', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'store'])->name('salary.store');
     Route::get('/salary/details', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'getSalaryDetails'])->name('salary.details');
+    Route::get('/salary/{id}', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'show'])->name('salary.show');
+    Route::delete('/salary/{id}', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'destroy'])->name('salary.destroy');
+    Route::get('/salary-export/excel', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'exportExcel'])->name('salary.export.excel');
+    Route::get('/salary-export/pdf', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'exportPdf'])->name('salary.export.pdf');
 
     Route::get('/employees/fetch', [\App\Http\Controllers\Erp\EmployeeController::class, 'fetchEmployees']);
     Route::get('/branches/{branch}/non-branch-employees', [\App\Http\Controllers\Erp\BranchController::class, 'getNonBranchEmployee'])->name('branches.non_branch_employees');
@@ -200,10 +204,12 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/reports/sales', [\App\Http\Controllers\Erp\ReportController::class, 'saleReport'])->name('reports.sale');
     Route::get('/reports/profit-loss', [\App\Http\Controllers\Erp\ReportController::class, 'profitLossReport'])->name('reports.profit-loss');
     Route::get('/reports/customer', [\App\Http\Controllers\Erp\ReportController::class, 'customerReport'])->name('reports.customer');
-    Route::get('/reports/customer/{id}/ledger', [\App\Http\Controllers\Erp\ReportController::class, 'customerLedger'])->name('reports.customer.ledger');
+    Route::get('/reports/customer-ledger/{id?}', [\App\Http\Controllers\Erp\ReportController::class, 'customerLedger'])->name('reports.customer.ledger');
     Route::get('/reports/supplier', [\App\Http\Controllers\Erp\ReportController::class, 'supplierReport'])->name('reports.supplier-summary');
-    Route::get('/reports/supplier/{id}/ledger', [\App\Http\Controllers\Erp\ReportController::class, 'supplierLedger'])->name('reports.supplier.ledger');
+    Route::get('/reports/supplier-ledger/{id?}', [\App\Http\Controllers\Erp\ReportController::class, 'supplierLedger'])->name('reports.supplier.ledger');
     Route::get('/reports/stock', [\App\Http\Controllers\Erp\ReportController::class, 'stockReport'])->name('reports.stock');
+    Route::get('/reports/executive', [\App\Http\Controllers\Erp\ReportController::class, 'executiveReport'])->name('reports.executive');
+    Route::get('/reports/expenses', [\App\Http\Controllers\Erp\ReportController::class, 'expenseReport'])->name('reports.expenses');
 
 
     // Categories
@@ -807,6 +813,17 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //                "<br><br><strong>Stack trace:</strong><br><pre>" . $e->getTraceAsString() . "</pre>";
 //     }
 // });
+
+
+Route::get('/migrate-db', function() {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 
 
 // Route to run migrations from web

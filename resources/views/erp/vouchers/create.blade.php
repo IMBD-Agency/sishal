@@ -181,9 +181,9 @@
                                 @foreach($accountTypes as $type)
                                     @php 
                                         $concept = '';
-                                        if(in_array($type->name, ['Expense', 'Expenses'])) $concept = 'expense';
-                                        elseif(in_array($type->name, ['Income', 'Revenue'])) $concept = 'income';
-                                        elseif(in_array($type->name, ['Asset', 'Assets'])) $concept = 'asset';
+                                        if($type->name == 'Expense') $concept = 'expense';
+                                        elseif($type->name == 'Revenue') $concept = 'income';
+                                        elseif($type->name == 'Asset') $concept = 'asset';
                                         
                                         if(!$concept || in_array($concept, $shownCats)) continue;
                                         $shownCats[] = $concept;

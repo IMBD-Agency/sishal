@@ -99,6 +99,13 @@
             </a>
         </div>
 
+        <div class="nav-item">
+            <a href="{{ route('reports.executive') }}" class="nav-link {{ request()->is('erp/reports/executive*') ? ' active' : '' }}">
+                <i class="fas fa-chart-line nav-icon text-primary"></i>
+                <span>Executive Report</span>
+            </a>
+        </div>
+
         <!-- PRODUCTS -->
         <span class="sidebar-category-title">Products & Stock</span>
 

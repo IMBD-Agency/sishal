@@ -494,12 +494,14 @@ class OrderController extends Controller
                     // The subsequent deductStockForOrderItem will handle it (likely throwing error or creating negative stock depending on config, but here we expect valid deduction).
                 }
 
+                $productRecord = \App\Models\Product::find($item['product_id']);
                 $orderItem = OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'variation_id' => $item['variation_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
+                    'unit_cost' => $productRecord->cost ?? 0,
                     'total_price' => $item['total_price'],
                     'current_position_type' => $branchId ? 'branch' : ($warehouseId ? 'warehouse' : null), 
                     'current_position_id' => $branchId ? $branchId : ($warehouseId ? $warehouseId : null),

@@ -99,10 +99,9 @@
                 <div class="card-header bg-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="btn-group btn-group-sm mb-0">
-                            <button class="btn btn-export border-end">CSV</button>
-                            <button class="btn btn-export border-end">Excel</button>
-                            <button class="btn btn-export border-end">PDF</button>
-                            <button class="btn btn-export">Print</button>
+                            <a href="{{ route('salary.export.excel', request()->all()) }}" class="btn btn-export border-end">Excel</a>
+                            <a href="{{ route('salary.export.pdf', request()->all()) }}" class="btn btn-export border-end">PDF</a>
+                            <button class="btn btn-export" onclick="window.print()">Print</button>
                         </div>
                         <div class="d-flex align-items-center">
                             <label class="small fw-bold text-muted me-2 mb-0">Search:</label>
@@ -127,7 +126,7 @@
                         </thead>
                         <tbody>
                             @forelse($payments as $index => $payment)
-                                <tr>
+                                <tr id="row-{{ $payment->id }}">
                                     <td class="small">{{ $payments->firstItem() + $index }}</td>
                                     <td class="fw-bold">{{ $payment->employee->user->first_name }} {{ $payment->employee->user->last_name }}</td>
                                     <td class="small text-muted">{{ $payment->branch->name ?? '-' }}</td>
@@ -143,8 +142,8 @@
                                     <td class="small text-muted">{{ Str::limit($payment->note, 30) }}</td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-info"><i class="fas fa-eye"></i></button>
-                                            <button class="btn btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                            <a href="{{ route('salary.show', $payment->id) }}" class="btn btn-outline-info"><i class="fas fa-eye"></i></a>
+                                            <button class="btn btn-outline-danger" onclick="deletePayment({{ $payment->id }})"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -206,6 +205,31 @@
                 }
             });
         });
+
+        function deletePayment(id) {
+            if (confirm('Are you sure you want to delete this salary payment? This will also remove the associated journal entries.')) {
+                $.ajax({
+                    url: "{{ url('erp/salary') }}/" + id,
+                    type: 'DELETE',
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#row-' + id).fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                            alert(response.message);
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Error deleting salary payment.');
+                    }
+                });
+            }
+        }
     </script>
     @endpush
 @endsection

@@ -141,6 +141,22 @@
                         </div>
                     </a>
                 </div>
+
+                <!-- Expense Reports -->
+                <div class="col-md-4 col-xl-3">
+                    <a href="{{ route('reports.expenses') }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm rounded-4 h-100 transition-up overflow-hidden">
+                            <div class="card-body p-4 text-center">
+                                <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 70px; height: 70px;">
+                                    <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-1">Expense Reports</h5>
+                                <p class="text-muted small mb-3">Track all expenditures</p>
+                                <div class="badge bg-danger rounded-pill px-3">View</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
     </div>

@@ -25,24 +25,18 @@
                 <div class="card-body p-4">
                     <form action="{{ route('reports.sale') }}" method="GET">
                         <div class="mb-4">
-                            <div class="d-flex gap-4">
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold" for="dailyReport">
-                                        <i class="fas fa-calendar-day me-1 text-primary"></i> Daily Reports
-                                    </label>
+                            <div class="d-flex gap-2 report-type-toggle">
+                                <div class="form-check small p-0 m-0">
+                                    <input class="btn-check" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }} onclick="this.form.submit()">
+                                    <label class="btn btn-sm rounded-pill px-3" for="dailyReport">Daily</label>
                                 </div>
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold" for="monthlyReport">
-                                        <i class="fas fa-calendar-alt me-1 text-success"></i> Monthly Reports
-                                    </label>
+                                <div class="form-check small p-0 m-0">
+                                    <input class="btn-check" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }} onclick="this.form.submit()">
+                                    <label class="btn btn-sm rounded-pill px-3" for="monthlyReport">Monthly</label>
                                 </div>
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold" for="yearlyReport">
-                                        <i class="fas fa-calendar me-1 text-info"></i> Yearly Reports
-                                    </label>
+                                <div class="form-check small p-0 m-0">
+                                    <input class="btn-check" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }} onclick="this.form.submit()">
+                                    <label class="btn btn-sm rounded-pill px-3" for="yearlyReport">Yearly</label>
                                 </div>
                             </div>
                         </div>
@@ -169,6 +163,18 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Branch</label>
+                                <select name="branch_id" class="form-select select2" data-placeholder="Select Branch">
+                                    <option value=""></option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase">Select Account *</label>
                                 <select name="account" class="form-select select2" data-placeholder="Select an option">
                                     <option value=""></option>
@@ -228,7 +234,8 @@
                                     <th>Net Qty</th>
                                     <th>Delivery</th>
                                     <th>Disc.</th>
-                                    <th class="pe-3">Total Amount</th>
+                                    <th>Total Amount</th>
+                                    <th class="pe-3">Profit</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -263,7 +270,10 @@
                                     <td class="text-center fw-bold">{{ $item->quantity }}</td>
                                     <td class="text-center small">{{ number_format($item->source == 'POS' ? ($item->pos->delivery ?? 0) : ($item->order->delivery ?? 0), 2) }}</td>
                                     <td class="text-center small text-danger">{{ number_format($item->discount, 2) }}</td>
-                                    <td class="pe-3 text-end fw-bold text-dark">tk {{ number_format($item->total_price, 2) }}</td>
+                                    <td class="fw-bold text-dark">tk {{ number_format($item->total_price, 2) }}</td>
+                                    <td class="pe-3 text-end fw-bold {{ $item->profit > 0 ? 'text-success' : 'text-danger' }}">
+                                        tk {{ number_format($item->profit, 2) }}
+                                    </td>
                                 </tr>
                                 @empty
                                 <tr>
@@ -279,7 +289,8 @@
                                     <td colspan="3"></td>
                                     <td class="text-center">{{ number_format($summary['total_qty']) }}</td>
                                     <td colspan="2"></td>
-                                    <td class="pe-3 text-end">tk {{ number_format($summary['total_amount'], 2) }}</td>
+                                    <td class="text-end">tk {{ number_format($summary['total_amount'], 2) }}</td>
+                                    <td class="pe-3 text-end text-success">tk {{ number_format($summary['total_profit'], 2) }}</td>
                                 </tr>
                             </tfoot>
                             @endif

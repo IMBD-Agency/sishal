@@ -41,17 +41,17 @@
             <div class="row g-3 mb-4">
                 @php
                     $icons = [
-                        'Asset' => 'fa-vault', 'Assets' => 'fa-vault',
-                        'Liability' => 'fa-hand-holding-dollar', 'Liabilities' => 'fa-hand-holding-dollar',
-                        'Income' => 'fa-chart-line', 'Revenue' => 'fa-chart-line',
-                        'Expense' => 'fa-money-bill-transfer', 'Expenses' => 'fa-money-bill-transfer',
+                        'Asset' => 'fa-vault',
+                        'Liability' => 'fa-hand-holding-dollar',
+                        'Revenue' => 'fa-chart-line',
+                        'Expense' => 'fa-money-bill-transfer',
                         'Equity' => 'fa-scale-balanced'
                     ];
                     $colors = [
-                        'Asset' => 'bg-primary', 'Assets' => 'bg-primary',
-                        'Liability' => 'bg-danger', 'Liabilities' => 'bg-danger',
-                        'Income' => 'bg-success', 'Revenue' => 'bg-success',
-                        'Expense' => 'bg-warning', 'Expenses' => 'bg-warning',
+                        'Asset' => 'bg-primary',
+                        'Liability' => 'bg-danger',
+                        'Revenue' => 'bg-success',
+                        'Expense' => 'bg-warning',
                         'Equity' => 'bg-info'
                     ];
                 @endphp

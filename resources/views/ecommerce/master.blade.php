@@ -25,358 +25,6 @@
     </div>
 </div>
 
-<style>
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    /* Prevent layout shifts and vibration */
-    body {
-        overflow-x: hidden;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-    }
-
-    /* Sticky footer layout so pages with little content (e.g., empty wishlist)
-   keep the footer at the bottom without large blank space */
-    html,
-    body {
-        height: 100%;
-    }
-
-    body {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-    }
-
-    #main-content-container {
-        flex: 1 0 auto;
-    }
-
-    .footer {
-        margin-top: auto;
-    }
-
-    /* Smooth transitions without vibration */
-    * {
-        -webkit-tap-highlight-color: transparent;
-    }
-
-    /* Prevent text selection vibration on mobile */
-    a,
-    button {
-        -webkit-tap-highlight-color: transparent;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }
-
-    /* Global button and navigation stability - minimal interactions */
-    .nav-link,
-    .tab-btn,
-    .action-btn,
-    .header-link {
-        transition: color 0.2s ease, background-color 0.2s ease;
-        transform: none;
-        -webkit-transform: none;
-        will-change: auto;
-    }
-
-    .nav-link:hover,
-    .tab-btn:hover,
-    .action-btn:hover,
-    .header-link:hover {
-        transform: none;
-        -webkit-transform: none;
-    }
-
-    .nav-link:active,
-    .tab-btn:active,
-    .action-btn:active,
-    .header-link:active {
-        transform: none;
-        -webkit-transform: none;
-        transition: all 0.1s ease;
-    }
-
-    /* Navigation layout stability */
-    .nav-links {
-        display: flex;
-        align-items: center;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .nav-links .nav-item {
-        margin: 0;
-        padding: 0;
-    }
-
-    .nav-links .nav-link {
-        position: relative;
-        display: inline-block;
-        padding: 12px 16px;
-        text-decoration: none;
-        transition: color 0.2s ease, background-color 0.2s ease;
-        transform: none;
-        -webkit-transform: none;
-    }
-
-    .nav-links .nav-link:hover {
-        transform: none;
-        -webkit-transform: none;
-    }
-
-    .nav-links .nav-link:active {
-        transform: none;
-        -webkit-transform: none;
-        transition: all 0.1s ease;
-    }
-
-    /* Action buttons layout */
-    .action-buttons {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .action-btn {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        text-decoration: none;
-        transition: color 0.2s ease, background-color 0.2s ease;
-        transform: none;
-        -webkit-transform: none;
-    }
-
-    .action-btn:hover {
-        transform: none;
-        -webkit-transform: none;
-    }
-
-    .action-btn:active {
-        transform: none;
-        -webkit-transform: none;
-        transition: all 0.1s ease;
-    }
-
-    /* Categories Page Styles */
-    .categories-section {
-        min-height: 60vh;
-        padding-top: 2rem !important;
-        padding-bottom: 3rem !important;
-    }
-
-    /* Section title styles are defined in individual page files to avoid conflicts */
-
-    .category-tile {
-        transition: all 0.3s ease;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .category-tile:hover {
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        text-decoration: none;
-    }
-
-    .tile-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-        overflow: hidden;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .tile-card:hover {
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-
-    .tile-img {
-        width: 100%;
-        height: 120px;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8f9fa;
-    }
-
-    .tile-img img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.3s ease;
-    }
-
-    .category-tile:hover .tile-img img {
-        opacity: 0.9;
-    }
-
-    .placeholder-image {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #e2e8f0;
-        color: #64748b;
-    }
-
-    .tile-title {
-        padding: 1rem;
-        font-weight: 600;
-        color: #1a202c;
-        text-align: center;
-        font-size: 0.9rem;
-        flex-grow: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .no-categories {
-        padding: 3rem 1rem;
-        color: #64748b;
-    }
-
-    .no-categories svg {
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    .no-categories h3 {
-        color: #374151;
-        margin-bottom: 0.5rem;
-    }
-
-    /* Footer Spacing */
-    .footer {
-        margin-top: 2rem;
-        background: linear-gradient(135deg, #001a0f 0%, #002d1a 50%, #001a0f 100%);
-        background-color: #001a0f;
-        color: #e2e8f0;
-        padding: 70px 0 30px;
-        position: relative;
-    }
-
-    .footer-logo img {
-        max-height: 50px;
-        margin-bottom: 1rem;
-    }
-
-    .footer-description {
-        color: #cbd5e1;
-        margin-bottom: 24px;
-        line-height: 1.7;
-        opacity: 0.85;
-    }
-
-    .footer-title {
-        color: #ffffff;
-        font-weight: 700;
-        margin-bottom: 24px;
-        font-size: 16px;
-        letter-spacing: 0.5px;
-    }
-
-    .footer-links {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .footer-links li {
-        margin-bottom: 0.5rem;
-    }
-
-    .footer-links a {
-        color: #cbd5e1;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        opacity: 0.9;
-    }
-
-    .footer-links a:hover {
-        color: #ffffff;
-        opacity: 1;
-        padding-left: 6px;
-    }
-
-    .social-links {
-        display: flex;
-        gap: 0.75rem;
-    }
-
-    .social-links a {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 42px;
-        height: 42px;
-        background: rgba(255, 255, 255, 0.1);
-        color: #e2e8f0;
-        border-radius: 10px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-
-    .social-links a:hover {
-        background: var(--primary-blue);
-        color: #ffffff;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    .footer-bottom {
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
-        padding-top: 24px;
-        margin-top: 50px;
-        color: #94a3b8;
-        opacity: 0.75;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .categories-section {
-            padding-top: 1.5rem !important;
-            padding-bottom: 2rem !important;
-        }
-
-        /* Section title responsive styles handled in individual page files */
-
-        .tile-img {
-            height: 100px;
-        }
-
-        .footer {
-            padding: 50px 0 20px;
-        }
-    }
-</style>
-
 <script>
     // Enhanced smooth navigation without Turbo CDN
     document.addEventListener('DOMContentLoaded', function () {
@@ -755,112 +403,51 @@
             }
         };
 
-        // Add toast CSS if not already present
-        if (!document.getElementById('toast-css')) {
-            const style = document.createElement('style');
-            style.id = 'toast-css';
-            style.textContent = `
-            .custom-toast {
-                min-width: 220px;
-                max-width: 340px;
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-                border-left: 4px solid #10B981;
-                overflow: hidden;
-                transform: translateX(0);
-                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                position: relative;
-            }
-            .custom-toast.error {
-                border-left-color: #e53935;
-            }
-            .custom-toast .toast-content {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 16px 18px 14px 16px;
-            }
-            .custom-toast .toast-icon {
-                font-size: 22px;
-                flex-shrink: 0;
-            }
-            .custom-toast .toast-message {
-                flex: 1;
-                font-weight: 500;
-            }
-            .custom-toast .toast-close {
-                background: none;
-                border: none;
-                color: #888;
-                font-size: 18px;
-                cursor: pointer;
-                padding: 0;
-                width: 20px;
-                height: 20px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: color 0.2s;
-            }
-            .custom-toast .toast-close:hover {
-                color: #e53935;
-            }
-            .custom-toast .toast-progress {
-                position: absolute;
-                left: 0;
-                bottom: 0;
-                height: 3px;
-                width: 100%;
-                background: linear-gradient(90deg, #2196F3, #21cbf3);
-                transition: width 2.3s linear;
-            }
-            .custom-toast.error .toast-progress {
-                background: linear-gradient(90deg, #e53935, #ffb199);
-            }
-            .custom-toast.hide {
-                opacity: 0;
-                transform: translateY(-20px) scale(0.98);
-            }
-        `;
-            document.head.appendChild(style);
-        }
-
         // Global toast notification function
         window.showToast = function (message, type = 'success') {
-            console.log('[TOAST] Showing toast:', message, type);
             const toast = document.createElement('div');
             toast.className = 'custom-toast ' + type;
             toast.innerHTML = `
-            <div class="toast-content">
-                <span class="toast-icon">${type === 'error' ? '❌' : ''}</span>
-                <span class="toast-message">${message}</span>
-                <button class="toast-close" onclick="this.parentElement.parentElement.classList.add('hide'); setTimeout(()=>this.parentElement.parentElement.remove(), 400);">&times;</button>
-            </div>
-            <div class="toast-progress"></div>
-        `;
+                <div class="toast-content">
+                    <span class="toast-icon">${type === 'error' ? '❌' : '✅'}</span>
+                    <span class="toast-message">${message}</span>
+                    <button class="toast-close">&times;</button>
+                </div>
+                <div class="toast-progress"></div>
+            `;
 
-            // Ensure toast container exists
             var container = document.getElementById('toast-container');
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'toast-container';
-                container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 16000; display: flex; flex-direction: column; gap: 10px;';
                 document.body.appendChild(container);
             }
 
             container.appendChild(toast);
 
-            // Animate progress bar
+            // Trigger animations
+            setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => {
-                toast.querySelector('.toast-progress').style.width = '0%';
+                const progress = toast.querySelector('.toast-progress');
+                if (progress) progress.style.transform = 'scaleX(0)';
             }, 10);
 
-            // Auto remove after 2.5 seconds
-            setTimeout(() => {
-                toast.classList.add('hide');
-                setTimeout(() => toast.remove(), 400);
-            }, 2500);
+            const removeToast = () => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 500);
+            };
+
+            // Auto-remove after 3 seconds
+            const timeout = setTimeout(removeToast, 3000);
+
+            // Close on click
+            const closeBtn = toast.querySelector('.toast-close');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    clearTimeout(timeout);
+                    removeToast();
+                };
+            }
         };
 
         // Global wishlist toggle function

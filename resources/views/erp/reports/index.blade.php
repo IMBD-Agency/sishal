@@ -136,6 +136,24 @@
                             </div>
                         </a>
                     </div>
+
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.customer.ledger') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-primary bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-book-open fs-4 text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Customer Ledger</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Detailed transaction history, opening balances, and collection statements.</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
