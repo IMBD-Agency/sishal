@@ -99,7 +99,7 @@
                                                 <option value="">-- No Manager --</option>
                                                 @foreach($employees as $employee)
                                                     <option value="{{ $employee->id }}" {{ old('manager_id') == $employee->id ? 'selected' : '' }}>
-                                                        {{ $employee->user->first_name ?? 'N/A' }} {{ $employee->user->last_name ?? '' }} ({{ $employee->designation ?? 'Employee' }})
+                                                        {{ $employee->user->first_name ?? 'N/A' }} {{ $employee->user->last_name ?? '' }} ({{ $employee->position ?? 'Employee' }})
                                                     </option>
                                                 @endforeach
                                             </select>

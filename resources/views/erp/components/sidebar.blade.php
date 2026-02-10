@@ -38,36 +38,147 @@
             </a>
         </div>
        
+        <!-- PRODUCTS -->
+        <span class="sidebar-category-title">Products & Stock</span>
 
-        @can('view employee list')
+        @can('view products list')
         <div class="nav-item">
-            <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">
-                <i class="fas fa-users-cog nav-icon text-primary"></i>
-                <span>Employees</span>
+            <a href="{{ route('product.list') }}" class="nav-link {{ request()->is('erp/products*') ? ' active' : '' }}">
+                <i class="fas fa-box-open nav-icon text-primary"></i>
+                <span>Products</span>
+            </a>
+        </div>
+        @endcan
+
+
+        @can('view product stock list')
+        <div class="nav-item">
+            <a href="{{ route('stock.adjustment.list') }}" class="nav-link {{ request()->is('erp/stock/adjustment-list*') ? ' active' : '' }}">
+                <i class="fas fa-adjust nav-icon text-danger"></i>
+                <span>Stock Adjust</span>
+            </a>
+        </div>
+        @endcan
+
+        <!-- PROCUREMENT -->
+        <span class="sidebar-category-title">Purchases</span>
+
+        @can('pos assign list')
+
+         <div class="nav-item">
+            <a href="{{ route('purchase.list') }}" class="nav-link {{ request()->is('erp/purchases*') ? ' active' : '' }}">
+                <i class="fas fa-shopping-cart nav-icon text-success"></i>
+                <span>Purchase</span>
             </a>
         </div>
         <div class="nav-item">
-            <a href="{{ route('salary.index') }}" class="nav-link {{ request()->is('erp/salary*') ? ' active' : '' }}">
-                <i class="fas fa-money-check-alt nav-icon text-success"></i>
-                <span>Salary Payment</span>
+            <a href="{{ route('purchaseReturn.list') }}" class="nav-link {{ request()->is('erp/purchase-return*') ? ' active' : '' }}">
+                <i class="fas fa-history nav-icon text-danger"></i>
+                <span>Purchase Return</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->is('erp/suppliers*') ? ' active' : '' }}">
+                <i class="fas fa-truck nav-icon text-primary"></i>
+                <span>Suppliers</span>
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('supplier-payments.index') }}" class="nav-link {{ Route::is('supplier-payments.*') ? ' active' : '' }}">
+                <i class="fas fa-hand-holding-usd nav-icon text-warning"></i>
+                <span>Supplier Pay</span>
+            </a>
+        </div>
+       
+        @endcan
+       
+ <span class="sidebar-category-title">Sales & Retail</span>
+
+        @can('pos')
+        <div class="nav-item">
+            <a href="{{ route('pos.add') }}" class="nav-link {{ request()->is('erp/pos/create') ? ' active' : '' }}">
+                <i class="fas fa-cash-register nav-icon text-success"></i>
+                <span>POS</span>
+            </a>
+        </div>
+        @endcan
+
+        @can('pos list')
+        <div class="nav-item">
+            <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">
+                <i class="fas fa-book nav-icon text-info"></i>
+                <span>Sales</span>
+            </a>
+        </div>
+        @endcan
+
+        @can('pos return')
+        <div class="nav-item">
+            <a href="{{ route('saleReturn.list') }}" class="nav-link {{ request()->is('erp/sale-return*') ? ' active' : '' }}">
+                <i class="fas fa-undo nav-icon text-danger"></i>
+                <span>Sale Return</span>
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('exchange.list') }}" class="nav-link {{ request()->is('erp/exchange*') ? ' active' : '' }}">
+                <i class="fas fa-sync nav-icon text-warning"></i>
+                <span>Exchange</span>
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('money-receipt.index') }}" class="nav-link {{ request()->routeIs('money-receipt.*') ? ' active' : '' }}">
+                <i class="fas fa-file-invoice-dollar nav-icon text-primary"></i>
+                <span>Money Receipt</span>
+            </a>
+        </div>
+        @endcan
+             
+        @can('branch stock transper')
+        <div class="nav-item">
+            <a href="{{ route('stocktransfer.list') }}" class="nav-link {{ request()->is('erp/stock-transfer*') ? ' active' : '' }}">
+                <i class="fas fa-exchange-alt nav-icon text-info"></i>
+                <span>Stock Transfer</span>
             </a>
         </div>
         @endcan
 
         <div class="nav-item">
-            <a href="{{ route('master.settings') }}" class="nav-link {{ request()->is('erp/master-settings*') ? ' active' : '' }}">
-                <i class="fas fa-tools nav-icon text-secondary"></i>
-                <span>Master Settings</span>
+            <a href="{{ route('vouchers.index') }}" class="nav-link {{ request()->is('erp/double-entry/vouchers*') ? ' active' : '' }}">
+                <i class="fas fa-file-invoice-dollar nav-icon text-primary"></i>
+                <span>Vouchers</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ route('ledger.index') }}" class="nav-link {{ request()->is('erp/double-entry/ledger*') ? ' active' : '' }}">
+                <i class="fas fa-book-open nav-icon text-info"></i>
+                <span>General Ledger</span>
             </a>
         </div>
 
         <!-- ACCOUNTING -->
         <span class="sidebar-category-title">Accounting & Reports</span>
         
+
+        <div class="nav-item">
+            <a href="{{ route('salary.index') }}" class="nav-link {{ request()->is('erp/salary*') ? ' active' : '' }}">
+                <i class="fas fa-money-check-alt nav-icon text-success"></i>
+                <span>Salary</span>
+            </a>
+        </div>
+
         <div class="nav-item">
             <a href="{{ route('reports.index') }}" class="nav-link {{ request()->is('erp/reports') ? ' active' : '' }}">
                 <i class="fas fa-chart-pie nav-icon text-danger"></i>
                 <span>Reports Center</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ route('productstock.list') }}" class="nav-link {{ request()->is('erp/product-stock*') ? ' active' : '' }}">
+                <i class="fas fa-layer-group nav-icon text-success"></i>
+                <span>Stock Report</span>
             </a>
         </div>
 
@@ -78,20 +189,7 @@
             </a>
         </div>
 
-        <div class="nav-item">
-            <a href="{{ route('vouchers.index') }}" class="nav-link {{ request()->is('erp/double-entry/vouchers*') ? ' active' : '' }}">
-                <i class="fas fa-file-invoice-dollar nav-icon text-primary"></i>
-                <span>Daily Vouchers</span>
-            </a>
-        </div>
-        
-        <div class="nav-item">
-            <a href="{{ route('ledger.index') }}" class="nav-link {{ request()->is('erp/double-entry/ledger*') ? ' active' : '' }}">
-                <i class="fas fa-book-open nav-icon text-info"></i>
-                <span>General Ledger</span>
-            </a>
-        </div>
-
+                
         <div class="nav-item">
             <a href="{{ route('profitLoss.index') }}" class="nav-link {{ request()->is('erp/double-entry/profit-loss*') ? ' active' : '' }}">
                 <i class="fas fa-file-contract nav-icon text-success"></i>
@@ -107,17 +205,16 @@
         </div>
 
         <!-- PRODUCTS -->
-        <span class="sidebar-category-title">Products & Stock</span>
+        <!-- <span class="sidebar-category-title">Products & Stock</span>
 
         @can('view products list')
         <div class="nav-item">
             <a href="{{ route('product.list') }}" class="nav-link {{ request()->is('erp/products*') ? ' active' : '' }}">
                 <i class="fas fa-box-open nav-icon text-primary"></i>
-                <span>Products List</span>
+                <span>Products</span>
             </a>
         </div>
         @endcan
-
 
 
         @can('view product stock list')
@@ -133,89 +230,10 @@
                 <span>Stock Adjust</span>
             </a>
         </div>
-        @endcan
+        @endcan -->
 
         <!-- SALES -->
-        <span class="sidebar-category-title">Sales & Retail</span>
-
-        @can('pos')
-        <div class="nav-item">
-            <a href="{{ route('pos.add') }}" class="nav-link {{ request()->is('erp/pos/create') ? ' active' : '' }}">
-                <i class="fas fa-cash-register nav-icon text-success"></i>
-                <span>New POS</span>
-            </a>
-        </div>
-        @endcan
-
-        @can('pos list')
-        <div class="nav-item">
-            <a href="{{ route('pos.list') }}" class="nav-link {{ request()->is('erp/pos') ? ' active' : '' }}">
-                <i class="fas fa-book nav-icon text-info"></i>
-                <span>Sales List</span>
-            </a>
-        </div>
-        @endcan
-
-        <div class="nav-item">
-            <a href="{{ route('money-receipt.index') }}" class="nav-link {{ request()->routeIs('money-receipt.*') ? ' active' : '' }}">
-                <i class="fas fa-file-invoice-dollar nav-icon text-primary"></i>
-                <span>Money Receipt</span>
-            </a>
-        </div>
-
-        @can('pos return')
-        <div class="nav-item">
-            <a href="{{ route('saleReturn.list') }}" class="nav-link {{ request()->is('erp/sale-return*') ? ' active' : '' }}">
-                <i class="fas fa-undo nav-icon text-danger"></i>
-                <span>Sale Return</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="{{ route('exchange.list') }}" class="nav-link {{ request()->is('erp/exchange*') ? ' active' : '' }}">
-                <i class="fas fa-sync nav-icon text-warning"></i>
-                <span>Exchange</span>
-            </a>
-        </div>
-        @endcan
-
-        <!-- PROCUREMENT -->
-        <span class="sidebar-category-title">Purchases</span>
-
-        @can('pos assign list')
-        <div class="nav-item">
-            <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->is('erp/suppliers*') ? ' active' : '' }}">
-                <i class="fas fa-truck nav-icon text-primary"></i>
-                <span>Suppliers</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="{{ route('supplier-payments.index') }}" class="nav-link {{ Route::is('supplier-payments.*') ? ' active' : '' }}">
-                <i class="fas fa-hand-holding-usd nav-icon text-warning"></i>
-                <span>Supplier Pay</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="{{ route('purchase.list') }}" class="nav-link {{ request()->is('erp/purchases*') ? ' active' : '' }}">
-                <i class="fas fa-shopping-cart nav-icon text-success"></i>
-                <span>Purchase List</span>
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="{{ route('purchaseReturn.list') }}" class="nav-link {{ request()->is('erp/purchase-return*') ? ' active' : '' }}">
-                <i class="fas fa-history nav-icon text-danger"></i>
-                <span>Purchase Return</span>
-            </a>
-        </div>
-        @endcan
-
-        @can('branch stock transper')
-        <div class="nav-item">
-            <a href="{{ route('stocktransfer.list') }}" class="nav-link {{ request()->is('erp/stock-transfer*') ? ' active' : '' }}">
-                <i class="fas fa-exchange-alt nav-icon text-info"></i>
-                <span>Branch Transfer</span>
-            </a>
-        </div>
-        @endcan
+       
 
         <!-- ECOMMERCE -->
         <span class="sidebar-category-title">Ecommerce</span>
@@ -233,7 +251,7 @@
         <div class="nav-item">
             <a href="{{ route('orderReturn.list') }}" class="nav-link {{ request()->is('erp/order-return*') ? ' active' : '' }}">
                 <i class="fas fa-reply nav-icon text-danger"></i>
-                <span>Web Returns</span>
+                <span>Order Returns</span>
             </a>
         </div>
         @endcan
@@ -291,8 +309,25 @@
         </div>
         @endcan
 
+
+        
         <!-- CONFIG -->
         <span class="sidebar-category-title">Setup</span>
+        @can('view employee list')
+               <div class="nav-item">
+                   <a href="{{ route('employees.index') }}" class="nav-link {{ request()->is('erp/employees*') ? ' active' : '' }}">
+                       <i class="fas fa-users-cog nav-icon text-primary"></i>
+                       <span>Employees</span>
+                   </a>
+               </div>
+               @endcan
+       
+               <div class="nav-item">
+                   <a href="{{ route('master.settings') }}" class="nav-link {{ request()->is('erp/master-settings*') ? ' active' : '' }}">
+                       <i class="fas fa-tools nav-icon text-secondary"></i>
+                       <span>Master Settings</span>
+                   </a>
+               </div>
 
         @can('view list user role')
         <div class="nav-item">

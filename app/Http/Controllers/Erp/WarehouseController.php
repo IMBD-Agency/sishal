@@ -65,7 +65,17 @@ class WarehouseController extends Controller
             }
         ])->findOrFail($id);
 
-        return view('erp.warehouses.show', compact('warehouse'));
+        $simpleStocks = \App\Models\WarehouseProductStock::with('product')
+                        ->where('warehouse_id', $id)
+                        ->where('quantity', '>', 0)
+                        ->paginate(10, ['*'], 'simple_page');
+
+        $variationStocks = \App\Models\ProductVariationStock::with(['variation.product', 'variation.combinations.attribute', 'variation.combinations.attributeValue'])
+                        ->where('warehouse_id', $id)
+                        ->where('quantity', '>', 0)
+                        ->paginate(10, ['*'], 'variation_page');
+
+        return view('erp.warehouses.show', compact('warehouse', 'simpleStocks', 'variationStocks'));
     }
 
     /**

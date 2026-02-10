@@ -30,6 +30,11 @@ class Warehouse extends Model
         return $this->hasMany(\App\Models\WarehouseProductStock::class);
     }
 
+    public function variationStocks()
+    {
+        return $this->hasMany(\App\Models\ProductVariationStock::class);
+    }
+
     // Employees are accessed through the branch relationship
     // Use $warehouse->branch->employees to get employees
 }

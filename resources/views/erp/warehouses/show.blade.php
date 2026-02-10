@@ -62,7 +62,7 @@
                                 <div class="text-end overflow-hidden">
                                     @if($warehouse->manager && $warehouse->manager->user)
                                         <h6 class="mb-0 fw-bold text-dark text-truncate">{{ $warehouse->manager->user->first_name }} {{ $warehouse->manager->user->last_name }}</h6>
-                                        <p class="text-muted small mb-0 text-truncate">{{ $warehouse->manager->designation ?? 'Manager' }}</p>
+                                        <p class="text-muted small mb-0 text-truncate">{{ $warehouse->manager->position ?? 'Manager' }}</p>
                                     @else
                                         <h6 class="mb-0 fw-bold text-muted">Unassigned</h6>
                                         <p class="text-muted small mb-0">Manager</p>
@@ -115,7 +115,131 @@
                 </div>
             </div>
 
-            <!-- Branches Table -->
+            <!-- Warehouse Inventory -->
+            <div class="row g-4 mb-4">
+                <!-- Standard Products -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header bg-white py-3 border-bottom border-light">
+                             <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-boxes text-primary me-2"></i>Current Inventory (Standard Products)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light text-muted small text-uppercase">
+                                        <tr>
+                                            <th class="ps-4">Product Name</th>
+                                            <th>SKU</th>
+                                            <th>Category</th>
+                                            <th>Stock Quantity</th>
+                                            <th class="text-end pe-4">Last Updated</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($simpleStocks as $stock)
+                                            <tr>
+                                                <td class="ps-4">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="me-3">
+                                                            @if($stock->product && $stock->product->image)
+                                                                <img src="{{ asset($stock->product->image) }}" class="rounded-3" width="40" height="40" style="object-fit: cover;">
+                                                            @else
+                                                                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                                    <i class="fas fa-image text-muted opacity-50"></i>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                        <div>
+                                                            <h6 class="mb-0 fw-bold text-dark small">{{ $stock->product->name ?? 'Unknown Product' }}</h6>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td><small class="text-muted">{{ $stock->product->sku ?? '-' }}</small></td>
+                                                <td><span class="badge bg-light text-dark border">{{ $stock->product->category->name ?? 'Uncategorized' }}</span></td>
+                                                <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10 rounded-pill px-3">{{ $stock->quantity }}</span></td>
+                                                <td class="text-end pe-4"><small class="text-muted">{{ $stock->updated_at->format('M d, Y h:i A') }}</small></td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-center py-4 text-muted small">No standard products in stock.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                            @if($simpleStocks->hasPages())
+                                <div class="p-3 border-top border-light">
+                                    {{ $simpleStocks->appends(['variation_page' => $variationStocks->currentPage()])->links() }}
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Variation Products -->
+                @if($variationStocks->count() > 0)
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header bg-white py-3 border-bottom border-light">
+                             <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-tags text-info me-2"></i>Current Inventory (Product Variations)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light text-muted small text-uppercase">
+                                        <tr>
+                                            <th class="ps-4">Product Name</th>
+                                            <th>Variation</th>
+                                            <th>SKU</th>
+                                            <th>Stock Quantity</th>
+                                            <th class="text-end pe-4">Last Updated</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($variationStocks as $stock)
+                                            <tr>
+                                                <td class="ps-4">
+                                                    <div class="d-flex align-items-center">
+                                                         <div class="me-3">
+                                                            @if($stock->variation && $stock->variation->product && $stock->variation->product->image)
+                                                                <img src="{{ asset($stock->variation->product->image) }}" class="rounded-3" width="40" height="40" style="object-fit: cover;">
+                                                            @else
+                                                                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                                    <i class="fas fa-image text-muted opacity-50"></i>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                        <div>
+                                                            <h6 class="mb-0 fw-bold text-dark small">{{ $stock->variation->product->name ?? 'Unknown Product' }}</h6>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    @if($stock->variation && $stock->variation->combinations)
+                                                        @foreach($stock->variation->combinations as $combo)
+                                                            <span class="badge bg-light text-dark border me-1">{{ $combo->attribute->name }}: {{ $combo->attributeValue->value }}</span>
+                                                        @endforeach
+                                                    @else
+                                                        <span class="text-muted small">-</span>
+                                                    @endif
+                                                </td>
+                                                <td><small class="text-muted">{{ $stock->variation->sku ?? $stock->variation->product->sku ?? '-' }}</small></td>
+                                                <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-10 rounded-pill px-3">{{ $stock->quantity }}</span></td>
+                                                <td class="text-end pe-4"><small class="text-muted">{{ $stock->updated_at->format('M d, Y h:i A') }}</small></td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            @if($variationStocks->hasPages())
+                                <div class="p-3 border-top border-light">
+                                    {{ $variationStocks->appends(['simple_page' => $simpleStocks->currentPage()])->links() }}
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
             <div class="row g-4">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-4">
