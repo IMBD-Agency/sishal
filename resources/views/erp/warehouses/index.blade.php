@@ -177,8 +177,8 @@
                                 </table>
                             </div>
                             @if($warehouses->hasPages())
-                                <div class="p-4 border-top border-light">
-                                    {{ $warehouses->links() }}
+                                <div class="p-4 border-top border-light d-flex justify-content-center">
+                                    {{ $warehouses->links('pagination::bootstrap-5') }}
                                 </div>
                             @endif
                         </div>

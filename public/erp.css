@@ -588,25 +588,76 @@ label[for] {
     border-color: #4361ee !important;
     box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
 }
+
 .shadow-sm-hover:hover {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }
+
 .card-select {
     transition: all 0.2s ease;
     cursor: pointer;
     border-width: 2px !important;
 }
+
 .card-select:hover {
     background-color: #f8f9fa;
 }
+
 .card-select.active {
     border-color: #4361ee !important;
     background-color: rgba(67, 97, 238, 0.03);
 }
+
 .tiny-icon {
     font-size: 0.75rem;
     width: 14px;
 }
+
 .transition-2 {
     transition: all 0.2s ease;
+}
+
+/* Premium Pagination Styling */
+.pagination {
+    margin-bottom: 0;
+    gap: 5px;
+}
+
+.pagination .page-item .page-link {
+    border: none;
+    padding: 8px 16px;
+    color: #475569;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: #f8fafc;
+    font-size: 0.85rem;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-color) !important;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(var(--primary-rgb), 0.2);
+}
+
+.pagination .page-item:not(.active):not(.disabled) .page-link:hover {
+    background-color: #e2e8f0;
+    color: var(--primary-color);
+}
+
+.pagination .page-item.disabled .page-link {
+    background: transparent;
+    color: #cbd5e1;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.pagination-container .info-text {
+    font-size: 0.85rem;
+    color: #64748b;
 }

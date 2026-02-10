@@ -168,8 +168,8 @@
                                 </table>
                             </div>
                             @if($simpleStocks->hasPages())
-                                <div class="p-3 border-top border-light">
-                                    {{ $simpleStocks->appends(['variation_page' => $variationStocks->currentPage()])->links() }}
+                                <div class="p-3 border-top border-light d-flex justify-content-center">
+                                    {{ $simpleStocks->appends(['variation_page' => $variationStocks->currentPage()])->links('pagination::bootstrap-5') }}
                                 </div>
                             @endif
                         </div>
@@ -232,8 +232,8 @@
                                 </table>
                             </div>
                             @if($variationStocks->hasPages())
-                                <div class="p-3 border-top border-light">
-                                    {{ $variationStocks->appends(['simple_page' => $simpleStocks->currentPage()])->links() }}
+                                <div class="p-3 border-top border-light d-flex justify-content-center">
+                                    {{ $variationStocks->appends(['simple_page' => $simpleStocks->currentPage()])->links('pagination::bootstrap-5') }}
                                 </div>
                             @endif
                         </div>
