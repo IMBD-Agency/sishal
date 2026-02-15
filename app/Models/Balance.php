@@ -23,3 +23,4 @@ class Balance extends Model
         return $this->belongsTo(Customer::class, 'source_id');
     }
 }
+
