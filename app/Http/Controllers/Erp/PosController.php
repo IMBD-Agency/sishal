@@ -984,11 +984,15 @@ class PosController extends Controller
         $generalSettings = GeneralSetting::first();
         $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
         
-        $lastInvoice = \App\Models\Invoice::latest('id')->first();
-        $nextId = $lastInvoice ? $lastInvoice->id + 1 : 1;
+        $nextId = (\App\Models\Invoice::max('id') ?? 0) + 1;
+        $number = $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
         
-        // Format: INV-000001
-        return $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        while (\App\Models\Invoice::where('invoice_number', $number)->exists()) {
+            $nextId++;
+            $number = $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        }
+        
+        return $number;
     }
 
 
@@ -1225,11 +1229,15 @@ class PosController extends Controller
 
     private function generateSaleNumber()
     {
-        $lastSale = Pos::latest('id')->first();
-        $nextId = $lastSale ? $lastSale->id + 1 : 1;
+        $nextId = (Pos::max('id') ?? 0) + 1;
+        $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
         
-        // Format: POS-000001
-        return 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        while (Pos::where('sale_number', $number)->exists()) {
+            $nextId++;
+            $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        }
+        
+        return $number;
     }
 
     /**
@@ -1392,9 +1400,53 @@ class PosController extends Controller
 
         DB::beginTransaction();
         try {
+            // 1. STAGE 1: VALDIATE ALL STOCK FIRST
+            // We check every item before creating any sale/invoice records
+            foreach ($request->items as $item) {
+                $productId = $item['product_id'];
+                $variationId = $item['variation_id'] ?? null;
+                $quantity = $item['quantity'];
+                $branchId = $request->branch_id;
+
+                if ($variationId) {
+                    $vStock = ProductVariationStock::where('variation_id', $variationId)
+                        ->where('branch_id', $branchId)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                } else {
+                    $branchStock = BranchProductStock::where('branch_id', $branchId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    $availableQty = $branchStock ? $branchStock->quantity : 0;
+                }
+
+                if ($availableQty < $quantity) {
+                    $product = Product::find($productId);
+                    $productName = $product ? $product->name : 'Product';
+                    return response()->json([
+                        'success' => false, 
+                        'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
+                    ], 400); // Return error before any DB records are created
+                }
+            }
+
+            // 2. STAGE 2: CREATE RECORDS (Only if Stage 1 passed)
             $pos = new Pos();
-            $pos->sale_number = $request->input('sale_no', $this->generateSaleNumber());
-            $pos->challan_number = $request->challan_no;
+            
+            // Generate numbers inside transaction to ensure uniqueness
+            $saleNo = $request->input('sale_no');
+            if (empty($saleNo) || Pos::where('sale_number', $saleNo)->exists()) {
+                $saleNo = $this->generateSaleNumber();
+            }
+            $pos->sale_number = $saleNo;
+
+            $challanNo = $request->challan_no;
+            if (empty($challanNo) || Pos::where('challan_number', $challanNo)->exists()) {
+                $challanNo = str_replace(['INV', 'POS'], 'CHA', $saleNo);
+            }
+            $pos->challan_number = $challanNo;
+
             $pos->customer_id = $request->customer_id;
             $pos->branch_id = $request->branch_id;
             $pos->sold_by = auth()->id();
@@ -1404,7 +1456,7 @@ class PosController extends Controller
             $pos->discount = $request->discount ?? 0;
             $pos->delivery = $request->delivery_charge ?? 0;
             $pos->total_amount = $request->total_amount;
-            $pos->status = 'delivered'; // Manual sales are often considered delivered immediately
+            $pos->status = 'delivered'; 
             $pos->account_type = $request->account_type;
             $pos->account_number = $request->account_no;
             $pos->remarks = $request->remarks;
@@ -1415,14 +1467,20 @@ class PosController extends Controller
             // Create Invoice
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
             $invoice = new Invoice();
-            $invoice->invoice_number = $request->invoice_no;
+            
+            $invoiceNo = $request->invoice_no;
+            if (empty($invoiceNo) || Invoice::where('invoice_number', $invoiceNo)->exists()) {
+                $invoiceNo = $this->generateInvoiceNumber();
+            }
+            $invoice->invoice_number = $invoiceNo;
+
             $invoice->template_id = $invTemplate?->id;
             $invoice->customer_id = $pos->customer_id;
             $invoice->operated_by = auth()->id();
             $invoice->issue_date = $pos->sale_date;
             $invoice->due_date = $pos->sale_date;
             $invoice->subtotal = $pos->sub_total;
-            $invoice->tax = 0; // Can be enhanced later
+            $invoice->tax = 0; 
             $invoice->total_amount = $pos->total_amount;
             $invoice->discount_apply = $pos->discount;
             $invoice->paid_amount = $request->paid_amount;
@@ -1435,9 +1493,9 @@ class PosController extends Controller
             $pos->invoice_id = $invoice->id;
             $pos->save();
 
-            // Items processing
+            // 3. STAGE 3: PROCESS ITEMS AND DEDUCT STOCK
             foreach ($request->items as $item) {
-                // Deduct Stock
+                // This call now strictly handles deduction because we already validated
                 $result = $this->deductStock(
                     $item['product_id'],
                     $item['variation_id'] ?? null,
