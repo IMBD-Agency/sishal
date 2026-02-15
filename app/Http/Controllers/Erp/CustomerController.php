@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\Pos;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -23,14 +24,25 @@ class CustomerController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $query = $this->getFilteredQuery($request);
-
-        // Get paginated results
-        $customers = $query->orderBy('created_at', 'desc')->paginate(10);
+        
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = $request->input('sort_order', 'desc');
+        
+        // Eager load relationships and add aggregates for better table info
+        $customers = $query->withCount(['posSales', 'invoices'])
+            ->with(['posSales' => function($q) {
+                $q->latest()->limit(1);
+            }])
+            ->orderBy($sortBy, $sortOrder)
+            ->paginate(15);
 
         // Append search parameters to pagination links
         $customers->appends($request->all());
 
-        return view('erp.customers.customerlist', compact('customers'));
+        // Fetch all branches for the filter dropdown
+        $branches = Branch::orderBy('name')->get();
+        
+        return view('erp.customers.customerlist', compact('customers', 'branches'));
     }
 
     public function store(Request $request)
@@ -82,7 +94,11 @@ class CustomerController extends Controller
 
         // If AJAX, return JSON
         if ($request->ajax()) {
-            return response()->json(['success' => true, 'message' => 'Customer created successfully.']);
+            return response()->json([
+                'success' => true, 
+                'message' => 'Customer created successfully.',
+                'customer' => $customer
+            ]);
         }
         return redirect()->route('customers.list')->with('success', 'Customer created successfully.');
     }
@@ -341,38 +357,56 @@ class CustomerController extends Controller
             $query->where('phone', 'LIKE', '%' . $request->phone . '%');
         }
 
-        // Filter by Status
-        if ($request->filled('status')) {
-            $query->where('is_active', $request->status);
-        }
-
         // Filter by Premium Status
         if ($request->filled('premium')) {
             $query->where('is_premium', $request->premium);
         }
-        
-        // Filter by Date Range
-        if ($request->filled('date_range')) {
-            $dates = explode(' - ', $request->date_range);
-            if (count($dates) == 2) {
-                try {
-                    $startDate = Carbon::parse(trim($dates[0]))->startOfDay();
-                    $endDate = Carbon::parse(trim($dates[1]))->endOfDay();
-                    $query->whereBetween('created_at', [$startDate, $endDate]);
-                } catch (\Exception $e) {
-                    // Invalid date format, ignore
-                }
+
+        // Filter by Branch (based on transactions)
+        if ($request->filled('branch_id')) {
+            $branchId = $request->branch_id;
+            $query->whereHas('posSales', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        }
+
+        // Filter by Customer Source
+        if ($request->filled('source')) {
+            if ($request->source == 'online') {
+                $query->whereNotNull('user_id'); // Registered via web
+            } elseif ($request->source == 'pos') {
+                $query->whereHas('posSales'); // Has POS transactions
             }
         }
 
-        // General Search
+        // Filter by City
+        if ($request->filled('city')) {
+            $query->where('city', 'LIKE', '%' . $request->city . '%');
+        }
+
+        // Filter by Country
+        if ($request->filled('country')) {
+            $query->where('country', 'LIKE', '%' . $request->country . '%');
+        }
+
+        // Filter by Registered as User
+        if ($request->filled('is_user')) {
+             if ($request->is_user == '1') {
+                 $query->whereNotNull('user_id');
+             } else {
+                 $query->whereNull('user_id');
+             }
+        }
+
+        // General Search (Enhanced)
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
                 $q->where('id', 'LIKE', '%' . $searchTerm . '%')
                   ->orWhere('name', 'LIKE', '%' . $searchTerm . '%')
                   ->orWhere('email', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('phone', 'LIKE', '%' . $searchTerm . '%');
+                  ->orWhere('phone', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('city', 'LIKE', '%' . $searchTerm . '%');
             });
         }
 

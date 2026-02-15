@@ -239,7 +239,7 @@
                                         <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
                                         <td class="text-center">
                                             @if($product->image)
-                                                <img src="{{ asset('storage/'.$product->image) }}" width="30" height="30" class="rounded shadow-sm">
+                                                <img src="{{ asset($product->image) }}" width="30" height="30" class="rounded shadow-sm" alt="">
                                             @endif
                                         </td>
                                         <td>{{ $product->category->name ?? '-' }}</td>

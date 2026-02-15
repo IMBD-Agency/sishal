@@ -53,12 +53,19 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-2">Customer</label>
-                                        <select name="customer_id" id="customerSelect" class="form-select" required>
-                                            <option value="">Search Customer</option>
-                                            @foreach($customers as $customer)
-                                                <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id || (isset($sale) && $sale->customer_id == $customer->id) ? 'selected' : '' }}>{{ $customer->name }} ({{ $customer->phone }})</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="d-flex gap-1">
+                                            <div class="flex-grow-1">
+                                                <select name="customer_id" id="customerSelect" class="form-select" required>
+                                                    <option value="">Search Customer</option>
+                                                    @foreach($customers as $customer)
+                                                        <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id || (isset($sale) && $sale->customer_id == $customer->id) ? 'selected' : '' }}>{{ $customer->name }} ({{ $customer->phone }})</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary shadow-sm" style="padding: 0 12px; height: 38px;" data-bs-toggle="modal" data-bs-target="#addCustomerModal" title="Add New Customer">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <!-- Item Selection Area -->
@@ -256,11 +263,91 @@
     <input type="hidden" id="subtotalInput" name="sub_total" value="0">
     <input type="hidden" id="totalAmountInput" name="total_amount" value="0">
 
+    <!-- Add Customer Modal -->
+    <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-user-plus me-2"></i>Create New Customer</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="quickCustomerForm">
+                        @csrf
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" placeholder="Enter customer name" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Phone Number <span class="text-danger">*</span></label>
+                                <input type="text" name="phone" class="form-control" placeholder="e.g. 01700000000" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Email Address (Optional)</label>
+                                <input type="email" name="email" class="form-control" placeholder="customer@example.com">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Address (Optional)</label>
+                                <textarea name="address_1" class="form-control" rows="2" placeholder="Street address, city..."></textarea>
+                            </div>
+                        </div>
+                        <div class="mt-4 d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">CANCEL</button>
+                            <button type="submit" class="btn btn-primary fw-bold px-4" id="saveCustomerBtn">SAVE CUSTOMER</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @push('scripts')
     <script>
         $(document).ready(function() {
+            // Handle Quick Customer Creation
+            $('#quickCustomerForm').on('submit', function(e) {
+                e.preventDefault();
+                const $btn = $('#saveCustomerBtn');
+                const $form = $(this);
+                
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>SAVING...');
+                
+                $.ajax({
+                    url: "{{ route('customers.store') }}",
+                    method: 'POST',
+                    data: $form.serialize(),
+                    success: function(response) {
+                        if (response.success) {
+                            const customer = response.customer;
+                            
+                            // Dynamically add and select the new customer in Select2
+                            const newOption = new Option(`${customer.name} (${customer.phone})`, customer.id, true, true);
+                            $('#customerSelect').append(newOption).trigger('change');
+                            
+                            alert('Customer created and selected successfully!');
+                            $('#addCustomerModal').modal('hide');
+                            $form[0].reset();
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        const errors = xhr.responseJSON?.errors;
+                        let msg = 'Something went wrong.';
+                        if (errors) {
+                            msg = Object.values(errors).flat().join('\n');
+                        }
+                        alert('Error: ' + msg);
+                    },
+                    complete: function() {
+                        $btn.prop('disabled', false).html('SAVE CUSTOMER');
+                    }
+                });
+            });
+
             // Select2 initialization
             $('#customerSelect').select2({ theme: 'classic', width: '100%', placeholder: 'Select Customer' });
             

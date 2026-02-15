@@ -22,6 +22,73 @@ class OrderController extends Controller
         if (!auth()->user()->can('view order list')) {
             abort(403, 'Unauthorized action.');
         }
+
+        $orders = $this->getFilteredQuery($request)
+            ->with(['invoice', 'customer'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(15)
+            ->appends($request->all());
+
+        $customers = \App\Models\User::where('is_admin', 0)
+            ->orderBy('first_name')
+            ->get();
+
+        return view('erp.order.orderlist', compact('orders', 'customers'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $orders = $this->getFilteredQuery($request)->with(['invoice', 'customer'])->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $headers = ['Order Date', 'Order #', 'Customer', 'Phone', 'Status', 'Bill Status', 'Subtotal', 'Discount', 'Delivery', 'Total'];
+        foreach($headers as $k => $h) {
+            $sheet->setCellValue(chr(65+$k).'1', $h);
+        }
+
+        $row = 2;
+        foreach($orders as $o) {
+            $sheet->setCellValue('A'.$row, $o->created_at->format('d M, Y'));
+            $sheet->setCellValue('B'.$row, $o->order_number);
+            $sheet->setCellValue('C'.$row, $o->name);
+            $sheet->setCellValue('D'.$row, $o->phone);
+            $sheet->setCellValue('E'.$row, ucfirst($o->status));
+            $sheet->setCellValue('F'.$row, ucfirst($o->invoice->status ?? 'N/A'));
+            $sheet->setCellValue('G'.$row, $o->subtotal);
+            $sheet->setCellValue('H'.$row, $o->discount);
+            $sheet->setCellValue('I'.$row, $o->delivery);
+            $sheet->setCellValue('J'.$row, $o->total);
+            $row++;
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'order_list_' . date('Ymd_His') . '.xlsx';
+        $path = storage_path('app/public/' . $filename);
+        $writer->save($path);
+        
+        return response()->download($path)->deleteFileAfterSend(true);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $orders = $this->getFilteredQuery($request)->with(['invoice', 'customer'])->get();
+        
+        $filename = 'order_report_' . date('Y-m-d_H-i-s') . '.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.order.order-report-pdf', [
+            'orders' => $orders,
+            'filters' => $request->all()
+        ]);
+
+        $pdf->setPaper('A4', 'landscape');
+        
+        return $pdf->download($filename);
+    }
+
+    private function getFilteredQuery(Request $request)
+    {
         $query = Order::query();
 
         // Search by order number, name, phone, email
@@ -31,14 +98,26 @@ class OrderController extends Controller
                 $q->where('order_number', 'like', "%$search%")
                   ->orWhere('name', 'like', "%$search%")
                   ->orWhere('phone', 'like', "%$search%")
-                  ->orWhere('email', 'like', "%$search%")
-                ;
+                  ->orWhere('email', 'like', "%$search%");
             });
+        }
+
+        // Filter by customer (user_id)
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
         }
 
         // Filter by status
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        // Filter by Date Range (Created At)
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
         }
 
         // Filter by estimated delivery date
@@ -53,9 +132,7 @@ class OrderController extends Controller
             });
         }
 
-        $orders = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->all());
-
-        return view('erp.order.orderlist', compact('orders'));
+        return $query;
     }
 
     public function show($id)

@@ -445,6 +445,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // Order
     Route::get('/order-list', [\App\Http\Controllers\Erp\OrderController::class, 'index'])->name('order.list');
+    Route::get('/order-list/export-excel', [\App\Http\Controllers\Erp\OrderController::class, 'exportExcel'])->name('order.export.excel');
+    Route::get('/order-list/export-pdf', [\App\Http\Controllers\Erp\OrderController::class, 'exportPdf'])->name('order.export.pdf');
     Route::get('/order/search', [\App\Http\Controllers\Erp\OrderController::class, 'orderSearch'])->name('order.search');
     Route::get('/order/{id}/details', [\App\Http\Controllers\Erp\OrderController::class, 'show'])->name('order.details.api');
     Route::get('/order-list/{id}', [\App\Http\Controllers\Erp\OrderController::class, 'show'])->name('order.show');

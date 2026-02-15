@@ -7,59 +7,97 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <div class="container-fluid px-4 py-3 bg-white border-bottom shadow-sm">
             <div class="row align-items-center">
-                <div class="col-md-8">
+                <div class="col-md-6">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
+                        <ol class="breadcrumb mb-1">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Order List</li>
+                            <li class="breadcrumb-item active" aria-current="page">Order Management</li>
                         </ol>
                     </nav>
                     <h2 class="fw-bold mb-0">Order List</h2>
-                    <p class="text-muted mb-0">Manage order information, contacts, and transactions efficiently.</p>
                 </div>
-                <div class="col-md-4 text-end">
+                <div class="col-md-6 text-end">
+                    <div class="btn-group shadow-sm">
+                        <a href="{{ route('order.export.excel', request()->all()) }}" class="btn btn-outline-success">
+                            <i class="fas fa-file-excel me-1"></i> Excel
+                        </a>
+                        <a href="{{ route('order.export.pdf', request()->all()) }}" class="btn btn-outline-danger">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="container-fluid px-4 py-4">
-
-            <div class="mb-3">
-                <form method="GET" action="" class="row g-2 align-items-end">
-                    <div class="col-md-4">
-                        <label class="form-label">Search (ID, Name, Phone, Email)</label>
-                        <input type="text" name="search" class="form-control" placeholder="Order ID or Customer's Name, Phone, Email" value="{{ request('search') }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-select">
-                            <option value="">All</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="shipping">Shipping</option>
-                            <option value="received">Received</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label">Bill Status</label>
-                        <select name="bill_status" class="form-select">
-                            <option value="">All</option>
-                            <option value="unpaid">Unpaid</option>
-                            <option value="paid">Paid</option>
-                            <option value="partial">Partial</option>
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
-                    </div>
-                    <div class="col-md-1">
-                        <a href="{{ route('order.list') }}" class="btn btn-secondary w-100">Reset</a>
-                    </div>
-                </form>
+            <!-- Filter Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-filter me-2 text-primary"></i>Advanced Filters</h6>
+                </div>
+                <div class="card-body pt-0">
+                    <form method="GET" action="{{ route('order.list') }}" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">General Search</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-0"><i class="fas fa-search"></i></span>
+                                <input type="text" name="search" class="form-control bg-light border-0 shadow-sm" placeholder="Order ID, Name, Phone..." value="{{ request('search') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Customer</label>
+                            <select name="user_id" class="form-select bg-light border-0 shadow-sm select2" data-placeholder="Select Customer">
+                                <option value=""></option>
+                                <option value="">All Customers</option>
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}" {{ request('user_id') == $customer->id ? 'selected' : '' }}>
+                                        {{ trim($customer->first_name . ' ' . $customer->last_name) }} 
+                                        {{ $customer->phone ? '('.$customer->phone.')' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Order Status</label>
+                            <select name="status" class="form-select bg-light border-0 shadow-sm">
+                                <option value="">All Statuses</option>
+                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                                <option value="shipping" {{ request('status') == 'shipping' ? 'selected' : '' }}>Shipping</option>
+                                <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Payment Status</label>
+                            <select name="bill_status" class="form-select bg-light border-0 shadow-sm">
+                                <option value="">All Statuses</option>
+                                <option value="unpaid" {{ request('bill_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                                <option value="partial" {{ request('bill_status') == 'partial' ? 'selected' : '' }}>Partial</option>
+                                <option value="paid" {{ request('bill_status') == 'paid' ? 'selected' : '' }}>Paid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Date Range</label>
+                            <div class="input-group border-0 shadow-sm rounded">
+                                <span class="input-group-text bg-light border-0 small">From</span>
+                                <input type="date" name="start_date" class="form-control bg-light border-0" value="{{ request('start_date') }}">
+                                <span class="input-group-text bg-light border-0 small">To</span>
+                                <input type="date" name="end_date" class="form-control bg-light border-0" value="{{ request('end_date') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end align-self-end">
+                            <a href="{{ route('order.list') }}" class="btn btn-light px-4 border shadow-sm me-2">
+                                <i class="fas fa-undo me-1"></i> Reset
+                            </a>
+                            <button type="submit" class="btn btn-primary px-5 shadow-sm font-weight-bold">
+                                <i class="fas fa-filter me-1"></i> APPLY FILTERS
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- Stock order Listing Table -->
@@ -74,13 +112,13 @@
                         <table class="table table-hover align-middle mb-0" id="orderTable">
                             <thead class="table-light sticky-top">
                                 <tr>
-                                    <th class="border-0">Order ID</th>
+                                    <th class="border-0">Order Info</th>
                                     <th class="border-0">Customer</th>
-                                    <th class="border-0">Phone</th>
                                     <th class="border-0 text-center">Status</th>
-                                    <th>Bill Status</th>
+                                    <th class="border-0">Payment</th>
                                     <th class="border-0">Subtotal</th>
                                     <th class="border-0">Discount</th>
+                                    <th class="border-0">Delivery</th>
                                     <th class="border-0">Total</th>
                                     <th class="border-0 text-center">Actions</th>
                                 </tr>
@@ -88,18 +126,29 @@
                             <tbody>
                                 @forelse ($orders as $order)
                                     <tr>
-                                        <td><a href="{{ route('order.show',$order->id) }}" class="btn btn-outline-primary">{{ $order->order_number ?? '-' }}</a></td>
-                                        <td>{{@$order->name}}</td>
-                                        <td>{{@$order->phone}}</td>
+                                        <td>
+                                            <a href="{{ route('order.show', $order->id) }}" class="fw-bold text-decoration-none">
+                                                {{ $order->order_number ?? '-' }}
+                                            </a>
+                                            <div class="small text-muted">{{ $order->created_at->format('d M, Y') }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold">{{ @$order->name }}</div>
+                                            <div class="small text-muted"><i class="fas fa-phone-alt me-1" style="font-size: 0.7rem;"></i>{{ @$order->phone }}</div>
+                                        </td>
                                         <td class="text-center">
-                                            <span class="badge 
-                                                @if($order->status == 'pending') bg-warning text-dark
-                                                @elseif($order->status == 'approved' || $order->status == 'paid') bg-success
-                                                @elseif($order->status == 'unpaid' || $order->status == 'rejected') bg-danger
-                                                @else bg-secondary
-                                                @endif
-                                                update-status-btn"
-                                                style="cursor:pointer;"
+                                            @php
+                                                $statusClass = [
+                                                    'pending' => 'bg-warning-subtle text-warning border-warning',
+                                                    'approved' => 'bg-info-subtle text-info border-info',
+                                                    'shipping' => 'bg-primary-subtle text-primary border-primary',
+                                                    'delivered' => 'bg-success-subtle text-success border-success',
+                                                    'received' => 'bg-success-subtle text-success border-success',
+                                                    'cancelled' => 'bg-danger-subtle text-danger border-danger',
+                                                ][$order->status] ?? 'bg-secondary-subtle text-secondary border-secondary';
+                                            @endphp
+                                            <span class="badge {{ $statusClass }} border px-3 py-2 update-status-btn"
+                                                style="cursor:pointer; font-size: 0.75rem;"
                                                 data-id="{{ $order->id }}"
                                                 data-status="{{ $order->status }}"
                                                 data-bs-toggle="modal"
@@ -109,70 +158,55 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge 
-                                                @if($order->invoice && $order->invoice->status == 'unpaid') bg-danger
-                                                @elseif($order->invoice && $order->invoice->status == 'paid') bg-success
-                                                @elseif($order->invoice && $order->invoice->status == 'pending') bg-warning text-dark
-                                                @else bg-secondary
-                                                @endif
-                                            ">
-                                                {{ ucfirst($order->invoice->status ?? '-') }}
+                                            @php
+                                                $billStatus = $order->invoice->status ?? 'unpaid';
+                                                $billClass = [
+                                                    'paid' => 'bg-success-subtle text-success border-success',
+                                                    'partial' => 'bg-warning-subtle text-warning border-warning',
+                                                    'unpaid' => 'bg-danger-subtle text-danger border-danger',
+                                                ][$billStatus] ?? 'bg-secondary-subtle text-secondary border-secondary';
+                                            @endphp
+                                            <span class="badge {{ $billClass }} border px-2 py-1" style="font-size: 0.7rem;">
+                                                <i class="fas fa-file-invoice-dollar me-1"></i>{{ ucfirst($billStatus) }}
                                             </span>
                                         </td>
-                                        <td>
-                                            {{ $order->subtotal }}৳
-                                        </td>
-                                        <td>
-                                            {{ $order->discount }}৳
-                                        </td>
-                                        <td>
-                                            {{ $order->total }}৳
-                                        </td>
+                                        <td class="fw-medium">{{ number_format($order->subtotal, 2) }}৳</td>
+                                        <td class="text-danger">-{{ number_format($order->discount, 2) }}৳</td>
+                                        <td class="text-muted">+{{ number_format($order->delivery, 2) }}৳</td>
+                                        <td class="fw-bold text-primary">{{ number_format($order->total, 2) }}৳</td>
                                         <td class="text-center">
-                                            <div class="btn-group">
-                                                @php
-                                                    $canCancel = !in_array($order->status, ['cancelled', 'delivered', 'received']);
-                                                    $canDelete = auth()->user()->can('delete orders') && 
-                                                               (in_array($order->status, ['pending', 'cancelled']) && 
-                                                                !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
-                                                                (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled'));
-                                                @endphp
-
-                                                @if($canCancel)
-                                                    <button class="btn btn-sm btn-outline-warning cancel-order-direct" 
-                                                            data-id="{{ $order->id }}" 
-                                                            data-number="{{ $order->order_number }}"
-                                                            title="Cancel Order">
-                                                        <i class="fas fa-ban"></i>
-                                                    </button>
-                                                @endif
-
-                                                @can('delete orders')
-                                                    @if($canDelete)
-                                                        <button class="btn btn-sm btn-outline-danger delete-order-btn" 
-                                                                data-order-id="{{ $order->id }}" 
-                                                                data-order-number="{{ $order->order_number }}"
-                                                                data-bs-toggle="modal" 
-                                                                data-bs-target="#deleteOrderModal"
-                                                                title="Delete Order">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    @else
-                                                        <button class="btn btn-sm btn-light" disabled title="Cannot delete this order">
-                                                            <i class="fas fa-lock text-muted"></i>
-                                                        </button>
+                                            <div class="dropdown">
+                                                <button class="btn btn-light btn-sm shadow-sm border" type="button" data-bs-toggle="dropdown">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                                    <li><a class="dropdown-item" href="{{ route('order.show', $order->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
+                                                    @php
+                                                        $canCancel = !in_array($order->status, ['cancelled', 'delivered', 'received']);
+                                                        $canDelete = auth()->user()->can('delete orders') && 
+                                                                   (in_array($order->status, ['pending', 'cancelled']) && 
+                                                                    !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
+                                                                    (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled'));
+                                                    @endphp
+                                                    @if($canCancel)
+                                                        <li><a class="dropdown-item cancel-order-direct" href="javascript:void(0)" data-id="{{ $order->id }}" data-number="{{ $order->order_number }}"><i class="fas fa-ban me-2 text-warning"></i>Cancel Order</a></li>
                                                     @endif
-                                                @endcan
-
-                                                <a href="{{ route('order.show', $order->id) }}" class="btn btn-sm btn-outline-primary" title="View Details">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    @can('delete orders')
+                                                        @if($canDelete)
+                                                            <li><a class="dropdown-item text-danger delete-order-btn" href="javascript:void(0)" data-order-id="{{ $order->id }}" data-order-number="{{ $order->order_number }}" data-bs-toggle="modal" data-bs-target="#deleteOrderModal"><i class="fas fa-trash me-2"></i>Delete Order</a></li>
+                                                        @else
+                                                            <li><a class="dropdown-item text-muted disabled" href="javascript:void(0)"><i class="fas fa-lock me-2"></i>Locked (Paid/In-Process)</a></li>
+                                                        @endif
+                                                    @endcan
+                                                </ul>
                                             </div>
                                         </td>
                                     </tr>
                                 @empty   
                                 <tr>
-                                    <td colspan="12" class="text-center">No order Found</td></tr> 
+                                    <td colspan="8" class="text-center py-5 text-muted">No orders found matching your filters.</td>
+                                </tr> 
                                 @endforelse
                             </tbody>
                         </table>

@@ -48,6 +48,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function getNameAttribute()
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
+    }
+
     public function employee()
     {
         return $this->hasOne(\App\Models\Employee::class, 'user_id');

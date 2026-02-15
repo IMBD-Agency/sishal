@@ -276,11 +276,11 @@
                                     </td>
                                     <td>{{ $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-' }}</td>
                                     <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
-                                    <td>{{ $sale->soldBy->name ?? '-' }}</td>
+                                    <td>{{ $sale->soldBy ? trim($sale->soldBy->first_name . ' ' . $sale->soldBy->last_name) : '-' }}</td>
                                     <td class="text-center">
                                         <div class="thumbnail-box" style="width: 30px; height: 30px; margin: 0 auto;">
                                              @if($product && $product->image)
-                                                <img src="{{ asset('storage/'.$product->image) }}" alt="img">
+                                                <img src="{{ asset($product->image) }}" alt="">
                                              @else
                                                 <i class="fas fa-cube text-muted opacity-50 small"></i>
                                              @endif

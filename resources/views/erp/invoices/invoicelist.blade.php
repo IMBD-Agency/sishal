@@ -41,124 +41,170 @@
         @endif
 
         <div class="container-fluid px-4 py-4">
-            <div class="mb-3">
-                <form method="GET" action="" class="row g-2 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label">Search (Invoice #, Customer, Salesman)</label>
-                        <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Invoice #, Customer, Salesman">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-select">
-                            <option value="">All</option>
-                            @foreach($statuses as $status)
-                                <option value="{{ $status }}" {{ ($filters['status'] ?? '') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Issue Date</label>
-                        <input type="date" name="issue_date" class="form-control" value="{{ $filters['issue_date'] ?? '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Due Date</label>
-                        <input type="date" name="due_date" class="form-control" value="{{ $filters['due_date'] ?? '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Customer</label>
-                        <select name="customer_id" class="form-select">
-                            <option value="">All</option>
-                            @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}" {{ ($filters['customer_id'] ?? '') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-1 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
-                        <a href="{{ route('invoice.list') }}" class="btn btn-outline-danger">Reset</a>
-                    </div>
-                </form>
+            <!-- Premium Filter Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <form method="GET" action="{{ route('invoice.list') }}" id="filterForm">
+                        <div class="row g-3">
+                            <!-- Primary Filters Row -->
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted fw-bold">General Search</label>
+                                <div class="input-group shadow-sm rounded-3">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ request('search') }}" placeholder="Invoice #, Customer, Salesman...">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted fw-bold">Payment Status</label>
+                                <select name="status" class="form-select shadow-sm border-0 bg-light">
+                                    <option value="">All Status</option>
+                                    @foreach($statuses as $status)
+                                        <option value="{{ $status }}" {{ (request('status')) == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted fw-bold">Select Customer</label>
+                                <select name="customer_id" class="form-select shadow-sm border-0 bg-light">
+                                    <option value="">All Customers</option>
+                                    @foreach($customers as $customer)
+                                        <option value="{{ $customer->id }}" {{ (request('customer_id')) == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-12 mt-2">
+                                <hr class="my-3 opacity-10">
+                            </div>
+
+                            <!-- Row 2 -->
+                            <div class="col-md-3 mt-0">
+                                <label class="form-label small text-muted fw-bold">Invoice Source</label>
+                                <select class="form-select shadow-sm border-0 bg-light" name="source">
+                                    <option value="">All Sources</option>
+                                    <option value="pos" {{ request('source') == 'pos' ? 'selected' : '' }}>POS / In-Store</option>
+                                    <option value="ecommerce" {{ request('source') == 'ecommerce' ? 'selected' : '' }}>E-commerce</option>
+                                    <option value="manual" {{ request('source') == 'manual' ? 'selected' : '' }}>Manual Entry</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mt-0">
+                                <label class="form-label small text-muted fw-bold">Issue Date</label>
+                                <input type="date" name="issue_date" class="form-control shadow-sm border-0 bg-light" value="{{ request('issue_date') }}">
+                            </div>
+                            <div class="col-md-4 mt-0 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary fw-bold shadow-sm py-2 px-4">
+                                    <i class="fas fa-filter me-2"></i>APPLY FILTERS
+                                </button>
+                                <a href="{{ route('invoice.list') }}" class="btn btn-link text-danger text-decoration-none small fw-bold">
+                                    <i class="fas fa-times-circle me-1"></i> RESET
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Invoice List</h5>
+                        <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice-dollar text-primary me-2"></i>Recent Invoices</h5>
                     </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead>
+                            <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0">Invoice #</th>
-                                    <th class="border-0">Source</th>
-                                    <th class="border-0">Order ID</th>
-                                    <th class="border-0">Customer</th>
-                                    <th class="border-0">Salesman</th>
-                                    <th class="border-0">Issue Date</th>
-                                    <th class="border-0">Due Date</th>
-                                    <th class="border-0">Status</th>
-                                    <th class="border-0">Total</th>
-                                    <th class="border-0">Actions</th>
+                                    <th class="border-0 py-3 ps-4">Invoice #</th>
+                                    <th class="border-0 py-3">Source & Date</th>
+                                    <th class="border-0 py-3">Customer Information</th>
+                                    <th class="border-0 py-3 text-end">Grand Total</th>
+                                    <th class="border-0 py-3 text-center">Payment Status</th>
+                                    <th class="border-0 py-3 text-end pe-4">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($invoices as $invoice)
                                     <tr>
-                                        <td><a href="{{ route('invoice.show',$invoice->id) }}" class="btn btn-outline-primary">#{{ $invoice->invoice_number }}</a></td>
-                                        <td>
-                                            @if($invoice->order)
-                                                <span class="badge bg-info text-white">Ecommerce</span>
-                                            @elseif($invoice->pos)
-                                                <span class="badge bg-success text-white">POS</span>
-                                            @else
-                                                <span class="badge bg-secondary text-white">Manual</span>
-                                            @endif
+                                        <td class="ps-4">
+                                            <a href="{{ route('invoice.show',$invoice->id) }}" class="fw-bold text-decoration-none text-primary">
+                                                #{{ $invoice->invoice_number }}
+                                            </a>
+                                            <div class="extra-small text-muted mt-1">ID: {{ $invoice->id }}</div>
                                         </td>
                                         <td>
                                             @if($invoice->order)
-                                                <a href="{{ route('order.show', $invoice->order->id) }}" class="text-decoration-none">
-                                                    #{{ $invoice->order->order_number }}
-                                                </a>
+                                                <span class="badge bg-secondary-subtle text-dark border px-2 py-1 mb-1" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-shopping-cart me-1"></i>Ecommerce
+                                                </span>
                                             @elseif($invoice->pos)
-                                                <span class="text-dark fw-medium">#POS-{{ $invoice->pos->id }}</span>
+                                                <span class="badge bg-success-subtle text-success border px-2 py-1 mb-1" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-desktop me-1"></i>POS: {{ $invoice->pos->branch?->name ?? 'Main' }}
+                                                </span>
                                             @else
-                                                <span class="text-muted">-</span>
+                                                <span class="badge bg-info-subtle text-info border px-2 py-1 mb-1" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-pencil-alt me-1"></i>Manual
+                                                </span>
+                                            @endif
+                                            <div class="small text-muted mb-1">{{ \Carbon\Carbon::parse($invoice->issue_date)->format('d M, Y') }}</div>
+                                            <div class="extra-small text-muted"><i class="fas fa-user-tie me-1"></i> {{ trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System' }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold text-dark">{{ $invoice->order?->name ?? (optional($invoice->customer)->name ?? 'Walk-in-Customer') }}</div>
+                                            <div class="extra-small text-muted">{{ $invoice->order?->phone ?? optional($invoice->customer)->phone ?? 'No phone' }}</div>
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="fw-bold text-dark">{{ number_format($invoice->total_amount, 2) }} ৳</div>
+                                            @if($invoice->due_amount > 0)
+                                                <div class="extra-small text-danger">Due: {{ number_format($invoice->due_amount, 2) }} ৳</div>
+                                            @else
+                                                <div class="extra-small text-success">Fully Paid</div>
                                             @endif
                                         </td>
-                                        <td>{{ $invoice->order?->name ?? (optional($invoice->customer)->name ?? 'Walk-in-Customer') }}</td>
-                                        <td>{{ trim((optional($invoice->salesman)->first_name ?? '') . ' ' . (optional($invoice->salesman)->last_name ?? '')) ?: 'System' }}</td>
-                                        <td>{{ $invoice->issue_date }}</td>
-                                        <td>{{ $invoice->due_date }}</td>
-                                        <td>
-                                            <span class="badge bg-secondary status-badge" 
-                                                  data-id="{{ $invoice->id }}" 
-                                                  data-status="{{ $invoice->status }}"
-                                                  style="cursor:pointer;">
+                                        <td class="text-center">
+                                            @php
+                                                $statusColor = match($invoice->status) {
+                                                    'paid' => 'success',
+                                                    'partial' => 'warning',
+                                                    'unpaid' => 'danger',
+                                                    default => 'secondary'
+                                                };
+                                            @endphp
+                                            <span class="badge bg-{{ $statusColor }}-subtle text-{{ $statusColor }} border border-{{ $statusColor }} border-opacity-25 rounded-pill px-3 py-1" style="font-size: 0.75rem;">
+                                                <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
                                                 {{ ucfirst($invoice->status) }}
                                             </span>
                                         </td>
-                                        <td>{{ number_format($invoice->total_amount, 2) }} ৳</td>
-                                        <td>
-                                            {{-- <a href="{{ route('invoice.show', $invoice->id) }}" class="btn btn-info btn-sm">View</a> --}}
-                                            <a href="{{ route('invoice.edit', $invoice->id) }}" class="btn btn-warning btn-sm">Edit</a>
-                                            
+                                        <td class="text-end pe-4">
+                                            <div class="dropdown">
+                                                <button class="btn btn-light btn-sm rounded-circle border shadow-sm" type="button" data-bs-toggle="dropdown">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
+                                                    <li><a class="dropdown-item py-2" href="{{ route('invoice.show', $invoice->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
+                                                    <li><a class="dropdown-item py-2" href="{{ route('invoice.edit', $invoice->id) }}"><i class="fas fa-edit me-2 text-warning"></i>Edit Invoice</a></li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li><a class="dropdown-item py-2 text-primary" href="{{ route('invoice.print', ['invoice_number' => $invoice->invoice_number]) }}" target="_blank"><i class="fas fa-print me-2"></i>Print Invoice</a></li>
+                                                </ul>
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="10" class="text-center text-muted py-4">No invoices found for the given criteria.</td>
+                                        <td colspan="6" class="text-center py-5 text-muted">
+                                            <i class="fas fa-file-invoice fa-3x mb-3 opacity-25"></i>
+                                            <p class="mb-0">No invoices found match your criteria</p>
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="card-footer bg-white border-0">
+                <div class="card-footer bg-white border-top py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted">
-                            Showing {{ $invoices->firstItem() }} to {{ $invoices->lastItem() }} of {{ $invoices->total() }} invoices
+                        <span class="text-muted small">
+                            Showing {{ $invoices->firstItem() }} to {{ $invoices->lastItem() }} of {{ $invoices->total() }} entries
                         </span>
                         {{ $invoices->links('vendor.pagination.bootstrap-5') }}
                     </div>

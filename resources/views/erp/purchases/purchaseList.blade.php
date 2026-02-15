@@ -301,7 +301,7 @@
                                         <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
                                         <td class="text-center">
                                             <div class="thumbnail-box mx-auto" style="width: 35px; height: 35px;">
-                                                <img src="{{ $product && $product->image ? asset('storage/'.$product->image) : asset('static/default-product.png') }}" alt="P">
+                                                <img src="{{ $product && $product->image ? asset($product->image) : asset('static/default-product.jpg') }}" alt="">
                                             </div>
                                         </td>
                                         <td class="text-muted">{{ $product->category->name ?? '-' }}</td>

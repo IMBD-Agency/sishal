@@ -78,7 +78,11 @@ class InvoiceController extends Controller
         
         $query = $this->getFilteredQuery($request);
 
-        $invoices = $query->distinct()->with(['order', 'pos'])->orderBy('invoices.created_at', 'desc')->paginate(10)->appends($request->all());
+        $invoices = $query->distinct()
+            ->with(['order', 'pos.branch', 'customer', 'salesman'])
+            ->orderBy('invoices.created_at', 'desc')
+            ->paginate(15)
+            ->appends($request->all());
         $statuses = ['unpaid', 'partial', 'paid'];
         $filters = $request->only(['search', 'status', 'issue_date', 'due_date', 'customer_id']);
         $customers = \App\Models\Customer::orderBy('name')->get();
@@ -772,6 +776,17 @@ class InvoiceController extends Controller
         // Filter by customer
         if ($customerId = $request->input('customer_id')) {
             $query->where('invoices.customer_id', $customerId);
+        }
+
+        // Filter by source
+        if ($source = $request->input('source')) {
+            if ($source == 'pos') {
+                $query->whereHas('pos');
+            } elseif ($source == 'ecommerce') {
+                $query->whereHas('order');
+            } elseif ($source == 'manual') {
+                $query->whereDoesntHave('pos')->whereDoesntHave('order');
+            }
         }
 
         return $query;
