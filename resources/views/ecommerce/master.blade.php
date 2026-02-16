@@ -193,8 +193,8 @@
 
         function initializeTabFunctionality() {
             // Initialize tab functionality for product pages
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            const tabContents = document.querySelectorAll('.tab-content');
+            const tabButtons = document.querySelectorAll('.tab-btn, .pd-tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content, .pd-tab-content');
 
             if (tabButtons.length > 0 && tabContents.length > 0) {
                 console.log('Initializing tab functionality for', tabButtons.length, 'tabs');
@@ -451,30 +451,40 @@
         };
 
         // Global wishlist toggle function
-        window.toggleWishlist = function (productId) {
+        window.toggleWishlist = function (productId, btnEl = null) {
             console.log('[WISHLIST] Toggling wishlist for product:', productId);
 
-            // Fast authentication check before sending request
             const isAuth = document.querySelector('meta[name="auth-check"]')?.getAttribute('content') === '1';
             if (!isAuth) {
                 if (typeof showToast === 'function') {
-                    showToast('Please login first to add products to your wishlist.', 'error');
+                    showToast('Please login first to use wishlist.', 'error');
                 }
                 return;
             }
 
-            const button = document.querySelector(`[data-product-id="${productId}"].product-wishlist-top`);
-            if (!button) {
-                console.error('[WISHLIST] Button not found for product:', productId);
+            // Find all instances of this product's wishlist buttons on the page
+            const buttons = document.querySelectorAll(`[data-product-id="${productId}"].product-wishlist-top, 
+                                                     [data-product-id="${productId}"].pd-main-wishlist-btn,
+                                                     [data-product-id="${productId}"].pd-card-wishlist`);
+            
+            // Use the passed element as primary if it exists
+            const primaryButton = btnEl || buttons[0];
+            if (!primaryButton) {
+                console.error('[WISHLIST] No buttons found for product:', productId);
                 return;
             }
 
-            const isActive = button.classList.contains('active');
-            const icon = button.querySelector('i');
-
-            // Show loading state
-            button.disabled = true;
-            icon.className = 'fas fa-spinner fa-spin';
+            const isActive = primaryButton.classList.contains('active');
+            
+            // Optimistic Update: Set loading state for all buttons of this product
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    btn._originalClass = icon.className;
+                    icon.className = 'fas fa-spinner fa-spin';
+                }
+            });
 
             fetch(`/add-remove-wishlist/${productId}`, {
                 method: 'POST',
@@ -484,58 +494,37 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(async response => {
-                    const text = await response.text();
-                    try {
-                        return JSON.parse(text);
-                    } catch (e) {
-                        console.error('Invalid JSON response:', text.substring(0, 100));
-                        throw new Error('Server returned an invalid response');
-                    }
-                })
-                .then(data => {
-                    if (data.success) {
-                        // Toggle button state
-                        button.classList.toggle('active');
-                        icon.className = isActive ? 'far fa-heart' : 'fas fa-heart';
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const nowActive = !isActive;
+                    buttons.forEach(btn => {
+                        btn.classList.toggle('active', nowActive);
+                        const icon = btn.querySelector('i');
+                        if (icon) icon.className = nowActive ? 'fas fa-heart' : 'far fa-heart';
+                    });
 
-                        // Show success message
-                        if (typeof showToast === 'function') {
-                            showToast(isActive ? 'Removed from wishlist!' : 'Added to wishlist!', 'success');
-                        } else {
-                            alert(isActive ? 'Removed from wishlist!' : 'Added to wishlist!');
-                        }
-
-                        // Update wishlist count
-                        if (typeof updateWishlistCount === 'function') {
-                            updateWishlistCount();
-                        }
-                    } else {
-                        // Show error message
-                        if (typeof showToast === 'function') {
-                            showToast(data.message || 'Failed to update wishlist', 'error');
-                        } else {
-                            alert(data.message || 'Failed to update wishlist');
-                        }
-
-                        // Reset button state
-                        icon.className = isActive ? 'fas fa-heart' : 'far fa-heart';
-                    }
-                })
-                .catch(error => {
-                    console.error('Wishlist error:', error);
                     if (typeof showToast === 'function') {
-                        showToast('Error updating wishlist', 'error');
-                    } else {
-                        alert('Error updating wishlist');
+                        showToast(nowActive ? 'Added to wishlist!' : 'Removed from wishlist!', 'success');
                     }
-
-                    // Reset button state
-                    icon.className = isActive ? 'fas fa-heart' : 'far fa-heart';
-                })
-                .finally(() => {
-                    button.disabled = false;
+                    if (typeof updateWishlistCount === 'function') updateWishlistCount();
+                } else {
+                    throw new Error(data.message || 'Failed to update');
+                }
+            })
+            .catch(error => {
+                console.error('Wishlist error:', error);
+                if (typeof showToast === 'function') showToast('Error updating wishlist', 'error');
+                
+                // Revert state
+                buttons.forEach(btn => {
+                    const icon = btn.querySelector('i');
+                    if (icon && btn._originalClass) icon.className = btn._originalClass;
                 });
+            })
+            .finally(() => {
+                buttons.forEach(btn => btn.disabled = false);
+            });
         };
 
         // Prevent layout shifts without excessive transforms
@@ -600,7 +589,7 @@
 
         // Global cart event handler to prevent duplicate listeners
         window.globalCartHandler = function (e) {
-            var btn = e.target.closest('.btn-add-cart');
+            var btn = e.target.closest('.btn-add-cart, .pd-btn-cart');
             // If it's an anchor tag, it's a "View Product" link - let it proceed with navigation
             if (!btn || btn.tagName === 'A') return;
 
@@ -660,7 +649,7 @@
                 // Check for variations - multiple ways to detect
                 var hasVariations = document.querySelector('[data-has-variations="true"]') !== null ||
                     document.querySelector('[data-has-variations="1"]') !== null ||
-                    document.querySelector('.color-option, .size-option, .variation-option').length > 0;
+                    document.querySelector('.color-option, .size-option, .variation-option, .pd-color-btn, .pd-size-btn').length > 0;
 
                 if (hasVariations) {
                     var variationIdEl = document.getElementById('selected-variation-id');
@@ -766,7 +755,7 @@
         document.addEventListener('click', window.globalCartHandler);
 
         // Clean up any stuck buttons on page load (but preserve variation logic)
-        document.querySelectorAll('.btn-add-cart[data-processing="true"]').forEach(function (btn) {
+        document.querySelectorAll('.btn-add-cart[data-processing="true"], .pd-btn-cart[data-processing="true"]').forEach(function (btn) {
             btn.disabled = false;
             btn.removeAttribute('data-processing');
         });
@@ -792,7 +781,7 @@
         // Reset button states when page becomes visible (navigation between pages)
         document.addEventListener('visibilitychange', function () {
             if (!document.hidden) {
-                document.querySelectorAll('.btn-add-cart').forEach(function (btn) {
+                document.querySelectorAll('.btn-add-cart, .pd-btn-cart').forEach(function (btn) {
                     btn.disabled = false;
                     btn.removeAttribute('data-processing');
                 });

@@ -62,6 +62,15 @@
                                 @endif
                             @endcan
 
+                            @if($order->status != 'cancelled')
+                            <a href="{{ route('orderReturn.create', ['order_id' => $order->id]) }}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-undo me-1"></i>Process Return
+                            </a>
+                            <a href="{{ route('orderExchange.create', ['order_id' => $order->id]) }}" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-sync me-1"></i>Process Exchange
+                            </a>
+                            @endif
+
                             <button id="changeStatusBtn" class="btn btn-sm btn-outline-primary">Change Status</button>
                         </div>
                     </div>
@@ -415,27 +424,18 @@
                                                     <span class="badge bg-success">Delivered</span>
                                                 @elseif($order->status == 'shipping' || $order->status == 'cancelled')
                                                     <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
-                                                @elseif(is_null($item->current_position_type))
-                                                    <button class="btn btn-sm btn-primary request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}">Request Stock</button>
                                                 @else
                                                     <div>
-                                                        <span class="text-muted">Currently at:</span>
-                                                        {{ $item->current_position_type == 'branch'
-                                                            ? ($item->branch ? $item->branch->name : 'Unknown Branch')
-                                                            : ($item->current_position_type == 'warehouse'
-                                                                ? ($item->warehouse ? $item->warehouse->name : 'Unknown Warehouse')
-                                                                : (@$item->technician->user->first_name . ' ' . @$item->technician->user->last_name)
-                                                              )
-                                                        }}
-                                                    </div>
-                                                    <div class="d-flex flex-wrap gap-2 mt-1">
-                                                        @if(@$item->current_position_id != $order->employee_id)
-                                                        <a href="#" class="small request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Change Stock</a>
-                                                        @if($order->employee_id)
-                                                        <span class="text-muted">|</span>
-                                                        <a href="#" class="small transfer-to-employee-link" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Transfer To Employee</a>
-                                                        @endif
-                                                        @endif
+                                                        <span class="text-muted small">Location:</span>
+                                                        <span class="fw-medium">
+                                                            {{ $item->current_position_type == 'branch'
+                                                                ? ($item->branch ? $item->branch->name : 'Unknown Branch')
+                                                                : ($item->current_position_type == 'warehouse'
+                                                                    ? ($item->warehouse ? $item->warehouse->name : 'Unknown Warehouse')
+                                                                    : (@$item->technician->user->first_name . ' ' . @$item->technician->user->last_name)
+                                                                )
+                                                            }}
+                                                        </span>
                                                     </div>
                                                 @endif
                                             </div>
@@ -487,25 +487,16 @@
                                                         Delivered
                                                     @elseif($order->status == 'shipping' || $order->status == 'cancelled')
                                                         {{ ucfirst($order->status) }}
-                                                    @elseif(is_null($item->current_position_type))
-                                                        <button class="btn btn-sm btn-primary request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}">Request Stock</button>
                                                     @else
-                                                        {{ $item->current_position_type == 'branch'
-                                                            ? ($item->branch ? $item->branch->name : 'Unknown Branch')
-                                                            : ($item->current_position_type == 'warehouse'
-                                                                ? ($item->warehouse ? $item->warehouse->name : 'Unknown Warehouse')
-                                                                : (@$item->technician->user->first_name . ' ' . @$item->technician->user->last_name)
-                                                              )
-                                                        }}
-                                                        <div class="d-flex gap-2 fw-normal justify-content-end" style="font-size: 10px;">
-                                                            @if(@$item->current_position_id != $order->employee_id)
-                                                            <a href="#" class="request-stock-btn" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Change Stock</a>
-                                                            @if($order->employee_id)
-                                                            |
-                                                            <a href="#" class="transfer-to-employee-link" data-product-id="{{ $item->product_id }}" data-order-item-id="{{ $item->id }}" data-current-type="{{ $item->current_position_type }}" data-current-id="{{ $item->current_position_id }}">Transfer To Employee</a>
-                                                            @endif
-                                                            @endif
-                                                        </div>
+                                                        <span class="text-muted fw-normal">
+                                                            {{ $item->current_position_type == 'branch'
+                                                                ? ($item->branch ? $item->branch->name : 'Branch')
+                                                                : ($item->current_position_type == 'warehouse'
+                                                                    ? ($item->warehouse ? $item->warehouse->name : 'Warehouse')
+                                                                    : (@$item->technician->user->first_name ?? 'Center')
+                                                                )
+                                                            }}
+                                                        </span>
                                                     @endif
                                                 </td>
                                             </tr>

@@ -233,7 +233,7 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td style="text-align:left;">
-                        {{ @$item->product->name }}
+                        {{ @$item->product->name }} <small style="color: #888;">#{{ $item->product->style_number ?? $item->product->sku }}</small>
                         @if($item->variation)
                             <br><small style="color: #666;">Variation: {{ $item->variation->name ?? $item->variation->sku }}</small>
                         @endif

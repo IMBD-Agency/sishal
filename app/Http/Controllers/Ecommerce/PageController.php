@@ -432,6 +432,11 @@ class PageController extends Controller
             set_time_limit(60);
             ini_set('max_execution_time', 60);
 
+            // Get general settings early (cached for 1 hour)
+            $settings = Cache::remember('general_settings', 3600, function () {
+                return GeneralSetting::first();
+            });
+
             // Create cache key for product details
             $cacheKey = 'product_details_' . $slug;
             $useCache = !$request->has('no_cache');
@@ -483,20 +488,6 @@ class PageController extends Controller
                 ]);
             }
 
-            \Log::info('Product found successfully', [
-                'id' => $product->id,
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'searched_slug' => $slug,
-                'match_confirmed' => $product->slug === $slug,
-                'meta_title' => $product->meta_title,
-                'meta_description' => $product->meta_description,
-                'meta_keywords' => $product->meta_keywords
-            ]);
-
-
-            $pageTitle = $product->name;
-
             // Enhanced related products logic (cached for 30 minutes per product)
             $relatedProductsCacheKey = "related_products_{$product->id}_{$product->category_id}";
             $relatedProducts = Cache::remember($relatedProductsCacheKey, 1800, function () use ($product) {
@@ -529,55 +520,24 @@ class PageController extends Controller
                         'category',
                         'reviews' => function ($q) {
                             $q->where('is_approved', true);
-                        }
+                        },
+                        'variations' => function ($q) {
+                            $q->where('status', 'active')->with('stocks');
+                        },
+                        'branchStock',
+                        'warehouseStock'
                     ])
                     ->get();
             });
 
-            // Add wishlist status to related products (user-specific, not cached)
-            $userId = Auth::id();
-            $wishlistedIds = [];
-            if ($userId && $relatedProducts->isNotEmpty()) {
-                try {
-                    $wishlistedIds = \App\Models\Wishlist::where('user_id', $userId)
-                        ->whereIn('product_id', $relatedProducts->pluck('id'))
-                        ->pluck('product_id')
-                        ->toArray();
-                } catch (\Exception $e) {
-                    Log::warning('Error loading wishlist for related products', ['error' => $e->getMessage()]);
-                    $wishlistedIds = [];
-                }
-            }
-            foreach ($relatedProducts as $relatedProduct) {
-                $relatedProduct->is_wishlisted = in_array($relatedProduct->id, $wishlistedIds);
-                // Pre-calculate ratings and reviews for better performance
-                try {
-                    $relatedProduct->avg_rating = $relatedProduct->reviews->avg('rating') ?? 0;
-                    $relatedProduct->total_reviews = $relatedProduct->reviews->count();
-                } catch (\Exception $e) {
-                    $relatedProduct->avg_rating = 0;
-                    $relatedProduct->total_reviews = 0;
-                }
-            }
-
             \Log::info('Returning view with product data', [
                 'product_id' => $product->id,
                 'product_name' => $product->name,
-                'product_slug' => $product->slug,
-                'view_data' => [
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'product_slug' => $product->slug
-                ]
+                'product_slug' => $product->slug
             ]);
 
-            // Get general settings for social media links (cached for 1 hour)
-            $settings = Cache::remember('general_settings', 3600, function () {
-                return GeneralSetting::first();
-            });
-
-            // Prepare view data
-            $seoProduct = $product; // ensure header receives the exact product for meta tags
+            $pageTitle = $product->name;
+            $seoProduct = $product; 
             $viewData = compact('product', 'relatedProducts', 'pageTitle', 'seoProduct', 'settings');
 
             // Cache the view data for 30 minutes if caching is enabled
@@ -593,6 +553,10 @@ class PageController extends Controller
             $response->header('ETag', md5($product->id . $product->updated_at));
             return $response;
         } catch (\Exception $e) {
+            // Clear cache on error to force fresh load next time
+            if (isset($cacheKey)) {
+                Cache::forget($cacheKey);
+            }
             Log::error('Product details error', [
                 'error' => $e->getMessage(),
                 'slug' => $slug,

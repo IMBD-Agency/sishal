@@ -6,6 +6,12 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
+        
+        <style>
+            .bg-purple-soft { background-color: rgba(111, 66, 193, 0.1); }
+            .text-purple { color: #6f42c1 !important; }
+        </style>
+
         <!-- Header Section -->
         <div class="container-fluid px-4 py-3 bg-white border-bottom shadow-sm">
             <div class="row align-items-center">
@@ -127,9 +133,16 @@
                                 @forelse ($orders as $order)
                                     <tr>
                                         <td>
-                                            <a href="{{ route('order.show', $order->id) }}" class="fw-bold text-decoration-none">
-                                                {{ $order->order_number ?? '-' }}
-                                            </a>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <a href="{{ route('order.show', $order->id) }}" class="fw-bold text-decoration-none">
+                                                    {{ $order->order_number ?? '-' }}
+                                                </a>
+                                                @if($order->payment_method == 'exchange_adjustment' || \Illuminate\Support\Str::contains($order->notes, 'Exchange Order'))
+                                                     <span class="badge bg-purple-soft text-purple border-0 rounded-pill px-2 py-0" style="font-size: 0.7rem;">
+                                                        Exchange
+                                                    </span>
+                                                @endif
+                                            </div>
                                             <div class="small text-muted">{{ $order->created_at->format('d M, Y') }}</div>
                                         </td>
                                         <td>
@@ -181,6 +194,10 @@
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                                                     <li><a class="dropdown-item" href="{{ route('order.show', $order->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
+                                                    @if($order->status != 'cancelled')
+                                                        <li><a class="dropdown-item text-danger" href="{{ route('orderReturn.create', ['order_id' => $order->id]) }}"><i class="fas fa-undo me-2"></i>Process Return</a></li>
+                                                        <li><a class="dropdown-item text-success" href="{{ route('orderExchange.create', ['order_id' => $order->id]) }}"><i class="fas fa-sync me-2"></i>Process Exchange</a></li>
+                                                    @endif
                                                     @php
                                                         $canCancel = !in_array($order->status, ['cancelled', 'delivered', 'received']);
                                                         $canDelete = auth()->user()->can('delete orders') && 

@@ -473,6 +473,13 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/order-return/{id}', [\App\Http\Controllers\Erp\OrderReturnController::class, 'destroy'])->name('orderReturn.delete');
     Route::post('/order-return/{id}/update-status', [\App\Http\Controllers\Erp\OrderReturnController::class, 'updateReturnStatus'])->name('orderReturn.updateStatus');
 
+    // Order Exchange
+    Route::get('/order-exchange', [\App\Http\Controllers\Erp\OrderExchangeController::class, 'index'])->name('orderExchange.list');
+    Route::get('/order-exchange/export', [\App\Http\Controllers\Erp\OrderExchangeController::class, 'exportExcel'])->name('orderExchange.export');
+    Route::get('/order-exchange/create', [\App\Http\Controllers\Erp\OrderExchangeController::class, 'create'])->name('orderExchange.create');
+    Route::post('/order-exchange/store', [\App\Http\Controllers\Erp\OrderExchangeController::class, 'store'])->name('orderExchange.store');
+    Route::get('/order-exchange/{id}', [\App\Http\Controllers\Erp\OrderExchangeController::class, 'show'])->name('orderExchange.show');
+
     // Customer Services functionality disabled - commented out
     // Route::get('/customer-services/search', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'search'])->name('customerService.search');
     // Route::get('/customer-services', [\App\Http\Controllers\Erp\CustomerServiceController::class, 'index'])->name('customerService.list');

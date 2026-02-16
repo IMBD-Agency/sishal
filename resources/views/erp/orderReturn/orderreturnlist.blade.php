@@ -14,6 +14,8 @@
             .bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); }
             .bg-info-soft { background-color: rgba(13, 202, 240, 0.1); }
             .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
+            .bg-purple-soft { background-color: rgba(111, 66, 193, 0.1); }
+            .text-purple { color: #6f42c1 !important; }
             
             .transition-all { transition: all 0.2s ease-in-out; }
             #returnTable tbody tr:hover { 
@@ -221,6 +223,11 @@
                                             <span class="badge bg-secondary-soft text-dark border-0 rounded-3">
                                                 {{ ucfirst($return->refund_type) }}
                                             </span>
+                                            @if(\Illuminate\Support\Str::contains($return->notes, 'Exchanged for Order'))
+                                                <span class="badge bg-purple-soft text-purple border-0 rounded-3 ms-1" title="Includes Exchange">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="pe-4 text-end">
                                             <div class="dropdown">

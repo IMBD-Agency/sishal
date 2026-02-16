@@ -144,7 +144,8 @@ class OrderController extends Controller
         if (request()->ajax() || request()->expectsJson()) {
             return response()->json([
                 'id' => $order->id,
-                'customer_id' => $order->customer_id,
+                'customer_id' => $order->user_id ?? $order->created_by,
+                'customer_name' => $order->name ?? ($order->customer->name ?? 'N/A'),
                 'order_number' => $order->order_number,
                 'items' => $order->items->map(function($item) {
                     return [
@@ -156,7 +157,9 @@ class OrderController extends Controller
                         'variation_sku' => $item->variation ? $item->variation->sku : null,
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
-                        'total_price' => $item->total_price
+                        'total_price' => $item->total_price,
+                        'current_position_type' => $item->current_position_type,
+                        'current_position_id' => $item->current_position_id,
                     ];
                 })
             ]);
@@ -947,31 +950,46 @@ class OrderController extends Controller
     public function orderSearch(Request $request)
     {
         $q = $request->input('q');
-        $query = Order::with('customer');
+        $query = Order::with(['customer', 'invoice']);
+        
         if ($q) {
             $query->where(function($sub) use ($q) {
                 $sub->where('order_number', 'like', "%$q%")
+                    ->orWhereHas('invoice', function($qi) use ($q) {
+                        $qi->where('invoice_number', 'like', "%$q%");
+                    })
                     ->orWhereHas('customer', function($q2) use ($q) {
                         $q2->where('name', 'like', "%$q%")
                             ->orWhere('phone', 'like', "%$q%")
-                            ->orWhere('email', 'like', "%$q%") ;
+                            ->orWhere('email', 'like', "%$q%");
                     });
             });
         }
-        $sales = $query->orderBy('order_number', 'desc')->limit(20)->get();
+        
+        $sales = $query->orderBy('created_at', 'desc')->limit(20)->get();
+        
         $results = $sales->map(function($sale) {
             $customer = $sale->customer;
-            $text = $sale->order_number;
-            if ($customer) {
-                $text .= ' - ' . $customer->name;
-                if ($customer->phone) $text .= ' (' . $customer->phone . ')';
-                if ($customer->email) $text .= ' [' . $customer->email . ']';
+            $invoice = $sale->invoice;
+            
+            // Format: INV-001 (ORD-001) - Customer Name (Phone)
+            $text = "";
+            if ($invoice) {
+                $text .= $invoice->invoice_number . " ";
             }
+            $text .= "(" . $sale->order_number . ")";
+            
+            if ($customer) {
+                $text .= " - " . $customer->name;
+                if ($customer->phone) $text .= " (" . $customer->phone . ")";
+            }
+            
             return [
                 'id' => $sale->id,
                 'text' => $text
             ];
         });
+        
         return response()->json($results);
     }
 

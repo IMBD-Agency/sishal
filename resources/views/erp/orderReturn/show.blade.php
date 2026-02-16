@@ -94,7 +94,7 @@
                                     </tbody>
                                     <tfoot>
                                         <tr class="bg-light">
-                                            <td colspan="3" class="text-end fw-bold py-3 fs-5">Estimated Refund Total:</td>
+                                            <td colspan="3" class="text-end fw-bold py-3 fs-5">Total Return Value (Credit):</td>
                                             <td class="text-end fw-bold py-3 fs-5 text-primary">৳ {{ number_format($total, 2) }}</td>
                                         </tr>
                                     </tfoot>
@@ -103,13 +103,56 @@
                         </div>
                     </div>
 
+                    @if(isset($exchangeOrder) && $exchangeOrder)
+                        <div class="card shadow-sm mb-4 border-success border-2">
+                            <div class="card-header bg-white py-3 px-4 border-bottom">
+                                <h5 class="fw-bold mb-0 text-success">Exchanged for New Items ({{ $exchangeOrder->order_number }})</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Product Name</th>
+                                                <th class="text-center">Quantity</th>
+                                                <th class="text-end">Unit Price</th>
+                                                <th class="text-end">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($exchangeOrder->items as $item)
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-bold">{{ $item->product->name ?? 'N/A' }}</div>
+                                                        @if($item->variation)
+                                                            <small class="text-muted">Variation: {{ $item->variation->name }}</small>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center fw-bold">{{ $item->quantity }}</td>
+                                                    <td class="text-end">৳ {{ number_format($item->unit_price, 2) }}</td>
+                                                    <td class="text-end fw-bold">৳ {{ number_format($item->total_price, 2) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="bg-light">
+                                                <td colspan="3" class="text-end fw-bold py-3 fs-5">Exchange Total:</td>
+                                                <td class="text-end fw-bold py-3 fs-5 text-success">৳ {{ number_format($exchangeOrder->total, 2) }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     @if($orderReturn->notes)
                         <div class="card shadow-sm">
                             <div class="card-header bg-white py-3 px-4 border-bottom">
                                 <h5 class="fw-bold mb-0">Notes & Comments</h5>
                             </div>
                             <div class="card-body p-4">
-                                <p class="text-muted mb-0">{{ $orderReturn->notes }}</p>
+                                <p class="text-muted mb-0">{!! nl2br(e($orderReturn->notes)) !!}</p>
                             </div>
                         </div>
                     @endif
@@ -143,6 +186,37 @@
                             </div>
                         </div>
                     </div>
+
+                    @if(isset($exchangeOrder) && $exchangeOrder)
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-white py-3 px-4 border-bottom">
+                                <h5 class="fw-bold mb-0">Financial Summary</h5>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Return Value:</span>
+                                    <span class="fw-bold">Make Credit ({{ number_format($total, 2) }})</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span class="text-muted">New Purchase:</span>
+                                    <span class="fw-bold text-danger">- {{ number_format($exchangeOrder->total, 2) }}</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    @php $net = $exchangeOrder->total - $total; @endphp
+                                    <span class="fw-bold fs-5">Net {{ $net > 0 ? 'Payable' : 'Refund' }}:</span>
+                                    <span class="fw-bold fs-4 {{ $net > 0 ? 'text-danger' : 'text-success' }}">
+                                        ৳ {{ number_format(abs($net), 2) }}
+                                    </span>
+                                </div>
+                                <div class="mt-3 text-center">
+                                    <a href="{{ route('order.show', $exchangeOrder->id) }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 w-100">
+                                        View Exchange Order
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     @if($orderReturn->order)
                         <div class="card shadow-sm bg-primary text-white overflow-hidden">

@@ -210,7 +210,7 @@
                 @foreach ($pos->items as $item)
                 <tr>
                     <td class="text-left">
-                        {{ $item->product->name }}
+                        {{ $item->product->name }} <small>#{{ $item->product->style_number ?? $item->product->sku }}</small>
                         @if($item->variation)
                             @php
                                 $vals = [];

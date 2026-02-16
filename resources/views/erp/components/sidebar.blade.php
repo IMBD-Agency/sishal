@@ -255,6 +255,14 @@
             </a>
         </div>
         @endcan
+        @can('view order return list')
+        <div class="nav-item">
+            <a href="{{ route('orderExchange.list') }}" class="nav-link {{ request()->is('erp/order-exchange*') ? ' active' : '' }}">
+                <i class="fas fa-sync nav-icon text-success"></i>
+                <span>Order Exchanges</span>
+            </a>
+        </div>
+        @endcan
 
         @can('view customer list')
         <div class="nav-item">
@@ -368,14 +376,25 @@
 
     <script>
         (function() {
-            var sidebar = document.getElementById('sidebar');
-            if (sidebar) {
-                var scrollPos = sessionStorage.getItem('sidebarScroll');
-                if (scrollPos) sidebar.scrollTop = scrollPos;
-                sidebar.addEventListener('scroll', function() {
-                    sessionStorage.setItem('sidebarScroll', sidebar.scrollTop);
-                }, { passive: true });
+            var nav = document.querySelector('.sidebar-nav');
+            if (!nav) return;
+
+            // 1. Restore scroll position from session
+            var scrollPos = sessionStorage.getItem('sidebarScroll');
+            if (scrollPos) {
+                nav.scrollTop = scrollPos;
             }
+
+            // 2. Automatically scroll active item into view (if not visible)
+            var activeLink = nav.querySelector('.nav-link.active');
+            if (activeLink) {
+                activeLink.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+            }
+
+            // 3. Save scroll position on scroll
+            nav.addEventListener('scroll', function() {
+                sessionStorage.setItem('sidebarScroll', nav.scrollTop);
+            }, { passive: true });
         })();
     </script>
 </div>

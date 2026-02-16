@@ -4,3396 +4,146 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 @endpush
 
 @section('main-section')
+    <div class="pd-scroll-indicator"></div>
     <!-- Breadcrumb Navigation -->
-    <div class="container mt-3">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url('/') }}" class="text-decoration-none">Home</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('product.archive') }}?category={{ $product->category->slug ?? '' }}" class="text-decoration-none">{{ $product->category->name ?? 'Category' }}</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ $product->name }}</li>
-            </ol>
-        </nav>
+    <div class="pd-breadcrumb-wrapper">
+        <div class="container">
+            <nav aria-label="breadcrumb">
+                <ol class="pd-breadcrumb">
+                    <li class="pd-breadcrumb-item"><a href="{{ url('/') }}">Home</a></li>
+                    <li class="pd-breadcrumb-item"><a href="{{ route('product.archive') }}?category={{ $product->category->slug ?? '' }}">{{ $product->category->name ?? 'Category' }}</a></li>
+                    <li class="pd-breadcrumb-item active" aria-current="page">{{ $product->name }}</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
-    <!-- Product Details Content Section -->
-    <style>
-        .product-section {
-            background: #ffffff;
-            padding: 20px 0;
-            min-height: auto;
-        }
-
-        .product-main {
-            background: white;
-            border-radius: 0;
-            box-shadow: none;
-            overflow: visible;
-            position: relative;
-            margin-bottom: 40px;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        
-        /* Prevent layout shift on product details page */
-        .product-section .container,
-        .product-main .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-left: 15px;
-            padding-right: 15px;
-            box-sizing: border-box;
-        }
-        
-        /* Ensure product main container has proper width from start */
-        .product-main {
-            display: block;
-            width: 100%;
-            max-width: 100%;
-        }
-        
-        .product-main .row {
-            margin-left: 0;
-            margin-right: 0;
-            width: 100%;
-        }
-
-        .breadcrumb {
-            background: transparent;
-            padding: 0;
-            margin: 0;
-        }
-
-        .breadcrumb-item a {
-            color: #6b7280;
-            font-size: 14px;
-        }
-
-        .breadcrumb-item.active {
-            color: #374151;
-            font-weight: 500;
-        }
-
-        /* Product Gallery */
-        .product-gallery {
-            position: relative;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Main Swiper */
-        .main-swiper {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto 20px;
-            aspect-ratio: 1 / 1;
-            min-height: 300px;
-            position: relative;
-        }
-        
-        /* Prevent layout shift while images load */
-        .main-swiper .swiper-wrapper {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-        
-        .main-swiper .swiper-slide {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .main-swiper .main-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        /* Responsive Main Swiper */
-        @media (max-width: 992px) {
-            .main-swiper {
-                max-width: 500px;
-                margin-bottom: 15px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .main-swiper {
-                max-width: 100%;
-                margin-bottom: 15px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .main-swiper {
-                max-width: 100%;
-                margin-bottom: 12px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .main-swiper {
-                max-width: 100%;
-                margin-bottom: 10px;
-            }
-        }
-
-        .main-swiper .swiper-slide {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f8f9fa;
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-            cursor: zoom-in;
-            aspect-ratio: 1 / 1;
-            width: 100%;
-            height: 100%;
-        }
-
-        .main-swiper .main-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 12px;
-            cursor: zoom-in;
-            transition: transform 0.3s ease;
-            display: block;
-        }
-
-        /* Simple hover zoom effect */
-        .main-swiper .swiper-slide:hover .main-image {
-            transform: scale(1.1);
-            cursor: zoom-out;
-        }
-
-        /* Thumbnail Swiper */
-        .thumb-swiper {
-            width: 100%;
-            height: 80px;
-            margin-top: 15px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .thumb-swiper .swiper-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-        }
-
-        .thumb-swiper .swiper-slide {
-            width: 80px;
-            height: 80px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Responsive Thumbnail Swiper */
-        @media (max-width: 768px) {
-            .thumb-swiper {
-                height: 70px;
-                margin-top: 12px;
-            }
-            
-            .thumb-swiper .swiper-slide {
-                width: 70px;
-                height: 70px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .thumb-swiper {
-                height: 60px;
-                margin-top: 10px;
-            }
-            
-            .thumb-swiper .swiper-slide {
-                width: 60px;
-                height: 60px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .thumb-swiper {
-                height: 50px;
-                margin-top: 8px;
-            }
-            
-            .thumb-swiper .swiper-slide {
-                width: 50px;
-                height: 50px;
-            }
-        }
-
-        @media (max-width: 360px) {
-            .thumb-swiper {
-                height: 45px;
-            }
-            
-            .thumb-swiper .swiper-slide {
-                width: 45px;
-                height: 45px;
-            }
-        }
-
-        .thumb-swiper .swiper-slide:hover {
-            border-color: #00512C;
-        }
-
-        .thumb-swiper .swiper-slide-thumb-active {
-            border-color: #00512C;
-            box-shadow: 0 0 0 2px rgba(0, 81, 44, 0.25);
-        }
-
-        .thumb-swiper .swiper-slide img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .main-image-container {
-            position: relative;
-            width: 100%;
-            max-width: 500px;
-            aspect-ratio: 1 / 1;
-            border-radius: 12px;
-            overflow: hidden;
-            background: #f8fafc;
-            margin: 0 auto;
-        }
-
-        .main-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-
-        .main-image-container:hover .main-image {
-            transform: scale(1.02);
-        }
-
-        /* Variation Image Styles */
-        .variation-image-slide,
-        .variation-gallery-slide,
-        .variation-thumb-slide,
-        .variation-gallery-thumb-slide {
-            transition: opacity 0.3s ease;
-        }
-
-        .variation-image-slide,
-        .variation-gallery-slide {
-            aspect-ratio: 1 / 1;
-        }
-
-        .variation-image-slide img,
-        .variation-gallery-slide img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-
-        .product-gallery {
-            max-width: 100%;
-            width: 100%;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Removed unused Swiper container styles */
-
-        /* Removed unused Swiper thumbnail styles */
-
-        .main-image {
-            width: 100%;
-            max-width: 500px;
-            aspect-ratio: 1 / 1;
-            border: none;
-            border-radius: 0;
-            overflow: hidden;
-            background: #fafbfc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            margin: 0 auto;
-            cursor: crosshair;
-        }
-
-        .main-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.1s ease-out;
-            will-change: transform;
-        }
-
-        .main-image.zooming img {
-            transition: none;
-        }
-
-        /* Zoom container styles */
-        .swiper-slide.zooming-container {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .swiper-slide.zooming-container.zooming {
-            cursor: crosshair;
-        }
-
-        /* Gallery Modal */
-        .gallery-modal {
-            display: none;
-            position: fixed;
-            z-index: 20000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(5px);
-        }
-
-        .gallery-modal-content {
-            position: relative;
-            margin: auto;
-            padding: 20px;
-            width: 90%;
-            max-width: 1200px;
-            height: 90vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gallery-close {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            color: white;
-            font-size: 40px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 20001;
-            transition: color 0.3s ease;
-        }
-
-        .gallery-close:hover {
-            color: #ff6b6b;
-        }
-
-        .gallery-modal-main {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .gallery-modal-image-container {
-            max-width: 100%;
-            max-height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
-            cursor: zoom-in;
-        }
-
-        .gallery-modal-image-container.zoomed {
-            cursor: move;
-        }
-
-        .gallery-modal-image {
-            max-width: 100%;
-            max-height: 70vh;
-            object-fit: contain;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
-
-        .gallery-modal-image-container.zoomed .gallery-modal-image {
-            transition: transform 0.1s ease-out;
-        }
-
-        .gallery-zoom-controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 20002;
-            display: flex;
-            gap: 10px;
-        }
-
-        .gallery-zoom-btn {
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            transition: background 0.3s ease;
-        }
-
-        .gallery-zoom-btn:hover {
-            background: rgba(0, 0, 0, 0.8);
-        }
-
-        .gallery-modal-thumbs {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .gallery-modal-thumb {
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-        }
-
-        .gallery-modal-thumb:hover,
-        .gallery-modal-thumb.active {
-            border-color: #00512C;
-            transform: scale(1.05);
-        }
-
-        .gallery-modal-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* Responsive Gallery Modal */
-        @media (max-width: 768px) {
-            .gallery-modal-content {
-                padding: 15px;
-                width: 95%;
-                height: 95vh;
-            }
-
-            .gallery-close {
-                top: 15px;
-                right: 20px;
-                font-size: 35px;
-            }
-
-            .gallery-modal-image {
-                max-height: 60vh;
-            }
-
-            .gallery-modal-thumbs {
-                gap: 8px;
-            }
-
-            .gallery-modal-thumb {
-                width: 60px;
-                height: 60px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .gallery-modal-content {
-                padding: 10px;
-                width: 98%;
-                height: 98vh;
-            }
-
-            .gallery-close {
-                top: 10px;
-                right: 15px;
-                font-size: 30px;
-            }
-
-            .gallery-modal-image {
-                max-height: 50vh;
-            }
-
-            .gallery-modal-thumbs {
-                gap: 6px;
-                max-width: 100%;
-                overflow-x: auto;
-                padding: 0 10px;
-            }
-
-            .gallery-modal-thumb {
-                width: 50px;
-                height: 50px;
-                flex-shrink: 0;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .gallery-modal-content {
-                padding: 8px;
-            }
-
-            .gallery-close {
-                top: 8px;
-                right: 12px;
-                font-size: 28px;
-            }
-
-            .gallery-modal-image {
-                max-height: 45vh;
-            }
-
-            .gallery-modal-thumb {
-                width: 45px;
-                height: 45px;
-            }
-        }
-
-        /* Removed unused zoom overlay and legacy thumbnail grid/styles */
-
-        /* Product Info */
-        .product-info {
-            padding: 0 20px;
-            background: white;
-            position: relative;
-        }
-
-        @media (max-width: 768px) {
-            .product-info {
-                padding: 0 12px;
-            }
-        }
-
-        .product-info h1 {
-            font-size: 1.375rem;
-            margin-bottom: 12px;
-            color: #1a202c;
-            font-weight: 600;
-            line-height: 1.4;
-            letter-spacing: -0.01em;
-        }
-
-        @media (max-width: 768px) {
-            .product-info h1 {
-                font-size: 1.25rem;
-                margin-bottom: 10px;
-            }
-        }
-
-        .product-rating {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 14px;
-        }
-
-        .stars {
-            color: #fbbf24;
-            font-size: 0.875rem;
-            line-height: 1;
-        }
-
-        .rating-text {
-            color: #64748b;
-            font-size: 0.8125rem;
-            font-weight: 500;
-        }
-
-        .product-price {
-            margin-bottom: 14px;
-            display: flex;
-            align-items: baseline;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .product-price .fw-bold {
-            font-size: 1.375rem;
-            font-weight: 700;
-            color: #1f2937;
-            line-height: 1.2;
-        }
-
-        .product-price .text-decoration-line-through {
-            font-size: 1rem;
-            color: #9ca3af;
-            margin-left: 0;
-        }
-
-        @media (max-width: 768px) {
-            .product-price .fw-bold {
-                font-size: 1.25rem;
-            }
-            .product-price .text-decoration-line-through {
-                font-size: 0.9375rem;
-            }
-        }
-
-        .product-info-section {
-            margin-bottom: 20px;
-        }
-
-        .section-label {
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .color-option, .size-option {
-            border: 1px solid #d1d5db;
-            background: #ffffff;
-            color: #374151;
-            border-radius: 9999px;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        /* Circle size buttons like reference */
-        .size-option {
-            width: 38px;
-            height: 38px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-size: 13px;
-            font-weight: 600;
-            border: 1.5px solid #00512C; /* theme border */
-        }
-
-        .color-option:hover, .size-option:hover {
-            border-color: #00512C;
-            background: #e6f6ef;
-        }
-
-        .color-option.active, .size-option.active {
-            border-color: transparent; /* no extra border when selected */
-            background: #00512C; /* theme fill */
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(0,81,44,0.2);
-        }
-
-        .color-image-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            border: 1.5px solid #e5e7eb;
-            padding: 0;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .color-image-btn img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .color-image-btn.active {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-        }
-
-        /* Hide old variation summary card */
-        .variation-info { display: none !important; }
-
-        .product-description {
-            color: #64748b;
-            margin-bottom: 32px;
-            line-height: 1.7;
-            font-size: 16px;
-            background: #f8fafc;
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid #00512C;
-        }
-
-        .product-options {
-            margin-bottom: 32px;
-        }
-
-        .option-group {
-            margin-bottom: 24px;
-        }
-
-        .option-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #374151;
-            font-size: 15px;
-        }
-
-        .option-group select {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 16px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .option-group select:focus {
-            border-color: #00512C;
-            box-shadow: 0 0 0 3px rgba(0, 81, 44, 0.1);
-            outline: none;
-        }
-
-        .quantity-selector {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        
-        /* Override margin when inside purchase-row */
-        .purchase-row .quantity-selector {
-            margin-bottom: 0;
-        }
-
-        .quantity-selector label { display:none; }
-
-        .quantity-controls {
-            display: flex;
-            align-items: center;
-            border: none;
-            border-radius: 20px;
-            background: #f3f4f6;
-            padding: 3px;
-            gap: 0;
-        }
-
-        .quantity-btn {
-            background: transparent;
-            border: none;
-            width: 36px;
-            height: 36px;
-            cursor: pointer;
-            font-size: 15px;
-            transition: all 0.2s ease;
-            font-weight: 600;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-        }
-
-        .quantity-btn:hover {
-            color: #374151;
-            background: rgba(255, 255, 255, 0.7);
-        }
-
-        .quantity-input {
-            width: 50px;
-            height: 36px;
-            text-align: center;
-            border: none;
-            font-size: 13px;
-            font-weight: 600;
-            color: #374151;
-            background: transparent;
-            border-radius: 0;
-        }
-
-        .quantity-input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
-        }
-
-        /* Purchase Row: quantity + buttons in one line - always responsive */
-        .purchase-row {
-            display: grid;
-            grid-template-columns: auto 1fr 1fr;
-            align-items: center;
-            gap: 10px;
-            margin: 18px 0 16px 0;
-        }
-        .purchase-row .quantity-selector { 
-            margin: 0; 
-            width: auto; 
-            min-width: 100px;
-        }
-        .purchase-row .btn { 
-            width: 100%; 
-            min-width: 0; 
-            padding: 11px 12px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-        }
-        .purchase-row form { 
-            display: block; 
-            margin: 0; 
-            width: 100%; 
-        }
-        .purchase-row .btn-add-cart,
-        .purchase-row .btn-buy-now { 
-            width: 100%; 
-            min-width: 0;
-            padding: 11px 12px !important;
-        }
-        
-        /* Mobile adjustments - keep in one row */
-        @media (max-width: 768px) {
-            .purchase-row {
-                gap: 8px;
-            }
-            .purchase-row .quantity-selector {
-                min-width: 90px;
-            }
-            .purchase-row .btn {
-                padding: 10px 8px;
-                font-size: 12px;
-            }
-            .purchase-row .btn-add-cart,
-            .purchase-row .btn-buy-now {
-                padding: 10px 8px !important;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .purchase-row {
-                gap: 6px;
-            }
-            .purchase-row .quantity-selector {
-                min-width: 80px;
-            }
-            .purchase-row .quantity-controls {
-                width: 100%;
-            }
-            .purchase-row .quantity-btn {
-                width: 32px;
-                height: 32px;
-                font-size: 14px;
-            }
-            .purchase-row .quantity-input {
-                width: 45px;
-                height: 32px;
-                font-size: 12px;
-            }
-            .purchase-row .btn {
-                padding: 9px 5px;
-                font-size: 11px;
-            }
-            .purchase-row .btn-add-cart,
-            .purchase-row .btn-buy-now {
-                padding: 9px 5px !important;
-            }
-        }
-        
-        @media (max-width: 360px) {
-            .purchase-row {
-                gap: 4px;
-            }
-            .purchase-row .quantity-selector {
-                min-width: 70px;
-            }
-            .purchase-row .quantity-btn {
-                width: 28px;
-                height: 28px;
-                font-size: 13px;
-            }
-            .purchase-row .quantity-input {
-                width: 38px;
-                height: 28px;
-                font-size: 11px;
-            }
-            .purchase-row .btn {
-                padding: 8px 3px;
-                font-size: 10px;
-            }
-            .purchase-row .btn-add-cart,
-            .purchase-row .btn-buy-now {
-                padding: 8px 3px !important;
-            }
-            .size-chart-img {
-                max-width: 150px;
-                max-height: 150px;
-            }
-        }
-
-        /* Buy Now uses theme color, not hard-coded */
-        .btn-buy-now {
-            background: #00512C !important; /* theme primary */
-            color: #fff !important;
-            border: 1px solid #00512C !important;
-        }
-        .btn-buy-now:hover { background: #004322 !important; }
-        .btn-buy-now:disabled { background:#9fb6ae !important; border-color:#9fb6ae !important; }
-
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 500;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn-add-cart {
-            background: #f3f4f6 !important; /* light grey like reference */
-            color: #374151 !important;
-            border: 1px solid #d1d5db !important;
-        }
-
-        .btn-add-cart:hover:not(:disabled) {
-            background: #e5e7eb !important;
-            transform: translateY(-1px);
-        }
-
-        /* Active focus ring in theme color */
-        .btn-add-cart:not(:disabled):focus-visible {
-        outline: 2px solid #00512C !important;
-            outline-offset: 2px;
-        }
-
-        .btn-add-cart:disabled {
-            background: #e5e7eb !important;
-            color: #9ca3af !important;
-            cursor: not-allowed !important;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        /* Wishlist button states */
-        .btn-outline-custom.added-to-wishlist {
-            background: #10B981 !important;
-            color: white !important;
-            border-color: #10B981 !important;
-        }
-
-        .btn-outline-custom:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .btn-outline-custom i.fa-spinner {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .btn-outline-custom {
-            background: #ffffff;
-            color: #00512C; /* theme primary */
-            border: 1px solid #00512C;
-            padding: 12px 24px;
-            min-width: 170px;
-        }
-
-        .btn-outline-custom:hover {
-            background: #00512C;
-            color: #ffffff;
-            transform: translateY(-1px);
-        }
-
-        .btn-outline-custom.border {
-            border: 2px solid #e2e8f0;
-            color: #64748b;
-            background: white;
-        }
-
-        .contact-info {
-            background: #1e40af;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .wishlist-share {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-top: 14px;
-        }
-
-        .wishlist-link {
-            color: #6b7280;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .wishlist-link:hover {
-            color: #ef4444;
-        }
-
-        .share-section {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .share-label {
-            font-size: 13px;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .share-icons {
-            display: flex;
-            gap: 8px;
-        }
-
-        .share-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: #f8f9fa;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6b7280;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            border: 1px solid #e9ecef;
-        }
-
-        .share-icon:hover {
-            background: #e9ecef;
-            color: #495057;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .share-icon i.fab.fa-facebook-f:hover {
-            color: #1877f2;
-        }
-
-        .share-icon i.fab.fa-twitter:hover {
-            color: #1da1f2;
-        }
-
-        .share-icon i.fab.fa-instagram:hover {
-            color: #e4405f;
-        }
-
-        .share-icon i.fab.fa-youtube:hover {
-            color: #ff0000;
-        }
-
-        .share-icon i.fab.fa-linkedin-in:hover {
-            color: #0077b5;
-        }
-
-
-        /* Enhanced Messenger System Styling */
-        .messenger-section {
-            margin: 16px 0;
-            padding: 0;
-        }
-
-        .messenger-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: flex-start;
-            align-items: center;
-        }
-
-        .messenger-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-            color: white;
-            text-decoration: none;
-            border-radius: 50%;
-            font-weight: 500;
-            font-size: 13px;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: 42px;
-            height: 42px;
-        }
-
-        .messenger-btn:hover {
-            color: white;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .messenger-btn i {
-            font-size: 18px;
-        }
-
-        /* WhatsApp Button */
-        .whatsapp-btn {
-            background: #25D366;
-        }
-
-        .whatsapp-btn:hover {
-            background: #20ba5a;
-            box-shadow: 0 4px 8px rgba(37, 211, 102, 0.3);
-        }
-
-        /* Facebook Messenger Button */
-        .messenger-fb-btn {
-            background: #0084ff;
-        }
-
-        .messenger-fb-btn:hover {
-            background: #0066cc;
-            box-shadow: 0 4px 8px rgba(0, 132, 255, 0.3);
-        }
-
-        /* Telegram Button */
-        .telegram-btn {
-            background: #0088cc;
-        }
-
-        .telegram-btn:hover {
-            background: #006699;
-            box-shadow: 0 4px 8px rgba(0, 136, 204, 0.3);
-        }
-
-        /* Email Button */
-        .email-btn {
-            background: #6b7280;
-        }
-
-        .email-btn:hover {
-            background: #4b5563;
-            box-shadow: 0 4px 8px rgba(107, 114, 128, 0.3);
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            /* Keep buttons compact and inline on mobile */
-            .messenger-buttons {
-                flex-direction: row;
-                justify-content: flex-start;
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-
-            .messenger-btn {
-                width: 44px;
-                height: 44px;
-                padding: 10px;
-                border-radius: 50%;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .messenger-btn {
-                width: 40px;
-                height: 40px;
-                padding: 9px;
-            }
-        }
-
-        .btn-outline-custom.border:hover {
-            border-color: #00512C;
-            color: #00512C;
-            background: #f8fafc;
-        }
-
-
-        /* Product Tabs */
-        .product-tabs {
-            margin-bottom: 30px;
-        }
-
-        .tab-nav {
-            display: flex;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 30px;
-        }
-
-        .tab-btn {
-            padding: 15px 30px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: #666;
-            border-bottom: 2px solid transparent;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-
-        .tab-btn.active {
-            color: #2196F3;
-            border-bottom-color: #2196F3;
-        }
-
-        .tab-btn:hover {
-            color: #2196F3;
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .tab-content h3 {
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 20px;
-        }
-
-        .tab-content p {
-            color: #666;
-            line-height: 1.8;
-            margin-bottom: 15px;
-        }
-
-        .specifications-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .specifications-table th,
-        .specifications-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        .specifications-table th {
-            background: #f8f9fa;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .specifications-table td {
-            color: #666;
-        }
-
-        /* Reviews Section Styles */
-        .reviews-section {
-            padding: 20px 0;
-        }
-
-        .reviews-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .reviews-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 10px;
-        }
-
-        .reviews-subtitle {
-            color: #64748b;
-            font-size: 16px;
-        }
-
-        .reviews-summary-card {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 30px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .rating-overview {
-            padding: 20px;
-        }
-
-        .overall-rating {
-            font-size: 48px;
-            font-weight: 800;
-            color: #00512C;
-            margin-bottom: 10px;
-        }
-
-        .rating-stars {
-            color: #fbbf24;
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        .rating-count {
-            color: #64748b;
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        .rating-breakdown h6 {
-            color: #1a202c;
-            font-weight: 600;
-            margin-bottom: 15px;
-        }
-
-        .rating-bar {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .rating-bar-label {
-            min-width: 60px;
-            font-size: 14px;
-            color: #374151;
-        }
-
-        .rating-bar-fill {
-            flex: 1;
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 4px;
-            margin: 0 10px;
-            overflow: hidden;
-        }
-
-        .rating-bar-progress {
-            height: 100%;
-            background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
-            border-radius: 4px;
-            transition: width 0.6s ease;
-        }
-
-        .rating-bar-count {
-            min-width: 30px;
-            text-align: right;
-            font-size: 12px;
-            color: #64748b;
-        }
-
-        .review-form-section {
-            margin-bottom: 40px;
-        }
-
-        .review-form-card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-        }
-
-        .form-title {
-            color: #1a202c;
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #374151;
-            font-size: 16px;
-        }
-
-        .rating-input {
-            display: flex;
-            flex-direction: row-reverse;
-            gap: 8px;
-            justify-content: flex-start;
-        }
-
-        .rating-input input[type="radio"] {
-            display: none;
-        }
-
-        .star-label {
-            font-size: 32px;
-            color: #e2e8f0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            padding: 4px;
-        }
-
-        .star-label:hover,
-        .star-label:hover ~ .star-label,
-        .rating-input input[type="radio"]:checked ~ .star-label {
-            color: #fbbf24;
-            transform: scale(1.1);
-        }
-
-        .rating-text {
-            color: #64748b;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        .form-control {
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px 16px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            border-color: #00512C;
-            box-shadow: 0 0 0 3px rgba(0, 81, 44, 0.1);
-            outline: none;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 16px;
-            margin-top: 25px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #00512C 0%, #10B981 100%);
-            border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 81, 44, 0.3);
-        }
-
-        .review-login-prompt {
-            text-align: center;
-            padding: 40px 20px;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border-radius: 16px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .login-prompt-content h5 {
-            color: #1a202c;
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .login-prompt-content p {
-            color: #64748b;
-            font-size: 16px;
-            margin-bottom: 24px;
-        }
-
-        .reviews-list-section {
-            margin-top: 40px;
-        }
-
-        .reviews-list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .reviews-list-header h4 {
-            color: #1a202c;
-            font-weight: 700;
-            margin: 0;
-        }
-
-        .reviews-filter select {
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 8px 12px;
-        }
-
-        .reviews-list {
-            space-y: 20px;
-        }
-
-        .review-item {
-            background: white;
-            border-radius: 16px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-        }
-
-        .review-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Featured Review Styles */
-        .review-item.featured-review {
-            background: linear-gradient(135deg, #fff9e6 0%, #fff4d1 100%);
-            border: 2px solid #fbbf24;
-            box-shadow: 0 4px 16px rgba(251, 191, 36, 0.2);
-            position: relative;
-        }
-
-        .review-item.featured-review::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
-            border-radius: 16px 16px 0 0;
-        }
-
-        .featured-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 10px;
-            box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
-        }
-
-        .featured-badge i {
-            font-size: 10px;
-        }
-
-        .review-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-
-        .reviewer-info {
-            flex: 1;
-        }
-
-        .reviewer-name {
-            font-weight: 600;
-            color: #1a202c;
-            font-size: 16px;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .review-rating {
-            color: #fbbf24;
-            font-size: 16px;
-            margin-bottom: 5px;
-        }
-
-        .review-date {
-            color: #64748b;
-            font-size: 14px;
-        }
-
-        .review-title {
-            font-weight: 600;
-            color: #1a202c;
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-
-        .review-comment {
-            color: #374151;
-            line-height: 1.6;
-            font-size: 15px;
-            margin-bottom: 15px;
-        }
-
-        .review-actions {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .helpful-btn {
-            background: none;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 6px 12px;
-            color: #64748b;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .helpful-btn:hover {
-            border-color: #00512C;
-            color: #00512C;
-        }
-
-        .helpful-btn.active {
-            background: #00512C;
-            border-color: #00512C;
-            color: white;
-        }
-
-        .no-reviews {
-            text-align: center;
-            padding: 40px 20px;
-            color: #64748b;
-        }
-
-        .no-reviews i {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .reviews-summary-card .row {
-                flex-direction: column;
-            }
-
-            .rating-breakdown {
-                margin-top: 20px;
-            }
-
-            .reviews-list-header {
-                flex-direction: column;
-                gap: 15px;
-                align-items: flex-start;
-            }
-
-            .form-actions {
-                flex-direction: column;
-            }
-
-            .review-header {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .review-actions {
-                flex-wrap: wrap;
-            }
-        }
-
-
-        /* Related Products Splide Carousel - Matching New Arrivals */
-        #relatedProductsSplide { 
-            background:rgb(253, 253, 253);  
-            padding: 14px 0px;
-            overflow: hidden;
-        }
-        #relatedProductsSplide .splide__track {
-            overflow: hidden;
-        }
-        #relatedProductsSplide .splide__slide { 
-            padding: 0px; 
-            position: relative;
-        }
-        /* Ensure visible slides are actually visible */
-        #relatedProductsSplide .splide__slide.is-visible,
-        #relatedProductsSplide .splide__slide.is-active,
-        #relatedProductsSplide .splide__slide.is-next,
-        #relatedProductsSplide .splide__slide.is-prev {
-            opacity: 1 !important;
-            visibility: visible !important;
-        }
-        /* Ensure product cards inside visible slides are visible */
-        #relatedProductsSplide .splide__slide.is-visible .product-card,
-        #relatedProductsSplide .splide__slide.is-active .product-card,
-        #relatedProductsSplide .splide__slide.is-next .product-card,
-        #relatedProductsSplide .splide__slide.is-prev .product-card {
-            opacity: 1 !important;
-            visibility: visible !important;
-        }
-        #relatedProductsSplide .product-card { padding: 0 !important; border-radius: 6px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.06); border: none !important; }
-        #relatedProductsSplide .product-image-container { position: relative; height: 300px; border-radius: 6px 6px 0 0; overflow: hidden; }
-        #relatedProductsSplide .product-image { width: 100%; height: 100%; object-fit: cover; display: block; }
-        #relatedProductsSplide .rating-badge { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 6px; }
-        #relatedProductsSplide .rating-badge .star { color: #f59e0b; }
-        #relatedProductsSplide .product-title { font-size: 18px; line-height: 1.4; margin-top: 10px; margin-bottom: 2px; color:rgb(25, 30, 39); font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        #relatedProductsSplide .price { font-size: 18px; font-weight: 700; margin-top: 2px; }
-        #relatedProductsSplide .price .fw-bold { color: #059669; }
-        #relatedProductsSplide .price .old { font-size: 14px; color: #9ca3af !important; text-decoration: line-through !important; margin-left: 8px; font-weight: 500; }
-        #relatedProductsSplide .product-info { padding: 10px 12px 12px; }
-        #relatedProductsSplide .wishlist-btn { position: absolute; top: 10px; right: 10px; z-index: 10; pointer-events: auto; cursor: pointer; background: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-        #relatedProductsSplide .wishlist-btn i { pointer-events: none; font-size: 16px; }
-        #relatedProductsSplide .product-actions { margin-top: 6px; }
-        #relatedProductsSplide .btn-add-cart { padding: 6px 10px; font-size: 12px; }
-        
-        /* remove hover border if any framework styles apply */
-        #relatedProductsSplide .product-card.no-hover-border:hover { border-color: transparent !important; border: none !important; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
-        
-        @media (max-width: 991.98px) { 
-            #relatedProductsSplide .product-image-container { height: 180px; } 
-        }
-        
-        @media (max-width: 768px) {
-            #relatedProductsSplide { padding: 15px 0px; }
-            #relatedProductsSplide .product-image-container { height: 160px; }
-            #relatedProductsSplide .product-title { font-size: 14px; line-height: 1.3; margin-top: 8px; }
-            #relatedProductsSplide .price { font-size: 14px; }
-            #relatedProductsSplide .price .old { font-size: 12px; }
-            #relatedProductsSplide .product-info { padding: 8px 10px 10px; }
-            #relatedProductsSplide .wishlist-btn { width: 30px; height: 30px; top: 8px; right: 8px; }
-            #relatedProductsSplide .wishlist-btn i { font-size: 14px; }
-            #relatedProductsSplide .btn-add-cart { padding: 5px 8px; font-size: 11px; }
-            #relatedProductsSplide .rating-badge { font-size: 10px; padding: 3px 6px; left: 8px; bottom: 8px; }
-        }
-
-        .related-product-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            position: relative;
-            height: 420px;
-            max-height: 420px;
-            width: 280px;
-            min-width: 280px;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            flex-shrink: 0;
-            margin: 0 5px;
-        }
-
-        .related-product-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #00512C, #10B981);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .related-product-card:hover {
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
-        }
-
-        .related-product-card:hover::before {
-            opacity: 1;
-        }
-
-        .related-product-image-container {
-            position: relative;
-            overflow: hidden;
-            background: #f8fafc;
-            padding: 0;
-            height: 160px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .related-product-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-
-        .related-product-card:hover .related-product-image {
-            transform: none;
-        }
-
-        .related-product-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: linear-gradient(135deg, #10B981, #059669);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            z-index: 2;
-        }
-
-        .related-product-content {
-            padding: 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
-        .related-product-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 8px;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-
-        .related-product-title:hover {
-            color: #00512C;
-        }
-
-        .related-product-description {
-            font-size: 13px;
-            color: #64748b;
-            margin-bottom: 12px;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .related-product-rating {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            gap: 6px;
-        }
-
-        .related-product-stars {
-            color: #fbbf24;
-            font-size: 14px;
-        }
-
-        .related-product-rating-text {
-            font-size: 12px;
-            color: #64748b;
-        }
-
-        .related-product-price {
-            margin-bottom: 16px;
-        }
-
-        .related-product-current-price {
-            font-size: 20px;
-            font-weight: 800;
-            color: #00512C;
-            margin-right: 8px;
-        }
-
-        .related-product-original-price {
-            font-size: 16px;
-            color: #94a3b8;
-            text-decoration: line-through;
-        }
-
-        .related-product-actions {
-            margin-top: auto;
-            display: flex;
-            gap: 12px;
-        }
-
-        .related-product-btn {
-            flex: 1;
-            padding: 10px 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            text-decoration: none;
-        }
-
-        .related-product-btn-primary {
-            background: linear-gradient(135deg, #00512C, #10B981);
-            color: white;
-        }
-
-        .related-product-btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 81, 44, 0.3);
-            color: white;
-        }
-
-        .related-product-btn-secondary {
-            background: white;
-            color: #00512C;
-            border: 2px solid #e2e8f0;
-        }
-
-        .related-product-btn-secondary:hover {
-            border-color: #00512C;
-            background: #f0fdf4;
-            color: #00512C;
-        }
-
-        .related-product-wishlist {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            border: 2px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .related-product-wishlist:hover {
-            border-color: #ef4444;
-            color: #ef4444;
-            background: #fef2f2;
-        }
-
-        .related-product-wishlist.active {
-            border-color: #ef4444;
-            color: #ef4444;
-            background: #fef2f2;
-        }
-
-        /* Top Wishlist Button for All Product Cards */
-        .product-wishlist-top {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            background: rgba(255, 255, 255, 0.9);
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 10;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .product-wishlist-top:hover {
-            border-color: #ef4444;
-            color: #ef4444;
-            background: rgba(254, 242, 242, 0.95);
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-        }
-
-        .product-wishlist-top.active {
-            border-color: #ef4444;
-            color: #ef4444;
-            background: rgba(254, 242, 242, 0.95);
-        }
-
-        .product-wishlist-top i {
-            font-size: 16px;
-            transition: all 0.3s ease;
-        }
-
-        .product-wishlist-top:hover i {
-            transform: scale(1.1);
-        }
-
-        /* Swiper Navigation for Related Products */
-        .related-swiper .swiper-button-next,
-        .related-swiper .swiper-button-prev {
-            background: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            color: #00512C;
-            transition: all 0.3s ease;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .related-swiper .swiper-button-next:hover,
-        .related-swiper .swiper-button-prev:hover {
-            transform: scale(1.1);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-        }
-
-        .related-swiper .swiper-button-next:after,
-        .related-swiper .swiper-button-prev:after {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .related-swiper .swiper-button-next {
-            right: -30px;
-        }
-
-
-        .related-swiper .swiper-button-prev {
-            left: -30px;
-        }
-
-        .related-swiper .swiper-pagination {
-            bottom: 0px;
-        }
-
-        .related-swiper .swiper-pagination-bullet {
-            background: #cbd5e1;
-            opacity: 1;
-            width: 12px;
-            height: 12px;
-            margin: 0 6px;
-        }
-
-        .related-swiper .swiper-pagination-bullet-active {
-            background: #00512C;
-        }
-
-        /* Additional Animations and Effects */
-        .related-products {
-            animation: fadeInUp 0.8s ease-out;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .related-product-card {
-            animation: slideInUp 0.6s ease-out;
-        }
-
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Staggered animation for cards */
-        .related-product-card:nth-child(1) { animation-delay: 0.1s; }
-        .related-product-card:nth-child(2) { animation-delay: 0.2s; }
-        .related-product-card:nth-child(3) { animation-delay: 0.3s; }
-        .related-product-card:nth-child(4) { animation-delay: 0.4s; }
-        .related-product-card:nth-child(5) { animation-delay: 0.5s; }
-        .related-product-card:nth-child(6) { animation-delay: 0.6s; }
-        .related-product-card:nth-child(7) { animation-delay: 0.7s; }
-        .related-product-card:nth-child(8) { animation-delay: 0.8s; }
-
-        /* Loading skeleton animation */
-        .related-product-skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-
-        @keyframes loading {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
-        
-        /* Review Skeleton Loaders */
-        .review-skeleton {
-            background: #fff;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-        .review-skeleton-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        .review-skeleton-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            margin-right: 15px;
-        }
-        
-        .review-skeleton-user-info {
-            flex: 1;
-        }
-        
-        .review-skeleton-name {
-            height: 16px;
-            width: 150px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            margin-bottom: 8px;
-        }
-        
-        .review-skeleton-date {
-            height: 12px;
-            width: 100px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-        }
-        
-        .review-skeleton-rating {
-            height: 20px;
-            width: 120px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-        
-        .review-skeleton-text {
-            height: 14px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-        
-        .review-skeleton-text:first-of-type {
-            width: 100%;
-        }
-        
-        .review-skeleton-text:nth-of-type(2) {
-            width: 95%;
-        }
-        
-        .review-skeleton-text:nth-of-type(3) {
-            width: 85%;
-        }
-        
-        .review-skeleton-text:last-of-type {
-            width: 60%;
-            margin-bottom: 0;
-        }
-        
-        /* Rating Summary Skeleton */
-        .rating-summary-skeleton {
-            background: #fff;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-        .rating-summary-skeleton-circle {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            margin: 0 auto 15px;
-        }
-        
-        .rating-summary-skeleton-stars {
-            height: 20px;
-            width: 150px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            margin: 0 auto 10px;
-        }
-        
-        .rating-summary-skeleton-count {
-            height: 14px;
-            width: 100px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            margin: 0 auto 20px;
-        }
-        
-        .rating-summary-skeleton-bar {
-            height: 8px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            margin-bottom: 12px;
-        }
-        
-        .rating-summary-skeleton-bar:nth-child(1) { width: 90%; }
-        .rating-summary-skeleton-bar:nth-child(2) { width: 70%; }
-        .rating-summary-skeleton-bar:nth-child(3) { width: 50%; }
-        .rating-summary-skeleton-bar:nth-child(4) { width: 30%; }
-        .rating-summary-skeleton-bar:nth-child(5) { width: 15%; }
-
-        /* Hover effects for interactive elements */
-        .related-product-title {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .related-product-title::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: -100%;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, #00512C, #10B981);
-            transition: left 0.3s ease;
-        }
-
-        .related-product-title:hover::after {
-            left: 0;
-        }
-
-        /* Pulse animation for featured badge */
-        .related-product-badge {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        /* Smooth transitions for all interactive elements */
-        .related-product-btn,
-        .related-product-wishlist,
-        .related-product-title,
-        .related-product-image {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 1200px) {
-            
-            .related-products {
-                padding: 40px 0 5px 0;
-            }
-            
-            .related-products h2 {
-                font-size: 32px;
-            }
-            
-            .related-swiper .swiper-button-next {
-                right: -25px;
-            }
-            
-            .related-swiper .swiper-button-prev {
-                left: -25px;
-            }
-            
-            .related-products-container {
-                padding: 0;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .related-products {
-                padding: 30px 0 5px 0;
-            }
-            
-            .related-products h2 {
-                font-size: 28px;
-            }
-            
-            .related-products-subtitle {
-                font-size: 16px;
-            }
-            
-            .related-product-card {
-                border-radius: 16px;
-                height: 380px;
-                max-height: 380px;
-                width: 260px;
-                min-width: 260px;
-            }
-            
-            .related-product-image-container {
-                height: 140px;
-                padding: 0;
-            }
-            
-            .related-product-content {
-                padding: 16px;
-            }
-            
-            .related-product-title {
-                font-size: 15px;
-            }
-            
-            .related-product-description {
-                font-size: 12px;
-                margin-bottom: 10px;
-            }
-            
-            .related-product-current-price {
-                font-size: 18px;
-            }
-            
-            .related-product-original-price {
-                font-size: 14px;
-            }
-            
-            .related-product-btn {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-            
-            .related-product-wishlist {
-                width: 36px;
-                height: 36px;
-            }
-            
-            .related-swiper .swiper-button-next,
-            .related-swiper .swiper-button-prev {
-                width: 40px;
-                height: 40px;
-                display: none; /* Hide on mobile for cleaner look */
-            }
-            
-            .related-products-container {
-                padding: 0;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .related-products {
-                padding: 25px 0 5px 0;
-            }
-            
-            .related-products h2 {
-                font-size: 24px;
-            }
-            
-            .related-products-subtitle {
-                font-size: 14px;
-            }
-            
-            .related-product-card {
-                height: 360px;
-                max-height: 360px;
-                width: 240px;
-                min-width: 240px;
-            }
-            
-            .related-product-image-container {
-                height: 120px;
-                padding: 0;
-            }
-            
-            .related-product-content {
-                padding: 14px;
-            }
-            
-            .related-products-container {
-                padding: 0;
-            }
-            
-            .related-product-actions {
-                flex-direction: column;
-                gap: 8px;
-            }
-            
-            .related-product-btn {
-                width: 100%;
-                padding: 8px 10px;
-                font-size: 11px;
-            }
-            
-            .related-product-wishlist {
-                width: 100%;
-                height: 36px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .product-section {
-                padding: 15px 0;
-            }
-
-            .container {
-                padding-left: 15px;
-                padding-right: 15px;
-            }
-
-            .product-main {
-                flex-direction: column;
-                margin-bottom: 25px;
-                border-radius: 16px;
-            }
-
-            /* Gallery improvements for mobile */
-            .product-gallery {
-                margin-bottom: 20px;
-                padding: 0 10px;
-            }
-
-            .product-main .col-lg-6,
-            .product-main .col-md-7,
-            .product-main .col-md-5 {
-                padding-left: 15px !important;
-                padding-right: 15px !important;
-                padding-top: 15px !important;
-            }
-
-            .product-main .col-lg-6[style*="padding"],
-            .product-main .col-md-7[style*="padding"],
-            .product-main .col-md-5[style*="padding"] {
-                padding: 15px !important;
-            }
-
-            .product-info {
-                padding: 20px 15px;
-            }
-
-            .product-info h1 {
-                font-size: 24px;
-                line-height: 1.3;
-                margin-bottom: 15px;
-            }
-
-            .product-price .fw-bold {
-                font-size: 28px;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-                gap: 12px;
-                margin-top: 20px;
-            }
-
-            .btn-add-cart,
-            .btn-outline-custom {
-                width: 100%;
-                justify-content: center;
-                padding: 12px 20px;
-                font-size: 16px;
-            }
-
-            .tab-nav {
-                flex-wrap: wrap;
-                gap: 8px;
-                margin-top: 20px;
-            }
-
-            .tab-btn {
-                padding: 12px 16px;
-                font-size: 14px;
-                border-radius: 8px;
-                margin-bottom: 8px;
-            }
-
-            .rating-breakdown {
-                flex-direction: column;
-                align-items: center;
-                gap: 20px;
-            }
-
-            /* Improved mobile spacing */
-            .product-info > * {
-                margin-bottom: 15px;
-            }
-
-            .product-info > *:last-child {
-                margin-bottom: 0;
-            }
-
-            .size-chart-img {
-                max-width: 200px;
-                max-height: 200px;
-            }
-
-            .size-chart-title {
-                font-size: 13px;
-                margin-bottom: 6px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .container {
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-
-            .product-main .col-lg-6,
-            .product-main .col-md-7,
-            .product-main .col-md-5 {
-                padding-left: 10px !important;
-                padding-right: 10px !important;
-                padding-top: 10px !important;
-            }
-
-            .product-main .col-lg-6[style*="padding"],
-            .product-main .col-md-7[style*="padding"],
-            .product-main .col-md-5[style*="padding"] {
-                padding: 10px !important;
-            }
-
-            .product-gallery {
-                padding: 0 5px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .container {
-                padding-left: 8px;
-                padding-right: 8px;
-            }
-
-            .product-info {
-                padding: 16px 12px;
-            }
-
-            .product-main .col-lg-6,
-            .product-main .col-md-7,
-            .product-main .col-md-5 {
-                padding-left: 8px !important;
-                padding-right: 8px !important;
-                padding-top: 8px !important;
-            }
-
-            .product-main .col-lg-6[style*="padding"],
-            .product-main .col-md-7[style*="padding"],
-            .product-main .col-md-5[style*="padding"] {
-                padding: 8px !important;
-            }
-
-            .product-gallery {
-                padding: 0;
-            }
-
-            .product-info h1 {
-                font-size: 20px;
-                line-height: 1.2;
-                margin-bottom: 12px;
-            }
-
-            .product-price .fw-bold {
-                font-size: 24px;
-            }
-
-            .action-buttons {
-                gap: 10px;
-                margin-top: 15px;
-            }
-
-            .btn-add-cart,
-            .btn-outline-custom {
-                padding: 12px 16px;
-                font-size: 15px;
-            }
-
-            .size-chart-img {
-                max-width: 220px;
-                max-height: 180px;
-            }
-
-            .size-chart-title {
-                font-size: 12px;
-                margin-bottom: 5px;
-            }
-
-            .quantity-selector {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
-                margin-top: 15px;
-            }
-
-            .quantity-controls {
-                justify-content: center;
-            }
-
-            .rating-number {
-                font-size: 40px;
-            }
-
-            .rating-stars {
-                font-size: 20px;
-            }
-
-            /* Improved mobile spacing */
-            .product-info > * {
-                margin-bottom: 12px;
-            }
-
-            .product-info > *:last-child {
-                margin-bottom: 0;
-            }
-        }
-
-        /* Product Variations */
-        .variation-group {
-            margin-bottom: 20px;
-        }
-
-        .color-option, .size-option {
-            transition: all 0.2s ease;
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: none;
-			cursor: pointer;
-			position: relative;
-        }
-
-        .color-image-btn {
-            width: 60px;
-            height: 60px;
-            overflow: hidden;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .color-image-btn img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .color-image-btn .color-label {
-            font-size: 12px;
-            font-weight: 500;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
-
-        /* Color Image Selection Styles */
-
-        .color-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-
-        .color-label {
-            font-size: 10px;
-            font-weight: 600;
-            text-align: center;
-            line-height: 1;
-            padding: 2px;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-            display: block;
-        }
-
-        .color-image-btn[style*="background-color: #ffffff"] .color-label,
-        .color-image-btn[style*="background-color: #f9fafb"] .color-label {
-            color: #333;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.7);
-        }
-
-        .color-image-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .color-image-btn.active {
-            transform: scale(1.15);
-            box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.5);
-            border: 2px solid #ff6a00 !important;
-        }
-
-        .color-option:hover, .size-option:hover {
-            border-color: #ff6a00 !important;
-        }
-
-        .color-option.active, .size-option.active {
-            border-color: #ff6a00 !important; /* orange */
-            box-shadow: 0 0 0 2px rgba(255,106,0,0.15);
-            background-color: #fff7f0 !important;
-            color: #222 !important;
-        }
-
-        /* Variation active class for JavaScript overrides */
-        .variation-active {
-            border-color: #ff6a00 !important;
-            box-shadow: 0 0 0 2px rgba(255,106,0,0.15) !important;
-            background-color: #fff7f0 !important;
-            color: #222 !important;
-        }
-
-        .size-option {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            pointer-events: auto;
-        }
-
-        .variation-info {
-            background: #f8fafc !important;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-        }
-
-        .custom-toast {
-            min-width: 220px;
-            max-width: 340px;
-            background: #fff;
-            color: #222;
-            padding: 0;
-            border-radius: 10px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-            font-size: 16px;
-            opacity: 1;
-            transition: opacity 0.4s, transform 0.4s;
-            margin-left: auto;
-            margin-right: 0;
-            pointer-events: auto;
-            z-index: 16000;
-            overflow: hidden;
-            border-left: 5px solid #2196F3;
-            position: relative;
-        }
-
-        .custom-toast.error {
-            border-left-color: #e53935;
-        }
-
-        .custom-toast .toast-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px 18px 14px 16px;
-        }
-
-        .custom-toast .toast-icon {
-            font-size: 22px;
-            flex-shrink: 0;
-        }
-
-        .custom-toast .toast-message {
-            flex: 1;
-            font-weight: 500;
-        }
-
-        .custom-toast .toast-close {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 22px;
-            cursor: pointer;
-            margin-left: 8px;
-            transition: color 0.2s;
-        }
-
-        .custom-toast .toast-close:hover {
-            color: #e53935;
-        }
-
-        .custom-toast .toast-progress {
-            position: absolute;
-            left: 0;
-            bottom: 0;
-            height: 3px;
-            width: 100%;
-            background: linear-gradient(90deg, #2196F3, #21cbf3);
-            transition: width 2.3s linear;
-        }
-
-        .custom-toast.error .toast-progress {
-            background: linear-gradient(90deg, #e53935, #ffb199);
-        }
-
-        .custom-toast.hide {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.98);
-        }
-
-        /* Image Upload Styles */
-        .image-upload-container {
-            position: relative;
-        }
-
-        .image-upload-area {
-            border: 2px dashed #d1d5db;
-            border-radius: 12px;
-            padding: 32px 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #f9fafb;
-        }
-
-        .image-upload-area:hover {
-            border-color: #00512C;
-            background: #f0fdf4;
-        }
-
-        .upload-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .upload-text {
-            margin: 8px 0 4px 0;
-            color: #374151;
-            font-weight: 500;
-        }
-
-        .image-preview {
-            position: relative;
-            margin-top: 16px;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #e5e7eb;
-        }
-
-        .preview-image {
-            width: 100%;
-            max-width: 200px;
-            height: 150px;
-            object-fit: cover;
-            display: block;
-        }
-
-        .remove-image-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .remove-image-btn:hover {
-            background: rgba(220, 38, 38, 1);
-            transform: scale(1.1);
-        }
-
-
-        /* Image Modal Styles */
-        .image-modal {
-            display: none;
-            position: fixed;
-            z-index: 16000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            cursor: pointer;
-        }
-
-        .image-modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-        }
-
-        .image-modal-close {
-            position: absolute;
-            top: 20px;
-            right: 35px;
-            color: #f1f1f1;
-            font-size: 40px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 10000;
-        }
-
-        .image-modal-close:hover {
-            color: #bbb;
-        }
-
-        /* Size Chart Styles */
-        .size-chart-section {
-            margin: 15px 0;
-        }
-
-        .size-chart-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #374151;
-        }
-
-        /* .size-chart-image-container {
-            text-align: center;
-        } */
-
-        .size-chart-img {
-            max-height: 200px;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            border-radius: 4px;
-            cursor: pointer;
-            display: inline-block;
-        }
-
-        .size-chart-img:hover {
-            opacity: 0.9;
-        }
-        /* Base styles for product short description */
-        .product-short-desc {
-            font-size: 18px;
-            line-height: 1.65;
-            color: #1f2937;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-
-        .product-short-desc p {
-            margin-bottom: 14px;
-        }
-
-        .product-short-desc ul,
-        .product-short-desc ol {
-            margin-bottom: 14px;
-        }
-
-        .product-short-desc img {
-            max-width: 100%;
-            height: auto;
-        }
-
-        /* Table styles in product short description */
-        .product-short-desc table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 15px 0;
-            border: 1px solid #ddd;
-        }
-        .product-short-desc table td,
-        .product-short-desc table th {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        .product-short-desc table th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-        .product-short-desc table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        /* Mobile Responsive Styles for Short Description */
-        @media (max-width: 768px) {
-            .product-short-desc {
-                font-size: 16px !important;
-                line-height: 1.6 !important;
-                padding: 0 4px;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            }
-
-            .product-short-desc p {
-                margin-bottom: 12px;
-            }
-
-            .product-short-desc ul,
-            .product-short-desc ol {
-                padding-left: 20px;
-                margin-bottom: 12px;
-            }
-
-            .product-short-desc li {
-                margin-bottom: 6px;
-            }
-
-            /* Make tables scrollable on mobile */
-            .product-short-desc table {
-                display: block;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin: 12px 0;
-                font-size: 14px;
-                border: none;
-                border-collapse: separate;
-                border-spacing: 0;
-            }
-
-            .product-short-desc table td,
-            .product-short-desc table th {
-                border: 1px solid #ddd;
-                padding: 6px 8px;
-                font-size: 13px;
-                white-space: nowrap;
-            }
-
-            /* Remove double borders on mobile */
-            .product-short-desc table td:first-child,
-            .product-short-desc table th:first-child {
-                border-left: 1px solid #ddd;
-            }
-
-            .product-short-desc table td:last-child,
-            .product-short-desc table th:last-child {
-                border-right: 1px solid #ddd;
-            }
-
-            .product-short-desc img {
-                max-width: 100% !important;
-                height: auto !important;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .product-short-desc {
-                font-size: 15px !important;
-                line-height: 1.55 !important;
-                padding: 0 2px;
-            }
-
-            .product-short-desc table {
-                font-size: 13px;
-                margin: 10px 0;
-                border: none;
-                border-collapse: separate;
-                border-spacing: 0;
-            }
-
-            .product-short-desc table td,
-            .product-short-desc table th {
-                border: 1px solid #ddd;
-                padding: 5px 6px;
-                font-size: 12px;
-            }
-
-            .product-short-desc table td:first-child,
-            .product-short-desc table th:first-child {
-                border-left: 1px solid #ddd;
-            }
-
-            .product-short-desc table td:last-child,
-            .product-short-desc table th:last-child {
-                border-right: 1px solid #ddd;
-            }
-
-            .product-short-desc ul,
-            .product-short-desc ol {
-                padding-left: 18px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .product-short-desc {
-                font-size: 14px !important;
-                line-height: 1.5 !important;
-                margin-bottom: 16px !important;
-            }
-
-            .product-short-desc table {
-                font-size: 12px;
-                margin: 8px 0;
-                border: none;
-                border-collapse: separate;
-                border-spacing: 0;
-            }
-
-            .product-short-desc table td,
-            .product-short-desc table th {
-                border: 1px solid #ddd;
-                padding: 4px 5px;
-                font-size: 11px;
-            }
-
-            .product-short-desc table td:first-child,
-            .product-short-desc table th:first-child {
-                border-left: 1px solid #ddd;
-            }
-
-            .product-short-desc table td:last-child,
-            .product-short-desc table th:last-child {
-                border-right: 1px solid #ddd;
-            }
-
-            .product-short-desc p {
-                margin-bottom: 10px;
-            }
-
-            .product-short-desc ul,
-            .product-short-desc ol {
-                padding-left: 16px;
-                margin-bottom: 10px;
-            }
-        }
-
-        @media (max-width: 360px) {
-            .product-short-desc {
-                font-size: 13px !important;
-            }
-
-            .product-short-desc table {
-                border: none;
-                border-collapse: separate;
-                border-spacing: 0;
-            }
-
-            .product-short-desc table td,
-            .product-short-desc table th {
-                border: 1px solid #ddd;
-                padding: 3px 4px;
-                font-size: 10px;
-            }
-
-            .product-short-desc table td:first-child,
-            .product-short-desc table th:first-child {
-                border-left: 1px solid #ddd;
-            }
-
-            .product-short-desc table td:last-child,
-            .product-short-desc table th:last-child {
-                border-right: 1px solid #ddd;
-            }
-        }
-    </style>
-
-    <div class="container" style="max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box;">
-        <div class="product-main row" data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}" style="margin: 0; width: 100%; max-width: 100%;">
-            <!-- Product Gallery -->
-            <div class="col-lg-6 col-md-7 col-12" style="padding: 20px; min-width: 0;">
-                <div class="product-gallery">
-                    <!-- Main Swiper -->
-                    <div class="swiper main-swiper">
-                        <div class="swiper-wrapper">
-                            <!-- Main product image -->
-                            <div class="swiper-slide" data-image-type="product">
-                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="main-image" loading="eager" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
-                            </div>
-                            <!-- Product galleries -->
-                            @foreach($product->galleries as $gallery)
-                                <div class="swiper-slide" data-image-type="gallery">
-                                    <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" class="main-image" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
+    <div class="product-details-page">
+        <div class="container">
+            <div class="pd-main-container" data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
+                <!-- Product Gallery -->
+                <div class="pd-gallery-section">
+                    <div class="pd-gallery-wrapper position-relative">
+                        <!-- Floating Wishlist Button -->
+                        <button type="button" class="pd-main-wishlist-btn {{ $product->is_wishlisted ? 'active' : '' }}" 
+                                data-product-id="{{ $product->id }}" 
+                                onclick="toggleWishlist({{ $product->id }}, this)">
+                            <i class="{{ $product->is_wishlisted ? 'fas' : 'far' }} fa-heart"></i>
+                        </button>
+                        <!-- Main Swiper -->
+                        <div class="swiper pd-main-swiper main-image-swiper">
+                            <div class="swiper-wrapper">
+                                <!-- Main product image -->
+                                <div class="swiper-slide" data-image-type="product">
+                                    <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" class="main-image" loading="eager" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                                 </div>
-                            @endforeach
-                            <!-- Variation images (hidden by default) -->
-                            @if($product->has_variations)
-                                @foreach($product->variations as $variation)
-                                    @if($variation->image)
-                                        <div class="swiper-slide variation-image-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation" style="display: none;">
-                                            <img src="{{ asset($variation->image) }}" alt="{{ $variation->name }}" class="main-image" loading="lazy">
-                                        </div>
-                                    @endif
-                                    @foreach($variation->galleries as $gallery)
-                                        <div class="swiper-slide variation-gallery-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation-gallery" style="display: none;">
-                                            <img src="{{ asset($gallery->image) }}" alt="{{ $variation->name }}" class="main-image" loading="lazy">
-                                        </div>
-                                    @endforeach
+                                <!-- Product galleries -->
+                                @foreach($product->galleries as $gallery)
+                                    <div class="swiper-slide" data-image-type="gallery">
+                                        <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" class="main-image" loading="lazy" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
+                                    </div>
                                 @endforeach
-                            @endif
+                                <!-- Variation images (hidden by default) -->
+                                @if($product->has_variations)
+                                    @foreach($product->variations as $variation)
+                                        @if($variation->image)
+                                            <div class="swiper-slide variation-image-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation" style="display: none;">
+                                                <img src="{{ asset($variation->image) }}" alt="{{ $variation->name }}" class="main-image" loading="lazy">
+                                            </div>
+                                        @endif
+                                        @foreach($variation->galleries as $gallery)
+                                            <div class="swiper-slide variation-gallery-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation-gallery" style="display: none;">
+                                                <img src="{{ asset($gallery->image) }}" alt="{{ $variation->name }}" class="main-image" loading="lazy">
+                                            </div>
+                                        @endforeach
+                                    @endforeach
+                                @endif
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Thumbnail Swiper -->
-                    <div class="swiper thumb-swiper">
-                        <div class="swiper-wrapper">
-                            <!-- Main product image thumbnail -->
-                            <div class="swiper-slide" data-image-type="product">
-                                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
-                            </div>
-                            <!-- Product gallery thumbnails -->
-                            @foreach($product->galleries as $gallery)
-                                <div class="swiper-slide" data-image-type="gallery">
-                                    <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
+                        
+                        <!-- Thumbnail Swiper -->
+                        <div class="swiper pd-thumb-swiper thumb-swiper">
+                            <div class="swiper-wrapper">
+                                <!-- Main product image thumbnail -->
+                                <div class="swiper-slide" data-image-type="product">
+                                    <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                                 </div>
-                            @endforeach
-                            <!-- Variation image thumbnails (hidden by default) -->
-                            @if($product->has_variations)
-                                @foreach($product->variations as $variation)
-                                    @if($variation->image)
-                                        <div class="swiper-slide variation-thumb-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation" style="display: none;">
-                                            <img src="{{ asset($variation->image) }}" alt="{{ $variation->name }}">
-                                        </div>
-                                    @endif
-                                    @foreach($variation->galleries as $gallery)
-                                        <div class="swiper-slide variation-gallery-thumb-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation-gallery" style="display: none;">
-                                            <img src="{{ asset($gallery->image) }}" alt="{{ $variation->name }}">
-                                        </div>
-                                    @endforeach
+                                <!-- Product gallery thumbnails -->
+                                @foreach($product->galleries as $gallery)
+                                    <div class="swiper-slide" data-image-type="gallery">
+                                        <img src="{{ asset($gallery->image) }}" alt="{{ $product->name }}" onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
+                                    </div>
                                 @endforeach
-                            @endif
+                                <!-- Variation image thumbnails (hidden by default) -->
+                                @if($product->has_variations)
+                                    @foreach($product->variations as $variation)
+                                        @if($variation->image)
+                                            <div class="swiper-slide variation-thumb-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation" style="display: none;">
+                                                <img src="{{ asset($variation->image) }}" alt="{{ $variation->name }}">
+                                            </div>
+                                        @endif
+                                        @foreach($variation->galleries as $gallery)
+                                            <div class="swiper-slide variation-gallery-thumb-slide" data-variation-id="{{ $variation->id }}" data-image-type="variation-gallery" style="display: none;">
+                                                <img src="{{ asset($gallery->image) }}" alt="{{ $variation->name }}">
+                                            </div>
+                                        @endforeach
+                                    @endforeach
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- Product Info -->
-            <div class="col-lg-6 col-md-5 col-12" style="padding-top: 20px;">
-                <div class="product-info">
-                    <h1>{{ $product->name }}</h1>
-                    <div class="product-price">
+                <!-- Product Info -->
+                <div class="pd-info-section">
+                    <div class="pd-premium-badge"><i class="fas fa-crown me-2"></i>Premium Selection</div>
+                    <h1 class="pd-title">{{ $product->name }} <small class="text-muted" style="font-size: 0.6em;">(#{{ $product->style_number ?? $product->sku }})</small></h1>
+                    
+                    <div class="pd-rating-row">
+                        <div class="pd-stars">
+                            @php
+                                $avgRating = $product->averageRating() ?? 0;
+                                $fullStars = floor($avgRating);
+                                $hasHalfStar = ($avgRating - $fullStars) >= 0.5;
+                            @endphp
+                            @for($i = 1; $i <= 5; $i++)
+                                @if($i <= $fullStars)
+                                    <i class="fas fa-star"></i>
+                                @elseif($i == $fullStars + 1 && $hasHalfStar)
+                                    <i class="fas fa-star-half-alt"></i>
+                                @else
+                                    <i class="far fa-star"></i>
+                                @endif
+                            @endfor
+                        </div>
+                        <span class="pd-rating-text">({{ number_format($avgRating, 1) }} / 5.0 Rating)</span>
+                    </div>
+
+                    <div class="pd-price-container">
                         @php
                             $effectivePrice = $product->effective_price;
                             $originalPrice = $product->original_price;
                             $hasDiscount = $product->hasDiscount();
                         @endphp
                         @if($hasDiscount && $effectivePrice < $originalPrice)
-                            <span class="fw-bold current-price">
+                            <span class="pd-current-price">
                                 TK. {{ number_format($effectivePrice, 0) }}
                             </span>
-                            <span class="text-muted text-decoration-line-through ms-2 original-price">
+                            <span class="pd-original-price">
                                 TK. {{ number_format($originalPrice, 0) }}
                             </span>
                         @else
-                            <span class="fw-bold current-price">
+                            <span class="pd-current-price">
                                 TK. {{ number_format($originalPrice, 0) }}
                             </span>
                         @endif
                     </div>
 
-                    <div class="product-rating" id="product-rating">
-                        <div class="stars" id="rating-stars">
-                            @php
-                                $avgRating = $product->averageRating() ?? 0;
-                                $fullStars = floor($avgRating);
-                                $hasHalfStar = $avgRating - $fullStars >= 0.5;
-                            @endphp
-                            @for($i = 1; $i <= 5; $i++)
-                                @if($i <= $fullStars)
-                                    ★
-                                @elseif($i == $fullStars + 1 && $hasHalfStar)
-                                    ☆
-                                @else
-                                    ☆
-                                @endif
-                            @endfor
-                        </div>
-                    </div>
-
                     @if (!empty($product->short_desc))
-                    <div class="mt-2 mb-3 product-short-desc" style="color:#1f2937; font-weight: 600;">
+                    <div class="pd-description-brief">
                         {!! $product->getCleanHtml('short_desc') !!}
                     </div>
                     @endif
@@ -3411,592 +161,435 @@
 
                     @if($product->has_variations)
                     @php
-                    $attributeGroups = [];
-                    $variationImages = []; // Map attribute value IDs to variation images
-                    
-                    foreach (($product->variations ?? []) as $variation) {
-                        foreach (($variation->combinations ?? []) as $comb) {
-                            if (!$comb->attribute || !$comb->attributeValue) { continue; }
-                            $attrId = $comb->attribute->id;
-                            $valId = $comb->attributeValue->id;
-                            $attributeGroups[$attrId]['name'] = $comb->attribute->name;
-                            
-                            // Use variation image if available, otherwise use attribute value image
-                            $imageToUse = $variation->image ? asset($variation->image) : ($comb->attributeValue->image ?? null);
-                            
-                            // Persist value label + optional image and color_code from backend
-                            $attributeGroups[$attrId]['values'][$valId] = [
-                                'label' => $comb->attributeValue->value,
-                                'image' => $imageToUse,
-                                'color_code' => $comb->attributeValue->color_code ?? null,
-                            ];
-                            
-                            // Store variation image for this attribute value
-                            if ($variation->image) {
-                                $variationImages[$valId] = asset($variation->image);
+                        $attributeGroups = [];
+                        foreach ($product->variations as $variation) {
+                            foreach ($variation->combinations as $combination) {
+                                $attr = $combination->attribute;
+                                $val = $combination->attributeValue;
+                                if (!$attr || !$val) continue;
+
+                                if (!isset($attributeGroups[$attr->id])) {
+                                    $attributeGroups[$attr->id] = [
+                                        'name' => $attr->name,
+                                        'values' => []
+                                    ];
+                                }
+                                if (!isset($attributeGroups[$attr->id]['values'][$val->id])) {
+                                    $attributeGroups[$attr->id]['values'][$val->id] = [
+                                        'label' => $val->value,
+                                        'color_code' => $val->color_code,
+                                        'image' => $val->image
+                                    ];
+                                }
                             }
                         }
-                    }
                     @endphp
-
-                    <div class="variation-section mt-3">
+                    <div class="pd-variation-section">
                         @foreach($attributeGroups as $attrId => $group)
-                            <div class="product-info-section">
-                                <div class="section-label">{{ strtoupper($group['name']) }}:</div>
-                                <div class="d-flex align-items-center gap-2 flex-wrap" data-attribute-id="{{ $attrId }}" style="margin-top: 4px;">
+                            <div class="pd-variation-group">
+                                <div class="pd-variation-label">{{ strtoupper($group['name']) }}:</div>
+                                <div class="pd-variation-options" data-attribute-id="{{ $attrId }}">
                                     @foreach($group['values'] as $valId => $val)
                                         @php
                                             $isColor = strtolower($group['name']) === 'color';
-                                            $buttonClass = $isColor ? 'color-option' : 'size-option';
+                                            $baseClass = $isColor ? 'pd-color-btn' : 'pd-size-btn';
                                             $label = is_array($val) ? ($val['label'] ?? (string)$val) : (string)$val;
                                             $imgPath = is_array($val) ? ($val['image'] ?? null) : null;
                                             $colorCode = is_array($val) ? ($val['color_code'] ?? null) : null;
                                         @endphp
                                         @if($isColor)
-                                            @if(!empty($imgPath))
-                                                <button type="button" class="{{ $buttonClass }} color-image-btn" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}">
-                                                    <img src="{{ asset($imgPath) }}" alt="{{ $label }}" class="color-image">
-                                                </button>
-                                            @elseif(!empty($colorCode))
-                                                <button type="button" class="{{ $buttonClass }} color-image-btn" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}" style="background-color: {{ $colorCode }};">
-                                                    <span class="color-label">{{ $label }}</span>
-                                                </button>
-                                            @else
-                                                <button type="button" class="{{ $buttonClass }} color-image-btn" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}">
-                                                    <span class="color-label">{{ $label }}</span>
-                                                </button>
-                                            @endif
+                                            <button type="button" class="{{ $baseClass }}" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}" title="{{ $label }}">
+                                                @if(!empty($imgPath))
+                                                    <img src="{{ asset($imgPath) }}" alt="{{ $label }}">
+                                                @elseif(!empty($colorCode))
+                                                    <span class="color-preview" style="background-color: {{ $colorCode }};"></span>
+                                                @else
+                                                    <span class="color-text-fallback">{{ $label }}</span>
+                                                @endif
+                                            </button>
                                         @else
-                                            <button type="button" class="{{ $buttonClass }}" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}">{{ $label }}</button>
+                                            <button type="button" class="{{ $baseClass }}" data-attr-id="{{ $attrId }}" data-value-id="{{ $valId }}" data-label="{{ $label }}">{{ $label }}</button>
                                         @endif
                                     @endforeach
                                 </div>
-                                @if(false)
-                                <!-- stock inline moved to a single global container below -->
-                                @endif
                             </div>
                         @endforeach
-
-                        <!-- Inline stock display under SIZE group (shown only when size attribute exists) -->
-                        @php
-                            $hasSizeAttr = false;
-                            foreach ($attributeGroups as $ag) {
-                                if (strtolower($ag['name'] ?? '') === 'size') { $hasSizeAttr = true; break; }
-                            }
-                        @endphp
-                        @if($hasSizeAttr)
-                        <div class="mt-2" id="size-stock-inline" style="color:#111827; font-weight:600;"
-                             data-has-variations="{{ $product->has_variations ? '1' : '0' }}"
-                             data-initial-stock="{{ isset($product->available_stock) ? $product->available_stock : ($product->stock ?? 0) }}">
-                        </div>
-                        @endif
-
-                        <!-- Always keep a fallback container so stock can render even without SIZE attribute -->
-                        <div class="mt-2" id="inline-stock-display" style="color:#111827; font-weight:600;"></div>
-
-                        
 
                         <input type="hidden" id="selected-variation-id" value="">
                         <div id="selected-attribute-values" style="display:none;"></div>
 
-                        <div class="variation-info p-3 mt-3 bg-light border rounded">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div>
-                                    <div class="small text-muted">Selected Variation</div>
-                                    <div id="selected-variation-name" class="fw-semibold text-muted">Please select options above</div>
+                        <div class="pd-selected-info">
+                            <div class="pd-info-grid">
+                                <div class="pd-info-item">
+                                    <span class="pd-info-label">Selected Variation</span>
+                                    <span id="selected-variation-name" class="pd-info-value">Please select options above</span>
                                 </div>
-                                <div class="text-end">
-                                    <div class="small text-muted">Price</div>
-                                    <div id="selected-variation-price" class="fw-semibold text-muted">—</div>
+                                <div class="pd-info-item text-end">
+                                    <span class="pd-info-label">Price</span>
+                                    <span id="selected-variation-price" class="pd-info-value">—</span>
                                 </div>
                             </div>
-                            <div class="mt-2 small text-muted" id="selected-variation-stock">Select your preferences to see availability</div>
+                            <div class="pd-stock-status mt-2" id="selected-variation-stock">
+                                <i class="fas fa-info-circle me-1"></i> Select your preferences to see availability
+                            </div>
                         </div>
                     </div>
                     @endif
-
-                    <!-- Make stock helper available before variation scripts -->
-                    <script>
-                        window.setInlineStock = function(qty) {
-                            var el = document.getElementById('size-stock-inline') || document.getElementById('inline-stock-display');
-                            if (!el) return;
-                            var n = (qty != null ? Number(qty) : NaN);
-                            if ((qty == null || isNaN(n)) && document.getElementById('selected-variation-stock')) {
-                                var raw = document.getElementById('selected-variation-stock').textContent || '';
-                                var m = raw.match(/(\d+)/);
-                                if (m) n = Number(m[1]);
-                            }
-                            if (!isNaN(n) && n > 0) {
-                                el.textContent = 'In stock: ' + n;
-                                el.style.color = '#111827';
-                            } else if (!isNaN(n) && n === 0) {
-                                el.textContent = 'Out of stock';
-                                el.style.color = 'red';
-                            } else {
-                                el.textContent = '';
-                            }
-                        };
-
-                        // Keep inline stock in sync with any updates to the hidden summary text
-                        // Optimized with cleanup to prevent memory leaks
-                        (function(){
-                            var src = document.getElementById('selected-variation-stock');
-                            if (!src) return;
-                            var mo = null;
-                            var sync = function(){
-                                var raw = src.textContent || '';
-                                var m = raw.match(/(\d+)/);
-                                if (m) { window.setInlineStock(Number(m[1])); }
-                            };
-                            try {
-                                mo = new MutationObserver(function(){ sync(); });
-                                mo.observe(src, { characterData:true, childList:true, subtree:true });
-                                // one immediate sync in case resolve already happened
-                                sync();
-                                
-                                // Cleanup on page unload
-                                window.addEventListener('beforeunload', function() {
-                                    if (mo) {
-                                        mo.disconnect();
-                                        mo = null;
-                                    }
-                                });
-                            } catch (e) { /* noop */ }
-                        })();
-
-                        // Unified actions toggle for Add to Cart and Buy Now
-                        window.updateActionButtons = function(qty, isComplete) {
-                            var addBtn = document.querySelector('.btn-add-cart');
-                            var buyNowBtn = document.querySelector('.btn-buy-now');
-                            var n = (qty != null ? Number(qty) : NaN);
-                            var enable = (isComplete === true) && !isNaN(n) && n > 0;
-                            if (addBtn) {
-                                addBtn.disabled = !enable;
-                                if (addBtn.disabled) { addBtn.setAttribute('disabled','disabled'); } else { addBtn.removeAttribute('disabled'); }
-                            }
-                            if (buyNowBtn) {
-                                buyNowBtn.disabled = !enable;
-                                if (buyNowBtn.disabled) { buyNowBtn.setAttribute('disabled','disabled'); } else { buyNowBtn.removeAttribute('disabled'); }
-                            }
-                        };
-                    </script>
 
                     <!-- Variation Scripts - Moved to component for AJAX compatibility and performance -->
                     @if($product->has_variations)
                         @include('ecommerce.components.product-variation-scripts')
                     @endif
 
-                    <div class="purchase-row">
-                        <div class="quantity-selector">
-                            <div class="quantity-controls">
-                                <button class="quantity-btn" type="button" onclick="changeQuantity(-1)">-</button>
-                                <input type="number" class="quantity-input" id="quantityInput" name="quantity" value="1" min="1" max="10">
-                                <button class="quantity-btn" type="button" onclick="changeQuantity(1)">+</button>
-                            </div>
+                    <div class="pd-purchase-actions">
+                        <div class="pd-quantity-selector">
+                            <button class="pd-qty-btn" type="button" onclick="changeQuantity(-1)"><i class="fas fa-minus"></i></button>
+                            <input type="number" class="pd-qty-input" id="quantityInput" name="quantity" value="1" min="1" max="100" readonly>
+                            <button class="pd-qty-btn" type="button" onclick="changeQuantity(1)"><i class="fas fa-plus"></i></button>
                         </div>
 
                         @php
                             $hasStock = $product->hasStock();
                         @endphp
-                        <button class="btn btn-add-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-has-stock="{{ $hasStock ? 'true' : 'false' }}"
+                        <button class="pd-btn-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-has-stock="{{ $hasStock ? 'true' : 'false' }}"
                                 {{ (!$hasStock || $product->has_variations) ? 'disabled' : '' }}>
-                            {{ $hasStock ? 'Add To Cart' : 'Out of Stock' }}
+                            <i class="fas fa-shopping-basket me-2"></i> {{ $hasStock ? 'Add To Cart' : 'Out of Stock' }}
                         </button>
 
-                        <form action="{{ url('/buy-now') }}/{{ $product->id }}" method="POST" style="display:inline-block; margin:0;" id="buyNowForm">
+                        <form action="{{ url('/buy-now') }}/{{ $product->id }}" method="POST" style="display:contents;" id="buyNowForm">
                             @csrf
                             <input type="hidden" name="variation_id" id="buy-now-variation-id" value="">
                             <input type="hidden" name="qty" id="buy-now-qty" value="1">
-                            <button type="submit" class="btn btn-buy-now" id="buyNowBtn" {{ (!$hasStock || $product->has_variations) ? 'disabled' : '' }} data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
-                                {{ $hasStock ? 'Buy Now' : 'Out of Stock' }}
+                            <button type="submit" class="pd-btn-buy" id="buyNowBtn" {{ (!$hasStock || $product->has_variations) ? 'disabled' : '' }} data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
+                                <i class="fas fa-bolt me-2"></i> {{ $hasStock ? 'Buy Now' : 'Out of Stock' }}
                             </button>
                         </form>
-                        <script>
-                            // Function to sync buy-now quantity with quantity input
-                            function syncBuyNowQuantity() {
-                                var qtyInput = document.getElementById('quantityInput');
-                                var buyNowQty = document.getElementById('buy-now-qty');
-                                if (qtyInput && buyNowQty) {
-                                    buyNowQty.value = qtyInput.value || 1;
-                                }
-                            }
-                            
-                            // Update buy now quantity when quantity input changes
-                            document.addEventListener('DOMContentLoaded', function() {
-                                var qtyInput = document.getElementById('quantityInput');
-                                var buyNowQty = document.getElementById('buy-now-qty');
-                                
-                                if (qtyInput && buyNowQty) {
-                                    // Listen to both 'change' and 'input' events
-                                    qtyInput.addEventListener('change', syncBuyNowQuantity);
-                                    qtyInput.addEventListener('input', syncBuyNowQuantity);
-                                    
-                                    // Initial sync
-                                    syncBuyNowQuantity();
-                                }
-                                
-                                // Validate buy now form submission
-                                var buyNowForm = document.getElementById('buyNowForm');
-                                if (buyNowForm) {
-                                    buyNowForm.addEventListener('submit', function(e) {
-                                        // Sync quantity one more time before submitting
-                                        syncBuyNowQuantity();
-                                        
-                                        var hasVariations = {{ $product->has_variations ? 'true' : 'false' }};
-                                        var buyNowVariationId = document.getElementById('buy-now-variation-id');
-                                        var variationId = buyNowVariationId ? buyNowVariationId.value : '';
-                                        
-                                        if (hasVariations && (!variationId || variationId === '' || variationId === '0')) {
-                                            e.preventDefault();
-                                            if (typeof showToast === 'function') {
-                                                showToast('Please select a variation (Color/Size) before clicking Buy Now.', 'error');
-                                            } else {
-                                                alert('Please select a variation (Color/Size) before clicking Buy Now.');
-                                            }
-                                            return false;
-                                        }
-                                    });
-                                }
-                            });
-                        </script>
                     </div>
 
-                    <!-- Quick Chat Section -->
-                    <div class="messenger-section">
-                        <div class="messenger-buttons">
-                            @if(!empty($settings->whatsapp_url))
-                                <a href="{{ str_starts_with($settings->whatsapp_url, 'http') ? $settings->whatsapp_url : 'https://' . $settings->whatsapp_url }}" target="_blank" class="messenger-btn whatsapp-btn" title="Chat on WhatsApp">
-                                    <i class="fab fa-whatsapp"></i>
-                                </a>
-                            @endif
-                            
-                            @if(!empty($settings->facebook_url))
-                                <a href="javascript:void(0)" onclick="openFacebookMessenger()" class="messenger-btn messenger-fb-btn" title="Chat on Facebook Messenger">
-                                    <i class="fab fa-facebook-messenger"></i>
-                                </a>
-                            @endif
-                        </div>
+                    <div class="pd-messenger-row">
+                        @if(!empty($settings->whatsapp_url))
+                            <a href="{{ str_starts_with($settings->whatsapp_url, 'http') ? $settings->whatsapp_url : 'https://' . $settings->whatsapp_url }}" target="_blank" class="pd-msg-btn whatsapp" title="Chat on WhatsApp">
+                                <i class="fab fa-whatsapp"></i> WhatsApp Order
+                            </a>
+                        @endif
+                        
+                        @if(!empty($settings->facebook_url))
+                            <a href="javascript:void(0)" onclick="openFacebookMessenger()" class="pd-msg-btn messenger" title="Chat on Facebook Messenger">
+                                <i class="fab fa-facebook-messenger"></i> Chat with Us
+                            </a>
+                        @endif
                     </div>
 
-                    <div class="wishlist-share">
-                        <a href="#" class="wishlist-link" onclick="addToWishlist()">
-                            <i class="fas fa-heart"></i>
-                            ADD TO WISHLIST
-                        </a>
-                        <div class="share-section">
-                            <span class="share-label">Share To:</span>
-                            <div class="share-icons">
-                                <a href="#" onclick="shareToFacebook()" class="share-icon" title="Share on Facebook">
-                                    <i class="fab fa-facebook-f"></i>
-                                </a>
+                    <div class="pd-extra-actions mt-4 pt-4 border-top">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="pd-share-group d-flex align-items-center">
+                                <span class="pd-share-label">Share:</span>
+                                <div class="pd-share-icons d-flex gap-2">
+                                    <a href="#" onclick="shareToFacebook()" class="pd-share-icon facebook" title="Share on Facebook">
+                                        <i class="fab fa-facebook-f"></i>
+                                    </a>
+                                    <a href="#" onclick="shareToTwitter()" class="pd-share-icon twitter" title="Share on Twitter">
+                                        <i class="fab fa-twitter"></i>
+                                    </a>
+                                    <a href="#" onclick="shareToWhatsApp()" class="pd-share-icon whatsapp" title="Share on WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+                </div> <!-- Close pd-main-container -->
+            </div> <!-- Close top container -->
 
-        <!-- Product Tabs -->
-        <div class="product-tabs">
-            <div class="tab-nav">
-                <button class="tab-btn active" data-tab="description" type="button">Description</button>
-                <button class="tab-btn" data-tab="features" type="button">Care Direction</button>
-                <button class="tab-btn" data-tab="specs" type="button">Specifications</button>
-                <button class="tab-btn" data-tab="reviews" type="button">Reviews</button>
-            </div>
+            <!-- Product Tabs Section -->
+            @php
+                $reviews = $product->reviews()->where('is_approved', true)->latest()->get();
+                $avgRating = $reviews->avg('rating') ?? 0;
+                $totalReviews = $reviews->count();
+                $recommendCount = $reviews->where('rating', '>=', 4)->count();
+                $recommendPct = $totalReviews > 0 ? round(($recommendCount / $totalReviews) * 100) : 0;
+                // Fetch top rated reviews first (>= 4 stars), limit to 2
+                $topReviews = $reviews->where('rating', '>=', 4)->take(2);
+            @endphp
+            
+            <div class="pd-tabs-section mt-5">
+                <div class="container">
+                    <div class="row">
+                        <!-- Left Column: Tabs Content -->
+                        <div class="col-lg-8">
+                            <div class="pd-tabs-header text-start justify-content-start border-bottom mb-4">
+                                <button class="pd-tab-btn active" data-tab="description" type="button">
+                                    Description
+                                </button>
+                                <button class="pd-tab-btn" data-tab="specs" type="button">
+                                    Additional info
+                                </button>
+                                <button class="pd-tab-btn" data-tab="reviews" type="button">
+                                    Review
+                                </button>
+                            </div>
 
-            <div id="description" class="tab-content active">
-                <h3>Product Description</h3>
-                {!! $product->getCleanHtml('description') !!}
-            </div>
+                            <div class="pd-tabs-body">
+                                <!-- Description Tab -->
+                                <div id="description" class="pd-tab-content active">
+                                    <div class="pd-content-wrapper description-text">
+                                        {!! $product->getCleanHtml('description') !!}
+                                        
+                                        @if($product->features)
+                                            <div class="mt-4">
+                                                <h4 class="mb-3">Highlights and Benefits</h4>
+                                                {!! $product->getCleanHtml('features') !!}
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
 
-            <div id="features" class="tab-content" style="display:none;">
-                <h3>Product Features</h3>
-                @if($product->features)
-                    {!! $product->getCleanHtml('features') !!}
-                @endif
-            </div>
+                                <!-- Additional Info Tab (Specs) -->
+                                <div id="specs" class="pd-tab-content">
+                                    <h4 class="mb-3">Specification</h4>
+                                    @if($product->productAttributes && $product->productAttributes->count() > 0)
+                                        <ul class="pd-specs-list">
+                                            @foreach($product->productAttributes as $attribute)
+                                                <li>
+                                                    <strong>{{ $attribute->name }}:</strong> {{ $attribute->pivot->value }}
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    @else
+                                        <p class="text-muted">No additional information available.</p>
+                                    @endif
+                                </div>
 
-            <div id="specs" class="tab-content" style="display:none;">
-                <h3>Technical Specifications</h3>
-                @if($product->productAttributes && $product->productAttributes->count() > 0)
-                    <table class="specifications-table">
-                        <tr>
-                            <th>Specification</th>
-                            <th>Value</th>
-                        </tr>
-                        @foreach($product->productAttributes as $attribute)
-                            <tr>
-                                <td>{{ $attribute->name }}</td>
-                                <td>{{ $attribute->pivot->value }}</td>
-                            </tr>
-                        @endforeach
-                    </table>
-                @else
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No specifications available for this product.
-                    </div>
-                @endif
-            </div>
+                                <!-- Reviews Tab (List Only) -->
+                                <div id="reviews" class="pd-tab-content">
+                                    <div class="pd-reviews-list-section">
+                                    <div class="pd-review-form-container mb-5" style="background: #fff; border: 1px solid #f1f5f9; border-radius: 20px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.02);">
+                                        @auth
+                                            <div class="d-flex align-items-center gap-3 mb-4">
+                                                <div class="pd-user-avatar-sm rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-weight: 700;">
+                                                    {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                                                </div>
+                                                <div>
+                                                    <h5 class="m-0 fw-bold">Write a Review</h5>
+                                                    <p class="text-muted small m-0">Sharing as <span class="fw-bold text-dark">{{ Auth::user()->name }}</span></p>
+                                                </div>
+                                            </div>
 
-            <div id="reviews" class="tab-content">
-                <div class="reviews-section">
-                    <div class="reviews-header">
-                        <h3 class="reviews-title">
-                            <i class="fas fa-star text-warning me-2"></i>
-                            Customer Reviews
-                        </h3>
-                        <p class="reviews-subtitle">Share your experience and read what others think</p>
-                    </div>
-                    
-                    <!-- Reviews Summary and Form Combined -->
-                    <div class="reviews-main-section">
-                        <div class="row">
-                            <!-- Left Column: Review Form -->
-                            <div class="col-md-6">
-                                <div class="review-form-section">
-                                    @auth
-                                        <div class="review-form-card">
-                                            <h4 class="form-title">
-                                                <i class="fas fa-edit me-2"></i>
-                                                Write a Review
-                                            </h4>
-                                            <form id="review-form" class="review-form">
+                                            <form id="review-form">
                                                 @csrf
-                                                <div class="form-group">
-                                                    <label for="rating" class="form-label">Rating *</label>
-                                                    <div class="rating-input">
-                                                        <input type="radio" name="rating" value="5" id="star5">
-                                                        <label for="star5" class="star-label" data-rating="5">
-                                                            <i class="far fa-star"></i>
-                                                        </label>
-                                                        <input type="radio" name="rating" value="4" id="star4">
-                                                        <label for="star4" class="star-label" data-rating="4">
-                                                            <i class="far fa-star"></i>
-                                                        </label>
-                                                        <input type="radio" name="rating" value="3" id="star3">
-                                                        <label for="star3" class="star-label" data-rating="3">
-                                                            <i class="far fa-star"></i>
-                                                        </label>
-                                                        <input type="radio" name="rating" value="2" id="star2">
-                                                        <label for="star2" class="star-label" data-rating="2">
-                                                            <i class="far fa-star"></i>
-                                                        </label>
-                                                        <input type="radio" name="rating" value="1" id="star1">
-                                                        <label for="star1" class="star-label" data-rating="1">
-                                                            <i class="far fa-star"></i>
-                                                        </label>
+                                                <div class="row align-items-center mb-4">
+                                                    <div class="col-md-4">
+                                                        <label class="d-block mb-2 fw-bold text-dark" style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Your Rating</label>
+                                                        <div class="pd-stars-input d-flex align-items-center gap-1">
+                                                            @for($i = 5; $i >= 1; $i--)
+                                                                <input type="radio" name="rating" value="{{ $i }}" id="star{{ $i }}" class="pd-star-radio">
+                                                                <label for="star{{ $i }}" class="pd-star-label" data-rating="{{ $i }}" style="font-size: 24px;">
+                                                                    <i class="far fa-star"></i>
+                                                                </label>
+                                                            @endfor
+                                                            <span id="rating-text" class="ms-3 badge bg-light text-dark fw-normal">Select Rating</span>
+                                                        </div>
                                                     </div>
-                                                    <div class="rating-text" id="rating-text">Select a rating</div>
                                                 </div>
-                                                <div class="form-group">
-                                                    <label for="comment" class="form-label">Your Review *</label>
-                                                    <textarea class="form-control" name="comment" id="comment" rows="4" 
-                                                              placeholder="Tell us about your experience with this product" required></textarea>
+
+                                                <div class="mb-4">
+                                                    <label for="comment" class="d-block mb-2 fw-bold text-dark" style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Your Experience</label>
+                                                    <textarea class="pd-form-control w-100 p-3" name="comment" id="comment" rows="4" required 
+                                                        placeholder="What did you like or dislike? What did you use this product for?"
+                                                        style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; resize: none; font-size: 15px; color: #334155; transition: all 0.3s;"></textarea>
                                                 </div>
-                                                <div class="form-actions">
-                                                    <button type="submit" class="btn btn-primary">
-                                                        <i class="fas fa-paper-plane me-2"></i>
-                                                        Submit Review
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-secondary" id="cancel-review" style="display: none;">
-                                                        Cancel
+
+                                                <div class="text-end">
+                                                    <button type="submit" class="pd-btn-buy w-auto px-5 rounded-pill shadow-sm" style="height: 50px; font-weight: 600; letter-spacing: 0.5px;">
+                                                        Submit Review <i class="fas fa-paper-plane ms-2"></i>
                                                     </button>
                                                 </div>
                                             </form>
-                                        </div>
-                                    @else
-                                        <div class="review-login-prompt">
-                                            <div class="login-prompt-content">
-                                                <i class="fas fa-lock fa-3x text-muted mb-3"></i>
-                                                <h5>Login Required</h5>
-                                                <p>Please log in to write a review and share your experience with others.</p>
-                                                <a href="{{ route('login') }}" class="btn btn-primary">
-                                                    <i class="fas fa-sign-in-alt me-2"></i>
-                                                    Login to Write Review
-                                                </a>
+                                        @else
+                                            <div class="text-center py-5">
+                                                <div class="mb-4">
+                                                    <i class="fas fa-lock fa-3x text-muted opacity-25"></i>
+                                                </div>
+                                                <h4 class="fw-bold mb-3">Sign in to write a review</h4>
+                                                <p class="text-muted mb-4" style="max-width: 400px; margin: 0 auto;">Share your experience with our community. It only takes a moment to log in or create an account.</p>
+                                                <div class="d-flex justify-content-center gap-3">
+                                                    <a href="{{ route('login') }}" class="pd-btn-buy w-auto px-5 rounded-pill text-decoration-none">
+                                                        Log In
+                                                    </a>
+                                                    <a href="{{ route('register') }}" class="pd-btn-cart outline sm w-auto px-5 rounded-pill text-decoration-none d-flex align-items-center justify-content-center" style="height: 54px;">
+                                                        Sign Up
+                                                    </a>
+                                                </div>
                                             </div>
+                                        @endauth
+                                    </div>
+
+                                        <div class="pd-section-header mb-4 d-flex justify-content-between align-items-center">
+                                            <h4 class="pd-section-subtitle m-0">Customer Reviews</h4>
                                         </div>
-                                    @endauth
+                                        
+                                        <div id="reviews-list" class="pd-reviews-grid" data-product-id="{{ $product->id }}">
+                                            <!-- Reviews loaded via JS -->
+                                        </div>
+                                        <div id="load-more-container" class="text-center mt-4" style="display: none;">
+                                            <button class="pd-btn-cart outline w-auto px-5" id="load-more-reviews">Load More</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Right Column: Sidebar -->
+                    <div class="col-lg-4">
+                        <div class="pd-sidebar-sticky" style="top: 100px;">
                             
-                            <!-- Right Column: Rating Summary -->
-                            <div class="col-md-6">
-                                <div class="reviews-summary-card" id="rating-summary-card">
-                                    <!-- Skeleton loader for rating summary -->
-                                    <div id="rating-summary-skeleton" class="rating-summary-skeleton">
-                                        <div class="rating-summary-skeleton-circle"></div>
-                                        <div class="rating-summary-skeleton-stars"></div>
-                                        <div class="rating-summary-skeleton-count"></div>
-                                        <div class="rating-summary-skeleton-bar"></div>
-                                        <div class="rating-summary-skeleton-bar"></div>
-                                        <div class="rating-summary-skeleton-bar"></div>
-                                        <div class="rating-summary-skeleton-bar"></div>
-                                        <div class="rating-summary-skeleton-bar"></div>
-                                    </div>
-                                    <!-- Actual rating summary (hidden initially) -->
-                                    <div id="rating-summary-content" style="display: none;">
-                                        <div class="rating-overview text-center">
-                                            <div class="overall-rating" id="overall-rating">0.0</div>
-                                            <div class="rating-stars" id="rating-stars">
-                                                <i class="far fa-star"></i>
-                                                <i class="far fa-star"></i>
-                                                <i class="far fa-star"></i>
-                                                <i class="far fa-star"></i>
-                                                <i class="far fa-star"></i>
+                            <!-- Top Stories (Featured Reviews) -->
+                            <div class="pd-sidebar-card mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h4 class="pd-sidebar-title m-0">Top Stories</h4>
+                                    <i class="fas fa-quote-right fa-2x text-light"></i>
+                                </div>
+                                
+                                <div class="pd-top-stories-list">
+                                    @forelse($topReviews as $review)
+                                        <div class="pd-story-card mb-3">
+                                            <div class="mb-2 text-warning">
+                                                @for($i = 1; $i <= 5; $i++)
+                                                    <i class="{{ $i <= $review->rating ? 'fas' : 'far' }} fa-star"></i>
+                                                @endfor
                                             </div>
-                                            <div class="rating-count" id="rating-count">0 reviews</div>
-                                        </div>
-                                        <div class="rating-breakdown">
-                                            <h6>Rating Breakdown</h6>
-                                            <div id="rating-bars">
-                                                <!-- Dynamic rating bars will be loaded here -->
+                                            <p class="mb-3 text-muted small">"{{ Str::limit($review->comment, 80) }}"</p>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="pd-story-avatar">{{ strtoupper(substr($review->user_name ?? 'A', 0, 1)) }}</div>
+                                                <div>
+                                                    <h6 class="m-0 text-dark" style="font-size: 13px; font-weight: 700;">{{ $review->user_name }}</h6>
+                                                    <span class="text-muted" style="font-size: 11px;">Verified Buyer</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    @empty
+                                        <div class="text-center py-4">
+                                            <i class="far fa-comment-alt text-muted fa-2x mb-3 opacity-50"></i>
+                                            <p class="text-muted small m-0">No top stories yet.</p>
+                                        </div>
+                                    @endforelse
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Reviews List -->
-                    <div class="reviews-list-section">
-                        <div class="reviews-list-header">
-                            <h4>Customer Reviews</h4>
-                            <div class="reviews-filter">
-                                <select id="reviews-filter" class="form-select">
-                                    <option value="">All Reviews</option>
-                                    <option value="5">5 Stars</option>
-                                    <option value="4">4 Stars</option>
-                                    <option value="3">3 Stars</option>
-                                    <option value="2">2 Stars</option>
-                                    <option value="1">1 Star</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="reviews-list" class="reviews-list" data-product-id="{{ $product->id }}" data-product-slug="{{ $product->slug }}">
-                            <!-- Reviews skeleton loaders -->
-                            <div id="reviews-skeleton" class="reviews-skeleton-container">
-                                <div class="review-skeleton">
-                                    <div class="review-skeleton-header">
-                                        <div class="review-skeleton-avatar"></div>
-                                        <div class="review-skeleton-user-info">
-                                            <div class="review-skeleton-name"></div>
-                                            <div class="review-skeleton-date"></div>
+                            <!-- Rating Summary Card -->
+                            <div class="pd-sidebar-card text-center">
+                                <div id="rating-summary-content" class="pd-rating-summary-card">
+                                    <div class="pd-overall-score mb-2">
+                                        <span class="pd-score-num display-4 fw-bold text-dark" id="overall-rating">{{ number_format($avgRating, 1) }}</span>
+                                        <div class="pd-score-stars text-warning small" id="rating-stars">
+                                                @for($i = 1; $i <= 5; $i++)
+                                                <i class="{{ $i <= round($avgRating) ? 'fas' : 'far' }} fa-star"></i>
+                                            @endfor
                                         </div>
+                                        <div class="text-muted small text-uppercase mt-1">Average Rating</div>
                                     </div>
-                                    <div class="review-skeleton-rating"></div>
-                                    <div class="review-skeleton-text"></div>
-                                    <div class="review-skeleton-text"></div>
-                                    <div class="review-skeleton-text"></div>
-                                    <div class="review-skeleton-text"></div>
-                                </div>
-                                <div class="review-skeleton">
-                                    <div class="review-skeleton-header">
-                                        <div class="review-skeleton-avatar"></div>
-                                        <div class="review-skeleton-user-info">
-                                            <div class="review-skeleton-name"></div>
-                                            <div class="review-skeleton-date"></div>
+                                    
+                                    <div class="pd-progress-container my-3 px-4">
+                                        <div class="progress" style="height: 6px; border-radius: 10px;">
+                                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ $recommendPct }}%" aria-valuenow="{{ $recommendPct }}" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
-                                    </div>
-                                    <div class="review-skeleton-rating"></div>
-                                    <div class="review-skeleton-text"></div>
-                                    <div class="review-skeleton-text"></div>
-                                    <div class="review-skeleton-text"></div>
-                                </div>
-                                <div class="review-skeleton">
-                                    <div class="review-skeleton-header">
-                                        <div class="review-skeleton-avatar"></div>
-                                        <div class="review-skeleton-user-info">
-                                            <div class="review-skeleton-name"></div>
-                                            <div class="review-skeleton-date"></div>
-                                        </div>
-                                    </div>
-                                    <div class="review-skeleton-rating"></div>
-                                    <div class="review-skeleton-text"></div>
-                                    <div class="review-skeleton-text"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="load-more-container" class="text-center mt-4" style="display: none;">
-                            <button class="btn btn-outline-primary" id="load-more-reviews">Load More Reviews</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                                        <p class="text-muted mt-2" style="font-size: 11px;">{{ $recommendPct }}% Reviewers Recommend This</p>
+                                    </div> <!-- Close rating-summary-content -->
+                                </div> <!-- Close sidebar-card -->
 
-        </div>
-    </div>
+                            </div> <!-- Close pd-sidebar-sticky -->
+                        </div> <!-- Close col-lg-4 -->
+                    </div> <!-- Close row -->
+                </div> <!-- Close container -->
+            </div> <!-- Close pd-tabs-section -->
+
+        <!-- (Review Modal Removed) -->
 
     <!-- Related Products Section -->
     @if(isset($relatedProducts) && count($relatedProducts))
-        <section class="top-products">
+        @php
+            $userId = Auth::id();
+            $wishlistedIds = $userId ? \App\Models\Wishlist::where('user_id', $userId)->whereIn('product_id', $relatedProducts->pluck('id'))->pluck('product_id')->toArray() : [];
+            $sourceType = $settings->ecommerce_source_type ?? null;
+            $sourceId = $settings->ecommerce_source_id ?? null;
+        @endphp
+        <section class="pd-related-section mt-4 py-4 bg-light">
             <div class="container">
-                <div class="section-header section-header--fancy">
-                    <h2 class="section-title">You Might Also Like</h2>
+                <div class="pd-section-header text-center mb-4">
+                    <h2 class="pd-section-title" style="font-size: 24px; font-weight: 800; margin-bottom: 5px;">You Might Also Like</h2>
+                    <p class="text-muted small m-0">Handpicked selection of similar premium items</p>
                 </div>
 
-                <div id="relatedProductsSplide" class="splide" aria-label="You Might Also Like">
+                <div id="relatedProductsSplide" class="splide pd-related-splide" aria-label="You Might Also Like">
                     <div class="splide__track">
                         <ul class="splide__list" id="relatedProductsSplideList">
                             @foreach($relatedProducts as $relatedProduct)
+                                @php
+                                    $isWishlisted = in_array($relatedProduct->id, $wishlistedIds);
+                                    $effPrice = $relatedProduct->effective_price;
+                                    $origPrice = $relatedProduct->original_price;
+                                    $avgRating = $relatedProduct->reviews->avg('rating') ?? 0;
+                                    
+                                    // Stock logic for related
+                                    $hasStock = false;
+                                    if ($sourceType && $sourceId) {
+                                        if ($relatedProduct->has_variations) {
+                                            foreach ($relatedProduct->variations as $var) {
+                                                $q = ($sourceType === 'branch') ? $var->stocks->where('branch_id', $sourceId)->sum('quantity') : $var->stocks->where('warehouse_id', $sourceId)->sum('quantity');
+                                                if ($q > 0) { $hasStock = true; break; }
+                                            }
+                                        } else {
+                                            $q = ($sourceType === 'branch') ? $relatedProduct->branchStock->where('branch_id', $sourceId)->sum('quantity') : $relatedProduct->warehouseStock->where('warehouse_id', $sourceId)->sum('quantity');
+                                            $hasStock = $q > 0;
+                                        }
+                                    } else {
+                                        $hasStock = $relatedProduct->total_variation_stock > 0;
+                                    }
+                                @endphp
                                 <li class="splide__slide">
-                                    <div class="product-card position-relative no-hover-border" 
+                                    <div class="pd-product-card" 
                                         data-href="{{ route('product.details', $relatedProduct->slug) }}"
                                         data-gtm-id="{{ $relatedProduct->id }}"
                                         data-gtm-name="{{ $relatedProduct->name }}"
-                                        data-gtm-price="{{ $relatedProduct->discount ?? $relatedProduct->price }}"
+                                        data-gtm-price="{{ $effPrice }}"
                                         data-gtm-category="{{ $relatedProduct->category->name ?? '' }}">
-                                        <button class="wishlist-btn{{ $relatedProduct->is_wishlisted ? ' active' : '' }}" 
-                                                data-product-id="{{ $relatedProduct->id }}" 
-                                                title="{{ $relatedProduct->is_wishlisted ? 'Remove from wishlist' : 'Add to wishlist' }}" 
-                                                type="button" 
-                                                onclick="event.stopPropagation();">
-                                            <i class="{{ $relatedProduct->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
-                                        </button>
-                                        <div class="product-image-container">
+                                        
+                                        <div class="pd-card-image">
                                             <img src="{{ asset($relatedProduct->image) }}" 
-                                                 class="product-image" 
                                                  alt="{{ $relatedProduct->name }}" 
                                                  loading="lazy" 
                                                  onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
-                                            @php
-                                                $avgRating = $relatedProduct->averageRating() ?? 0;
-                                                $reviews = $relatedProduct->totalReviews() ?? 0;
-                                            @endphp
-                                            @if($avgRating > 0)
-                                                <div class="rating-badge">
-                                                    <span>{{ number_format($avgRating, 1) }}</span>
-                                                    <i class="fas fa-star star"></i>
-                                                    <span>| {{ $reviews }}</span>
-                                                </div>
+                                            
+                                            <button class="pd-card-wishlist{{ $isWishlisted ? ' active' : '' }}" 
+                                                    data-product-id="{{ $relatedProduct->id }}" 
+                                                    onclick="event.stopPropagation(); toggleWishlist({{ $relatedProduct->id }}, this)">
+                                                <i class="{{ $isWishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
+                                            </button>
+
+                                            @if(!$hasStock)
+                                                <div class="pd-card-badge stock-out">Out of Stock</div>
+                                            @elseif($effPrice < $origPrice)
+                                                @php
+                                                    $off = round((($origPrice - $effPrice) / $origPrice) * 100);
+                                                @endphp
+                                                <div class="pd-card-badge discount">-{{ $off }}%</div>
                                             @endif
-                                        </div>
-                                        <div class="product-info">
-                                            <a href="{{ route('product.details', $relatedProduct->slug) }}" 
-                                               style="text-decoration: none" 
-                                               class="product-title" 
-                                               title="{{ $relatedProduct->name }}">
-                                                {{ $relatedProduct->name }}
-                                            </a>
-                                            <div class="price">
-                                                @if(isset($relatedProduct->discount) && $relatedProduct->discount > 0 && $relatedProduct->discount < $relatedProduct->price)
-                                                    <span class="fw-bold text-primary">{{ number_format($relatedProduct->discount, 2) }}৳</span>
-                                                    <span class="old">{{ number_format($relatedProduct->price, 2) }}৳</span>
-                                                @else
-                                                    <span class="fw-bold text-primary">{{ number_format($relatedProduct->price, 2) }}৳</span>
-                                                @endif
+
+                                            <div class="pd-card-overlay">
+                                                <span class="pd-overlay-text">VIEW DETAILS</span>
                                             </div>
-                                            <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                                <a href="{{ route('product.details', $relatedProduct->slug) }}" 
-                                                   class="btn btn-view-product" 
-                                                   style="background: transparent; border: 1px solid var(--teal-primary); color: var(--teal-primary); padding: 9px 16px; border-radius: 8px; font-weight: 700; width: 100%; font-size: 14px; height: max-content; display: inline-flex; align-items: center; gap: 8px; justify-content: center; text-decoration: none;"
-                                                   title="View Product">
-                                                    <i class="fas fa-eye"></i>
-                                                    View
-                                                </a>
+                                        </div>
+
+                                        <div class="pd-card-info">
+                                            <h3 class="pd-card-title">{{ $relatedProduct->name }}</h3>
+                                            <div class="pd-card-price">
+                                                @if($effPrice < $origPrice)
+                                                    <span class="current">TK. {{ number_format($effPrice, 0) }}</span>
+                                                    <span class="original">TK. {{ number_format($origPrice, 0) }}</span>
+                                                @else
+                                                    <span class="current">TK. {{ number_format($effPrice, 0) }}</span>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -4052,106 +645,7 @@
 
         // Quantity control is handled by inline onclick handlers on the buttons
 
-        // Wishlist functionality
-        function addToWishlist() {
-            console.log('[WISHLIST] Adding to wishlist...');
-            
-            // Fast authentication check before sending request
-            const isAuth = document.querySelector('meta[name="auth-check"]')?.getAttribute('content') === '1';
-            if (!isAuth) {
-                if (typeof showToast === 'function') {
-                    showToast('Please login first to add products to your wishlist.', 'error');
-                }
-                return;
-            }
-
-            // Get product ID from the button or page
-            var productId = {{ $product->id }};
-            var button = event.target.closest('button');
-            
-            // Disable button to prevent multiple clicks
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
-            }
-            
-            // Make AJAX request to add to wishlist
-            fetch('/add-remove-wishlist/' + productId, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(async response => {
-                const text = await response.text();
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    console.error('Invalid JSON response:', text.substring(0, 100));
-                    throw new Error('Server returned an invalid response');
-                }
-            })
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    if (typeof showToast === 'function') {
-                        showToast('Added to wishlist!', 'success');
-                    } else {
-                        alert('Added to wishlist!');
-                    }
-                    
-                    // Update wishlist count
-                    if (typeof updateWishlistCount === 'function') {
-                        updateWishlistCount();
-                    }
-                    
-                    // Update button state
-                    if (button) {
-                        button.innerHTML = '<i class="fas fa-heart"></i> Added!';
-                        button.classList.add('added-to-wishlist');
-                        // Use requestAnimationFrame with delay simulation to prevent memory buildup
-                        var startTime = performance.now();
-                        function updateButton() {
-                            if (performance.now() - startTime >= 2000) {
-                                button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="var(--primary-blue)" id="Outline" viewBox="0 0 24 24" width="20" height="20"><path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z" /></svg>';
-                                button.disabled = false;
-                            } else {
-                                requestAnimationFrame(updateButton);
-                            }
-                        }
-                        requestAnimationFrame(updateButton);
-                    }
-                } else {
-                    // Show error message
-                    if (typeof showToast === 'function') {
-                        showToast(data.message || 'Failed to add to wishlist', 'error');
-                    } else {
-                        alert(data.message || 'Failed to add to wishlist');
-                    }
-                    
-                    // Reset button state
-                    if (button) {
-                        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="var(--primary-blue)" id="Outline" viewBox="0 0 24 24" width="20" height="20"><path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z" /></svg>';
-                        button.disabled = false;
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Wishlist error:', error);
-                if (typeof showToast === 'function') {
-                    showToast('Error adding to wishlist', 'error');
-                } else {
-                    alert('Error adding to wishlist');
-                }
-                
-                // Reset button state
-                if (button) {
-                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="var(--primary-blue)" id="Outline" viewBox="0 0 24 24" width="20" height="20"><path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Zm-3.585,18.4a2.973,2.973,0,0,1-3.83,0C4.947,16.006,2,11.87,2,8.967a4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,11,8.967a1,1,0,0,0,2,0,4.8,4.8,0,0,1,4.5-5.05A4.8,4.8,0,0,1,22,8.967C22,11.87,19.053,16.006,13.915,20.313Z" /></svg>';
-                    button.disabled = false;
-                }
-            });
-        }
+        // Wishlist functionality handled by global toggleWishlist in master.blade.php
 
         // Social Media Sharing Functions
         function shareToFacebook() {
@@ -4890,80 +1384,6 @@
             document.body.style.overflow = 'auto';
         }
 
-        // Toggle wishlist function
-        function toggleWishlist(productId) {
-            console.log('[WISHLIST] Toggling wishlist for product:', productId);
-            
-            const button = document.querySelector(`[data-product-id="${productId}"].product-wishlist-top`);
-            if (!button) {
-                console.error('[WISHLIST] Button not found for product:', productId);
-                return;
-            }
-
-            const isActive = button.classList.contains('active');
-            const icon = button.querySelector('i');
-            
-            // Show loading state
-            button.disabled = true;
-            icon.className = 'fas fa-spinner fa-spin';
-
-            fetch(`/add-remove-wishlist/${productId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Toggle button state
-                    button.classList.toggle('active');
-                    icon.className = isActive ? 'far fa-heart' : 'fas fa-heart';
-                    
-                    // Show success message
-                    if (typeof showToast === 'function') {
-                        showToast(isActive ? 'Removed from wishlist!' : 'Added to wishlist!', 'success');
-                    } else {
-                        alert(isActive ? 'Removed from wishlist!' : 'Added to wishlist!');
-                    }
-                    
-                    // Update wishlist count
-                    if (typeof updateWishlistCount === 'function') {
-                        updateWishlistCount();
-                    }
-                } else {
-                    // Show error message
-                    if (typeof showToast === 'function') {
-                        showToast(data.message || 'Failed to update wishlist', 'error');
-                    } else {
-                        alert(data.message || 'Failed to update wishlist');
-                    }
-                    
-                    // Reset button state
-                    icon.className = isActive ? 'fas fa-heart' : 'far fa-heart';
-                }
-            })
-            .catch(error => {
-                console.error('Wishlist error:', error);
-                if (typeof showToast === 'function') {
-                    showToast('Error updating wishlist', 'error');
-                } else {
-                    alert('Error updating wishlist');
-                }
-                
-                // Reset button state
-                icon.className = isActive ? 'fas fa-heart' : 'far fa-heart';
-            })
-            .finally(() => {
-                button.disabled = false;
-            });
-        }
-
-        // Make toggleWishlist globally available
-        window.toggleWishlist = toggleWishlist;
-
         // Thumbnail gallery functionality with cleanup
         (function() {
             let thumbClickHandlers = [];
@@ -5236,14 +1656,7 @@
                 requestAnimationFrame(() => {
                     const actualSlideCount = products.length;
                     const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
-                    const canLoop = actualSlideCount >= perPage * 2;
-                    
-                    // Duplicate products if needed for looping
-                    if (actualSlideCount > 0 && actualSlideCount < perPage * 2) {
-                        const originalHtml = listEl.innerHTML;
-                        const timesToRepeat = Math.ceil((perPage * 2) / actualSlideCount);
-                        listEl.innerHTML = originalHtml.repeat(timesToRepeat);
-                    }
+                    const canLoop = actualSlideCount > perPage;
                     
                     try {
                         // Destroy existing instance if any
@@ -5254,13 +1667,13 @@
                         }
                         
                         const rpSplide = new SplideClass(wrapper, {
-                            type: 'loop',
+                            type: canLoop ? 'loop' : 'slide',
                             perPage: perPage,
-                            gap: '16px',
+                            gap: '24px',
                             pagination: false,
-                            arrows: true,
+                            arrows: products.length > perPage,
                             autoplay: canLoop,
-                            interval: 2500,
+                            interval: 4000,
                             pauseOnHover: true,
                             rewind: true,
                             breakpoints: { 
@@ -5287,7 +1700,7 @@
                                 visibleSlides.forEach(slide => {
                                     slide.style.opacity = '1';
                                     slide.style.visibility = 'visible';
-                                    const card = slide.querySelector('.product-card');
+                                    const card = slide.querySelector('.pd-product-card');
                                     if (card) {
                                         card.style.opacity = '1';
                                         card.style.visibility = 'visible';
@@ -5465,6 +1878,42 @@
                 window.initializeVariationSelection();
             }
 
+            // Tabs click handler
+            document.querySelectorAll('.pd-tab-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // Remove active from all buttons and contents
+                    document.querySelectorAll('.pd-tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.pd-tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // Add active to current
+                    this.classList.add('active');
+                    const target = document.getElementById(tabId);
+                    if (target) target.classList.add('active');
+                };
+            });
+
+            // Related product card clicks
+            document.querySelectorAll('.pd-product-card').forEach(card => {
+                card.onclick = function(e) {
+                    if (e.target.closest('.pd-card-wishlist')) return;
+                    const href = this.getAttribute('data-href');
+            if (href) window.location.href = href;
+                };
+            });
+
+            // Scroll indicator listener
+            const scrollIndicator = document.querySelector('.pd-scroll-indicator');
+            if (scrollIndicator) {
+                window.onscroll = function() {
+                    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+                    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                    const scrolled = (winScroll / height) * 100;
+                    scrollIndicator.style.width = scrolled + "%";
+                };
+            }
+
             // Cart functionality is now handled by global cart handler in master.blade.php
             // No need for duplicate event listeners here
             
@@ -5617,17 +2066,24 @@
 
         });
 
+        // Global Configuration for Product Details
+        window.PD_CONFIG = {
+            productId: {{ $product->id }},
+            productSlug: '{{ $product->slug }}',
+            productName: {!! json_encode($product->name) !!}
+        };
+
         // Review System JavaScript
         $(document).ready(function() {
             // Check if reviews container exists
             const reviewsContainer = $('#reviews-list');
-            if (reviewsContainer.length === 0) {
-                console.error('❌ Reviews container not found!');
-                return;
-            }
             
-            // Get product ID from the container data attribute to ensure we have the correct product
-            const reviewProductId = parseInt(reviewsContainer.data('product-id'));
+            // source of truth: Global Config > Data Attribute > PHP injection
+            let reviewProductId = window.PD_CONFIG.productId; 
+            
+            if (!reviewProductId && reviewsContainer.length > 0) {
+                 reviewProductId = parseInt(reviewsContainer.data('product-id'));
+            }
             const productSlug = reviewsContainer.data('product-slug');
             let currentPage = 1;
             let currentFilter = '';
@@ -5800,9 +2256,10 @@
 
                 if (reviews.length === 0 && currentPage === 1) {
                     reviewsList.html(`
-                        <div class="no-reviews">
-                            <i class="fas fa-comments"></i>
-                            <p>No reviews yet. Be the first to review this product!</p>
+                        <div class="no-reviews py-5 text-center">
+                            <i class="fas fa-comments mb-3" style="font-size: 3rem; color: #e2e8f0;"></i>
+                            <h5 class="text-muted fw-bold">No Experiences Shared Yet</h5>
+                            <p class="text-muted small">Be the first to share your experience with this premium selection.</p>
                         </div>
                     `);
                     return;
@@ -5816,34 +2273,21 @@
 
             // Create review HTML
             function createReviewHtml(review) {
-                console.log('Creating HTML for review:', {
-                    id: review.id,
-                    product_id: review.product_id,
-                    expected_product_id: reviewProductId,
-                    rating: review.rating,
-                    is_featured: review.is_featured,
-                    comment: review.comment.substring(0, 50) + '...'
-                });
-                
                 const stars = generateStars(review.rating);
-                const date = new Date(review.created_at).toLocaleDateString();
+                const date = new Date(review.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
                 const isFeatured = review.is_featured || false;
-                const featuredClass = isFeatured ? 'featured-review' : '';
-                const featuredBadge = isFeatured ? '<span class="featured-badge"><i class="fas fa-star"></i> Featured Review</span>' : '';
+                const userInitial = review.user_name ? review.user_name.charAt(0).toUpperCase() : '?';
                 
                 return `
-                    <div class="review-item ${featuredClass}" data-review-id="${review.id}">
-                        <div class="review-header">
-                            <div class="reviewer-info">
-                                <div class="reviewer-name">
-                                    ${review.user_name}
-                                    ${featuredBadge}
-                                </div>
-                                <div class="review-rating">${stars}</div>
-                                <div class="review-date">${date}</div>
+                    <div class="pd-review-item ${isFeatured ? 'featured' : ''}" data-review-id="${review.id}">
+                        <div class="pd-review-user">
+                            <div class="pd-user-avatar">${userInitial}</div>
+                            <div class="pd-user-meta text-start">
+                                <h5>${review.user_name} <span class="ms-2 text-muted fw-normal">${date}</span></h5>
+                                <div class="pd-score-stars text-start mt-1" style="font-size: 11px;">${stars}</div>
                             </div>
                         </div>
-                        <div class="review-comment">${review.comment}</div>
+                        <div class="pd-review-content">${review.comment}</div>
                     </div>
                 `;
             }
@@ -5871,12 +2315,12 @@
                     const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
                     
                     barsContainer.append(`
-                        <div class="rating-bar">
-                            <div class="rating-bar-label">${i} star${i !== 1 ? 's' : ''}</div>
-                            <div class="rating-bar-fill">
-                                <div class="rating-bar-progress" style="width: ${percentage}%"></div>
+                        <div class="pd-rating-row">
+                            <span class="pd-rating-label">${i} Star</span>
+                            <div class="pd-progress-wrapper">
+                                <div class="pd-progress-bar" style="width: ${percentage}%"></div>
                             </div>
-                            <div class="rating-bar-count">${count}</div>
+                            <span class="pd-rating-count-val">${count}</span>
                         </div>
                     `);
                 }
@@ -5894,42 +2338,25 @@
 
             // Initialize star rating
             function initializeStarRating() {
-                $('.star-label').on('click', function() {
+                $('.pd-star-label').on('click', function() {
                     const rating = $(this).data('rating');
-                    updateStarDisplay(rating);
+                    // Radio button is handled by browser, but we can trigger state updates here
                 });
 
-                $('.star-label').on('mouseenter', function() {
+                // The CSS handles most of the hover effects now with the row-reverse trick
+                // but we keep the text hint update
+                $('.pd-star-label').on('mouseenter', function() {
                     const rating = $(this).data('rating');
-                    updateStarDisplay(rating, true);
+                    updateRatingHint(rating);
                 });
 
-                $('.rating-input').on('mouseleave', function() {
+                $('.pd-stars-input').on('mouseleave', function() {
                     const selectedRating = $('input[name="rating"]:checked').val();
-                    if (selectedRating) {
-                        updateStarDisplay(selectedRating);
-                    } else {
-                        updateStarDisplay(0);
-                    }
+                    updateRatingHint(selectedRating || 0);
                 });
             }
 
-            // Update star display
-            function updateStarDisplay(rating, isHover) {
-                $('.star-label').each(function() {
-                    const starRating = $(this).data('rating');
-                    const starIcon = $(this).find('i');
-                    
-                    if (starRating <= rating) {
-                        starIcon.removeClass('far').addClass('fas');
-                        $(this).addClass('selected');
-                    } else {
-                        starIcon.removeClass('fas').addClass('far');
-                        $(this).removeClass('selected');
-                    }
-                });
-
-                // Update rating text
+            function updateRatingHint(rating) {
                 const ratingTexts = {
                     1: 'Poor',
                     2: 'Fair',
@@ -5968,10 +2395,20 @@
                     comment: comment
                 };
                 
-                console.log('Submitting review for product ID:', reviewProductId);
+                
+                // Ensure we have a valid product ID
+                const targetProductId = reviewProductId || window.PD_CONFIG.productId;
+
+                if (!targetProductId) {
+                    console.error('Missing product ID for review submission');
+                    alert('System Error: Product ID not found. Please refresh the page.');
+                    return;
+                }
+
+                console.log('Submitting review for product ID:', targetProductId);
 
                 $.ajax({
-                    url: `/api/products/${reviewProductId}/reviews`,
+                    url: `/api/products/${targetProductId}/reviews`,
                     type: 'POST',
                     data: formData,
                     beforeSend: function() {
@@ -5980,13 +2417,21 @@
                     success: function(response) {
                         console.log('Success response:', response);
                         if (response.success) {
-                            alert('Review submitted successfully!');
+                            if (typeof showToast === 'function') {
+                                showToast('Review submitted successfully!', 'success');
+                            } else {
+                                alert('Review submitted successfully!');
+                            }
                             $('#review-form')[0].reset();
                             updateStarDisplay(0);
                             currentPage = 1;
                             loadReviews();
                         } else {
-                            alert(response.message || 'Error submitting review');
+                            if (typeof showToast === 'function') {
+                                showToast(response.message || 'Error submitting review', 'error');
+                            } else {
+                                alert(response.message || 'Error submitting review');
+                            }
                         }
                     },
                     error: function(xhr, status, error) {
@@ -6087,3 +2532,4 @@
 
 
 
+  

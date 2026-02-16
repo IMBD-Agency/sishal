@@ -901,8 +901,10 @@ class ProductController extends Controller
     public function getVariationsWithStock(Request $request, $productId)
     {
         $product = Product::with([
+            'branchStock',
+            'warehouseStock',
             'variations.stocks' => function($query) {
-                $query->select('variation_id', 'branch_id', 'warehouse_id', 'quantity');
+                $query->select('variation_id', 'branch_id', 'warehouse_id', 'quantity', 'id');
             },
             'variations.combinations.attribute',
             'variations.combinations.attributeValue'
@@ -912,7 +914,24 @@ class ProductController extends Controller
         $locationId = $request->query('location_id');
 
         if (!$product->has_variations) {
-            return response()->json([]);
+            if ($locationType && $locationId) {
+                if ($locationType === 'branch') {
+                    $totalStock = $product->branchStock->where('branch_id', $locationId)->sum('quantity');
+                } else {
+                    $totalStock = $product->warehouseStock->where('warehouse_id', $locationId)->sum('quantity');
+                }
+            } else {
+                $totalStock = $product->branchStock->sum('quantity') + $product->warehouseStock->sum('quantity');
+            }
+
+            return response()->json([[
+                'id' => null,
+                'name' => 'Standard',
+                'size' => null,
+                'color' => null,
+                'price' => (float)$product->effective_price,
+                'stock' => (float)$totalStock
+            ]]);
         }
         
         $variations = $product->variations->map(function($variation) use ($locationType, $locationId) {
@@ -947,7 +966,7 @@ class ProductController extends Controller
                 'name' => $variation->name,
                 'size' => $size,
                 'color' => $color,
-                'price' => $variation->price,
+                'price' => (float)$variation->effective_price,
                 'stock' => $totalStock
             ];
         });
@@ -1189,7 +1208,8 @@ class ProductController extends Controller
         $price = ($product->discount && $product->discount > 0 && $product->discount < $product->price) 
             ? $product->discount 
             : $product->price;
-        return response()->json(['price' => $price]);
+        $stock = $product->warehouseStock()->sum('quantity') + $product->branchStock()->sum('quantity');
+        return response()->json(['price' => $price, 'stock' => $stock]);
     }
 
 

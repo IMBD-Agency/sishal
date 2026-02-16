@@ -99,7 +99,7 @@
         }
 
         // Apply variation logic only if product has variations
-        var initialAddBtn = document.querySelector('.btn-add-cart');
+        var initialAddBtn = document.querySelector('.pd-btn-cart');
         if (initialAddBtn) {
             initialAddBtn.disabled = true;
         }
@@ -129,7 +129,7 @@
                 try {
                     var labelEl = document.querySelector('[data-selected-label="attr-' + sanitizedAttrId + '"]');
                     if (labelEl) {
-                        var btn = document.querySelector('.size-option.active[data-attr-id="' + sanitizedAttrId + '"], .color-option.active[data-attr-id="' + sanitizedAttrId + '"], .color-image-btn.active[data-attr-id="' + sanitizedAttrId + '"]');
+                        var btn = document.querySelector('.pd-size-btn.active[data-attr-id="' + sanitizedAttrId + '"], .pd-color-btn.active[data-attr-id="' + sanitizedAttrId + '"]');
                         var label = btn ? (btn.getAttribute('data-label') || btn.textContent) : '';
                         if (label) { labelEl.textContent = label; }
                     }
@@ -210,7 +210,7 @@
 
             var container = btn.closest('[data-attribute-id]');
             if (container) {
-                container.querySelectorAll('.size-option, .color-option, .color-image-btn').forEach(function(b){ 
+                container.querySelectorAll('.pd-size-btn, .pd-color-btn').forEach(function(b){ 
                     b.classList.remove('active', 'variation-active'); 
                 });
             }
@@ -232,8 +232,13 @@
             var nameEl = document.getElementById('selected-variation-name');
             var priceEl = document.getElementById('selected-variation-price');
             var stockEl = document.getElementById('selected-variation-stock');
-            var addBtn = document.querySelector('.btn-add-cart');
-            var buyNowBtn = document.querySelector('.btn-buy-now');
+            var addBtn = document.querySelector('.pd-btn-cart');
+            var buyNowBtn = document.querySelector('.pd-btn-buy');
+            
+            function setInlineStock(qty) {
+                // Compatibility placeholder if needed, though redundant now
+                console.log('[DEBUG] setInlineStock called with:', qty);
+            }
             
             if (resolved && isCompleteMatch) {
                 if (varIdEl) varIdEl.value = resolved.id;
@@ -242,13 +247,23 @@
                 
                 if (nameEl) nameEl.textContent = resolved.name || 'Selected';
                 if (priceEl) priceEl.textContent = Number(resolved.price).toFixed(2) + '৳';
+                
+                const hasStock = resolved.available_stock > 0;
                 if (stockEl) {
-                    stockEl.textContent = resolved.available_stock > 0 ? 'In stock: ' + resolved.available_stock : 'Out of stock';
-                    stockEl.style.color = resolved.available_stock > 0 ? '' : 'red';
+                    stockEl.innerHTML = hasStock ? 
+                        '<i class="fas fa-check-circle text-success me-1"></i> In stock: ' + resolved.available_stock : 
+                        '<i class="fas fa-times-circle text-danger me-1"></i> Out of stock';
+                    stockEl.className = 'pd-stock-status mt-2 ' + (hasStock ? 'in-stock' : 'out-of-stock');
                 }
-                setInlineStock(resolved.available_stock);
-                if (addBtn) addBtn.disabled = resolved.available_stock <= 0;
-                if (buyNowBtn) buyNowBtn.disabled = resolved.available_stock <= 0;
+                
+                if (addBtn) {
+                    addBtn.disabled = !hasStock;
+                    addBtn.innerHTML = hasStock ? '<i class="fas fa-shopping-basket me-2"></i> Add To Cart' : '<i class="fas fa-times-circle me-2"></i> Out of Stock';
+                }
+                if (buyNowBtn) {
+                    buyNowBtn.disabled = !hasStock;
+                    buyNowBtn.innerHTML = hasStock ? '<i class="fas fa-bolt me-2"></i> Buy Now' : '<i class="fas fa-times-circle me-2"></i> Out of Stock';
+                }
                 switchToVariationImages(resolved);
             } else {
                 if (varIdEl) varIdEl.value = '';
@@ -257,15 +272,24 @@
                 
                 if (nameEl) nameEl.textContent = isCompleteMatch ? 'No variation found' : 'Please select all options';
                 if (priceEl) priceEl.textContent = '—';
-                if (stockEl) stockEl.textContent = 'Select options to see price';
-                setInlineStock(null);
-                if (addBtn) addBtn.disabled = true;
-                if (buyNowBtn) buyNowBtn.disabled = true;
-                switchToVariationImages(resolved);
+                if (stockEl) {
+                    stockEl.innerHTML = '<i class="fas fa-info-circle me-1"></i> Please select color & size';
+                    stockEl.className = 'pd-stock-status mt-2';
+                }
+                
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.innerHTML = '<i class="fas fa-shopping-basket me-2"></i> Add To Cart';
+                }
+                if (buyNowBtn) {
+                    buyNowBtn.disabled = true;
+                    buyNowBtn.innerHTML = '<i class="fas fa-bolt me-2"></i> Buy Now';
+                }
+                switchToVariationImages(null);
             }
         }
 
-        document.querySelectorAll('.color-option, .size-option, .color-image-btn').forEach(function(btn) {
+        document.querySelectorAll('.pd-color-btn, .pd-size-btn').forEach(function(btn) {
             btn.addEventListener('click', function(e) { handleVariationClick(btn, e); });
         });
     }

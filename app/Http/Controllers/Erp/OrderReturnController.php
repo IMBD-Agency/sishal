@@ -74,15 +74,26 @@ class OrderReturnController extends Controller
         return view('erp.orderReturn.orderreturnlist', compact('returns', 'statuses', 'filters'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $customers = Customer::all();
-        $orders = Order::all();
+        $orders = Order::orderBy('created_at', 'desc')->take(100)->get();
         $invoices = Invoice::all();
         $products = \App\Models\Product::all();
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
-        return view('erp.orderReturn.create', compact('customers', 'orders', 'invoices', 'products', 'branches', 'warehouses'));
+        
+        $preSelectedOrder = null;
+        if ($request->has('order_id')) {
+            $preSelectedOrder = Order::with(['customer', 'items.product', 'items.variation'])->find($request->order_id);
+        }
+
+        $generalSettings = \App\Models\GeneralSetting::first();
+        
+        return view('erp.orderReturn.create', compact(
+            'customers', 'orders', 'invoices', 'products', 'branches', 'warehouses', 
+            'preSelectedOrder', 'generalSettings'
+        ));
     }
 
     public function store(Request $request)
@@ -106,35 +117,64 @@ class OrderReturnController extends Controller
             'items.*.returned_qty' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.reason' => 'nullable|string',
+            'new_items' => 'nullable|array',
+            'new_items.*.product_id' => 'required_with:new_items|exists:products,id',
+            'new_items.*.qty' => 'required_with:new_items|numeric|min:1',
+            'new_items.*.unit_price' => 'required_with:new_items|numeric|min:0',
         ]);
 
-        // Validate return quantities against order if order_id is provided
-        if ($request->order_id) {
-            $this->validateReturnQuantities($request->order_id, $request->items);
-        }
+        DB::beginTransaction();
+        try {
+            // Validate return quantities against order if order_id is provided
+            if ($request->order_id) {
+                $this->validateReturnQuantities($request->order_id, $request->items);
+            }
 
-        $data = $request->except(['items', 'status']);
-        $data['status'] = 'pending';
-        $orderReturn = OrderReturn::create($data);
-        foreach ($request->items as $item) {
-            \App\Models\OrderReturnItem::create([
-                'order_return_id' => $orderReturn->id,
-                'order_item_id' => $item['order_item_id'] ?? null,
-                'product_id' => $item['product_id'],
-                'variation_id' => $item['variation_id'] ?? null,
-                'returned_qty' => $item['returned_qty'],
-                'unit_price' => $item['unit_price'],
-                'total_price' => $item['returned_qty'] * $item['unit_price'],
-                'reason' => $item['reason'] ?? null,
-            ]);
+            $data = $request->except(['items', 'status', 'new_items']);
+            $data['status'] = 'pending';
+            $orderReturn = OrderReturn::create($data);
+
+            $totalReturnValue = 0;
+
+            foreach ($request->items as $item) {
+                $total = $item['returned_qty'] * $item['unit_price'];
+                $totalReturnValue += $total;
+                
+                \App\Models\OrderReturnItem::create([
+                    'order_return_id' => $orderReturn->id,
+                    'order_item_id' => $item['order_item_id'] ?? null,
+                    'product_id' => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
+                    'returned_qty' => $item['returned_qty'],
+                    'unit_price' => $item['unit_price'],
+                    'total_price' => $total,
+                    'reason' => $item['reason'] ?? null,
+                ]);
+            }
+
+
+            DB::commit();
+            
+            return redirect()->route('orderReturn.show', $orderReturn->id)->with('success', 'Order return created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Order Return Creation Failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to create return: ' . $e->getMessage())->withInput();
         }
-        return redirect()->route('orderReturn.list')->with('success', 'Order return created successfully.');
     }
+
+
 
     public function show($id)
     {
         $orderReturn = OrderReturn::with(['items.product', 'items.variation', 'employee.user'])->findOrFail($id);
-        return view('erp.orderReturn.show', compact('orderReturn'));
+        
+        // Find related exchange order if exists
+        $exchangeOrder = Order::where('notes', 'like', "%Exchange Order for Return #{$id}%")
+            ->with(['items.product', 'items.variation', 'invoice'])
+            ->first();
+
+        return view('erp.orderReturn.show', compact('orderReturn', 'exchangeOrder'));
     }
 
     public function edit($id)

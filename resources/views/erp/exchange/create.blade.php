@@ -30,7 +30,7 @@
         <div class="container-fluid px-4 py-4">
             <!-- Invoice Search Card -->
             <div class="premium-card mb-4">
-                <div class="card-header bg-white py-3 border-bottom">
+                <div class="card-header bg-white py-3 px-4 border-bottom">
                     <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-search me-2 text-primary"></i>Sales Exchange Information</h6>
                 </div>
                 <div class="card-body p-4">
@@ -39,7 +39,7 @@
                             <label class="form-label small fw-bold text-muted text-uppercase">Sales Invoice No. *</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-end-0"><i class="fas fa-file-invoice"></i></span>
-                                <input type="text" id="invoice_search" class="form-control border-start-0" placeholder="Invoice Number">
+                                <input type="text" id="invoice_search" class="form-control border-start-0" placeholder="Invoice Number/Scan Barcode">
                                 <button type="button" id="btnSearch" class="btn btn-primary px-4">
                                     <i class="fas fa-save me-2"></i>Search
                                 </button>
@@ -74,26 +74,26 @@
 
                     <!-- Return Items -->
                     <div class="col-lg-6">
-                        <div class="premium-card">
-                            <div class="card-header bg-danger bg-opacity-10 py-3 border-bottom">
+                        <div class="premium-card h-100">
+                            <div class="card-header bg-danger bg-opacity-10 py-3 px-4 border-bottom">
                                 <h6 class="mb-0 fw-bold text-uppercase text-danger small"><i class="fas fa-undo me-2"></i>Items to Return</h6>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table premium-table mb-0" id="returnItemsTable">
-                                        <thead>
+                                    <table class="table premium-table mb-0 align-middle" id="returnItemsTable">
+                                        <thead class="bg-light">
                                             <tr>
-                                                <th>Item Details</th>
-                                                <th class="text-center">Sale Qty</th>
-                                                <th class="text-center" style="width: 100px;">Ret Qty</th>
-                                                <th class="text-end">Subtotal</th>
+                                                <th class="py-3 ps-3">Item Details</th>
+                                                <th class="text-center py-3">Action</th>
+                                                <th class="text-center py-3" style="width: 120px;">Ret Qty</th>
+                                                <th class="text-end py-3 pe-3">Subtotal</th>
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
                                         <tfoot class="bg-light">
                                             <tr class="fw-bold">
-                                                <td colspan="3" class="text-end text-uppercase small">Total Return Value</td>
-                                                <td id="totalReturnValue" class="text-end text-danger">0.00</td>
+                                                <td colspan="3" class="text-end text-uppercase small py-3">Total Return Value</td>
+                                                <td id="totalReturnValue" class="text-end text-danger py-3 pe-3">0.00</td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -104,28 +104,28 @@
 
                     <!-- New Items -->
                     <div class="col-lg-6">
-                        <div class="premium-card">
-                            <div class="card-header bg-success bg-opacity-10 py-3 border-bottom d-flex justify-content-between align-items-center">
+                        <div class="premium-card h-100">
+                            <div class="card-header bg-success bg-opacity-10 py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0 fw-bold text-uppercase text-success small"><i class="fas fa-shopping-cart me-2"></i>New Items to Buy</h6>
-                                <button type="button" class="btn btn-sm btn-success" id="btnAddNewItem"><i class="fas fa-plus small"></i></button>
+                                <button type="button" class="btn btn-sm btn-success shadow-sm px-3" id="btnAddNewItem"><i class="fas fa-plus small me-1"></i>Add Product</button>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table premium-table mb-0" id="newItemsTable">
-                                        <thead>
+                                    <table class="table premium-table mb-0 align-middle" id="newItemsTable">
+                                        <thead class="bg-light">
                                             <tr>
-                                                <th>Product</th>
-                                                <th class="text-center" style="width: 80px;">Qty</th>
-                                                <th class="text-end" style="width: 100px;">Price</th>
-                                                <th class="text-end">Total</th>
-                                                <th></th>
+                                                <th class="py-3 ps-3">Product</th>
+                                                <th class="text-center py-3" style="width: 120px;">Qty</th>
+                                                <th class="text-end py-3" style="width: 140px;">Price</th>
+                                                <th class="text-end py-3">Total</th>
+                                                <th style="width: 50px;"></th>
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
                                         <tfoot class="bg-light">
                                             <tr class="fw-bold">
-                                                <td colspan="3" class="text-end text-uppercase small">Total Purchase Value</td>
-                                                <td id="totalPurchaseValue" class="text-end text-success">0.00</td>
+                                                <td colspan="3" class="text-end text-uppercase small py-3">Total Purchase Value</td>
+                                                <td id="totalPurchaseValue" class="text-end text-success py-3">0.00</td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
@@ -140,7 +140,7 @@
                         <div class="premium-card">
                             <div class="card-body p-4">
                                 <div class="row justify-content-end">
-                                    <div class="col-md-4">
+                                    <div class="col-md-5 col-lg-4">
                                         <div class="d-flex justify-content-between mb-2">
                                             <span class="text-muted">Return Credit:</span>
                                             <span class="fw-bold text-danger" id="summaryReturn">0.00</span>
@@ -149,21 +149,22 @@
                                             <span class="text-muted">New Purchase:</span>
                                             <span class="fw-bold text-success" id="summaryPurchase">0.00</span>
                                         </div>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Discount:</span>
-                                            <input type="number" name="discount" id="discountInput" class="form-control form-control-sm text-end" style="width: 100px;" value="0" step="0.01">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="text-muted">Discount Adjustment:</span>
+                                            <input type="number" name="discount" id="discountInput" class="form-control text-end" style="width: 140px;" value="0" step="0.01">
                                         </div>
                                         <hr>
-                                        <div class="d-flex justify-content-between mb-3">
-                                            <h5 class="fw-bold">Net Amount:</h5>
-                                            <h5 class="fw-bold text-primary" id="netAmount">0.00</h5>
+                                        <div class="d-flex justify-content-between mb-3 align-items-center">
+                                            <h5 class="fw-bold mb-0">Net Payable:</h5>
+                                            <h4 class="fw-bold text-primary mb-0" id="netAmount">0.00</h4>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label small fw-bold">Amount to Pay Now</label>
-                                            <input type="number" name="paid_amount" id="paidInput" class="form-control text-end fw-bold" value="0" step="0.01">
+                                            <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg text-end fw-bold" value="0" step="0.01">
+                                            <div class="form-text text-end small" id="paymentStatusText"></div>
                                         </div>
-                                        <button type="submit" class="btn btn-create-premium w-100 py-3 shadow-lg">
-                                            <i class="fas fa-check-circle me-2"></i>COMPLETE EXCHANGE
+                                        <button type="submit" class="btn btn-primary w-100 py-3 shadow-lg fw-bold text-uppercase">
+                                            <i class="fas fa-check-circle me-2"></i>Complete Exchange
                                         </button>
                                     </div>
                                 </div>
@@ -175,20 +176,48 @@
         </div>
     </div>
 
-    <!-- Modals & Scripts -->
+    <!-- Product Picker Modal -->
     <div class="modal fade" id="productPickerModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Select Product</h5>
+                <div class="modal-header bg-white border-bottom">
+                    <h5 class="modal-title fw-bold text-dark">Select Product to Exchange/Buy</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                         <input type="text" id="productSearchInput" class="form-control" placeholder="Search product by name or style number...">
+                    <div class="mb-3 sticky-top bg-white pb-2">
+                         <div class="input-group">
+                             <div class="input-group-text border-end-0 bg-white text-muted"><i class="fas fa-search"></i></div>
+                             <input type="text" id="productSearchInput" class="form-control border-start-0" placeholder="Type product name, SKU or style number..." autocomplete="off">
+                         </div>
                     </div>
-                    <div id="productListResults" class="list-group"></div>
+                    <div id="productListResults" class="list-group list-group-flush">
+                        <div class="text-center text-muted mt-4">Type at least 2 characters to search...</div>
+                    </div>
                 </div>
+                <div class="modal-footer bg-light">
+                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Variation Picker Modal -->
+    <div class="modal fade" id="variationPickerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-white border-bottom">
+                    <h5 class="modal-title fw-bold text-dark" id="variationModalTitle">Select Size/Variant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="variationList" class="list-group list-group-flush">
+                        <div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i></div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Done</button>
+               </div>
             </div>
         </div>
     </div>
@@ -203,12 +232,8 @@
             const $returnItemsBody = $('#returnItemsTable tbody');
             const $newItemsBody = $('#newItemsTable tbody');
             
-            let allProducts = [];
-
-            // Load products for purchase selection
-            $.get("{{ route('products.search') }}", function(res) {
-                // Simplified for brevity, usually you'd search via AJAX
-            });
+            // Focus invoice search on load
+            $invoiceInput.focus();
 
             $btnSearch.on('click', function() {
                 const invoiceNo = $invoiceInput.val().trim();
@@ -233,6 +258,13 @@
                     }
                 });
             });
+            
+            // Allow Enter key for search
+            $invoiceInput.on('keypress', function(e) {
+                if(e.which == 13) {
+                    $btnSearch.click();
+                }
+            });
 
             let originalDiscountRatio = 0;
 
@@ -246,25 +278,30 @@
                 data.items.forEach((item, index) => {
                     const row = `
                         <tr>
-                            <td>
+                            <td class="ps-3">
                                 <strong>${item.product_name}</strong><br>
-                                <small class="text-muted">${item.style_number} | ${item.color} | ${item.size}</small>
+                                <small class="text-muted"><i class="fas fa-tag me-1"></i>${item.style_number} | ${item.color} | ${item.size}</small>
+                                <div class="small text-muted mt-1">Sold Price: ${item.unit_price}</div>
                                 <input type="hidden" name="return_items[${index}][pos_item_id]" value="${item.id}">
                                 <input type="hidden" name="return_items[${index}][product_id]" value="${item.product_id}">
                                 <input type="hidden" name="return_items[${index}][variation_id]" value="${item.variation_id || ''}">
                                 <input type="hidden" name="return_items[${index}][unit_price]" value="${item.unit_price}">
                             </td>
-                            <td class="text-center text-muted">
-                                ${item.quantity}<br>
-                                ${item.returned_qty > 0 ? `<small class="text-danger">(-${item.returned_qty} ret)</small><br>` : ''}
-                                <small class="text-xs text-muted">@ ${item.unit_price}</small>
+                            <td class="text-center align-middle">
+                                <button type="button" class="btn btn-outline-dark btn-sm rounded-pill btn-quick-exchange" 
+                                    data-product-name="${item.product_name}" title="Exchange this item with another size/color">
+                                    <i class="fas fa-exchange-alt me-1"></i> Exchange
+                                </button>
                             </td>
-                            <td class="text-center">
-                                <input type="number" name="return_items[${index}][qty]" class="form-control form-control-sm text-center return-qty" 
-                                    min="0" max="${item.available_qty}" value="0" ${item.available_qty <= 0 ? 'disabled' : ''}>
-                                ${item.available_qty <= 0 ? '<span class="badge bg-danger">Full Return</span>' : ''}
+                            <td class="text-center align-middle">
+                                 <div class="input-group input-group-sm justify-content-center">
+                                    <input type="number" name="return_items[${index}][qty]" class="form-control text-center return-qty" 
+                                    min="0" max="${item.available_qty}" value="0" style="max-width: 80px" ${item.available_qty <= 0 ? 'disabled' : ''}>
+                                 </div>
+                                ${item.available_qty <= 0 ? '<span class="badge bg-danger mt-1">Returned</span>' : 
+                                    `<small class="text-muted d-block mt-1">Max: ${item.available_qty}</small>`}
                             </td>
-                            <td class="text-end">
+                            <td class="text-end pe-3 align-middle">
                                 <div class="row-return-total fw-bold">0.00</div>
                                 <div class="text-xs text-danger row-return-discount" style="font-size: 0.7rem;"></div>
                             </td>
@@ -295,60 +332,269 @@
                 calculateAll();
             });
 
-            $('#btnAddNewItem').on('click', function() {
+            // Quick Exchange Button Handler
+            $(document).on('click', '.btn-quick-exchange', function() {
+                const productName = $(this).data('product-name');
+                const $row = $(this).closest('tr');
+                // Auto-set return qty to 1 if it's 0, to be helpful
+                const $qtyInput = $row.find('.return-qty');
+                if($qtyInput.val() == 0 && !$qtyInput.prop('disabled')) {
+                    $qtyInput.val(1).trigger('input');
+                }
+
                 $('#productPickerModal').modal('show');
+                $('#productSearchInput').val(productName).trigger('input');
+                setTimeout(function() { $('#productSearchInput').focus(); }, 500);
             });
 
+            $('#btnAddNewItem').on('click', function() {
+                $('#productPickerModal').modal('show');
+                $('#productSearchInput').val(''); // Clear previous search
+                $('#productListResults').html('<div class="text-center text-muted mt-4">Type at least 2 characters to search...</div>');
+                // Auto focus on search input
+                setTimeout(function() { $('#productSearchInput').focus(); }, 500);
+            });
+
+            let searchTimeout;
             $('#productSearchInput').on('input', function() {
                 const q = $(this).val();
+                clearTimeout(searchTimeout);
+                
                 if (q.length < 2) return;
-                $.get("{{ route('products.search') }}", { q: q }, function(res) {
-                    let html = '';
-                    res.forEach(p => {
-                        html += `<button type="button" class="list-group-item list-group-item-action select-product" 
-                            data-id="${p.id}" data-name="${p.name}" data-sku="${p.sku || ''}">${p.name} (${p.sku || ''})</button>`;
+                
+                // Show loading indicator
+                $('#productListResults').html('<div class="text-center py-3"><i class="fas fa-spinner fa-spin text-muted"></i> Searching...</div>');
+                
+                searchTimeout = setTimeout(() => {
+                    $.get("{{ route('products.search') }}", { q: q }, function(res) {
+                        let html = '';
+                        if(res.length === 0) {
+                            html = '<div class="text-center text-muted py-3">No products found</div>';
+                        } else {
+                            res.forEach(p => {
+                                // Check if has variations
+                                const hasVar = p.has_variations ? 1 : 0;
+                                const badge = hasVar ? '<span class="badge bg-primary bg-opacity-10 text-primary ms-2"><i class="fas fa-layer-group me-1"></i>Variants</span>' : '';
+                                
+                                html += `<button type="button" class="list-group-item list-group-item-action select-product d-flex justify-content-between align-items-center mb-1 border rounded-3" 
+                                    data-id="${p.id}" data-name="${p.name}" data-sku="${p.sku || ''}" data-has-variations="${hasVar}">
+                                    <div>
+                                        <div class="fw-bold text-dark">${p.name}</div>
+                                        <div class="small text-muted">SKU: ${p.sku || '-'}</div>
+                                    </div>
+                                    ${badge}
+                                    </button>`;
+                            });
+                        }
+                        $('#productListResults').html(html);
                     });
-                    $('#productListResults').html(html);
-                });
+                }, 300); // Debounce search
             });
+
+            // Global temporary storage for selected product in first step
+            let selectedProductTemp = null;
 
             $(document).on('click', '.select-product', function() {
                 const id = $(this).data('id');
                 const name = $(this).data('name');
                 const sku = $(this).data('sku');
+                const hasVariations = $(this).data('has-variations') == 1;
+                
+                selectedProductTemp = { id, name, sku };
+
+                if (hasVariations) {
+                    // Open variation modal
+                    $('#productPickerModal').modal('hide');
+                    $('#variationModalTitle').html(`Select Option for <span class="text-primary">${name}</span>`);
+                    $('#variationPickerModal').modal('show');
+                    
+                    // Fetch variations
+                    $('#variationList').html('<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><div class="mt-2 text-muted">Loading variations...</div></div>');
+                    
+                    $.get(`/erp/products/${id}/variations-list`, function(variations) {
+                        if (variations.length === 0) {
+                            // Fallback if no variations return but flag said true
+                            addProductToTable(id, name, sku, null, '', null);
+                            $('#variationPickerModal').modal('hide');
+                            return;
+                        }
+                        
+                        let html = '';
+                        variations.forEach(v => {
+                             const priceDisplay = v.has_discount ? 
+                                 `<span class="text-decoration-line-through text-muted small me-1">${v.base_price}</span> <span class="fw-bold text-dark">${v.price}</span>` : 
+                                 `<span class="fw-bold">${v.price}</span>`;
+                                 
+                             const stockColor = v.stock > 0 ? 'success' : 'danger';
+                             const stockText = v.stock > 0 ? `${v.stock} in stock` : 'Out of Stock';
+                             const disabled = v.stock <= 0 ? 'disabled style="opacity: 0.6;"' : '';
+                             
+                             html += `<button type="button" class="list-group-item list-group-item-action select-variation mb-1 border rounded-3"
+                                 data-vid="${v.id}" data-vname="${v.display_name}" data-price="${v.price}" data-stock="${v.stock}" ${disabled}>
+                                 <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1 text-dark fw-bold">${v.name || v.display_name}</h6> 
+                                        <div class="small text-muted">SKU: ${v.sku || '-'}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="mb-1">${priceDisplay}</div>
+                                        <div class="badge bg-${stockColor} bg-opacity-10 text-${stockColor} rounded-pill">${stockText}</div>
+                                    </div>
+                                 </div>
+                             </button>`;
+                        });
+                        $('#variationList').html(html);
+                    });
+                    
+                } else {
+                    // Direct add
+                    addProductToTable(id, name, sku, null, '', null);
+                    // For direct products, we can opt to keep it open or close. 
+                    const $btn = $(this);
+                    const originalHtml = $btn.html();
+                    $btn.html('<i class="fas fa-check text-success"></i> Added').prop('disabled', true);
+                    setTimeout(() => {
+                        $btn.html(originalHtml).prop('disabled', false);
+                    }, 1000);
+                }
+            });
+            
+            $(document).on('click', '.select-variation', function() {
+                const vid = $(this).data('vid');
+                const vname = $(this).data('vname');
+                const price = $(this).data('price');
+                const stock = $(this).data('stock');
+                const $btn = $(this);
+                
+                if (selectedProductTemp) {
+                    addProductToTable(selectedProductTemp.id, selectedProductTemp.name, selectedProductTemp.sku, vid, price, vname, stock);
+                    
+                    // Visual feedback
+                    $btn.addClass('bg-success bg-opacity-10 border-success');
+                }
+            });
+
+            function addProductToTable(id, name, sku, variationId, priceOverride, variationName, maxStock) {
+                // Check if already exists in table
+                let existingRow = null;
+                $newItemsBody.find('tr').each(function() {
+                    const pid = $(this).find('input[name*="[product_id]"]').val();
+                    const vid = $(this).find('input[name*="[variation_id]"]').val();
+                    // Handle potential null/empty values comparison
+                    const rowVid = vid || '';
+                    const newVid = variationId || '';
+                    
+                    if (pid == id && rowVid == newVid) {
+                        existingRow = $(this);
+                        return false;
+                    }
+                });
+
+                if (existingRow) {
+                    const $qtyInput = existingRow.find('.new-qty');
+                    let currentQty = parseFloat($qtyInput.val()) || 0;
+                    
+                    // Determine max stock to check against
+                    // If maxStock is passed (e.g. from variation click), use it
+                    // Otherwise check the data-max attribute on the input
+                    let limit = maxStock;
+                    if (limit === undefined || limit === null) {
+                        limit = $qtyInput.data('max');
+                    }
+
+                    // Check limit if it exists
+                    if (limit !== undefined && limit !== null && limit !== '') {
+                        limit = parseFloat(limit);
+                        if (currentQty >= limit) {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'warning',
+                                title: `Max stock (${limit}) reached`,
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+                             // Highlight row even on failure to show where it is
+                            existingRow.addClass('bg-danger bg-opacity-10');
+                            setTimeout(() => existingRow.removeClass('bg-danger bg-opacity-10'), 300);
+                            return; 
+                        }
+                    }
+
+                    // Increment
+                    $qtyInput.val(currentQty + 1).trigger('input');
+                    
+                    // Visual feedback
+                    existingRow.addClass('bg-success bg-opacity-10');
+                    setTimeout(() => existingRow.removeClass('bg-success bg-opacity-10'), 300);
+                    return;
+                }
+
                 const index = $newItemsBody.find('tr').length;
                 
-                // Fetch price
-                $.get(`/erp/products/${id}/sale-price`, function(priceRes) {
-                    const price = priceRes.price || 0;
-                    const row = `
-                        <tr>
-                            <td>
-                                <strong>${name}</strong><br>
-                                <small class="text-muted">${sku}</small>
-                                <input type="hidden" name="new_items[${index}][product_id]" value="${id}">
-                                <input type="hidden" name="new_items[${index}][variation_id]" value="">
-                            </td>
-                            <td>
-                                <input type="number" name="new_items[${index}][qty]" class="form-control form-control-sm text-center new-qty" value="1">
-                            </td>
-                            <td>
-                                <input type="number" name="new_items[${index}][unit_price]" class="form-control form-control-sm text-end new-price" value="${price}">
-                            </td>
-                            <td class="text-end row-new-total">${price}</td>
-                            <td><button type="button" class="btn btn-sm btn-link text-danger remove-item"><i class="fas fa-times"></i></button></td>
-                        </tr>
-                    `;
-                    $newItemsBody.append(row);
-                    calculateAll();
-                    $('#productPickerModal').modal('hide');
-                });
-            });
+                // If priceOverride is provided, use it. Otherwise fetch sale price
+                if (priceOverride !== '' && priceOverride !== null) {
+                    appendRow(id, name, sku, variationId, priceOverride, index, variationName, maxStock);
+                } else {
+                    $.get(`/erp/products/${id}/sale-price`, function(priceRes) {
+                        const price = priceRes.price || 0;
+                        const stock = priceRes.stock || 0;
+                        appendRow(id, name, sku, variationId, price, index, variationName, stock);
+                    });
+                }
+            }
+
+            function appendRow(id, name, sku, variationId, price, index, variationName, maxStock) {
+                // Determine display name: Product Name <br> Variation Name
+                const displayVar = variationName ? `<div class="badge bg-light text-dark border align-middle mt-1">${variationName}</div>` : '';
+                const maxAttr = maxStock ? `max="${maxStock}"` : '';
+                const stockData = maxStock ? `data-max="${maxStock}"` : '';
+                const stockInfo = maxStock ? `<div class="text-xs text-muted mt-1 stock-info">Max: ${maxStock}</div>` : '';
+
+                const row = `
+                    <tr>
+                        <td class="ps-3 py-3">
+                            <div class="fw-bold text-dark">${name}</div>
+                            ${displayVar}
+                            <div class="small text-muted mt-1">SKU: ${sku}</div>
+                            <input type="hidden" name="new_items[${index}][product_id]" value="${id}">
+                            <input type="hidden" name="new_items[${index}][variation_id]" value="${variationId || ''}">
+                        </td>
+                        <td class="align-middle text-center py-3">
+                            <input type="number" name="new_items[${index}][qty]" class="form-control text-center new-qty" value="1" min="1" ${maxAttr} ${stockData} style="max-width: 100px; margin: 0 auto;">
+                            ${stockInfo}
+                        </td>
+                        <td class="align-middle text-end py-3">
+                            <input type="number" name="new_items[${index}][unit_price]" class="form-control text-end new-price" value="${price}" style="max-width: 120px; margin-left: auto;">
+                        </td>
+                        <td class="text-end fw-bold align-middle py-3 row-new-total">${price}</td>
+                        <td class="align-middle py-3 text-center"><button type="button" class="btn btn-sm btn-link text-danger remove-item p-0"><i class="fas fa-times"></i></button></td>
+                    </tr>
+                `;
+                $newItemsBody.append(row);
+                calculateAll();
+            }
 
             $(document).on('input', '.new-qty, .new-price, #discountInput', function() {
                 const $row = $(this).closest('tr');
-                const qty = parseFloat($row.find('.new-qty').val()) || 0;
+                const $qtyInput = $row.find('.new-qty');
+                const qty = parseFloat($qtyInput.val()) || 0;
                 const price = parseFloat($row.find('.new-price').val()) || 0;
+                const max = parseFloat($qtyInput.data('max'));
+
+                if (max && qty > max) {
+                    $qtyInput.addClass('is-invalid');
+                    // Optional: Validation feedback
+                    if ($row.find('.invalid-feedback').length === 0) {
+                        $row.find('.stock-info').addClass('text-danger').removeClass('text-muted').text(`Max Limit: ${max}`);
+                    }
+                } else {
+                    $qtyInput.removeClass('is-invalid');
+                    if(max) {
+                         $row.find('.stock-info').removeClass('text-danger').addClass('text-muted').text(`Max: ${max}`);
+                    }
+                }
+
                 $row.find('.row-new-total').text((qty * price).toFixed(2));
                 calculateAll();
             });
@@ -361,7 +607,9 @@
             function calculateAll() {
                 let totalReturn = 0;
                 $('.row-return-total').each(function() {
-                    totalReturn += parseFloat($(this).text()) || 0;
+                    let val = parseFloat($(this).data('net'));
+                    if(isNaN(val)) val = parseFloat($(this).text()) || 0;
+                    totalReturn += val;
                 });
                 
                 let totalPurchase = 0;
@@ -369,20 +617,31 @@
                     totalPurchase += parseFloat($(this).text()) || 0;
                 });
 
-                const discount = parseFloat($('#discountInput').val()) || 0;
+                let discount = parseFloat($('#discountInput').val()) || 0;
+                
+                // Logic: Net = Purchase - Return - Discount
                 const net = totalPurchase - totalReturn - discount;
-
+                
+                // Update text
                 $('#totalReturnValue').text(totalReturn.toFixed(2));
                 $('#totalPurchaseValue').text(totalPurchase.toFixed(2));
                 $('#summaryReturn').text(totalReturn.toFixed(2));
                 $('#summaryPurchase').text(totalPurchase.toFixed(2));
                 
+                const returnCredit = totalReturn;
+                const grandTotal = totalPurchase;
+                
                 if (net < 0) {
-                    $('#netAmount').text('Credit: ' + Math.abs(net).toFixed(2)).addClass('text-success').removeClass('text-primary');
+                    // Credit due to customer
+                    const creditAmount = Math.abs(net);
+                    $('#netAmount').html(`<span class="text-success">Refund: ${creditAmount.toFixed(2)}</span>`);
                     $('#paidInput').val(0);
+                    $('#paymentStatusText').text('Customer receives change');
                 } else {
-                    $('#netAmount').text(net.toFixed(2)).addClass('text-primary').removeClass('text-success');
+                    // Customer needs to pay
+                    $('#netAmount').html(`${net.toFixed(2)}`);
                     $('#paidInput').val(net.toFixed(2));
+                     $('#paymentStatusText').text('Customer pays difference');
                 }
             }
 
@@ -391,6 +650,13 @@
                 const $form = $(this);
                 const $btn = $form.find('button[type="submit"]');
                 
+                // Validation: Must have return OR new items? Not strictly, but typically yes for exchange
+                // Let's allow flexibility but warn if empty
+                if ($newItemsBody.find('tr').length === 0 && $returnItemsBody.find('.return-qty').filter((i, el) => $(el).val() > 0).length === 0) {
+                    Swal.fire('Warning', 'Please select items to return or items to buy.', 'warning');
+                    return;
+                }
+
                 $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Processing...');
                 
                 $.ajax({
@@ -399,17 +665,23 @@
                     data: $form.serialize(),
                     success: function(res) {
                         if (res.success) {
-                            Swal.fire('Success', res.message, 'success').then(() => {
+                            Swal.fire({
+                                title: 'Success', 
+                                text: res.message, 
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
                                 window.location.href = res.redirect;
                             });
                         } else {
                             Swal.fire('Error', res.message, 'error');
-                            $btn.prop('disabled', false).html('<i class="fas fa-check-circle me-2"></i>COMPLETE EXCHANGE');
+                            $btn.prop('disabled', false).html('<i class="fas fa-check-circle me-2"></i>Complete Exchange');
                         }
                     },
                     error: function(err) {
                         Swal.fire('Error', 'Calculation error or server error', 'error');
-                        $btn.prop('disabled', false).html('<i class="fas fa-check-circle me-2"></i>COMPLETE EXCHANGE');
+                        $btn.prop('disabled', false).html('<i class="fas fa-check-circle me-2"></i>Complete Exchange');
                     }
                 });
             });

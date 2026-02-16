@@ -30,7 +30,7 @@
                 </div>
                 <div class="product-info">
                     <a href="{{ route('product.details', $product->slug) }}" class="product-title"
-                        style="text-decoration: none;">{{ $product->name }}</a>
+                        style="text-decoration: none;">{{ $product->name }} <small class="text-muted" style="font-size: 0.8em; font-weight: normal;">#{{ $product->style_number ?? $product->sku }}</small></a>
                     <div class="product-description">{!! $product->short_desc ? $product->short_desc : '' !!}</div>
                     <div class="product-meta" style="margin-top:6px;">
                         @php
