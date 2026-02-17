@@ -316,7 +316,7 @@ class ReportController extends Controller
             $item->date = $item->order->created_at;
             $item->invoice = '#' . $item->order->id;
             $item->customer_name = $item->order->customer->first_name ?? ($item->order->first_name . ' ' . $item->order->last_name);
-            $item->unit_cost = $item->product->cost ?? 0;
+            $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
             return $item;
@@ -509,7 +509,7 @@ class ReportController extends Controller
             
         $onlineCost = OrderItem::whereHas('order', function($q) use ($startDate, $endDate) {
                 $q->whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
-            })->sum(DB::raw('quantity * unit_price * 0.7'));
+            })->sum(DB::raw('quantity * IFNULL(unit_cost, 0)'));
             
         $cogsAmount = $posCost + $onlineCost;
 
