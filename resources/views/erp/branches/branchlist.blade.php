@@ -338,14 +338,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.deleteBranch = function(id) {
-        if(confirm('Are you absolutely sure? This cannot be undone.')) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/erp/branches/${id}`;
-            form.innerHTML = `@csrf @method('DELETE')`;
-            document.body.appendChild(form);
-            form.submit();
-        }
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "This branch and its associated records will be permanently removed. This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, shut it down!',
+            cancelButtonText: 'Keep it open',
+            customClass: {
+                popup: 'rounded-4 shadow-lg border-0',
+                confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/erp/branches/${id}`;
+                form.innerHTML = `@csrf @method('DELETE')`;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
     };
 
     // Export Logic
@@ -355,7 +371,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function triggerExport(type) {
         const selectedColumns = Array.from(document.querySelectorAll('.column-selector:checked')).map(cb => cb.value);
         if (selectedColumns.length === 0) {
-            alert('Select at least one data point to export.');
+            Swal.fire({
+                title: 'Data Required',
+                text: 'Please select at least one data point to export.',
+                icon: 'info',
+                confirmButtonColor: 'var(--primary-color)',
+                customClass: {
+                    popup: 'rounded-4 shadow-lg border-0',
+                    confirmButton: 'px-4 py-2 rounded-3 fw-bold'
+                }
+            });
             return;
         }
 

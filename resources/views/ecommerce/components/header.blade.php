@@ -175,9 +175,8 @@
         <meta property="og:type" content="website">
         <meta property="og:url" content="{{ url()->current() }}">
     @endif
-    <link rel="icon"
-        href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) : asset('static/default-site-icon.webp') }}"
-        type="image/x-icon">
+    <link rel="icon" type="image/x-icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
+    <link rel="shortcut icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
     <!-- Critical Styles: Loaded synchronously to prevent Layout Shift (CLS) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">

@@ -45,7 +45,8 @@
     @php $logoUrl = $general_settings && $general_settings->site_logo ? asset($general_settings->site_logo) : asset('static/default-logo.webp'); @endphp
     <link rel="preload" as="image" href="{{ $logoUrl }}" fetchpriority="high">
     
-    <link rel="icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) : asset('static/default-site-icon.webp') }}" type="image/x-icon">
+    <link rel="icon" type="image/x-icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
+    <link rel="shortcut icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -53,6 +54,7 @@
     <link href="{{ asset('erp.css') }}" rel="stylesheet">
     <link href="{{ asset('premium-theme.css') }}?v=1.0.3" rel="stylesheet">
     <link href="{{ asset('erp-style-fixes.css') }}?v=1.0.3" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     @stack('css')
     @stack('head')
@@ -65,6 +67,7 @@
 
     <!-- Core Scripts -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -121,6 +124,100 @@
             }
         });
 
+        // 1. Global Alert Override
+        window.alert = function(message) {
+            Swal.fire({
+                title: 'Notification',
+                text: message,
+                icon: 'info',
+                confirmButtonColor: 'var(--primary-color)',
+                customClass: {
+                    popup: 'rounded-4 shadow-lg border-0',
+                    confirmButton: 'px-4 py-2 rounded-3 fw-bold'
+                }
+            });
+        };
+
+        // 2. Global Confirm Interceptor (Intercepts native confirm() calls in HTML attributes)
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const onsubmitAttr = form.getAttribute('onsubmit');
+            
+            if (onsubmitAttr && onsubmitAttr.includes('confirm(') && !form.dataset.swalApproved) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                
+                let msg = "Are you sure you want to proceed?";
+                const match = onsubmitAttr.match(/confirm\(['"](.+?)['"]\)/);
+                if (match) msg = match[1];
+
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: msg,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: 'var(--primary-color)',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, Confirm',
+                    cancelButtonText: 'Cancel',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0',
+                        confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                        cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.dataset.swalApproved = 'true';
+                        form.submit();
+                    }
+                });
+            }
+        }, true);
+
+        // 3. Global Click Interceptor (for onclick="return confirm(...)")
+        document.addEventListener('click', function(e) {
+            const el = e.target.closest('[onclick]');
+            if (!el) return;
+            
+            const onclickAttr = el.getAttribute('onclick');
+            if (onclickAttr && onclickAttr.includes('confirm(') && !el.dataset.swalApproved) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                
+                let msg = "Are you sure you want to proceed?";
+                const match = onclickAttr.match(/confirm\(['"](.+?)['"]\)/);
+                if (match) msg = match[1];
+
+                Swal.fire({
+                    title: 'Confirmation',
+                    text: msg,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: 'var(--primary-color)',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, Proceed',
+                    cancelButtonText: 'Cancel',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0',
+                        confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                        cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        el.dataset.swalApproved = 'true';
+                        el.click(); // Re-trigger the click
+                    }
+                });
+            }
+        }, true);
+
+        // 4. Global ERP Notification Helper
+        window.erpNotify = {
+            success: (msg) => Swal.fire({ icon: 'success', title: 'Success', text: msg, timer: 3000, showConfirmButton: false, customClass: { popup: 'rounded-4' } }),
+            error: (msg) => Swal.fire({ icon: 'error', title: 'Oops...', text: msg, customClass: { popup: 'rounded-4' } }),
+            info: (msg) => Swal.fire({ icon: 'info', title: 'Note', text: msg, customClass: { popup: 'rounded-4' } })
+        };
+
         // Smart Prefetching (Makes clicks feel instant)
         document.addEventListener('mouseover', (e) => {
             const link = e.target.closest('.nav-link');
@@ -132,6 +229,7 @@
                 link.dataset.prefetched = 'true';
             }
         });
+
 
     </script>
     @stack('scripts')
