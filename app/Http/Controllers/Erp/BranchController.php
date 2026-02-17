@@ -50,8 +50,9 @@ class BranchController extends Controller
         if (!Auth::user()->hasPermissionTo('create branch')) {
             abort(403, 'Unauthorized action.');
         }
-        $users = User::where('is_admin', 1)->get();
-        return view('erp.branches.create', compact('users'));
+        $employees = Employee::with('user')->get();
+        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+        return view('erp.branches.create', compact('employees', 'warehouses'));
     }
 
     /**
@@ -149,9 +150,10 @@ class BranchController extends Controller
     public function edit($id)
     {
         if(Auth::user()->hasPermissionTo('edit branch')){
-            $branch = Branch::with('manager')->findOrFail($id);
-            $users = User::where('is_admin', 1)->get();
-            return view('erp.branches.edit', compact('branch', 'users'));
+            $branch = Branch::findOrFail($id);
+            $employees = Employee::with('user')->get();
+            $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+            return view('erp.branches.edit', compact('branch', 'employees', 'warehouses'));
         }else{
             return redirect()->route('erp.dashboard');
         }

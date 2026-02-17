@@ -349,7 +349,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/purchases/{id}/edit', [\App\Http\Controllers\Erp\PurchaseController::class, 'edit'])->name('purchase.edit');
     Route::put('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'update'])->name('purchase.update');
     Route::delete('/purchases/{id}', [\App\Http\Controllers\Erp\PurchaseController::class, 'delete'])->name('purchase.delete');
-    Route::post('/purchases/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseController::class, 'updateStatus'])->name('purchase.updateStatus');
+    Route::put('/purchases/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseController::class, 'updateStatus'])->name('purchase.updateStatus');
     Route::get('/purchases/search', [\App\Http\Controllers\Erp\PurchaseController::class, 'searchPurchase'])->name('purchase.search');
     Route::get('/purchases/{id}/items', [\App\Http\Controllers\Erp\PurchaseController::class, 'getItemByPurchase'])->name('purchase.items');
 
@@ -827,54 +827,54 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 // });
 
 
-Route::get('/migrate-db', function() {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
-    } catch (\Exception $e) {
-        return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+// Route::get('/migrate-db', function() {
+//     try {
+//         Artisan::call('migrate', ['--force' => true]);
+//         return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+//     } catch (\Exception $e) {
+//         return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
 
 
 // Route to run migrations from web
-Route::get('/run-migrate', function() {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
-    } catch (\Exception $e) {
-        return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+// Route::get('/run-migrate', function() {
+//     try {
+//         Artisan::call('migrate', ['--force' => true]);
+//         return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+//     } catch (\Exception $e) {
+//         return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
 // Specific fix for POS table if migrations are out of sync
-Route::get('/fix-pos-columns', function() {
-    try {
-        Schema::table('pos', function (Blueprint $table) {
-            if (!Schema::hasColumn('pos', 'challan_number')) {
-                $table->string('challan_number')->nullable()->after('sale_number');
-            }
-            if (!Schema::hasColumn('pos', 'sale_type')) {
-                $table->string('sale_type')->nullable()->after('sale_date');
-            }
-            if (!Schema::hasColumn('pos', 'account_type')) {
-                $table->string('account_type')->nullable()->after('notes');
-            }
-            if (!Schema::hasColumn('pos', 'account_number')) {
-                $table->string('account_number')->nullable()->after('account_type');
-            }
-            if (!Schema::hasColumn('pos', 'remarks')) {
-                $table->text('remarks')->nullable()->after('account_number');
-            }
-            if (!Schema::hasColumn('pos', 'courier_id')) {
-                $table->unsignedBigInteger('courier_id')->nullable()->after('remarks');
-            }
-        });
-        return '<h1>POS Table Columns Fixed Successfully!</h1>';
-    } catch (\Exception $e) {
-        return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+// Route::get('/fix-pos-columns', function() {
+//     try {
+//         Schema::table('pos', function (Blueprint $table) {
+//             if (!Schema::hasColumn('pos', 'challan_number')) {
+//                 $table->string('challan_number')->nullable()->after('sale_number');
+//             }
+//             if (!Schema::hasColumn('pos', 'sale_type')) {
+//                 $table->string('sale_type')->nullable()->after('sale_date');
+//             }
+//             if (!Schema::hasColumn('pos', 'account_type')) {
+//                 $table->string('account_type')->nullable()->after('notes');
+//             }
+//             if (!Schema::hasColumn('pos', 'account_number')) {
+//                 $table->string('account_number')->nullable()->after('account_type');
+//             }
+//             if (!Schema::hasColumn('pos', 'remarks')) {
+//                 $table->text('remarks')->nullable()->after('account_number');
+//             }
+//             if (!Schema::hasColumn('pos', 'courier_id')) {
+//                 $table->unsignedBigInteger('courier_id')->nullable()->after('remarks');
+//             }
+//         });
+//         return '<h1>POS Table Columns Fixed Successfully!</h1>';
+//     } catch (\Exception $e) {
+//         return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
 require __DIR__ . '/auth.php';

@@ -224,72 +224,99 @@
 
         function addItemRow(product) {
             const tableBody = $('#itemsTable tbody');
+            const productsToLoad = [];
             
-            // Generate metadata labels or selects
-            let sizeOptions = `<option value="">Size</option>`;
-            let colorOptions = `<option value="">Color</option>`;
-            let showSize = false;
-            let showColor = false;
-            
-            if (product.has_variations) {
-                if (product.sizes && product.sizes.length > 0) {
-                    product.sizes.forEach(s => sizeOptions += `<option value="${s.id}">${s.name}</option>`);
-                    showSize = true;
-                }
-                if (product.colors && product.colors.length > 0) {
-                    product.colors.forEach(c => colorOptions += `<option value="${c.id}">${c.name}</option>`);
-                    showColor = true;
-                }
+            // If product has variations, load all of them as separate rows
+            if (product.has_variations && product.variations && product.variations.length > 0) {
+                product.variations.forEach(v => productsToLoad.push({p: product, v: v}));
+            } else {
+                // Otherwise just load the base product
+                productsToLoad.push({p: product, v: null});
             }
 
-            // Fallback for non-variable or missing attributes
-            if (!showSize) sizeOptions = `<option value="">-</option>`;
-            if (!showColor) colorOptions = `<option value="">-</option>`;
+            productsToLoad.forEach(item => {
+                const p = item.p;
+                const v = item.v;
+                
+                let sizeOptions = `<option value="">Size</option>`;
+                let colorOptions = `<option value="">Color</option>`;
+                let selectedSize = '';
+                let selectedColor = '';
+                let showSize = false;
+                let showColor = false;
+                let variationId = v ? v.id : '';
+                let unitPrice = v ? (v.cost || p.cost || 0) : (p.cost || 0);
 
-            const rowTemplate = `
-                <tr class="item-row" data-index="${rowIndex}">
-                    <td><img src="${product.image}" width="40" height="40" class="img-thumbnail border-0 bg-light"></td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${product.category || '-'}</td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${product.brand || '-'}</td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${product.season || '-'}</td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${product.gender || '-'}</td>
-                    <td class="fw-bold">${product.name}</td>
-                    <td class="text-secondary small">#${product.style_number}</td>
-                    <td>
-                        <select name="items[${rowIndex}][size_id]" class="form-select form-select-sm size-select" ${!showSize ? 'disabled' : ''}>
-                            ${sizeOptions}
-                        </select>
-                    </td>
-                    <td>
-                        <select name="items[${rowIndex}][color_id]" class="form-select form-select-sm color-select" ${!showColor ? 'disabled' : ''}>
-                            ${colorOptions}
-                        </select>
-                        <input type="hidden" name="items[${rowIndex}][variation_id]" class="variation-id-input">
-                    </td>
-                    <td>
-                        <input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm quantity text-center border-2 fw-bold" value="1" min="0.01" step="0.01">
-                        <input type="hidden" name="items[${rowIndex}][product_id]" value="${product.id}">
-                    </td>
-                    <td>
-                        <input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm unit_price text-end border-2 fw-bold" value="${product.cost || 0}" step="0.01">
-                    </td>
-                    <td class="text-end fw-bold">
-                        <span class="item-total-val text-primary">${parseFloat(product.cost || 0).toFixed(2)}</span>
-                    </td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-outline-danger border-0 remove-row">
-                            <i class="fas fa-times-circle"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            tableBody.append(rowTemplate);
-            
-            // Embed product object for later attribute matching
-            tableBody.find(`tr[data-index="${rowIndex}"]`).data('pdata', product);
-            
-            rowIndex++;
+                if (p.has_variations) {
+                    if (p.sizes && p.sizes.length > 0) {
+                        p.sizes.forEach(s => sizeOptions += `<option value="${s.id}">${s.name}</option>`);
+                        showSize = true;
+                    }
+                    if (p.colors && p.colors.length > 0) {
+                        p.colors.forEach(c => colorOptions += `<option value="${c.id}">${c.name}</option>`);
+                        showColor = true;
+                    }
+
+                    // Identify pre-selected variations
+                    if (v && v.attributes) {
+                        v.attributes.forEach(attr => {
+                            if (p.sizes && p.sizes.some(s => s.id == attr.value_id)) selectedSize = attr.value_id;
+                            if (p.colors && p.colors.some(c => c.id == attr.value_id)) selectedColor = attr.value_id;
+                        });
+                    }
+                }
+
+                if (!showSize) sizeOptions = `<option value="">-</option>`;
+                if (!showColor) colorOptions = `<option value="">-</option>`;
+
+                const rowTemplate = `
+                    <tr class="item-row" data-index="${rowIndex}">
+                        <td><img src="${p.image}" width="40" height="40" class="img-thumbnail border-0 bg-light"></td>
+                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.category || '-'}</td>
+                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.brand || '-'}</td>
+                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.season || '-'}</td>
+                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.gender || '-'}</td>
+                        <td class="fw-bold">${p.name}</td>
+                        <td class="text-secondary small">${p.style_number ? '#' + p.style_number : '-'}</td>
+                        <td>
+                            <select name="items[${rowIndex}][size_id]" class="form-select form-select-sm size-select" ${!showSize ? 'disabled' : ''}>
+                                ${sizeOptions}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="items[${rowIndex}][color_id]" class="form-select form-select-sm color-select" ${!showColor ? 'disabled' : ''}>
+                                ${colorOptions}
+                            </select>
+                            <input type="hidden" name="items[${rowIndex}][variation_id]" class="variation-id-input" value="${variationId}">
+                        </td>
+                        <td>
+                            <input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm quantity text-center border-2 fw-bold" value="1" min="0.01" step="0.01">
+                            <input type="hidden" name="items[${rowIndex}][product_id]" value="${p.id}">
+                        </td>
+                        <td>
+                            <input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm unit_price text-end border-2 fw-bold" value="${unitPrice}" step="0.01">
+                        </td>
+                        <td class="text-end fw-bold">
+                            <span class="item-total-val text-primary">${parseFloat(unitPrice).toFixed(2)}</span>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger border-0 remove-row">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                
+                const $row = $(rowTemplate);
+                tableBody.append($row);
+                
+                if (selectedSize) $row.find('.size-select').val(selectedSize);
+                if (selectedColor) $row.find('.color-select').val(selectedColor);
+                
+                $row.data('pdata', p);
+                rowIndex++;
+            });
+
             updateTotals();
         }
 

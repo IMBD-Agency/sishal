@@ -1279,8 +1279,10 @@ class ProductController extends Controller
                     'sku' => $product->sku,
                     'type' => $product->type,
                     'price' => $product->price,
+                    'wholesale_price' => $product->wholesale_price,
                     'cost' => $product->cost,
                     'discount' => $product->discount,
+                    'style_number' => $product->style_number,
                     'status' => $product->status,
                     'image' => $product->image,
                     'description' => $product->description,
@@ -1296,13 +1298,14 @@ class ProductController extends Controller
                         'last_updated_at' => $lastUpdatedAt
                     ],
                     'total_stock' => $totalVariationStock,
-                    'variations' => $product->variations->map(function($v) use ($branchId) {
+                    'variations' => $product->variations->map(function($v) use ($branchId, $product) {
                          // Find stock for this variation in this branch
                          $stock = $v->stocks->where('branch_id', $branchId)->whereNull('warehouse_id')->first();
                          return [
                              'id' => $v->id,
                              'name' => $v->name, // e.g. "Color: Red, Size: XL"
                              'price' => $v->price ?? null, // Override price if set
+                             'wholesale_price' => $product->wholesale_price, // Fallback to product wholesale price
                              'sku' => $v->sku,
                              'stock' => $stock ? $stock->quantity : 0
                          ];
@@ -1315,8 +1318,10 @@ class ProductController extends Controller
                     'id' => $product->id,
                     'name' => $product->name,
                     'sku' => $product->sku,
+                    'style_number' => $product->style_number,
                     'type' => $product->type,
                     'price' => $product->price,
+                    'wholesale_price' => $product->wholesale_price,
                     'cost' => $product->cost,
                     'discount' => $product->discount,
                     'status' => $product->status,
@@ -1328,12 +1333,12 @@ class ProductController extends Controller
                         'name' => $product->category->name
                     ] : null,
                     'branch_stock' => [
-                        'branch_id' => $branchStock->branch_id ?? $branchId,
-                        'branch_name' => $branchStock->branch->name ?? $branchName,
-                        'quantity' => $branchStock->quantity ?? 0,
-                        'last_updated_at' => $branchStock->last_updated_at ?? null
+                        'branch_id' => $branchId,
+                        'branch_name' => $branchName,
+                        'quantity' => $branchStock ? $branchStock->quantity : 0,
+                        'last_updated_at' => $branchStock ? ($branchStock->last_updated_at ?? $branchStock->updated_at) : null
                     ],
-                    'total_stock' => $branchStock->quantity ?? 0
+                    'total_stock' => $branchStock ? $branchStock->quantity : 0
                 ];
             }
         });
@@ -1450,6 +1455,7 @@ class ProductController extends Controller
                         'sku' => $v->sku,
                         'price' => $v->price ?? $product->price,
                         'wholesale_price' => $v->wholesale_price ?? $product->wholesale_price,
+                        'cost' => $v->cost ?? $product->cost,
                         'attributes' => $v->combinations->map(function($c) {
                             return [
                                 'attribute_id' => $c->attribute_id,

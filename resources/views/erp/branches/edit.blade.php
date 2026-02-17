@@ -155,6 +155,32 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-6">
+                                <label for="warehouse_id" class="form-label">Parent Warehouse</label>
+                                <div class="input-icon">
+                                    <select class="form-select @error('warehouse_id') is-invalid @enderror" id="warehouse_id" name="warehouse_id">
+                                        <option value="">-- No Parent Warehouse --</option>
+                                        @foreach($warehouses as $wh)
+                                            <option value="{{ $wh->id }}" {{ old('warehouse_id', $branch->warehouse_id) == $wh->id ? 'selected' : '' }}>🏭 {{ $wh->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="manager_id" class="form-label">Branch Manager</label>
+                                <div class="input-icon">
+                                    <select class="form-select @error('manager_id') is-invalid @enderror" id="manager_id" name="manager_id">
+                                        <option value="">-- No Manager Assigned --</option>
+                                        @foreach($employees as $employee)
+                                            <option value="{{ $employee->user_id }}" {{ old('manager_id', $branch->manager_id) == $employee->user_id ? 'selected' : '' }}>
+                                                👤 {{ $employee->user->first_name ?? '' }} {{ $employee->user->last_name ?? '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
                             <!-- Operations -->
                             <div class="col-12">
                                 <div class="switch-premium shadow-sm">

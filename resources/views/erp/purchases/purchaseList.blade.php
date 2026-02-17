@@ -7,6 +7,69 @@
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
+        <style>
+            /* Premium Sticky Header & Horizontal Scroll Fix */
+            
+            /* 1. Maintain card containment to fix the layout breakage */
+            .premium-card {
+                overflow: hidden !important;
+                border: 1px solid #edf2f7;
+            }
+
+            /* 2. Create an internal scrolling area for the table */
+            .table-responsive {
+                max-height: 80vh; /* Large height to feel like page scroll */
+                overflow: auto !important;
+                position: relative;
+                background: #fff;
+            }
+
+            /* 3. Stick headers to the top of the scrollable box */
+            #procurementTable {
+                border-collapse: separate; /* Required for sticky header compatibility */
+                border-spacing: 0;
+                width: 100%;
+            }
+
+            #procurementTable thead th {
+                position: sticky;
+                top: 0; /* Sticks to the top of .table-responsive */
+                background-color: #f8fafc !important; 
+                z-index: 1000 !important;
+                border-bottom: 2px solid #e2e8f0 !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle depth shadow */
+                padding-top: 12px !important;
+                padding-bottom: 12px !important;
+            }
+
+            /* 4. Fix for cell backgrounds to ensure they don't overlap shadows */
+            #procurementTable tbody td {
+                background-color: #fff;
+            }
+
+            /* Custom Slim Scrollbar */
+            .table-responsive::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .table-responsive::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 10px;
+            }
+            .table-responsive::-webkit-scrollbar-track {
+                background: #f8fafc;
+            }
+
+            /* Maximize vertical view by making the header static on this page */
+            .glass-header {
+                position: relative !important;
+                top: 0 !important;
+                box-shadow: none !important;
+                border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+                margin-bottom: 1rem !important;
+            }
+        </style>
+
         <!-- Premium Header Area -->
         <div class="glass-header">
             <div class="row align-items-center">

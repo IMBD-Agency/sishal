@@ -240,6 +240,7 @@
         const productSku = "{{ $product->sku }}";
         const defaultPrice = "{{ $product->price }}";
         const defaultCost = "{{ $product->cost }}";
+        const selections = {};
         
         function selectAllAttr(attrId) {
             $(`.attribute-section[data-attribute-id="${attrId}"] .attribute-value-tag:not(.selected)`).click();

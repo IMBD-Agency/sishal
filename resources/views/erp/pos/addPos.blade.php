@@ -447,7 +447,7 @@ $(document).ready(function() {
         $('#vModalOptions').empty();
         
         product.variations.forEach(v => {
-             let vPrice = v.price || product.price;
+             let vPrice = getPrice(v, product);
              let stockInfo = `Stock: ${v.stock}`;
              let btnClass = v.stock > 0 ? 'btn-outline-dark' : 'btn-outline-danger disabled';
 
@@ -491,7 +491,7 @@ $(document).ready(function() {
                 showError(`Out of Stock! cannot add.`);
                 return;
             }
-            let price = variation ? (variation.price || product.price) : getPrice(product);
+            let price = variation ? getPrice(variation, product) : getPrice(product);
             cart.push({
                 cartId: cartId,
                 productId: product.id,
@@ -638,9 +638,11 @@ $(document).ready(function() {
         $('#paidAmountInput').val(text).trigger('input');
     };
 
-    function getPrice(p) {
+    function getPrice(p, parentProduct = null) {
         let type = $('input[name="saleType"]:checked').val();
-        if(type === 'Wholesale') return p.wholesale_price || p.price;
+        if(type === 'Wholesale') {
+            return p.wholesale_price || (parentProduct ? parentProduct.wholesale_price : p.price);
+        }
         return p.discount || p.price;
     }
 
@@ -648,21 +650,41 @@ $(document).ready(function() {
     // Barcode listener
     $('#barcodeInput').on('keypress', function(e) {
         if(e.which === 13) {
-            // Find by SKU or Barcode
+            // Find by SKU or Style Number
             let code = $(this).val().trim();
             if(!code) return;
             
-            // Simple client-side check first if loaded
-            let found = products.find(p => p.sku === code || p.style_number === code); 
-            // In real app, might need server check if not loaded on this page
-            // For now assume client side for demo or add server ajax here
+            let found = null;
+            let foundVariation = null;
+
+            // Search in main products and their variations
+            products.forEach(p => {
+                if (p.sku === code || p.style_number === code) {
+                    found = p;
+                }
+                if (p.variations) {
+                    let v = p.variations.find(varItem => varItem.sku === code);
+                    if (v) {
+                        found = p;
+                        foundVariation = v;
+                    }
+                }
+            });
             
             if(found) {
-                handleProductClick(found.id);
-                $(this).val('');
-                // Play beep sound?
+                if (foundVariation) {
+                    if (foundVariation.stock > 0) {
+                        addToCart(found, foundVariation, foundVariation.stock);
+                        $(this).val('');
+                    } else {
+                        showError('Variation Out of Stock!');
+                    }
+                } else {
+                    handleProductClick(found.id);
+                    $(this).val('');
+                }
             } else {
-                alert('Product not found in current list. Ensure branch is correct.');
+                showError('Product not found in current list.');
             }
         }
     });
