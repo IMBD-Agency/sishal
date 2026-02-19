@@ -744,7 +744,9 @@ class DashboardController extends Controller
             ->whereDate('purchases.purchase_date', $today);
             
         if ($branchId) {
-            $grossQuery->where('purchases.branch_id', $branchId);
+            // Fix: Purchases table uses location_id and ship_location_type instead of branch_id
+            $grossQuery->where('purchases.ship_location_type', 'branch')
+                       ->where('purchases.location_id', $branchId);
         }
             
         $gross = $grossQuery->selectRaw('SUM(purchase_items.total_price) as total_amount, SUM(purchase_items.quantity) as total_qty')
@@ -755,10 +757,13 @@ class DashboardController extends Controller
             ->whereDate('bill_date', $today);
             
         if ($branchId) {
-            $actualQuery->where('branch_id', $branchId);
+            // Fix: Purchase bills don't have branch_id, join with purchases to filter
+            $actualQuery->join('purchases', 'purchase_bills.purchase_id', '=', 'purchases.id')
+                       ->where('purchases.ship_location_type', 'branch')
+                       ->where('purchases.location_id', $branchId);
         }
             
-        $actual = $actualQuery->selectRaw('SUM(total_amount) as total_amount')
+        $actual = $actualQuery->selectRaw('SUM(purchase_bills.total_amount) as total_amount')
             ->first();
 
         return [

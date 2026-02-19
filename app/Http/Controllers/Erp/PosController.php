@@ -34,8 +34,8 @@ class PosController extends Controller
 {
     public function addPos()
     {
-        $categories = ProductServiceCategory::all();
-        $branches = Branch::all();
+        $categories = ProductServiceCategory::where('status', 'active')->get()->sortBy('full_path_name');
+        $branches = Branch::where('status', 'active')->get();
         
         // Branch Isolation: Check if user is an employee with a branch
         $user = auth()->user();

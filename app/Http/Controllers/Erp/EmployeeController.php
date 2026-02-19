@@ -151,7 +151,7 @@ class EmployeeController extends Controller
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'branch_id' => 'required|exists:branches,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'role' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
             'salary' => 'nullable|numeric|min:0',

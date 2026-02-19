@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class FinancialAccount extends Model
 {
+    const TYPE_BANK = 'bank';
+    const TYPE_MOBILE = 'mobile';
+    const TYPE_CASH = 'cash';
+
     protected $fillable = [
         'account_id',
         'type',
@@ -15,8 +19,21 @@ class FinancialAccount extends Model
         'currency',
         'branch_name',
         'swift_code',
-        'mobile_number'
+        'mobile_number',
+        'balance'
     ];
+
+    /**
+     * Get all available account types.
+     */
+    public static function getTypes()
+    {
+        return [
+            self::TYPE_CASH => 'Cash',
+            self::TYPE_BANK => 'Bank Account',
+            self::TYPE_MOBILE => 'Mobile Banking',
+        ];
+    }
 
     public function chartOfAccount()
     {

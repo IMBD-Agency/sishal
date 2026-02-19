@@ -552,6 +552,13 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Shipping Methods
     Route::resource('shipping-methods', \App\Http\Controllers\Erp\ShippingMethodController::class);
 
+    // Financial Accounts (Bank / Mobile / Cash)
+    Route::get('/financial-accounts', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'index'])->name('financial-accounts.index');
+    Route::post('/financial-accounts', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'store'])->name('financial-accounts.store');
+    Route::put('/financial-accounts/{id}', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'update'])->name('financial-accounts.update');
+    Route::delete('/financial-accounts/{id}', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'destroy'])->name('financial-accounts.destroy');
+    Route::get('/api/financial-accounts', [\App\Http\Controllers\Erp\FinancialAccountController::class, 'getAll'])->name('financial-accounts.all');
+
     // Journal Entry Actions (Line Items)
     Route::get('/journal-entry/{id}', [JournalController::class, 'showEntry'])->name('journal.entry.show');
     Route::put('/journal-entry/{id}', [JournalController::class, 'updateEntry'])->name('journal.entry.update');

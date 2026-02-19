@@ -308,6 +308,7 @@
                                     <th class="text-center text-success bg-light">T. Act. Qty</th>
                                     <th class="text-end text-success">Act. Value</th>
                                     <th class="text-end text-success bg-light">T. Act. Value</th>
+                                    <th class="text-end text-warning">Bill Disc.</th>
                                     <th class="text-end text-primary">Paid A/C</th>
                                     <th class="text-end text-danger">Due A/C</th>
                                     <th class="text-center">Status</th>
@@ -319,6 +320,7 @@
                                     $grandTotalPurQty = 0; $grandTotalPurAmt = 0;
                                     $grandTotalRetQty = 0; $grandTotalRetAmt = 0;
                                     $grandTotalActQty = 0; $grandTotalActAmt = 0;
+                                    $grandTotalDiscount = 0;
                                     $grandTotalPaid = 0; $grandTotalDue = 0;
                                 @endphp
                                 @forelse($items as $index => $item)
@@ -390,6 +392,12 @@
                                         <td class="text-end text-success">{{ number_format($actualAmt, 2) }}৳</td>
                                         <td class="text-end text-success fw-bold bg-light">{{ number_format($actualAmt, 2) }}৳</td>
                                         
+                                        <td class="text-end text-warning fw-bold">
+                                            @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
+                                                {{ number_format($bill->discount_amount ?? 0, 2) }}৳
+                                                @php $grandTotalDiscount += ($bill->discount_amount ?? 0); @endphp
+                                            @else - @endif
+                                        </td>
                                         <td class="text-end text-primary fw-bold">
                                             @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
                                                 {{ number_format($bill->paid_amount ?? 0, 2) }}৳
@@ -452,6 +460,7 @@
                                     <td class="text-end text-success">{{ number_format($grandTotalActAmt, 2) }}৳</td>
                                     <td class="text-end text-success bg-white">{{ number_format($grandTotalActAmt, 2) }}৳</td>
                                     
+                                    <td class="text-end text-warning">{{ number_format($grandTotalDiscount, 2) }}৳</td>
                                     <td class="text-end text-primary">{{ number_format($grandTotalPaid, 2) }}৳</td>
                                     <td class="text-end text-danger">{{ number_format($grandTotalDue, 2) }}৳</td>
                                     <td></td>

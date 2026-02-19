@@ -1001,7 +1001,11 @@ class ReportController extends Controller
 
             // Returns Query
             $returnQuery = PurchaseReturn::where('supplier_id', $s->id);
-            if ($branchId) $returnQuery->where('branch_id', $branchId);
+            if ($branchId) {
+                $returnQuery->whereHas('items', function($q) use ($branchId) {
+                    $q->where('return_from_type', 'branch')->where('return_from_id', $branchId);
+                });
+            }
 
             // Calculations
             $openingPurchase = (clone $purchaseQuery)->where('bill_date', '<', $startDate->toDateString())->sum('total_amount');
@@ -1109,7 +1113,11 @@ class ReportController extends Controller
             ]);
 
             $retQuery = PurchaseReturn::where('supplier_id', $id);
-            if ($branchId) $retQuery->where('branch_id', $branchId);
+            if ($branchId) {
+                $retQuery->whereHas('items', function($q) use ($branchId) {
+                    $q->where('return_from_type', 'branch')->where('return_from_id', $branchId);
+                });
+            }
             if ($from) $retQuery->where('return_date', '>=', $from->toDateString());
             if ($to) $retQuery->where('return_date', '<=', $to->toDateString());
             $returns = $retQuery->with('items')->get()->map(fn($r) => [
@@ -1248,6 +1256,14 @@ class ReportController extends Controller
         $onlineQuery = \App\Models\Order::whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
         $onlineSales = $onlineQuery->selectRaw('COUNT(*) as count, SUM(subtotal) as subtotal, SUM(coupon_discount) as total_discount, SUM(total) as net_sales')->first();
 
+        // Branch Isolation for Online Sales
+        if ($branchId) {
+            $selectedBranch = \App\Models\Branch::find($branchId);
+            if (!$selectedBranch || !$selectedBranch->show_online) {
+                $onlineSales = (object)['count' => 0, 'subtotal' => 0, 'total_discount' => 0, 'net_sales' => 0];
+            }
+        }
+
         // Extra Revenue Sources (Secondary Income from GL)
         $creditVoucher = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
             ->join('chart_of_accounts', 'journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
@@ -1311,10 +1327,13 @@ class ReportController extends Controller
         $posCost = $posCostQuery->sum(DB::raw('quantity * IFNULL(unit_cost, 0)'));
 
         // Online Cost
-        $onlineCostQuery = OrderItem::whereHas('order', function($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
-            });
-        $onlineCost = $onlineCostQuery->sum(DB::raw('quantity * unit_price * 0.7')); // Placeholder if cost missing for online
+        $onlineCost = 0;
+        if (!$branchId || (isset($selectedBranch) && $selectedBranch->show_online)) {
+            $onlineCostQuery = OrderItem::whereHas('order', function($q) use ($startDate, $endDate) {
+                    $q->whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
+                });
+            $onlineCost = $onlineCostQuery->sum(DB::raw('quantity * IFNULL(unit_cost, 0)'));
+        }
 
         $totalCogs = $posCost + $onlineCost;
 
@@ -1323,7 +1342,7 @@ class ReportController extends Controller
         $salesReturnQuery = \App\Models\SaleReturn::whereBetween('return_date', [$startDate, $endDate])
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id');
         if ($branchId) {
-            $salesReturnQuery->whereHas('posSale', function($q) use ($branchId) { $q->where('branch_id', $branchId); });
+            $salesReturnQuery->where('return_to_type', 'branch')->where('return_to_id', $branchId);
         }
         $salesReturnAmount = $salesReturnQuery->sum('sale_return_items.total_price');
         

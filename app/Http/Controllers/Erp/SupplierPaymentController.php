@@ -7,7 +7,12 @@ use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\SupplierLedger;
 use App\Models\PurchaseBill;
+use App\Models\FinancialAccount;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\ChartOfAccount;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class SupplierPaymentController extends Controller
@@ -30,7 +35,14 @@ class SupplierPaymentController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = SupplierPayment::with('supplier', 'bill');
+        $query = SupplierPayment::with('supplier', 'bill.purchase', 'financialAccount');
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->whereHas('bill.purchase', function($q) use ($restrictedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+            });
+        }
 
         if ($startDate) {
             $query->whereDate('payment_date', '>=', $startDate);
@@ -63,8 +75,21 @@ class SupplierPaymentController extends Controller
         
         // Get filter data
         $suppliers = Supplier::orderBy('name')->get();
-        $allPayments = SupplierPayment::select('id', 'reference')->get();
-        $allBills = PurchaseBill::select('id', 'bill_number')->get();
+        
+        $paymentQuery = SupplierPayment::select('id', 'reference');
+        $billQuery = PurchaseBill::select('id', 'bill_number');
+        
+        if ($restrictedBranchId) {
+            $paymentQuery->whereHas('bill.purchase', function($q) use ($restrictedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+            });
+            $billQuery->whereHas('purchase', function($q) use ($restrictedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+            });
+        }
+        
+        $allPayments = $paymentQuery->get();
+        $allBills = $billQuery->get();
 
         return view('erp.supplier-payments.index', compact(
             'payments', 'suppliers', 'allPayments', 'allBills', 
@@ -89,7 +114,13 @@ class SupplierPaymentController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = SupplierPayment::with('supplier', 'bill');
+        $query = SupplierPayment::with('supplier', 'bill.purchase');
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->whereHas('bill.purchase', function($q) use ($restrictedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+            });
+        }
         if ($startDate) $query->whereDate('payment_date', '>=', $startDate);
         if ($endDate) $query->whereDate('payment_date', '<=', $endDate);
         
@@ -151,7 +182,13 @@ class SupplierPaymentController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = SupplierPayment::with('supplier', 'bill', 'creator');
+        $query = SupplierPayment::with('supplier', 'bill.purchase', 'creator');
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->whereHas('bill.purchase', function($q) use ($restrictedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+            });
+        }
         if ($startDate) $query->whereDate('payment_date', '>=', $startDate);
         if ($endDate) $query->whereDate('payment_date', '<=', $endDate);
         
@@ -170,13 +207,22 @@ class SupplierPaymentController extends Controller
     {
         $suppliers = Supplier::all();
         $selectedSupplierId = $request->supplier_id;
+        $restrictedBranchId = $this->getRestrictedBranchId();
         $bills = [];
         if ($selectedSupplierId) {
-            $bills = PurchaseBill::where('supplier_id', $selectedSupplierId)
-                ->where('status', '!=', 'paid')
-                ->get();
+            $billQuery = PurchaseBill::where('supplier_id', $selectedSupplierId)
+                ->where('status', '!=', 'paid');
+            
+            if ($restrictedBranchId) {
+                $billQuery->whereHas('purchase', function($q) use ($restrictedBranchId) {
+                    $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+                });
+            }
+            
+            $bills = $billQuery->get();
         }
-        return view('erp.supplier-payments.create', compact('suppliers', 'selectedSupplierId', 'bills'));
+        $bankAccounts = FinancialAccount::orderBy('type')->orderBy('provider_name')->get();
+        return view('erp.supplier-payments.create', compact('suppliers', 'selectedSupplierId', 'bills', 'bankAccounts'));
     }
 
     public function store(Request $request)
@@ -185,7 +231,8 @@ class SupplierPaymentController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'amount' => 'required|numeric|min:0.01',
             'payment_date' => 'required|date',
-            'payment_method' => 'required|string',
+            'payment_method' => 'required|string', // This is now 'type' (cash, bank, etc)
+            'account_id' => 'required|exists:financial_accounts,id',
             'purchase_bill_id' => 'nullable|exists:purchase_bills,id',
             'reference' => 'nullable|string',
             'note' => 'nullable|string',
@@ -193,15 +240,21 @@ class SupplierPaymentController extends Controller
 
         DB::beginTransaction();
         try {
+            $financialAccount = FinancialAccount::find($request->account_id);
+            if (!$financialAccount) {
+                throw new \Exception('Selected financial account not found.');
+            }
+
             $payment = SupplierPayment::create([
-                'supplier_id' => $request->supplier_id,
+                'supplier_id'      => $request->supplier_id,
                 'purchase_bill_id' => $request->purchase_bill_id,
-                'amount' => $request->amount,
-                'payment_date' => $request->payment_date,
-                'payment_method' => $request->payment_method,
-                'reference' => $request->reference,
-                'note' => $request->note,
-                'created_by' => auth()->id(),
+                'amount'           => $request->amount,
+                'payment_date'     => $request->payment_date,
+                'payment_method'   => $request->payment_method,
+                'account_id'       => $request->account_id,
+                'reference'        => $request->reference,
+                'note'             => $request->note,
+                'created_by'       => auth()->id(),
             ]);
 
             // Update Purchase Bill if selected
@@ -224,10 +277,67 @@ class SupplierPaymentController extends Controller
                 $request->supplier_id,
                 'debit',
                 $request->amount,
-                'Payment to Supplier: ' . $request->payment_method . ($request->reference ? ' (' . $request->reference . ')' : ''),
+                'Payment via ' . $financialAccount->provider_name . ($request->reference ? ' (' . $request->reference . ')' : ''),
                 $request->payment_date,
                 $payment
             );
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            $paymentChartAccountId = $financialAccount->account_id;
+
+            // Find Accounts Payable account (Liability)
+            $payableChartAccount = ChartOfAccount::where('name', 'like', '%payable%')
+                ->orWhere('name', 'like', '%creditor%')
+                ->first();
+
+            if ($paymentChartAccountId && $payableChartAccount) {
+                // Ensure unique voucher number
+                $voucherNo = 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+                while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                    $voucherNo = 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                }
+
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $request->payment_date,
+                    'type'           => 'Payment',
+                    'description'    => 'Auto: Supplier Payment #' . $payment->id . ' to ' . ($payment->supplier->name ?? 'Supplier'),
+                    'supplier_id'    => $request->supplier_id,
+                    'branch_id'      => isset($bill) && $bill->purchase ? ($bill->purchase->location_id) : null,
+                    'voucher_amount' => $request->amount,
+                    'paid_amount'    => $request->amount,
+                    'reference'      => $request->reference,
+                    'created_by'     => Auth::id(),
+                    'updated_by'     => Auth::id(),
+                ]);
+
+                // DEBIT: Accounts Payable (Liability decreases)
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $payableChartAccount->id,
+                    'financial_account_id' => null,
+                    'debit'                => $request->amount,
+                    'credit'               => 0,
+                    'memo'                 => 'Payment to ' . ($payment->supplier->name ?? 'Supplier'),
+                    'created_by'           => Auth::id(),
+                    'updated_by'           => Auth::id(),
+                ]);
+
+                // CREDIT: Bank/Cash (Asset decreases)
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $paymentChartAccountId,
+                    'financial_account_id' => $financialAccount->id,
+                    'debit'                => 0,
+                    'credit'               => $request->amount,
+                    'memo'                 => 'Payment via ' . $financialAccount->provider_name,
+                    'created_by'           => Auth::id(),
+                    'updated_by'           => Auth::id(),
+                ]);
+            }
+            // =====================================================
 
             DB::commit();
             return redirect()->route('supplier-payments.index')->with('success', 'Payment recorded and ledger updated.');

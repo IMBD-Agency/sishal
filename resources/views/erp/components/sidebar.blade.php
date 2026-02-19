@@ -159,7 +159,13 @@
 
         <!-- ACCOUNTING -->
         <span class="sidebar-category-title">Accounting & Reports</span>
-        
+
+        <div class="nav-item">
+            <a href="{{ route('financial-accounts.index') }}" class="nav-link {{ request()->is('erp/financial-accounts*') ? ' active' : '' }}">
+                <i class="fas fa-university nav-icon text-primary"></i>
+                <span>Financial Accounts</span>
+            </a>
+        </div>
 
         <div class="nav-item">
             <a href="{{ route('salary.index') }}" class="nav-link {{ request()->is('erp/salary*') ? ' active' : '' }}">

@@ -40,11 +40,11 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $item->adjustment->adjustment_number }}</td>
                     <td>{{ $item->adjustment->date }}</td>
-                    <td>{{ $item->product->category->name ?? '-' }}</td>
-                    <td>{{ $item->product->brand->name ?? '-' }}</td>
-                    <td>{{ $item->product->season->name ?? '-' }}</td>
-                    <td>{{ $item->product->name }}</td>
-                    <td>{{ $item->product->style_number }}</td>
+                    <td>{{ optional($item->product)->category->name ?? '-' }}</td>
+                    <td>{{ optional($item->product)->brand->name ?? '-' }}</td>
+                    <td>{{ optional($item->product)->season->name ?? '-' }}</td>
+                    <td>{{ $item->product->name ?? 'Deleted Product' }}</td>
+                    <td>{{ optional($item->product)->style_number ?? '-' }}</td>
                     <td>{{ $item->old_quantity }}</td>
                     <td>{{ $item->new_quantity }}</td>
                     <td>{{ $item->new_quantity - $item->old_quantity }}</td>

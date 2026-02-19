@@ -1,347 +1,273 @@
 @extends('erp.master')
 
-@section('title', 'Financial Account Management')
+@section('title', 'Financial Accounts')
 
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
+
         <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <div class="container-fluid px-4 py-3 bg-white border-bottom mb-4">
             <div class="row align-items-center">
                 <div class="col-md-6">
+                    <h4 class="fw-bold mb-0"><i class="fas fa-university me-2 text-primary"></i>Financial Accounts</h4>
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}"
-                                    class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Financial Accounts</li>
+                        <ol class="breadcrumb mb-0 small">
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Financial Accounts</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Financial Accounts</h2>
-                    <p class="text-muted mb-0">Manage financial accounts, transactions, and account balances efficiently.</p>
                 </div>
                 <div class="col-md-6 text-end">
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-                            <i class="fas fa-plus me-2"></i>Add Account
-                        </button>
-                        <button class="btn btn-primary">
-                            <i class="fas fa-download me-2"></i>Export Report
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                        <i class="fas fa-plus me-2"></i>Add Account
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Content Area -->
-        <div class="container-fluid px-4 py-4">
+        <div class="container-fluid px-4 pb-5">
             @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
-
             @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
 
-            <!-- Account Summary Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Accounts</h6>
-                                    <h3 class="mb-0">{{ $accounts->count() ?? 0 }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-wallet fa-2x"></i>
-                                </div>
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body d-flex align-items-center gap-3">
+                            <div class="p-3 rounded-3 bg-primary bg-opacity-10">
+                                <i class="fas fa-wallet fa-lg text-primary"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Total Accounts</div>
+                                <div class="fw-bold fs-4">{{ $accounts->count() }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Bank Accounts</h6>
-                                    <h3 class="mb-0">{{ $accounts->where('type', 'bank')->count() ?? 0 }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-university fa-2x"></i>
-                                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body d-flex align-items-center gap-3">
+                            <div class="p-3 rounded-3 bg-success bg-opacity-10">
+                                <i class="fas fa-money-bill fa-lg text-success"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Cash Accounts</div>
+                                <div class="fw-bold fs-4">{{ $accounts->where('type', 'cash')->count() }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-warning text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Mobile Accounts</h6>
-                                    <h3 class="mb-0">{{ $accounts->where('type', 'mobile')->count() ?? 0 }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-mobile-alt fa-2x"></i>
-                                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body d-flex align-items-center gap-3">
+                            <div class="p-3 rounded-3 bg-info bg-opacity-10">
+                                <i class="fas fa-university fa-lg text-info"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Bank Accounts</div>
+                                <div class="fw-bold fs-4">{{ $accounts->where('type', 'bank')->count() }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Currencies</h6>
-                                    <h3 class="mb-0">{{ $accounts->unique('currency')->count() ?? 0 }}</h3>
-                                </div>
-                                <div class="align-self-center">
-                                    <i class="fas fa-dollar-sign fa-2x"></i>
-                                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body d-flex align-items-center gap-3">
+                            <div class="p-3 rounded-3 bg-warning bg-opacity-10">
+                                <i class="fas fa-mobile-alt fa-lg text-warning"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Mobile Accounts</div>
+                                <div class="fw-bold fs-4">{{ $accounts->where('type', 'mobile')->count() }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Financial Accounts Grid -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-university me-2"></i>Financial Accounts
-                            </h5>
-                            <span class="badge bg-light text-dark">{{ $accounts->count() ?? 0 }} Accounts</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Chart Account</th>
-                                            <th>Account Type</th>
-                                            <th>Provider</th>
-                                            <th>Account Number</th>
-                                            <th>Account Holder</th>
-                                            <th>Currency</th>
-                                            <th>Branch/Swift</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($accounts ?? [] as $index => $account)
-                                            <tr>
-                                                <td>{{ $index + 1 }}</td>
-                                                <td>
-                                                    <div>
-                                                        <strong>{{ $account->account->name ?? 'N/A' }}</strong>
-                                                        <br>
-                                                        <small class="text-muted">{{ $account->account->code ?? '' }}</small>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="badge {{ $account->type === 'bank' ? 'bg-primary' : 'bg-warning' }}">
-                                                        <i class="fas {{ $account->type === 'bank' ? 'fa-university' : 'fa-mobile-alt' }} me-1"></i>
-                                                        {{ ucfirst($account->type) }}
-                                                    </span>
-                                                </td>
-                                                <td><strong>{{ $account->provider_name }}</strong></td>
-                                                <td><span class="badge bg-secondary">{{ $account->account_number }}</span></td>
-                                                <td>{{ $account->account_holder_name ?? 'N/A' }}</td>
-                                                <td><span class="badge bg-info">{{ $account->currency }}</span></td>
-                                                <td>
-                                                    @if($account->type === 'bank')
-                                                        @if($account->branch_name)
-                                                            <div><strong>Branch:</strong> {{ $account->branch_name }}</div>
-                                                        @endif
-                                                        @if($account->swift_code)
-                                                            <div><strong>Swift:</strong> {{ $account->swift_code }}</div>
-                                                        @endif
-                                                    @else
-                                                        @if($account->mobile_number)
-                                                            <div><strong>Mobile:</strong> {{ $account->mobile_number }}</div>
-                                                        @endif
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <button type="button" class="btn btn-outline-primary" 
-                                                                onclick="editAccount({{ $account->id }}, {{ $account->account_id }}, '{{ $account->type }}', '{{ $account->provider_name }}', '{{ $account->account_number }}', '{{ $account->account_holder_name }}', '{{ $account->currency }}', '{{ $account->branch_name }}', '{{ $account->swift_code }}', '{{ $account->mobile_number }}')"
-                                                                title="Edit">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                        <button type="button" class="btn btn-outline-danger" 
-                                                                onclick="deleteAccount({{ $account->id }}, '{{ $account->provider_name }}')"
-                                                                title="Delete">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="9" class="text-center text-muted py-4">
-                                                    <i class="fas fa-university fa-2x mb-2"></i>
-                                                    <h6>No Financial Accounts Found</h6>
-                                                    <p>Create your first financial account to get started.</p>
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+            <!-- Accounts Table -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Financial Accounts</h5>
+                    <span class="badge bg-light text-dark">{{ $accounts->count() }} accounts</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">#</th>
+                                    <th>Type</th>
+                                    <th>Provider / Name</th>
+                                    <th>Account Number</th>
+                                    <th>Holder</th>
+                                    <th>Currency</th>
+                                    <th>Details</th>
+                                    <th>Chart Account</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($accounts as $index => $account)
+                                    <tr>
+                                        <td class="ps-4">{{ $index + 1 }}</td>
+                                        <td>
+                                            @if($account->type === 'cash')
+                                                <span class="badge bg-success"><i class="fas fa-money-bill me-1"></i>Cash</span>
+                                            @elseif($account->type === 'bank')
+                                                <span class="badge bg-primary"><i class="fas fa-university me-1"></i>Bank</span>
+                                            @else
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-mobile-alt me-1"></i>Mobile</span>
+                                            @endif
+                                        </td>
+                                        <td><strong>{{ $account->provider_name }}</strong></td>
+                                        <td><span class="badge bg-secondary font-monospace">{{ $account->account_number }}</span></td>
+                                        <td>{{ $account->account_holder_name ?? '—' }}</td>
+                                        <td><span class="badge bg-info text-dark">{{ $account->currency }}</span></td>
+                                        <td class="small text-muted">
+                                            @if($account->type === 'bank')
+                                                @if($account->branch_name) <div>Branch: {{ $account->branch_name }}</div> @endif
+                                                @if($account->swift_code) <div>Swift: {{ $account->swift_code }}</div> @endif
+                                            @elseif($account->type === 'mobile')
+                                                @if($account->mobile_number) <div>Mobile: {{ $account->mobile_number }}</div> @endif
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="small">
+                                            @if($account->chartOfAccount)
+                                                <span class="badge bg-light text-dark border">{{ $account->chartOfAccount->name }}</span>
+                                            @else
+                                                <span class="text-muted">Not linked</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" title="Edit"
+                                                    onclick="editAccount({{ $account->id }}, '{{ $account->type }}', '{{ addslashes($account->provider_name) }}', '{{ $account->account_number }}', '{{ addslashes($account->account_holder_name) }}', '{{ $account->currency }}', '{{ addslashes($account->branch_name) }}', '{{ $account->swift_code }}', '{{ $account->mobile_number }}', {{ $account->account_id ?? 'null' }})">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" title="Delete"
+                                                    onclick="deleteAccount({{ $account->id }}, '{{ addslashes($account->provider_name) }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="9" class="text-center py-5 text-muted">
+                                            <i class="fas fa-university fa-3x mb-3 d-block opacity-25"></i>
+                                            <h6>No Financial Accounts Found</h6>
+                                            <p class="small">Click "Add Account" to create your first account.</p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Add Financial Account Modal -->
-    <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
+    <!-- Add / Edit Account Modal -->
+    <div class="modal fade" id="addAccountModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addAccountModalLabel">Add New Financial Account</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="modalTitle"><i class="fas fa-plus me-2"></i>Add Financial Account</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="accountForm" action="{{ route('financial-accounts.store') }}" method="POST">
                     @csrf
+                    <input type="hidden" name="_method" id="formMethod" value="POST">
                     <div class="modal-body">
-                        <div class="row">
+                        <div class="row g-3">
+                            <!-- Type -->
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="account_id" class="form-label">Chart of Account <span class="text-danger">*</span></label>
-                                    <select class="form-control @error('account_id') is-invalid @enderror" id="account_id" name="account_id" required>
-                                        <option value="">Select Chart Account</option>
-                                        @foreach($chartAccounts ?? [] as $chartAccount)
-                                            <option value="{{ $chartAccount->id }}" {{ old('account_id') == $chartAccount->id ? 'selected' : '' }}>
-                                                {{ $chartAccount->name }} ({{ $chartAccount->code }}) - {{ $chartAccount->parent->name ?? 'N/A' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('account_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                                <label class="form-label fw-semibold">Account Type <span class="text-danger">*</span></label>
+                                <select name="type" id="type" class="form-select" required>
+                                    <option value="">Select Type</option>
+                                    @foreach($accountTypes as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
+                            <!-- Provider Name -->
                             <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="type" class="form-label">Account Type <span class="text-danger">*</span></label>
-                                    <select class="form-control @error('type') is-invalid @enderror" id="type" name="type" required>
-                                        <option value="">Select Account Type</option>
-                                        <option value="bank" {{ old('type') == 'bank' ? 'selected' : '' }}>Bank Account</option>
-                                        <option value="mobile" {{ old('type') == 'mobile' ? 'selected' : '' }}>Mobile Banking</option>
-                                    </select>
-                                    @error('type')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                                <label class="form-label fw-semibold">Provider / Account Name <span class="text-danger">*</span></label>
+                                <input type="text" name="provider_name" id="provider_name" class="form-control" placeholder="e.g. Dutch Bangla Bank, bKash, Main Cash" required>
                             </div>
-                        </div>
+                            <!-- Account Number -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Account Number <span class="text-danger">*</span></label>
+                                <input type="text" name="account_number" id="account_number" class="form-control" placeholder="Account / wallet number" required>
+                            </div>
+                            <!-- Holder -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Account Holder Name</label>
+                                <input type="text" name="account_holder_name" id="account_holder_name" class="form-control" placeholder="Name of the account holder">
+                            </div>
+                            <!-- Currency -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Currency <span class="text-danger">*</span></label>
+                                <select name="currency" id="currency" class="form-select" required>
+                                    <option value="BDT" selected>BDT (Bangladeshi Taka)</option>
+                                    <option value="USD">USD (US Dollar)</option>
+                                    <option value="EUR">EUR (Euro)</option>
+                                    <option value="GBP">GBP (British Pound)</option>
+                                </select>
+                            </div>
+                            <!-- Chart of Account Link -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Link to Chart of Account</label>
+                                <select name="account_id" id="account_id" class="form-select">
+                                    <option value="">— Not linked —</option>
+                                    @foreach($chartAccounts as $coa)
+                                        <option value="{{ $coa->id }}">{{ $coa->name }} ({{ $coa->code }})</option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text">Optional: link to your double-entry ledger.</div>
+                            </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="provider_name" class="form-label">Provider Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('provider_name') is-invalid @enderror" id="provider_name" name="provider_name" value="{{ old('provider_name') }}" placeholder="e.g., DBBL, bKash, Nagad" required>
-                                    @error('provider_name')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="account_number" class="form-label">Account Number <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('account_number') is-invalid @enderror" id="account_number" name="account_number" value="{{ old('account_number') }}" required>
-                                    @error('account_number')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="account_holder_name" class="form-label">Account Holder Name</label>
-                                    <input type="text" class="form-control @error('account_holder_name') is-invalid @enderror" id="account_holder_name" name="account_holder_name" value="{{ old('account_holder_name') }}">
-                                    @error('account_holder_name')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="currency" class="form-label">Currency <span class="text-danger">*</span></label>
-                                    <select class="form-control @error('currency') is-invalid @enderror" id="currency" name="currency" required>
-                                        <option value="">Select Currency</option>
-                                        <option value="BDT" {{ old('currency') == 'BDT' ? 'selected' : '' }}>BDT (Bangladeshi Taka)</option>
-                                        <option value="USD" {{ old('currency') == 'USD' ? 'selected' : '' }}>USD (US Dollar)</option>
-                                        <option value="EUR" {{ old('currency') == 'EUR' ? 'selected' : '' }}>EUR (Euro)</option>
-                                        <option value="GBP" {{ old('currency') == 'GBP' ? 'selected' : '' }}>GBP (British Pound)</option>
-                                    </select>
-                                    @error('currency')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Bank-specific fields -->
-                        <div id="bankFields" style="display: none;">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="branch_name" class="form-label">Branch Name</label>
-                                        <input type="text" class="form-control @error('branch_name') is-invalid @enderror" id="branch_name" name="branch_name" value="{{ old('branch_name') }}" placeholder="e.g., Dhanmondi Branch">
-                                        @error('branch_name')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
+                            <!-- Bank-specific fields -->
+                            <div id="bankFields" class="col-12 d-none">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Branch Name</label>
+                                        <input type="text" name="branch_name" id="branch_name" class="form-control" placeholder="e.g. Dhanmondi Branch">
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="swift_code" class="form-label">Swift Code</label>
-                                        <input type="text" class="form-control @error('swift_code') is-invalid @enderror" id="swift_code" name="swift_code" value="{{ old('swift_code') }}" placeholder="e.g., DBBLBDDH">
-                                        @error('swift_code')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Swift Code</label>
+                                        <input type="text" name="swift_code" id="swift_code" class="form-control" placeholder="e.g. DBBLBDDH">
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Mobile-specific fields -->
-                        <div id="mobileFields" style="display: none;">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="mobile_number" class="form-label">Mobile Number</label>
-                                        <input type="text" class="form-control @error('mobile_number') is-invalid @enderror" id="mobile_number" name="mobile_number" value="{{ old('mobile_number') }}" placeholder="e.g., 01712345678">
-                                        @error('mobile_number')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
+                            <!-- Mobile-specific fields -->
+                            <div id="mobileFields" class="col-12 d-none">
+                                <label class="form-label fw-semibold">Mobile Number</label>
+                                <input type="text" name="mobile_number" id="mobile_number" class="form-control" placeholder="e.g. 01712345678">
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Account
+                            <i class="fas fa-save me-2"></i><span id="submitBtnText">Save Account</span>
                         </button>
                     </div>
                 </form>
@@ -350,99 +276,60 @@
     </div>
 
     @push('scripts')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        $(document).ready(function() {
-            // Handle form submission
-            $('#accountForm').on('submit', function() {
-                var $submitBtn = $(this).find('button[type="submit"]');
-                $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
-            });
-
-            // Handle account type change
-            $('#type').on('change', function() {
-                var type = $(this).val();
-                if (type === 'bank') {
-                    $('#bankFields').show();
-                    $('#mobileFields').hide();
-                    $('#branch_name, #swift_code').prop('required', false);
-                    $('#mobile_number').prop('required', false);
-                } else if (type === 'mobile') {
-                    $('#bankFields').hide();
-                    $('#mobileFields').show();
-                    $('#branch_name, #swift_code').prop('required', false);
-                    $('#mobile_number').prop('required', false);
-                } else {
-                    $('#bankFields, #mobileFields').hide();
-                    $('#branch_name, #swift_code, #mobile_number').prop('required', false);
-                }
-            });
-
-            // Modal reset on close
-            $('#addAccountModal').on('hidden.bs.modal', function() {
-                var $form = $(this).find('form');
-                $form[0].reset();
-                $form.find('.is-invalid').removeClass('is-invalid');
-                
-                // Hide conditional fields
-                $('#bankFields, #mobileFields').hide();
-                $('#branch_name, #swift_code, #mobile_number').prop('required', false);
-                
-                // Reset form action and method for create operations
-                $form.attr('action', '{{ route("financial-accounts.store") }}');
-                $form.find('input[name="_method"]').remove();
-            });
-        });
-
-        // Edit account function
-        function editAccount(id, accountId, type, providerName, accountNumber, accountHolderName, currency, branchName, swiftCode, mobileNumber) {
-            $('#account_id').val(accountId);
-            $('#type').val(type);
-            $('#provider_name').val(providerName);
-            $('#account_number').val(accountNumber);
-            $('#account_holder_name').val(accountHolderName);
-            $('#currency').val(currency);
-            
-            // Handle conditional fields based on type
-            if (type === 'bank') {
-                $('#bankFields').show();
-                $('#mobileFields').hide();
-                $('#branch_name').val(branchName);
-                $('#swift_code').val(swiftCode);
-            } else if (type === 'mobile') {
-                $('#bankFields').hide();
-                $('#mobileFields').show();
-                $('#mobile_number').val(mobileNumber);
-            }
-            
-            // Trigger change event to show/hide fields
-            $('#type').trigger('change');
-            
-            // Set the form action and method for update
-            $('#accountForm').attr('action', '{{ url("erp/financial-accounts") }}/' + id);
-            $('#accountForm').find('input[name="_method"]').remove();
-            $('#accountForm').append('<input type="hidden" name="_method" value="PUT">');
-            
-            $('#addAccountModal').modal('show');
+        // Show/hide conditional fields based on account type
+        function toggleTypeFields(type) {
+            document.getElementById('bankFields').classList.toggle('d-none', type !== 'bank');
+            document.getElementById('mobileFields').classList.toggle('d-none', type !== 'mobile');
         }
 
-        // Delete account function
-        function deleteAccount(id, providerName) {
-            if (confirm('Are you sure you want to delete the account "' + providerName + '"?')) {
-                $.ajax({
-                    url: '{{ url("erp/financial-accounts") }}/' + id,
-                    type: 'DELETE',
-                    data: { _token: $('meta[name="csrf-token"]').attr('content') },
-                    success: function(response) {
-                        if (response.success) {
-                            location.reload();
-                        } else {
-                            alert('Error: ' + response.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        alert('An error occurred while deleting the account.');
+        document.getElementById('type').addEventListener('change', function () {
+            toggleTypeFields(this.value);
+        });
+
+        // Reset modal on close
+        document.getElementById('addAccountModal').addEventListener('hidden.bs.modal', function () {
+            document.getElementById('accountForm').reset();
+            document.getElementById('accountForm').action = '{{ route("financial-accounts.store") }}';
+            document.getElementById('formMethod').value = 'POST';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus me-2"></i>Add Financial Account';
+            document.getElementById('submitBtnText').textContent = 'Save Account';
+            document.getElementById('bankFields').classList.add('d-none');
+            document.getElementById('mobileFields').classList.add('d-none');
+        });
+
+        function editAccount(id, type, providerName, accountNumber, holderName, currency, branchName, swiftCode, mobileNumber, accountId) {
+            document.getElementById('type').value = type;
+            document.getElementById('provider_name').value = providerName;
+            document.getElementById('account_number').value = accountNumber;
+            document.getElementById('account_holder_name').value = holderName;
+            document.getElementById('currency').value = currency;
+            document.getElementById('branch_name').value = branchName;
+            document.getElementById('swift_code').value = swiftCode;
+            document.getElementById('mobile_number').value = mobileNumber;
+            if (accountId) document.getElementById('account_id').value = accountId;
+
+            toggleTypeFields(type);
+
+            document.getElementById('accountForm').action = '{{ url("erp/financial-accounts") }}/' + id;
+            document.getElementById('formMethod').value = 'PUT';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Edit Financial Account';
+            document.getElementById('submitBtnText').textContent = 'Update Account';
+
+            new bootstrap.Modal(document.getElementById('addAccountModal')).show();
+        }
+
+        function deleteAccount(id, name) {
+            if (confirm('Delete account "' + name + '"? This cannot be undone.')) {
+                fetch('{{ url("erp/financial-accounts") }}/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
                     }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) location.reload();
+                    else alert(data.message);
                 });
             }
         }

@@ -1,0 +1,164 @@
+/* POS Premium Styling */
+.premium-search-input {
+    border-radius: 0 8px 8px 0 !important;
+    height: 42px;
+    border-color: #e2e8f0;
+}
+
+.input-group-text {
+    border-radius: 8px 0 0 8px !important;
+    background: #fdfdfd;
+    color: #198754;
+    font-size: 0.9rem;
+    border-color: #e2e8f0;
+}
+
+/* Fix Select2 inside Input Group */
+.input-group .select2-container--default {
+    flex: 1 1 auto;
+    width: 1% !important;
+}
+
+.input-group .select2-container--default .select2-selection--single {
+    height: 42px !important;
+    border-radius: 0 8px 8px 0 !important;
+    border-left: 0 !important;
+    border-color: #e2e8f0 !important;
+    display: flex;
+    align-items: center;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 40px !important;
+}
+
+.branch-select-field {
+    border-radius: 0 8px 8px 0 !important;
+    height: 32px;
+}
+
+.z-1 {
+    z-index: 10;
+}
+
+/* Radio Button Segmented Control */
+.sale-type-toggle {
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+    display: inline-flex;
+    gap: 4px;
+}
+
+.sale-type-toggle .form-check {
+    margin: 0;
+    padding: 0;
+}
+
+.sale-type-toggle .form-check-input {
+    display: none;
+}
+
+.sale-type-toggle .form-check-label {
+    padding: 6px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s ease;
+}
+
+.sale-type-toggle .form-check-input:checked+.form-check-label {
+    background: #fff;
+    color: #198754;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+/* POS Specific Cards */
+.pos-product-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.pos-product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.pos-img-box {
+    height: 140px;
+    overflow: hidden;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pos-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Terminal Styles */
+.terminal-header {
+    background: #fff;
+}
+
+.terminal-section-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+}
+
+.cart-table thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #64748b;
+    border-top: none;
+}
+
+.qty-control {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s ease;
+}
+
+.qty-control:hover {
+    background: #f1f5f9;
+}
+
+.qty-value {
+    width: 35px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.btn-remove-item {
+    color: #ef4444;
+    background: transparent;
+    border: none;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.btn-remove-item:hover {
+    opacity: 1;
+}
+
+.total-payable-widget {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}

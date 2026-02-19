@@ -57,7 +57,12 @@ class SaleReturnController extends Controller
 
         $items = $query->latest()->paginate(20)->appends($request->all());
         
-        $branches = Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $branches = Branch::all();
+        }
         $customers = Customer::orderBy('name')->get();
         $products = \App\Models\Product::orderBy('name')->get();
         $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
@@ -226,7 +231,12 @@ class SaleReturnController extends Controller
         }
 
         // Filters from dropdowns
-        if ($request->filled('branch_id')) {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->whereHas('saleReturn', function($q) use ($restrictedBranchId) {
+                $q->where('return_to_id', $restrictedBranchId)->where('return_to_type', 'branch');
+            });
+        } elseif ($request->filled('branch_id')) {
             $query->whereHas('saleReturn', function($q) use ($request) {
                 $q->where('return_to_id', $request->branch_id)->where('return_to_type', 'branch');
             });

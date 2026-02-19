@@ -84,7 +84,12 @@ class ExchangeController extends Controller
         }
 
         // Filters from dropdowns
-        if ($request->filled('branch_id')) {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->whereHas('pos', function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId);
+            });
+        } elseif ($request->filled('branch_id')) {
             $query->whereHas('pos', function($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
             });
@@ -112,7 +117,12 @@ class ExchangeController extends Controller
 
         $items = $query->latest()->paginate(20)->appends($request->all());
         
-        $branches = Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $branches = Branch::all();
+        }
         $customers = Customer::orderBy('name')->get();
         $products = Product::where('type', 'product')->orderBy('name')->get();
         $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();

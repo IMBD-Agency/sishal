@@ -200,11 +200,17 @@
                                 </div>
                                 <div class="col-6">
                                     <label for="cost" class="form-label fw-bold small text-uppercase">Cost Price <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" class="form-control" id="cost" name="cost" required value="{{ old('cost', $product->cost) }}">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted">৳</span>
+                                        <input type="number" step="0.01" class="form-control" id="cost" name="cost" required value="{{ old('cost', $product->cost) }}">
+                                    </div>
                                 </div>
                                 <div class="col-6">
                                     <label for="discount" class="form-label fw-bold small text-uppercase">Discount</label>
-                                    <input type="number" step="0.01" class="form-control" id="discount" name="discount" value="{{ old('discount', $product->discount) }}">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted">৳</span>
+                                        <input type="number" step="0.01" class="form-control" id="discount" name="discount" value="{{ old('discount', $product->discount) }}">
+                                    </div>
                                 </div>
                             </div>
                         </div>

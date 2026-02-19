@@ -10,6 +10,26 @@ class Product extends Model
         'name', 'slug', 'type', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'alert_quantity', 'free_delivery', 'show_in_ecommerce'
     ];
 
+    /**
+     * Boot the model.
+     */
+    protected static function booted()
+    {
+        static::deleting(function ($product) {
+            // Manual cascading delete for MyISAM tables (no foreign keys)
+            $product->galleries()->delete();
+            $product->branchStock()->delete();
+            $product->warehouseStock()->delete();
+            $product->productAttributes()->detach();
+            $product->reviews()->delete();
+            
+            // Delete variations and their related data
+            foreach ($product->variations as $variation) {
+                $variation->delete(); // This calls ProductVariation's deleting event
+            }
+        });
+    }
+
     protected $casts = [
         'meta_keywords' => 'array',
         'has_variations' => 'boolean',

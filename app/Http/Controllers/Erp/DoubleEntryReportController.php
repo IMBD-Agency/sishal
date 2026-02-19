@@ -22,8 +22,12 @@ class DoubleEntryReportController extends Controller
         $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
         $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
         
-        $query->whereHas('journal', function($q) use ($startDate, $endDate) {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $query->whereHas('journal', function($q) use ($startDate, $endDate, $restrictedBranchId) {
             $q->whereBetween('entry_date', [$startDate, $endDate]);
+            if ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId);
+            }
         });
 
         // Account Filtering
@@ -107,27 +111,41 @@ class DoubleEntryReportController extends Controller
         $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
         $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
         // Calculate Opening Balance
-        $openingDebit = JournalEntry::where('chart_of_account_id', $id)
-            ->whereHas('journal', function($q) use ($startDate) {
+        $openingDebitQuery = JournalEntry::where('chart_of_account_id', $id)
+            ->whereHas('journal', function($q) use ($startDate, $restrictedBranchId) {
                 $q->where('entry_date', '<', $startDate);
-            })->sum('debit');
+                if ($restrictedBranchId) {
+                    $q->where('branch_id', $restrictedBranchId);
+                }
+            });
+        $openingDebit = $openingDebitQuery->sum('debit');
             
-        $openingCredit = JournalEntry::where('chart_of_account_id', $id)
-            ->whereHas('journal', function($q) use ($startDate) {
+        $openingCreditQuery = JournalEntry::where('chart_of_account_id', $id)
+            ->whereHas('journal', function($q) use ($startDate, $restrictedBranchId) {
                 $q->where('entry_date', '<', $startDate);
-            })->sum('credit');
+                if ($restrictedBranchId) {
+                    $q->where('branch_id', $restrictedBranchId);
+                }
+            });
+        $openingCredit = $openingCreditQuery->sum('credit');
 
         $openingBalance = $openingDebit - $openingCredit;
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
         // Transactions - Ordered in DB
-        $entries = JournalEntry::with('journal')
+        $entriesQuery = JournalEntry::with('journal')
             ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
             ->select('journal_entries.*')
             ->where('chart_of_account_id', $id)
-            ->whereBetween('journals.entry_date', [$startDate, $endDate])
-            ->orderBy('journals.entry_date', 'asc')
-            ->get();
+            ->whereBetween('journals.entry_date', [$startDate, $endDate]);
+
+        if ($restrictedBranchId) {
+            $entriesQuery->where('journals.branch_id', $restrictedBranchId);
+        }
+
+        $entries = $entriesQuery->orderBy('journals.entry_date', 'asc')->get();
 
         $totalDebits = $entries->sum('debit');
         $totalCredits = $entries->sum('credit');
@@ -147,21 +165,29 @@ class DoubleEntryReportController extends Controller
 
     public function trialBalance(Request $request)
     {
-        $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
-
-        $accounts = ChartOfAccount::whereHas('entries', function($q) use ($endDate) {
-            $q->whereHas('journal', function($jq) use ($endDate) {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $accounts = ChartOfAccount::whereHas('entries', function($q) use ($endDate, $restrictedBranchId) {
+            $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
                 $jq->where('entry_date', '<=', $endDate);
+                if ($restrictedBranchId) {
+                    $jq->where('branch_id', $restrictedBranchId);
+                }
             });
         })
-        ->withSum(['entries as total_debit' => function($q) use ($endDate) {
-            $q->whereHas('journal', function($jq) use ($endDate) {
+        ->withSum(['entries as total_debit' => function($q) use ($endDate, $restrictedBranchId) {
+            $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
                 $jq->where('entry_date', '<=', $endDate);
+                if ($restrictedBranchId) {
+                    $jq->where('branch_id', $restrictedBranchId);
+                }
             });
         }], 'debit')
-        ->withSum(['entries as total_credit' => function($q) use ($endDate) {
-            $q->whereHas('journal', function($jq) use ($endDate) {
+        ->withSum(['entries as total_credit' => function($q) use ($endDate, $restrictedBranchId) {
+            $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
                 $jq->where('entry_date', '<=', $endDate);
+                if ($restrictedBranchId) {
+                    $jq->where('branch_id', $restrictedBranchId);
+                }
             });
         }], 'credit')
         ->with(['type', 'parent.type'])
@@ -197,7 +223,8 @@ class DoubleEntryReportController extends Controller
         $liabilityTypes = \App\Models\ChartOfAccountType::where('name', 'Liability')->pluck('id');
         $equityTypes = \App\Models\ChartOfAccountType::where('name', 'Equity')->pluck('id');
 
-        $getAccounts = function($typeIds, $category) use ($endDate) {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $getAccounts = function($typeIds, $category) use ($endDate, $restrictedBranchId) {
             if ($typeIds->isEmpty()) return collect();
             
             return ChartOfAccount::where(function($q) use ($typeIds) {
@@ -206,14 +233,20 @@ class DoubleEntryReportController extends Controller
                           $pq->whereIn('type_id', $typeIds);
                       });
                 })
-                ->withSum(['entries as total_debit' => function($q) use ($endDate) {
-                    $q->whereHas('journal', function($jq) use ($endDate) {
+                ->withSum(['entries as total_debit' => function($q) use ($endDate, $restrictedBranchId) {
+                    $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
                         $jq->where('entry_date', '<=', $endDate);
+                        if ($restrictedBranchId) {
+                            $jq->where('branch_id', $restrictedBranchId);
+                        }
                     });
                 }], 'debit')
-                ->withSum(['entries as total_credit' => function($q) use ($endDate) {
-                    $q->whereHas('journal', function($jq) use ($endDate) {
+                ->withSum(['entries as total_credit' => function($q) use ($endDate, $restrictedBranchId) {
+                    $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
                         $jq->where('entry_date', '<=', $endDate);
+                        if ($restrictedBranchId) {
+                            $jq->where('branch_id', $restrictedBranchId);
+                        }
                     });
                 }], 'credit')
                 ->get()->map(function($acc) use ($category) {
@@ -252,7 +285,8 @@ class DoubleEntryReportController extends Controller
         $revenueTypes = \App\Models\ChartOfAccountType::where('name', 'Revenue')->pluck('id');
         $expenseTypes = \App\Models\ChartOfAccountType::where('name', 'Expense')->pluck('id');
 
-        $getAccounts = function($typeIds, $category) use ($startDate, $endDate) {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $getAccounts = function($typeIds, $category) use ($startDate, $endDate, $restrictedBranchId) {
             if ($typeIds->isEmpty()) return collect();
             
             $isRevenue = in_array($category, ['Revenue', 'Income']);
@@ -263,14 +297,20 @@ class DoubleEntryReportController extends Controller
                           $pq->whereIn('type_id', $typeIds);
                       });
                 })
-                ->withSum(['entries as total_debit' => function($q) use ($startDate, $endDate) {
-                    $q->whereHas('journal', function($jq) use ($startDate, $endDate) {
+                ->withSum(['entries as total_debit' => function($q) use ($startDate, $endDate, $restrictedBranchId) {
+                    $q->whereHas('journal', function($jq) use ($startDate, $endDate, $restrictedBranchId) {
                         $jq->whereBetween('entry_date', [$startDate, $endDate]);
+                        if ($restrictedBranchId) {
+                            $jq->where('branch_id', $restrictedBranchId);
+                        }
                     });
                 }], 'debit')
-                ->withSum(['entries as total_credit' => function($q) use ($startDate, $endDate) {
-                    $q->whereHas('journal', function($jq) use ($startDate, $endDate) {
+                ->withSum(['entries as total_credit' => function($q) use ($startDate, $endDate, $restrictedBranchId) {
+                    $q->whereHas('journal', function($jq) use ($startDate, $endDate, $restrictedBranchId) {
                         $jq->whereBetween('entry_date', [$startDate, $endDate]);
+                        if ($restrictedBranchId) {
+                            $jq->where('branch_id', $restrictedBranchId);
+                        }
                     });
                 }], 'credit')
                 ->get()
@@ -319,4 +359,5 @@ class DoubleEntryReportController extends Controller
 
         return view('erp.doubleEntry.profitloss', compact('profitLossData', 'startDate', 'endDate', 'accountTypes'));
     }
+
 }

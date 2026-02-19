@@ -248,6 +248,9 @@ class ProductController extends Controller
     {
         if (auth()->user()->hasPermissionTo('view products list')) {
             $reportType = $request->get('report_type', 'daily');
+            $restrictedBranchId = $this->getRestrictedBranchId();
+            $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
+            $selectedWarehouseId = $request->warehouse_id;
             
             if ($reportType == 'monthly') {
                 $month = $request->get('month', date('n'));
@@ -265,8 +268,29 @@ class ProductController extends Controller
 
             $query = Product::with(['category', 'brand', 'season', 'gender']);
 
-            // Optimized Database Aggregation for Stock levels
-            $query->withSum(['branchStock as total_branch_stock', 'warehouseStock as total_warehouse_stock', 'variationStocks as total_variation_stock'], 'quantity');
+            $query->withSum(['branchStock as total_branch_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+                if ($selectedBranchId) {
+                    $q->where('branch_id', $selectedBranchId);
+                } elseif ($selectedWarehouseId) {
+                    $q->whereRaw('1=0');
+                }
+            }], 'quantity');
+            
+            $query->withSum(['warehouseStock as total_warehouse_stock' => function($q) use ($selectedWarehouseId, $selectedBranchId) {
+                if ($selectedWarehouseId) {
+                    $q->where('warehouse_id', $selectedWarehouseId);
+                } elseif ($selectedBranchId) {
+                    $q->whereRaw('1=0'); 
+                }
+            }], 'quantity');
+            
+            $query->withSum(['variationStocks as total_variation_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+                if ($selectedBranchId) {
+                    $q->where('branch_id', $selectedBranchId);
+                } elseif ($selectedWarehouseId) {
+                    $q->where('warehouse_id', $selectedWarehouseId);
+                }
+            }], 'quantity');
 
             // Date Filters
             if ($startDate) { $query->where('created_at', '>=', $startDate); }
@@ -298,10 +322,12 @@ class ProductController extends Controller
             $brands = Brand::where('status', 'active')->orderBy('name')->get();
             $seasons = Season::where('status', 'active')->orderBy('name')->get();
             $genders = Gender::all();
+            $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+            $warehouses = \App\Models\Warehouse::where('status', 'active')->orderBy('name')->get();
             $allProducts = Product::orderBy('name')->get(['id', 'name']);
             $allStyleNumbers = Product::whereNotNull('style_number')->orderBy('style_number')->distinct()->pluck('style_number');
 
-            return view('erp.products.productlist', compact('products', 'categories', 'brands', 'seasons', 'genders', 'allProducts', 'allStyleNumbers', 'reportType', 'startDate', 'endDate'));
+            return view('erp.products.productlist', compact('products', 'categories', 'brands', 'seasons', 'genders', 'branches', 'warehouses', 'allProducts', 'allStyleNumbers', 'reportType', 'startDate', 'endDate', 'selectedBranchId', 'selectedWarehouseId'));
         }
         else{
             abort(403, 'Unauthorized action.');
@@ -310,11 +336,23 @@ class ProductController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $products = Product::where(function($q) use ($request) {
-            if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
-            if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
-            if ($request->filled('search')) $q->where('name', 'like', "%{$request->search}%");
-        })->with(['category', 'brand'])->get();
+        $query = Product::with(['category', 'brand']);
+        
+        // Apply Filters (Same as index)
+        if ($request->filled('category_id')) $query->where('category_id', $request->category_id);
+        if ($request->filled('brand_id')) $query->where('brand_id', $request->brand_id);
+        if ($request->filled('season_id')) $query->where('season_id', $request->season_id);
+        if ($request->filled('gender_id')) $query->where('gender_id', $request->gender_id);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('sku', 'like', "%$search%")
+                  ->orWhere('style_number', 'like', "%$search%");
+            });
+        }
+
+        $products = $query->get();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -342,11 +380,23 @@ class ProductController extends Controller
 
     public function exportCsv(Request $request)
     {
-        $products = Product::where(function($q) use ($request) {
-            if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
-            if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
-            if ($request->filled('search')) $q->where('name', 'like', "%{$request->search}%");
-        })->with(['category', 'brand', 'season', 'gender'])->get();
+        $query = Product::with(['category', 'brand', 'season', 'gender']);
+
+        // Apply Filters (Same as index)
+        if ($request->filled('category_id')) $query->where('category_id', $request->category_id);
+        if ($request->filled('brand_id')) $query->where('brand_id', $request->brand_id);
+        if ($request->filled('season_id')) $query->where('season_id', $request->season_id);
+        if ($request->filled('gender_id')) $query->where('gender_id', $request->gender_id);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('sku', 'like', "%$search%")
+                  ->orWhere('style_number', 'like', "%$search%");
+            });
+        }
+
+        $products = $query->get();
 
         $filename = "product_list_" . date('Y-m-d_His') . ".csv";
         $headers = array(
@@ -387,11 +437,21 @@ class ProductController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $products = Product::where(function($q) use ($request) {
-            if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
-            if ($request->filled('search')) $q->where('name', 'like', "%{$request->search}%");
-        })->with(['category', 'brand'])->limit(100)->get(); 
+        $query = Product::with(['category', 'brand']);
 
+        // Apply Filters (Same as index)
+        if ($request->filled('category_id')) $query->where('category_id', $request->category_id);
+        if ($request->filled('brand_id')) $query->where('brand_id', $request->brand_id);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('sku', 'like', "%$search%")
+                  ->orWhere('style_number', 'like', "%$search%");
+            });
+        }
+
+        $products = $query->limit(100)->get(); 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.products.product-export-pdf', compact('products'));
         return $pdf->download('product_report_' . date('Y-m-d') . '.pdf');
     }
@@ -530,10 +590,18 @@ class ProductController extends Controller
             'variations.stocks.warehouse'
         ])->findOrFail($id);
         
-        // Calculate units sold from POS items
-        $unitsSold = $product->saleItems->sum('quantity');
+        $restrictedBranchId = $this->getRestrictedBranchId();
+
+        // Calculate units sold from POS items (respect branch isolation)
+        $unitsSoldQuery = $product->saleItems();
+        if ($restrictedBranchId) {
+            $unitsSoldQuery->whereHas('pos', function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId);
+            });
+        }
+        $unitsSold = $unitsSoldQuery->sum('quantity');
         
-        // Calculate total stock - if product has variations, sum variation stocks; otherwise sum direct product stocks
+        // Calculate total stock - filtered by branch if restricted
         $totalStock = 0;
         $branchStocksData = [];
         $warehouseStocksData = [];
@@ -543,6 +611,9 @@ class ProductController extends Controller
             foreach ($product->variations as $variation) {
                 if ($variation->stocks && $variation->stocks->isNotEmpty()) {
                     foreach ($variation->stocks as $stock) {
+                        // Branch Isolation Filter
+                        if ($restrictedBranchId && $stock->branch_id != $restrictedBranchId) continue;
+
                         $totalStock += $stock->quantity;
                         
                         if ($stock->branch_id && $stock->branch) {
@@ -576,7 +647,12 @@ class ProductController extends Controller
             $warehouseStocks = collect(array_values($warehouseStocksData));
         } else {
             // Product doesn't have variations - use direct product stocks
-            $branchStocks = $product->branchStock->map(function($stock) {
+            $branchStockQuery = $product->branchStock();
+            if ($restrictedBranchId) {
+                $branchStockQuery->where('branch_id', $restrictedBranchId);
+            }
+            
+            $branchStocks = $branchStockQuery->get()->map(function($stock) {
                 return [
                     'branch_name' => $stock->branch->name ?? 'Unknown Branch',
                     'quantity' => $stock->quantity,
@@ -584,7 +660,12 @@ class ProductController extends Controller
                 ];
             });
             
-            $warehouseStocks = $product->warehouseStock->map(function($stock) {
+            $warehouseStockQuery = $product->warehouseStock();
+            if ($restrictedBranchId) {
+                $warehouseStockQuery->whereRaw('1=0'); // Restricted branches usually don't see warehouse stock
+            }
+            
+            $warehouseStocks = $warehouseStockQuery->get()->map(function($stock) {
                 return [
                     'warehouse_name' => $stock->warehouse->name ?? 'Unknown Warehouse',
                     'quantity' => $stock->quantity,
@@ -595,12 +676,15 @@ class ProductController extends Controller
             $totalStock = $branchStocks->sum('quantity') + $warehouseStocks->sum('quantity');
         }
         
-        // Get recent activity (recent sales)
-        $recentActivity = $product->saleItems()
-            ->with(['pos.invoice'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get()
+        // Get recent activity (recent sales - respect branch isolation)
+        $recentActivityQuery = $product->saleItems()->with(['pos.invoice'])->orderBy('created_at', 'desc');
+        if ($restrictedBranchId) {
+            $recentActivityQuery->whereHas('pos', function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId);
+            });
+        }
+        
+        $recentActivity = $recentActivityQuery->limit(5)->get()
             ->map(function($item) {
                 return [
                     'type' => 'sale',

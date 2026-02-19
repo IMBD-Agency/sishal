@@ -17,6 +17,11 @@ class JournalController extends Controller
     {
         $query = Journal::with(['entries.chartOfAccount', 'creator']);
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
+
         if ($request->filled('start_date')) {
             $query->whereDate('entry_date', '>=', $request->start_date);
         }
@@ -66,11 +71,14 @@ class JournalController extends Controller
         try {
             DB::beginTransaction();
 
+            $restrictedBranchId = $this->getRestrictedBranchId();
+
             $journal = Journal::create([
                 'voucher_no' => $request->voucher_no,
                 'entry_date' => $request->entry_date,
                 'type' => $request->type,
                 'description' => $request->description,
+                'branch_id' => $restrictedBranchId,
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
             ]);

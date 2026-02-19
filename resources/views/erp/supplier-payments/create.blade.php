@@ -115,18 +115,34 @@
                                         <input type="number" step="0.01" name="amount" id="total_amount" class="form-control form-control-lg fw-bold text-primary bg-light" placeholder="0.00" required readonly>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Payment Method <span class="text-danger">*</span></label>
-                                        <select name="payment_method" id="payment_method" class="form-select form-select-lg" required>
-                                            <option value="">Choose Method</option>
-                                            <option value="cash">Cash Fund</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="check">Cheque Pay</option>
-                                            <option value="bkash">bKash Merchant</option>
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Account Type <span class="text-danger">*</span></label>
+                                        <select name="payment_method" id="payment_method" class="form-select" required>
+                                            <option value="">Select Type</option>
+                                            @php
+                                                $availableTypes = $bankAccounts->pluck('type')->unique();
+                                                $typeLabels = ['cash' => 'Cash', 'bank' => 'Bank Account', 'mobile' => 'Mobile Banking'];
+                                            @endphp
+                                            @foreach($typeLabels as $typeVal => $typeLabel)
+                                                @if($availableTypes->contains($typeVal))
+                                                    <option value="{{ $typeVal }}">{{ $typeLabel }}</option>
+                                                @endif
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Txn / Ref ID <span class="text-danger">*</span></label>
-                                        <input type="text" name="reference" class="form-control form-control-lg" placeholder="Txn ID / Ref" required>
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Account <span class="text-danger">*</span></label>
+                                        <select name="account_id" id="account_id" class="form-select" required>
+                                            <option value="">Select Account</option>
+                                            @foreach($bankAccounts as $acc)
+                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                                    {{ $acc->provider_name }} — {{ $acc->account_number }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Txn / Ref ID</label>
+                                        <input type="text" name="reference" class="form-control" placeholder="Txn ID / Ref">
                                     </div>
                                     <div class="col-12 mt-4">
                                         <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Transaction Memo</label>
@@ -267,6 +283,23 @@
                     $('#total_amount').val(selectedChallans[0].paid);
                 }
             });
+            // Filter Account Dropdown based on Type
+            $('#payment_method').on('change', function() {
+                const type = $(this).val();
+                const accountSelect = $('#account_id');
+                
+                accountSelect.val('').find('option').each(function() {
+                    const optionType = $(this).data('type');
+                    if (!type || !optionType || optionType === type) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            });
+
+            // Trigger once on load
+            $('#payment_method').trigger('change');
         });
     </script>
     @endpush

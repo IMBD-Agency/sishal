@@ -11,6 +11,9 @@ use App\Models\Warehouse;
 use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\FinancialAccount;
 
 class StockTransferController extends Controller
 {
@@ -60,6 +63,8 @@ class StockTransferController extends Controller
         // We can mimic this by generating a fake invoice ID for nulls in the select?
         // "COALESCE(invoice_number, CONCAT('INDIV-', id)) as group_id"
         
+        $restrictedBranchId = $this->getRestrictedBranchId();
+
         $transfers = StockTransfer::select(
                 \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
                 \DB::raw('MAX(id) as id'), // To link to details
@@ -68,11 +73,26 @@ class StockTransferController extends Controller
                 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at' // Assuming these are same for the group
             )
             ->with(['fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson'])
+            ->where(function($q) use ($restrictedBranchId) {
+                if ($restrictedBranchId) {
+                    $q->where(function($q2) use ($restrictedBranchId) {
+                        $q2->where('from_type', 'branch')->where('from_id', $restrictedBranchId);
+                    })->orWhere(function($q2) use ($restrictedBranchId) {
+                        $q2->where('to_type', 'branch')->where('to_id', $restrictedBranchId);
+                    });
+                }
+            })
             ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at')
             ->orderBy('requested_at', 'desc')
             ->paginate(15);
-        $branches = Branch::all();
-        $warehouses = Warehouse::all();
+
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $warehouses = collect();
+        } else {
+            $branches = Branch::all();
+            $warehouses = Warehouse::all();
+        }
         $statuses = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
         
         // Get filter options
@@ -91,9 +111,16 @@ class StockTransferController extends Controller
 
     public function create()
     {
-        $branches = Branch::all();
-        $warehouses = Warehouse::all();
-        return view('erp.stockTransfer.create', compact('branches', 'warehouses'));
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $warehouses = collect();
+        } else {
+            $branches = Branch::all();
+            $warehouses = Warehouse::all();
+        }
+        $financialAccounts = \App\Models\FinancialAccount::orderBy('provider_name')->get();
+        return view('erp.stockTransfer.create', compact('branches', 'warehouses', 'financialAccounts'));
     }
 
     private function applyFilters(Request $request)
@@ -112,6 +139,17 @@ class StockTransferController extends Controller
             'requestedPerson', 
             'approvedPerson'
         ]);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where(function($q) use ($restrictedBranchId) {
+                $q->where(function($q2) use ($restrictedBranchId) {
+                    $q2->where('from_type', 'branch')->where('from_id', $restrictedBranchId);
+                })->orWhere(function($q2) use ($restrictedBranchId) {
+                    $q2->where('to_type', 'branch')->where('to_id', $restrictedBranchId);
+                });
+            });
+        }
 
         if ($request->filled('from_branch_id')) {
             $fromValue = $request->from_branch_id;
@@ -231,62 +269,54 @@ class StockTransferController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $query = $this->applyFilters($request);
-        $transfers = $query->orderBy('requested_at', 'desc')->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'product', 'source', 'destination', 'quantity', 'status', 'by'];
-
-        $exportData = [];
-        $headers = [];
-        $columnMap = [
-            'id' => 'ID',
-            'date' => 'Date',
-            'product' => 'Product',
-            'source' => 'Source',
-            'destination' => 'Destination',
-            'quantity' => 'Quantity',
-            'status' => 'Status',
-            'by' => 'Requested By'
-        ];
-
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
-        }
-        $exportData[] = $headers;
-
-        foreach ($transfers as $transfer) {
-            $row = [];
-            foreach ($selectedColumns as $column) {
-                switch ($column) {
-                    case 'id': $row[] = $transfer->id; break;
-                    case 'date': $row[] = $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-'; break;
-                    case 'product': 
-                        $prod = $transfer->product->name ?? '-';
-                        if ($transfer->variation) $prod .= ' (' . $transfer->variation->name . ')';
-                        $row[] = $prod;
-                        break;
-                    case 'source': 
-                        if ($transfer->from_type == 'branch') $row[] = 'Branch: ' . ($transfer->fromBranch->name ?? '-');
-                        else $row[] = 'Warehouse: ' . ($transfer->fromWarehouse->name ?? '-');
-                        break;
-                    case 'destination':
-                        if ($transfer->to_type == 'branch') $row[] = 'Branch: ' . ($transfer->toBranch->name ?? '-');
-                        else $row[] = 'Warehouse: ' . ($transfer->toWarehouse->name ?? '-');
-                        break;
-                    case 'quantity': $row[] = $transfer->quantity; break;
-                    case 'status': $row[] = ucfirst($transfer->status); break;
-                    case 'by': $row[] = $transfer->requestedPerson->name ?? '-'; break;
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $query = StockTransfer::select(
+                \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
+                \DB::raw('MAX(id) as id'),
+                \DB::raw('COUNT(*) as item_count'),
+                \DB::raw('SUM(total_price) as grouped_total_amount'),
+                \DB::raw('SUM(quantity) as total_qty'),
+                'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at',
+                'sender_account_id', 'receiver_account_id', 'invoice_number'
+            )
+            ->with(['fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson', 'senderAccount', 'receiverAccount'])
+            ->where(function($q) use ($restrictedBranchId) {
+                if ($restrictedBranchId) {
+                    $q->where(function($q2) use ($restrictedBranchId) {
+                        $q2->where('from_type', 'branch')->where('from_id', $restrictedBranchId);
+                    })->orWhere(function($q2) use ($restrictedBranchId) {
+                        $q2->where('to_type', 'branch')->where('to_id', $restrictedBranchId);
+                    });
                 }
-            }
-            $exportData[] = $row;
+            })
+            ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'sender_account_id', 'receiver_account_id', 'invoice_number')
+            ->orderBy('requested_at', 'desc');
+
+        $transfers = $query->get();
+        $headers = ['Invoice No', 'Date', 'Source', 'Destination', 'Items', 'Total Qty', 'Total Amount', 'Sender Account', 'Receiver Account', 'Status', 'Requested By'];
+        
+        $exportData = [];
+        foreach ($transfers as $transfer) {
+            $exportData[] = [
+                $transfer->invoice_number ?? 'N/A',
+                $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-',
+                $transfer->from_type == 'branch' ? ($transfer->fromBranch->name ?? '-') : ($transfer->fromWarehouse->name ?? '-'),
+                $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-'),
+                $transfer->item_count,
+                number_format($transfer->total_qty, 0),
+                number_format($transfer->grouped_total_amount, 2),
+                $transfer->senderAccount->provider_name ?? '-',
+                $transfer->receiverAccount->provider_name ?? '-',
+                ucfirst($transfer->status),
+                $transfer->requestedPerson->name ?? '-'
+            ];
         }
 
-        $filename = 'stock_transfers_' . date('Y-m-d_H-i-s') . '.xlsx';
+        $filename = 'stock_transfer_summary_' . date('Y-m-d_H-i-s') . '.xlsx';
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $sheet->setCellValue('A1', 'Stock Transfer Report');
+        $sheet->setCellValue('A1', 'Stock Transfer Summary Report');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
         
         foreach ($headers as $index => $header) {
@@ -295,8 +325,7 @@ class StockTransferController extends Controller
         }
         
         $dataRow = 4;
-        foreach ($exportData as $rowIndex => $row) {
-            if ($rowIndex === 0) continue;
+        foreach ($exportData as $row) {
             foreach ($row as $colIndex => $value) {
                 $sheet->setCellValue(chr(65 + $colIndex) . $dataRow, $value);
             }
@@ -316,42 +345,37 @@ class StockTransferController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $query = $this->applyFilters($request);
-        $transfers = $query->orderBy('requested_at', 'desc')->get();
-        $selectedColumns = $request->filled('columns') ? explode(',', $request->columns) : ['id', 'date', 'product', 'source', 'destination', 'quantity', 'status', 'by'];
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $query = StockTransfer::select(
+                \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
+                \DB::raw('MAX(id) as id'),
+                \DB::raw('COUNT(*) as item_count'),
+                \DB::raw('SUM(total_price) as grouped_total_amount'),
+                \DB::raw('SUM(quantity) as total_qty'),
+                'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'invoice_number'
+            )
+            ->with(['fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson'])
+            ->where(function($q) use ($restrictedBranchId) {
+                if ($restrictedBranchId) {
+                    $q->where(function($q2) use ($restrictedBranchId) {
+                        $q2->where('from_type', 'branch')->where('from_id', $restrictedBranchId);
+                    })->orWhere(function($q2) use ($restrictedBranchId) {
+                        $q2->where('to_type', 'branch')->where('to_id', $restrictedBranchId);
+                    });
+                }
+            })
+            ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'invoice_number')
+            ->orderBy('requested_at', 'desc');
 
-        $columnMap = [
-            'id' => 'ID',
-            'date' => 'Date',
-            'product' => 'Product',
-            'source' => 'Source',
-            'destination' => 'Destination',
-            'quantity' => 'Quantity',
-            'status' => 'Status',
-            'by' => 'Requested By'
-        ];
-
-        $headers = [];
-        foreach ($selectedColumns as $column) {
-            if (isset($columnMap[$column])) {
-                $headers[] = $columnMap[$column];
-            }
-        }
-
-        $filename = 'stock_transfers_' . date('Y-m-d_H-i-s') . '.pdf';
+        $transfers = $query->get();
+        $filename = 'stock_transfer_summary_' . date('Y-m-d_H-i-s') . '.pdf';
+        
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.stockTransfer.report-pdf', [
             'transfers' => $transfers,
-            'headers' => $headers,
-            'selectedColumns' => $selectedColumns,
             'filters' => $request->all()
         ]);
 
         $pdf->setPaper('A4', 'landscape');
-        
-        if ($request->input('action') === 'print') {
-            return $pdf->stream($filename);
-        }
-        
         return $pdf->download($filename);
     }
 
@@ -481,6 +505,8 @@ class StockTransferController extends Controller
                     'total_price' => $totalPrice,
                     'paid_amount' => $itemPaid,
                     'due_amount' => $itemDue,
+                    'sender_account_id' => $request->sender_account_id,
+                    'receiver_account_id' => $request->receiver_account_id,
                     'sender_account_type' => $request->sender_account_type,
                     'sender_account_number' => $request->sender_account_number,
                     'receiver_account_type' => $request->receiver_account_type,
@@ -590,6 +616,16 @@ class StockTransferController extends Controller
                                 if ($vStock->quantity < 0) $vStock->quantity = 0;
                                 $vStock->save();
                             }
+
+                            // Mirror deduction to branch product stock
+                            $branchStock = BranchProductStock::where('branch_id', $transfer->from_id)
+                                ->where('product_id', $transfer->product_id)
+                                ->first();
+                            if ($branchStock) {
+                                $branchStock->quantity -= $transfer->quantity;
+                                if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                                $branchStock->save();
+                            }
                         } else {
                             $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
                                 ->where('warehouse_id', $transfer->from_id)
@@ -600,18 +636,30 @@ class StockTransferController extends Controller
                                 if ($vStock->quantity < 0) $vStock->quantity = 0;
                                 $vStock->save();
                             }
+
+                            // Mirror deduction to warehouse product stock
+                            $warehouseStock = WarehouseProductStock::where('warehouse_id', $transfer->from_id)
+                                ->where('product_id', $transfer->product_id)
+                                ->first();
+                            if ($warehouseStock) {
+                                $warehouseStock->quantity -= $transfer->quantity;
+                                if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                                $warehouseStock->save();
+                            }
                         }
                     } else {
                         if($transfer->from_type == 'branch'){
                             $branchStock = BranchProductStock::where('product_id', $transfer->product_id)->where('branch_id', $transfer->from_id)->first();
                             if ($branchStock) {
                                 $branchStock->quantity -= $transfer->quantity;
+                                if ($branchStock->quantity < 0) $branchStock->quantity = 0;
                                 $branchStock->save();
                             }
                         }else{
                             $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
                             if ($warehouseStock) {
                                 $warehouseStock->quantity -= $transfer->quantity;
+                                if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
                                 $warehouseStock->save();
                             }
                         }
@@ -622,7 +670,7 @@ class StockTransferController extends Controller
                     $transfer->shipped_by = auth()->id();
                     $transfer->shipped_at = now();
                     $transfer->save();
-                }elseif($request->status == 'delivered' && $transfer->status == 'shipped'){
+                }elseif($request->status == 'delivered' && in_array($transfer->status, ['shipped', 'approved'])){
                     $transfer->status = $request->status;
                     $transfer->delivered_by = auth()->id();
                     $transfer->delivered_at = now();
@@ -640,6 +688,16 @@ class StockTransferController extends Controller
                             $vStock->updated_by = auth()->id();
                             $vStock->last_updated_at = now();
                             $vStock->save();
+
+                            // Mirror addition to branch product stock
+                            $branchStock = BranchProductStock::firstOrNew([
+                                'branch_id'  => $transfer->to_id,
+                                'product_id' => $transfer->product_id,
+                            ]);
+                            $branchStock->quantity = ($branchStock->quantity ?? 0) + $transfer->quantity;
+                            $branchStock->updated_by = auth()->id();
+                            $branchStock->last_updated_at = now();
+                            $branchStock->save();
                         } else {
                             $vStock = ProductVariationStock::firstOrNew([
                                 'variation_id' => $transfer->variation_id,
@@ -650,6 +708,16 @@ class StockTransferController extends Controller
                             $vStock->updated_by = auth()->id();
                             $vStock->last_updated_at = now();
                             $vStock->save();
+
+                            // Mirror addition to warehouse product stock
+                            $warehouseStock = WarehouseProductStock::firstOrNew([
+                                'warehouse_id' => $transfer->to_id,
+                                'product_id'   => $transfer->product_id,
+                            ]);
+                            $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $transfer->quantity;
+                            $warehouseStock->updated_by = auth()->id();
+                            $warehouseStock->last_updated_at = now();
+                            $warehouseStock->save();
                         }
                     } else {
                         if ($transfer->to_type == 'branch') {
@@ -658,29 +726,32 @@ class StockTransferController extends Controller
                                 'branch_id' => $transfer->to_id
                             ]);
                             $branchStock->quantity = ($branchStock->quantity ?? 0) + $transfer->quantity;
+                            $branchStock->updated_by = auth()->id();
+                            $branchStock->last_updated_at = now();
                             $branchStock->save();
                         } else {
                             $warehouseStock = WarehouseProductStock::firstOrNew([
                                 'product_id' => $transfer->product_id,
-                                'warehouse_id' => $transfer->to_id,
-                                'updated_by' => auth()->id()
+                                'warehouse_id' => $transfer->to_id
                             ]);
                             $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $transfer->quantity;
+                            $warehouseStock->updated_by = auth()->id();
+                            $warehouseStock->last_updated_at = now();
                             $warehouseStock->save();
                         }
                     }
                 }elseif($request->status == 'rejected' && $transfer->status != 'delivered'){
                     $oldStatus = $transfer->status;
                     $transfer->status = $request->status;
-                    $transfer->approved_by = null; // Clear approvals? Maybe keep history? Just following old logic.
-                    // Actually, usually you keep approval history, but old code cleared it. Strict adhesion to old logic:
-                    $transfer->approved_by = null; $transfer->approved_at = null;
-                    $transfer->shipped_by = null; $transfer->shipped_at = null;
-                    $transfer->delivered_by = null; $transfer->delivered_at = null;
+                    $transfer->approved_by = null; 
+                    $transfer->approved_at = null;
+                    $transfer->shipped_by = null; 
+                    $transfer->shipped_at = null;
+                    $transfer->delivered_by = null; 
+                    $transfer->delivered_at = null;
                     $transfer->save();
         
                     // Restore stock IF it was previously deducted (i.e. if it was approved/shipped)
-                    // If it was just pending, no stock was deducted.
                     if (in_array($oldStatus, ['approved', 'shipped'])) {
                         if ($transfer->variation_id) {
                             if($transfer->from_type == 'branch'){
@@ -692,6 +763,15 @@ class StockTransferController extends Controller
                                     $vStock->quantity += $transfer->quantity;
                                     $vStock->save();
                                 }
+
+                                // Mirror restoration to branch product stock
+                                $branchStock = BranchProductStock::where('branch_id', $transfer->from_id)
+                                    ->where('product_id', $transfer->product_id)
+                                    ->first();
+                                if ($branchStock) {
+                                    $branchStock->quantity += $transfer->quantity;
+                                    $branchStock->save();
+                                }
                             } else {
                                 $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
                                     ->where('warehouse_id', $transfer->from_id)
@@ -701,6 +781,15 @@ class StockTransferController extends Controller
                                     $vStock->quantity += $transfer->quantity;
                                     $vStock->save();
                                 }
+
+                                // Mirror restoration to warehouse product stock
+                                $warehouseStock = WarehouseProductStock::where('warehouse_id', $transfer->from_id)
+                                    ->where('product_id', $transfer->product_id)
+                                    ->first();
+                                if ($warehouseStock) {
+                                    $warehouseStock->quantity += $transfer->quantity;
+                                    $warehouseStock->save();
+                                }
                             }
                         } else {
                             if($transfer->from_type == 'branch'){
@@ -709,7 +798,7 @@ class StockTransferController extends Controller
                                     $branchStock->quantity += $transfer->quantity;
                                     $branchStock->save();
                                 }
-                            }else{
+                            } else {
                                 $warehouseStock = WarehouseProductStock::where('product_id', $transfer->product_id)->where('warehouse_id', $transfer->from_id)->first();
                                 if ($warehouseStock) {
                                     $warehouseStock->quantity += $transfer->quantity;
@@ -720,6 +809,76 @@ class StockTransferController extends Controller
                     }
                 }
             }
+
+            // =====================================================
+            // ACCOUNTING LOGIC: Move money from Receiver to Sender
+            // =====================================================
+            if ($request->status == 'delivered') {
+                $totalBatchPaid = $transfers->sum('paid_amount');
+                if ($totalBatchPaid > 0) {
+                    $firstTransfer = $transfers->first();
+                    $senderAccId = $firstTransfer->sender_account_id;
+                    $receiverAccId = $firstTransfer->receiver_account_id;
+
+                    if ($senderAccId && $receiverAccId) {
+                        $senderAcc = FinancialAccount::find($senderAccId);
+                        $receiverAcc = FinancialAccount::find($receiverAccId);
+
+                        if ($senderAcc && $receiverAcc) {
+                            // 1. Update Account Balances
+                            $senderAcc->balance += $totalBatchPaid;
+                            $senderAcc->save();
+
+                            $receiverAcc->balance -= $totalBatchPaid;
+                            $receiverAcc->save();
+
+                            // 2. Create Journal Record
+                            $voucherNo = 'STP-' . str_pad($primaryTransfer->id, 6, '0', STR_PAD_LEFT);
+                            // Avoid duplicate voucher if re-processing (though guarded by status change)
+                            if (!Journal::where('voucher_no', $voucherNo)->exists()) {
+                                $journal = Journal::create([
+                                    'voucher_no'     => $voucherNo,
+                                    'entry_date'     => now(),
+                                    'type'           => 'Transfer',
+                                    'description'    => 'Payment for Stock Transfer #' . ($primaryTransfer->invoice_number ?? $primaryTransfer->id),
+                                    'branch_id'      => $primaryTransfer->from_type == 'branch' ? $primaryTransfer->from_id : null,
+                                    'voucher_amount' => $totalBatchPaid,
+                                    'paid_amount'    => $totalBatchPaid,
+                                    'reference'      => $primaryTransfer->invoice_number,
+                                    'created_by'     => auth()->id(),
+                                    'updated_by'     => auth()->id(),
+                                ]);
+
+                                // 3. DEBIT: Sender Account (Asset Increases)
+                                JournalEntry::create([
+                                    'journal_id'           => $journal->id,
+                                    'chart_of_account_id'  => $senderAcc->account_id,
+                                    'financial_account_id' => $senderAcc->id,
+                                    'debit'                => $totalBatchPaid,
+                                    'credit'               => 0,
+                                    'memo'                 => 'Received payment for stock transfer',
+                                    'created_by'           => auth()->id(),
+                                    'updated_by'           => auth()->id(),
+                                ]);
+
+                                // 4. CREDIT: Receiver Account (Asset Decreases)
+                                JournalEntry::create([
+                                    'journal_id'           => $journal->id,
+                                    'chart_of_account_id'  => $receiverAcc->account_id,
+                                    'financial_account_id' => $receiverAcc->id,
+                                    'debit'                => 0,
+                                    'credit'               => $totalBatchPaid,
+                                    'memo'                 => 'Paid for stock transfer receipt',
+                                    'created_by'           => auth()->id(),
+                                    'updated_by'           => auth()->id(),
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+            // =====================================================
+
             DB::commit();
             return redirect()->back()->with('success', 'Status updated for Invoice ' . ($primaryTransfer->invoice_number ?? $primaryTransfer->id));
         } catch (\Exception $e) {

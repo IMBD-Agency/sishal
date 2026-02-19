@@ -19,6 +19,8 @@ class StockTransfer extends Model
         'total_price',
         'paid_amount',
         'due_amount',
+        'sender_account_id',
+        'receiver_account_id',
         'sender_account_type',
         'sender_account_number',
         'receiver_account_type',
@@ -34,6 +36,7 @@ class StockTransfer extends Model
         'shipped_at',
         'delivered_at',
         'notes',
+        'invoice_number',
     ];
 
 
@@ -77,6 +80,16 @@ class StockTransfer extends Model
     public function variation()
     {
         return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
+    }
+
+    public function senderAccount()
+    {
+        return $this->belongsTo(\App\Models\FinancialAccount::class, 'sender_account_id');
+    }
+
+    public function receiverAccount()
+    {
+        return $this->belongsTo(\App\Models\FinancialAccount::class, 'receiver_account_id');
     }
 }
 

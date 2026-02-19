@@ -223,14 +223,19 @@
                                 <td class="text-end fw-bold text-dark fs-6">{{ number_format($payment->amount, 2) }}৳</td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
-                                        @if($payment->payment_method == 'cash')
-                                            <i class="fas fa-wallet text-success small"></i>
-                                        @elseif($payment->payment_method == 'bank_transfer')
-                                            <i class="fas fa-university text-primary small"></i>
+                                        @if($payment->financialAccount)
+                                            <i class="fas {{ $payment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($payment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }} small"></i>
+                                            <span class="small fw-bold text-uppercase">{{ $payment->financialAccount->provider_name }}</span>
                                         @else
-                                            <i class="fas fa-money-check text-warning small"></i>
+                                            @if($payment->payment_method == 'cash')
+                                                <i class="fas fa-wallet text-success small"></i>
+                                            @elseif($payment->payment_method == 'bank_transfer')
+                                                <i class="fas fa-university text-primary small"></i>
+                                            @else
+                                                <i class="fas fa-money-check text-warning small"></i>
+                                            @endif
+                                            <span class="small fw-bold text-uppercase">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
                                         @endif
-                                        <span class="small fw-bold text-uppercase">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
                                     </div>
                                 </td>
                                 <td class="text-center pe-4">

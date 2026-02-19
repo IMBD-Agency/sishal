@@ -39,13 +39,8 @@
                                                 <span class="badge bg-{{ $variation->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($variation->status) }}</span>
                                             </p>
                                             <p class="mb-2"><strong>Default:</strong> {{ $variation->is_default ? 'Yes' : 'No' }}</p>
-                                            <p class="mb-2"><strong>Price:</strong> 
-                                                {{ $variation->price ? number_format($variation->price, 2) : number_format($product->price, 2) }}
-                                            </p>
-                                            @if(!is_null($variation->discount) || !is_null($product->discount))
-                                                <p class="mb-2"><strong>Discount:</strong> {{ number_format($variation->discount ?? $product->discount ?? 0, 2) }}</p>
-                                                <p class="mb-0"><strong>Final:</strong> {{ number_format($variation->final_price, 2) }}</p>
-                                            @endif
+
+
                                         </div>
                                     </div>
                                 </div>

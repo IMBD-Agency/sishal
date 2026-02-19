@@ -138,7 +138,14 @@
             });
         };
 
-        // 2. Global Confirm Interceptor (Intercepts native confirm() calls in HTML attributes)
+        // 2. Global Confirm Override (Mutes browser default popups)
+        // Since we have custom interceptors below, we return true to let them handle the logic
+        // without showing a second, ugly browser popup.
+        window.confirm = function() {
+            return true;
+        };
+
+        // 3. Global Form Submit Interceptor (Interprets confirm() in onsubmit)
         document.addEventListener('submit', function(e) {
             const form = e.target;
             const onsubmitAttr = form.getAttribute('onsubmit');
@@ -174,7 +181,7 @@
             }
         }, true);
 
-        // 3. Global Click Interceptor (for onclick="return confirm(...)")
+        // 4. Global Click Interceptor (Interprets confirm() in onclick)
         document.addEventListener('click', function(e) {
             const el = e.target.closest('[onclick]');
             if (!el) return;
@@ -211,7 +218,7 @@
             }
         }, true);
 
-        // 4. Global ERP Notification Helper
+        // 5. Global ERP Notification Helper
         window.erpNotify = {
             success: (msg) => Swal.fire({ icon: 'success', title: 'Success', text: msg, timer: 3000, showConfirmButton: false, customClass: { popup: 'rounded-4' } }),
             error: (msg) => Swal.fire({ icon: 'error', title: 'Oops...', text: msg, customClass: { popup: 'rounded-4' } }),

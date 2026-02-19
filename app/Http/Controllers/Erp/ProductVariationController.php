@@ -175,8 +175,16 @@ class ProductVariationController extends Controller
      */
     public function index($productId)
     {
-        $product = Product::with(['variations.combinations.attribute', 'variations.combinations.attributeValue', 'variations.stocks'])
-            ->findOrFail($productId);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+
+        $product = Product::with(['variations' => function($q) use ($restrictedBranchId) {
+            $q->with(['combinations.attribute', 'combinations.attributeValue']);
+            $q->with(['stocks' => function($sq) use ($restrictedBranchId) {
+                if ($restrictedBranchId) {
+                    $sq->where('branch_id', $restrictedBranchId);
+                }
+            }]);
+        }])->findOrFail($productId);
         
         return view('erp.products.variations.index', compact('product'));
     }
@@ -224,8 +232,9 @@ class ProductVariationController extends Controller
                         'product_id' => $productId,
                         'sku' => $var['sku'],
                         'name' => $var['name'],
-                        'price' => $var['price'] ?? $product->price,
+                        'price' => null,   // Always inherit from product
                         'cost' => $var['cost'] ?? $product->cost,
+                        'discount' => null,// Always inherit from product
                         'image' => $uploadedImagePath,
                         'status' => 'active',
                         'is_default' => $request->is_default_index == $index,
@@ -293,9 +302,7 @@ class ProductVariationController extends Controller
         $validationRules = [
             'sku' => 'required|string',
             'name' => 'nullable|string|max:255',
-            'price' => 'nullable|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
-            'discount' => 'nullable|numeric|min:0',
             'is_default' => 'boolean',
             'status' => 'required|in:active,inactive',
             'attributes' => 'array',
@@ -481,9 +488,9 @@ class ProductVariationController extends Controller
                         'product_id' => $productId,
                         'sku' => $finalSku,
                         'name' => $generatedName !== '' ? $generatedName : (string) $request->name,
-                        'price' => $request->price,
+                        'price' => null,
                         'cost' => $request->cost,
-                        'discount' => $request->discount,
+                        'discount' => null,
                         'is_default' => false, // default set can be updated later individually
                         'status' => $request->status,
                     ];
@@ -561,9 +568,9 @@ class ProductVariationController extends Controller
                     'sku' => $request->sku,
                     // name may be overwritten below by generated name; ensure <=255
                     'name' => \Illuminate\Support\Str::limit((string) $request->name, 255, ''),
-                    'price' => $request->price,
+                    'price' => null,
                     'cost' => $request->cost,
-                    'discount' => $request->discount,
+                    'discount' => null,
                     'is_default' => $request->boolean('is_default'),
                     'status' => $request->status,
                 ];
@@ -710,9 +717,16 @@ class ProductVariationController extends Controller
     public function show($productId, $variationId)
     {
         $product = Product::findOrFail($productId);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+
         $variation = ProductVariation::with([
             'combinations.attribute', 
             'combinations.attributeValue', 
+            'stocks' => function($q) use ($restrictedBranchId) {
+                if ($restrictedBranchId) {
+                    $q->where('branch_id', $restrictedBranchId);
+                }
+            },
             'stocks.branch', 
             'stocks.warehouse',
             'galleries'
@@ -757,9 +771,7 @@ class ProductVariationController extends Controller
         $validationRules = [
             'sku' => 'required|string|unique:product_variations,sku,' . $variationId,
             'name' => 'required|string|max:255',
-            'price' => 'nullable|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
-            'discount' => 'nullable|numeric|min:0',
             'is_default' => 'boolean',
             'status' => 'required|in:active,inactive',
             'attributes' => 'array',
@@ -819,9 +831,9 @@ class ProductVariationController extends Controller
                 'sku' => $request->sku,
                 // Temporarily set; will be overwritten below from attribute values
                 'name' => $request->name,
-                'price' => $request->price,
+                'price' => null, // Inherit from product
                 'cost' => $request->cost,
-                'discount' => $request->discount,
+                'discount' => null, // Inherit from product
                 'is_default' => $request->boolean('is_default'),
                 'status' => $request->status,
             ];

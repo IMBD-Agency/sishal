@@ -178,18 +178,11 @@
                         
                         <!-- Bulk Apply Bar -->
                         <div class="bulk-apply-bar">
-                            <div class="flex-grow-1">
-                                <label class="form-label small fw-bold text-muted">Bulk Apply Price</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" id="bulkPrice" class="form-control" placeholder="0.00" step="0.01">
-                                    <button class="btn btn-outline-primary" type="button" onclick="applyBulk('price')">Apply</button>
-                                </div>
-                            </div>
+
                             <div class="flex-grow-1">
                                 <label class="form-label small fw-bold text-muted">Bulk Apply Cost</label>
                                 <div class="input-group input-group-sm">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">৳</span>
                                     <input type="number" id="bulkCost" class="form-control" placeholder="0.00" step="0.01">
                                     <button class="btn btn-outline-primary" type="button" onclick="applyBulk('cost')">Apply</button>
                                 </div>
@@ -210,7 +203,6 @@
                                         <th width="80">Default</th>
                                         <th>Combination</th>
                                         <th>Style No</th>
-                                        <th>Price</th>
                                         <th>Cost</th>
                                         <th>Image</th>
                                         <th width="50"></th>
@@ -320,15 +312,10 @@
                         <td>
                             <input type="text" class="form-control form-control-sm form-control-minimal" name="vars[${index}][sku]" value="${sku}">
                         </td>
+
                         <td>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-transparent border-0 text-muted">$</span>
-                                <input type="number" class="form-control form-control-minimal price-input" name="vars[${index}][price]" value="${defaultPrice}" step="0.01">
-                            </div>
-                        </td>
-                        <td>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-transparent border-0 text-muted">$</span>
+                                <span class="input-group-text bg-transparent border-0 text-muted">৳</span>
                                 <input type="number" class="form-control form-control-minimal cost-input" name="vars[${index}][cost]" value="${defaultCost}" step="0.01">
                             </div>
                         </td>

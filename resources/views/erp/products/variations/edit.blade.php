@@ -58,23 +58,23 @@
                                             <input type="text" class="form-control" id="name" name="name" value="{{ old('name', $variation->name) }}" required>
                                         </div>
                                         <div class="row">
-                                            <div class="col-md-4">
-                                                <div class="mb-3">
-                                                    <label for="price" class="form-label">Price Override</label>
-                                                    <input type="number" class="form-control" id="price" name="price" value="{{ old('price', $variation->price) }}" step="0.01" min="0">
-                                                    <small class="form-text text-muted">Leave empty to use product price</small>
-                                                </div>
-                                            </div>
+
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <label for="cost" class="form-label">Cost Override</label>
-                                                    <input type="number" class="form-control" id="cost" name="cost" value="{{ old('cost', $variation->cost) }}" step="0.01" min="0">
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">৳</span>
+                                                        <input type="number" class="form-control" id="cost" name="cost" value="{{ old('cost', $variation->cost) }}" step="0.01" min="0">
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <label for="discount" class="form-label">Discount Override</label>
-                                                    <input type="number" class="form-control" id="discount" name="discount" value="{{ old('discount', $variation->discount) }}" step="0.01" min="0">
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">৳</span>
+                                                        <input type="number" class="form-control" id="discount" name="discount" value="{{ old('discount', $variation->discount) }}" step="0.01" min="0">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

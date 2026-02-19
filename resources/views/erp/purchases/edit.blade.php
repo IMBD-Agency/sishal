@@ -191,13 +191,27 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="bg-light rounded-4 p-4 text-end">
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted fw-semibold uppercase small">Current Subtotal</span>
+                                            <div class="d-flex justify-content-between mb-2 align-items-center">
+                                                <span class="text-muted fw-semibold uppercase small">Subtotal</span>
                                                 <span class="fw-bold">৳<span id="subtotalCell">0.00</span></span>
                                             </div>
-                                            <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                                            <div class="d-flex justify-content-between mb-2 align-items-center">
+                                                <span class="text-muted fw-semibold uppercase small">Discount</span>
+                                                <div class="input-group input-group-sm w-50 ms-auto">
+                                                    <input type="number" name="discount_value" id="discount_value" class="form-control text-end fw-bold" value="{{ $purchase->bill->discount_value ?? 0 }}" step="0.01" {{ $purchase->status == 'received' ? 'readonly' : '' }}>
+                                                    <div class="btn-group btn-group-sm ms-1" role="group">
+                                                        <input type="radio" class="btn-check" name="discount_type" id="discount_flat" value="flat" {{ ($purchase->bill->discount_type ?? 'flat') == 'flat' ? 'checked' : '' }} {{ $purchase->status == 'received' ? 'disabled' : '' }}>
+                                                        <label class="btn btn-outline-secondary" for="discount_flat">৳</label>
+                                                        
+                                                        <input type="radio" class="btn-check" name="discount_type" id="discount_percent" value="percent" {{ ($purchase->bill->discount_type ?? '') == 'percent' ? 'checked' : '' }} {{ $purchase->status == 'received' ? 'disabled' : '' }}>
+                                                        <label class="btn btn-outline-secondary" for="discount_percent">%</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-between border-top pt-2 mt-2 align-items-center">
                                                 <span class="fw-bold fs-5">Grand Total</span>
                                                 <span class="fw-bold fs-5 text-primary">৳<span id="grandTotalCell">0.00</span></span>
+                                                <input type="hidden" name="total_amount" id="total_amount" value="{{ $purchase->bill->total_amount ?? 0 }}">
                                             </div>
                                             <hr class="my-3">
                                             <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill shadow fw-bold">
@@ -344,18 +358,32 @@
         });
 
         function updateTotals() {
-            let sub = 0;
+            let subtotal = 0;
             $('.item-row').each(function() {
                 const q = parseFloat($(this).find('.quantity').val()) || 0;
                 const p = parseFloat($(this).find('.unit_price').val()) || 0;
                 const t = q * p;
                 $(this).find('.item-total').text(t.toFixed(2));
-                sub += t;
+                subtotal += t;
             });
-            $('#subtotalCell, #grandTotalCell').text(sub.toFixed(2));
+            $('#subtotalCell').text(subtotal.toFixed(2));
+
+            const discountVal = parseFloat($('#discount_value').val()) || 0;
+            const discountType = $('input[name="discount_type"]:checked').val();
+            let discountAmount = 0;
+
+            if (discountType === 'percent') {
+                discountAmount = (subtotal * discountVal) / 100;
+            } else {
+                discountAmount = discountVal;
+            }
+
+            const grandTotal = Math.max(0, subtotal - discountAmount);
+            $('#grandTotalCell').text(grandTotal.toFixed(2));
+            $('#total_amount').val(grandTotal.toFixed(2));
         }
 
-        $(document).on('input', '.quantity, .unit_price', updateTotals);
+        $(document).on('input change', '.quantity, .unit_price, #discount_value, input[name="discount_type"]', updateTotals);
         function updateRemoveButtons() { $('.remove-row').prop('disabled', $('.item-row').length <= 1); }
     </script>
 @endsection

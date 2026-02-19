@@ -34,7 +34,6 @@
                                     <th class="ps-4">Style No</th>
                                     <th>Name</th>
                                     <th>Attributes</th>
-                                    <th>Price</th>
                                     <th>Stock</th>
                                     <th>Status</th>
                                     <th>Default</th>
@@ -64,9 +63,7 @@
                                                 </span>
                                             @endforeach
                                         </td>
-                                        <td>
-                                            <span class="fw-bold text-muted">${{ number_format($variation->final_price, 2) }}</span>
-                                        </td>
+
                                         <td>
                                             @php($stock = $variation->total_stock)
                                             <span class="badge px-3 py-2 rounded {{ $stock > 0 ? 'bg-success' : 'bg-danger' }}" style="font-weight: 500;">

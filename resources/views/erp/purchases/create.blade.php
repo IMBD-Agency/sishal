@@ -91,9 +91,31 @@
                         <div class="row justify-content-end mb-5">
                             <div class="col-md-4 border-top pt-4">
                                 <div class="row align-items-center mb-3">
-                                    <div class="col-6 summary-label">Total Amount *</div>
+                                    <div class="col-6 summary-label">Subtotal</div>
                                     <div class="col-6">
-                                        <input type="text" id="total_amount_display" class="form-control summary-input" readonly value="0.00">
+                                        <input type="text" id="sub_total_display" class="form-control summary-input" readonly value="0.00">
+                                    </div>
+                                </div>
+                                <div class="row align-items-center mb-3">
+                                    <div class="col-6 summary-label">Discount</div>
+                                    <div class="col-6">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" name="discount_value" id="discount_value" class="form-control text-end fw-bold" value="0" step="0.01">
+                                            <div class="btn-group btn-group-sm ms-1" role="group">
+                                                <input type="radio" class="btn-check" name="discount_type" id="discount_flat" value="flat" checked>
+                                                <label class="btn btn-outline-secondary" for="discount_flat">৳</label>
+                                                
+                                                <input type="radio" class="btn-check" name="discount_type" id="discount_percent" value="percent">
+                                                <label class="btn btn-outline-secondary" for="discount_percent">%</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row align-items-center mb-3">
+                                    <div class="col-6 summary-label">Grand Total</div>
+                                    <div class="col-6">
+                                        <input type="text" id="total_amount_display" class="form-control summary-input fw-bold text-primary" readonly value="0.00">
+                                        <input type="hidden" name="total_amount" id="total_amount" value="0">
                                     </div>
                                 </div>
                                 <div class="row align-items-center mb-3">
@@ -117,9 +139,15 @@
                                 <label for="payment_method" class="form-label">Account Type *</label>
                                 <select name="payment_method" id="payment_method" class="form-select">
                                     <option value="">Select Type</option>
-                                    <option value="cash">Cash</option>
-                                    <option value="bank">Bank</option>
-                                    <option value="mobile">Mobile Banking</option>
+                                    @php
+                                        $availableTypes = $bankAccounts->pluck('type')->unique();
+                                        $typeLabels = ['cash' => 'Cash', 'bank' => 'Bank Account', 'mobile' => 'Mobile Banking'];
+                                    @endphp
+                                    @foreach($typeLabels as $typeVal => $typeLabel)
+                                        @if($availableTypes->contains($typeVal))
+                                            <option value="{{ $typeVal }}">{{ $typeLabel }}</option>
+                                        @endif
+                                    @endforeach
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -127,7 +155,9 @@
                                 <select name="account_id" id="account_id" class="form-select">
                                     <option value="">Select Account</option>
                                     @foreach($bankAccounts as $acc)
-                                        <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">{{ $acc->provider_name }} - {{ $acc->account_number }}</option>
+                                        <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                            {{ $acc->provider_name }} — {{ $acc->account_number }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -217,7 +247,7 @@
             });
 
             // Calculation hook
-            $('#paid_amount').on('input', updateTotals);
+            $('#paid_amount, #discount_value, input[name="discount_type"]').on('input change', updateTotals);
         });
 
         let rowIndex = 0;
@@ -375,18 +405,33 @@
         });
 
         function updateTotals() {
-            let grand = 0;
+            let subtotal = 0;
             $('.item-row').each(function() {
                 const qtyVal = parseFloat($(this).find('.quantity').val()) || 0;
                 const priceVal = parseFloat($(this).find('.unit_price').val()) || 0;
-                const subTotal = qtyVal * priceVal;
-                $(this).find('.item-total-val').text(subTotal.toFixed(2));
-                grand += subTotal;
+                const rowTotal = qtyVal * priceVal;
+                $(this).find('.item-total-val').text(rowTotal.toFixed(2));
+                subtotal += rowTotal;
             });
 
-            $('#total_amount_display').val(grand.toFixed(2));
+            $('#sub_total_display').val(subtotal.toFixed(2));
+
+            const discountVal = parseFloat($('#discount_value').val()) || 0;
+            const discountType = $('input[name="discount_type"]:checked').val();
+            let discountAmount = 0;
+
+            if (discountType === 'percent') {
+                discountAmount = (subtotal * discountVal) / 100;
+            } else {
+                discountAmount = discountVal;
+            }
+
+            const grandTotal = Math.max(0, subtotal - discountAmount);
+            $('#total_amount_display').val(grandTotal.toFixed(2));
+            $('#total_amount').val(grandTotal.toFixed(2));
+
             const paidVal = parseFloat($('#paid_amount').val()) || 0;
-            const dueVal = grand - paidVal;
+            const dueVal = grandTotal - paidVal;
             $('#due_amount_display').val(dueVal.toFixed(2));
         }
     </script>

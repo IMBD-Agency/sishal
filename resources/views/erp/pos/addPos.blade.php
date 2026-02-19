@@ -5,6 +5,10 @@
 @section('body')
 @include('erp.components.sidebar')
 
+@push('css')
+    <link href="{{ asset('pos-premium.css') }}?v={{ time() }}" rel="stylesheet">
+@endpush
+
 <div class="main-content" id="mainContent">
     @include('erp.components.header')
 
@@ -14,42 +18,50 @@
             <div class="col-lg-8 col-xl-8 h-100 d-flex flex-column border-end position-relative">
                 <!-- Search & Filters -->
                 <div class="bg-white p-3 border-bottom shadow-sm z-1">
-                    <div class="row g-2">
+                    <div class="row g-3">
                         <div class="col-md-5">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 text-muted"> <i class="fas fa-search"></i> </span>
-                                <input type="text" id="searchInput" class="form-control border-start-0 premium-search-input" placeholder="Search product...">
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text border-end-0"> <i class="fas fa-search"></i> </span>
+                                <input type="text" id="searchInput" class="form-control border-start-0 premium-search-input" placeholder="Search product name or SKU...">
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="input-group">
-                                <span class="input-group-text bg-success bg-opacity-10 text-success border-0 fw-bold"> <i class="fas fa-barcode"></i> </span>
-                                <input type="text" id="barcodeInput" class="form-control premium-search-input scanner-input" placeholder="Scanner (F2)" autocomplete="off">
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text border-end-0 bg-success bg-opacity-10 text-success"> <i class="fas fa-barcode"></i> </span>
+                                <input type="text" id="barcodeInput" class="form-control border-start-0 premium-search-input scanner-input" placeholder="Scan Barcode (F2)" autocomplete="off">
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <select class="form-select" id="categoryFilter">
-                                <option value="">Categories</option>
-                                @foreach ($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text border-end-0"> <i class="fas fa-list-ul"></i> </span>
+                                <select class="form-select border-start-0 select2-simple" id="categoryFilter">
+                                    <option value="">All Categories</option>
+                                    @foreach ($categories as $category)
+                                        <option value="{{ $category->id }}">{{ $category->full_path_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <!-- Quick Filters Row 2 -->
-                    <div class="d-flex gap-2 mt-2 align-items-center">
-                        <select class="form-select form-select-sm w-auto" id="branchFilter">
-                             @foreach ($branches as $branch)
-                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="form-check form-check-inline ms-2">
-                            <input class="form-check-input" type="radio" name="saleType" id="retailPrice" value="MRP" checked>
-                            <label class="form-check-label small fw-bold" for="retailPrice">Retail (MRP)</label>
+                    <div class="d-flex gap-3 mt-3 align-items-center flex-wrap">
+                        <div class="input-group input-group-sm w-auto shadow-sm">
+                            <span class="input-group-text border-end-0"> <i class="fas fa-store-alt"></i> </span>
+                            <select class="form-select border-start-0 fw-bold branch-select-field" id="branchFilter">
+                                 @foreach ($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="saleType" id="wholesalePrice" value="Wholesale">
-                            <label class="form-check-label small fw-bold" for="wholesalePrice">Wholesale</label>
+                        <div class="sale-type-toggle">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="saleType" id="retailPrice" value="MRP" checked>
+                                <label class="form-check-label" for="retailPrice">Retail (MRP)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="saleType" id="wholesalePrice" value="Wholesale">
+                                <label class="form-check-label" for="wholesalePrice">Wholesale</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -263,8 +275,13 @@
 
 <script>
 $(document).ready(function() {
-    // 1. Init Select2 for Customer
-    $('#customerSelect').select2({ width: 'resolve', dropdownParent: $('.col-xl-4') }); 
+    // 1. Init Select2 for Customer & Category
+    $('#customerSelect, #categoryFilter').select2({ width: '100%', dropdownParent: $('#mainContent') }); 
+    
+    // Simple Select2 Init for non-container specific if needed
+    $('.select2-simple').each(function() {
+        $(this).select2({ width: '100%', dropdownParent: $(this).parent().parent() });
+    });
 
     // Auto-focus Select2 search field on open
     $(document).on('select2:open', () => {
@@ -527,7 +544,7 @@ $(document).ready(function() {
                     <td class="ps-2 py-2">
                         <div class="text-truncate fw-bold mb-0" style="max-width: 160px;">${item.name}</div>
                         <div class="d-flex align-items-center gap-2">
-                            <span class="text-muted extra-small">${item.price.toFixed(2)} / ea</span>
+                            <span class="text-muted extra-small">${item.price.toFixed(2)}</span>
                             <span class="badge bg-light text-secondary border-0 fw-normal small">Stock: ${item.maxStock}</span>
                         </div>
                     </td>

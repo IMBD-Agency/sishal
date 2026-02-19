@@ -12,10 +12,16 @@ class SupplierPayment extends Model
         'payment_date',
         'amount',
         'payment_method',
+        'account_id',
         'reference',
         'note',
         'created_by',
     ];
+
+    public function financialAccount()
+    {
+        return $this->belongsTo(FinancialAccount::class, 'account_id');
+    }
 
     protected $casts = [
         'payment_date' => 'date',

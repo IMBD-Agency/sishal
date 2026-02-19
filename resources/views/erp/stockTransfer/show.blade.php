@@ -176,6 +176,38 @@
                                 </tfoot>
                             </table>
                         </div>
+                        
+                        <!-- Financial Details -->
+                        @if($transfers->sum('paid_amount') > 0)
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="fw-bold text-uppercase small text-muted mb-2">Sender Financials</h6>
+                                <div class="border rounded p-3 bg-light-success">
+                                    <p class="mb-1 small">Account: <strong>{{ $transfer->senderAccount->provider_name ?? ($transfer->sender_account_type ?? 'N/A') }}</strong></p>
+                                    <p class="mb-0 small">Number: <strong>{{ $transfer->senderAccount->account_number ?? ($transfer->sender_account_number ?? '-') }}</strong></p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="fw-bold text-uppercase small text-muted mb-2">Receiver Financials</h6>
+                                <div class="border rounded p-3 bg-light-danger">
+                                    <p class="mb-1 small">Account: <strong>{{ $transfer->receiverAccount->provider_name ?? ($transfer->receiver_account_type ?? 'N/A') }}</strong></p>
+                                    <p class="mb-0 small">Number: <strong>{{ $transfer->receiverAccount->account_number ?? ($transfer->receiver_account_number ?? '-') }}</strong></p>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-3">
+                                <div class="alert alert-{{ $transfer->status === 'delivered' ? 'success' : 'info' }} border-0 py-2 d-flex align-items-center mb-0">
+                                    <i class="fas fa-{{ $transfer->status === 'delivered' ? 'check-double' : 'clock' }} me-2"></i>
+                                    <span class="small fw-bold">
+                                        @if($transfer->status === 'delivered')
+                                            Financial Settlement Complete: {{ number_format($transfers->sum('paid_amount'), 2) }} ৳ transferred from Receiver to Sender.
+                                        @else
+                                            Financial Settlement Pending Arrival: {{ number_format($transfers->sum('paid_amount'), 2) }} ৳ will be moved upon delivery.
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
 
                         <!-- Notes Section -->
                         @if($transfer->notes)

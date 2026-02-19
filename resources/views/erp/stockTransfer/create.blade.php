@@ -176,27 +176,35 @@
                                 <div class="row g-3">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sender Acc. <span class="text-danger">*</span></label>
-                                        <select name="sender_account_type" class="form-select shadow-none" required>
-                                            <option value="cash">Petty Cash</option>
-                                            <option value="bank">Bank A/C</option>
-                                            <option value="mobile_banking">Mobile Wallet</option>
+                                        <select name="sender_account_id" id="sender_account_id" class="form-select shadow-none" required>
+                                            <option value="">Select Account</option>
+                                            @foreach($financialAccounts as $acc)
+                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
+                                                    {{ $acc->provider_name }} ({{ $acc->account_number ?? $acc->mobile_number }})
+                                                </option>
+                                            @endforeach
                                         </select>
+                                        <input type="hidden" name="sender_account_type" id="sender_account_type">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Acc. Number <span class="text-danger">*</span></label>
-                                        <input type="text" name="sender_account_number" class="form-control shadow-none" placeholder="Reference #" value="SYSTEM" required>
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Sender Acc #</label>
+                                        <input type="text" name="sender_account_number" id="sender_account_number" class="form-control shadow-none bg-light" readonly placeholder="Auto-filled">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-2">Receiver Acc. <span class="text-danger">*</span></label>
-                                        <select name="receiver_account_type" class="form-select shadow-none" required>
-                                            <option value="cash">Petty Cash</option>
-                                            <option value="bank">Bank A/C</option>
-                                            <option value="mobile_banking">Mobile Wallet</option>
+                                        <select name="receiver_account_id" id="receiver_account_id" class="form-select shadow-none" required>
+                                            <option value="">Select Account</option>
+                                            @foreach($financialAccounts as $acc)
+                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
+                                                    {{ $acc->provider_name }} ({{ $acc->account_number ?? $acc->mobile_number }})
+                                                </option>
+                                            @endforeach
                                         </select>
+                                        <input type="hidden" name="receiver_account_type" id="receiver_account_type">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Acc. Number <span class="text-danger">*</span></label>
-                                        <input type="text" name="receiver_account_number" class="form-control shadow-none" placeholder="Reference #" value="SYSTEM" required>
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Receiver Acc #</label>
+                                        <input type="text" name="receiver_account_number" id="receiver_account_number" class="form-control shadow-none bg-light" readonly placeholder="Auto-filled">
                                     </div>
                                 </div>
                             </div>
@@ -429,6 +437,23 @@
                 if ($('#productTableBody tr:not(.empty-placeholder)').length === 0) {
                     e.preventDefault(); alert('Please add products'); return false;
                 }
+            });
+
+            // Handle Financial Account Selection
+            $('#sender_account_id').on('change', function() {
+                const selected = $(this).find(':selected');
+                const type = selected.data('type') || '';
+                const number = selected.data('number') || '';
+                $('#sender_account_type').val(type);
+                $('#sender_account_number').val(number);
+            });
+
+            $('#receiver_account_id').on('change', function() {
+                const selected = $(this).find(':selected');
+                const type = selected.data('type') || '';
+                const number = selected.data('number') || '';
+                $('#receiver_account_type').val(type);
+                $('#receiver_account_number').val(number);
             });
         });
     </script>

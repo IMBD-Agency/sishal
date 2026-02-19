@@ -99,7 +99,7 @@
                                         <select class="form-select" id="role" name="role">
                                             <option value="">Select Role...</option>
                                             @foreach ($roles as $role)
-                                                <option value="{{ $role->name }}" {{ old('role', $employee->role) == $role->name ? 'selected' : '' }}>{{ $role->name }}</option>
+                                                <option value="{{ $role->name }}" {{ (old('role') ?? ($employee->user->roles->first()->name ?? '')) == $role->name ? 'selected' : '' }}>{{ $role->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -117,6 +117,33 @@
                                         <div class="input-group">
                                             <span class="input-group-text bg-light ps-3 pe-3">৳</span>
                                             <input type="number" step="0.01" class="form-control" id="salary" name="salary" value="{{ old('salary', $employee->salary) }}" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Operational Assignment -->
+                                <div class="col-12 mt-2">
+                                    <h6 class="text-muted text-uppercase fw-bold small mb-3 border-top pt-4">
+                                        <i class="fas fa-code-branch me-2 text-info"></i>Branch Assignment
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-12">
+                                            <label for="branch_id" class="form-label">Assigned Branch <span class="text-muted small">(Optional)</span></label>
+                                            <select class="form-select" id="branch_id" name="branch_id">
+                                                <option value="">-- No Branch (Admin/Global Access) --</option>
+                                                @foreach($branches as $branch)
+                                                    <option value="{{ $branch->id }}" {{ old('branch_id', $employee->branch_id) == $branch->id ? 'selected' : '' }}>
+                                                        {{ $branch->name }} - {{ $branch->location }}
+                                                        @if($branch->warehouse)
+                                                            (Warehouse: {{ $branch->warehouse->name }})
+                                                        @endif
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Employees assigned to a branch will only see data from that branch. Leave empty for admin-level access.
+                                            </small>
                                         </div>
                                     </div>
                                 </div>

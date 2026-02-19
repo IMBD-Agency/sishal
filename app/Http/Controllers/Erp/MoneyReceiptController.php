@@ -14,9 +14,27 @@ class MoneyReceiptController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Payment::with(['customer', 'invoice', 'creator'])
+        $query = Payment::with(['customer', 'invoice', 'creator.employee'])
             ->whereNotNull('customer_id') // Assuming Money Receipts are always linked to a customer
             ->latest('id');
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where(function($q) use ($restrictedBranchId) {
+                // Link to POS branch
+                $q->whereHas('pos', function($pq) use ($restrictedBranchId) {
+                    $pq->where('branch_id', $restrictedBranchId);
+                })
+                // Link to Invoice -> POS branch
+                ->orWhereHas('invoice.pos', function($ipq) use ($restrictedBranchId) {
+                    $ipq->where('branch_id', $restrictedBranchId);
+                })
+                // Link to Creator's branch (for manual receipts)
+                ->orWhereHas('creator.employee', function($eq) use ($restrictedBranchId) {
+                    $eq->where('branch_id', $restrictedBranchId);
+                });
+            });
+        }
 
         // Filters
         if ($request->filled('report_type')) {
@@ -83,7 +101,12 @@ class MoneyReceiptController extends Controller
         }
 
         $customers = Customer::orderBy('name')->get();
-        $branches = \App\Models\Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = \App\Models\Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $branches = \App\Models\Branch::all();
+        }
         return view('erp.money-receipt.index', compact('receipts', 'totalAmount', 'customers', 'branches'));
     }
 

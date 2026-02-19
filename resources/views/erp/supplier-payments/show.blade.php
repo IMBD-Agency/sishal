@@ -105,8 +105,13 @@
                                         <div class="p-3 border rounded-3 text-center h-100">
                                             <div class="extra-small text-muted fw-bold text-uppercase mb-2">Payment Mode</div>
                                             <div class="fw-800 text-dark h6 mb-0 text-uppercase">
-                                                <i class="fas {{ $supplierPayment->payment_method == 'cash' ? 'fa-wallet text-success' : 'fa-university text-primary' }} me-2"></i>
-                                                {{ str_replace('_', ' ', $supplierPayment->payment_method) }}
+                                                @if($supplierPayment->financialAccount)
+                                                    <i class="fas {{ $supplierPayment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($supplierPayment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }} me-2"></i>
+                                                    {{ $supplierPayment->financialAccount->provider_name }}
+                                                @else
+                                                    <i class="fas {{ $supplierPayment->payment_method == 'cash' ? 'fa-wallet text-success' : 'fa-university text-primary' }} me-2"></i>
+                                                    {{ str_replace('_', ' ', $supplierPayment->payment_method) }}
+                                                @endif
                                             </div>
                                         </div>
                                     </div>

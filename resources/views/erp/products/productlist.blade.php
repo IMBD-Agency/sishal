@@ -132,6 +132,26 @@
                         </div>
 
                         <div class="col-md-2 mt-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
+                            <select name="branch_id" class="form-select form-select-sm select2-simple" data-placeholder="All Branch">
+                                <option value="">All Branch</option>
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}" {{ $selectedBranchId == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 mt-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Warehouse</label>
+                            <select name="warehouse_id" class="form-select form-select-sm select2-simple" data-placeholder="All Warehouse">
+                                <option value="">All Warehouse</option>
+                                @foreach($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}" {{ $selectedWarehouseId == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 mt-2">
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
                                     <i class="fas fa-search me-1"></i>Search
@@ -179,6 +199,7 @@
                                 <th class="text-end">Purchase Price</th>
                                 <th class="text-end">MRP</th>
                                 <th class="text-end">Whole Sale</th>
+                                <th class="text-center">Total Stock</th>
                                 <th class="text-center">Ooption</th>
                             </tr>
                         </thead>
@@ -209,6 +230,16 @@
                                 <td class="text-end fw-bold">{{ number_format($product->cost, 2) }}</td>
                                 <td class="text-end fw-bold">{{ number_format($product->price, 2) }}</td>
                                 <td class="text-end fw-bold">{{ number_format($product->wholesale_price ?? 0, 2) }}</td>
+                                <td class="text-center">
+                                    @php
+                                        $totalVarStock = $product->total_variation_stock ?? 0;
+                                        $totalSimpleStock = ($product->total_branch_stock ?? 0) + ($product->total_warehouse_stock ?? 0);
+                                        $displayStock = $product->has_variations ? $totalVarStock : $totalSimpleStock;
+                                    @endphp
+                                    <span class="badge {{ $displayStock > 0 ? 'bg-success' : 'bg-danger' }}">
+                                        {{ number_format($displayStock, 0) }}
+                                    </span>
+                                </td>
                                 <td class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <a href="{{ route('product.show', $product->id) }}" class="btn btn-info btn-xs text-white" title="View"><i class="fas fa-eye fa-xs"></i></a>

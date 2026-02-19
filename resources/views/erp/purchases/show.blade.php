@@ -168,8 +168,20 @@
                             </tbody>
                             <tfoot class="bg-light border-top-0">
                                 <tr>
-                                    <td colspan="4" class="text-end py-3 fw-bold text-muted text-uppercase small">Net Payable Amount</td>
-                                    <td class="text-end pe-4 py-3 fw-bold fs-4 text-dark">৳{{ number_format($purchase->items->sum('total_price'), 2) }}</td>
+                                    <td colspan="4" class="text-end py-2 fw-bold text-muted text-uppercase small">Subtotal</td>
+                                    <td class="text-end pe-4 py-2 fw-bold text-dark">৳{{ number_format($purchase->bill->sub_total ?? $purchase->items->sum('total_price'), 2) }}</td>
+                                </tr>
+                                @if(isset($purchase->bill) && $purchase->bill->discount_amount > 0)
+                                <tr>
+                                    <td colspan="4" class="text-end py-2 fw-bold text-muted text-uppercase small">
+                                        Discount {{ $purchase->bill->discount_type == 'percent' ? '('.$purchase->bill->discount_value.'%)' : '' }}
+                                    </td>
+                                    <td class="text-end pe-4 py-2 fw-bold text-danger">-৳{{ number_format($purchase->bill->discount_amount, 2) }}</td>
+                                </tr>
+                                @endif
+                                <tr>
+                                    <td colspan="4" class="text-end py-3 fw-bold text-muted text-uppercase small">Grand Total</td>
+                                    <td class="text-end pe-4 py-3 fw-bold fs-4 text-primary">৳{{ number_format($purchase->bill->total_amount ?? $purchase->items->sum('total_price'), 2) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -261,15 +273,21 @@
                 <div class="totals-box">
                     <div class="total-item">
                         <span>Subtotal Value:</span>
-                        <span>{{ number_format($purchase->items->sum('total_price'), 2) }}</span>
+                        <span>{{ number_format($purchase->bill->sub_total ?? $purchase->items->sum('total_price'), 2) }}</span>
                     </div>
+                    @if(isset($purchase->bill) && $purchase->bill->discount_amount > 0)
+                    <div class="total-item">
+                        <span>Discount {{ $purchase->bill->discount_type == 'percent' ? '('.$purchase->bill->discount_value.'%)' : '' }}:</span>
+                        <span>-{{ number_format($purchase->bill->discount_amount, 2) }}</span>
+                    </div>
+                    @endif
                     <div class="total-item">
                         <span>Tax/VAT:</span>
                         <span>0.00</span>
                     </div>
                     <div class="total-item grand-total">
                         <span>Grand Total (৳):</span>
-                        <span>{{ number_format($purchase->items->sum('total_price'), 2) }}</span>
+                        <span>{{ number_format($purchase->bill->total_amount ?? $purchase->items->sum('total_price'), 2) }}</span>
                     </div>
                 </div>
             </div>

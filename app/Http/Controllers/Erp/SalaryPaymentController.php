@@ -22,6 +22,10 @@ class SalaryPaymentController extends Controller
         }
 
         $query = SalaryPayment::with(['employee.user', 'branch', 'chartOfAccount']);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
 
         if ($request->filled('month') && $request->month != 'Select One') {
             $query->where('month', $request->month);
@@ -38,8 +42,14 @@ class SalaryPaymentController extends Controller
 
         $payments = $query->orderBy('id', 'desc')->paginate(20)->appends($request->except('page'));
         
-        $employees = Employee::with('user')->get();
-        $branches = Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $employees = Employee::with('user')->where('branch_id', $restrictedBranchId)->get();
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $employees = Employee::with('user')->get();
+            $branches = Branch::all();
+        }
         
         // Fetch Asset Accounts (Cash/Bank) for the filter
         $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
@@ -53,8 +63,14 @@ class SalaryPaymentController extends Controller
 
     public function create()
     {
-        $employees = Employee::with('user')->get();
-        $branches = Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $employees = Employee::with('user')->where('branch_id', $restrictedBranchId)->get();
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $employees = Employee::with('user')->get();
+            $branches = Branch::all();
+        }
         
         // Fetch Asset Accounts (Cash/Bank)
         $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
@@ -203,6 +219,10 @@ class SalaryPaymentController extends Controller
     public function exportExcel(Request $request)
     {
         $query = SalaryPayment::with(['employee.user', 'branch', 'chartOfAccount']);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
 
         if ($request->filled('month') && $request->month != 'Select One') {
             $query->where('month', $request->month);
@@ -270,6 +290,10 @@ class SalaryPaymentController extends Controller
     public function exportPdf(Request $request)
     {
         $query = SalaryPayment::with(['employee.user', 'branch', 'chartOfAccount']);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
 
         if ($request->filled('month') && $request->month != 'Select One') {
             $query->where('month', $request->month);

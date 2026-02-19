@@ -25,7 +25,7 @@
                     <td class="fw-bold small">{{ $item->adjustment->adjustment_number }}</td>
                     <td class="small">{{ \Carbon\Carbon::parse($item->adjustment->date)->format('m/d/Y') }}</td>
                     <td>
-                        @if($item->product->image)
+                        @if($item->product && $item->product->image)
                             <img src="{{ asset($item->product->image) }}" class="rounded shadow-sm" style="width: 32px; height: 32px; object-fit: cover;">
                         @else
                             <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
@@ -33,12 +33,12 @@
                             </div>
                         @endif
                     </td>
-                    <td class="small text-muted">{{ $item->product->category->name ?? '-' }}</td>
-                    <td class="small text-muted">{{ $item->product->brand->name ?? '-' }}</td>
-                    <td class="small text-muted">{{ $item->product->season->name ?? '-' }}</td>
-                    <td class="small text-muted">{{ $item->product->gender->name ?? '-' }}</td>
-                    <td class="small fw-bold">{{ $item->product->name }}</td>
-                    <td class="small font-monospace text-info">{{ $item->product->style_number }}</td>
+                    <td class="small text-muted">{{ optional($item->product)->category->name ?? '-' }}</td>
+                    <td class="small text-muted">{{ optional($item->product)->brand->name ?? '-' }}</td>
+                    <td class="small text-muted">{{ optional($item->product)->season->name ?? '-' }}</td>
+                    <td class="small text-muted">{{ optional($item->product)->gender->name ?? '-' }}</td>
+                    <td class="small fw-bold">{{ $item->product->name ?? 'Deleted Product' }}</td>
+                    <td class="small font-monospace text-info">{{ optional($item->product)->style_number ?? '-' }}</td>
                     <td class="text-center">
                         <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.85rem;">{{ $item->new_quantity }}</span>
                         @php $diff = $item->new_quantity - $item->old_quantity; @endphp

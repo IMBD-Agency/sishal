@@ -89,7 +89,7 @@
                             <select class="form-select form-select-sm select2-simple" name="branch_id" data-placeholder="All Branches">
                                 <option value="">All Branches</option>
                                 @foreach ($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    <option value="{{ $branch->id }}" {{ $selectedBranchId == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -98,7 +98,7 @@
                             <select class="form-select form-select-sm select2-simple" name="warehouse_id" data-placeholder="All Warehouses">
                                 <option value="">All Warehouses</option>
                                 @foreach ($warehouses as $wh)
-                                    <option value="{{ $wh->id }}" {{ request('warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                    <option value="{{ $wh->id }}" {{ $selectedWarehouseId == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
                                 @endforeach
                             </select>
                         </div>

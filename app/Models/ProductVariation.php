@@ -22,6 +22,19 @@ class ProductVariation extends Model
         'status'
     ];
 
+    /**
+     * Boot the model.
+     */
+    protected static function booted()
+    {
+        static::deleting(function ($variation) {
+            // Manual cascading delete for internal data
+            $variation->stocks()->delete();
+            $variation->combinations()->delete();
+            $variation->galleries()->delete();
+        });
+    }
+
     protected $casts = [
         'price' => 'decimal:2',
         'cost' => 'decimal:2',

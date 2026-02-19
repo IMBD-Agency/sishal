@@ -36,6 +36,11 @@ class VoucherController extends Controller
         $query = Journal::with(['branch', 'customer', 'supplier', 'expenseAccount', 'creator'])
             ->whereBetween('entry_date', [$startDate, $endDate]);
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
+
         if ($request->filled('customer_id') && $request->customer_id != 'all') {
             $query->where('customer_id', $request->customer_id);
         }
@@ -92,7 +97,12 @@ class VoucherController extends Controller
 
         $expenseTypeId = ChartOfAccountType::where('name', 'Expense')->first()->id ?? 15;
 
-        $branches = Branch::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $branches = Branch::all();
+        }
         $customers = Customer::all();
         $suppliers = Supplier::all();
         
@@ -126,12 +136,15 @@ class VoucherController extends Controller
 
             $totalAmount = array_sum($request->amounts);
 
+            $restrictedBranchId = $this->getRestrictedBranchId();
+            $branchId = $restrictedBranchId ?: $request->branch_id;
+
             $journal = Journal::create([
                 'voucher_no' => $request->voucher_no,
                 'type' => $request->voucher_type ?? 'Payment',
                 'entry_date' => $request->entry_date,
                 'description' => $request->note,
-                'branch_id' => $request->branch_id,
+                'branch_id' => $branchId,
                 'customer_id' => $request->customer_id,
                 'supplier_id' => $request->supplier_id,
                 'expense_account_id' => $request->expense_account_id,

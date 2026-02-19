@@ -259,6 +259,13 @@ class PurchaseReturnController extends Controller
         }
 
         // Filters from dropdowns
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('return_from_type', 'branch')->where('return_from_id', $restrictedBranchId);
+        } elseif ($request->filled('branch_id')) {
+            $query->where('return_from_type', 'branch')->where('return_from_id', $request->branch_id);
+        }
+        
         if ($request->filled('supplier_id')) {
             $query->whereHas('purchaseReturn', function($q) use ($request) {
                 $q->where('supplier_id', $request->supplier_id);
@@ -297,8 +304,14 @@ class PurchaseReturnController extends Controller
 
     public function create()
     {
-        $branches = Branch::all();
-        $warehouses = Warehouse::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $warehouses = collect(); // Or maybe keep all warehouses? Usually branches only see their own.
+        } else {
+            $branches = Branch::all();
+            $warehouses = Warehouse::all();
+        }
 
         return view('erp.purchaseReturn.create', compact('branches', 'warehouses'));
     }

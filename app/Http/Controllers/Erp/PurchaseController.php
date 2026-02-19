@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Erp;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\FinancialAccount;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\ChartOfAccount;
 use App\Models\Purchase;
 use App\Models\PurchaseBill;
 use App\Models\PurchaseItem;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseController extends Controller
@@ -57,8 +62,15 @@ class PurchaseController extends Controller
         $seasons = \App\Models\Season::orderBy('name')->get();
         $genders = \App\Models\Gender::orderBy('name')->get();
         $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
-        $branches = Branch::all();
-        $warehouses = \App\Models\Warehouse::all();
+        
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $warehouses = collect();
+        } else {
+            $branches = Branch::all();
+            $warehouses = \App\Models\Warehouse::all();
+        }
         $bankAccounts = \DB::table('financial_accounts')->get();
 
         return view('erp.purchases.purchaseList', compact(
@@ -101,7 +113,7 @@ class PurchaseController extends Controller
             'SL', 'Invoice #', 'Date', 'Supplier', 'Category', 'Brand', 'Season', 'Gender', 
             'Product', 'Style Ref', 'Color', 'Size', 
             'Pur. Qty', 'Pur. Value', 'Ret. Qty', 'Ret. Value', 
-            'Act. Qty', 'Act. Value', 'Paid A/C', 'Due A/C', 'Status'
+            'Act. Qty', 'Act. Value', 'Discount', 'Paid A/C', 'Due A/C', 'Status'
         ];
         $exportData[] = $headers;
 
@@ -149,6 +161,7 @@ class PurchaseController extends Controller
                 number_format($retAmt, 2),
                 number_format($actQty, 2),
                 number_format($actAmt, 2),
+                number_format($bill->discount_amount ?? 0, 2),
                 number_format($bill->paid_amount ?? 0, 2),
                 number_format($bill->due_amount ?? 0, 2),
                 ucfirst($purchase->status)
@@ -258,12 +271,16 @@ class PurchaseController extends Controller
         }
 
         // Location Filters
-        if ($request->filled('branch_id')) {
-            $query->whereHas('purchase', function($q) use ($request) {
-                $q->where('ship_location_type', 'branch')->where('location_id', $request->branch_id);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
+
+        if ($selectedBranchId) {
+            $query->whereHas('purchase', function($q) use ($selectedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $selectedBranchId);
             });
         }
-        if ($request->filled('warehouse_id')) {
+
+        if (!$restrictedBranchId && $request->filled('warehouse_id')) {
             $query->whereHas('purchase', function($q) use ($request) {
                 $q->where('ship_location_type', 'warehouse')->where('location_id', $request->warehouse_id);
             });
@@ -289,12 +306,17 @@ class PurchaseController extends Controller
 
     public function create()
     {
-        $branches = \App\Models\Branch::all();
-        $warehouses = \App\Models\Warehouse::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $warehouses = collect();
+        } else {
+            $branches = Branch::all();
+            $warehouses = \App\Models\Warehouse::all();
+        }
         $products = \App\Models\Product::all();
         $suppliers = \App\Models\Supplier::all();
-        // Use DB table directly safely if model is missing
-        $bankAccounts = \DB::table('financial_accounts')->get();
+        $bankAccounts = FinancialAccount::orderBy('type')->orderBy('provider_name')->get();
         return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers', 'bankAccounts'));
     }
 
@@ -312,6 +334,8 @@ class PurchaseController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
             'paid_amount' => 'nullable|numeric|min:0',
+            'discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|string|in:flat,percent',
             'payment_method' => 'nullable|string',
             'account_id' => 'nullable|integer',
         ]);
@@ -319,17 +343,33 @@ class PurchaseController extends Controller
         DB::beginTransaction();
     
         try {
-            // Calculate total
-            $totalAmount = 0;
+            // Calculate subtotal
+            $subTotal = 0;
             foreach ($request->items as $item) {
-                $totalAmount += $item['quantity'] * $item['unit_price'];
+                $subTotal += $item['quantity'] * $item['unit_price'];
             }
     
+            // Calculate discount
+            $discountValue = (float) $request->input('discount_value', 0);
+            $discountType = $request->input('discount_type', 'flat');
+            $discountAmount = 0;
+            if ($discountType === 'percent') {
+                $discountAmount = ($subTotal * $discountValue) / 100;
+            } else {
+                $discountAmount = $discountValue;
+            }
+    
+            $totalAmount = max(0, $subTotal - $discountAmount);
+    
+            $restrictedBranchId = $this->getRestrictedBranchId();
+            $locationType = $restrictedBranchId ? 'branch' : $request->ship_location_type;
+            $locationId = $restrictedBranchId ?: $request->location_id;
+
             // Create Purchase (supplier is optional)
             $purchase = Purchase::create([
                 'supplier_id'         => $request->supplier_id ?? null,
-                'ship_location_type'  => $request->ship_location_type,
-                'location_id'         => $request->location_id,
+                'ship_location_type'  => $locationType,
+                'location_id'         => $locationId,
                 'purchase_date'       => $request->purchase_date,
                 'status'              => 'pending',
                 'created_by'          => auth()->id(),
@@ -361,6 +401,10 @@ class PurchaseController extends Controller
                     'supplier_id'   => $request->supplier_id,
                     'purchase_id'   => $purchase->id,
                     'bill_date'     => now()->toDateString(),
+                    'sub_total'      => $subTotal,
+                    'discount_amount'=> $discountAmount,
+                    'discount_type'  => $discountType,
+                    'discount_value' => $discountValue,
                     'total_amount'  => $totalAmount,
                     'paid_amount'   => $paid_amount,
                     'due_amount'    => $due_amount,
@@ -402,10 +446,116 @@ class PurchaseController extends Controller
                         $payment
                     );
                 }
+
+                // =====================================================
+                // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+                // =====================================================
+                $financialAccount = $request->account_id
+                    ? FinancialAccount::find($request->account_id)
+                    : null;
+
+                // The payment account must be linked to a Chart of Account
+                $paymentChartAccountId = $financialAccount?->account_id ?? null;
+
+                if ($paymentChartAccountId && $paid_amount > 0) {
+                    // Ensure unique voucher number
+                    $voucherNo = 'PUR-' . str_pad($purchase->id, 6, '0', STR_PAD_LEFT);
+                    while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                        $voucherNo = 'PUR-' . str_pad($purchase->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                    }
+
+                    $journal = Journal::create([
+                        'voucher_no'     => $voucherNo,
+                        'entry_date'     => $request->purchase_date,
+                        'type'           => 'Payment',
+                        'description'    => 'Auto: Purchase #' . $purchase->id . ($request->notes ? ' - ' . $request->notes : ''),
+                        'supplier_id'    => $request->supplier_id ?? null,
+                        'branch_id'      => $locationId ?? null,
+                        'voucher_amount' => $totalAmount,
+                        'paid_amount'    => $paid_amount,
+                        'reference'      => isset($bill) ? ($bill->bill_number ?? 'BILL-' . $bill->id) : 'PUR-' . $purchase->id,
+                        'created_by'     => Auth::id(),
+                        'updated_by'     => Auth::id(),
+                    ]);
+
+                    // Find a Purchases/Expense account to DEBIT
+                    // Try by name first, then fall back to any Expense-type account
+                    $purchaseChartAccount = ChartOfAccount::where('name', 'like', '%purchase%')
+                        ->orWhere('name', 'like', '%stock%')
+                        ->orWhere('name', 'like', '%inventory%')
+                        ->first();
+
+                    // If no purchase account found, use the payment account itself as a simple transfer
+                    // and log the debit against a generic expense
+                    if (!$purchaseChartAccount) {
+                        // Use any expense-type account, or just use the payment COA as a self-balancing entry
+                        $purchaseChartAccount = ChartOfAccount::whereHas('type', function($q) {
+                            $q->where('name', 'like', '%expense%');
+                        })->first();
+                    }
+
+                    if ($purchaseChartAccount) {
+                        // DEBIT: Purchases/Expense account (goods/services received)
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $purchaseChartAccount->id,
+                            'financial_account_id' => null,
+                            'debit'                => $paid_amount,
+                            'credit'               => 0,
+                            'memo'                 => 'Purchase of goods - Purchase #' . $purchase->id,
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+
+                        // CREDIT: Payment account (bank/mobile/cash)
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $paymentChartAccountId,
+                            'financial_account_id' => $financialAccount->id,
+                            'debit'                => 0,
+                            'credit'               => $paid_amount,
+                            'memo'                 => 'Payment via ' . ($financialAccount->provider_name ?? $request->payment_method),
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    } else {
+                        // Fallback: single-sided entry just recording the payment outflow
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $paymentChartAccountId,
+                            'financial_account_id' => $financialAccount->id,
+                            'debit'                => 0,
+                            'credit'               => $paid_amount,
+                            'memo'                 => 'Purchase payment via ' . ($financialAccount->provider_name ?? $request->payment_method),
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
+
+                    // CREDIT: Accounts Payable for any due/remaining amount
+                    if (isset($due_amount) && $due_amount > 0) {
+                        $payableChartAccount = ChartOfAccount::where('name', 'like', '%payable%')
+                            ->orWhere('name', 'like', '%creditor%')
+                            ->first();
+                        if ($payableChartAccount) {
+                            JournalEntry::create([
+                                'journal_id'           => $journal->id,
+                                'chart_of_account_id'  => $payableChartAccount->id,
+                                'financial_account_id' => null,
+                                'debit'                => 0,
+                                'credit'               => $due_amount,
+                                'memo'                 => 'Due to supplier - Purchase #' . $purchase->id,
+                                'created_by'           => Auth::id(),
+                                'updated_by'           => Auth::id(),
+                            ]);
+                        }
+                    }
+                }
+                // =====================================================
             }
-    
+
             DB::commit();
-    
+
             return redirect()->route('purchase.list')->with('success', 'Purchase created successfully.');
     
         } catch (\Exception $e) {
@@ -438,8 +588,14 @@ class PurchaseController extends Controller
     public function edit($id)
     {
         $purchase = Purchase::with('items')->findOrFail($id);
-        $branches = \App\Models\Branch::all();
-        $warehouses = \App\Models\Warehouse::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $warehouses = collect();
+        } else {
+            $branches = Branch::all();
+            $warehouses = Warehouse::all();
+        }
         $suppliers = \App\Models\Supplier::all();
         return view('erp.purchases.edit', compact('purchase', 'branches', 'warehouses', 'suppliers'));
     }
@@ -456,6 +612,9 @@ class PurchaseController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
+            'discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|string|in:flat,percent',
+            'total_amount' => 'required|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -554,7 +713,36 @@ class PurchaseController extends Controller
                     'description'  => $item['description'] ?? null,
                 ]);
             }
-            // Optionally update bill if needed (not shown here)
+            // Calculate subtotal
+            $subTotal = 0;
+            foreach ($request->items as $item) {
+                $subTotal += $item['quantity'] * $item['unit_price'];
+            }
+    
+            // Calculate discount
+            $discountValue = (float) $request->input('discount_value', 0);
+            $discountType = $request->input('discount_type', 'flat');
+            $discountAmount = 0;
+            if ($discountType === 'percent') {
+                $discountAmount = ($subTotal * $discountValue) / 100;
+            } else {
+                $discountAmount = $discountValue;
+            }
+    
+            $totalAmount = max(0, $subTotal - $discountAmount);
+
+            // Update bill if exists
+            if ($purchase->bill) {
+                $purchase->bill->update([
+                    'sub_total'       => $subTotal,
+                    'discount_amount' => $discountAmount,
+                    'discount_type'   => $discountType,
+                    'discount_value'  => $discountValue,
+                    'total_amount'    => $totalAmount,
+                    'due_amount'      => max(0, $totalAmount - $purchase->bill->paid_amount),
+                ]);
+            }
+
             DB::commit();
             return redirect()->route('purchase.list')->with('success', 'Purchase updated successfully.');
         } catch (\Exception $e) {
