@@ -83,6 +83,25 @@
                 </a>
             </div>
 
+            @if ($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong><i class="fas fa-exclamation-triangle me-2"></i>Error(s):</strong>
+                    <ul class="mb-0 mt-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
             <!-- Purchase Search Card -->
             <div class="card mb-4">
                 <div class="card-header bg-white py-3 border-bottom">
@@ -254,7 +273,7 @@
                                     <span class="product-info-badge">Size: ${item.size}</span>
                                 </div>
                                 <input type="hidden" name="items[${index}][product_id]" value="${item.product_id}">
-                                <input type="hidden" name="items[${index}][variation_id]" value="${item.variation_id}">
+                                <input type="hidden" name="items[${index}][variation_id]" value="${item.variation_id ?? ''}">
                                 <input type="hidden" name="items[${index}][purchase_item_id]" value="${item.id}">
                             </td>
                             <td>

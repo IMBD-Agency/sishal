@@ -30,6 +30,8 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Models\SaleReturn;
 use App\Models\PurchaseReturn;
+use App\Models\FinancialAccount;
+use App\Models\JournalEntry;
 
 class ReportController extends Controller
 {
@@ -476,15 +478,8 @@ class ReportController extends Controller
         }
         $purchaseReturnAmount = $purchaseReturnQuery->sum('purchase_return_items.total_price');
 
-        // New Variable: Purchase Amount (Total Purchases)
-        // New Variable: Purchase Amount (Total Purchases)
-        $purchaseQuery = PurchaseItem::whereHas('purchase', function($q) use ($startDate, $endDate, $branchId) {
-            $q->whereBetween('purchase_date', [$startDate, $endDate]);
-            if ($branchId) {
-                $q->where('ship_location_type', 'branch')->where('location_id', $branchId);
-            }
-        });
-        $purchaseAmount = $purchaseQuery->sum('total_price');
+        // Note: Purchase amount is already captured via journal entries (debitVoucherDetails)
+        // so we do NOT add a separate purchaseAmount to avoid double-counting.
 
         // 6. Exchange Amount
         $exchangeAmount = $posQuery->sum('exchange_amount');
@@ -564,7 +559,7 @@ class ReportController extends Controller
         if ($request->filled('export')) {
             $data = compact(
                 'startDate', 'endDate', 'branches', 'branchId',
-                'salesAmount', 'purchaseAmount', 'creditVoucher', 'creditVoucherDetails', 'stockAmount', 'moneyReceipt', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
+                'salesAmount', 'creditVoucher', 'creditVoucherDetails', 'stockAmount', 'moneyReceipt', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
                 'cogsAmount', 'debitVoucher', 'debitVoucherDetails', 'employeePayment', 'supplierPay', 'salesReturnAmount', 'receiverTransferAmount', 'totalExpense',
                 'netProfit'
             );
@@ -577,10 +572,149 @@ class ReportController extends Controller
 
         return view('erp.reports.profit-loss', compact(
             'startDate', 'endDate', 'branches', 'branchId', 'reportType',
-            'salesAmount', 'purchaseAmount', 'creditVoucher', 'creditVoucherDetails', 'stockAmount', 'moneyReceipt', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
+            'salesAmount', 'creditVoucher', 'creditVoucherDetails', 'stockAmount', 'moneyReceipt', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
             'cogsAmount', 'debitVoucher', 'debitVoucherDetails', 'employeePayment', 'supplierPay', 'salesReturnAmount', 'receiverTransferAmount', 'totalExpense',
             'netProfit'
         ));
+    }
+
+    public function cashBookReport(Request $request)
+    {
+        return $this->financialBookReport($request, FinancialAccount::TYPE_CASH, 'Cash Book');
+    }
+
+    public function bankBookReport(Request $request)
+    {
+        return $this->financialBookReport($request, FinancialAccount::TYPE_BANK, 'Bank Book');
+    }
+
+    public function mobileBookReport(Request $request)
+    {
+        return $this->financialBookReport($request, FinancialAccount::TYPE_MOBILE, 'Mobile Book');
+    }
+
+    private function financialBookReport(Request $request, $type, $title)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', Carbon::now()->month);
+            $year = $request->get('year', Carbon::now()->year);
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', Carbon::now()->year);
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfDay();
+            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        }
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $branchId = $restrictedBranchId ?: $request->get('branch_id');
+
+        $query = FinancialAccount::where('type', $type);
+        
+        $accounts = $query->get()->map(function($account) use ($startDate, $endDate, $branchId) {
+            // Current real-time balance for the total account
+            // Note: If branch-specific balance is needed, we'd need a different approach.
+            // But usually, bookkeeping filters the *movements* by branch.
+            $currentTotalBalance = $account->balance;
+
+            // Total movement from startDate to present (to work backwards to opening at startDate)
+            $futureMovementQuery = JournalEntry::where('financial_account_id', $account->id)
+                ->whereHas('journal', function($q) use ($startDate, $branchId) {
+                    $q->where('entry_date', '>=', $startDate->toDateString());
+                    if ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    }
+                });
+            
+            $futureMovement = $futureMovementQuery->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')->first();
+
+            // Opening Balance at $startDate
+            // If branchId is null, we work back from total balance.
+            // If branchId is set, "Opening" usually means "Opening contribution of this branch" 
+            // which is tricky unless we have a snapshot. 
+            // Standard behavior: Show account total but branch-specific movements.
+            $opening = $currentTotalBalance - ($futureMovement->total_debit ?? 0) + ($futureMovement->total_credit ?? 0);
+
+            // Activity within the selected period
+            $periodMovementQuery = JournalEntry::where('financial_account_id', $account->id)
+                ->whereHas('journal', function($q) use ($startDate, $endDate, $branchId) {
+                    $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
+                    if ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    }
+                });
+                
+            $periodMovement = $periodMovementQuery->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')->first();
+
+            $account->opening = $opening;
+            $account->debit = $periodMovement->total_debit ?? 0;
+            $account->credit = $periodMovement->total_credit ?? 0;
+            $account->closing = $opening + $account->debit - $account->credit;
+
+            return $account;
+        });
+
+        $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+
+        if ($request->filled('export')) {
+            $data = compact('accounts', 'startDate', 'endDate', 'title', 'branchId', 'branches');
+            if ($request->export == 'excel') {
+                return $this->exportFinancialBookExcel($data);
+            } elseif ($request->export == 'pdf') {
+                return $this->exportFinancialBookPdf($data);
+            }
+        }
+
+        return view('erp.reports.financial-book', compact(
+            'accounts', 'startDate', 'endDate', 'reportType', 'title', 'branches', 'branchId'
+        ));
+    }
+
+    private function exportFinancialBookExcel($data)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', $data['title']);
+        $sheet->setCellValue('A2', 'Period: ' . $data['startDate']->format('d M Y') . ' to ' . $data['endDate']->format('d M Y'));
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $headers = ['Account Name', 'Branch', 'Opening', 'Debit', 'Credit', 'Closing'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '4', $header);
+            $sheet->getStyle($col . '4')->getFont()->setBold(true);
+            $col++;
+        }
+
+        $row = 5;
+        foreach ($data['accounts'] as $account) {
+            $sheet->setCellValue('A' . $row, $account->account_holder_name ?? ($account->provider_name . ' - ' . $account->account_number));
+            $sheet->setCellValue('B' . $row, $account->branch_name ?? '-');
+            $sheet->setCellValue('C' . $row, $account->opening);
+            $sheet->setCellValue('D' . $row, $account->debit);
+            $sheet->setCellValue('E' . $row, $account->credit);
+            $sheet->setCellValue('F' . $row, $account->closing);
+            $row++;
+        }
+
+        $filename = str_replace(' ', '_', $data['title']) . "_" . date('Ymd') . ".xlsx";
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    private function exportFinancialBookPdf($data)
+    {
+        $pdf = Pdf::loadView('erp.reports.pdf.financial-book', $data)->setPaper('a4', 'portrait');
+        return $pdf->download(str_replace(' ', '_', $data['title']) . "_" . date('Y-m-d') . ".pdf");
     }
 
     private function exportProfitLossExcel($data)
@@ -627,9 +761,6 @@ class ReportController extends Controller
         
         $sheet->setCellValue('A'.$row, 'Cost of Goods Sold'); $sheet->setCellValue('B'.$row, $data['cogsAmount']); $row++;
         
-        if($data['purchaseAmount'] > 0){
-             $sheet->setCellValue('A'.$row, 'Purchase Amount (Inventory)'); $sheet->setCellValue('B'.$row, $data['purchaseAmount']); $row++;
-        }
 
         // Loop debit vouchers
         if($data['debitVoucherDetails']->isNotEmpty()){
@@ -1198,16 +1329,22 @@ class ReportController extends Controller
         }
 
         $products = $query->get()->map(function($p) use ($branchId, $warehouseId) {
-            // Updated logic to support specific warehouse or branch filtering
-            if ($branchId) {
-                // Specific Branch
-                $p->total_stock = $p->variationStocks->where('branch_id', $branchId)->sum('quantity');
-            } elseif ($warehouseId) {
-                // Specific Warehouse
-                $p->total_stock = $p->variationStocks->where('warehouse_id', $warehouseId)->sum('quantity');
+            if ($p->has_variations) {
+                if ($branchId) {
+                    $p->total_stock = $p->variationStocks->where('branch_id', $branchId)->sum('quantity');
+                } elseif ($warehouseId) {
+                    $p->total_stock = $p->variationStocks->where('warehouse_id', $warehouseId)->sum('quantity');
+                } else {
+                    $p->total_stock = $p->variationStocks->sum('quantity');
+                }
             } else {
-                // All Locations (Branch + Warehouse)
-                $p->total_stock = $p->variationStocks->sum('quantity');
+                if ($branchId) {
+                    $p->total_stock = $p->branchStocks->where('branch_id', $branchId)->sum('quantity');
+                } elseif ($warehouseId) {
+                    $p->total_stock = $p->warehouseStocks->where('warehouse_id', $warehouseId)->sum('quantity');
+                } else {
+                    $p->total_stock = $p->branchStocks->sum('quantity') + $p->warehouseStocks->sum('quantity');
+                }
             }
             
             $p->stock_value = $p->total_stock * $p->cost;

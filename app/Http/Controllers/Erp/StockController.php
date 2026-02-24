@@ -108,10 +108,10 @@ class StockController extends Controller
         $summaryQuery = clone $query;
         $summaryData = $summaryQuery->get();
         $totalStockQty = $summaryData->sum(function($p) {
-            return ($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0) + ($p->var_stock ?? 0);
+            return $p->has_variations ? ($p->var_stock ?? 0) : (($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0));
         });
         $totalStockValue = $summaryData->sum(function($p) {
-            $qty = ($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0) + ($p->var_stock ?? 0);
+            $qty = $p->has_variations ? ($p->var_stock ?? 0) : (($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0));
             return $qty * $p->cost;
         });
 

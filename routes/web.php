@@ -206,6 +206,9 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/reports/purchases', [\App\Http\Controllers\Erp\ReportController::class, 'purchaseReport'])->name('reports.purchase');
     Route::get('/reports/sales', [\App\Http\Controllers\Erp\ReportController::class, 'saleReport'])->name('reports.sale');
     Route::get('/reports/profit-loss', [\App\Http\Controllers\Erp\ReportController::class, 'profitLossReport'])->name('reports.profit-loss');
+    Route::get('/reports/cash-book', [\App\Http\Controllers\Erp\ReportController::class, 'cashBookReport'])->name('reports.cash-book');
+    Route::get('/reports/bank-book', [\App\Http\Controllers\Erp\ReportController::class, 'bankBookReport'])->name('reports.bank-book');
+    Route::get('/reports/mobile-book', [\App\Http\Controllers\Erp\ReportController::class, 'mobileBookReport'])->name('reports.mobile-book');
     Route::get('/reports/customer', [\App\Http\Controllers\Erp\ReportController::class, 'customerReport'])->name('reports.customer');
     Route::get('/reports/customer-ledger/{id?}', [\App\Http\Controllers\Erp\ReportController::class, 'customerLedger'])->name('reports.customer.ledger');
     Route::get('/reports/supplier', [\App\Http\Controllers\Erp\ReportController::class, 'supplierReport'])->name('reports.supplier-summary');

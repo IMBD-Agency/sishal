@@ -182,6 +182,27 @@
         </div>
 
         <div class="nav-item">
+            <a href="{{ route('reports.cash-book') }}" class="nav-link {{ request()->routeIs('reports.cash-book') ? ' active' : '' }}">
+                <i class="fas fa-coins nav-icon text-warning"></i>
+                <span>Cash Book</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ route('reports.bank-book') }}" class="nav-link {{ request()->routeIs('reports.bank-book') ? ' active' : '' }}">
+                <i class="fas fa-university nav-icon text-info"></i>
+                <span>Bank Book</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="{{ route('reports.mobile-book') }}" class="nav-link {{ request()->routeIs('reports.mobile-book') ? ' active' : '' }}">
+                <i class="fas fa-mobile-alt nav-icon text-success"></i>
+                <span>Mobile Book</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
             <a href="{{ route('productstock.list') }}" class="nav-link {{ request()->is('erp/product-stock*') ? ' active' : '' }}">
                 <i class="fas fa-layer-group nav-icon text-success"></i>
                 <span>Stock Report</span>

@@ -463,45 +463,57 @@ class PurchaseReturnController extends Controller
 
         DB::beginTransaction();
         try {
+            // Fix: treat empty string supplier_id as null to avoid FK constraint errors
+            $supplierId = $request->filled('supplier_id') ? intval($request->supplier_id) : null;
+
             $purchaseReturn = PurchaseReturn::create([
                 'purchase_id' => $request->purchase_id,
-                'supplier_id' => $request->supplier_id ?? null,
+                'supplier_id' => $supplierId,
                 'return_date' => $request->return_date,
                 'return_type' => $request->return_type,
-                'status' => 'pending',
+                'status' => 'processed', // Immediately mark as processed so stock is adjusted
                 'reason' => $request->reason,
                 'notes' => $request->notes,
                 'created_by' => Auth::id(),
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
             ]);
+
+            $hasValidItem = false;
 
             foreach ($request->items as $item) {
                 $returnedQty = $item['returned_qty'] ?? 0;
                 if ($returnedQty <= 0) continue;
 
+                $hasValidItem = true;
+
                 $returnItem = PurchaseReturnItem::create([
                     'purchase_return_id' => $purchaseReturn->id,
-                    'purchase_item_id' => $item['purchase_item_id'] ?? null,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
-                    'returned_qty' => $returnedQty,
-                    'unit_price' => $item['unit_price'],
-                    'total_price' => $returnedQty * $item['unit_price'],
-                    'reason' => $item['reason'] ?? null,
-                    'return_from_type' => $item['return_from'] ?? null,
-                    'return_from_id' => $item['from_id'] ?? null,
+                    'purchase_item_id'   => !empty($item['purchase_item_id']) ? $item['purchase_item_id'] : null,
+                    'product_id'         => $item['product_id'],
+                    'variation_id'       => (!empty($item['variation_id']) && $item['variation_id'] !== 'null') ? $item['variation_id'] : null,
+                    'returned_qty'       => $returnedQty,
+                    'unit_price'         => $item['unit_price'],
+                    'total_price'        => $returnedQty * $item['unit_price'],
+                    'reason'             => !empty($item['reason']) ? $item['reason'] : null,
+                    'return_from_type'   => !empty($item['return_from']) ? $item['return_from'] : null,
+                    'return_from_id'     => !empty($item['from_id']) ? $item['from_id'] : null,
                 ]);
 
-                // If immediate processing (if we add a status field to the form later)
-                if ($purchaseReturn->status === 'processed') {
-                    $this->adjustStockForReturnItem($returnItem);
-                }
+                // Immediately adjust stock for this return item
+                $this->adjustStockForReturnItem($returnItem);
+            }
+
+            if (!$hasValidItem) {
+                DB::rollBack();
+                return back()->withErrors(['items' => 'Please enter a return quantity greater than 0 for at least one item.'])->withInput();
             }
 
             DB::commit();
-            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return created successfully.');
+            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return created and stock adjusted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Something went wrong.', 'details' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Something went wrong: ' . $e->getMessage()])->withInput();
         }
     }
 

@@ -137,12 +137,7 @@
                                                 <td class="ps-3 py-2 text-secondary">Cost of Goods Sold</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($cogsAmount, 2) }}</td>
                                             </tr>
-                                            @if($purchaseAmount > 0)
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Purchase (Inventory)</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($purchaseAmount, 2) }}</td>
-                                            </tr>
-                                            @endif
+
                                             @foreach($debitVoucherDetails as $detail)
                                             <tr>
                                                 <td class="ps-3 py-2 text-secondary">{{ $detail->name }}</td>

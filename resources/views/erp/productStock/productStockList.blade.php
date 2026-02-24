@@ -235,9 +235,7 @@
                         <tbody>
                             @foreach ($productStocks as $index => $stock)
                                 @php
-                                    $totalStock = ($stock->simple_branch_stock ?? 0) + 
-                                                 ($stock->simple_warehouse_stock ?? 0) + 
-                                                 ($stock->var_stock ?? 0);
+                                    $totalStock = $stock->has_variations ? ($stock->var_stock ?? 0) : (($stock->simple_branch_stock ?? 0) + ($stock->simple_warehouse_stock ?? 0));
 
                                     $branchStockData = [];
                                     $warehouseStockData = [];

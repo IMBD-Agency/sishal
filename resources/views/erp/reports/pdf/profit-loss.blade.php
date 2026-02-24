@@ -116,14 +116,7 @@
                                 <div class="amount text-danger">৳{{ number_format($cogsAmount, 2) }}</div>
                             </td>
                         </tr>
-                        @if($purchaseAmount > 0)
-                        <tr>
-                            <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">
-                                <div class="section-label">Purchase (Inventory)</div>
-                                <div class="amount text-danger">৳{{ number_format($purchaseAmount, 2) }}</div>
-                            </td>
-                        </tr>
-                        @endif
+
                         @foreach($debitVoucherDetails as $detail)
                         <tr>
                             <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">

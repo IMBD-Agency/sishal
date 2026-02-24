@@ -154,6 +154,60 @@
                             </div>
                         </a>
                     </div>
+
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.cash-book') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-warning bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-coins fs-4 text-warning"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Cash Book</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Track all petty cash transactions, opening balances, and daily cash flow.</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.bank-book') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-info bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-university fs-4 text-info"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Bank Book</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Overview of all bank statements, deposits, and withdrawal records.</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <a href="{{ route('reports.mobile-book') }}" class="text-decoration-none">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 transition-up">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-md bg-success bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center me-3">
+                                            <i class="fas fa-mobile-alt fs-4 text-success"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Mobile Book</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0 lh-sm">Manage transactions for mobile gateway accounts (bKash, Nagad, etc).</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

@@ -336,14 +336,20 @@
                 if ($(`#${rowId}`).length > 0) return;
 
                 const stock = variation ? (variation.stock || 0) : (product.stock || 0);
+                // Default to Purchase Price (Cost) for Stock Transfers
                 const unitPrice = variation ? 
-                    (variation.price && variation.price > 0 ? variation.price : (product.mrp || product.price || 0)) : 
-                    (product.mrp || product.price || 0);
-                
+                    (variation.cost && variation.cost > 0 ? variation.cost : (product.cost || 0)) : 
+                    (product.cost || 0);
+
+                const displayImage = (variation && variation.image) ? variation.image : (product.image || '');
+                const imgHtml = displayImage 
+                    ? `<img src="/${displayImage}" class="rounded border shadow-sm" style="width: 35px; height: 35px; object-fit: cover;">`
+                    : `<div class="bg-light rounded border d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;"><i class="fas fa-image text-muted opacity-50"></i></div>`;
+
                 const row = `
                     <tr id="${rowId}" class="item-row">
                         <td class="ps-3">
-                            <img src="${product.image || '/placeholder.png'}" class="rounded border shadow-sm" style="width: 35px; height: 35px; object-fit: cover;">
+                            ${imgHtml}
                         </td>
                         <td>
                             <div class="fw-bold text-dark">${product.name}</div>
@@ -363,7 +369,7 @@
                                    data-row-id="${rowId}" data-price="${unitPrice}" 
                                    min="0" max="${stock}" value="0">
                             <input type="hidden" name="items[${rowId}][product_id]" value="${product.id}">
-                            <input type="hidden" name="items[${rowId}][variation_id]" value="${variation ? variation.id : ''}">
+                            <input type="hidden" name="items[${rowId}][variation_id]" value="${(variation && variation.id) ? variation.id : ''}">
                             <input type="hidden" name="items[${rowId}][unit_price]" value="${unitPrice}">
                         </td>
                         <td class="text-end fw-bold">${parseFloat(unitPrice).toFixed(2)}৳</td>
@@ -408,7 +414,13 @@
                 updateTotals();
             });
 
-            $('#paid_amount').on('input', updateTotals);
+            let autoSyncPaid = true;
+
+            $('#paid_amount').on('input', function() {
+                // If the user manually changes the paid amount, stop auto-syncing
+                autoSyncPaid = false;
+                updateTotals();
+            });
 
             function updateTotals() {
                 let totalAmount = 0;
@@ -422,6 +434,11 @@
                 $('.transfer-qty').each(function() {
                     totalQty += parseFloat($(this).val()) || 0;
                 });
+                
+                // Automatically sync paid amount with total if autoSync is active
+                if (autoSyncPaid) {
+                    $('#paid_amount').val(totalAmount > 0 ? totalAmount.toFixed(2) : 0);
+                }
                 
                 const paidAmount = parseFloat($('#paid_amount').val()) || 0;
                 const dueAmount = totalAmount - paidAmount;

@@ -232,8 +232,8 @@
                                 <td class="text-end fw-bold">{{ number_format($product->wholesale_price ?? 0, 2) }}</td>
                                 <td class="text-center">
                                     @php
-                                        $totalVarStock = $product->total_variation_stock ?? 0;
-                                        $totalSimpleStock = ($product->total_branch_stock ?? 0) + ($product->total_warehouse_stock ?? 0);
+                                        $totalVarStock = $product->total_stock_variation ?? 0;
+                                        $totalSimpleStock = ($product->total_stock_branch ?? 0) + ($product->total_stock_warehouse ?? 0);
                                         $displayStock = $product->has_variations ? $totalVarStock : $totalSimpleStock;
                                     @endphp
                                     <span class="badge {{ $displayStock > 0 ? 'bg-success' : 'bg-danger' }}">

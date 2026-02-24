@@ -453,8 +453,8 @@ class StockTransferController extends Controller
             }
 
             $productId = $item['product_id'];
-            $variationId = $item['variation_id'] ?? null;
-            $quantity = floatval($item['quantity']);
+        $variationId = (isset($item['variation_id']) && $item['variation_id'] !== '' && $item['variation_id'] !== 'null') ? $item['variation_id'] : null;
+        $quantity = floatval($item['quantity']);
             $unitPrice = floatval($item['unit_price'] ?? 0);
             $totalPrice = $quantity * $unitPrice;
             

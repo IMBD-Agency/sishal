@@ -268,7 +268,7 @@ class ProductController extends Controller
 
             $query = Product::with(['category', 'brand', 'season', 'gender']);
 
-            $query->withSum(['branchStock as total_branch_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+            $query->withSum(['branchStock as total_stock_branch' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
                 if ($selectedBranchId) {
                     $q->where('branch_id', $selectedBranchId);
                 } elseif ($selectedWarehouseId) {
@@ -276,7 +276,7 @@ class ProductController extends Controller
                 }
             }], 'quantity');
             
-            $query->withSum(['warehouseStock as total_warehouse_stock' => function($q) use ($selectedWarehouseId, $selectedBranchId) {
+            $query->withSum(['warehouseStock as total_stock_warehouse' => function($q) use ($selectedWarehouseId, $selectedBranchId) {
                 if ($selectedWarehouseId) {
                     $q->where('warehouse_id', $selectedWarehouseId);
                 } elseif ($selectedBranchId) {
@@ -284,7 +284,7 @@ class ProductController extends Controller
                 }
             }], 'quantity');
             
-            $query->withSum(['variationStocks as total_variation_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+            $query->withSum(['variationStocks as total_stock_variation' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
                 if ($selectedBranchId) {
                     $q->where('branch_id', $selectedBranchId);
                 } elseif ($selectedWarehouseId) {
@@ -1014,11 +1014,13 @@ class ProductController extends Controller
                 'size' => null,
                 'color' => null,
                 'price' => (float)$product->effective_price,
+                'cost' => (float)$product->cost,
+                'wholesale_price' => (float)$product->wholesale_price,
                 'stock' => (float)$totalStock
             ]]);
         }
         
-        $variations = $product->variations->map(function($variation) use ($locationType, $locationId) {
+        $variations = $product->variations->map(function($variation) use ($locationType, $locationId, $product) {
             // Calculate stock based on location filter if provided, otherwise sum all
             if ($locationType && $locationId) {
                 if ($locationType === 'branch') {
@@ -1048,9 +1050,12 @@ class ProductController extends Controller
             return [
                 'id' => $variation->id,
                 'name' => $variation->name,
+                'image' => $variation->image,
                 'size' => $size,
                 'color' => $color,
                 'price' => (float)$variation->effective_price,
+                'cost' => (float)($variation->cost > 0 ? $variation->cost : $product->cost),
+                'wholesale_price' => (float)(($variation->wholesale_price ?? 0) > 0 ? $variation->wholesale_price : $product->wholesale_price),
                 'stock' => $totalStock
             ];
         });
