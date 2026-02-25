@@ -36,6 +36,14 @@ class PurchaseReturn extends Model
     }
 
     /**
+     * Get the supplier for this return
+     */
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    /**
      * Get the bill associated with this return (if any)
      */
     public function bill()

@@ -365,11 +365,12 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/purchase-return/search-invoice-detail', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'searchInvoice'])->name('purchaseReturn.search.invoice.detail');
     Route::get('/purchase-return/purchase/{purchaseId}/items', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getPurchaseItems'])->name('purchaseReturn.purchase.items');
     Route::post('/purchase-return/store', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'store'])->name('purchaseReturn.store');
+    Route::get('/purchase-return/search-product', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'searchProductForReturn'])->name('purchaseReturn.search.product');
+    Route::get('/purchase-return/stock/{productId}/{fromId}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getStockByType'])->name('purchaseReturn.stock');
     Route::get('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'show'])->name('purchaseReturn.show');
     Route::get('/purchase-return/{id}/edit', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'edit'])->name('purchaseReturn.edit');
     Route::put('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'update'])->name('purchaseReturn.update');
     Route::post('/purchase-return/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'updateReturnStatus'])->name('purchaseReturn.updateStatus');
-    Route::get('/purchase-return/stock/{productId}/{fromId}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'getStockByType'])->name('purchaseReturn.stock');
 
     // Customer
     // Customers

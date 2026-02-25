@@ -17,6 +17,13 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Models\Product;
+use App\Models\ProductVariation;
+use App\Models\ProductVariationStock;
+use App\Models\ChartOfAccount;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\FinancialAccount;
 
 class PurchaseReturnController extends Controller
 {
@@ -307,13 +314,16 @@ class PurchaseReturnController extends Controller
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
-            $warehouses = collect(); // Or maybe keep all warehouses? Usually branches only see their own.
+            $warehouses = collect(); 
         } else {
             $branches = Branch::all();
             $warehouses = Warehouse::all();
         }
 
-        return view('erp.purchaseReturn.create', compact('branches', 'warehouses'));
+        $suppliers = \App\Models\Supplier::all();
+        $accounts = FinancialAccount::all();
+
+        return view('erp.purchaseReturn.create', compact('branches', 'warehouses', 'suppliers', 'accounts'));
     }
 
     /**
@@ -409,83 +419,101 @@ class PurchaseReturnController extends Controller
     }
 
     /**
-     * Get purchase items for a specific purchase
+     * Search products for return across all branches and warehouses
      */
-    public function getPurchaseItems($purchaseId)
+    public function searchProductForReturn(Request $request)
     {
-        $purchase = Purchase::with(['items.product', 'items.variation', 'supplier'])->findOrFail($purchaseId);
+        $query = $request->get('q', '');
+        Log::info('Product search request received', ['q' => $query]);
         
-        $items = $purchase->items->map(function($item) {
-            $productName = $item->product ? $item->product->name : 'Unknown Product';
-            if ($item->variation) {
-                $productName .= ' - ' . $item->variation->name;
-            }
-            
-            return [
-                'id' => $item->id,
-                'product_id' => $item->product_id,
-                'variation_id' => $item->variation_id,
-                'product_name' => $productName,
-                'quantity' => $item->quantity,
-                'unit_price' => $item->unit_price,
-                'total_price' => $item->total_price,
-            ];
-        });
+        $productsQuery = Product::where('status', 'active')
+            ->where('type', 'product');
 
-        return response()->json([
-            'success' => true,
-            'purchase' => [
-                'id' => $purchase->id,
-                'supplier_id' => $purchase->supplier_id,
-                'supplier_name' => $purchase->supplier ? $purchase->supplier->name : 'N/A',
-                'purchase_date' => $purchase->purchase_date,
-            ],
-            'items' => $items
-        ]);
+        if (strlen($query) >= 2) {
+            $productsQuery->where(function($q) use ($query) {
+                $q->where('name', 'LIKE', "%{$query}%")
+                  ->orWhere('sku', 'LIKE', "%{$query}%")
+                  ->orWhere('style_number', 'LIKE', "%{$query}%");
+            });
+        }
+
+        $products = $productsQuery->with(['variations'])
+            ->limit(20)
+            ->get();
+
+        $results = [];
+        foreach ($products as $product) {
+            if ($product->has_variations && $product->variations->count() > 0) {
+                foreach ($product->variations as $variation) {
+                    $results[] = [
+                        'id' => $product->id . '-' . $variation->id,
+                        'product_id' => $product->id,
+                        'variation_id' => $variation->id,
+                        'text' => $product->name . " - " . $variation->name,
+                        'price' => $variation->cost > 0 ? $variation->cost : ($product->cost > 0 ? $product->cost : $product->price)
+                    ];
+                }
+            } else {
+                $results[] = [
+                    'id' => $product->id . '-0',
+                    'product_id' => $product->id,
+                    'variation_id' => null,
+                    'text' => $product->name,
+                    'price' => $product->cost > 0 ? $product->cost : $product->price
+                ];
+            }
+        }
+
+        return response()->json(['results' => $results]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'purchase_id' => 'required|exists:purchases,id',
-            'supplier_id' => 'nullable|integer',
+            'purchase_id' => 'nullable|exists:purchases,id',
+            'supplier_id' => 'required_without:purchase_id|nullable|integer',
             'return_date' => 'required|date',
             'return_type' => 'required|in:refund,adjust_to_due,none',
-            'reason' => 'nullable|string',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
+            'account_id'  => 'required_if:return_type,refund|nullable|exists:financial_accounts,id',
+            'reason'      => 'nullable|string',
+            'notes'       => 'nullable|string',
+            'items'       => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            // Allow 0 here for validation, we'll skip them in the loop
-            'items.*.returned_qty' => 'required|numeric|min:0',
+            'items.*.returned_qty' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.reason' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
         try {
-            // Fix: treat empty string supplier_id as null to avoid FK constraint errors
             $supplierId = $request->filled('supplier_id') ? intval($request->supplier_id) : null;
+            
+            // If purchase_id is provided, ensure supplier_id matches or is pulled from purchase
+            if ($request->filled('purchase_id')) {
+                $purchase = Purchase::find($request->purchase_id);
+                $supplierId = $purchase->supplier_id;
+            }
 
             $purchaseReturn = PurchaseReturn::create([
                 'purchase_id' => $request->purchase_id,
                 'supplier_id' => $supplierId,
                 'return_date' => $request->return_date,
                 'return_type' => $request->return_type,
-                'status' => 'processed', // Immediately mark as processed so stock is adjusted
-                'reason' => $request->reason,
-                'notes' => $request->notes,
-                'created_by' => Auth::id(),
+                'status'      => 'processed', 
+                'reason'      => $request->reason,
+                'notes'       => $request->notes,
+                'created_by'  => Auth::id(),
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
 
-            $hasValidItem = false;
+            $totalReturnAmount = 0;
 
             foreach ($request->items as $item) {
                 $returnedQty = $item['returned_qty'] ?? 0;
                 if ($returnedQty <= 0) continue;
 
-                $hasValidItem = true;
+                $lineTotal = $returnedQty * $item['unit_price'];
+                $totalReturnAmount += $lineTotal;
 
                 $returnItem = PurchaseReturnItem::create([
                     'purchase_return_id' => $purchaseReturn->id,
@@ -494,25 +522,99 @@ class PurchaseReturnController extends Controller
                     'variation_id'       => (!empty($item['variation_id']) && $item['variation_id'] !== 'null') ? $item['variation_id'] : null,
                     'returned_qty'       => $returnedQty,
                     'unit_price'         => $item['unit_price'],
-                    'total_price'        => $returnedQty * $item['unit_price'],
+                    'total_price'        => $lineTotal,
                     'reason'             => !empty($item['reason']) ? $item['reason'] : null,
-                    'return_from_type'   => !empty($item['return_from']) ? $item['return_from'] : null,
-                    'return_from_id'     => !empty($item['from_id']) ? $item['from_id'] : null,
+                    'return_from_type'   => !empty($item['return_from']) ? $item['return_from'] : 'warehouse',
+                    'return_from_id'     => !empty($item['from_id']) ? $item['from_id'] : 1, // Fallback to main
                 ]);
 
-                // Immediately adjust stock for this return item
                 $this->adjustStockForReturnItem($returnItem);
             }
 
-            if (!$hasValidItem) {
-                DB::rollBack();
-                return back()->withErrors(['items' => 'Please enter a return quantity greater than 0 for at least one item.'])->withInput();
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            if ($totalReturnAmount > 0) {
+                // Find or Create Purchase Return Account (Contra-Expense / Income)
+                $purchaseReturnAcc = ChartOfAccount::where('name', 'like', '%Purchase Return%')->first();
+                if (!$purchaseReturnAcc) {
+                    $revenueType = ChartOfAccountType::where('name', 'Revenue')->first() ?? ChartOfAccountType::find(4);
+                    $purchaseReturnAcc = ChartOfAccount::create([
+                        'name' => 'Purchase Returns',
+                        'type_id' => $revenueType->id,
+                        'code' => '40003',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                $voucherNo = 'PRT-' . str_pad($purchaseReturn->id, 6, '0', STR_PAD_LEFT);
+                while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                    $voucherNo = 'PRT-' . str_pad($purchaseReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                }
+
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $purchaseReturn->return_date,
+                    'type'           => 'Receipt',
+                    'description'    => 'Purchase Return #' . $purchaseReturn->id . ($purchaseReturn->purchase_id ? ' against Inv #' . $purchaseReturn->purchase_id : ' (Global)'),
+                    'supplier_id'    => $purchaseReturn->supplier_id,
+                    'voucher_amount' => $totalReturnAmount,
+                    'paid_amount'    => ($request->return_type == 'refund') ? $totalReturnAmount : 0,
+                    'reference'      => 'PR-' . $purchaseReturn->id,
+                    'created_by'     => auth()->id(),
+                    'updated_by'     => auth()->id(),
+                ]);
+
+                // 1. DEBIT side (What we get back)
+                if ($request->return_type == 'refund') {
+                    // Money back to Bank/Cash
+                    $finAcc = FinancialAccount::find($request->account_id);
+                    if ($finAcc) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $finAcc->account_id,
+                            'financial_account_id' => $finAcc->id,
+                            'debit'                => $totalReturnAmount,
+                            'credit'               => 0,
+                            'memo'                 => 'Refund from Supplier',
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
+                    }
+                } else if ($request->return_type == 'adjust_to_due') {
+                    // Reduce what we owe (Accounts Payable)
+                    $apAccount = ChartOfAccount::where('name', 'like', '%Payable%')->first();
+                    if ($apAccount) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $apAccount->id,
+                            'debit'                => $totalReturnAmount,
+                            'credit'               => 0,
+                            'memo'                 => 'Return adjusted against supplier balance',
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
+                    }
+                }
+
+                // 2. CREDIT side (Inventory reduction / Purchase Return)
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $purchaseReturnAcc->id,
+                    'debit'                => 0,
+                    'credit'               => $totalReturnAmount,
+                    'memo'                 => 'Inventory returned to supplier',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
             }
 
             DB::commit();
-            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return created and stock adjusted successfully.');
+            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return created and accounting entries generated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Purchase Return Store Error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Something went wrong: ' . $e->getMessage()])->withInput();
         }
     }
@@ -826,15 +928,27 @@ class PurchaseReturnController extends Controller
 
     public function getStockByType(Request $request, $productId, $fromId)
     {
-        $stock = [];
-        if($request->return_from == 'branch')
-        {
-            $stock = BranchProductStock::where('branch_id', $fromId)->where('product_id', $productId)->first();
-        } else if($request->return_from == 'warehouse')
-        {
-            $stock = WarehouseProductStock::where('warehouse_id', $fromId)->where('product_id', $productId)->first();
+        $stockValue = 0;
+        $variationId = $request->variation_id;
+
+        if ($variationId && $variationId !== 'null' && $variationId !== '0') {
+            $query = \App\Models\ProductVariationStock::where('variation_id', $variationId);
+            if ($request->return_from == 'branch') {
+                $query->where('branch_id', $fromId)->whereNull('warehouse_id');
+            } else {
+                $query->where('warehouse_id', $fromId)->whereNull('branch_id');
+            }
+            $stock = $query->first();
+            $stockValue = $stock ? $stock->quantity : 0;
+        } else {
+            if ($request->return_from == 'branch') {
+                $stock = BranchProductStock::where('branch_id', $fromId)->where('product_id', $productId)->first();
+            } else {
+                $stock = WarehouseProductStock::where('warehouse_id', $fromId)->where('product_id', $productId)->first();
+            }
+            $stockValue = $stock ? $stock->quantity : 0;
         }
 
-        return response()->json($stock);
+        return response()->json(['quantity' => $stockValue]);
     }
 }

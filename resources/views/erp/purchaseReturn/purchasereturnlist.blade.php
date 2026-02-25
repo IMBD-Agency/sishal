@@ -274,9 +274,13 @@
                                         <td>{{ $return->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-' }}</td>
                                         <td class="fw-bold text-success">#RET-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</td>
                                         <td class="fw-bold text-dark">
-                                            @if($purchase && $purchase->bill && $purchase->bill->bill_number) {{ $purchase->bill->bill_number }}
-                                            @elseif($purchase) #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }}
-                                            @else - @endif
+                                            @if($purchase && $purchase->bill && $purchase->bill->bill_number) 
+                                                {{ $purchase->bill->bill_number }}
+                                            @elseif($purchase) 
+                                                #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }}
+                                            @else 
+                                                <span class="text-muted small italic">GLOBAL</span> 
+                                            @endif
                                         </td>
                                         <td>
                                             @if($item->return_from_type == 'branch')
@@ -285,8 +289,24 @@
                                                 <span class="badge bg-light text-dark border"><i class="fas fa-warehouse me-1 text-warning small"></i>{{ $item->warehouse->name ?? '-' }}</span>
                                             @endif
                                         </td>
-                                        <td class="fw-bold">{{ $purchase?->supplier?->name ?? '-' }}</td>
-                                        <td class="text-muted small">{{ $purchase?->supplier?->phone ?? '-' }}</td>
+                                        <td class="fw-bold">
+                                            @if($purchase && $purchase->supplier)
+                                                {{ $purchase->supplier->name }}
+                                            @elseif($return && $return->supplier)
+                                                {{ $return->supplier->name }}
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                        <td class="text-muted small">
+                                            @if($purchase && $purchase->supplier)
+                                                {{ $purchase->supplier->phone }}
+                                            @elseif($return && $return->supplier)
+                                                {{ $return->supplier->phone }}
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
                                         <td class="text-muted small">{{ $product->category->name ?? '-' }}</td>
                                         <td class="text-muted small">{{ $product->brand->name ?? '-' }}</td>
                                         <td class="text-muted small">{{ $product->season->name ?? '-' }}</td>
