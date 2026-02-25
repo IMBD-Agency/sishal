@@ -18,6 +18,11 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\ChartOfAccount;
+use App\Models\FinancialAccount;
+use App\Models\ChartOfAccountType;
 
 class SaleReturnController extends Controller
 {
@@ -494,13 +499,139 @@ class SaleReturnController extends Controller
             $saleReturn->update($updateData);
 
             // If status is being processed, adjust stock (add returned qty)
-            if ($newStatus === 'processed') {
-                foreach ($saleReturn->items as $item) {
-                    $this->addStockForReturnItem($saleReturn, $item);
-                }
+        if ($newStatus === 'processed') {
+            foreach ($saleReturn->items as $item) {
+                $this->addStockForReturnItem($saleReturn, $item);
             }
 
-            DB::commit();
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            $totalReturnAmount = $saleReturn->items->sum('total_price');
+            if ($totalReturnAmount > 0) {
+                $salesReturnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
+                if (!$salesReturnAccount) {
+                    $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+                    $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+                    if (!$revenueSubType) {
+                        $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
+                    }
+                    $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+                    if (!$revenueParent) {
+                        $revenueParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Operating Revenue',
+                            'type_id' => $revenueType->id,
+                            'sub_type_id' => $revenueSubType->id,
+                            'code' => '4000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $salesReturnAccount = ChartOfAccount::create([
+                        'name' => 'Sales Returns',
+                        'type_id' => $revenueType->id,
+                        'sub_type_id' => $revenueSubType->id,
+                        'parent_id' => $revenueParent->id,
+                        'code' => '40002',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
+                while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                    $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                }
+
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $saleReturn->return_date,
+                    'type'           => 'Payment',
+                    'description'    => 'Sale Return #' . $saleReturn->id . ($saleReturn->reason ? ' - ' . $saleReturn->reason : ''),
+                    'customer_id'    => $saleReturn->customer_id,
+                    'branch_id'      => $saleReturn->return_to_type == 'branch' ? $saleReturn->return_to_id : null,
+                    'voucher_amount' => $totalReturnAmount,
+                    'paid_amount'    => in_array($saleReturn->refund_type, ['cash', 'bank']) ? $totalReturnAmount : 0,
+                    'reference'      => 'SR-' . $saleReturn->id,
+                    'created_by'     => auth()->id(),
+                    'updated_by'     => auth()->id(),
+                ]);
+
+                // DEBIT Sales Return (Revenue decreases)
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $salesReturnAccount->id,
+                    'debit'                => $totalReturnAmount,
+                    'credit'               => 0,
+                    'memo'                 => 'Sale Return processed',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+
+                if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
+                    // CREDIT Cash/Bank (Asset decreases)
+                    $financialAccount = FinancialAccount::find($saleReturn->account_id);
+                    if (!$financialAccount) {
+                        $financialAccount = FinancialAccount::where('type', $saleReturn->refund_type)->first();
+                    }
+
+                    if ($financialAccount && $financialAccount->account_id) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $financialAccount->account_id,
+                            'financial_account_id' => $financialAccount->id,
+                            'debit'                => 0,
+                            'credit'               => $totalReturnAmount,
+                            'memo'                 => 'Refund via ' . $financialAccount->provider_name,
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
+                    }
+                } else {
+                    // CREDIT Accounts Receivable (Asset decreases)
+                    $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                    if (!$arAccount) {
+                        $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+                        $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
+                        if (!$assetSubType) {
+                            $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
+                        }
+                        $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
+                        if (!$assetParent) {
+                            $assetParent = \App\Models\ChartOfAccountParent::create([
+                                'name' => 'Accounts Receivable Parent',
+                                'type_id' => $assetType->id,
+                                'sub_type_id' => $assetSubType->id,
+                                'code' => '1000',
+                                'created_by' => auth()->id()
+                            ]);
+                        }
+
+                        $arAccount = ChartOfAccount::create([
+                            'name' => 'Accounts Receivable',
+                            'type_id' => $assetType->id,
+                            'sub_type_id' => $assetSubType->id,
+                            'parent_id' => $assetParent->id,
+                            'code' => '10002',
+                            'status' => 'active',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $arAccount->id,
+                        'debit'                => 0,
+                        'credit'               => $totalReturnAmount,
+                        'memo'                 => 'Return credit to customer balance',
+                        'created_by'           => auth()->id(),
+                        'updated_by'           => auth()->id(),
+                    ]);
+                }
+            }
+            // =====================================================
+        }
+
+        DB::commit();
 
             $statusMessage = match($newStatus) {
                 'approved' => 'Sale return has been approved successfully.',

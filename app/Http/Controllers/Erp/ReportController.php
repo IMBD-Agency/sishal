@@ -617,44 +617,58 @@ class ReportController extends Controller
         $query = FinancialAccount::where('type', $type);
         
         $accounts = $query->get()->map(function($account) use ($startDate, $endDate, $branchId) {
-            // Current real-time balance for the total account
-            // Note: If branch-specific balance is needed, we'd need a different approach.
-            // But usually, bookkeeping filters the *movements* by branch.
+            // Current total balance for consolidated view reference
             $currentTotalBalance = $account->balance;
 
-            // Total movement from startDate to present (to work backwards to opening at startDate)
-            $futureMovementQuery = JournalEntry::where('financial_account_id', $account->id)
-                ->whereHas('journal', function($q) use ($startDate, $branchId) {
-                    $q->where('entry_date', '>=', $startDate->toDateString());
-                    if ($branchId) {
+            if ($branchId) {
+                // BRANCH SPECIFIC LOGIC
+                // 1. Calculate balance before the period (Opening)
+                $openingMovement = JournalEntry::where('financial_account_id', $account->id)
+                    ->whereHas('journal', function($q) use ($startDate, $branchId) {
+                        $q->where('entry_date', '<', $startDate->toDateString());
                         $q->where('branch_id', $branchId);
-                    }
-                });
-            
-            $futureMovement = $futureMovementQuery->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')->first();
-
-            // Opening Balance at $startDate
-            // If branchId is null, we work back from total balance.
-            // If branchId is set, "Opening" usually means "Opening contribution of this branch" 
-            // which is tricky unless we have a snapshot. 
-            // Standard behavior: Show account total but branch-specific movements.
-            $opening = $currentTotalBalance - ($futureMovement->total_debit ?? 0) + ($futureMovement->total_credit ?? 0);
-
-            // Activity within the selected period
-            $periodMovementQuery = JournalEntry::where('financial_account_id', $account->id)
-                ->whereHas('journal', function($q) use ($startDate, $endDate, $branchId) {
-                    $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
-                    if ($branchId) {
-                        $q->where('branch_id', $branchId);
-                    }
-                });
+                    })
+                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                    ->first();
                 
-            $periodMovement = $periodMovementQuery->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')->first();
+                $opening = ($openingMovement->d ?? 0) - ($openingMovement->c ?? 0);
 
-            $account->opening = $opening;
-            $account->debit = $periodMovement->total_debit ?? 0;
-            $account->credit = $periodMovement->total_credit ?? 0;
-            $account->closing = $opening + $account->debit - $account->credit;
+                // 2. Calculate balance during the period (Movements)
+                $periodMovement = JournalEntry::where('financial_account_id', $account->id)
+                    ->whereHas('journal', function($q) use ($startDate, $endDate, $branchId) {
+                        $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
+                        $q->where('branch_id', $branchId);
+                    })
+                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                    ->first();
+
+                $account->opening = $opening;
+                $account->debit = $periodMovement->d ?? 0;
+                $account->credit = $periodMovement->c ?? 0;
+                $account->closing = $opening + $account->debit - $account->credit;
+            } else {
+                // CONSOLIDATED LOGIC (Working backwards from current total balance)
+                $futureMovement = JournalEntry::where('financial_account_id', $account->id)
+                    ->whereHas('journal', function($q) use ($startDate) {
+                        $q->where('entry_date', '>=', $startDate->toDateString());
+                    })
+                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                    ->first();
+
+                $opening = $currentTotalBalance - ($futureMovement->d ?? 0) + ($futureMovement->c ?? 0);
+
+                $periodMovement = JournalEntry::where('financial_account_id', $account->id)
+                    ->whereHas('journal', function($q) use ($startDate, $endDate) {
+                        $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
+                    })
+                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                    ->first();
+
+                $account->opening = $opening;
+                $account->debit = $periodMovement->d ?? 0;
+                $account->credit = $periodMovement->c ?? 0;
+                $account->closing = $opening + $account->debit - $account->credit;
+            }
 
             return $account;
         });

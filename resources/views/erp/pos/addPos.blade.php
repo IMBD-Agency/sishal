@@ -161,6 +161,18 @@
                                 <label class="btn btn-outline-secondary" for="payBank"><i class="fas fa-university d-block mb-1"></i>Bank</label>
                             </div>
                         </div>
+
+                        <!-- Financial Account -->
+                        <div class="mb-3" id="accountSelectionRow">
+                             <label class="terminal-section-title d-block mb-1">Payment Account</label>
+                             <select class="form-select form-select-sm fw-bold border-success-subtle" id="accountSelect" name="account_id">
+                                 @foreach($bankAccounts as $acc)
+                                     <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                         {{ $acc->provider_name }} {{ $acc->mobile_number ? '('.$acc->mobile_number.')' : ($acc->account_number ? '('.$acc->account_number.')' : '') }}
+                                     </option>
+                                 @endforeach
+                             </select>
+                        </div>
                         
                         <!-- Cash Received & Change -->
                          <div class="summary-card mb-3">
@@ -657,10 +669,22 @@ $(document).ready(function() {
 
     function getPrice(p, parentProduct = null) {
         let type = $('input[name="saleType"]:checked').val();
-        if(type === 'Wholesale') {
-            return p.wholesale_price || (parentProduct ? parentProduct.wholesale_price : p.price);
+        let priceValue = 0;
+        
+        if (type === 'Wholesale') {
+            priceValue = p.wholesale_price || (parentProduct ? parentProduct.wholesale_price : p.price);
+        } else {
+            // MRP: check discount (which is often used as sale price) then normal price
+            priceValue = p.discount || p.price;
+            
+            // Fallback for variations: if variation has no specific price, use product price
+            if ((priceValue === null || priceValue === undefined || priceValue === 0) && parentProduct) {
+                priceValue = parentProduct.discount || parentProduct.price;
+            }
         }
-        return p.discount || p.price;
+        
+        let final = parseFloat(priceValue);
+        return isNaN(final) ? 0 : final;
     }
 
     // --- Check if product matches filters (Barcode/Search) ---
@@ -719,6 +743,28 @@ $(document).ready(function() {
         // Update cart prices requires logic, skipping for brevity, assume new adds use new price
     });
     $('#discountInput, #deliveryInput, #paidAmountInput').on('input', calculateTotals);
+    
+    // Payment Method Change -> Filter Accounts
+    $('input[name="payment_method"]').change(function() {
+        let selectedType = $(this).val();
+        let $select = $('#accountSelect');
+        let found = false;
+        
+        $select.find('option').each(function() {
+            let optType = $(this).data('type');
+            if (optType == selectedType) {
+                $(this).show();
+                if (!found) {
+                    $(this).prop('selected', true);
+                    found = true;
+                }
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+    // Trigger once on load
+    $('input[name="payment_method"]:checked').trigger('change');
 
      // Handle Form Submit
     $('#posForm').on('submit', function(e) {
@@ -768,6 +814,7 @@ $(document).ready(function() {
             total_amount: totalAmount,
             paid_amount: parseFloat($('#paidAmountInput').val()) || 0,
             payment_method: $('input[name="payment_method"]:checked').val(),
+            account_id: $('#accountSelect').val(),
             items: itemsData,
             sale_type: $('input[name="saleType"]:checked').val()
         };

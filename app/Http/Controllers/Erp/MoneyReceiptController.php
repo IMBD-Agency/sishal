@@ -9,6 +9,11 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\ChartOfAccount;
+use App\Models\ChartOfAccountType;
+use App\Models\FinancialAccount;
 
 class MoneyReceiptController extends Controller
 {
@@ -199,6 +204,72 @@ class MoneyReceiptController extends Controller
                     $invoice->save();
                 }
             }
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            $financialAccount = null;
+            if ($request->filled('account_id')) {
+                $financialAccount = FinancialAccount::find($request->account_id);
+            } else {
+                // Fallback to first available account of specified type
+                $financialAccount = FinancialAccount::where('type', strtolower($request->payment_method ?: 'cash'))->first();
+            }
+
+            if ($financialAccount && $financialAccount->account_id) {
+                $voucherNo = 'REC-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+                while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                    $voucherNo = 'REC-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                }
+
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $payment->payment_date,
+                    'type'           => 'Receipt',
+                    'description'    => 'Manual Money Receipt #' . $receiptNo . ($payment->note ? ' - ' . $payment->note : ''),
+                    'customer_id'    => $payment->customer_id,
+                    'voucher_amount' => $payment->amount,
+                    'paid_amount'    => $payment->amount,
+                    'reference'      => $receiptNo,
+                    'created_by'     => auth()->id(),
+                    'updated_by'     => auth()->id(),
+                ]);
+
+                // DEBIT Cash/Bank (Asset increases)
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $financialAccount->account_id,
+                    'financial_account_id' => $financialAccount->id,
+                    'debit'                => $payment->amount,
+                    'credit'               => 0,
+                    'memo'                 => 'Collection via ' . $financialAccount->provider_name,
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+
+                // CREDIT Accounts Receivable (Asset decreases)
+                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                if (!$arAccount) {
+                    $assetType = ChartOfAccountType::where('name', 'Asset')->first();
+                    $arAccount = ChartOfAccount::create([
+                        'name' => 'Accounts Receivable',
+                        'type_id' => $assetType ? $assetType->id : 8,
+                        'code' => '10002',
+                        'status' => 'active'
+                    ]);
+                }
+
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $arAccount->id,
+                    'debit'                => 0,
+                    'credit'               => $payment->amount,
+                    'memo'                 => 'Manual Receipt from Customer',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+            }
+            // =====================================================
 
             DB::commit();
             return redirect()->route('money-receipt.index')->with('success', "Money Receipt created successfully. Receipt No: $receiptNo");

@@ -29,6 +29,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\ChartOfAccount;
+use App\Models\FinancialAccount;
 
 class PosController extends Controller
 {
@@ -43,7 +47,7 @@ class PosController extends Controller
             $branches = $branches->where('id', $user->employee->branch_id);
         }
 
-        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
+        $bankAccounts = FinancialAccount::all();
         $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
         $customers = Customer::orderBy('name')->get();
         return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts', 'shippingMethods', 'customers'));
@@ -214,13 +218,22 @@ class PosController extends Controller
 
             // Save payment if paid_amount > 0
             if ($request->paid_amount > 0) {
+                $accountId = $request->account_id;
+                $finAcc = null;
+                if ($accountId) {
+                    $finAcc = FinancialAccount::find($accountId);
+                } else {
+                    $type = $request->payment_method ?? 'cash';
+                    $finAcc = FinancialAccount::where('type', $type)->first();
+                }
+
                 Payment::create([
                     'payment_for' => 'pos',
                     'pos_id' => $pos->id,
                     'invoice_id' => $invoice->id,
                     'payment_date' => now()->toDateString(),
                     'amount' => $request->paid_amount,
-                    'account_id' => $request->account_id,
+                    'account_id' => $finAcc ? $finAcc->id : $request->account_id,
                     'payment_method' => $request->payment_method ?? 'cash',
                     'reference' => null,
                     'note' => $request->notes,
@@ -267,6 +280,137 @@ class PosController extends Controller
                     ]);
                 }
             }
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            
+            // 1. Ensure Sales Account exists
+            $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
+            if (!$salesAccount) {
+                $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+                $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+                if (!$revenueSubType) {
+                    $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
+                }
+                $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+                if (!$revenueParent) {
+                    $revenueParent = \App\Models\ChartOfAccountParent::create([
+                        'name' => 'Operating Revenue',
+                        'type_id' => $revenueType->id,
+                        'sub_type_id' => $revenueSubType->id,
+                        'code' => '4000',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                $salesAccount = ChartOfAccount::create([
+                    'name' => 'Product Sales',
+                    'type_id' => $revenueType->id,
+                    'sub_type_id' => $revenueSubType->id,
+                    'parent_id' => $revenueParent->id,
+                    'code' => '40001',
+                    'status' => 'active',
+                    'created_by' => auth()->id()
+                ]);
+            }
+
+            $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+            }
+
+            $journal = Journal::create([
+                'voucher_no'     => $voucherNo,
+                'entry_date'     => $pos->sale_date,
+                'type'           => 'Receipt',
+                'description'    => 'POS Sale #' . $pos->sale_number,
+                'customer_id'    => $pos->customer_id,
+                'branch_id'      => $pos->branch_id,
+                'voucher_amount' => $pos->total_amount,
+                'paid_amount'    => $request->paid_amount,
+                'reference'      => $pos->sale_number,
+                'created_by'     => auth()->id(),
+                'updated_by'     => auth()->id(),
+            ]);
+
+            // CREDIT Sales (Total Amount - Revenue increases)
+            JournalEntry::create([
+                'journal_id'           => $journal->id,
+                'chart_of_account_id'  => $salesAccount->id,
+                'debit'                => 0,
+                'credit'               => $pos->total_amount,
+                'memo'                 => 'Revenue from POS Sale',
+                'created_by'           => auth()->id(),
+                'updated_by'           => auth()->id(),
+            ]);
+
+            // DEBIT Cash/Bank (Paid Amount - Asset increases)
+            if ($request->paid_amount > 0) {
+                $financialAccount = null;
+                if ($request->account_id) {
+                    $financialAccount = FinancialAccount::find($request->account_id);
+                } else {
+                    $type = $request->payment_method ?? 'cash';
+                    $financialAccount = FinancialAccount::where('type', $type)->first();
+                }
+                
+                if ($financialAccount && $financialAccount->account_id) {
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $financialAccount->account_id,
+                        'financial_account_id' => $financialAccount->id,
+                        'debit'                => $request->paid_amount,
+                        'credit'               => 0,
+                        'memo'                 => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
+                        'created_by'           => auth()->id(),
+                        'updated_by'           => auth()->id(),
+                    ]);
+                }
+            }
+
+            // DEBIT Accounts Receivable (Due Amount - Asset increases)
+            $dueAmount = $pos->total_amount - $request->paid_amount;
+            if ($dueAmount > 0) {
+                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                if (!$arAccount) {
+                    $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+                    $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
+                    if (!$assetSubType) {
+                        $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
+                    }
+                    $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
+                    if (!$assetParent) {
+                        $assetParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Accounts Receivable Parent',
+                            'type_id' => $assetType->id,
+                            'sub_type_id' => $assetSubType->id,
+                            'code' => '1000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $arAccount = ChartOfAccount::create([
+                        'name' => 'Accounts Receivable',
+                        'type_id' => $assetType->id,
+                        'sub_type_id' => $assetSubType->id,
+                        'parent_id' => $assetParent->id,
+                        'code' => '10002',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $arAccount->id,
+                    'debit'                => $dueAmount,
+                    'credit'               => 0,
+                    'memo'                 => 'Due amount from customer',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+            }
+            // =====================================================
 
             DB::commit();
             
@@ -1532,6 +1676,25 @@ class PosController extends Controller
 
             // Payment Recording
             if ($request->paid_amount > 0) {
+                $accountType = strtolower($request->account_type) ?: 'cash';
+                // Map specific mobile types to 'mobile'
+                $searchType = $accountType;
+                if (in_array($accountType, ['bkash', 'nagad', 'rocket'])) {
+                    $searchType = 'mobile';
+                }
+
+                $financialAccount = FinancialAccount::where('type', $searchType)
+                    ->where(function($q) use ($request) {
+                        if ($request->filled('account_no')) {
+                            $q->where('account_number', $request->account_no)
+                              ->orWhere('mobile_number', $request->account_no);
+                        }
+                    })->first();
+                
+                if (!$financialAccount) {
+                    $financialAccount = FinancialAccount::where('type', $searchType)->first();
+                }
+
                 Payment::create([
                     'customer_id' => $pos->customer_id,
                     'payment_for' => 'pos',
@@ -1539,6 +1702,7 @@ class PosController extends Controller
                     'invoice_id' => $invoice->id,
                     'payment_date' => $pos->sale_date,
                     'amount' => $request->paid_amount,
+                    'account_id' => $financialAccount ? $financialAccount->id : null,
                     'payment_method' => strtolower($request->account_type) ?: 'cash',
                     'note' => $pos->notes,
                 ]);
@@ -1554,6 +1718,99 @@ class PosController extends Controller
                     'reference' => $pos->sale_number,
                 ]);
             }
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
+            if (!$salesAccount) {
+                $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first();
+                $salesAccount = ChartOfAccount::create([
+                    'name' => 'Product Sales',
+                    'type_id' => $revenueType ? $revenueType->id : 4,
+                    'code' => '40001',
+                    'status' => 'active'
+                ]);
+            }
+
+            $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+            }
+
+            $journal = Journal::create([
+                'voucher_no'     => $voucherNo,
+                'entry_date'     => $pos->sale_date,
+                'type'           => 'Receipt',
+                'description'    => 'Manual Sale #' . $pos->sale_number,
+                'customer_id'    => $pos->customer_id,
+                'branch_id'      => $pos->branch_id,
+                'voucher_amount' => $pos->total_amount,
+                'paid_amount'    => $request->paid_amount,
+                'reference'      => $pos->sale_number,
+                'created_by'     => auth()->id(),
+                'updated_by'     => auth()->id(),
+            ]);
+
+            // CREDIT Sales (Total Amount)
+            JournalEntry::create([
+                'journal_id'           => $journal->id,
+                'chart_of_account_id'  => $salesAccount->id,
+                'debit'                => 0,
+                'credit'               => $pos->total_amount,
+                'memo'                 => 'Revenue from Manual Sale',
+                'created_by'           => auth()->id(),
+            ]);
+
+            // DEBIT Cash/Bank (Paid Amount)
+            if ($request->paid_amount > 0) {
+                // Ensure we have the financial account identified earlier
+                if (!isset($financialAccount) || !$financialAccount) {
+                    $accountType = strtolower($request->account_type) ?: 'cash';
+                    $searchType = $accountType;
+                    if (in_array($accountType, ['bkash', 'nagad', 'rocket'])) {
+                        $searchType = 'mobile';
+                    }
+                    $financialAccount = FinancialAccount::where('type', $searchType)->first();
+                }
+
+                if ($financialAccount && $financialAccount->account_id) {
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $financialAccount->account_id,
+                        'financial_account_id' => $financialAccount->id,
+                        'debit'                => $request->paid_amount,
+                        'credit'               => 0,
+                        'memo'                 => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
+                        'created_by'           => auth()->id(),
+                        'updated_by'           => auth()->id(),
+                    ]);
+                }
+            }
+
+            // DEBIT Accounts Receivable (Due Amount)
+            $dueAmount = $pos->total_amount - $request->paid_amount;
+            if ($dueAmount > 0) {
+                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                if (!$arAccount) {
+                    $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first();
+                    $arAccount = ChartOfAccount::create([
+                        'name' => 'Accounts Receivable',
+                        'type_id' => $assetType ? $assetType->id : 8,
+                        'code' => '10002',
+                        'status' => 'active'
+                    ]);
+                }
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $arAccount->id,
+                    'debit'                => $dueAmount,
+                    'credit'               => 0,
+                    'memo'                 => 'Due amount from customer (Manual Sale)',
+                    'created_by'           => auth()->id(),
+                ]);
+            }
+            // =====================================================
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Sale recorded successfully.', 'redirect' => route('pos.show', $pos->id)]);

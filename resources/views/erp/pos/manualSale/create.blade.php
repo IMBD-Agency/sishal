@@ -422,7 +422,11 @@
                     price = (saleType === 'Wholesale') ? selectedProduct.wholesale_price : selectedProduct.price;
                 }
                 
-                $('#itemPrice').val(parseFloat(price || 0).toFixed(2));
+                // Safety check: if price is still null/undefined/string "null", fallback to 0
+                let numericPrice = parseFloat(price);
+                if (isNaN(numericPrice)) numericPrice = 0;
+                
+                $('#itemPrice').val(numericPrice.toFixed(2));
             }
 
             $('#variationSelect').on('change', function() {
@@ -437,7 +441,9 @@
             function updateCartPrices() {
                 const saleType = $('select[name="sale_type"]').val();
                 cartItems = cartItems.map(item => {
-                    const newPrice = (saleType === 'Wholesale') ? parseFloat(item.wholesale_price) : parseFloat(item.mrp_price);
+                    const wholesalePrice = parseFloat(item.wholesale_price) || 0;
+                    const mrpPrice = parseFloat(item.mrp_price) || 0;
+                    const newPrice = (saleType === 'Wholesale') ? wholesalePrice : mrpPrice;
                     item.unit_price = newPrice;
                     item.total = newPrice * item.quantity;
                     return item;
@@ -541,9 +547,13 @@
                 const paid = parseFloat($('#paidInput').val()) || 0;
                 const due = total - paid;
 
-                $('#subtotalLabel, #subtotalDisplay').text(subtotal.toFixed(2) + '৳');
-                $('#totalDisplay').text(total.toFixed(2) + '৳');
-                $('#dueDisplay').text(due.toFixed(2) + '৳');
+                const displaySubtotal = isNaN(subtotal) ? 0 : subtotal;
+                const displayTotal = isNaN(total) ? 0 : total;
+                const displayDue = isNaN(due) ? 0 : due;
+
+                $('#subtotalLabel, #subtotalDisplay').text(displaySubtotal.toFixed(2) + '৳');
+                $('#totalDisplay').text(displayTotal.toFixed(2) + '৳');
+                $('#dueDisplay').text(displayDue.toFixed(2) + '৳');
                 
                 $('#subtotalInput').val(subtotal.toFixed(2));
                 $('#totalAmountInput').val(total.toFixed(2));

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\FinancialAccount;
 
 class VoucherController extends Controller
 {
@@ -177,9 +178,11 @@ class VoucherController extends Controller
                 }
 
                 // 2. Debit Entry (Cash/Bank) - Total Amount
+                $finAcc = FinancialAccount::where('account_id', $request->account_id)->first();
                 JournalEntry::create([
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $request->account_id,
+                    'financial_account_id' => $finAcc ? $finAcc->id : null,
                     'debit' => $totalAmount,
                     'credit' => 0,
                     'memo' => 'Receipt from ' . ($journal->expenseAccount->name ?? 'Voucher'),
@@ -208,9 +211,11 @@ class VoucherController extends Controller
                 }
 
                 // 2. Credit Entry (Cash/Bank) - Total Amount
+                $finAcc = FinancialAccount::where('account_id', $request->account_id)->first();
                 JournalEntry::create([
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $request->account_id,
+                    'financial_account_id' => $finAcc ? $finAcc->id : null,
                     'debit' => 0,
                     'credit' => $totalAmount,
                     'memo' => 'Payment for ' . ($journal->expenseAccount->name ?? 'Voucher'),
