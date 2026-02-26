@@ -20,23 +20,35 @@ class CustomerServiceController extends Controller
 
     public function search(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $services = Product::where('type','service')->where('name', 'like', '%' . $request->search . '%')->get();
         return response()->json($services);
     }
 
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $services = Service::paginate(10);
         return view('erp.customerSupport.customersupportlist',compact('services'));
     }
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.customerSupport.create');
     }
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             // Filter out empty or incomplete provided_parts rows before validation
             $providedParts = collect($request->input('provided_parts', []))
@@ -154,6 +166,9 @@ class CustomerServiceController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $service = Service::find($id);
 
         return view('erp.customerSupport.show',compact('service'));
@@ -161,6 +176,9 @@ class CustomerServiceController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $service = Service::with('serviceProvidedParts')->findOrFail($id);
 
         if ($request->status === 'assigned') {
@@ -234,6 +252,9 @@ class CustomerServiceController extends Controller
 
     public function updateTechnician($id, $employee_id)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $service = Service::findOrFail($id);
         $service->technician_id = $employee_id;
 
@@ -243,6 +264,9 @@ class CustomerServiceController extends Controller
 
     public function deleteTechnician($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $service = Service::findOrFail($id);
         $service->technician_id = null;
 
@@ -252,6 +276,9 @@ class CustomerServiceController extends Controller
 
     public function updateNote(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $service = Service::findOrFail($id);
         $service->service_notes = $request->notes;
 
@@ -261,6 +288,9 @@ class CustomerServiceController extends Controller
 
     public function addAddress(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $existingInvoiceAddress = InvoiceAddress::where('invoice_id',$id)->first();
 
         if($existingInvoiceAddress){
@@ -288,6 +318,9 @@ class CustomerServiceController extends Controller
 
     public function addStockToServiceItem(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $serviceItem = ServiceProvidedPart::find($id);
 
         $serviceItem->current_position_type = $request->current_position_type;
@@ -298,6 +331,9 @@ class CustomerServiceController extends Controller
 
     public function transferStockToEmployee(Request $request, $serviceItemId)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $serviceItem = ServiceProvidedPart::findOrFail($serviceItemId);
         $service = $serviceItem->service;
         $productId = $serviceItem->product_id;
@@ -371,6 +407,9 @@ class CustomerServiceController extends Controller
 
     public function addPayment($orderId, Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $service = Service::with('invoice')->find($orderId);
         if (!$service) {
             return response()->json(['success' => false, 'message' => 'Service not found.'], 404);
@@ -413,6 +452,9 @@ class CustomerServiceController extends Controller
 
     public function addExtraPart(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'service_id'   => 'required|exists:services,id',
             'product_type' => 'required|in:product,material',
@@ -473,6 +515,9 @@ class CustomerServiceController extends Controller
 
     public function deleteExtraPart(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'part_id' => 'required|exists:service_provided_parts,id',
         ]);
@@ -526,6 +571,9 @@ class CustomerServiceController extends Controller
 
     public function updateServiceFees(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage services')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'service_id'   => 'required|exists:services,id',
             'service_fee'  => 'required|numeric|min:0',

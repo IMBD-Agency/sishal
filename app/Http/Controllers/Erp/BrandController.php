@@ -10,12 +10,18 @@ class BrandController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $brands = Brand::latest()->get();
         return view('erp.brands.index', compact('brands'));
     }
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
@@ -27,6 +33,9 @@ class BrandController extends Controller
 
     public function update(Request $request, Brand $brand)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'status' => 'required|in:active,inactive',
@@ -38,6 +47,9 @@ class BrandController extends Controller
 
     public function destroy(Brand $brand)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $brand->delete();
         return redirect()->back()->with('success', 'Brand deleted successfully.');
     }

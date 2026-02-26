@@ -17,7 +17,7 @@ class SalaryPaymentController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view employee list')) {
+        if (!auth()->user()->hasPermissionTo('view salary')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -63,6 +63,9 @@ class SalaryPaymentController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $employees = Employee::with('user')->where('branch_id', $restrictedBranchId)->get();
@@ -84,6 +87,9 @@ class SalaryPaymentController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'employee_id' => 'required|exists:employees,id',
             'month' => 'required',
@@ -165,6 +171,9 @@ class SalaryPaymentController extends Controller
 
     public function getSalaryDetails(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $employeeId = $request->employee_id;
         $month = $request->month;
         $year = $request->year;
@@ -186,6 +195,9 @@ class SalaryPaymentController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $payment = SalaryPayment::with(['employee.user', 'branch', 'chartOfAccount', 'creator'])
             ->findOrFail($id);
 
@@ -194,6 +206,9 @@ class SalaryPaymentController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $payment = SalaryPayment::findOrFail($id);
 
         // Delete related journal entries
@@ -218,6 +233,9 @@ class SalaryPaymentController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = SalaryPayment::with(['employee.user', 'branch', 'chartOfAccount']);
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
@@ -289,6 +307,9 @@ class SalaryPaymentController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view salary')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = SalaryPayment::with(['employee.user', 'branch', 'chartOfAccount']);
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {

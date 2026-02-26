@@ -24,26 +24,39 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 35%;">Product Details</th>
-                <th style="width: 15%;">Style / SKU</th>
-                <th style="width: 15%;">Category</th>
-                <th style="width: 15%;">Brand</th>
-                <th style="width: 15%; text-align: right;">MRP (৳)</th>
+                <th style="width: 3%;">#</th>
+                <th style="width: 20%;">Product Details</th>
+                <th style="width: 12%;">Style/SKU</th>
+                <th style="width: 10%;">Category</th>
+                <th style="width: 10%;">Brand</th>
+                <th style="width: 8%;">Season</th>
+                <th style="width: 8%;">Gender</th>
+                <th style="width: 10%; text-align: right;">Cost (৳)</th>
+                <th style="width: 10%; text-align: right;">MRP (৳)</th>
+                <th style="width: 9%; text-align: center;">Stock</th>
             </tr>
         </thead>
         <tbody>
             @foreach($products as $index => $product)
+                @php
+                    $totalVarStock = $product->total_stock_variation ?? 0;
+                    $totalSimpleStock = ($product->total_stock_branch ?? 0) + ($product->total_stock_warehouse ?? 0);
+                    $displayStock = $product->has_variations ? $totalVarStock : $totalSimpleStock;
+                @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>
-                        <div style="font-weight: bold; font-size: 12px;">{{ $product->name }}</div>
-                        <div style="color: #666; font-size: 9px;">Entry: {{ $product->created_at->format('d/m/Y') }}</div>
+                        <div style="font-weight: bold;">{{ $product->name }}</div>
+                        <div style="color: #666; font-size: 8px;">Date: {{ $product->created_at->format('d/m/Y') }}</div>
                     </td>
                     <td>{{ $product->style_number ?? $product->sku }}</td>
                     <td>{{ $product->category->name ?? '-' }}</td>
                     <td>{{ $product->brand->name ?? '-' }}</td>
+                    <td>{{ $product->season->name ?? 'ALL' }}</td>
+                    <td>{{ $product->gender->name ?? 'ALL' }}</td>
+                    <td style="text-align: right;">{{ number_format($product->cost, 2) }}</td>
                     <td style="text-align: right;" class="price">{{ number_format($product->price, 2) }}</td>
+                    <td style="text-align: center;">{{ number_format($displayStock, 0) }}</td>
                 </tr>
             @endforeach
         </tbody>

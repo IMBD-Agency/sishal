@@ -15,7 +15,7 @@ class GeneralSettingsController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('setting manage')) {
+        if (!auth()->user()->hasPermissionTo('manage settings')) {
             abort(403, 'Unauthorized action.');
         }
         $settings = GeneralSetting::first();
@@ -28,6 +28,9 @@ class GeneralSettingsController extends Controller
 
     public function storeUpdate(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage settings')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'site_title' => 'nullable|string|max:255',
             'site_description' => 'nullable|string|max:255',
@@ -127,6 +130,9 @@ class GeneralSettingsController extends Controller
 
     public function testSmtp(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage settings')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $request->validate([
                 'test_email' => 'required|email',

@@ -31,6 +31,9 @@ class SimpleAccountingController extends Controller
      */
     public function salesSummary(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'week');
         $source = $request->get('source', 'all');
         $categoryId = $request->get('category_id');
@@ -86,6 +89,9 @@ class SimpleAccountingController extends Controller
      */
     public function salesReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'month');
         $branchId = $request->get('branch_id');
         $categoryId = $request->get('category_id');
@@ -137,6 +143,9 @@ class SimpleAccountingController extends Controller
      */
     public function topProducts(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'month');
         $source = $request->get('source', 'all');
         $categoryId = $request->get('category_id');
@@ -201,6 +210,9 @@ class SimpleAccountingController extends Controller
      */
     public function stockValue(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $branchId = $request->get('branch_id');
         $categoryId = $request->get('category_id');
         $lowStock = $request->get('low_stock');
@@ -235,6 +247,9 @@ class SimpleAccountingController extends Controller
      */
     public function getSalesDataReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subMonth();
         $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
         $branchId = $request->get('branch_id');
@@ -293,6 +308,9 @@ class SimpleAccountingController extends Controller
      */
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subMonth();
         $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
         $type = $request->get('type', 'product');
@@ -360,6 +378,9 @@ class SimpleAccountingController extends Controller
      */
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subMonth();
         $endDate = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : Carbon::now()->endOfDay();
         $type = $request->get('type', 'product');
@@ -391,6 +412,9 @@ class SimpleAccountingController extends Controller
      */
     public function exportSummaryExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'week');
         $source = $request->get('source', 'all');
         $categoryId = $request->get('category_id');
@@ -507,6 +531,9 @@ class SimpleAccountingController extends Controller
      */
     public function exportSummaryPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'week');
         $source = $request->get('source', 'all');
         $categoryId = $request->get('category_id');

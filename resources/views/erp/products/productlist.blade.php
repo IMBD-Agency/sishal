@@ -152,7 +152,12 @@
                         </div>
 
                         <div class="col-md-2 mt-2">
-                            <div class="d-flex gap-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Global Search</label>
+                            <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Name, SKU, Style...">
+                        </div>
+
+                        <div class="col-md-2 mt-2">
+                            <div class="d-flex gap-2" style="margin-top: 25px;">
                                 <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
                                     <i class="fas fa-search me-1"></i>Search
                                 </button>
@@ -176,7 +181,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <label class="small fw-bold text-muted mb-0">Search:</label>
-                <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input">
+                <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input" value="{{ request('search') }}" placeholder="Press Enter to search all...">
             </div>
         </div>
 
@@ -308,6 +313,16 @@
         toggleReportFields();
         $('.report-type-radio').on('change', toggleReportFields);
 
+        // Handle table search with Enter key for server-side search across all products
+        $('#tableSearch').on('keypress', function(e) {
+            if (e.which == 13) { // Enter key
+                const value = $(this).val();
+                $('input[name="search"]').val(value);
+                $('#filterForm').submit();
+            }
+        });
+
+        // Current page client-side filtering for quick results
         let searchTimeout;
         $('#tableSearch').on('input', function() {
             clearTimeout(searchTimeout);
@@ -317,7 +332,10 @@
                     const text = $(this).text().toLowerCase();
                     $(this).toggle(text.indexOf(value) > -1);
                 });
-            }, 300); // 300ms debounce delay
+            }, 300);
+            
+            // Sync with global search input
+            $('input[name="search"]').val($(this).val());
         });
     });
 </script>

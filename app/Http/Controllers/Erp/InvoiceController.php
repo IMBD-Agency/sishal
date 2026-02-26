@@ -17,7 +17,7 @@ class InvoiceController extends Controller
 {
     public function templateList(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoice list template')) {
+        if (!auth()->user()->hasPermissionTo('view invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $query = InvoiceTemplate::query();
@@ -34,6 +34,9 @@ class InvoiceController extends Controller
 
     public function storeTemplate(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'footer_note' => 'nullable|string',
@@ -49,6 +52,9 @@ class InvoiceController extends Controller
 
     public function updateTemplate(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'footer_note' => 'nullable|string',
@@ -65,6 +71,9 @@ class InvoiceController extends Controller
 
     public function deleteTemplate($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $template = InvoiceTemplate::findOrFail($id);
         $template->delete();
         return redirect()->route('invoice.template.list')->with('success', 'Template deleted successfully.');
@@ -72,7 +81,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoice list')) {
+        if (!auth()->user()->hasPermissionTo('view invoices')) {
             abort(403, 'Unauthorized action.');
         }
         
@@ -91,6 +100,9 @@ class InvoiceController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customers = \App\Models\Customer::orderBy('name')->get();
         $products = \App\Models\Product::orderBy('name')->get();
         $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
@@ -99,6 +111,9 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'template_id' => 'required|exists:invoice_templates,id',
@@ -228,6 +243,9 @@ class InvoiceController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'template_id' => 'required|exists:invoice_templates,id',
@@ -343,6 +361,9 @@ class InvoiceController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product', 'items.variation'])->findOrFail($id);
         $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
         return view('erp.invoices.edit', compact('invoice', 'templates'));
@@ -350,6 +371,9 @@ class InvoiceController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items.product','items.variation')->find($id);
         $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
         $order = \App\Models\Order::where('invoice_id', $invoice?->id)->first();
@@ -358,6 +382,9 @@ class InvoiceController extends Controller
 
     public function addPayment($invId, Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $invoice = Invoice::find($invId);
 
         if (!$invoice) {
@@ -397,6 +424,9 @@ class InvoiceController extends Controller
 
     public function print(Request $request, $invoice_number)
     {
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
         $invoice = Invoice::with('items.product', 'items.variation')->where('invoice_number', $invoice_number)->first();
         if(!$invoice)
         {
@@ -433,8 +463,8 @@ class InvoiceController extends Controller
      */
     public function getReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoice list')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        if (!auth()->user()->hasPermissionTo('view invoices')) {
+            abort(403, 'Unauthorized action.');
         }
 
         $query = Invoice::with(['customer', 'salesman', 'order']);
@@ -506,8 +536,8 @@ class InvoiceController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoice list')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
         }
 
         $query = $this->getFilteredQuery($request);
@@ -663,8 +693,8 @@ class InvoiceController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoice list')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+            abort(403, 'Unauthorized action.');
         }
 
         $query = $this->getFilteredQuery($request);

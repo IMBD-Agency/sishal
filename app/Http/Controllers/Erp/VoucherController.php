@@ -20,6 +20,9 @@ class VoucherController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view vouchers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         $now = Carbon::now();
 
@@ -70,6 +73,9 @@ class VoucherController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage vouchers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $voucherNo = 'V-' . date('Ymd') . '-' . str_pad(Journal::count() + 1, 4, '0', STR_PAD_LEFT);
         
         // Fetch Expense/Revenue Accounts
@@ -122,6 +128,9 @@ class VoucherController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage vouchers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'entry_date' => 'required|date',
             'voucher_no' => 'required|unique:journals,voucher_no',
@@ -234,6 +243,9 @@ class VoucherController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage vouchers')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             DB::beginTransaction();
             $journal = Journal::findOrFail($id);

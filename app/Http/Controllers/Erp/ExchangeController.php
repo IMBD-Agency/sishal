@@ -24,6 +24,9 @@ class ExchangeController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -138,6 +141,9 @@ class ExchangeController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.exchange.create');
     }
 
@@ -201,6 +207,9 @@ class ExchangeController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'original_pos_id' => 'required|exists:pos,id',
             'return_items' => 'required|array',

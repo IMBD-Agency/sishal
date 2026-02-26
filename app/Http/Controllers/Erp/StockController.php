@@ -15,7 +15,7 @@ class StockController extends Controller
 {
     public function stocklist(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view product stock list')) {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -133,6 +133,9 @@ class StockController extends Controller
 
     public function exportStockExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $products = $this->getStockQuery($request)->get();
         // Simplified Excel export using similar logic to adjustments
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -174,6 +177,9 @@ class StockController extends Controller
 
     public function exportStockPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $products = $this->getStockQuery($request)->get();
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.productStock.stock-report-pdf', compact('products'));
         $pdf->setPaper('A4', 'portrait');
@@ -205,6 +211,9 @@ class StockController extends Controller
 
     public function addStockToBranches(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('adjust stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'branches' => 'required|array',
@@ -247,6 +256,9 @@ class StockController extends Controller
 
     public function addStockToWarehouses(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('adjust stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'warehouses' => 'required|array',
@@ -287,6 +299,9 @@ class StockController extends Controller
 
     public function adjustStock(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('adjust stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'location_type' => 'required|in:branch,warehouse',
             'product_id' => 'required|exists:products,id',
@@ -435,6 +450,9 @@ class StockController extends Controller
 
     public function getCurrentStock(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'location_type' => 'required|in:branch,warehouse',
@@ -487,7 +505,7 @@ class StockController extends Controller
     }
     public function adjustmentCreate()
     {
-        if (!auth()->user()->hasPermissionTo('view product stock list')) {
+        if (!auth()->user()->hasPermissionTo('adjust stock')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -499,6 +517,9 @@ class StockController extends Controller
 
     public function storeAdjustment(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('adjust stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'items' => 'required|array',
@@ -590,7 +611,7 @@ class StockController extends Controller
 
     public function adjustmentList(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view product stock list')) {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -688,6 +709,9 @@ class StockController extends Controller
 
     public function exportAdjustmentExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $items = $this->getAdjustmentQuery($request)->get();
         
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -726,6 +750,9 @@ class StockController extends Controller
 
     public function exportAdjustmentPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $adjustments = $this->getAdjustmentQuery($request)->get();
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.productStock.adjustment-report-pdf', compact('adjustments'));
         $pdf->setPaper('A4', 'landscape');

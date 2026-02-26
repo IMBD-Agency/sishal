@@ -11,6 +11,9 @@ class FinancialAccountController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $accounts = FinancialAccount::with('chartOfAccount')->orderBy('type')->get();
         $chartAccounts = ChartOfAccount::orderBy('name')->get();
         $accountTypes = FinancialAccount::getTypes();
@@ -20,6 +23,9 @@ class FinancialAccountController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'type'                 => 'required|in:cash,bank,mobile',
             'provider_name'        => 'required|string|max:255',
@@ -43,6 +49,9 @@ class FinancialAccountController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $account = FinancialAccount::findOrFail($id);
 
         $request->validate([
@@ -68,6 +77,9 @@ class FinancialAccountController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $account = FinancialAccount::findOrFail($id);
         $account->delete();
 
@@ -79,6 +91,9 @@ class FinancialAccountController extends Controller
      */
     public function getAll(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $type = $request->get('type');
         $query = FinancialAccount::orderBy('provider_name');
         if ($type) {

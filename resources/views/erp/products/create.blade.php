@@ -338,7 +338,7 @@ $(document).ready(function() {
             },
             cache: true
         },
-        minimumInputLength: 1
+        minimumInputLength: 0
     });
 
     $('#name').on('input', function(){ $('#slug').val(slugify($(this).val())); });

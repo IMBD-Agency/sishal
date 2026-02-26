@@ -14,6 +14,9 @@ class DoubleEntryReportController extends Controller
 {
     public function ledgerIndex(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $chartAccounts = ChartOfAccount::orderBy('name')->get();
         
         $query = JournalEntry::with(['journal', 'chartOfAccount']);
@@ -107,6 +110,9 @@ class DoubleEntryReportController extends Controller
 
     public function ledgerAccount(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $account = ChartOfAccount::findOrFail($id);
         $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
         $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
@@ -165,6 +171,9 @@ class DoubleEntryReportController extends Controller
 
     public function trialBalance(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         $accounts = ChartOfAccount::whereHas('entries', function($q) use ($endDate, $restrictedBranchId) {
             $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
@@ -217,6 +226,9 @@ class DoubleEntryReportController extends Controller
 
     public function balanceSheet(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
         
         $assetTypes = \App\Models\ChartOfAccountType::where('name', 'Asset')->pluck('id');
@@ -278,6 +290,9 @@ class DoubleEntryReportController extends Controller
 
     public function profitLoss(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $startDate = $request->filled('start_date') ? $request->start_date : date('Y-m-01');
         $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
         

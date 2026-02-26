@@ -20,6 +20,9 @@ class PurchaseController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -81,6 +84,9 @@ class PurchaseController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -192,6 +198,9 @@ class PurchaseController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -306,6 +315,9 @@ class PurchaseController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
@@ -322,6 +334,9 @@ class PurchaseController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'supplier_id' => 'nullable|integer',
             'ship_location_type' => 'required|in:branch,warehouse',
@@ -569,6 +584,9 @@ class PurchaseController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $purchase = Purchase::with(['bill', 'supplier', 'items.product', 'items.variation'])->findOrFail($id);
 
         // Safely resolve location name; the related branch/warehouse might not exist anymore
@@ -587,6 +605,9 @@ class PurchaseController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $purchase = Purchase::with('items')->findOrFail($id);
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
@@ -602,6 +623,9 @@ class PurchaseController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'supplier_id' => 'nullable|integer',
             'ship_location_type' => 'required|in:branch,warehouse',
@@ -753,6 +777,9 @@ class PurchaseController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'status' => 'required|string',
         ]);
@@ -832,6 +859,9 @@ class PurchaseController extends Controller
 
     public function delete($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         DB::beginTransaction();
         try {
             $purchase = Purchase::with(['items', 'bill'])->findOrFail($id);
@@ -853,6 +883,9 @@ class PurchaseController extends Controller
 
     public function searchPurchase(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $search = $request->q;
         $query = Purchase::query();
         if ($search) {
@@ -876,6 +909,9 @@ class PurchaseController extends Controller
 
     public function getItemByPurchase($id)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $purchaseItems = \App\Models\PurchaseItem::with('product')
             ->where('purchase_id', $id)
             ->get();

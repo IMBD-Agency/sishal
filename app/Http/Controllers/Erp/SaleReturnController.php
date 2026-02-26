@@ -28,6 +28,9 @@ class SaleReturnController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -83,6 +86,9 @@ class SaleReturnController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
@@ -167,6 +173,9 @@ class SaleReturnController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
@@ -277,6 +286,9 @@ class SaleReturnController extends Controller
 
     public function create(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customers = Customer::all();
         $posSales = Pos::all();
         $invoices = Invoice::all();
@@ -296,6 +308,9 @@ class SaleReturnController extends Controller
 
     public function searchInvoice(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $invoiceNo = $request->invoice_no;
         if (!$invoiceNo) {
             return response()->json(['success' => false, 'message' => 'Invoice number is required.']);
@@ -347,6 +362,9 @@ class SaleReturnController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'pos_sale_id' => 'nullable|exists:pos,id',
@@ -392,6 +410,9 @@ class SaleReturnController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $saleReturn = SaleReturn::with([
             'customer',
             'posSale',
@@ -406,6 +427,9 @@ class SaleReturnController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $saleReturn = SaleReturn::with(['items', 'employee.user'])->findOrFail($id);
         $customers = Customer::all();
         $posSales = Pos::all();
@@ -418,6 +442,9 @@ class SaleReturnController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'pos_sale_id' => 'nullable|exists:pos,id',
@@ -459,6 +486,9 @@ class SaleReturnController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $saleReturn = SaleReturn::findOrFail($id);
         $saleReturn->delete();
         return redirect()->route('saleReturn.list')->with('success', 'Sale return deleted successfully.');
@@ -469,6 +499,9 @@ class SaleReturnController extends Controller
      */
     public function updateReturnStatus(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'status' => 'required|in:pending,approved,rejected,processed',
             'notes' => 'nullable|string|max:500'

@@ -16,6 +16,9 @@ class MasterSettingController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('manage settings')) {
+            abort(403, 'Unauthorized action.');
+        }
         $stats = [
             'categories' => ProductServiceCategory::whereNull('parent_id')->count(),
             'subcategories' => ProductServiceCategory::whereNotNull('parent_id')->count(),

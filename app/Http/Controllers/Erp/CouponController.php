@@ -17,6 +17,9 @@ class CouponController extends Controller
      */
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = Coupon::query();
 
         // Filter by status
@@ -47,6 +50,9 @@ class CouponController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $categories = ProductServiceCategory::where('status', 'active')->get();
         $products = Product::where('status', 'active')->get();
         
@@ -58,6 +64,9 @@ class CouponController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:coupons,code',
             'name' => 'nullable|string|max:255',
@@ -146,6 +155,9 @@ class CouponController extends Controller
      */
     public function show(Coupon $coupon)
     {
+        if (!auth()->user()->hasPermissionTo('view coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $coupon->load(['usages.user', 'usages.order', 'orders']);
         return view('erp.coupons.show', compact('coupon'));
     }
@@ -155,6 +167,9 @@ class CouponController extends Controller
      */
     public function edit(Coupon $coupon)
     {
+        if (!auth()->user()->hasPermissionTo('manage coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $categories = ProductServiceCategory::where('status', 'active')->get();
         $products = Product::where('status', 'active')->get();
         
@@ -166,6 +181,9 @@ class CouponController extends Controller
      */
     public function update(Request $request, Coupon $coupon)
     {
+        if (!auth()->user()->hasPermissionTo('manage coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:coupons,code,' . $coupon->id,
             'name' => 'nullable|string|max:255',
@@ -257,6 +275,9 @@ class CouponController extends Controller
      */
     public function destroy(Coupon $coupon)
     {
+        if (!auth()->user()->hasPermissionTo('manage coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $coupon->delete();
 
         return redirect()->route('coupons.index')
@@ -268,6 +289,9 @@ class CouponController extends Controller
      */
     public function toggleStatus(Coupon $coupon)
     {
+        if (!auth()->user()->hasPermissionTo('manage coupons')) {
+            abort(403, 'Unauthorized action.');
+        }
         $coupon->is_active = !$coupon->is_active;
         $coupon->save();
 

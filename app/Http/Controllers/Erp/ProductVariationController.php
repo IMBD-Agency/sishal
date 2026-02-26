@@ -175,6 +175,9 @@ class ProductVariationController extends Controller
      */
     public function index($productId)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
 
         $product = Product::with(['variations' => function($q) use ($restrictedBranchId) {
@@ -194,6 +197,9 @@ class ProductVariationController extends Controller
      */
     public function create($productId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $attributes = VariationAttribute::active()
             ->with(['values' => function($q){ $q->orderBy('sort_order'); }])
@@ -207,6 +213,9 @@ class ProductVariationController extends Controller
      */
     public function store(Request $request, $productId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         
         // Handle New Premium UI Submission
@@ -716,6 +725,9 @@ class ProductVariationController extends Controller
      */
     public function show($productId, $variationId)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $restrictedBranchId = $this->getRestrictedBranchId();
 
@@ -740,6 +752,9 @@ class ProductVariationController extends Controller
      */
     public function edit($productId, $variationId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $variation = ProductVariation::with(['combinations.attribute', 'combinations.attributeValue', 'galleries'])
             ->findOrFail($variationId);
@@ -755,6 +770,9 @@ class ProductVariationController extends Controller
      */
     public function update(Request $request, $productId, $variationId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $variation = ProductVariation::findOrFail($variationId);
         
@@ -973,6 +991,9 @@ class ProductVariationController extends Controller
      */
     public function destroy($productId, $variationId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $variation = ProductVariation::findOrFail($variationId);
         
         DB::beginTransaction();
@@ -1015,6 +1036,9 @@ class ProductVariationController extends Controller
      */
     public function getAttributeValues($attributeId)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $values = VariationAttributeValue::where('attribute_id', $attributeId)
             ->where('status', 'active')
             ->orderBy('sort_order')
@@ -1028,6 +1052,9 @@ class ProductVariationController extends Controller
      */
     public function toggleStatus($productId, $variationId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $variation = ProductVariation::findOrFail($variationId);
         $variation->update([
             'status' => $variation->status === 'active' ? 'inactive' : 'active'

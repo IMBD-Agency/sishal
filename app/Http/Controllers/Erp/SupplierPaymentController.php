@@ -19,6 +19,9 @@ class SupplierPaymentController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -99,6 +102,9 @@ class SupplierPaymentController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -167,6 +173,9 @@ class SupplierPaymentController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -205,6 +214,9 @@ class SupplierPaymentController extends Controller
 
     public function create(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         $suppliers = Supplier::all();
         $selectedSupplierId = $request->supplier_id;
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -227,6 +239,9 @@ class SupplierPaymentController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'amount' => 'required|numeric|min:0.01',
@@ -349,11 +364,17 @@ class SupplierPaymentController extends Controller
 
     public function show(SupplierPayment $supplierPayment)
     {
+        if (!auth()->user()->hasPermissionTo('view payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.supplier-payments.show', compact('supplierPayment'));
     }
 
     public function destroy(SupplierPayment $supplierPayment)
     {
+        if (!auth()->user()->hasPermissionTo('manage payments')) {
+            abort(403, 'Unauthorized action.');
+        }
         // For ledger integrity, we should probably handle reverse entry or recalibrate balance
         // Simplest: prohibit deletion of ledger-linked items or handle with care.
         // For now, let's just delete and mention it.

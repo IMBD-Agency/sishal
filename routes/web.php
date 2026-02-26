@@ -859,6 +859,19 @@ Route::get('/run-migrate', function() {
     }
 });
 
+// Route to run Permission Seeder from web
+Route::get('/run-seed', function() {
+    try {
+        Artisan::call('db:seed', [
+            '--class' => 'PermissionSeeder',
+            '--force' => true
+        ]);
+        return '<h1>Permissions Seeded Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return '<h1>Seeding Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 // Specific fix for POS table if migrations are out of sync
 // Route::get('/fix-pos-columns', function() {
 //     try {

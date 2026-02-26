@@ -14,6 +14,9 @@ class ChartOfAccountController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Only show singular account types (hide duplicates like Assets, Liabilities, etc.)
         $singularTypes = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
         $accountTypes = ChartOfAccountType::with('subTypes')
@@ -30,6 +33,9 @@ class ChartOfAccountController extends Controller
 
     public function storeType(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate(['name' => 'required|string|max:255']);
         ChartOfAccountType::create($request->all());
         return back()->with('success', 'Account Type created successfully.');
@@ -64,6 +70,9 @@ class ChartOfAccountController extends Controller
 
     public function storeParent(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'type_id' => 'required|exists:chart_of_account_types,id',
@@ -78,8 +87,40 @@ class ChartOfAccountController extends Controller
         return back()->with('success', 'Parent Account created successfully.');
     }
 
+    public function getAll(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'parent_id' => 'required|exists:chart_of_account_parents,id',
+            'type_id' => 'required|exists:chart_of_account_types,id',
+            'sub_type_id' => 'required|exists:chart_of_account_sub_types,id',
+            'code' => 'required|string|unique:chart_of_accounts,code',
+        ]);
+
+        $data = $request->all();
+        $data['created_by'] = Auth::id();
+
+        $account = ChartOfAccount::create($data);
+        
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true, 
+                'data' => $account,
+                'message' => 'Account created successfully'
+            ]);
+        }
+
+        return back()->with('success', 'Chart of Account created successfully.');
+    }
+
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'required|exists:chart_of_account_parents,id',
@@ -106,6 +147,9 @@ class ChartOfAccountController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $account = ChartOfAccount::findOrFail($id);
         $request->validate([
             'name' => 'required|string|max:255',
@@ -118,6 +162,9 @@ class ChartOfAccountController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $account = ChartOfAccount::findOrFail($id);
         
         // DEVELOPMENT MODE: Force delete logic
@@ -140,6 +187,9 @@ class ChartOfAccountController extends Controller
 
     public function updateParent(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $parent = ChartOfAccountParent::findOrFail($id);
         $request->validate([
             'name' => 'required|string|max:255',
@@ -152,6 +202,9 @@ class ChartOfAccountController extends Controller
 
     public function destroyParent($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $parent = ChartOfAccountParent::findOrFail($id);
         if ($parent->accounts()->exists()) {
             return response()->json(['success' => false, 'message' => 'Cannot delete parent account with existing sub-accounts.']);

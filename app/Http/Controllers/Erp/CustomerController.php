@@ -20,7 +20,7 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view customer list')) {
+        if (!auth()->user()->hasPermissionTo('view customers')) {
             abort(403, 'Unauthorized action.');
         }
         $query = $this->getFilteredQuery($request);
@@ -47,6 +47,9 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $rules = [
             'user_id' => 'nullable|exists:users,id',
             'name' => 'required|string|max:255',
@@ -105,6 +108,9 @@ class CustomerController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customer = Customer::with(['addedBy'])->findOrFail($id);
         
         // Get customer's orders
@@ -195,12 +201,18 @@ class CustomerController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customer = Customer::findOrFail($id);
         return view('erp.customers.edit', compact('customer'));
     }
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
@@ -241,6 +253,9 @@ class CustomerController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customer = Customer::findOrFail($id);
         $customerName = $customer->name;
         
@@ -259,6 +274,9 @@ class CustomerController extends Controller
 
     public function makePremium($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customer = Customer::find($id);
 
         $customer->is_premium = 1;
@@ -270,6 +288,9 @@ class CustomerController extends Controller
 
     public function removePremium($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customer = Customer::find($id);
 
         $customer->is_premium = 0;
@@ -281,6 +302,9 @@ class CustomerController extends Controller
 
     public function editNotes(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'notes' => 'required|string|max:1000',
         ]);
@@ -303,6 +327,9 @@ class CustomerController extends Controller
 
     public function customerSearch(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $q = $request->input('q');
         $query = Customer::query();
         if ($q) {
@@ -319,6 +346,9 @@ class CustomerController extends Controller
 
     public function address($id)
     {
+        if (!auth()->user()->hasPermissionTo('view customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customer = Customer::findOrFail($id);
         return response()->json([
             'address_1' => $customer->address_1,
@@ -415,6 +445,9 @@ class CustomerController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = $this->getFilteredQuery($request);
         $customers = $query->orderBy('created_at', 'desc')->get();
 
@@ -454,6 +487,9 @@ class CustomerController extends Controller
 
     public function exportPdf(Request $request) 
     {
+        if (!auth()->user()->hasPermissionTo('view customers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = $this->getFilteredQuery($request);
         $customers = $query->orderBy('created_at', 'desc')->get();
         

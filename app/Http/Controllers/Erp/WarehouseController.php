@@ -15,6 +15,9 @@ class WarehouseController extends Controller
      */
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view warehouses')) {
+            abort(403, 'Unauthorized action.');
+        }
         $warehouses = Warehouse::with(['manager.user'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -29,6 +32,9 @@ class WarehouseController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage warehouses')) {
+            abort(403, 'Unauthorized action.');
+        }
         $employees = \App\Models\Employee::with('user')->get();
         return view('erp.warehouses.create', compact('employees'));
     }
@@ -38,6 +44,9 @@ class WarehouseController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage warehouses')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
@@ -58,6 +67,9 @@ class WarehouseController extends Controller
      */
     public function show(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('view warehouses')) {
+            abort(403, 'Unauthorized action.');
+        }
         $warehouse = Warehouse::with([
             'manager.user',
             'branches' => function($query) {
@@ -91,6 +103,9 @@ class WarehouseController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage warehouses')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
@@ -111,6 +126,9 @@ class WarehouseController extends Controller
      */
     public function destroy(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage warehouses')) {
+            abort(403, 'Unauthorized action.');
+        }
         $warehouse = Warehouse::findOrFail($id);
 
         $warehouse->delete();

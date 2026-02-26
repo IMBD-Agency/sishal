@@ -29,6 +29,9 @@ class PurchaseReturnController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -85,6 +88,9 @@ class PurchaseReturnController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -197,6 +203,9 @@ class PurchaseReturnController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -311,6 +320,9 @@ class PurchaseReturnController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
@@ -331,6 +343,9 @@ class PurchaseReturnController extends Controller
      */
     public function searchInvoice(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $invoiceNo = $request->invoice_no;
         if (!$invoiceNo) {
             return response()->json(['success' => false, 'message' => 'Invoice number is required.']);
@@ -393,6 +408,9 @@ class PurchaseReturnController extends Controller
      */
     public function searchPurchaseByInvoice(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view purchases')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = $request->get('q', '');
         
         $purchases = Purchase::with(['supplier', 'bill'])
@@ -423,6 +441,9 @@ class PurchaseReturnController extends Controller
      */
     public function searchProductForReturn(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = $request->get('q', '');
         Log::info('Product search request received', ['q' => $query]);
         
@@ -469,6 +490,9 @@ class PurchaseReturnController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'purchase_id' => 'nullable|exists:purchases,id',
             'supplier_id' => 'required_without:purchase_id|nullable|integer',
@@ -621,6 +645,9 @@ class PurchaseReturnController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $purchaseReturn = PurchaseReturn::with([
             'purchase', 
             'createdBy', 
@@ -637,6 +664,9 @@ class PurchaseReturnController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $purchaseReturn = PurchaseReturn::with([
             'purchase', 
             'supplier', 
@@ -661,6 +691,9 @@ class PurchaseReturnController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $purchaseReturn = PurchaseReturn::findOrFail($id);
 
         // Check if return can be updated (only pending returns can be updated)
@@ -752,6 +785,9 @@ class PurchaseReturnController extends Controller
 
     public function updateReturnStatus(Request $request, $returnId)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'status' => 'required|in:approved,rejected,processed',
             'notes' => 'nullable|string|max:500'
@@ -928,6 +964,9 @@ class PurchaseReturnController extends Controller
 
     public function getStockByType(Request $request, $productId, $fromId)
     {
+        if (!auth()->user()->hasPermissionTo('view stock')) {
+            abort(403, 'Unauthorized action.');
+        }
         $stockValue = 0;
         $variationId = $request->variation_id;
 

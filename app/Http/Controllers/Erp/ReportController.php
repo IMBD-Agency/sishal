@@ -37,11 +37,17 @@ class ReportController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.reports.index');
     }
 
     public function purchaseReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -217,6 +223,9 @@ class ReportController extends Controller
 
     public function saleReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -344,7 +353,7 @@ class ReportController extends Controller
         }
 
         return view('erp.reports.sale', compact(
-            'allItems', 'summary', 'customers', 'employees', 'categories', 'brands', 'seasons', 'genders', 'products', 'startDate', 'endDate', 'reportType'
+            'allItems', 'summary', 'customers', 'employees', 'categories', 'brands', 'seasons', 'genders', 'products', 'startDate', 'endDate', 'reportType', 'branches', 'branchId'
         ));
     }
 
@@ -405,6 +414,9 @@ class ReportController extends Controller
     }
     public function profitLossReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view financial reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -580,16 +592,25 @@ class ReportController extends Controller
 
     public function cashBookReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view financial reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         return $this->financialBookReport($request, FinancialAccount::TYPE_CASH, 'Cash Book');
     }
 
     public function bankBookReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view financial reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         return $this->financialBookReport($request, FinancialAccount::TYPE_BANK, 'Bank Book');
     }
 
     public function mobileBookReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view financial reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         return $this->financialBookReport($request, FinancialAccount::TYPE_MOBILE, 'Mobile Book');
     }
 
@@ -1192,6 +1213,9 @@ class ReportController extends Controller
 
     public function supplierLedger(Request $request, $id = null)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $id = $id ?: $request->get('supplier_id');
         $suppliers = Supplier::orderBy('name')->get();
         if (!$id) {
@@ -1331,6 +1355,9 @@ class ReportController extends Controller
 
     public function stockReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branchId = $restrictedBranchId ?: $request->get('branch_id');
         $warehouseId = $request->get('warehouse_id');
@@ -1375,6 +1402,9 @@ class ReportController extends Controller
 
     public function executiveReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view executive reports')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'monthly');
         $branchId = $request->get('branch_id');
         $restrictedBranchId = $this->getRestrictedBranchId();

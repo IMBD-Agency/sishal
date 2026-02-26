@@ -15,6 +15,9 @@ class JournalController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = Journal::with(['entries.chartOfAccount', 'creator']);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -50,6 +53,9 @@ class JournalController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'voucher_no' => 'required|string|unique:journals,voucher_no',
             'entry_date' => 'required|date',
@@ -107,6 +113,9 @@ class JournalController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $journal = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator'])->findOrFail($id);
         $chartAccounts = ChartOfAccount::orderBy('name')->get();
         $financialAccounts = FinancialAccount::all();
@@ -116,6 +125,9 @@ class JournalController extends Controller
 
     public function destroy(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $journal = Journal::findOrFail($id);
         $journal->delete(); // entries will be deleted by cascade
 
@@ -128,6 +140,9 @@ class JournalController extends Controller
 
     public function storeEntry(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'chart_of_account_id' => 'required|exists:chart_of_accounts,id',
             'financial_account_id' => 'nullable|exists:financial_accounts,id',
@@ -152,12 +167,18 @@ class JournalController extends Controller
 
     public function showEntry($id)
     {
+        if (!auth()->user()->hasPermissionTo('view accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $entry = JournalEntry::findOrFail($id);
         return response()->json(['entry' => $entry]);
     }
 
     public function updateEntry(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'chart_of_account_id' => 'required|exists:chart_of_accounts,id',
             'financial_account_id' => 'nullable|exists:financial_accounts,id',
@@ -181,6 +202,9 @@ class JournalController extends Controller
 
     public function destroyEntry($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage accounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $entry = JournalEntry::findOrFail($id);
         $entry->delete();
         return response()->json(['success' => true]);

@@ -10,12 +10,18 @@ class UnitController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $units = Unit::latest()->get();
         return view('erp.units.index', compact('units'));
     }
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'short_name' => 'required|string|max:50',
@@ -27,6 +33,9 @@ class UnitController extends Controller
 
     public function update(Request $request, Unit $unit)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'short_name' => 'required|string|max:50',
@@ -38,6 +47,9 @@ class UnitController extends Controller
 
     public function destroy(Unit $unit)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $unit->delete();
         return redirect()->back()->with('success', 'Unit deleted successfully.');
     }

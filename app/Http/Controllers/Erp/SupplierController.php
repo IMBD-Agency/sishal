@@ -10,6 +10,9 @@ class SupplierController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = Supplier::query();
         
         // Search by multiple fields
@@ -43,11 +46,17 @@ class SupplierController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.suppliers.create');
     }
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
@@ -66,18 +75,27 @@ class SupplierController extends Controller
 
     public function show(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('view suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $supplier = Supplier::with('purchases.items')->findOrFail($id);
         return view('erp.suppliers.show', compact('supplier'));
     }
 
     public function edit(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $supplier = Supplier::findOrFail($id);
         return view('erp.suppliers.edit', compact('supplier'));
     }
 
     public function update(Request $request, string $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $supplier = Supplier::findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -97,6 +115,9 @@ class SupplierController extends Controller
 
     public function destroy(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $supplier = Supplier::findOrFail($id);
         $supplier->delete();
         return redirect()->route('suppliers.index')->with('success', 'Supplier deleted successfully.');
@@ -104,6 +125,9 @@ class SupplierController extends Controller
 
     public function ledger(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('view suppliers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $supplier = Supplier::findOrFail($id);
         $entries = $supplier->ledgerEntries()->paginate(50);
         return view('erp.suppliers.ledger', compact('supplier', 'entries'));

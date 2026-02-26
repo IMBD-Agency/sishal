@@ -29,6 +29,9 @@ class OrderExchangeController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         $exchanges = $this->getFilteredQuery($request)
             ->with([
                 'customer', 
@@ -201,6 +204,9 @@ class OrderExchangeController extends Controller
 
     public function create(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customers = Customer::all();
         $orders = Order::orderBy('created_at', 'desc')->take(100)->get();
         $products = Product::all();
@@ -222,6 +228,9 @@ class OrderExchangeController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'order_id' => 'required|exists:orders,id',
@@ -352,6 +361,9 @@ class OrderExchangeController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orderReturn = OrderReturn::with([
             'items.product.brand', 
             'items.product.category', 

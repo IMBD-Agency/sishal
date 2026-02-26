@@ -17,6 +17,9 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view dashboard')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'week');
         $branchId = $this->getRestrictedBranchId() ?? 0;
         
@@ -45,6 +48,9 @@ class DashboardController extends Controller
 
     public function getDashboardData(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view dashboard')) {
+            abort(403, 'Unauthorized action.');
+        }
         $dateRange = $request->get('range', 'week');
         $startDate = $this->getStartDate($dateRange);
         $endDate = Carbon::now();

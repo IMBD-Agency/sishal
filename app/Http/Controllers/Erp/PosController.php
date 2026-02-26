@@ -38,6 +38,9 @@ class PosController extends Controller
 {
     public function addPos()
     {
+        if (!auth()->user()->hasPermissionTo('use pos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $categories = ProductServiceCategory::where('status', 'active')->get()->sortBy('full_path_name');
         $branches = Branch::where('status', 'active')->get();
         
@@ -55,6 +58,9 @@ class PosController extends Controller
 
     public function makeSale(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('use pos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'branch_id' => 'required|exists:branches,id',
@@ -432,6 +438,9 @@ class PosController extends Controller
 
         public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         
         if ($reportType == 'monthly') {
@@ -563,6 +572,9 @@ class PosController extends Controller
     }
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::where('id', $id)
             ->with([
                 'customer',
@@ -591,6 +603,9 @@ class PosController extends Controller
      */
     public function getDetails($id)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::where('id', $id)
             ->with([
                 'customer',
@@ -633,6 +648,9 @@ class PosController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::with(['customer', 'branch', 'items.product', 'items.variation.attributeValues.attribute'])->findOrFail($id);
         
         // Only allow editing if status is pending or delivered (not cancelled)
@@ -650,6 +668,9 @@ class PosController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::with(['items', 'invoice'])->findOrFail($id);
         
         // Only allow editing if status is pending or delivered (not cancelled)
@@ -786,6 +807,9 @@ class PosController extends Controller
 
     public function print($id)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::with([
             'customer',
             'branch',
@@ -822,6 +846,9 @@ class PosController extends Controller
 
     public function getMultiBranchStock($productId, $variationId = null)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $branches = Branch::all();
         $stockData = [];
@@ -852,6 +879,9 @@ class PosController extends Controller
 
     public function getBranchStock($productId, $branchId, $variationId = null)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         if ($variationId && $variationId !== 'null') {
             $stock = ProductVariationStock::where('variation_id', $variationId)
                 ->where('branch_id', $branchId)
@@ -892,6 +922,9 @@ class PosController extends Controller
 
     public function updateNote($saleId, Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::find($saleId);
         if (!$pos) {
             return response()->json(['success' => false, 'message' => 'Sale not found.'], 404);
@@ -903,6 +936,9 @@ class PosController extends Controller
 
     public function addPayment($saleId, Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::with('invoice')->find($saleId);
         if (!$pos) {
             return response()->json(['success' => false, 'message' => 'Sale not found.'], 404);
@@ -996,6 +1032,9 @@ class PosController extends Controller
 
     public function updateStatus($saleId, Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $pos = Pos::findOrFail($saleId);
         
         $request->validate([
@@ -1039,6 +1078,9 @@ class PosController extends Controller
 
     public function addAddress(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $existingInvoiceAddress = InvoiceAddress::where('invoice_id', $id)->first();
 
         if ($existingInvoiceAddress) {
@@ -1080,6 +1122,9 @@ class PosController extends Controller
 
     public function posSearch(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $q = $request->input('q');
         $customerId = $request->input('customer_id');
         $query = \App\Models\Pos::with('customer');
@@ -1145,6 +1190,9 @@ class PosController extends Controller
      */
     public function getReportData(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $query = Pos::with(['customer', 'invoice', 'branch']);
 
@@ -1237,6 +1285,9 @@ class PosController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
@@ -1340,6 +1391,9 @@ class PosController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view sales')) {
+            abort(403, 'Unauthorized action.');
+        }
         $reportType = $request->get('report_type', 'daily');
         if ($reportType == 'monthly') {
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
@@ -1504,6 +1558,9 @@ class PosController extends Controller
 
     public function manualSaleCreate()
     {
+        if (!auth()->user()->hasPermissionTo('use pos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customers = Customer::orderBy('name')->get();
         $branches = Branch::all();
         $products = Product::where('status', 'active')->where('type', 'product')->get();
@@ -1527,6 +1584,9 @@ class PosController extends Controller
 
     public function manualSaleStore(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('use pos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'branch_id' => 'required|exists:branches,id',

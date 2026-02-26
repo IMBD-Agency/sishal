@@ -16,7 +16,7 @@ class VariationAttributeController extends Controller
      */
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view attribute list')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $attributes = VariationAttribute::with('values')->orderBy('sort_order')->get();
@@ -28,6 +28,9 @@ class VariationAttributeController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.variation-attributes.create');
     }
 
@@ -36,6 +39,9 @@ class VariationAttributeController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:variation_attributes,slug',
@@ -90,6 +96,9 @@ class VariationAttributeController extends Controller
      */
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = VariationAttribute::with('values')->findOrFail($id);
         return view('erp.variation-attributes.show', compact('attribute'));
     }
@@ -99,6 +108,9 @@ class VariationAttributeController extends Controller
      */
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = VariationAttribute::with('values')->findOrFail($id);
         return view('erp.variation-attributes.edit', compact('attribute'));
     }
@@ -108,6 +120,9 @@ class VariationAttributeController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = VariationAttribute::findOrFail($id);
         
         $request->validate([
@@ -194,6 +209,9 @@ class VariationAttributeController extends Controller
      */
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = VariationAttribute::with('values')->findOrFail($id);
         
         // Delete images
@@ -220,6 +238,9 @@ class VariationAttributeController extends Controller
      */
     public function toggleStatus($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = VariationAttribute::findOrFail($id);
         $attribute->update([
             'status' => $attribute->status === 'active' ? 'inactive' : 'active'

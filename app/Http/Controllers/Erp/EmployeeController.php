@@ -19,7 +19,7 @@ class EmployeeController extends Controller
     
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view employee list')) {
+        if (!auth()->user()->hasPermissionTo('view employees')) {
             abort(403, 'Unauthorized action.');
         }
         $query = Employee::with('user','balance','branch');
@@ -46,7 +46,7 @@ class EmployeeController extends Controller
      */
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('employee create')) {
+        if (!auth()->user()->hasPermissionTo('manage employees')) {
             abort(403, 'Unauthorized action.');
         }
         $roles = Role::all();
@@ -59,6 +59,9 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage employees')) {
+            abort(403, 'Unauthorized action.');
+        }
        
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -99,7 +102,7 @@ class EmployeeController extends Controller
      */
     public function show(string $id)
     {
-        if (!auth()->user()->hasPermissionTo('view employee')) {
+        if (!auth()->user()->hasPermissionTo('view employees')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -133,7 +136,7 @@ class EmployeeController extends Controller
      */
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('employee edit')) {
+        if (!auth()->user()->hasPermissionTo('manage employees')) {
             abort(403, 'Unauthorized action.');
         }
         $employee = Employee::with(['user', 'branch'])->findOrFail($id);
@@ -147,6 +150,9 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage employees')) {
+            abort(403, 'Unauthorized action.');
+        }
         $employee = Employee::with('user')->findOrFail($id);
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -180,7 +186,7 @@ class EmployeeController extends Controller
      */
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('employee delete')) {
+        if (!auth()->user()->hasPermissionTo('manage employees')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -194,6 +200,9 @@ class EmployeeController extends Controller
 
     public function employeeSearch(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view employees')) {
+            abort(403, 'Unauthorized action.');
+        }
         $q = $request->input('q');
         $query = Employee::with('user');
         if ($q) {

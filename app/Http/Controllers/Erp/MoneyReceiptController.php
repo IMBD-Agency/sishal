@@ -19,6 +19,9 @@ class MoneyReceiptController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = Payment::with(['customer', 'invoice', 'creator.employee'])
             ->whereNotNull('customer_id') // Assuming Money Receipts are always linked to a customer
             ->latest('id');
@@ -117,6 +120,9 @@ class MoneyReceiptController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customers = Customer::orderBy('name')->get();
         // Generate Receipt No: MR-YYYYMMDD-SEQU
         $receiptNo = $this->generateReceiptNumber();
@@ -137,6 +143,9 @@ class MoneyReceiptController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'payment_date' => 'required|date',
             // 'money_receipt_no' => 'nullable|string|max:50', // We will generate this backend side to be safe
@@ -282,6 +291,9 @@ class MoneyReceiptController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
         DB::beginTransaction();
         try {
             $payment = Payment::where('id', $id)->firstOrFail();

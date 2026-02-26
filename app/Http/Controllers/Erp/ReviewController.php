@@ -15,7 +15,7 @@ class ReviewController extends Controller
      */
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view review list')) {
+        if (!auth()->user()->hasPermissionTo('view reviews')) {
             abort(403, 'Unauthorized action.');
         }
         $query = Review::with(['product', 'user']);
@@ -67,6 +67,9 @@ class ReviewController extends Controller
      */
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         $review = Review::with(['product', 'user'])->findOrFail($id);
         return view('erp.reviews.show', compact('review'));
     }
@@ -76,6 +79,9 @@ class ReviewController extends Controller
      */
     public function approve($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $review = Review::findOrFail($id);
             $review->update(['is_approved' => true]);
@@ -97,6 +103,9 @@ class ReviewController extends Controller
      */
     public function reject($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $review = Review::findOrFail($id);
             $review->update(['is_approved' => false]);
@@ -118,6 +127,9 @@ class ReviewController extends Controller
      */
     public function toggleFeatured($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $review = Review::findOrFail($id);
             $review->update(['is_featured' => !$review->is_featured]);
@@ -140,6 +152,9 @@ class ReviewController extends Controller
      */
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $review = Review::findOrFail($id);
             $review->delete();
@@ -161,6 +176,9 @@ class ReviewController extends Controller
      */
     public function bulkAction(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'action' => 'required|in:approve,reject,delete,feature,unfeature',
             'review_ids' => 'required|array|min:1',
@@ -207,6 +225,9 @@ class ReviewController extends Controller
      */
     public function statistics()
     {
+        if (!auth()->user()->hasPermissionTo('view reviews')) {
+            abort(403, 'Unauthorized action.');
+        }
         $stats = [
             'total_reviews' => Review::count(),
             'approved_reviews' => Review::approved()->count(),

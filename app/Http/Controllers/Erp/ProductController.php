@@ -19,8 +19,7 @@ class ProductController extends Controller
      */
     public function categoryList(Request $request)
     {
-     
-        if (!auth()->user()->hasPermissionTo('view category list')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $query = ProductServiceCategory::with(['parent', 'children'])->whereNull('parent_id');
@@ -40,7 +39,7 @@ class ProductController extends Controller
 
     public function subcategoryList(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view subcategory list')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $query = ProductServiceCategory::with('parent')->whereNotNull('parent_id');
@@ -63,6 +62,9 @@ class ProductController extends Controller
 
     public function storeSubcategory(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => [
@@ -93,6 +95,9 @@ class ProductController extends Controller
 
     public function updateSubcategory(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $subcategory = ProductServiceCategory::findOrFail($id);
         // Handle AJAX status toggle
         if ($request->ajax() && $request->has('status')) {
@@ -137,6 +142,9 @@ class ProductController extends Controller
 
     public function deleteSubcategory($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $subcategory = ProductServiceCategory::findOrFail($id);
         if ($subcategory->image && file_exists(public_path($subcategory->image))) {
             @unlink(public_path($subcategory->image));
@@ -147,7 +155,7 @@ class ProductController extends Controller
 
     public function storeCategory(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create category')) {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -179,6 +187,9 @@ class ProductController extends Controller
     
     public function updateCategory(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $category = ProductServiceCategory::findOrFail($id);
         
         // Handle AJAX status toggle
@@ -227,6 +238,9 @@ class ProductController extends Controller
 
     public function deleteCategory($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $category = ProductServiceCategory::findOrFail($id);
         // Delete image file if exists
         if ($category->image && file_exists(public_path($category->image))) {
@@ -246,7 +260,7 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        if (auth()->user()->hasPermissionTo('view products list')) {
+        if (auth()->user()->hasPermissionTo('view products')) {
             $reportType = $request->get('report_type', 'daily');
             $restrictedBranchId = $this->getRestrictedBranchId();
             $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
@@ -266,54 +280,7 @@ class ProductController extends Controller
                 $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
             }
 
-            $query = Product::with(['category', 'brand', 'season', 'gender']);
-
-            $query->withSum(['branchStock as total_stock_branch' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
-                if ($selectedBranchId) {
-                    $q->where('branch_id', $selectedBranchId);
-                } elseif ($selectedWarehouseId) {
-                    $q->whereRaw('1=0');
-                }
-            }], 'quantity');
-            
-            $query->withSum(['warehouseStock as total_stock_warehouse' => function($q) use ($selectedWarehouseId, $selectedBranchId) {
-                if ($selectedWarehouseId) {
-                    $q->where('warehouse_id', $selectedWarehouseId);
-                } elseif ($selectedBranchId) {
-                    $q->whereRaw('1=0'); 
-                }
-            }], 'quantity');
-            
-            $query->withSum(['variationStocks as total_stock_variation' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
-                if ($selectedBranchId) {
-                    $q->where('branch_id', $selectedBranchId);
-                } elseif ($selectedWarehouseId) {
-                    $q->where('warehouse_id', $selectedWarehouseId);
-                }
-            }], 'quantity');
-
-            // Date Filters
-            if ($startDate) { $query->where('created_at', '>=', $startDate); }
-            if ($endDate) { $query->where('created_at', '<=', $endDate); }
-
-            // Relationship Filters
-            if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
-            if ($request->filled('brand_id')) { $query->where('brand_id', $request->brand_id); }
-            if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
-            if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
-
-            // Search Logic (Name, SKU, Style)
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', "%$search%")
-                      ->orWhere('sku', 'like', "%$search%")
-                      ->orWhere('style_number', 'like', "%$search%");
-                });
-            }
-
-            if ($request->filled('product_id')) { $query->where('id', $request->product_id); }
-            if ($request->filled('style_number')) { $query->where('style_number', 'like', "%$request->style_number%"); }
+            $query = $this->buildProductQuery($request);
 
             $products = $query->latest()->paginate(15)->withQueryString();
 
@@ -336,39 +303,43 @@ class ProductController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $query = Product::with(['category', 'brand']);
-        
-        // Apply Filters (Same as index)
-        if ($request->filled('category_id')) $query->where('category_id', $request->category_id);
-        if ($request->filled('brand_id')) $query->where('brand_id', $request->brand_id);
-        if ($request->filled('season_id')) $query->where('season_id', $request->season_id);
-        if ($request->filled('gender_id')) $query->where('gender_id', $request->gender_id);
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhere('sku', 'like', "%$search%")
-                  ->orWhere('style_number', 'like', "%$search%");
-            });
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
         }
-
-        $products = $query->get();
+        $query = $this->buildProductQuery($request);
+        $products = $query->latest()->get();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $headers = ['Entry Date', 'Product Name', 'Style #', 'Category', 'Brand', 'MRP', 'Cost'];
-        foreach($headers as $k => $h) { $sheet->setCellValue(chr(65+$k).'1', $h); }
+        $headers = ['SN', 'Entry Date', 'Product Name', 'Style #', 'Category', 'Brand', 'Season', 'Gender', 'Purchase Price', 'MRP', 'Whole Sale', 'Total Stock'];
+        foreach($headers as $k => $h) { 
+            $sheet->setCellValue(chr(65+$k).'1', $h); 
+            $sheet->getStyle(chr(65+$k).'1')->getFont()->setBold(true);
+        }
         
         $row = 2;
-        foreach($products as $p) {
-            $sheet->setCellValue('A'.$row, $p->created_at->format('d/m/Y'));
-            $sheet->setCellValue('B'.$row, $p->name);
-            $sheet->setCellValue('C'.$row, $p->style_number ?? $p->sku);
-            $sheet->setCellValue('D'.$row, $p->category->name ?? '-');
-            $sheet->setCellValue('E'.$row, $p->brand->name ?? '-');
-            $sheet->setCellValue('F'.$row, $p->price);
-            $sheet->setCellValue('G'.$row, $p->cost);
+        foreach($products as $index => $p) {
+            $totalVarStock = $p->total_stock_variation ?? 0;
+            $totalSimpleStock = ($p->total_stock_branch ?? 0) + ($p->total_stock_warehouse ?? 0);
+            $displayStock = $p->has_variations ? $totalVarStock : $totalSimpleStock;
+
+            $sheet->setCellValue('A'.$row, $index + 1);
+            $sheet->setCellValue('B'.$row, $p->created_at->format('d/m/Y'));
+            $sheet->setCellValue('C'.$row, $p->name);
+            $sheet->setCellValue('D'.$row, $p->style_number ?? $p->sku);
+            $sheet->setCellValue('E'.$row, $p->category->name ?? '-');
+            $sheet->setCellValue('F'.$row, $p->brand->name ?? '-');
+            $sheet->setCellValue('G'.$row, $p->season->name ?? 'ALL');
+            $sheet->setCellValue('H'.$row, $p->gender->name ?? 'ALL');
+            $sheet->setCellValue('I'.$row, $p->cost);
+            $sheet->setCellValue('J'.$row, $p->price);
+            $sheet->setCellValue('K'.$row, $p->wholesale_price ?? 0);
+            $sheet->setCellValue('L'.$row, $displayStock);
             $row++;
+        }
+
+        foreach(range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
@@ -380,23 +351,11 @@ class ProductController extends Controller
 
     public function exportCsv(Request $request)
     {
-        $query = Product::with(['category', 'brand', 'season', 'gender']);
-
-        // Apply Filters (Same as index)
-        if ($request->filled('category_id')) $query->where('category_id', $request->category_id);
-        if ($request->filled('brand_id')) $query->where('brand_id', $request->brand_id);
-        if ($request->filled('season_id')) $query->where('season_id', $request->season_id);
-        if ($request->filled('gender_id')) $query->where('gender_id', $request->gender_id);
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhere('sku', 'like', "%$search%")
-                  ->orWhere('style_number', 'like', "%$search%");
-            });
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
         }
-
-        $products = $query->get();
+        $query = $this->buildProductQuery($request);
+        $products = $query->latest()->get();
 
         $filename = "product_list_" . date('Y-m-d_His') . ".csv";
         $headers = array(
@@ -407,13 +366,17 @@ class ProductController extends Controller
             "Expires"             => "0"
         );
 
-        $columns = array('SN', 'Entry Date', 'Product Name', 'Style #', 'Category', 'Brand', 'Season', 'Gender', 'Purchase Price', 'MRP', 'Wholesale Price');
+        $columns = array('SN', 'Entry Date', 'Product Name', 'Style #', 'Category', 'Brand', 'Season', 'Gender', 'Purchase Price', 'MRP', 'Wholesale Price', 'Total Stock');
 
         $callback = function() use($products, $columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
 
             foreach ($products as $index => $p) {
+                $totalVarStock = $p->total_stock_variation ?? 0;
+                $totalSimpleStock = ($p->total_stock_branch ?? 0) + ($p->total_stock_warehouse ?? 0);
+                $displayStock = $p->has_variations ? $totalVarStock : $totalSimpleStock;
+
                 fputcsv($file, array(
                     $index + 1,
                     $p->created_at->format('d-m-Y'),
@@ -425,7 +388,8 @@ class ProductController extends Controller
                     $p->gender->name ?? 'ALL',
                     $p->cost,
                     $p->price,
-                    $p->wholesale_price ?? 0
+                    $p->wholesale_price ?? 0,
+                    $displayStock
                 ));
             }
 
@@ -437,11 +401,73 @@ class ProductController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $query = Product::with(['category', 'brand']);
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $query = $this->buildProductQuery($request);
+        $products = $query->latest()->limit(100)->get(); 
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.products.product-export-pdf', compact('products'));
+        return $pdf->download('product_report_' . date('Y-m-d') . '.pdf');
+    }
 
-        // Apply Filters (Same as index)
-        if ($request->filled('category_id')) $query->where('category_id', $request->category_id);
-        if ($request->filled('brand_id')) $query->where('brand_id', $request->brand_id);
+    private function buildProductQuery(Request $request)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
+        $selectedWarehouseId = $request->warehouse_id;
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        }
+
+        $query = Product::with(['category', 'brand', 'season', 'gender']);
+
+        $query->withSum(['branchStock as total_stock_branch' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+            if ($selectedBranchId) {
+                $q->where('branch_id', $selectedBranchId);
+            } elseif ($selectedWarehouseId) {
+                $q->whereRaw('1=0');
+            }
+        }], 'quantity');
+        
+        $query->withSum(['warehouseStock as total_stock_warehouse' => function($q) use ($selectedWarehouseId, $selectedBranchId) {
+            if ($selectedWarehouseId) {
+                $q->where('warehouse_id', $selectedWarehouseId);
+            } elseif ($selectedBranchId) {
+                $q->whereRaw('1=0'); 
+            }
+        }], 'quantity');
+        
+        $query->withSum(['variationStocks as total_stock_variation' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+            if ($selectedBranchId) {
+                $q->where('branch_id', $selectedBranchId);
+            } elseif ($selectedWarehouseId) {
+                $q->where('warehouse_id', $selectedWarehouseId);
+            }
+        }], 'quantity');
+
+        // Date Filters
+        if ($startDate) { $query->where('created_at', '>=', $startDate); }
+        if ($endDate) { $query->where('created_at', '<=', $endDate); }
+
+        // Relationship Filters
+        if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
+        if ($request->filled('brand_id')) { $query->where('brand_id', $request->brand_id); }
+        if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
+        if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
+
+        // Search Logic (Name, SKU, Style)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -451,24 +477,32 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->limit(100)->get(); 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.products.product-export-pdf', compact('products'));
-        return $pdf->download('product_report_' . date('Y-m-d') . '.pdf');
+        if ($request->filled('product_id')) { $query->where('id', $request->product_id); }
+        if ($request->filled('style_number')) { $query->where('style_number', 'like', "%$request->style_number%"); }
+
+        return $query;
     }
 
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
         $brands = \App\Models\Brand::where('status', 'active')->get();
         $seasons = \App\Models\Season::where('status', 'active')->get();
         $genders = \App\Models\Gender::all();
         $units = \App\Models\Unit::all();
-        return view('erp.products.create', compact('attributes', 'brands', 'seasons', 'genders', 'units'));
+        $categories = \App\Models\ProductServiceCategory::where('status', 'active')->get();
+        return view('erp.products.create', compact('attributes', 'brands', 'seasons', 'genders', 'units', 'categories'));
     }
     
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Debug: Log the request data
         \Log::info('Product Store Request Data:', $request->all());
         
@@ -580,6 +614,9 @@ class ProductController extends Controller
      */
     public function show(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::with([
             'category', 
             'galleries',
@@ -711,13 +748,17 @@ class ProductController extends Controller
      */
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::with('category.parent', 'galleries', 'productAttributes')->findOrFail($id);
         $attributes = \App\Models\Attribute::where('status', 'active')->orderBy('name')->get();
         $brands = \App\Models\Brand::where('status', 'active')->get();
         $seasons = \App\Models\Season::where('status', 'active')->get();
         $genders = \App\Models\Gender::all();
         $units = \App\Models\Unit::all();
-        return view('erp.products.edit', compact('product', 'attributes', 'brands', 'seasons', 'genders', 'units'));
+        $categories = \App\Models\ProductServiceCategory::where('status', 'active')->get();
+        return view('erp.products.edit', compact('product', 'attributes', 'brands', 'seasons', 'genders', 'units', 'categories'));
     }
 
     /**
@@ -725,6 +766,9 @@ class ProductController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Debug: Log the request data
         \Log::info('Product Update Request Data:', $request->all());
         
@@ -883,6 +927,9 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($id);
         $productId = $product->id;
         $product->delete();
@@ -931,6 +978,9 @@ class ProductController extends Controller
 
      public function addGalleryImage(Request $request)
      {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
@@ -946,6 +996,9 @@ class ProductController extends Controller
      }
     public function deleteGalleryImage($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $gallery = \App\Models\ProductGallery::findOrFail($id);
         // Delete image file if exists
         if ($gallery->image && file_exists(public_path($gallery->image))) {

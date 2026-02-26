@@ -10,6 +10,9 @@ class UserController extends Controller
 {
     public function fetchUser()
     {
+        if (!auth()->user()->hasPermissionTo('view users')) {
+            abort(403, 'Unauthorized action.');
+        }
         $users = User::all();
 
         return response()->json($users);
@@ -20,6 +23,9 @@ class UserController extends Controller
      */
     public function searchUser(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view users')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = User::query();
         
         if ($request->filled('q')) {

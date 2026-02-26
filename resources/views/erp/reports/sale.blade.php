@@ -247,13 +247,13 @@
                                     <td class="small">{{ $item->customer_name }}</td>
                                     <td class="small">{{ $item->created_by_name }}</td>
                                     <td>
-                                        <img src="{{ $item->product->image ? asset($item->product->image) : asset('static/default-product.png') }}" class="rounded shadow-sm" width="30" height="30" style="object-fit:cover;">
+                                        <img src="{{ ($item->product && $item->product->image) ? asset($item->product->image) : asset('static/default-product.png') }}" class="rounded shadow-sm" width="30" height="30" style="object-fit:cover;">
                                     </td>
                                     <td class="small">{{ $item->product->category->name ?? '-' }}</td>
                                     <td class="small">{{ $item->product->brand->name ?? '-' }}</td>
                                     <td class="small">{{ $item->product->season->name ?? '-' }}</td>
                                     <td class="small">{{ $item->product->gender->name ?? '-' }}</td>
-                                    <td class="small fw-bold" title="{{ $item->product->name }}">{{ Str::limit($item->product->name, 15) }}</td>
+                                    <td class="small fw-bold" title="{{ $item->product->name ?? 'Deleted' }}">{{ Str::limit($item->product->name ?? 'Deleted', 15) }}</td>
                                     <td class="small">{{ $item->product->style_number ?? '-' }}</td>
                                     <td>
                                         @php $color = $item->variation ? $item->variation->attributeValues->where('attribute.name', 'Color')->first() : null; @endphp

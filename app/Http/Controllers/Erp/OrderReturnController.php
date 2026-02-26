@@ -17,7 +17,7 @@ class OrderReturnController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view order return list')) {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -76,6 +76,9 @@ class OrderReturnController extends Controller
 
     public function create(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $customers = Customer::all();
         $orders = Order::orderBy('created_at', 'desc')->take(100)->get();
         $invoices = Invoice::all();
@@ -98,6 +101,9 @@ class OrderReturnController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'order_id' => 'nullable|exists:orders,id',
@@ -167,6 +173,9 @@ class OrderReturnController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orderReturn = OrderReturn::with(['items.product', 'items.variation', 'employee.user'])->findOrFail($id);
         
         // Find related exchange order if exists
@@ -179,6 +188,9 @@ class OrderReturnController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orderReturn = OrderReturn::with(['items', 'employee.user'])->findOrFail($id);
         $customers = Customer::all();
         $orders = Order::all();
@@ -191,6 +203,9 @@ class OrderReturnController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'order_id' => 'nullable|exists:orders,id',
@@ -245,6 +260,9 @@ class OrderReturnController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orderReturn = OrderReturn::findOrFail($id);
         $orderReturn->delete();
         return redirect()->route('orderReturn.list')->with('success', 'Order return deleted successfully.');
@@ -252,6 +270,9 @@ class OrderReturnController extends Controller
 
     public function updateReturnStatus(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage returns')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'status' => 'required|in:approved,rejected,processed',
             'notes' => 'nullable|string|max:500'

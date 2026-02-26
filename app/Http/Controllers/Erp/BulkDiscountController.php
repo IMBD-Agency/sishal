@@ -15,6 +15,9 @@ class BulkDiscountController extends Controller
      */
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view bulk discounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = BulkDiscount::query();
 
         // Filter by status
@@ -42,6 +45,9 @@ class BulkDiscountController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage bulk discounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $products = Product::where('status', 'active')->get();
         
         return view('erp.bulk-discounts.create', compact('products'));
@@ -52,6 +58,9 @@ class BulkDiscountController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage bulk discounts')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|in:percentage,fixed,free_delivery',
@@ -112,6 +121,9 @@ class BulkDiscountController extends Controller
      */
     public function show(BulkDiscount $bulkDiscount)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.bulk-discounts.show', compact('bulkDiscount'));
     }
 
@@ -120,6 +132,9 @@ class BulkDiscountController extends Controller
      */
     public function edit(BulkDiscount $bulkDiscount)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $products = Product::where('status', 'active')->get();
         
         return view('erp.bulk-discounts.edit', compact('bulkDiscount', 'products'));
@@ -130,6 +145,9 @@ class BulkDiscountController extends Controller
      */
     public function update(Request $request, BulkDiscount $bulkDiscount)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|in:percentage,fixed,free_delivery',
@@ -203,6 +221,9 @@ class BulkDiscountController extends Controller
      */
     public function destroy(BulkDiscount $bulkDiscount)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Remove free delivery from products if it was active
         if ($bulkDiscount->type === 'free_delivery' && $bulkDiscount->is_active) {
             $this->removeFreeDeliveryFromProducts($bulkDiscount);
@@ -219,6 +240,9 @@ class BulkDiscountController extends Controller
      */
     public function toggleStatus(BulkDiscount $bulkDiscount)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $wasActive = $bulkDiscount->is_active;
         $bulkDiscount->is_active = !$bulkDiscount->is_active;
         $bulkDiscount->save();

@@ -17,7 +17,7 @@ class BannerController extends Controller
      */
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view banner list')) {
+        if (!auth()->user()->hasPermissionTo('view banners')) {
             abort(403, 'Unauthorized action.');
         }
         $query = Banner::query();
@@ -49,6 +49,9 @@ class BannerController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.banners.create');
     }
 
@@ -57,6 +60,9 @@ class BannerController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -101,6 +107,9 @@ class BannerController extends Controller
      */
     public function show(Banner $banner)
     {
+        if (!auth()->user()->hasPermissionTo('view banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.banners.show', compact('banner'));
     }
 
@@ -109,6 +118,9 @@ class BannerController extends Controller
      */
     public function edit(Banner $banner)
     {
+        if (!auth()->user()->hasPermissionTo('manage banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.banners.edit', compact('banner'));
     }
 
@@ -117,6 +129,9 @@ class BannerController extends Controller
      */
     public function update(Request $request, Banner $banner)
     {
+        if (!auth()->user()->hasPermissionTo('manage banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -167,6 +182,9 @@ class BannerController extends Controller
      */
     public function destroy(Banner $banner)
     {
+        if (!auth()->user()->hasPermissionTo('manage banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Delete image if exists
         if ($banner->image) {
             $oldPath = public_path($banner->image);
@@ -189,6 +207,9 @@ class BannerController extends Controller
      */
     public function toggleStatus(Banner $banner)
     {
+        if (!auth()->user()->hasPermissionTo('manage banners')) {
+            abort(403, 'Unauthorized action.');
+        }
         $banner->status = $banner->status === 'active' ? 'inactive' : 'active';
         $banner->save();
         

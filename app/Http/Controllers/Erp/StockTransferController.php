@@ -19,6 +19,9 @@ class StockTransferController extends Controller
 {
     public function index(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = $this->applyFilters($request);
 
         // Group by invoice_number to show as "Invoices" instead of individual items
@@ -111,6 +114,9 @@ class StockTransferController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
@@ -269,6 +275,9 @@ class StockTransferController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         $query = StockTransfer::select(
                 \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
@@ -345,6 +354,9 @@ class StockTransferController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $restrictedBranchId = $this->getRestrictedBranchId();
         $query = StockTransfer::select(
                 \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
@@ -381,6 +393,9 @@ class StockTransferController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $transfer = StockTransfer::with(['product.category', 'variation'])->findOrFail($id);
         
         if ($transfer->invoice_number) {
@@ -396,6 +411,9 @@ class StockTransferController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Validate basic transfer information
     $request->validate([
         'transfer_date' => 'required|date',
@@ -537,6 +555,9 @@ class StockTransferController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $primaryTransfer = StockTransfer::findOrFail($id);
         
         // Identify the batch: if invoice_number exists, get all; otherwise just this one
@@ -889,6 +910,9 @@ class StockTransferController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
         $transfer = StockTransfer::findOrFail($id);
 
         // Only allow deletion if transfer is pending or rejected

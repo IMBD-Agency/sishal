@@ -13,7 +13,7 @@ class ShippingMethodController extends Controller
      */
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view shipping list')) {
+        if (!auth()->user()->hasPermissionTo('view shipping')) {
             abort(403, 'Unauthorized action.');
         }
         $shippingMethods = ShippingMethod::ordered()->get();
@@ -25,6 +25,9 @@ class ShippingMethodController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage shipping')) {
+            abort(403, 'Unauthorized action.');
+        }
         $cities = \App\Models\City::active()->ordered()->get();
         return view('erp.shipping-methods.create', compact('cities'));
     }
@@ -34,6 +37,9 @@ class ShippingMethodController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage shipping')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -73,6 +79,9 @@ class ShippingMethodController extends Controller
      */
     public function show(ShippingMethod $shippingMethod)
     {
+        if (!auth()->user()->hasPermissionTo('view shipping')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.shipping-methods.show', compact('shippingMethod'));
     }
 
@@ -81,6 +90,9 @@ class ShippingMethodController extends Controller
      */
     public function edit(ShippingMethod $shippingMethod)
     {
+        if (!auth()->user()->hasPermissionTo('manage shipping')) {
+            abort(403, 'Unauthorized action.');
+        }
         $cities = \App\Models\City::active()->ordered()->get();
         $shippingMethod->load('cities');
         return view('erp.shipping-methods.edit', compact('shippingMethod', 'cities'));
@@ -91,6 +103,9 @@ class ShippingMethodController extends Controller
      */
     public function update(Request $request, ShippingMethod $shippingMethod)
     {
+        if (!auth()->user()->hasPermissionTo('manage shipping')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -130,6 +145,9 @@ class ShippingMethodController extends Controller
      */
     public function destroy(ShippingMethod $shippingMethod)
     {
+        if (!auth()->user()->hasPermissionTo('manage shipping')) {
+            abort(403, 'Unauthorized action.');
+        }
         $shippingMethod->delete();
         return redirect()->route('shipping-methods.index')->with('success', 'Shipping method deleted successfully!');
     }

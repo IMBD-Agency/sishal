@@ -10,7 +10,7 @@ class AttributeController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view attribute list')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $attributes = Attribute::orderByDesc('id')->paginate(12);
@@ -19,7 +19,7 @@ class AttributeController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('create attribute')) {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
             abort(403, 'Unauthorized action.');
         }
         return view('erp.attributes.create');
@@ -27,6 +27,9 @@ class AttributeController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:attributes,slug',
@@ -51,12 +54,18 @@ class AttributeController extends Controller
 
     public function edit($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = Attribute::findOrFail($id);
         return view('erp.attributes.edit', compact('attribute'));
     }
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = Attribute::findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -76,6 +85,9 @@ class AttributeController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $attribute = Attribute::findOrFail($id);
         $attribute->delete();
         return redirect()->route('attribute.list')->with('success', 'Attribute deleted successfully');

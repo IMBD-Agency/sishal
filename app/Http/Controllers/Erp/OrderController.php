@@ -19,7 +19,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->can('view order list')) {
+        if (!auth()->user()->hasPermissionTo('view online orders')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -38,6 +38,9 @@ class OrderController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orders = $this->getFilteredQuery($request)->with(['invoice', 'customer'])->get();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -73,6 +76,9 @@ class OrderController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orders = $this->getFilteredQuery($request)->with(['invoice', 'customer'])->get();
         
         $filename = 'order_report_' . date('Y-m-d_H-i-s') . '.pdf';
@@ -137,6 +143,9 @@ class OrderController extends Controller
 
     public function show($id)
     {
+        if (!auth()->user()->hasPermissionTo('view online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Load order with variation relationship to ensure variation_id is available
         $order = Order::with(['invoice.payments', 'items.product', 'items.variation', 'employee.user', 'customer'])->find($id);
         
@@ -171,6 +180,9 @@ class OrderController extends Controller
 
     public function setEstimatedDelivery(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'estimated_delivery_date' => 'required|date',
             'estimated_delivery_time' => 'required',
@@ -187,6 +199,9 @@ class OrderController extends Controller
     // This function can be used for both add and edit
     public function updateEstimatedDelivery(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'estimated_delivery_date' => 'required|date',
             'estimated_delivery_time' => 'required',
@@ -202,6 +217,9 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Load order with items, products, and variations to ensure variation_id is available
         $order = Order::with(['items.product', 'items.product.variations', 'items.variation'])->findOrFail($id);
 
@@ -571,6 +589,12 @@ class OrderController extends Controller
 
     public function updateTechnician($id, $employee_id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $order = Order::findOrFail($id);
         $order->employee_id = $employee_id;
 
@@ -580,6 +604,9 @@ class OrderController extends Controller
 
     public function deleteTechnician($id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $order = Order::findOrFail($id);
         $order->employee_id = null;
 
@@ -589,6 +616,9 @@ class OrderController extends Controller
 
     public function updateNote(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $order = Order::findOrFail($id);
         $order->notes = $request->notes;
 
@@ -598,6 +628,9 @@ class OrderController extends Controller
 
     public function addPayment($orderId, Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $order = Order::with('invoice')->find($orderId);
         if (!$order) {
             return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
@@ -723,6 +756,12 @@ class OrderController extends Controller
 
     public function addAddress(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $existingInvoiceAddress = InvoiceAddress::where('invoice_id',$id)->first();
 
         if($existingInvoiceAddress){
@@ -851,6 +890,9 @@ class OrderController extends Controller
 
     public function addStockToOrderItem(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orderItem = OrderItem::with('order')->find($id);
         
         if (!$orderItem) {
@@ -876,6 +918,9 @@ class OrderController extends Controller
 
     public function transferStockToEmployee(Request $request, $orderItemId)
     {
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
+        }
         $orderItem = OrderItem::findOrFail($orderItemId);
         $order = $orderItem->order;
         $productId = $orderItem->product_id;
@@ -998,12 +1043,8 @@ class OrderController extends Controller
      */
     public function destroy($id)
     {
-        // Check if user has permission to delete orders
-        if (!auth()->user()->can('delete orders')) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'You do not have permission to delete orders.'
-            ], 403);
+        if (!auth()->user()->hasPermissionTo('manage online orders')) {
+            abort(403, 'Unauthorized action.');
         }
 
         $order = Order::with(['items', 'invoice', 'payments'])->findOrFail($id);

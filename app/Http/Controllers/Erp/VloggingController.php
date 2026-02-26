@@ -11,7 +11,7 @@ class VloggingController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view list vlog')) {
+        if (!auth()->user()->hasPermissionTo('view vlogs')) {
             abort(403, 'Unauthorized action.');
         }
         $vlogs = Vlog::all();
@@ -20,6 +20,9 @@ class VloggingController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage vlogs')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $validated = $request->validate([
                 'frame_code' => ['required','string'],
@@ -50,6 +53,9 @@ class VloggingController extends Controller
 
     public function update(Request $request, Vlog $vlog)
     {
+        if (!auth()->user()->hasPermissionTo('manage vlogs')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $validated = $request->validate([
                 'frame_code' => ['required','string'],
@@ -77,6 +83,9 @@ class VloggingController extends Controller
 
     public function destroy(Request $request, Vlog $vlog)
     {
+        if (!auth()->user()->hasPermissionTo('manage vlogs')) {
+            abort(403, 'Unauthorized action.');
+        }
         try {
             $vlog->delete();
             

@@ -16,7 +16,7 @@ class BranchController extends Controller
      */
     public function index()
     {
-        if (!Auth::user()->hasPermissionTo('view branch list')) {
+        if (!auth()->user()->hasPermissionTo('view branches')) {
             abort(403, 'Unauthorized action.');
         }
         return view('erp.branches.branchlist');
@@ -24,6 +24,9 @@ class BranchController extends Controller
 
     public function fetchBranches(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view branches')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = Branch::query();
         if ($request->filled('name')) {
             $query->where('name', 'like', '%' . $request->name . '%');
@@ -47,7 +50,7 @@ class BranchController extends Controller
      */
     public function create()
     {
-        if (!Auth::user()->hasPermissionTo('create branch')) {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
             abort(403, 'Unauthorized action.');
         }
         $employees = Employee::with('user')->get();
@@ -60,6 +63,9 @@ class BranchController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
+            abort(403, 'Unauthorized action.');
+        }
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
@@ -78,7 +84,7 @@ class BranchController extends Controller
      */
     public function show($id)
     {
-        if(Auth::user()->hasPermissionTo('view branch details')){
+        if (auth()->user()->hasPermissionTo('view branches')) {
             $branch = Branch::with(['manager', 'employees.user', 'warehouse', 'branchProductStocks.product', 'pos.invoice'])
                 ->findOrFail($id);
             
@@ -149,7 +155,7 @@ class BranchController extends Controller
      */
     public function edit($id)
     {
-        if(Auth::user()->hasPermissionTo('edit branch')){
+        if (auth()->user()->hasPermissionTo('manage branches')) {
             $branch = Branch::findOrFail($id);
             $employees = Employee::with('user')->get();
             $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
@@ -164,6 +170,9 @@ class BranchController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
+            abort(403, 'Unauthorized action.');
+        }
         $branch = Branch::findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -183,7 +192,7 @@ class BranchController extends Controller
      */
     public function destroy($id)
     {
-        if(Auth::user()->hasPermissionTo('delete branch')){
+        if (auth()->user()->hasPermissionTo('manage branches')) {
             $branch = Branch::findOrFail($id);
             $branch->delete();
             return redirect()->route('branches.index')->with('status', 'Branch deleted successfully!');
@@ -197,6 +206,9 @@ class BranchController extends Controller
 
     public function getNonBranchEmployee($branchId)
     {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
+            abort(403, 'Unauthorized action.');
+        }
         $search = request('search');
         $query = Employee::where('branch_id', '!=', $branchId)->orWhere('branch_id',null);
         if ($search) {
@@ -212,6 +224,9 @@ class BranchController extends Controller
 
     public function addEmployee($branchId, $empId)
     {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
+            abort(403, 'Unauthorized action.');
+        }
         $employee = Employee::find($empId);
 
         $employee->branch_id = $branchId;
@@ -229,6 +244,9 @@ class BranchController extends Controller
 
     public function removeEmployeeFromBranch($empId)
     {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
+            abort(403, 'Unauthorized action.');
+        }
         $employee = Employee::find($empId);
 
         $employee->branch_id = null;
@@ -249,7 +267,7 @@ class BranchController extends Controller
      */
     public function getReportData(Request $request)
     {
-        if(!Auth::user()->hasPermissionTo('manage global branches')){
+        if (!auth()->user()->hasPermissionTo('view reports')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -310,7 +328,7 @@ class BranchController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        if(!Auth::user()->hasPermissionTo('manage global branches')){
+        if (!auth()->user()->hasPermissionTo('view reports')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -456,7 +474,7 @@ class BranchController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        if(!Auth::user()->hasPermissionTo('manage global branches')){
+        if (!auth()->user()->hasPermissionTo('view reports')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -535,7 +553,7 @@ class BranchController extends Controller
 
     public function removeProduct($id)
     {
-        if(!Auth::user()->hasPermissionTo('edit branch')){
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
             abort(403, 'Unauthorized action.');
         }
 

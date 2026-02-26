@@ -16,6 +16,9 @@ class BarcodeController extends Controller
      */
     public function index()
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('erp.barcodes.index');
     }
 
@@ -24,6 +27,9 @@ class BarcodeController extends Controller
      */
     public function searchByStyle(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $styleNo = $request->query('style_no');
         
         if (!$styleNo) {
@@ -66,6 +72,9 @@ class BarcodeController extends Controller
      */
     public function generateProductBarcode($productId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         
         // Generate linear barcode SVG
@@ -90,6 +99,9 @@ class BarcodeController extends Controller
      */
     public function generateVariationBarcode($productId, $variationId)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $variation = ProductVariation::where('product_id', $productId)
             ->where('id', $variationId)
@@ -125,6 +137,9 @@ class BarcodeController extends Controller
      */
     public function generateBulkBarcodes(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'product_ids' => 'required|array',
             'product_ids.*' => 'exists:products,id'
@@ -158,6 +173,9 @@ class BarcodeController extends Controller
      */
     public function printBarcodeLabel($productId, $variationId = null)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $variation = null;
         $sku = $product->sku;
@@ -191,6 +209,9 @@ class BarcodeController extends Controller
      */
     public function downloadBarcodePDF($productId, $variationId = null)
     {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
         $product = Product::findOrFail($productId);
         $variation = null;
         $sku = $product->sku;

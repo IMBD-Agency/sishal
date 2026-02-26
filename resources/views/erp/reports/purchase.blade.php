@@ -296,7 +296,7 @@
                                         <div class="fw-bold text-dark small">{{ $item->purchase->supplier->name ?? 'N/A' }}</div>
                                     </td>
                                     <td>
-                                        <img src="{{ $item->product->image ? asset($item->product->image) : asset('static/default-product.png') }}" class="rounded-2 shadow-sm" width="35" height="35" style="object-fit: cover;">
+                                        <img src="{{ ($item->product && $item->product->image) ? asset($item->product->image) : asset('static/default-product.png') }}" class="rounded-2 shadow-sm" width="35" height="35" style="object-fit: cover;">
                                     </td>
                                     <td>
                                         <div class="fw-bold text-dark small" title="{{ $item->product->name ?? 'Deleted' }}">
@@ -304,10 +304,10 @@
                                         </div>
                                     </td>
                                     <td class="small">{{ $item->product->style_number ?? '-' }}</td>
-                                    <td><span class="badge bg-light text-dark border small">{{ $item->product->category->name ?? '-' }}</span></td>
-                                    <td class="small">{{ $item->product->brand->name ?? '-' }}</td>
-                                    <td class="small">{{ $item->product->season->name ?? '-' }}</td>
-                                    <td class="small">{{ $item->product->gender->name ?? '-' }}</td>
+                                    <td><span class="badge bg-light text-dark border small">{{ ($item->product && $item->product->category) ? $item->product->category->name : '-' }}</span></td>
+                                    <td class="small">{{ ($item->product && $item->product->brand) ? $item->product->brand->name : '-' }}</td>
+                                    <td class="small">{{ ($item->product && $item->product->season) ? $item->product->season->name : '-' }}</td>
+                                    <td class="small">{{ ($item->product && $item->product->gender) ? $item->product->gender->name : '-' }}</td>
                                     <td>
                                         @if($item->variation)
                                             @foreach($item->variation->attributeValues as $val)
