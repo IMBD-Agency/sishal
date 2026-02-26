@@ -24,6 +24,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\JournalEntry;
 use App\Models\FinancialAccount;
+use App\Models\ChartOfAccountType;
 
 class PurchaseReturnController extends Controller
 {

@@ -55,6 +55,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'create purchases', 'category' => 'Purchase Management'],
             ['name' => 'edit purchases', 'category' => 'Purchase Management'],
             ['name' => 'delete purchases', 'category' => 'Purchase Management'],
+            ['name' => 'manage purchases', 'category' => 'Purchase Management'],
             ['name' => 'view suppliers', 'category' => 'Purchase Management'],
             ['name' => 'manage suppliers', 'category' => 'Purchase Management'],
             ['name' => 'view payments', 'category' => 'Purchase Management'],
