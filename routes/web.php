@@ -862,13 +862,20 @@ Route::get('/run-migrate', function() {
 // Route to run Permission Seeder from web
 Route::get('/run-seed', function() {
     try {
+        // Run the seeder
         Artisan::call('db:seed', [
             '--class' => 'PermissionSeeder',
             '--force' => true
         ]);
-        return '<h1>Permissions Seeded Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+        $output = Artisan::output();
+
+        // Clear all caches to ensure permissions reflect immediately
+        Artisan::call('optimize:clear');
+        $output .= "\n" . Artisan::output();
+
+        return '<h1>Permissions Seeded & Cache Cleared Successfully!</h1><br><pre>' . $output . '</pre>';
     } catch (\Exception $e) {
-        return '<h1>Seeding Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+        return '<h1>Maintenance Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
     }
 });
 

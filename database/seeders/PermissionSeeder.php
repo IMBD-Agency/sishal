@@ -124,8 +124,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'view dashboard', 'category' => 'Dashboard'],
         ];
 
+        // Create/Update permissions
+        $permissionNames = array_column($permissions, 'name');
+        
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(
+            Permission::updateOrCreate(
                 [
                     'name' => $permission['name'],
                     'guard_name' => 'web'
@@ -136,7 +139,16 @@ class PermissionSeeder extends Seeder
             );
         }
 
-        echo "Permissions created successfully!\n";
+        // Clean up: Remove any permissions that are NOT in the seeder list
+        $deletedCount = Permission::whereNotIn('name', $permissionNames)
+            ->where('guard_name', 'web')
+            ->delete();
+
+        if ($deletedCount > 0) {
+            echo "Removed $deletedCount obsolete permissions.\n";
+        }
+
+        echo "Permissions synchronized successfully!\n";
 
         // Assign all permissions to Super Admin role
         $superAdmin = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']);
