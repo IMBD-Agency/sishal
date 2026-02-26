@@ -433,7 +433,37 @@
             const paidVal = parseFloat($('#paid_amount').val()) || 0;
             const dueVal = grandTotal - paidVal;
             $('#due_amount_display').val(dueVal.toFixed(2));
+
+            // Sync required status visually
+            if (paidVal > 0) {
+                $('#payment_method, #account_id').addClass('border-warning');
+            } else {
+                $('#payment_method, #account_id').removeClass('border-warning');
+            }
         }
+
+        // Form Validation on Submit
+        $('#purchaseForm').on('submit', function(e) {
+            const paidAmount = parseFloat($('#paid_amount').val()) || 0;
+            const paymentMethod = $('#payment_method').val();
+            const accountId = $('#account_id').val();
+
+            if (paidAmount > 0) {
+                if (!paymentMethod || !accountId) {
+                    e.preventDefault();
+                    alert('Please select BOTH Account Type and Account Number because you entered a Paid Amount.');
+                    $('#payment_method').focus();
+                    return false;
+                }
+            }
+            
+            // Basic sanity check for items
+            if ($('.item-row').length === 0) {
+                e.preventDefault();
+                alert('Please add at least one product to the purchase.');
+                return false;
+            }
+        });
     </script>
     @endpush
 @endsection

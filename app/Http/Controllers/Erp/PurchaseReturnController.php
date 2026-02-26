@@ -25,6 +25,8 @@ use App\Models\Journal;
 use App\Models\JournalEntry;
 use App\Models\FinancialAccount;
 use App\Models\ChartOfAccountType;
+use App\Models\ChartOfAccountSubType;
+use App\Models\ChartOfAccountParent;
 
 class PurchaseReturnController extends Controller
 {
@@ -564,9 +566,29 @@ class PurchaseReturnController extends Controller
                 $purchaseReturnAcc = ChartOfAccount::where('name', 'like', '%Purchase Return%')->first();
                 if (!$purchaseReturnAcc) {
                     $revenueType = ChartOfAccountType::where('name', 'Revenue')->first() ?? ChartOfAccountType::find(4);
+                    
+                    // Satisfaction of hierarchical constraints
+                    $revenueSubType = ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+                    if (!$revenueSubType) {
+                        $revenueSubType = ChartOfAccountSubType::create(['name' => 'Sales/Purchase Revenue', 'type_id' => $revenueType->id]);
+                    }
+                    
+                    $revenueParent = ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+                    if (!$revenueParent) {
+                        $revenueParent = ChartOfAccountParent::create([
+                            'name' => 'Operating Revenue',
+                            'type_id' => $revenueType->id,
+                            'sub_type_id' => $revenueSubType->id,
+                            'code' => '4000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
                     $purchaseReturnAcc = ChartOfAccount::create([
                         'name' => 'Purchase Returns',
                         'type_id' => $revenueType->id,
+                        'sub_type_id' => $revenueSubType->id,
+                        'parent_id' => $revenueParent->id,
                         'code' => '40003',
                         'status' => 'active',
                         'created_by' => auth()->id()

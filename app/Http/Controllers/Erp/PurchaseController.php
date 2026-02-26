@@ -351,8 +351,8 @@ class PurchaseController extends Controller
             'paid_amount' => 'nullable|numeric|min:0',
             'discount_value' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|string|in:flat,percent',
-            'payment_method' => 'nullable|string',
-            'account_id' => 'nullable|integer',
+            'payment_method' => $request->paid_amount > 0 ? 'required|string' : 'nullable|string',
+            'account_id' => $request->paid_amount > 0 ? 'required|integer' : 'nullable|integer',
         ]);
     
         DB::beginTransaction();
