@@ -17,7 +17,7 @@ class InvoiceController extends Controller
 {
     public function templateList(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $query = InvoiceTemplate::query();
@@ -81,7 +81,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoices')) {
+        if (!auth()->user()->can('view invoices') && !auth()->user()->can('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         
@@ -106,7 +106,9 @@ class InvoiceController extends Controller
         $customers = \App\Models\Customer::orderBy('name')->get();
         $products = \App\Models\Product::orderBy('name')->get();
         $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
-        return view('erp.invoices.create', compact('customers', 'products', 'templates'));
+        $generalSettings = \App\Models\GeneralSetting::first();
+        $tax_rate = $generalSettings ? $generalSettings->tax_rate : 0;
+        return view('erp.invoices.create', compact('customers', 'products', 'templates', 'tax_rate'));
     }
 
     public function store(Request $request)
@@ -191,25 +193,24 @@ class InvoiceController extends Controller
                     'total_price' => $item['total_price'],
                 ]);
             }
-            $customer = Customer::find($request->customer_id);
-            if($customer->address_1) {
-                \App\Models\InvoiceAddress::create([
-                    'invoice_id' => $invoice->id,
-                    'billing_address_1' => $customer->address_1,
-                    'billing_address_2' => $customer->address_2,
-                    'billing_city' => $customer->city,
-                    'billing_state' => $customer->state,
-                    'billing_country' => $customer->country,
-                    'billing_zip_code' => $customer->zip_code,
-                    'shipping_address_1' => $customer->address_1,
-                    'shipping_address_2' => $customer->address_2,
-                    'shipping_city' => $customer->city,
-                    'shipping_state' => $customer->state,
-                    'shipping_country' => $customer->country,
-                    'shipping_zip_code' => $customer->zip_code,
-                ]);
-            }
             
+            // Create Invoice Address prioritizing request data
+            \App\Models\InvoiceAddress::create([
+                'invoice_id' => $invoice->id,
+                'billing_address_1' => $request->billing_address_1,
+                'billing_address_2' => $request->billing_address_2,
+                'billing_city' => $request->billing_city,
+                'billing_state' => $request->billing_state,
+                'billing_country' => $request->billing_country,
+                'billing_zip_code' => $request->billing_zip_code,
+                'shipping_address_1' => $request->shipping_address_1 ?? $request->billing_address_1,
+                'shipping_address_2' => $request->shipping_address_2 ?? $request->billing_address_2,
+                'shipping_city' => $request->shipping_city ?? $request->billing_city,
+                'shipping_state' => $request->shipping_state ?? $request->billing_state,
+                'shipping_country' => $request->shipping_country ?? $request->billing_country,
+                'shipping_zip_code' => $request->shipping_zip_code ?? $request->billing_zip_code,
+            ]);
+
             // Create payment if paid_amount > 0
             if ($paidAmount > 0) {
                 \App\Models\Payment::create([
@@ -221,17 +222,15 @@ class InvoiceController extends Controller
                 ]);
             }
 
-            if($dueAmount == 0)
-            {
-                $invoice->status = 'paid';
-                $invoice->save();
-            }else if($dueAmount > 0){
-                $invoice->status = 'partial';
-                $invoice->save();
-            }else if($totalAmount == $dueAmount ){
+            // Correct status logic
+            if ($paidAmount == 0) {
                 $invoice->status = 'unpaid';
-                $invoice->save();
+            } elseif ($paidAmount >= $totalAmount) {
+                $invoice->status = 'paid';
+            } else {
+                $invoice->status = 'partial';
             }
+            $invoice->save();
 
             \DB::commit();
             return redirect()->route('invoice.list')->with('success', 'Invoice created successfully.');
@@ -246,6 +245,8 @@ class InvoiceController extends Controller
         if (!auth()->user()->hasPermissionTo('manage invoices')) {
             abort(403, 'Unauthorized action.');
         }
+        $invoice = Invoice::findOrFail($id);
+        $this->checkGranularAccess($invoice);
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'template_id' => 'required|exists:invoice_templates,id',
@@ -340,17 +341,15 @@ class InvoiceController extends Controller
                 'shipping_zip_code' => $request->shipping_zip_code,
             ]);
             // Update status
-            if($dueAmount == 0)
-            {
-                $invoice->status = 'paid';
-                $invoice->save();
-            }else if($dueAmount > 0){
-                $invoice->status = 'partial';
-                $invoice->save();
-            }else if($totalAmount == $dueAmount ){
+            if ($invoice->paid_amount == 0) {
                 $invoice->status = 'unpaid';
-                $invoice->save();
+            } elseif ($invoice->paid_amount >= $totalAmount) {
+                $invoice->status = 'paid';
+                $invoice->due_amount = 0;
+            } else {
+                $invoice->status = 'partial';
             }
+            $invoice->save();
             \DB::commit();
             return redirect()->route('invoice.list')->with('success', 'Invoice updated successfully.');
         } catch (\Exception $e) {
@@ -365,16 +364,34 @@ class InvoiceController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product', 'items.variation'])->findOrFail($id);
+        $this->checkGranularAccess($invoice);
         $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
-        return view('erp.invoices.edit', compact('invoice', 'templates'));
+        $generalSettings = \App\Models\GeneralSetting::first();
+        $tax_rate = $generalSettings ? $generalSettings->tax_rate : 0;
+        return view('erp.invoices.edit', compact('invoice', 'templates', 'tax_rate'));
     }
 
     public function show($id)
     {
-        if (!auth()->user()->hasPermissionTo('view invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
-        $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items.product','items.variation')->find($id);
+        
+        $invoice = Invoice::with('pos','payments','customer','invoiceAddress','salesman','items.product','items.variation')->findOrFail($id);
+        
+        // Granular check for single invoice view
+        $user = auth()->user();
+        if (!$user->hasRole('Super Admin')) {
+            $canViewPos = $user->can('view invoices');
+            $canViewEcommerce = $user->can('view internal invoices');
+            
+            if ($canViewPos && !$canViewEcommerce && $invoice->order) {
+                abort(403, 'Unauthorized to view ecommerce invoices.');
+            }
+            if (!$canViewPos && $canViewEcommerce && !$invoice->order) {
+                abort(403, 'Unauthorized to view POS/Manual invoices.');
+            }
+        }
         $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
         $order = \App\Models\Order::where('invoice_id', $invoice?->id)->first();
         return view('erp.invoices.show', compact('invoice', 'bankAccounts', 'order'));
@@ -385,7 +402,8 @@ class InvoiceController extends Controller
         if (!auth()->user()->hasPermissionTo('manage invoices')) {
             abort(403, 'Unauthorized action.');
         }
-        $invoice = Invoice::find($invId);
+        $invoice = Invoice::findOrFail($invId);
+        $this->checkGranularAccess($invoice);
 
         if (!$invoice) {
             return response()->json(['success' => false, 'message' => 'Invoice not found.'], 404);
@@ -432,6 +450,7 @@ class InvoiceController extends Controller
         {
             return redirect()->route('invoice.print', ['invoice_number' => 'notfound'])->with('error', 'Invoice not found.');
         }
+        $this->checkGranularAccess($invoice);
         $template = InvoiceTemplate::find($invoice->template_id);
         $general_settings = GeneralSetting::first();
         // Fetch related online order (if any) for delivery amount visibility in print view
@@ -463,11 +482,12 @@ class InvoiceController extends Controller
      */
     public function getReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
 
         $query = Invoice::with(['customer', 'salesman', 'order']);
+        $this->applyGranularFilters($query);
 
         // Date range filter for issue date
         if ($request->filled('issue_date_from')) {
@@ -808,6 +828,8 @@ class InvoiceController extends Controller
             $query->where('invoices.customer_id', $customerId);
         }
 
+        $this->applyGranularFilters($query);
+
         // Filter by source
         if ($source = $request->input('source')) {
             if ($source == 'pos') {
@@ -820,6 +842,52 @@ class InvoiceController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * Apply granular source-based filtering based on user permissions
+     */
+    private function applyGranularFilters($query)
+    {
+        $user = auth()->user();
+        
+        // ONLY bypass for real Super Admin role. (is_admin is just a general ERP login flag)
+        if ($user->hasRole('Super Admin') || $user->hasRole('SuperAdmin')) {
+            return;
+        }
+
+        $canViewPos = $user->can('view invoices');
+        $canViewEcommerce = $user->can('view internal invoices');
+
+        if ($canViewPos && !$canViewEcommerce) {
+            // Can see shop sales and manual invoices, but NOT ecommerce orders
+            $query->whereDoesntHave('order');
+        } elseif (!$canViewPos && $canViewEcommerce) {
+            // Can ONLY see ecommerce orders
+            $query->whereHas('order');
+        }
+    }
+
+    /**
+     * Check if the user has granular access to a specific invoice instance
+     */
+    private function checkGranularAccess($invoice)
+    {
+        $user = auth()->user();
+        // ONLY bypass for real Super Admin role.
+        if ($user->hasRole('Super Admin') || $user->hasRole('SuperAdmin')) {
+            return;
+        }
+
+        $canViewPos = $user->can('view invoices');
+        $canViewEcommerce = $user->can('view internal invoices');
+
+        if ($canViewPos && !$canViewEcommerce && $invoice->order) {
+            abort(403, 'Unauthorized to access ecommerce invoices.');
+        }
+        if (!$canViewPos && $canViewEcommerce && !$invoice->order) {
+            abort(403, 'Unauthorized to access POS/Manual invoices.');
+        }
     }
 
     private function generateInvoiceNumber()

@@ -119,7 +119,7 @@
                         <i class="fas fa-shield-check fa-3x mb-3 text-white opacity-50"></i>
                         <h5 class="fw-bold text-white mb-2">Secure Account</h5>
                         <p class="text-white text-opacity-75 small mb-3">This account is fully active and secured with role-based access control.</p>
-                        @can('employee edit')
+                        @can('manage employees')
                         <a href="{{ route('employees.edit', $employee->id) }}" class="btn btn-light w-100 fw-bold text-primary">
                             Manage Permissions
                         </a>

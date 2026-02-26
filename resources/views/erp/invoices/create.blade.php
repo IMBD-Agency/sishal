@@ -242,6 +242,10 @@
                                                         <span>Discount:</span>
                                                         <span class="fw-bold text-danger" id="discountDisplay">-0.00৳</span>
                                                     </div>
+                                                    <div class="d-flex justify-content-between mb-2">
+                                                        <span>Tax ({{ $tax_rate }}%):</span>
+                                                        <span class="fw-bold" id="taxDisplay">0.00৳</span>
+                                                    </div>
                                                     <hr>
                                                     <div class="d-flex justify-content-between mb-2">
                                                         <span class="fw-bold">Total:</span>
@@ -330,7 +334,7 @@
                     },
                     cache: true
                 },
-                minimumInputLength: 1
+                minimumInputLength: 0
             });
 
             // Autofill address on customer select
@@ -379,7 +383,7 @@
                         },
                         cache: true
                     },
-                    minimumInputLength: 1
+                    minimumInputLength: 0
                 });
             }
             initProductSelect2('.product-select');
@@ -419,16 +423,17 @@
                 subtotal += total;
             });
 
+            const taxRate = {{ $tax_rate ?? 0 }};
             const discount = parseFloat($('#discountAmount').val()) || 0;
             const paid = parseFloat($('#paidAmount').val()) || 0;
-            const total = subtotal - discount;
-            const due = total - paid;
-
-            console.log(paid);
             
+            const tax = (subtotal * taxRate) / 100;
+            const total = subtotal + tax - discount;
+            const due = total - paid;
 
             $('#subtotalDisplay').text(subtotal.toFixed(2) + '৳');
             $('#discountDisplay').text(discount.toFixed(2) + '৳');
+            $('#taxDisplay').text(tax.toFixed(2) + '৳');
             $('#totalDisplay').text(total.toFixed(2) + '৳');
             $('#paidDisplay').text(paid.toFixed(2) + '৳');
             $('#dueDisplay').text(due.toFixed(2) + '৳');

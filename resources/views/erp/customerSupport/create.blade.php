@@ -187,7 +187,7 @@
                     },
                     cache: true
                 },
-                minimumInputLength: 1
+                minimumInputLength: 0
             });
 
             // Technician select (restore/fix)
@@ -213,7 +213,7 @@
                     },
                     cache: true
                 },
-                minimumInputLength: 1
+                minimumInputLength: 0
             });
 
             // Autofill address on customer select
@@ -241,7 +241,7 @@
             $productSelect.select2({
                 theme: 'bootstrap-5',
                 placeholder: 'Search and select...',
-                minimumInputLength: 1,
+                minimumInputLength: 0,
                 ajax: {
                     url: getAjaxUrl($typeSelect.val()),
                     dataType: 'json',
@@ -268,7 +268,7 @@
                 $productSelect.select2({
                     theme: 'bootstrap-5',
                     placeholder: 'Search and select...',
-                    minimumInputLength: 1,
+                    minimumInputLength: 0,
                     ajax: {
                         url: getAjaxUrl($typeSelect.val()),
                         dataType: 'json',
@@ -354,7 +354,7 @@
                 $productSelect.select2({
                     theme: 'bootstrap-5',
                     placeholder: 'Search and select...',
-                    minimumInputLength: 1,
+                    minimumInputLength: 0,
                     ajax: {
                         url: $typeSelect.val() === 'material' ? '/erp/materials/search' : '/erp/products/search',
                         dataType: 'json',

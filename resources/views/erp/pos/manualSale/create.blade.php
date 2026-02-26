@@ -367,7 +367,7 @@
                     },
                     cache: true
                 },
-                minimumInputLength: 1
+                minimumInputLength: 0
             });
 
             // Auto-focus search field when Select2 is opened

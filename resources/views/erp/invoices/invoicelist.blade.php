@@ -82,9 +82,15 @@
                                 <label class="form-label small text-muted fw-bold">Invoice Source</label>
                                 <select class="form-select shadow-sm border-0 bg-light" name="source">
                                     <option value="">All Sources</option>
+                                    @if(auth()->user()->can('view invoices') || auth()->user()->hasRole('Super Admin') || auth()->user()->is_admin)
                                     <option value="pos" {{ request('source') == 'pos' ? 'selected' : '' }}>POS / In-Store</option>
+                                    @endif
+                                    @if(auth()->user()->can('view internal invoices') || auth()->user()->hasRole('Super Admin') || auth()->user()->is_admin)
                                     <option value="ecommerce" {{ request('source') == 'ecommerce' ? 'selected' : '' }}>E-commerce</option>
+                                    @endif
+                                    @if((auth()->user()->can('view invoices') && auth()->user()->can('view internal invoices')) || auth()->user()->hasRole('Super Admin') || auth()->user()->is_admin)
                                     <option value="manual" {{ request('source') == 'manual' ? 'selected' : '' }}>Manual Entry</option>
+                                    @endif
                                 </select>
                             </div>
                             <div class="col-md-3 mt-0">

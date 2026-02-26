@@ -25,7 +25,7 @@
                         <i class="fas fa-search"></i>
                         <input type="search" name="name" class="form-control" placeholder="Quick find employee..." value="{{ request('name') }}">
                     </form>
-                    @can('employee create')
+                    @can('manage employees')
                     <a href="{{ route('employees.create') }}" class="btn btn-create-premium">
                         <i class="fas fa-plus-circle me-2"></i>Add Employee
                     </a>
@@ -90,9 +90,9 @@
                                     <th class="text-center">Assigned Branch</th>
                                     <th class="text-center">Role / Designation</th>
                                     <th class="text-center">Status</th>
-                                    @canany(['employee view', 'employee edit', 'employee delete'])
+                                    @if(auth()->user()->can('view employees') || auth()->user()->can('manage employees'))
                                     <th class="text-end">Management</th>
-                                    @endcanany
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody>
@@ -144,12 +144,16 @@
                                                 {{ ucfirst($status) }}
                                             </span>
                                         </td>
-                                        @canany(['employee view', 'employee edit', 'employee delete'])
+                                        @if(auth()->user()->can('view employees') || auth()->user()->can('manage employees'))
                                         <td class="text-end">
                                             <div class="d-flex justify-content-end gap-2">
+                                                @can('view employees')
                                                 <a href="{{ route('employees.show', $employee->id) }}" class="btn btn-action" title="View Profile">
                                                     <i class="fas fa-user-circle"></i>
                                                 </a>
+                                                @endcan
+                                                
+                                                @can('manage employees')
                                                 <a href="{{ route('employees.edit', $employee->id) }}" class="btn btn-action" title="Edit Access">
                                                     <i class="fas fa-pen-nib"></i>
                                                 </a>
@@ -160,9 +164,10 @@
                                                         <i class="fas fa-trash-alt text-danger"></i>
                                                     </button>
                                                 </form>
+                                                @endcan
                                             </div>
                                         </td>
-                                        @endcanany
+                                        @endif
                                     </tr>
                                 @empty
                                     <tr>

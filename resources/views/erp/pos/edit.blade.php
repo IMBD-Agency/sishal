@@ -1678,7 +1678,7 @@
                 $('#drawerCustomerSelect').select2({
                     theme: 'bootstrap-5',
                     placeholder: 'Search or select customer',
-                    minimumInputLength: 1,
+                    minimumInputLength: 0,
                     dropdownParent: $('#checkoutDrawer'),
                     ajax: {
                         url: '/erp/customers/search',

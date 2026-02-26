@@ -261,14 +261,14 @@
         </div>
         @endcan
 
-        @can('view internal invoices')
+        @if(auth()->user()->can('view invoices') || auth()->user()->can('view internal invoices'))
         <div class="nav-item">
             <a href="{{ route('invoice.list') }}" class="nav-link {{ request()->is('erp/invoices*') ? ' active' : '' }}">
                 <i class="fas fa-file-invoice nav-icon text-secondary"></i>
                 <span>Invoice List</span>
             </a>
         </div>
-        @endcan
+        @endif
 
         <!-- PROMOTIONS -->
         <!-- <span class="sidebar-category-title">Marketing</span> -->
