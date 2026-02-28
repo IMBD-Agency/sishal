@@ -257,22 +257,29 @@
                                             @php
                                                 $price = $cart->variation ? $cart->variation->effective_price : $cart->product->effective_price;
                                             @endphp
-                                            <div class="order-item">
-                                                <img src="{{ asset(@$cart->product->image) }}"
-                                                    alt="Product">
-                                                <div class="item-details">
-                                                    <div class="item-name">
-                                                        {{ @$cart->product->name }}
-                                                        @if($cart->variation)
-                                                            <small class="text-muted d-block">
-                                                                {{ $cart->variation->combinations->map(function($c) { return $c->attribute->name . ': ' . $c->attributeValue->value; })->join(', ') }}
-                                                            </small>
-                                                        @endif
-                                                    </div>
-                                                    <div class="item-quantity">Qty: {{$cart->qty}}</div>
-                                                </div>
-                                                <div class="item-price">{{ number_format($cart->qty * $price, 2) }}৳</div>
-                                            </div>
+                                            <div class="order-item {{ $cart->qty > ($cart->max_stock ?? 0) ? 'item-invalid' : '' }}">
+                                                 <img src="{{ asset(@$cart->product->image) }}"
+                                                     alt="Product">
+                                                 <div class="item-details">
+                                                     <div class="item-name">
+                                                         {{ @$cart->product->name }}
+                                                         @if($cart->variation)
+                                                             <small class="text-muted d-block">
+                                                                 {{ $cart->variation->combinations->map(function($c) { return $c->attribute->name . ': ' . $c->attributeValue->value; })->join(', ') }}
+                                                             </small>
+                                                         @endif
+                                                     </div>
+                                                     <div class="item-quantity">
+                                                         Qty: {{$cart->qty}}
+                                                         @if($cart->qty > ($cart->max_stock ?? 0))
+                                                             <span class="badge bg-danger ms-2" title="Max available stock: {{ $cart->max_stock ?? 0 }}">
+                                                                 Stock: {{ $cart->max_stock ?? 0 }}
+                                                             </span>
+                                                         @endif
+                                                     </div>
+                                                 </div>
+                                                 <div class="item-price">{{ number_format($cart->qty * $price, 2) }}৳</div>
+                                             </div>
                                         @endforeach
                                     </div>
 
@@ -318,9 +325,28 @@
                                     </div>
 
                                     <!-- Place Order Button -->
-                                    <button type="submit" class="btn btn-place-order w-100" style="background-color: var(--primary-blue); color: #fff;">
+                                    @php
+                                        $hasInvalidStock = $carts->contains(function($c) {
+                                            return $c->qty > ($c->max_stock ?? 0);
+                                        });
+                                    @endphp
+                                    @if($hasInvalidStock)
+                                        <div class="alert alert-warning py-2 mb-3" style="font-size: 0.85rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> Some items in your cart exceed available stock. 
+                                            <a href="javascript:void(0)" class="open-offcanvas-cart text-primary fw-bold">Fix Cart</a>
+                                        </div>
+                                    @endif
+                                    <button type="submit" class="btn btn-place-order w-100" 
+                                            style="background-color: var(--primary-blue); color: #fff;"
+                                            {{ $hasInvalidStock ? 'disabled' : '' }}>
                                         <i class="fas fa-credit-card me-2"></i>
-                                        <span id="placeOrderText">Place Order - {{ number_format($cartTotal + ($cartTotal * $taxRate) + $initialShippingCost, 2) }}৳</span>
+                                        <span id="placeOrderText">
+                                            @if($hasInvalidStock)
+                                                Check Stock Limits
+                                            @else
+                                                Place Order - {{ number_format($cartTotal + ($cartTotal * $taxRate) + $initialShippingCost, 2) }}৳
+                                            @endif
+                                        </span>
                                     </button>
                                 </div>
                             </div>

@@ -44,6 +44,13 @@ class OrderController extends Controller
             if (!$product)
                 continue;
             
+            // Calculate max stock for this item
+            if ($cart->variation) {
+                $cart->max_stock = (int) $cart->variation->available_stock;
+            } else {
+                $cart->max_stock = (int) $product->total_variation_stock;
+            }
+
             $price = $this->getCartItemPrice($cart);
             $cartTotal += $price * $cart->qty;
 
@@ -149,6 +156,22 @@ class OrderController extends Controller
                 // Continue to next item instead of throwing error immediately
                 // This allows processing other valid cart items
                 continue;
+            }
+
+            // Check available stock
+            $maxStock = $variationId ? (int)($variation->available_stock ?? 0) : (int)($product->total_variation_stock ?? 0);
+            if ($cart->qty > $maxStock) {
+                $errorMessage = "Insufficient stock for '{$product->name}'. Only $maxStock available. Please adjust your cart.";
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMessage,
+                        'error_type' => 'stock_limit',
+                        'product_id' => $product->id,
+                        'max_stock' => $maxStock
+                    ], 422);
+                }
+                return redirect()->back()->with('error', $errorMessage);
             }
 
             $price = $this->getCartItemPrice($cart);

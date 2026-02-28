@@ -217,6 +217,24 @@ class CartController extends Controller
                 ->first();
         }
 
+        
+        // Check available stock
+        $maxStock = $variation ? (int)$variation->available_stock : (int)$product->total_variation_stock;
+        $requestedQty = $qty;
+        
+        if ($existingCart) {
+            $requestedQty += $existingCart->qty;
+        }
+
+        if ($requestedQty > $maxStock) {
+            return response()->json([
+                'success' => false,
+                'message' => "Only $maxStock item(s) available in stock. You already have " . ($existingCart ? $existingCart->qty : 0) . " in your cart.",
+                'max_stock' => $maxStock,
+                'current_qty' => $existingCart ? $existingCart->qty : 0
+            ], 422);
+        }
+
         if ($existingCart) {
             // Update quantity
             $existingCart->qty += $qty;
@@ -498,6 +516,12 @@ class CartController extends Controller
             }
             
             $total = $price * $item->qty;
+            $maxStock = 999;
+            if ($item->variation) {
+                $maxStock = max(0, (int) $item->variation->available_stock);
+            } elseif ($product) {
+                $maxStock = max(0, (int) $product->total_variation_stock);
+            }
             $cartList[] = [
                 'cart_id' => $item->id,
                 'product_id' => $product->id,
@@ -506,6 +530,7 @@ class CartController extends Controller
                 'qty' => $item->qty,
                 'price' => $price,
                 'total' => $total,
+                'max_stock' => $maxStock,
             ];
             $cartTotal += $total;
         }
@@ -552,7 +577,7 @@ class CartController extends Controller
         $userId = Auth::check() ? Auth::user()->id : null;
         $sessionId = session()->getId();
         
-        $cartItem = Cart::where('id', $cartId)
+        $cartItem = Cart::with(['product', 'variation'])->where('id', $cartId)
             ->when($userId, function ($q) use ($userId) {
                 $q->where('user_id', $userId);
             }, function ($q) use ($sessionId) {
@@ -560,12 +585,30 @@ class CartController extends Controller
             })
             ->first();
         
-        if ($cartItem) {
-            $cartItem->qty += 1;
-            $cartItem->save();
-            return response()->json(['success' => true, 'qty' => $cartItem->qty]);
+        if (!$cartItem) {
+            return response()->json(['success' => false, 'message' => 'Cart item not found']);
         }
-        return response()->json(['success' => false, 'message' => 'Cart item not found']);
+
+        // Check stock limit
+        $maxStock = 999;
+        if ($cartItem->variation) {
+            $maxStock = max(0, (int) $cartItem->variation->available_stock);
+        } elseif ($cartItem->product) {
+            $maxStock = max(0, (int) $cartItem->product->total_variation_stock);
+        }
+
+        if ($cartItem->qty >= $maxStock) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Maximum available stock reached',
+                'max_stock' => $maxStock,
+                'qty' => $cartItem->qty
+            ]);
+        }
+
+        $cartItem->qty += 1;
+        $cartItem->save();
+        return response()->json(['success' => true, 'qty' => $cartItem->qty, 'max_stock' => $maxStock]);
     }
 
     public function decreaseQuantity($cartId)
@@ -610,6 +653,7 @@ class CartController extends Controller
         try {
             $userId = Auth::check() ? Auth::user()->id : null;
             $sessionId = session()->getId();
+            $variation = null;
             
             // Get variation_id from request
             $variationId = $request->input('variation_id');
@@ -640,6 +684,12 @@ class CartController extends Controller
                 }
             }
             
+            // Check available stock
+            $maxStock = $variation ? (int)$variation->available_stock : (int)$product->total_variation_stock;
+            if ($qty > $maxStock) {
+                return redirect()->back()->with('error', "Only $maxStock item(s) available in stock. Please reduce your quantity.");
+            }
+
             // Find existing cart item with same product and variation
             $cartQuery = Cart::where('product_id', $productId)
                 ->when($userId, function ($q) use ($userId) {
@@ -658,6 +708,7 @@ class CartController extends Controller
             
             if ($cartItem) {
                 // Update existing cart item - set quantity to requested qty (not increment)
+                // For Buy Now, we directly set the requested quantity
                 $cartItem->qty = $qty;
                 
                 // Update variation_id if provided and cart doesn't have it

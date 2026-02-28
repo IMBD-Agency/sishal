@@ -78,6 +78,28 @@ class SalesAnalyticsService
             ->take($limit)
             ->get();
             
+        
+            // SMART FALLBACK: If no sales data is found (e.g. brand new store),
+            // fallback to showing products using a randomized approach 
+            // so we don't just show the exact same "New Arrivals" everywhere.
+            if ($products->isEmpty()) {
+                $products = Product::select([
+                    'products.id', 'products.name', 'products.slug', 'products.sku',
+                    'products.price', 'products.discount', 'products.image',
+                    'products.short_desc', 'products.description', 'products.status',
+                    'products.has_variations', 'products.manage_stock', 'products.created_at',
+                    'products.updated_at', 'products.category_id', 'products.type',
+                    'products.cost', 'products.meta_title', 'products.meta_description',
+                    'products.meta_keywords'
+                ])
+                ->where('products.type', 'product')
+                ->where('products.status', 'active')
+                ->where('products.show_in_ecommerce', true)
+                ->inRandomOrder(date('Ymd')) // Random order but consistent per day
+                ->take($limit)
+                ->get();
+            }
+            
             // Load relationships efficiently
             if ($products->isNotEmpty()) {
                 $products->load([
@@ -86,15 +108,15 @@ class SalesAnalyticsService
                         $q->where('is_approved', true)->select(['id', 'product_id', 'rating']);
                     },
                     'branchStock' => function($q) {
-                        $q->select(['id', 'product_id', 'quantity']);
+                        $q->select(['id', 'product_id', 'branch_id', 'quantity']);
                     },
                     'warehouseStock' => function($q) {
-                        $q->select(['id', 'product_id', 'quantity']);
+                        $q->select(['id', 'product_id', 'warehouse_id', 'quantity']);
                     },
                     'variations' => function($q) {
                         $q->where('status', 'active')
                           ->with(['stocks' => function($sq) {
-                              $sq->select(['id', 'variation_id', 'quantity']);
+                              $sq->select(['id', 'variation_id', 'branch_id', 'warehouse_id', 'quantity']);
                           }]);
                     }
                 ]);

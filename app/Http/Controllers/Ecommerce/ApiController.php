@@ -106,31 +106,35 @@ class ApiController extends Controller
                     }
                     
                     if ($sourceType === 'branch') {
-                        // Check if product has stock in this branch
+                        // Check both main stock table and variation stocks (consistency with query-level filtering)
+                        $hasMainStock = $product->branchStock
+                            ->where('branch_id', $sourceId)
+                            ->sum('quantity') > 0;
+                        
+                        $hasVarStock = false;
                         if ($product->has_variations) {
-                            $hasStock = $product->variations->where('status', 'active')
+                            $hasVarStock = $product->variations->where('status', 'active')
                                 ->flatMap->stocks
                                 ->where('branch_id', $sourceId)
                                 ->sum('quantity') > 0;
-                        } else {
-                            $hasStock = $product->branchStock
-                                ->where('branch_id', $sourceId)
-                                ->sum('quantity') > 0;
                         }
-                        return $hasStock;
+                        
+                        return $hasMainStock || $hasVarStock;
                     } elseif ($sourceType === 'warehouse') {
-                        // Check if product has stock in this warehouse
+                        // Check both main stock table and variation stocks
+                        $hasMainStock = $product->warehouseStock
+                            ->where('warehouse_id', $sourceId)
+                            ->sum('quantity') > 0;
+                        
+                        $hasVarStock = false;
                         if ($product->has_variations) {
-                            $hasStock = $product->variations->where('status', 'active')
+                            $hasVarStock = $product->variations->where('status', 'active')
                                 ->flatMap->stocks
                                 ->where('warehouse_id', $sourceId)
                                 ->sum('quantity') > 0;
-                        } else {
-                            $hasStock = $product->warehouseStock
-                                ->where('warehouse_id', $sourceId)
-                                ->sum('quantity') > 0;
                         }
-                        return $hasStock;
+                        
+                        return $hasMainStock || $hasVarStock;
                     }
                     
                     return true; // If no source configured, show all
@@ -608,8 +612,7 @@ class ApiController extends Controller
                     ])
                         ->where('type', 'product')
                         ->where('status', 'active')
-                        ->where('show_in_ecommerce', true)
-                        ->where('discount', '>', 0);
+                        ->where('show_in_ecommerce', true);
                     
                     // Apply Stock Filtering
                     if ($ecommerceSourceType && $ecommerceSourceId) {
@@ -667,8 +670,7 @@ class ApiController extends Controller
                 ])
                     ->where('type', 'product')
                     ->where('status', 'active')
-                    ->where('show_in_ecommerce', true)
-                    ->where('discount', '>', 0);
+                    ->where('show_in_ecommerce', true);
                 
                 // Apply Stock Filtering
                 if ($ecommerceSourceType && $ecommerceSourceId) {

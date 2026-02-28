@@ -249,6 +249,20 @@
                 if (priceEl) priceEl.textContent = Number(resolved.price).toFixed(2) + '৳';
                 
                 const hasStock = resolved.available_stock > 0;
+                
+                // CRITICAL: Update global PD_STOCK
+                window.PD_STOCK = resolved.available_stock || 0;
+                
+                // Clamp existing quantity to new stock limit
+                var qtyInput = document.getElementById('quantityInput');
+                if (qtyInput) {
+                    var currentQty = parseInt(qtyInput.value) || 1;
+                    if (currentQty > window.PD_STOCK && window.PD_STOCK > 0) {
+                        qtyInput.value = window.PD_STOCK;
+                        if (typeof window.changeQuantity === 'function') window.changeQuantity(0); // Sync hidden fields
+                    }
+                }
+
                 if (stockEl) {
                     stockEl.innerHTML = hasStock ? 
                         '<i class="fas fa-check-circle text-success me-1"></i> In stock: ' + resolved.available_stock : 
@@ -270,6 +284,9 @@
                 var buyNowVariationId = document.getElementById('buy-now-variation-id');
                 if (buyNowVariationId) buyNowVariationId.value = '';
                 
+                // Reset PD_STOCK when no variation matches
+                window.PD_STOCK = 0;
+
                 if (nameEl) nameEl.textContent = isCompleteMatch ? 'No variation found' : 'Please select all options';
                 if (priceEl) priceEl.textContent = '—';
                 if (stockEl) {

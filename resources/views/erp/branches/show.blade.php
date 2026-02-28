@@ -90,6 +90,137 @@
                 </div>
             </div>
         </div>
+
+        <div class="row g-4">
+            <!-- Product Inventory Section -->
+            <div class="col-xl-8">
+                <div class="premium-card mb-4">
+                    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0 text-dark">Live Product Inventory</h5>
+                        @can('create warehouse record')
+                        <a href="{{ route('warehouse-product-stocks.index') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                            <i class="fas fa-plus me-1"></i> Update Stock
+                        </a>
+                        @endcan
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table premium-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th class="text-center">Base Qty</th>
+                                    <th class="text-center">Variations</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($branch_products as $bp)
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="product-icon-sm bg-light rounded-3 me-3 d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
+                                                <i class="fas fa-cube text-muted"></i>
+                                            </div>
+                                            <span class="fw-600">{{ $bp->product->name ?? 'Deleted Product' }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark fw-normal border">{{ $bp->product->category->name ?? 'N/A' }}</span></td>
+                                    <td class="text-center">
+                                        <span class="fw-bold {{ $bp->quantity > 0 ? 'text-success' : 'text-danger' }}">
+                                            {{ number_format($bp->quantity, 0) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if($bp->product->has_variations)
+                                            @php
+                                                $varStockCount = $bp->product->variations->flatMap->stocks->where('branch_id', $branch->id)->sum('quantity');
+                                            @endphp
+                                            <span class="small text-muted">{{ number_format($varStockCount, 0) }} In Variations</span>
+                                        @else
+                                            <span class="text-muted small">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ route('product.edit', $bp->product_id) }}" class="btn-action btn-light border" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                                        <p class="mb-0">No products assigned to this branch yet.</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Staff & Recent Activity -->
+            <div class="col-xl-4">
+                <!-- Staff Block -->
+                <div class="premium-card mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="fw-bold mb-0 text-dark">Staff Records</h5>
+                    </div>
+                    <div class="p-4 pt-0">
+                        @forelse($employees as $emp)
+                        <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom last-border-0">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-weight: 700;">
+                                    {{ strtoupper(substr($emp->user->first_name, 0, 1)) }}
+                                </div>
+                                <div>
+                                    <p class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">{{ $emp->user->name }}</p>
+                                    <p class="mb-0 text-muted extra-small">{{ $emp->position ?? 'Member' }}</p>
+                                </div>
+                            </div>
+                            <span class="badge {{ $emp->status == 'active' ? 'bg-success' : 'bg-secondary' }} bg-opacity-10 {{ $emp->status == 'active' ? 'text-success' : 'text-secondary' }} border-0 font-10">
+                                {{ strtoupper($emp->status) }}
+                            </span>
+                        </div>
+                        @empty
+                        <div class="text-center py-4 bg-light rounded-3">
+                            <p class="text-muted small mb-0">No staff records found.</p>
+                        </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <!-- Recent Sales Block -->
+                <div class="premium-card">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="fw-bold mb-0 text-dark">Recent Sales</h5>
+                    </div>
+                    <div class="p-4 pt-0">
+                        @forelse($recent_sales as $sale)
+                        <div class="recent-activity-item mb-3 d-flex gap-3">
+                            <div class="activity-icon text-success">
+                                <i class="fas fa-receipt"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <p class="mb-0 fw-bold text-dark small">{{ $sale->invoice->invoice_number ?? 'INV-'.$sale->id }}</p>
+                                    <span class="text-muted extra-small">{{ $sale->created_at->diffForHumans() }}</span>
+                                </div>
+                                <p class="mb-0 text-muted extra-small">Customer: {{ $sale->customer->name ?? 'Guest' }}</p>
+                                <p class="mb-0 fw-bold text-primary small">TK. {{ number_format($sale->grand_total ?? 0, 0) }}</p>
+                            </div>
+                        </div>
+                        @empty
+                        <div class="text-center py-4">
+                            <p class="text-muted small mb-0">No recent sales records.</p>
+                        </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

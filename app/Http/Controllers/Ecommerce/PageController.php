@@ -250,9 +250,6 @@ class PageController extends Controller
             case 'newest':
                 $query->orderByDesc('created_at');
                 break;
-            case 'featured':
-                $query->orderByDesc('discount')->orderByDesc('created_at');
-                break;
             case 'lowToHigh':
                 $query->orderBy('price');
                 break;
@@ -489,13 +486,39 @@ class PageController extends Controller
             }
 
             // Enhanced related products logic (cached for 30 minutes per product)
-            $relatedProductsCacheKey = "related_products_{$product->id}_{$product->category_id}";
-            $relatedProducts = Cache::remember($relatedProductsCacheKey, 1800, function () use ($product) {
-                return Product::where('type', 'product')
+            $ecommerceSourceType = $settings->ecommerce_source_type ?? 'all';
+            $ecommerceSourceId = $settings->ecommerce_source_id ?? '0';
+            $settingsHash = md5($ecommerceSourceType . '_' . $ecommerceSourceId);
+            
+            $relatedProductsCacheKey = "related_products_{$product->id}_{$product->category_id}_{$settingsHash}";
+            $relatedProducts = Cache::remember($relatedProductsCacheKey, 1800, function () use ($product, $ecommerceSourceType, $ecommerceSourceId) {
+                $query = Product::where('type', 'product')
                     ->where('status', 'active')
                     ->where('show_in_ecommerce', true)
-                    ->where('id', '!=', $product->id)
-                    ->where(function ($query) use ($product) {
+                    ->where('id', '!=', $product->id);
+
+                // Apply Stock Filtering based on General Settings
+                if ($ecommerceSourceType && $ecommerceSourceId && $ecommerceSourceType !== 'all') {
+                    if ($ecommerceSourceType === 'branch') {
+                        $query->where(function($q) use ($ecommerceSourceId) {
+                            $q->whereHas('branchStock', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('branch_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            });
+                        });
+                    } elseif ($ecommerceSourceType === 'warehouse') {
+                        $query->where(function($q) use ($ecommerceSourceId) {
+                            $q->whereHas('warehouseStock', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            })->orWhereHas('variations.stocks', function($subQ) use ($ecommerceSourceId) {
+                                $subQ->where('warehouse_id', $ecommerceSourceId)->where('quantity', '>', 0);
+                            });
+                        });
+                    }
+                }
+
+                return $query->where(function ($query) use ($product) {
                         // Same category products
                         $query->where('category_id', $product->category_id)
                             // Or similar price range products (±20%)
@@ -1081,9 +1104,6 @@ class PageController extends Controller
             switch ($sort) {
                 case 'newest':
                     $query->latest();
-                    break;
-                case 'featured':
-                    $query->where('is_featured', 1)->latest();
                     break;
                 case 'lowToHigh':
                     $query->orderBy('price', 'asc');

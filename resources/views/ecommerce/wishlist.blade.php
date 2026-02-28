@@ -5,134 +5,113 @@
 @endphp
 
 @section('main-section')
-    <div class="container-fluid py-3 wishlist-page" style="background-color: #f8f9fa;">
-        <div class="container">
-            <!-- Page Header -->
-            <div class="row mb-5">
-                <div class="col-12">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h2 class="mb-2" style="color: #333; font-weight: 600;">My Wishlist</h2>
-                            <p class="text-muted mb-0">Save your favorite water filtration products</p>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <span class="wishlist-count-badge me-3">
-                                <i class="fas fa-heart me-1"></i>
-                                {{ $wishlists->count() }} {{ $wishlists->count() == 1 ? 'Item' : 'Items' }}
-                            </span>
-                            @if($wishlists->count() > 0)
-                                <form action="{{ route('wishlist.removeAll') }}" method="post">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-clear-all">
-                                        <i class="fas fa-trash me-1"></i> Clear All
-                                    </button>
-                                </form>
-                            @endif
-                        </div>
-                    </div>
+    <div class="wishlist-page">
+        <div class="container py-4">
+
+            {{-- Page Header --}}
+            <div class="wl-page-header">
+                <div class="wl-header-left">
+                    <h1 class="wl-title">My Wishlist</h1>
+                    <p class="wl-subtitle">Your saved favourite items</p>
+                </div>
+                <div class="wl-header-right">
+                    <span class="wl-badge">
+                        <i class="fas fa-heart"></i>
+                        {{ $wishlists->count() }} {{ $wishlists->count() == 1 ? 'Item' : 'Items' }}
+                    </span>
+                    @if($wishlists->count() > 0)
+                        <form action="{{ route('wishlist.removeAll') }}" method="post" style="display:inline;">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="wl-clear-btn">
+                                <i class="fas fa-trash-alt"></i> Clear All
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
 
-            <!-- Wishlist Items -->
-            <div class="row g-3 g-md-4">
+            {{-- Wishlist Grid --}}
+            <div class="row g-3">
                 @forelse ($wishlists as $wishlist)
-
-                    <div class="col-lg-3 col-md-6 mt-0 mb-4">
-                        <div class="product-card position-relative mb-0 h-100" data-href="{{ route('product.details', $wishlist->product->slug) }}">
-                            <!-- Top Wishlist Button -->
-                            <button class="product-wishlist-top active"
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="wl-card" data-href="{{ route('product.details', $wishlist->product->slug) }}">
+                            {{-- Remove button --}}
+                            <button class="wl-remove-btn product-wishlist-top active"
                                 data-product-id="{{ $wishlist->product->id }}"
-                                onclick="event.stopPropagation(); toggleWishlist({{ $wishlist->product->id }});"
+                                onclick="event.stopPropagation();"
                                 title="Remove from Wishlist">
                                 <i class="fas fa-heart"></i>
                             </button>
-                            
-                            <!-- Original Wishlist Button (keeping for compatibility) -->
-                            <button class="wishlist-btn active"
-                                data-product-id="{{ $wishlist->product->id }}"
-                                onclick="event.stopPropagation();">
-                                <i class="fas text-danger fa-heart"></i>
+                            {{-- Hidden compat button --}}
+                            <button class="wishlist-btn active" data-product-id="{{ $wishlist->product->id }}"
+                                onclick="event.stopPropagation();" style="display:none;">
+                                <i class="fas fa-heart"></i>
                             </button>
-                            <div class="product-image-container">
-                                <img src="{{$wishlist->product->image ? $wishlist->product->image : '/static/default-product.jpg'}}"
-                                    class="product-image"
-                                    alt="{{ $wishlist->product->name }}">
+
+                            {{-- Image --}}
+                            <div class="wl-img-wrap">
+                                <img src="{{ $wishlist->product->image ? asset($wishlist->product->image) : asset('static/default-product.jpg') }}"
+                                    class="wl-img" alt="{{ $wishlist->product->name }}">
                             </div>
-                            <div class="product-info">
-                                <a href="{{ route('product.details', $wishlist->product->slug) }}" class="product-title"
-                                    style="text-decoration: none;">{{ $wishlist->product->name }}</a>
-                                <p class="product-description">
-                                    {!! $wishlist->product->short_desc ? nl2br(e($wishlist->product->short_desc)) : ($wishlist->product->description ? nl2br(e(Str::limit($wishlist->product->description, 80))) : '') !!}</p>
-                                <div class="product-meta" style="margin-top:6px;">
-                                    @php
-                                        $avgRating = $wishlist->product->averageRating();
-                                        $totalReviews = $wishlist->product->totalReviews();
-                                    @endphp
-                                    <div class="stars" aria-label="{{ $avgRating }} out of 5">
-                                        @for ($i = 1; $i <= 5; $i++)
-                                            <i class="fa{{ $i <= $avgRating ? 's' : 'r' }} fa-star"></i>
-                                        @endfor
-                                    </div>
-                                    <div class="rating-text" style="font-size: 12px; color: #666; margin-top: 2px;">
-                                        ({{ $totalReviews }} review{{ $totalReviews !== 1 ? 's' : '' }})
-                                    </div>
+
+                            {{-- Info --}}
+                            <div class="wl-info">
+                                <a href="{{ route('product.details', $wishlist->product->slug) }}" class="wl-name">
+                                    {{ $wishlist->product->name }}
+                                </a>
+
+                                {{-- Stars --}}
+                                @php
+                                    $avgRating = $wishlist->product->averageRating();
+                                @endphp
+                                <div class="wl-stars">
+                                    @for ($i = 1; $i <= 5; $i++)
+                                        <i class="fa{{ $i <= $avgRating ? 's' : 'r' }} fa-star"></i>
+                                    @endfor
                                 </div>
 
-                                <div class="price">
-                                    @if(isset($wishlist->product->discount) && $wishlist->product->discount > 0)
-                                        <span class="fw-bold text-primary">
-                                            {{ number_format($wishlist->product->discount, 2) }}৳
-                                        </span>
-                                        <span class="text-muted text-decoration-line-through ms-2">
-                                            {{ number_format($wishlist->product->price, 2) }}৳
-                                        </span>
+                                {{-- Price --}}
+                                @php
+                                    $effectivePrice = $wishlist->product->effective_price;
+                                    $originalPrice  = $wishlist->product->original_price;
+                                    $hasDiscount    = $wishlist->product->hasDiscount();
+                                @endphp
+                                <div class="wl-price">
+                                    @if($hasDiscount && $effectivePrice < $originalPrice)
+                                        <span class="wl-price-current">{{ number_format($effectivePrice, 0) }}৳</span>
+                                        <span class="wl-price-old">{{ number_format($originalPrice, 0) }}৳</span>
                                     @else
-                                        <span class="fw-bold text-primary">
-                                            {{ number_format($wishlist->product->price, 2) }}৳
-                                        </span>
+                                        <span class="wl-price-current">{{ number_format($originalPrice, 0) }}৳</span>
                                     @endif
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center gap-2">
-                                    @php
-                                        $hasStock = $wishlist->product->hasStock();
-                                    @endphp
-                                    <a href="{{ route('product.details', $wishlist->product->slug) }}" class="btn-add-cart" style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14"><path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path><circle cx="7" cy="22" r="2"></circle><circle cx="17" cy="22" r="2"></circle></svg>
-                                        View Product
-                                    </a>
-                                </div>
+
+                                {{-- View Button --}}
+                                <a href="{{ route('product.details', $wishlist->product->slug) }}" class="wl-view-btn">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
                             </div>
                         </div>
                     </div>
                 @empty
                     <div class="col-12">
-                        <div class="text-center py-5">
-                            <div class="mb-4">
-                                <i class="fas fa-heart" style="font-size: 4rem; color: #e9ecef;"></i>
-                            </div>
-                            <h4 class="mb-3" style="color: #6c757d;">Your Wishlist is Empty</h4>
-                            <p class="text-muted mb-4">Discover amazing water filtration products and add them to your wishlist</p>
-                            <a href="{{ route('product.archive') }}" class="btn btn-primary btn-lg"
-                                style="background: #20c997; border: none; padding: 12px 30px;">
-                                <i class="fas fa-shopping-bag me-2"></i>
-                                Continue Shopping
+                        <div class="wl-empty">
+                            <i class="fas fa-heart wl-empty-icon"></i>
+                            <h4>Your Wishlist is Empty</h4>
+                            <p>Browse products and save your favourites here.</p>
+                            <a href="{{ route('product.archive') }}" class="wl-shop-btn">
+                                <i class="fas fa-shopping-bag me-2"></i> Continue Shopping
                             </a>
                         </div>
                     </div>
                 @endforelse
             </div>
 
-            <!-- Action Buttons -->
-            <div class="row mt-3 mb-0">
-                <div class="col-12">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a href="{{ route('product.archive') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-arrow-left me-2"></i>
-                            Continue Shopping
-                        </a>
-                    </div>
-                </div>
+            {{-- Footer nav --}}
+            <div class="mt-4">
+                <a href="{{ route('product.archive') }}" class="wl-back-btn">
+                    <i class="fas fa-arrow-left me-2"></i> Continue Shopping
+                </a>
             </div>
         </div>
     </div>
@@ -141,89 +120,225 @@
         style="position: fixed; top: 24px; right: 24px; z-index: 16000; display: flex; flex-direction: column; gap: 10px;">
     </div>
 
-    <!-- Custom CSS -->
     <style>
-        /* Layout tweaks */
-        .wishlist-page { padding-bottom: 12px; }
-        .product-card { background:#fff; border:1px solid #eef0f2; border-radius:8px; overflow:hidden; box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
-        .card:hover {
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+        /* =====================
+           WISHLIST PAGE — scoped
+           ===================== */
+        .wishlist-page {
+            background: #f5f7fa;
+            min-height: 60vh;
         }
 
-        .badge {
-            font-weight: 500;
+        /* Header row */
+        .wl-page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
         }
-
-        .btn-primary:hover {
-            background: #1ea085 !important;
-            transform: translateY(-1px);
+        .wl-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0 0 2px;
         }
-
-        .btn-outline-secondary:hover {
-            background: #6c757d;
-            border-color: #6c757d;
-            color: white;
-        }
-
-        .card-img-top {
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover .card-img-top {
-            opacity: 0.9;
-        }
-
-        /* Product card image fixes to avoid odd padding/whitespace */
-        .product-image-container { position: relative; overflow: hidden; border-radius: 8px; background: transparent; }
-        .product-image { width: 100%; height: 260px; object-fit: cover; display: block; }
-        .product-info { padding: 14px 16px 16px; }
-        .product-title { display:block; margin-top: 6px; color:#222; font-weight:600; }
-        .product-wishlist-top { position:absolute; top:12px; right:12px; }
-
-        /* Badge + Clear button styling */
-        .wishlist-count-badge {
+        .wl-subtitle {
             font-size: 13px;
-            padding: 6px 12px;
-            background: #e7f6ff;
-            color: #0d6efd;
+            color: #888;
+            margin: 0;
+        }
+        .wl-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .wl-badge {
+            font-size: 12px;
+            padding: 5px 12px;
+            background: #e8f0fe;
+            color: #1a73e8;
             border-radius: 999px;
-            line-height: 1;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
+            gap: 5px;
         }
-        .btn-clear-all {
-            background: rgba(231, 13, 13, 0.08);
-            color: #e20d0d;
-            border: 1px solid rgba(226, 13, 13, 0.18);
+        .wl-clear-btn {
+            background: rgba(220,38,38,0.08);
+            color: #dc2626;
+            border: 1px solid rgba(220,38,38,0.2);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .btn-clear-all:hover { background: rgba(231, 13, 13, 0.14); color: #b10a0a; }
+        .wl-clear-btn:hover { background: rgba(220,38,38,0.15); }
 
-        /* Theme colored outline button (Continue Shopping) */
-        .wishlist-page .btn.btn-outline-primary {
-            border-color: var(--primary-blue) !important;
-            color: var(--primary-blue) !important;
+        /* Card */
+        .wl-card {
+            background: #fff;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
         }
-        .wishlist-page .btn.btn-outline-primary:hover,
-        .wishlist-page .btn.btn-outline-primary:focus {
-            background-color: var(--primary-blue) !important;
-            border-color: var(--primary-blue) !important;
+        .wl-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        /* Remove heart button */
+        .wl-remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #fff;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 2;
+            transition: all 0.2s;
+        }
+        .wl-remove-btn:hover { background: #fef2f2; transform: scale(1.1); }
+
+        /* Image */
+        .wl-img-wrap {
+            width: 100%;
+            aspect-ratio: 1/1;
+            overflow: hidden;
+            background: #f9f9f9;
+        }
+        .wl-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.35s ease;
+        }
+        .wl-card:hover .wl-img { transform: scale(1.05); }
+
+        /* Info section */
+        .wl-info {
+            padding: 10px 12px 12px;
+        }
+        .wl-name {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            text-decoration: none;
+            margin-bottom: 4px;
+            line-height: 1.3;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .wl-stars {
+            font-size: 10px;
+            color: #f59e0b;
+            margin-bottom: 5px;
+        }
+        .wl-price {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .wl-price-current {
+            font-size: 14px;
+            font-weight: 700;
+            color: #00512c;
+        }
+        .wl-price-old {
+            font-size: 12px;
+            color: #aaa;
+            text-decoration: line-through;
+        }
+        .wl-view-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 7px 0;
+            background: #00512c;
             color: #fff !important;
-            box-shadow: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none !important;
+            transition: background 0.2s;
         }
+        .wl-view-btn:hover { background: #003d20; }
 
-        @media (max-width: 768px) {
-            .d-flex.justify-content-between {
-                flex-direction: column;
-                gap: 1rem;
-            }
+        /* Empty state */
+        .wl-empty {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .wl-empty-icon {
+            font-size: 50px;
+            color: #e5e7eb;
+            display: block;
+            margin-bottom: 16px;
+        }
+        .wl-empty h4 { color: #6b7280; font-size: 18px; margin-bottom: 8px; }
+        .wl-empty p { color: #9ca3af; font-size: 14px; margin-bottom: 20px; }
+        .wl-shop-btn {
+            display: inline-flex;
+            align-items: center;
+            background: #00512c;
+            color: #fff !important;
+            padding: 12px 28px;
+            border-radius: 12px;
+            text-decoration: none !important;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .wl-shop-btn:hover { background: #003d20; }
 
-            .d-flex.justify-content-between .d-flex {
-                justify-content: center;
-            }
+        /* Back button */
+        .wl-back-btn {
+            display: inline-flex;
+            align-items: center;
+            border: 1.5px solid #00512c;
+            color: #00512c !important;
+            padding: 9px 20px;
+            border-radius: 10px;
+            text-decoration: none !important;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .wl-back-btn:hover { background: #00512c; color: #fff !important; }
+
+        /* Mobile responsive */
+        @media (max-width: 576px) {
+            .wl-title { font-size: 18px; }
+            .wl-info { padding: 8px 10px 10px; }
+            .wl-name { font-size: 12px; }
+            .wl-price-current { font-size: 13px; }
+            .wl-view-btn { font-size: 11px; padding: 6px 0; }
         }
     </style>
+
     @push('scripts')
         <script>
             // Toast function
@@ -250,33 +365,38 @@
             // Cart functionality is now handled by global cart handler in master.blade.php
             // No need for duplicate event listeners here
 
-            // Remove from wishlist functionality (client-side only UI update)
-            document.querySelectorAll('.wishlist-btn, .product-wishlist-top').forEach(btn => {
-                btn.addEventListener('click', function (e) {
+            // Wishlist card removal – uses the onSuccess callback from global toggleWishlist
+            document.querySelectorAll('.product-wishlist-top, .wishlist-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    
-                    this.closest('.col-lg-3').remove();
+                    var productId = this.getAttribute('data-product-id');
+                    var card = this.closest('[class*="col-"]');
 
-                    // Update item count
-                    const itemCount = document.querySelectorAll('.col-lg-3').length;
-                    const badge = document.querySelector('.badge');
-                    if (badge) {
-                        badge.innerHTML = `<i class="fas fa-heart me-1"></i> ${itemCount} ${itemCount === 1 ? 'Item' : 'Items'}`;
+                    if (typeof window.toggleWishlist === 'function') {
+                        window.toggleWishlist(parseInt(productId), btn, function(nowActive) {
+                            if (!nowActive && card) {
+                                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                                card.style.opacity = '0';
+                                card.style.transform = 'scale(0.95)';
+                                setTimeout(function() {
+                                    card.remove();
+                                    var remaining = document.querySelectorAll('.wl-card').length;
+                                    var badge = document.querySelector('.wl-badge');
+                                    if (badge) badge.innerHTML = '<i class="fas fa-heart"></i> ' + remaining + ' ' + (remaining === 1 ? 'Item' : 'Items');
+                                    if (remaining === 0) window.location.reload();
+                                }, 300);
+                            }
+                        });
                     }
-
-                    // Show empty state if no items left
-                    if (itemCount === 0) window.location.reload();
                 });
             });
 
-            // Product card click functionality
-            document.querySelectorAll('.product-card[data-href]').forEach(card => {
+
+            // Card click navigation
+            document.querySelectorAll('.wl-card[data-href]').forEach(function(card) {
                 card.addEventListener('click', function(e) {
-                    // Don't navigate if clicking on buttons or links
-                    if (e.target.closest('button') || e.target.closest('a')) {
-                        return;
-                    }
+                    if (e.target.closest('button') || e.target.closest('a')) return;
                     window.location.href = this.getAttribute('data-href');
                 });
             });

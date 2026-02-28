@@ -67,6 +67,10 @@
             pageLoader.style.display = 'none';
         }
 
+        // Initialize cart counts on page load
+        if (typeof window.updateCartQtyBadge === 'function') window.updateCartQtyBadge();
+        if (typeof window.updateWishlistCount === 'function') window.updateWishlistCount();
+
         // AJAX Navigation System Removed - Using standard page navigation for better SEO
 
         function showPageLoader() {
@@ -409,7 +413,7 @@
             toast.className = 'custom-toast ' + type;
             toast.innerHTML = `
                 <div class="toast-content">
-                    <span class="toast-icon">${type === 'error' ? '❌' : '✅'}</span>
+                    <span class="toast-icon">${type === 'error' ? '❌' : ''}</span>
                     <span class="toast-message">${message}</span>
                     <button class="toast-close">&times;</button>
                 </div>
@@ -451,7 +455,7 @@
         };
 
         // Global wishlist toggle function
-        window.toggleWishlist = function (productId, btnEl = null) {
+        window.toggleWishlist = function (productId, btnEl = null, onSuccess = null) {
             console.log('[WISHLIST] Toggling wishlist for product:', productId);
 
             const isAuth = document.querySelector('meta[name="auth-check"]')?.getAttribute('content') === '1';
@@ -508,6 +512,7 @@
                         showToast(nowActive ? 'Added to wishlist!' : 'Removed from wishlist!', 'success');
                     }
                     if (typeof updateWishlistCount === 'function') updateWishlistCount();
+                    if (typeof onSuccess === 'function') onSuccess(nowActive, productId);
                 } else {
                     throw new Error(data.message || 'Failed to update');
                 }
@@ -649,7 +654,7 @@
                 // Check for variations - multiple ways to detect
                 var hasVariations = document.querySelector('[data-has-variations="true"]') !== null ||
                     document.querySelector('[data-has-variations="1"]') !== null ||
-                    document.querySelector('.color-option, .size-option, .variation-option, .pd-color-btn, .pd-size-btn').length > 0;
+                    document.querySelectorAll('.color-option, .size-option, .variation-option, .pd-color-btn, .pd-size-btn').length > 0;
 
                 if (hasVariations) {
                     var variationIdEl = document.getElementById('selected-variation-id');
@@ -717,6 +722,7 @@
                         if (typeof showToast === 'function') showToast(data.message || 'Product added to cart successfully!', 'success');
                         if (typeof updateCartCount === 'function') updateCartCount();
                         if (typeof updateCartQtyBadge === 'function') updateCartQtyBadge();
+
 
                         // GTM add_to_cart event tracking
                         if (data.product && window.dataLayer) {

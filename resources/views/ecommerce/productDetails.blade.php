@@ -236,6 +236,14 @@
                     </div>
                     @endif
 
+                    @if(!$product->has_variations)
+                    <div class="pd-selected-info">
+                        <div class="pd-stock-status in-stock mt-2">
+                            <i class="fas fa-check-circle text-success me-1"></i> In stock: {{ $product->total_variation_stock }}
+                        </div>
+                    </div>
+                    @endif
+
                     <!-- Variation Scripts - Moved to component for AJAX compatibility and performance -->
                     @if($product->has_variations)
                         @include('ecommerce.components.product-variation-scripts')
@@ -244,7 +252,7 @@
                     <div class="pd-purchase-actions">
                         <div class="pd-quantity-selector">
                             <button class="pd-qty-btn" type="button" onclick="changeQuantity(-1)"><i class="fas fa-minus"></i></button>
-                            <input type="number" class="pd-qty-input" id="quantityInput" name="quantity" value="1" min="1" max="100" readonly>
+                            <input type="text" inputmode="numeric" class="pd-qty-input" id="quantityInput" name="quantity" value="1" readonly>
                             <button class="pd-qty-btn" type="button" onclick="changeQuantity(1)"><i class="fas fa-plus"></i></button>
                         </div>
 
@@ -269,13 +277,13 @@
                     <div class="pd-messenger-row">
                         @if(!empty($settings->whatsapp_url))
                             <a href="{{ str_starts_with($settings->whatsapp_url, 'http') ? $settings->whatsapp_url : 'https://' . $settings->whatsapp_url }}" target="_blank" class="pd-msg-btn whatsapp" title="Chat on WhatsApp">
-                                <i class="fab fa-whatsapp"></i> WhatsApp Order
+                                <i class="fab fa-whatsapp"></i> <span class="d-none d-md-inline">WhatsApp Order</span>
                             </a>
                         @endif
                         
                         @if(!empty($settings->facebook_url))
                             <a href="javascript:void(0)" onclick="openFacebookMessenger()" class="pd-msg-btn messenger" title="Chat on Facebook Messenger">
-                                <i class="fab fa-facebook-messenger"></i> Chat with Us
+                                <i class="fab fa-facebook-messenger"></i> <span class="d-none d-md-inline">Chat with Us</span>
                             </a>
                         @endif
                     </div>
@@ -611,10 +619,8 @@
     <script>
         console.log('[PD] Product Details page script running');
         
-        // Debug helper removed for production
-        window.VDEBUG = { log: function(){}, enable:function(){}, disable:function(){} };
-
-        // Use earlier-defined window.setInlineStock
+        // Initial stock for simple products
+        window.PD_STOCK = {{ $product->has_variations ? 0 : ($product->total_variation_stock ?? 0) }};
 
         // Global quantity control function
         window.changeQuantity = function(delta) {
@@ -626,8 +632,21 @@
             }
             var value = parseInt(input.value) || 1;
             value += delta;
-            if (value < 1) value = 1;
-            if (value > 10) value = 10;
+            
+            if (value < 1) {
+                value = 1;
+            }
+
+            // Cap by stock
+            if (value > window.PD_STOCK && window.PD_STOCK > 0) {
+                value = window.PD_STOCK;
+                if (typeof showToast === 'function') {
+                    showToast('Maximum available stock reached (' + window.PD_STOCK + ')', 'warning');
+                }
+            } else if (value > 100) { // Safety cap
+                value = 100;
+            }
+
             input.value = value;
             console.log('[QTY] Quantity updated to:', value);
             
@@ -637,11 +656,11 @@
                 buyNowQty.value = value;
                 console.log('[QTY] Buy-now quantity synced to:', value);
             }
-            
             // Trigger change event to ensure other listeners are notified
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+            if (input) {
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
 
         // Quantity control is handled by inline onclick handlers on the buttons
 
@@ -971,7 +990,7 @@
             toast.className = 'custom-toast ' + type;
             toast.innerHTML = `
                 <div class="toast-content">
-                    <span class="toast-icon">${type === 'error' ? '❌' : ''}</span>
+                    <span class="toast-icon"></span>
                     <span class="toast-message">${message}</span>
                     <button class="toast-close" onclick="var el=this.parentElement.parentElement; el.classList.add('hide'); requestAnimationFrame(function(){requestAnimationFrame(function(){el.remove();});});">&times;</button>
                 </div>

@@ -155,7 +155,6 @@
                         <select class="form-select form-select-sm flex-grow-1" name="sort" id="sortSelectMobile">
                             <option value="">Sort By</option>
                             <option value="newest" {{ $selectedSort == 'newest' ? 'selected' : '' }}>Newest</option>
-                            <option value="featured" {{ $selectedSort == 'featured' ? 'selected' : '' }}>Featured</option>
                             <option value="lowToHigh" {{ $selectedSort == 'lowToHigh' ? 'selected' : '' }}>Price: Low to High</option>
                             <option value="highToLow" {{ $selectedSort == 'highToLow' ? 'selected' : '' }}>Price: High to Low</option>
                         </select>
@@ -168,7 +167,6 @@
                             id="sortSelect">
                             <option value="">Sort By</option>
                             <option value="newest" {{ $selectedSort == 'newest' ? 'selected' : '' }}>Newest</option>
-                            <option value="featured" {{ $selectedSort == 'featured' ? 'selected' : '' }}>Featured</option>
                             <option value="lowToHigh" {{ $selectedSort == 'lowToHigh' ? 'selected' : '' }}>Price: Low to
                                 High</option>
                             <option value="highToLow" {{ $selectedSort == 'highToLow' ? 'selected' : '' }}>Price: High to

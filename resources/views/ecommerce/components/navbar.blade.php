@@ -44,19 +44,19 @@
                     </button>
                     
                     <!-- Wishlist -->
-                    <a href="{{ route('wishlist.index') }}" class="action-btn" title="Wishlist">
+                    <a href="{{ route('wishlist.index') }}" class="action-btn header-wishlist-btn" title="Wishlist">
                         <i class="fa-regular fa-heart"></i>
                         <span class="badge nav-wishlist-count">0</span>
                     </a>
                     
                     <!-- Cart -->
-                    <a href="#" class="action-btn" onclick="openOffcanvasCart(); return false;" title="Cart">
+                    <a href="#" class="action-btn header-cart-btn" onclick="openOffcanvasCart(); return false;" title="Cart">
                         <i class="fa-solid fa-cart-shopping"></i>
                         <span class="badge nav-cart-count">0</span>
                     </a>
                     
                     <!-- Account -->
-                    <div class="dropdown">
+                    <div class="dropdown header-account-dropdown">
                         <button class="action-btn account-toggle" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
                             <i class="fa-regular fa-user"></i>
                         </button>
@@ -168,14 +168,14 @@
         </div>
 
         <div class="drawer-quick-actions d-grid grid-2 gap-2 mb-4">
-            <a href="{{ route('wishlist.index') }}" class="d-flex flex-column align-items-center p-3 rounded-4 bg-light text-decoration-none text-dark">
-                <i class="fa-regular fa-heart mb-1 fs-5"></i>
+            <a href="{{ route('wishlist.index') }}" class="drawer-quick-btn" onclick="closeDrawer()">
+                <i class="fa-regular fa-heart fs-5"></i>
                 <span class="small fw-semibold">Wishlist</span>
             </a>
-            <a href="#" onclick="openOffcanvasCart(); return false;" class="d-flex flex-column align-items-center p-3 rounded-4 bg-light text-decoration-none text-dark">
-                <i class="fa-solid fa-cart-shopping mb-1 fs-5"></i>
+            <button type="button" class="drawer-quick-btn" onclick="closeDrawerThenCart()">
+                <i class="fa-solid fa-cart-shopping fs-5"></i>
                 <span class="small fw-semibold">Cart</span>
-            </a>
+            </button>
         </div>
 
         <nav class="drawer-links-nav">
@@ -193,10 +193,12 @@
                 @php $children = $category->children ?? ($category->subcategories ?? collect()); $hasChildren = $children->count() > 0; @endphp
                 <li class="mb-1">
                     <div class="drawer-category-item rounded-3 {{ $hasChildren ? 'has-children' : '' }}">
-                        <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="drawer-nav-link p-2 d-flex align-items-center justify-content-between">
+                        <a href="{{ route('product.archive') }}?category={{ $category->slug }}" 
+                           class="drawer-nav-link p-2 d-flex align-items-center" 
+                           style="justify-content: space-between;">
                             <span>{{ $category->name }}</span>
                             @if($hasChildren)
-                                <i class="fa-solid fa-chevron-right small text-muted category-arrow"></i>
+                                <i class="fa-solid fa-chevron-right small text-muted category-arrow ms-auto"></i>
                             @endif
                         </a>
                         @if($hasChildren)
@@ -281,6 +283,16 @@
         if(closeBtn) closeBtn.addEventListener('click', closeDrawer);
         if(overlay) overlay.addEventListener('click', closeDrawer);
 
+        // Expose closeDrawer globally for the Cart button
+        window.closeDrawer = closeDrawer;
+        window.closeDrawerThenCart = function() {
+            closeDrawer();
+            // Wait for drawer close animation before opening cart
+            setTimeout(function() {
+                if (typeof openOffcanvasCart === 'function') openOffcanvasCart();
+            }, 420);
+        };
+
         // Handle category accordion in mobile drawer
         var categoryItems = document.querySelectorAll('.drawer-category-item.has-children');
         categoryItems.forEach(function(item) {
@@ -313,13 +325,31 @@
 
         // Mobile search toggle
         if(searchToggle && searchBar) {
-            searchToggle.addEventListener('click', function() {
+            searchToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
                 var isHidden = searchBar.hasAttribute('hidden');
                 if(isHidden) {
                     searchBar.removeAttribute('hidden');
-                    searchBar.querySelector('input').focus();
+                    setTimeout(function() {
+                        searchBar.classList.add('open');
+                        searchBar.querySelector('input').focus();
+                    }, 10);
                 } else {
-                    searchBar.setAttribute('hidden', '');
+                    searchBar.classList.remove('open');
+                    setTimeout(function() {
+                        searchBar.setAttribute('hidden', '');
+                    }, 150);
+                }
+            });
+
+            // Close search bar when clicking outside
+            document.addEventListener('click', function(e) {
+                var isHidden = searchBar.hasAttribute('hidden');
+                if (!isHidden && !searchBar.contains(e.target) && !searchToggle.contains(e.target)) {
+                    searchBar.classList.remove('open');
+                    setTimeout(function() {
+                        searchBar.setAttribute('hidden', '');
+                    }, 150);
                 }
             });
         }
