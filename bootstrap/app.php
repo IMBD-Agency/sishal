@@ -20,7 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
     })
 
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
+            return back()->withErrors(['image' => 'The uploaded file is too large. Please upload a smaller file. (Max limit usually around 2-8MB depending on server config)']);
+        });
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Process queued jobs every minute

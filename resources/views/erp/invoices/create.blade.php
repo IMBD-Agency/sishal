@@ -179,7 +179,7 @@
                                                         </td>
                                                         <td>
                                                             <input type="number" name="items[0][quantity]"
-                                                                class="form-control item-qty" min="1"
+                                                                class="form-control item-qty" min="1" step="1"
                                                                 required>
                                                         </td>
                                                         <td>

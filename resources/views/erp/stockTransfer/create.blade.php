@@ -367,7 +367,7 @@
                         <td>
                             <input type="number" class="form-control form-control-sm transfer-qty shadow-none border-info" 
                                    data-row-id="${rowId}" data-price="${unitPrice}" 
-                                   min="0" max="${stock}" value="0">
+                                   min="0" step="1" max="${stock}" value="0">
                             <input type="hidden" name="items[${rowId}][product_id]" value="${product.id}">
                             <input type="hidden" name="items[${rowId}][variation_id]" value="${(variation && variation.id) ? variation.id : ''}">
                             <input type="hidden" name="items[${rowId}][unit_price]" value="${unitPrice}">

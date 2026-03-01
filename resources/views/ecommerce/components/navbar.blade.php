@@ -44,19 +44,19 @@
                     </button>
                     
                     <!-- Wishlist -->
-                    <a href="{{ route('wishlist.index') }}" class="action-btn header-wishlist-btn" title="Wishlist">
+                    <a href="{{ route('wishlist.index') }}" class="action-btn" title="Wishlist">
                         <i class="fa-regular fa-heart"></i>
                         <span class="badge nav-wishlist-count">0</span>
                     </a>
                     
                     <!-- Cart -->
-                    <a href="#" class="action-btn header-cart-btn" onclick="openOffcanvasCart(); return false;" title="Cart">
+                    <a href="#" class="action-btn" onclick="openOffcanvasCart(); return false;" title="Cart">
                         <i class="fa-solid fa-cart-shopping"></i>
                         <span class="badge nav-cart-count">0</span>
                     </a>
                     
                     <!-- Account -->
-                    <div class="dropdown header-account-dropdown">
+                    <div class="dropdown">
                         <button class="action-btn account-toggle" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
                             <i class="fa-regular fa-user"></i>
                         </button>

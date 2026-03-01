@@ -1143,6 +1143,7 @@ class ProductController extends Controller
                 'display_name' => $variation->name ?: ($product->name . ($attributes ? ' - ' . $attributes : '')),
                 'sku' => $variation->sku,
                 'price' => $effectivePrice,
+                'cost' => $variation->cost ?: $product->cost,
                 'base_price' => $basePrice,
                 'discount' => $hasDiscount ? ($basePrice - $effectivePrice) : 0,
                 'has_discount' => $hasDiscount,
@@ -1335,6 +1336,7 @@ class ProductController extends Controller
         
         return response()->json([
             'price' => $effectivePrice,
+            'cost' => $product->cost,
             'base_price' => $basePrice,
             'discount' => $hasDiscount ? ($basePrice - $effectivePrice) : 0,
             'has_discount' => $hasDiscount,

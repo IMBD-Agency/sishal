@@ -78,7 +78,7 @@
                                         <th width="90">QTY</th>
                                         <th width="130">UNIT PRICE</th>
                                         <th width="140" class="text-end">TOTAL</th>
-                                        <th width="50"></th>
+                                        <th width="80"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -253,102 +253,113 @@
         let rowIndex = 0;
 
         function addItemRow(product) {
-            const tableBody = $('#itemsTable tbody');
-            const productsToLoad = [];
-            
-            // If product has variations, load all of them as separate rows
             if (product.has_variations && product.variations && product.variations.length > 0) {
-                product.variations.forEach(v => productsToLoad.push({p: product, v: v}));
+                product.variations.forEach(v => addOneRow(product, v));
             } else {
-                // Otherwise just load the base product
-                productsToLoad.push({p: product, v: null});
+                addOneRow(product, null);
             }
+            updateTotals();
+        }
 
-            productsToLoad.forEach(item => {
-                const p = item.p;
-                const v = item.v;
-                
-                let sizeOptions = `<option value="">Size</option>`;
-                let colorOptions = `<option value="">Color</option>`;
-                let selectedSize = '';
-                let selectedColor = '';
-                let showSize = false;
-                let showColor = false;
-                let variationId = v ? v.id : '';
-                let unitPrice = v ? (v.cost || p.cost || 0) : (p.cost || 0);
+        function addOneRow(p, v = null, options = {}) {
+            const tableBody = $('#itemsTable tbody');
+            let sizeOptions = `<option value="">Size</option>`;
+            let colorOptions = `<option value="">Color</option>`;
+            let selectedSize = options.size_id || '';
+            let selectedColor = options.color_id || '';
+            let showSize = false;
+            let showColor = false;
+            let variationId = v ? v.id : (options.variation_id || '');
+            let unitPrice = options.unitPrice !== undefined ? options.unitPrice : (v ? (v.cost || p.cost || 0) : (p.cost || 0));
 
-                if (p.has_variations) {
-                    if (p.sizes && p.sizes.length > 0) {
-                        p.sizes.forEach(s => sizeOptions += `<option value="${s.id}">${s.name}</option>`);
-                        showSize = true;
-                    }
-                    if (p.colors && p.colors.length > 0) {
-                        p.colors.forEach(c => colorOptions += `<option value="${c.id}">${c.name}</option>`);
-                        showColor = true;
-                    }
-
-                    // Identify pre-selected variations
-                    if (v && v.attributes) {
-                        v.attributes.forEach(attr => {
-                            if (p.sizes && p.sizes.some(s => s.id == attr.value_id)) selectedSize = attr.value_id;
-                            if (p.colors && p.colors.some(c => c.id == attr.value_id)) selectedColor = attr.value_id;
-                        });
-                    }
+            if (p.has_variations) {
+                if (p.sizes && p.sizes.length > 0) {
+                    p.sizes.forEach(s => sizeOptions += `<option value="${s.id}">${s.name}</option>`);
+                    showSize = true;
+                }
+                if (p.colors && p.colors.length > 0) {
+                    p.colors.forEach(c => colorOptions += `<option value="${c.id}">${c.name}</option>`);
+                    showColor = true;
                 }
 
-                if (!showSize) sizeOptions = `<option value="">-</option>`;
-                if (!showColor) colorOptions = `<option value="">-</option>`;
+                if (v && v.attributes) {
+                    v.attributes.forEach(attr => {
+                        if (p.sizes && p.sizes.some(s => s.id == attr.value_id)) selectedSize = attr.value_id;
+                        if (p.colors && p.colors.some(c => c.id == attr.value_id)) selectedColor = attr.value_id;
+                    });
+                }
+            }
 
-                const rowTemplate = `
-                    <tr class="item-row" data-index="${rowIndex}">
-                        <td><img src="${p.image}" width="40" height="40" class="img-thumbnail border-0 bg-light"></td>
-                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.category || '-'}</td>
-                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.brand || '-'}</td>
-                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.season || '-'}</td>
-                        <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.gender || '-'}</td>
-                        <td class="fw-bold">${p.name}</td>
-                        <td class="text-secondary small">${p.style_number ? '#' + p.style_number : '-'}</td>
-                        <td>
-                            <select name="items[${rowIndex}][size_id]" class="form-select form-select-sm size-select" ${!showSize ? 'disabled' : ''}>
-                                ${sizeOptions}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="items[${rowIndex}][color_id]" class="form-select form-select-sm color-select" ${!showColor ? 'disabled' : ''}>
-                                ${colorOptions}
-                            </select>
-                            <input type="hidden" name="items[${rowIndex}][variation_id]" class="variation-id-input" value="${variationId}">
-                        </td>
-                        <td>
-                            <input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm quantity text-center border-2 fw-bold" value="1" min="0.01" step="0.01">
-                            <input type="hidden" name="items[${rowIndex}][product_id]" value="${p.id}">
-                        </td>
-                        <td>
-                            <input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm unit_price text-end border-2 fw-bold" value="${unitPrice}" step="0.01">
-                        </td>
-                        <td class="text-end fw-bold">
-                            <span class="item-total-val text-primary">${parseFloat(unitPrice).toFixed(2)}</span>
-                        </td>
-                        <td class="text-center">
+            if (!showSize) sizeOptions = `<option value="">-</option>`;
+            if (!showColor) colorOptions = `<option value="">-</option>`;
+
+            const rowTemplate = `
+                <tr class="item-row" data-index="${rowIndex}">
+                    <td><img src="${p.image}" width="40" height="40" class="img-thumbnail border-0 bg-light"></td>
+                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.category || '-'}</td>
+                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.brand || '-'}</td>
+                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.season || '-'}</td>
+                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.gender || '-'}</td>
+                    <td class="fw-bold">${p.name}</td>
+                    <td class="text-secondary small">${p.style_number ? '#' + p.style_number : '-'}</td>
+                    <td>
+                        <select name="items[${rowIndex}][size_id]" class="form-select form-select-sm size-select" ${!showSize ? 'disabled' : ''}>
+                            ${sizeOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <select name="items[${rowIndex}][color_id]" class="form-select form-select-sm color-select" ${!showColor ? 'disabled' : ''}>
+                            ${colorOptions}
+                        </select>
+                        <input type="hidden" name="items[${rowIndex}][variation_id]" class="variation-id-input" value="${variationId}">
+                    </td>
+                    <td>
+                        <input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm quantity text-center border-2 fw-bold" value="${options.quantity || 1}" min="1" step="1">
+                        <input type="hidden" name="items[${rowIndex}][product_id]" value="${p.id}">
+                    </td>
+                    <td>
+                        <input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm unit_price text-end border-2 fw-bold" value="${unitPrice}" step="0.01">
+                    </td>
+                    <td class="text-end fw-bold text-primary">
+                        <span class="item-total-val text-primary">${(parseFloat(unitPrice) * (options.quantity || 1)).toFixed(2)}</span>
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex justify-content-center gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-primary border-0 copy-row" title="Add another size/color">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-danger border-0 remove-row">
                                 <i class="fas fa-times-circle"></i>
                             </button>
-                        </td>
-                    </tr>
-                `;
-                
-                const $row = $(rowTemplate);
-                tableBody.append($row);
-                
-                if (selectedSize) $row.find('.size-select').val(selectedSize);
-                if (selectedColor) $row.find('.color-select').val(selectedColor);
-                
-                $row.data('pdata', p);
-                rowIndex++;
-            });
-
-            updateTotals();
+                        </div>
+                    </td>
+                </tr>
+            `;
+            
+            const $row = $(rowTemplate);
+            tableBody.append($row);
+            
+            if (selectedSize) $row.find('.size-select').val(selectedSize);
+            if (selectedColor) $row.find('.color-select').val(selectedColor);
+            
+            $row.data('pdata', p);
+            rowIndex++;
         }
+
+        // Duplication logic
+        $(document).on('click', '.copy-row', function() {
+            const $row = $(this).closest('tr');
+            const p = $row.data('pdata');
+            const currentVals = {
+                size_id: $row.find('.size-select').val(),
+                color_id: $row.find('.color-select').val(),
+                quantity: $row.find('.quantity').val(),
+                unitPrice: $row.find('.unit_price').val(),
+                variation_id: $row.find('.variation-id-input').val()
+            };
+            addOneRow(p, null, currentVals);
+            updateTotals();
+        });
 
         // Generic Event Listeners
         $(document).on('click', '.remove-row', function() {
@@ -394,9 +405,9 @@
 
             if (foundVal) {
                 $row.find('.variation-id-input').val(foundVal.id);
-                // Update price and totals
-                if (foundVal.price && parseFloat(foundVal.price) > 0) {
-                    $row.find('.unit_price').val(parseFloat(foundVal.price).toFixed(2));
+                // Update unit price from cost (purchasing)
+                if (foundVal.cost && parseFloat(foundVal.cost) > 0) {
+                    $row.find('.unit_price').val(parseFloat(foundVal.cost).toFixed(2));
                 }
                 updateTotals();
             } else {

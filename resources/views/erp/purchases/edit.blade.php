@@ -149,7 +149,7 @@
                                                         </div>
                                                     </td>
                                                     <td class="align-top">
-                                                        <input type="number" name="items[{{ $i }}][quantity]" class="form-control quantity fw-bold border-2" min="0.01" step="0.01" value="{{ $item->quantity }}" required {{ $purchase->status == 'received' ? 'readonly' : '' }}>
+                                                        <input type="number" name="items[{{ $i }}][quantity]" class="form-control quantity fw-bold border-2" min="1" step="1" value="{{ $item->quantity }}" required {{ $purchase->status == 'received' ? 'readonly' : '' }}>
                                                     </td>
                                                     <td class="align-top">
                                                         <div class="input-group">
@@ -283,7 +283,7 @@
                         </div>
                     </td>
                     <td class="align-top">
-                        <input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity fw-bold border-2" min="0.01" step="0.01" required>
+                        <input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity fw-bold border-2" min="1" step="1" required>
                     </td>
                     <td class="align-top">
                         <div class="input-group">
@@ -310,6 +310,33 @@
         }
 
         $('#addItemRow').on('click', addItemRow);
+        
+        $(document).on('click', '.duplicate-row', function() {
+            const $row = $(this).closest('tr');
+            const pid = $row.find('.product-select').val();
+            const vid = $row.find('.variation-select').val();
+            const qty = $row.find('.quantity').val();
+            const up = $row.find('.unit_price').val();
+            const desc = $row.find('.description').val();
+            const ptext = $row.find('.product-select option:selected').text();
+            
+            addItemRow(); 
+            const $newRow = $('#itemsTable tbody tr:last-child');
+            
+            if (pid) {
+                const opt = new Option(ptext, pid, true, true);
+                $newRow.find('.product-select').append(opt).trigger('change');
+                if (vid) {
+                    $newRow.find('.variation-select').data('initial-id', vid);
+                }
+            }
+            $newRow.find('.quantity').val(qty);
+            $newRow.find('.unit_price').val(up);
+            $newRow.find('.description').val(desc);
+            
+            updateTotals();
+        });
+
         $(document).on('click', '.remove-row', function() { $(this).closest('tr').remove(); updateTotals(); updateRemoveButtons(); });
 
         const branches = @json($branches);
@@ -334,7 +361,7 @@
                 const vs = row.querySelector('.variation-select');
                 if (vars && vars.length > 0) {
                     $(vs).removeClass('d-none').attr('required', 'required').empty().append('<option value="">Select Variation</option>');
-                    vars.forEach(v => $(vs).append(`<option value="${v.id}" data-price="${v.price || ''}">${v.display_name || v.name}</option>`));
+                    vars.forEach(v => $(vs).append(`<option value="${v.id}" data-price="${v.cost || v.price || ''}">${v.display_name || v.name}</option>`));
                     // If it was already set (on initial load)
                     const initialId = $(vs).data('initial-id');
                     if(initialId) $(vs).val(initialId).trigger('change').data('initial-id', null);
@@ -342,7 +369,9 @@
                     $(vs).addClass('d-none').removeAttr('required').empty();
                     $.get('{{ url('/erp/products') }}/' + pid + '/price', (r) => {
                         const up = row.querySelector('.unit_price');
-                        if(r && r.price && !up.value) up.value = r.price;
+                        if (r && (r.cost || r.price) && !up.value) {
+                            up.value = r.cost || r.price;
+                        }
                         updateTotals();
                     });
                 }

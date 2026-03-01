@@ -158,7 +158,7 @@
                                                     <input type="hidden" name="items[{{ $i }}][sale_item_id]" value="{{ $item->sale_item_id }}">
                                                 </td>
                                                 <td>
-                                                    <input type="number" name="items[{{ $i }}][returned_qty]" class="form-control" min="0.01" step="0.01" value="{{ $item->returned_qty }}" required>
+                                                    <input type="number" name="items[{{ $i }}][returned_qty]" class="form-control" min="1" step="1" value="{{ $item->returned_qty }}" required>
                                                 </td>
                                                 <td>
                                                     <div class="input-group input-group-sm">
@@ -294,7 +294,7 @@
                                 </select>
                             </div>
                         </td>
-                        <td><input type="number" name="items[${i}][returned_qty]" class="form-control" min="0.01" step="0.01" required></td>
+                        <td><input type="number" name="items[${i}][returned_qty]" class="form-control" min="1" step="1" required></td>
                         <td>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text border-0 bg-transparent">৳</span>

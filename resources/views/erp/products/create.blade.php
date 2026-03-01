@@ -425,6 +425,34 @@ $(document).ready(function() {
         $('#size_chart').val('');
         $('#size_chart_preview_container').hide();
     });
+
+    // File Size Validation
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    function validateFileSize(input) {
+        const files = input.files;
+        for (let i = 0; i < files.length; i++) {
+            if (files[i].size > MAX_FILE_SIZE) {
+                const fileName = files[i].name;
+                const fileSizeMB = (files[i].size / (1024 * 1024)).toFixed(2);
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File Too Large',
+                    text: `The file "${fileName}" is ${fileSizeMB}MB, which exceeds the 2MB limit. Please upload a smaller file.`,
+                    confirmButtonColor: 'var(--primary-color)',
+                    customClass: { popup: 'rounded-4' }
+                });
+                
+                input.value = ''; 
+                return false;
+            }
+        }
+        return true;
+    }
+
+    $('#image, #size_chart, #gallery').on('change', function() {
+        validateFileSize(this);
+    });
 });
 </script>
 @endpush

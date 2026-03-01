@@ -303,7 +303,7 @@
                             <div class="mt-2"><span class="badge-stock badge-stock-checking stock-display"><i class="fas fa-spinner fa-spin me-1"></i>Checking...</span></div>
                         </td>
                         <td>
-                            <input type="number" name="items[${idx}][returned_qty]" class="form-control form-control-sm text-center return-qty" value="1" min="0.01" step="0.01">
+                            <input type="number" name="items[${idx}][returned_qty]" class="form-control form-control-sm text-center return-qty" value="1" min="1" step="1">
                             ${data.max_qty ? `<small class="text-muted d-block text-center mt-1 fw-bold" style="font-size: 0.7rem;">MAX: ${data.max_qty}</small>` : ''}
                         </td>
                         <td>

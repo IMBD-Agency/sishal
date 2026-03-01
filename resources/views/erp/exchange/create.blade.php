@@ -296,7 +296,7 @@
                             <td class="text-center align-middle">
                                  <div class="input-group input-group-sm justify-content-center">
                                     <input type="number" name="return_items[${index}][qty]" class="form-control text-center return-qty" 
-                                    min="0" max="${item.available_qty}" value="0" style="max-width: 80px" ${item.available_qty <= 0 ? 'disabled' : ''}>
+                                    min="0" step="1" max="${item.available_qty}" value="0" style="max-width: 80px" ${item.available_qty <= 0 ? 'disabled' : ''}>
                                  </div>
                                 ${item.available_qty <= 0 ? '<span class="badge bg-danger mt-1">Returned</span>' : 
                                     `<small class="text-muted d-block mt-1">Max: ${item.available_qty}</small>`}
@@ -561,7 +561,7 @@
                             <input type="hidden" name="new_items[${index}][variation_id]" value="${variationId || ''}">
                         </td>
                         <td class="align-middle text-center py-3">
-                            <input type="number" name="new_items[${index}][qty]" class="form-control text-center new-qty" value="1" min="1" ${maxAttr} ${stockData} style="max-width: 100px; margin: 0 auto;">
+                            <input type="number" name="new_items[${index}][qty]" class="form-control text-center new-qty" value="1" min="1" step="1" ${maxAttr} ${stockData} style="max-width: 100px; margin: 0 auto;">
                             ${stockInfo}
                         </td>
                         <td class="align-middle text-end py-3">

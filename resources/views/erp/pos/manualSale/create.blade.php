@@ -89,7 +89,7 @@
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Quantity</label>
-                                                <input type="number" id="itemQty" class="form-control" value="1" min="0.01" step="0.01">
+                                                <input type="number" id="itemQty" class="form-control" value="1" min="1" step="1">
                                             </div>
                                             <div class="col-12 text-end pt-3">
                                                 <button type="button" id="addItemBtn" class="btn btn-create-premium px-5 py-2">

@@ -190,7 +190,7 @@
                                                             </select>
                                                         </td>
                                                         <td>
-                                                            <input type="number" name="items[{{ $i }}][quantity]" class="form-control item-qty" value="{{ $item->quantity }}" required>
+                                                            <input type="number" name="items[{{ $i }}][quantity]" class="form-control item-qty" value="{{ $item->quantity }}" min="1" step="1" required>
                                                         </td>
                                                         <td>
                                                             <input type="number" name="items[{{ $i }}][unit_price]" class="form-control item-unit" min="0" step="0.01" value="{{ $item->unit_price }}" required>

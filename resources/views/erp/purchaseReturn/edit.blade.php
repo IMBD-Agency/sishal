@@ -110,7 +110,7 @@
                                         <span class="stock-info text-muted" style="min-width: 80px;"></span>
                                     </div>
                                 </td>
-                                <td><input type="number" name="items[{{ $index }}][returned_qty]" class="form-control returned_qty" min="1" value="{{ $item->returned_qty }}" required></td>
+                                <td><input type="number" name="items[{{ $index }}][returned_qty]" class="form-control returned_qty" min="1" step="1" value="{{ $item->returned_qty }}" required></td>
                                 <td><input type="number" name="items[{{ $index }}][unit_price]" class="form-control unit_price" min="1" value="{{ $item->unit_price }}" required></td>
                                 <td><input type="text" name="items[{{ $index }}][reason]" class="form-control" value="{{ $item->reason }}"></td>
                                 <td><button type="button" class="btn btn-danger btn-sm remove-row" {{ $purchaseReturn->items->count() === 1 ? 'disabled' : '' }}>&times;</button></td>
@@ -319,7 +319,7 @@
                             <span class="stock-info text-muted" style="min-width: 80px;"></span>
                         </div>
                     </td>
-                    <td><input type="number" name="items[${itemIndex}][returned_qty]" class="form-control returned_qty" min="1" required></td>
+                    <td><input type="number" name="items[${itemIndex}][returned_qty]" class="form-control returned_qty" min="1" step="1" required></td>
                     <td><input type="number" name="items[${itemIndex}][unit_price]" class="form-control unit_price" min="1" required></td>
                     <td><input type="text" name="items[${itemIndex}][reason]" class="form-control"></td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-row">&times;</button></td>

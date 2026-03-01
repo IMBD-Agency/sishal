@@ -421,7 +421,7 @@
                             <input type="hidden" name="items[${i}][order_item_id]" value="${itemData ? itemData.id : ''}">
                         </td>
                         <td>
-                            <input type="number" name="items[${i}][returned_qty]" class="form-control" min="0.01" step="0.01" value="${itemData ? itemData.quantity : 1}" required>
+                            <input type="number" name="items[${i}][returned_qty]" class="form-control" min="1" step="1" value="${itemData ? itemData.quantity : 1}" required>
                         </td>
                         <td>
                             <div class="input-group input-group-sm">
