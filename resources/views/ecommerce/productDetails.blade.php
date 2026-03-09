@@ -748,7 +748,7 @@
         function initImageGallery() {
             console.log('[GALLERY] Starting Swiper initialization...');
             
-            var gallery = document.querySelector('.product-gallery');
+            var gallery = document.querySelector('.pd-gallery-section');
             if (!gallery) {
                 console.log('[GALLERY] Gallery not found');
                 return;
@@ -760,8 +760,8 @@
                 return;
             }
 
-            var thumbContainer = gallery.querySelector('.thumb-swiper');
-            var mainContainer = gallery.querySelector('.main-swiper');
+            var thumbContainer = gallery.querySelector('.pd-thumb-swiper');
+            var mainContainer = gallery.querySelector('.pd-main-swiper');
             
             if (!thumbContainer || !mainContainer) {
                 console.error('[GALLERY] Swiper containers not found');
@@ -885,95 +885,58 @@
         }
         
         function setupZoom(imageContainer, img, zoomLevel) {
-            let isZooming = false;
-            
-            // Ensure container has proper styling for zoom
+            // Ensure container has proper styling
             if (!imageContainer.classList.contains('zooming-container')) {
                 imageContainer.style.position = 'relative';
                 imageContainer.style.overflow = 'hidden';
                 imageContainer.classList.add('zooming-container');
             }
-            
-            // Mouse enter - prepare for zoom
+
+            // Create zoom overlay if it doesn't exist
+            let zoomOverlay = imageContainer.querySelector('.zoom-overlay');
+            if (!zoomOverlay) {
+                zoomOverlay = document.createElement('div');
+                zoomOverlay.className = 'zoom-overlay';
+                zoomOverlay.style.position = 'absolute';
+                zoomOverlay.style.top = '0';
+                zoomOverlay.style.left = '0';
+                zoomOverlay.style.width = '100%';
+                zoomOverlay.style.height = '100%';
+                zoomOverlay.style.pointerEvents = 'none';
+                zoomOverlay.style.opacity = '0';
+                zoomOverlay.style.backgroundRepeat = 'no-repeat';
+                zoomOverlay.style.transition = 'opacity 0.2s ease-in-out';
+                zoomOverlay.style.zIndex = '10';
+                imageContainer.appendChild(zoomOverlay);
+            }
+
             imageContainer.addEventListener('mouseenter', function() {
-                imageContainer.classList.add('zooming');
-            });
-            
-            // Mouse move - calculate and apply zoom
-            imageContainer.addEventListener('mousemove', function(e) {
-                if (!isZooming) {
-                    isZooming = true;
-                }
+                // Ensure image isn't purely empty/broken
+                if (!img.src || img.src.includes('default-product.jpg')) return;
                 
+                zoomOverlay.style.backgroundImage = `url("${img.src}")`;
+                // To zoom we make the background image size large, eg. 250% = 2.5x
+                zoomOverlay.style.backgroundSize = `${zoomLevel * 100}%`;
+                zoomOverlay.style.opacity = '1';
+                img.style.opacity = '0'; // hide original so we see the crisp zoomed bg
+            });
+
+            imageContainer.addEventListener('mousemove', function(e) {
+                if (zoomOverlay.style.opacity === '0') return;
+
                 const rect = imageContainer.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                
-                // Calculate percentage position
+
                 const xPercent = (x / rect.width) * 100;
                 const yPercent = (y / rect.height) * 100;
-                
-                // Set transform origin to mouse position
-                img.style.transformOrigin = xPercent + '% ' + yPercent + '%';
-                
-                // Apply zoom
-                img.style.transform = 'scale(' + zoomLevel + ')';
+
+                zoomOverlay.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
             });
-            
-            // Mouse leave - reset zoom
+
             imageContainer.addEventListener('mouseleave', function() {
-                imageContainer.classList.remove('zooming');
-                img.style.transform = 'scale(1)';
-                img.style.transformOrigin = 'center center';
-                isZooming = false;
-            });
-            
-            // Touch support for mobile (optional)
-            let touchStartDistance = 0;
-            let touchStartScale = 1;
-            
-            imageContainer.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 2) {
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    touchStartDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                    touchStartScale = parseFloat(img.style.transform.replace('scale(', '').replace(')', '')) || 1;
-                }
-            });
-            
-            imageContainer.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 2) {
-                    e.preventDefault();
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const currentDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                    
-                    const scale = touchStartScale * (currentDistance / touchStartDistance);
-                    const clampedScale = Math.max(1, Math.min(zoomLevel, scale));
-                    
-                    const rect = imageContainer.getBoundingClientRect();
-                    const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-                    const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-                    
-                    const xPercent = (centerX / rect.width) * 100;
-                    const yPercent = (centerY / rect.height) * 100;
-                    
-                    img.style.transformOrigin = xPercent + '% ' + yPercent + '%';
-                    img.style.transform = 'scale(' + clampedScale + ')';
-                }
-            });
-            
-            imageContainer.addEventListener('touchend', function(e) {
-                if (e.touches.length < 2) {
-                    img.style.transform = 'scale(1)';
-                    img.style.transformOrigin = 'center center';
-                }
+                zoomOverlay.style.opacity = '0';
+                img.style.opacity = '1';
             });
         }
 
@@ -1044,15 +1007,27 @@
         // Simple gallery functionality
         function initSimpleGallery() {
             console.log('[GALLERY] Initializing simple gallery functionality...');
-            var mainImages = document.querySelectorAll('.main-swiper .main-image');
+            var mainImages = document.querySelectorAll('.pd-main-swiper .main-image');
             console.log('[GALLERY] Found', mainImages.length, 'main images');
             
             mainImages.forEach(function(img, index) {
-                // Click to open gallery modal
-                img.addEventListener('click', function() {
-                    console.log('[GALLERY] Click detected - opening gallery modal');
-                    openGalleryModal(img.src, img.alt);
-                });
+                // Attach click to the slide container because the zoom effect modifies image opacity
+                var slide = img.closest('.swiper-slide');
+                if (slide) {
+                    slide.style.cursor = 'zoom-in';
+                    slide.addEventListener('click', function(e) {
+                        // Ignore if click was on wishlist button
+                        if (e.target.closest('.pd-main-wishlist-btn')) return;
+                        
+                        console.log('[GALLERY] Click detected on slide - opening gallery modal');
+                        openGalleryModal(img.src, img.alt);
+                    });
+                } else {
+                    img.addEventListener('click', function() {
+                        console.log('[GALLERY] Click detected on img - opening gallery modal');
+                        openGalleryModal(img.src, img.alt);
+                    });
+                }
             });
             
             // Initialize gallery modal
@@ -1333,7 +1308,7 @@
             var allImages = [];
             
             // Add main product image
-            var mainImage = document.querySelector('.main-swiper .swiper-slide[data-image-type="product"] img');
+            var mainImage = document.querySelector('.pd-main-swiper .swiper-slide[data-image-type="product"] img');
             if (mainImage) {
                 allImages.push({
                     src: mainImage.src,
@@ -1342,7 +1317,7 @@
             }
             
             // Add gallery images
-            var galleryImages = document.querySelectorAll('.main-swiper .swiper-slide[data-image-type="gallery"] img');
+            var galleryImages = document.querySelectorAll('.pd-main-swiper .swiper-slide[data-image-type="gallery"] img');
             galleryImages.forEach(function(img) {
                 allImages.push({
                     src: img.src,

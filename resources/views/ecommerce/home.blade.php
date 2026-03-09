@@ -40,14 +40,14 @@
                     </ul>
                 </div>
             </div>
-        </div>
+        </div>  
     </section>
 
     <!-- Popular Categories (Splide carousel) -->
     <section class="popular-categories">
         <div class="container">
             <div class="section-header section-header--fancy">
-                <h2 class="section-title">Categories</h2>
+                <h2 class="section-title"> CATEGORIES</h2>
                 <a href="{{ route('categories') }}" class="section-see-all">View All</a>
             </div>
 
@@ -74,7 +74,7 @@
   <section class="top-products">
         <div class="container">
             <div class="section-header section-header--fancy">
-                <h2 class="section-title">New Arrivals</h2>
+                <h2 class="section-title">NEW ARRIVALS</h2>
                 <a href="{{ route('product.archive', ['sort' => 'newest']) }}" class="section-see-all">View All</a>
             </div>
 
@@ -85,7 +85,7 @@
                     </ul>
                 </div>
             </div>
-            <div id="newArrivalsFallback" class="row product-grid">
+            <div id="newArrivalsFallback" class="row product-grid g-3 px-2">
                 <!-- Skeleton loaders will be injected here -->
             </div>
         </div>
@@ -95,7 +95,7 @@
     <section class="top-products">
         <div class="container">
             <div class="section-header section-header--fancy">
-                <h2 class="section-title ">Top Selling Products</h2>
+                <h2 class="section-title ">TOP SELLING PRODUCTS</h2>
                 <a href="{{ route('product.archive') }}" class="section-see-all">View All</a>
             </div>
 
@@ -106,7 +106,7 @@
                     </ul>
                 </div>
             </div>
-            <div id="mostSoldFallback" class="row product-grid">
+            <div id="mostSoldFallback" class="row product-grid g-3 px-2">
                 <!-- Skeleton loaders will be injected here -->
             </div>
         </div>
@@ -119,7 +119,7 @@
 		<div class="container">
 			<div class="d-flex justify-content-between mb-5">
 				<div>
-					<h2 class="section-title mb-0 text-start">Collections </h2>
+					<h2 class="section-title mb-0 text-start">COLLECTIONS </h2>
 					<!-- <p class="section-subtitle text-start mb-0">Watch our latest Fashion & Lifestyle Vlogs</p> -->
 				</div>
 			</div>
@@ -154,7 +154,7 @@
     <section class="top-products">
         <div class="container">
             <div class="section-header section-header--fancy">
-                <h2 class="section-title">Best Deals</h2>
+                <h2 class="section-title">BEST DEALS</h2>
                 <a href="{{ route('best.deal') }}" class="section-see-all">View All</a>
             </div>
 
@@ -165,7 +165,7 @@
                     </ul>
                 </div>
             </div>
-            <div id="bestDealsFallback" class="row product-grid">
+            <div id="bestDealsFallback" class="row product-grid g-3 px-2">
                 <!-- Skeleton loaders will be injected here -->
             </div>
         </div>
@@ -258,6 +258,9 @@
             box-shadow: 0 3px 14px rgba(0,0,0,0.06);
             overflow: hidden;
             position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
         
         .skeleton-image {
@@ -282,6 +285,9 @@
         
         .skeleton-content {
             padding: 10px 12px 12px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
         }
         
         .skeleton-title {
@@ -319,7 +325,7 @@
             background-size: 200% 100%;
             animation: skeleton-loading 1.5s infinite;
             border-radius: 6px;
-            margin-top: 10px;
+            margin-top: auto;
         }
         
         @keyframes skeleton-loading {

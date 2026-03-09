@@ -23,16 +23,55 @@
                 </a>
             </div>
 
-            <!-- Search Bar -->
-            <div class="search-section flex-grow-1 mx-lg-5 mx-md-3 d-none d-md-block">
-                <form class="search-form" action="{{ route('search') }}" method="get">
-                    <div class="search-container">
-                        <input type="text" class="search-input" placeholder="What are you looking for?" name="search">
-                        <button class="search-btn" type="submit">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
-                    </div>
-                </form>
+            <!-- Categories and Search Bar Wrapper -->
+            <div class="header-center-section flex-grow-1 mx-lg-5 mx-md-3 d-none d-lg-flex align-items-center gap-4">
+                <!-- Inline Categories -->
+                <nav class="header-categories">
+                    <ul class="nav-links d-flex align-items-center mb-0 list-unstyled">
+                        <li class="nav-item {{ request()->is('/') ? 'active' : '' }}">
+                            <a href="/" class="nav-link">Home</a>
+                        </li>
+                            
+                        @if(isset($nav_categories) && $nav_categories->count() > 0)
+                            @foreach($nav_categories as $category)
+                            <li class="nav-item nav-item-dropdown">
+                                <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="nav-link">
+                                    {{ $category->name }}
+                                    @php $children = $category->children ?? ($category->subcategories ?? collect()); @endphp
+                                </a>
+                                @if($children->count() > 0)
+                                <div class="dropdown-panel">
+                                    <ul class="dropdown-list">
+                                        @foreach($children as $child)
+                                        <li>
+                                            <a href="{{ route('product.archive') }}?category={{ $child->slug }}" class="dropdown-link">
+                                                {{ $child->name }}
+                                            </a>
+                                        </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                                @endif
+                            </li>
+                            @endforeach
+                        @endif
+                        <li class="nav-item {{ request()->is('best-deal') ? 'active' : '' }}">
+                            <a href="{{ route('best.deal') }}" class="nav-link">Best Deals</a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- Search Bar -->
+                <div class="search-section flex-grow-1">
+                    <form class="search-form" action="{{ route('search') }}" method="get">
+                        <div class="search-container">
+                            <input type="text" class="search-input" placeholder="What are you looking for?" name="search">
+                            <button class="search-btn" type="submit">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- Right Side Action Buttons -->
@@ -86,59 +125,7 @@
     </div>
 </header>
 
-<!-- Main Navigation -->
-<nav class="main-nav">
-    <div class="container">
-        <div class="nav-container d-flex align-items-center justify-content-center">
-            <ul class="nav-links d-flex align-items-center mb-0 list-unstyled">
-                <li class="nav-item {{ request()->is('/') ? 'active' : '' }}">
-                    <a href="/" class="nav-link">Home</a>
-                </li>
-                    
-                <!-- Categories -->
-                @if(isset($nav_categories) && $nav_categories->count() > 0)
-                    @foreach($nav_categories as $category)
-                    <li class="nav-item nav-item-dropdown">
-                        <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="nav-link">
-                            {{ $category->name }}
-                            @php $children = $category->children ?? ($category->subcategories ?? collect()); @endphp
-                            @if($children->count() > 0)
-                                <i class="fa-solid fa-chevron-down ms-1 small"></i>
-                            @endif
-                        </a>
-                        @if($children->count() > 0)
-                        <div class="dropdown-panel">
-                            <ul class="dropdown-list">
-                                @foreach($children as $child)
-                                <li>
-                                    <a href="{{ route('product.archive') }}?category={{ $child->slug }}" class="dropdown-link">
-                                        {{ $child->name }}
-                                    </a>
-                                </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                        @endif
-                    </li>
-                    @endforeach
-                @endif
-                <li class="nav-item {{ request()->is('best-deal') ? 'active' : '' }}">
-                    <a href="{{ route('best.deal') }}" class="nav-link">Best Deals</a>
-                </li>
-                <li class="nav-item {{ request()->is('contact*') ? 'active' : '' }}">
-                    <a href="{{ route('contact') }}" class="nav-link">Contact</a>
-                </li>
-                @foreach($additional_pages as $page)
-                    @if($page->positioned_at == 'navbar')
-                    <li class="nav-item {{ request()->is('page/' . $page->slug) ? 'active' : '' }}">
-                        <a href="{{ route('additionalPage.show', $page->slug) }}" class="nav-link">{{ $page->title }}</a>
-                    </li>
-                    @endif
-                @endforeach
-            </ul>
-        </div>
-    </div>
-</nav>
+
         <!-- Mobile overlay & side drawer -->
         <!-- Mobile overlay & side drawer -->
 <div class="mobile-overlay" id="mobileOverlay" hidden></div>

@@ -214,8 +214,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Add loading state with skeleton loaders
             if (fallback) {
                 const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const colClass = perPage === 4 ? 'col-3' : perPage === 3 ? 'col-4' : 'col-6';
                 const skeletonHTML = Array.from({ length: perPage }, () => `
-                    <div class="col-lg-3 col-md-4 col-6">
+                    <div class="${colClass}">
                         <div class="product-skeleton">
                             <div class="skeleton-image"></div>
                             <div class="skeleton-wishlist"></div>
@@ -473,8 +474,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (fallback) {
                 const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const colClass = perPage === 4 ? 'col-3' : perPage === 3 ? 'col-4' : 'col-6';
                 const skeletonHTML = Array.from({ length: perPage }, () => `
-                    <div class="col-lg-3 col-md-4 col-6">
+                    <div class="${colClass}">
                         <div class="product-skeleton">
                             <div class="skeleton-image"></div>
                             <div class="skeleton-wishlist"></div>
@@ -719,8 +721,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Add loading state with skeleton loaders
             if (fallback) {
                 const perPage = window.innerWidth >= 1200 ? 4 : window.innerWidth >= 992 ? 3 : 2;
+                const colClass = perPage === 4 ? 'col-3' : perPage === 3 ? 'col-4' : 'col-6';
                 const skeletonHTML = Array.from({ length: perPage }, () => `
-                    <div class="col-lg-3 col-md-4 col-6">
+                    <div class="${colClass}">
                         <div class="product-skeleton">
                             <div class="skeleton-image"></div>
                             <div class="skeleton-wishlist"></div>

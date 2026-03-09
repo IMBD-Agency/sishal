@@ -555,9 +555,9 @@
             const nav = document.querySelector('nav.main-nav');
 
             // Remove conflicting transforms that cause shake
-            if (topBar) topBar.style.transform = 'none';
-            if (header) header.style.transform = 'none';
-            if (nav) nav.style.transform = 'none';
+            if (topBar) topBar.style.transform = '';
+            if (header) header.style.transform = '';
+            if (nav) nav.style.transform = '';
         }
 
         // Stabilize header once on load
@@ -578,19 +578,44 @@
         // Scroll to Top Button functionality
         const scrollToTopBtn = document.getElementById('scrollToTopBtn');
 
-        // Show/hide scroll to top button based on scroll position
+        // Scroll handling for To-Top Button and Smart Headers
+        let lastScrollTop = 0;
+        const topBar = document.querySelector('.top-bar');
+        const modernHeader = document.querySelector('header.modern-header');
+        const mainNav = document.querySelector('nav.main-nav');
+        
         window.addEventListener('scroll', function () {
-            if (window.pageYOffset > 300) {
-                scrollToTopBtn.classList.add('show');
-            } else {
-                scrollToTopBtn.classList.remove('show');
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // To-Top Button logic
+            if (scrollToTopBtn) {
+                if (scrollTop > 300) {
+                    scrollToTopBtn.classList.add('show');
+                } else {
+                    scrollToTopBtn.classList.remove('show');
+                }
             }
+            
+            // Smart Header Logic (Desktop only behavior)
+            if (window.innerWidth > 992) {
+                if (scrollTop > 32) {
+                    // Hide marquee by shifting headers up 32px
+                    document.body.classList.add('hide-upper-headers');
+                } else {
+                    // Show marquee when at the very top
+                    document.body.classList.remove('hide-upper-headers');
+                }
+            }
+            
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
         });
 
         // Scroll to top when button is clicked
-        scrollToTopBtn.addEventListener('click', function () {
-            scrollToTop();
-        });
+        if (scrollToTopBtn) {
+            scrollToTopBtn.addEventListener('click', function () {
+                scrollToTop();
+            });
+        }
 
         // Global cart event handler to prevent duplicate listeners
         window.globalCartHandler = function (e) {
