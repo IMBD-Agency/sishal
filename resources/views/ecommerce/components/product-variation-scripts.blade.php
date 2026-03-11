@@ -98,11 +98,8 @@
             productVariations = productVariations.slice(0, 50);
         }
 
-        // Apply variation logic only if product has variations
-        var initialAddBtn = document.querySelector('.pd-btn-cart');
-        if (initialAddBtn) {
-            initialAddBtn.disabled = true;
-        }
+        // REMOVED: Automatic disabling to prevent 'stuck' buttons if JS fails or cache is stale
+        // The global handler in master.blade.php will now show a toast if options aren't selected
 
         function updateHiddenSelectedValues(selectedMap) {
             var container = document.getElementById('selected-attribute-values');

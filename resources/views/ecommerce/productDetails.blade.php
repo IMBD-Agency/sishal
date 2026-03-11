@@ -259,16 +259,16 @@
                         @php
                             $hasStock = $product->hasStock();
                         @endphp
-                        <button class="pd-btn-cart" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-has-stock="{{ $hasStock ? 'true' : 'false' }}"
-                                {{ (!$hasStock || $product->has_variations) ? 'disabled' : '' }}>
+                        <button class="pd-btn-cart" id="pdAddToCartBtn" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" data-has-stock="{{ $hasStock ? 'true' : 'false' }}"
+                                {{ !$hasStock ? 'disabled' : '' }} onclick="if(typeof window.handlePageAddToCart === 'function') { window.handlePageAddToCart(); } else { console.log('Using global handler'); }">
                             <i class="fas fa-shopping-basket me-2"></i> {{ $hasStock ? 'Add To Cart' : 'Out of Stock' }}
                         </button>
 
-                        <form action="{{ url('/buy-now') }}/{{ $product->id }}" method="POST" style="display:contents;" id="buyNowForm">
+                        <form action="{{ url('/buy-now') }}/{{ $product->id }}" method="POST" style="display:contents;" id="buyNowForm" onsubmit="return window.validateBuyNowSubmit ? window.validateBuyNowSubmit() : true;">
                             @csrf
                             <input type="hidden" name="variation_id" id="buy-now-variation-id" value="">
                             <input type="hidden" name="qty" id="buy-now-qty" value="1">
-                            <button type="submit" class="pd-btn-buy" id="buyNowBtn" {{ (!$hasStock || $product->has_variations) ? 'disabled' : '' }} data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
+                            <button type="submit" class="pd-btn-buy" id="buyNowBtn" {{ !$hasStock ? 'disabled' : '' }} data-has-variations="{{ $product->has_variations ? 'true' : 'false' }}">
                                 <i class="fas fa-bolt me-2"></i> {{ $hasStock ? 'Buy Now' : 'Out of Stock' }}
                             </button>
                         </form>
@@ -2040,6 +2040,42 @@
         if (typeof window.initializePageSpecificScripts === 'function') {
             try { window.initializePageSpecificScripts(); } catch (e) { console.error('Init error', e); }
         }
+
+        // FAIL-SAFE: Re-attach global handlers if they are missing
+        if (typeof window.globalCartHandler !== 'function') {
+            console.warn('[PD] globalCartHandler not found - live site may have old master.blade.php');
+        }
+
+        // Fail-safe Buy Now validation
+        window.validateBuyNowSubmit = function() {
+            var hasVariations = {{ $product->has_variations ? 'true' : 'false' }};
+            if (hasVariations) {
+                var variationId = document.getElementById('selected-variation-id').value;
+                if (!variationId || variationId === '' || variationId === '0') {
+                    if (typeof showToast === 'function') {
+                        showToast('Please select Color and Size before buying.', 'error');
+                    } else {
+                        alert('Please select Color and Size before buying.');
+                    }
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        // Fail-safe Add To Cart handler specifically for this page
+        window.handlePageAddToCart = function() {
+            console.log('[PD] Manual Add To Cart triggered');
+            var btn = document.getElementById('pdAddToCartBtn');
+            if (btn && typeof window.globalCartHandler === 'function') {
+                // Manually trigger the global handler
+                window.globalCartHandler({ 
+                    target: btn, 
+                    preventDefault: function(){}, 
+                    stopPropagation: function(){} 
+                });
+            }
+        };
     </script>
 
     <!-- NEW CLEAN REVIEW SYSTEM -->
