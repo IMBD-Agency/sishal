@@ -6,7 +6,7 @@
     <style>
         @page {
             margin: 0;
-            size: 38mm 25mm; /* Standard single label size */
+            size: 38mm 25mm;
         }
         
         * {
@@ -17,8 +17,9 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Arial Narrow', Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             background-color: white;
+            color: #000;
         }
 
         .no-print-area {
@@ -38,108 +39,126 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
             width: 38mm;
             height: 25mm;
             overflow: hidden;
-            padding: 1.5mm 1mm;
+            padding: 1mm;
             position: relative;
             page-break-after: always;
-            border: 0.1mm solid transparent; /* Helps with alignment */
         }
 
-        .company-name {
-            font-size: 9pt;
-            font-weight: 800;
-            text-transform: uppercase;
-            margin-bottom: 0.2mm;
-            color: #000;
-            text-align: center;
+        .barcode-section {
             width: 100%;
-            line-height: 1;
+            height: 10mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0.5mm;
         }
 
-        .product-name {
-            font-size: 7.5pt;
-            margin-bottom: 0.5mm;
-            color: #111;
-            text-align: center;
-            width: 100%;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            line-height: 1.1;
-            font-weight: 500;
-        }
-
-        .barcode-svg {
-            width: 100%;
-            height: 8.5mm;
+        .barcode-svg-container {
+            width: 85%; /* Stay in a shape - don't fill whole width */
+            height: 7.5mm;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-top: 0.2mm;
         }
 
-        .barcode-svg img {
-            max-width: 98%;
-            height: 100%;
+        .barcode-svg-container img {
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
         }
 
-        .sku-text {
+        .sku-under-barcode {
+            font-size: 6.5pt;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            margin-top: 0.2mm;
+            letter-spacing: 0.3px;
+        }
+
+        .info-section {
+            width: 100%;
+            padding: 0 1.5mm;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .detail-line {
             font-size: 7pt;
             font-weight: 700;
-            font-family: 'Courier New', Courier, monospace;
-            margin-bottom: 0.3mm;
+            text-transform: uppercase;
+            margin-bottom: 0.1mm;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .product-name-footer {
+            font-size: 6pt;
+            color: #333;
             margin-top: 0.2mm;
-            letter-spacing: 0.5px;
+            font-weight: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
-        .price-text {
-            border-top: 0.3pt solid #000;
-            width: 95%;
-            text-align: center;
-            padding-top: 0.5mm;
-            font-size: 10pt;
+        .price-section {
+            border-top: 0.2mm solid #000;
+            width: 90%;
+            margin-top: 0.5mm;
+            padding-top: 0.3mm;
+            font-size: 9pt;
             font-weight: 900;
-            color: #000;
-            line-height: 1;
+            text-align: center;
         }
-
+        
         .btn {
-            padding: 12px 30px;
+            padding: 10px 20px;
             background: #28a745;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 18px;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div class="no-print-area">
-        <h3 style="margin-bottom: 15px;">Printer Ready: {{ $quantity }} Labels for {{ $sku }}</h3>
-        <button class="btn" onclick="window.print()">
-            Click to Start Printing Labels
-        </button>
-        <p style="margin-top: 10px; font-size: 12px; color: #666;">
-            Make sure your printer settings are set to <strong>38mm x 25mm</strong> (or your sticker size) and <strong>Margins: None</strong>.
-        </p>
+        <h4 style="margin-bottom: 10px;">{{ $quantity }} Labels for {{ $sku }}</h4>
+        <button class="btn" onclick="window.print()">Print Labels</button>
     </div>
 
     @for ($i = 0; $i < $quantity; $i++)
     <div class="label-page">
-        <div class="product-name">{{ $name }}</div>
-        <div class="barcode-svg">
-            <img src="{{ $barcodeBase64 }}" alt="Barcode">
+        <!-- 1. Barcode Section (Top) -->
+        <div class="barcode-section">
+            <div class="barcode-svg-container">
+                <img src="{{ $barcodeBase64 }}" alt="Barcode">
+            </div>
+            <div class="sku-under-barcode">{{ strtoupper($sku) }}</div>
         </div>
-        <div class="sku-text">{{ strtoupper($sku) }}</div>
-        <div class="price-text">MRP: ৳{{ number_format($price, 2) }}</div>
+
+        <!-- 2. Info Section (Middle) -->
+        <div class="info-section">
+            @if($color)
+                <div class="detail-line">{{ $color }}</div>
+            @endif
+            @if($size)
+                <div class="detail-line text-info">{{ $size }}</div>
+            @endif
+            <div class="product-name-footer">{{ $name }}</div>
+        </div>
+
+        <!-- 3. Price Section (Bottom) -->
+        <div class="price-section">
+            MRP: ৳{{ number_format($price, 2) }}
+        </div>
     </div>
     @endfor
 

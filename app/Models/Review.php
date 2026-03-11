@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\SanitizesHtml;
 
 class Review extends Model
 {
-    use HasFactory;
+    use HasFactory, SanitizesHtml;
+
+    protected $sanitizable = ['comment'];
 
     protected $fillable = [
         'product_id',

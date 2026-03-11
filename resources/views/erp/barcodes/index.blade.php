@@ -114,6 +114,21 @@
         align-items: center;
         font-family: 'Arial Narrow', sans-serif;
     }
+    #barcodePreview {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+        min-height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    #barcodePreview svg {
+        max-width: 100%;
+        height: auto !important;
+    }
     .sticker-company {
         font-size: 11px;
         font-weight: 800;
@@ -269,7 +284,7 @@
                 $('#previewBtn').html('<i class="fas fa-sync me-2"></i>Generate Preview');
                 
                 if(res.success) {
-                    const sku = res.variation ? res.variation.sku : res.product.sku;
+                    const sku = res.variation ? res.variation.sku : (res.product.style_number || res.product.sku);
                     const price = res.variation ? res.variation.price : res.product.price;
                     const name = res.variation ? res.product.name + ' (' + res.variation.display_name + ')' : res.product.name;
                     

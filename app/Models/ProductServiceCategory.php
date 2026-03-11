@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SanitizesHtml;
 
 class ProductServiceCategory extends Model
 {
+    use SanitizesHtml;
+
+    protected $sanitizable = ['name', 'description'];
     protected $fillable = [
         'name', 'slug', 'description', 'image', 'status', 'parent_id'
     ];

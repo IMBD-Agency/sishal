@@ -1450,7 +1450,7 @@ class ProductController extends Controller
                              'name' => $v->name, // e.g. "Color: Red, Size: XL"
                              'price' => $v->price ?? null, // Override price if set
                              'wholesale_price' => $product->wholesale_price, // Fallback to product wholesale price
-                             'sku' => $v->sku,
+                             'sku' => $v->sku ?? (($product->style_number ?? $product->sku) . '-' . $v->id),
                              'stock' => $stock ? $stock->quantity : 0
                          ];
                     })->values()
@@ -1596,7 +1596,7 @@ class ProductController extends Controller
                     return [
                         'id' => $v->id,
                         'name' => $v->name,
-                        'sku' => $v->sku,
+                        'sku' => $v->sku ?? (($product->style_number ?? $product->sku) . '-' . $v->id),
                         'price' => $v->price ?? $product->price,
                         'wholesale_price' => $v->wholesale_price ?? $product->wholesale_price,
                         'cost' => $v->cost ?? $product->cost,

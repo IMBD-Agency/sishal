@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SanitizesHtml;
 
 class Product extends Model
 {
+    use SanitizesHtml;
+
+    protected $sanitizable = ['name', 'short_desc', 'description', 'features', 'meta_title', 'meta_description'];
     protected $fillable = [
         'name', 'slug', 'type', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'alert_quantity', 'free_delivery', 'show_in_ecommerce'
     ];

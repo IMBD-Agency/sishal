@@ -67,7 +67,7 @@ class BarcodeGenerator
         
         // Generate SVG
         $svgWidth = strlen($pattern) * $width;
-        $svg = '<svg width="' . $svgWidth . '" height="' . $height . '" xmlns="http://www.w3.org/2000/svg">';
+        $svg = '<svg viewBox="0 0 ' . $svgWidth . ' ' . $height . '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">';
         
         $x = 0;
         for ($i = 0; $i < strlen($pattern); $i++) {

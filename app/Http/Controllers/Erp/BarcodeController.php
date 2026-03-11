@@ -59,7 +59,7 @@ class BarcodeController extends Controller
                         'id' => $v->id,
                         'name' => $v->name,
                         'display_name' => $v->display_name ?? $v->name,
-                        'sku' => $v->sku,
+                        'sku' => $v->sku ?? (($product->style_number ?? $product->sku) . '-' . $v->id),
                         'price' => $v->price ?? $product->price,
                     ];
                 })
@@ -77,8 +77,9 @@ class BarcodeController extends Controller
         }
         $product = Product::findOrFail($productId);
         
-        // Generate linear barcode SVG
-        $barcode = $this->generateLinearBarcode($product->sku);
+        // Generate linear barcode SVG (Prioritize style_number as requested)
+        $identifier = $product->style_number ?? $product->sku;
+        $barcode = $this->generateLinearBarcode($identifier);
         
         return response()->json([
             'success' => true,
@@ -86,7 +87,7 @@ class BarcodeController extends Controller
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
-                'sku' => $product->sku,
+                'sku' => $identifier,
                 'price' => $product->price,
                 'discount' => $product->discount,
                 'available_stock' => $product->manage_stock ? ($product->warehouseStock()->sum('quantity') - $product->warehouseStock()->sum('reserved_quantity')) : 0,
@@ -107,8 +108,9 @@ class BarcodeController extends Controller
             ->where('id', $variationId)
             ->firstOrFail();
         
-        // Generate barcode using variation SKU or product SKU + variation ID
-        $sku = $variation->sku ?? ($product->sku . '-' . $variation->id);
+        // Generate barcode using variation SKU or (style_number/product SKU) + variation ID
+        $baseIdentifier = $product->style_number ?? $product->sku;
+        $sku = $variation->sku ?? ($baseIdentifier . '-' . $variation->id);
         
         $barcode = $this->generateLinearBarcode($sku);
         
@@ -118,7 +120,7 @@ class BarcodeController extends Controller
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
-                'sku' => $product->sku,
+                'sku' => $baseIdentifier,
                 'price' => $product->price,
             ],
             'variation' => [
@@ -150,12 +152,13 @@ class BarcodeController extends Controller
         foreach ($request->product_ids as $productId) {
             $product = Product::find($productId);
             if ($product) {
-                $barcode = $this->generateLinearBarcode($product->sku);
+                $identifier = $product->style_number ?? $product->sku;
+                $barcode = $this->generateLinearBarcode($identifier);
                 
                 $barcodes[] = [
                     'product_id' => $product->id,
                     'name' => $product->name,
-                    'sku' => $product->sku,
+                    'sku' => $identifier,
                     'price' => $product->price,
                     'barcode' => $barcode,
                 ];
@@ -178,22 +181,36 @@ class BarcodeController extends Controller
         }
         $product = Product::findOrFail($productId);
         $variation = null;
-        $sku = $product->sku;
+        $sku = $product->style_number ?? $product->sku;
         $price = $product->price;
         $name = $product->name;
+        $color = null;
+        $size = null;
 
         if ($variationId) {
             $variation = ProductVariation::where('product_id', $productId)
                 ->where('id', $variationId)
                 ->firstOrFail();
             
-            $sku = $variation->sku ?? ($product->sku . '-' . $variation->id);
+            $baseIdentifier = $product->style_number ?? $product->sku;
+            $sku = $variation->sku ?? ($baseIdentifier . '-' . $variation->id);
             $price = $variation->price ?? $product->price;
             $name = $product->name . ' - ' . ($variation->display_name ?? $variation->name);
+            
+            // Try to extract color and size for the professional label
+            if ($variation->combinations) {
+                foreach ($variation->combinations as $combo) {
+                    $attr = $combo->attributeValue->attribute;
+                    $val = $combo->attributeValue->value;
+                    if (str_contains(strtolower($attr->name), 'color')) $color = $val;
+                    if (str_contains(strtolower($attr->name), 'size')) $size = $val;
+                }
+            }
         }
 
-        // Generate barcode with optimized height for sticker labels
-        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 40);
+        // Generate barcode with optimized dimensions for professional look
+        // We'll use a slightly taller height and viewBox for scaling
+        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 60);
         
         // Convert SVG to base64 data URI for better browser rendering
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
@@ -201,7 +218,7 @@ class BarcodeController extends Controller
         // Get quantity from request (default 1)
         $quantity = request('quantity', 1);
 
-        return view('erp.barcodes.label', compact('product', 'variation', 'barcodeBase64', 'sku', 'price', 'name', 'quantity'));
+        return view('erp.barcodes.label', compact('product', 'variation', 'barcodeBase64', 'sku', 'price', 'name', 'quantity', 'color', 'size'));
     }
 
     /**
@@ -214,22 +231,35 @@ class BarcodeController extends Controller
         }
         $product = Product::findOrFail($productId);
         $variation = null;
-        $sku = $product->sku;
+        $sku = $product->style_number ?? $product->sku;
         $price = $product->price;
         $name = $product->name;
+        $color = null;
+        $size = null;
 
         if ($variationId) {
             $variation = ProductVariation::where('product_id', $productId)
                 ->where('id', $variationId)
                 ->firstOrFail();
             
-            $sku = $variation->sku ?? ($product->sku . '-' . $variation->id);
+            $baseIdentifier = $product->style_number ?? $product->sku;
+            $sku = $variation->sku ?? ($baseIdentifier . '-' . $variation->id);
             $price = $variation->price ?? $product->price;
             $name = $product->name . ' - ' . ($variation->display_name ?? $variation->name);
+
+            // Extract color and size for PDF label too
+            if ($variation->combinations) {
+                foreach ($variation->combinations as $combo) {
+                    $attr = $combo->attributeValue->attribute;
+                    $val = $combo->attributeValue->value;
+                    if (str_contains(strtolower($attr->name), 'color')) $color = $val;
+                    if (str_contains(strtolower($attr->name), 'size')) $size = $val;
+                }
+            }
         }
 
         // Generate barcode with optimized size for small PDF labels
-        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 40);
+        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 60);
         
         // Convert SVG to base64 data URI for better PDF compatibility
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
@@ -238,8 +268,8 @@ class BarcodeController extends Controller
         $quantity = request('quantity', 1);
 
         // Generate PDF with the exact sticker size (38mm x 25mm)
-        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price'));
-        $pdf->setPaper([0, 0, 107.71, 70.86], 'portrait');
+        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size'));
+        $pdf->setPaper([0, 0, 107.711, 70.866], 'portrait');
         
         return $pdf->download('barcode-' . $sku . '.pdf');
     }

@@ -669,22 +669,22 @@
         // Social Media Sharing Functions
         function shareToFacebook() {
             const url = encodeURIComponent(window.location.href);
-            const title = encodeURIComponent('{{ $product->name }}');
-            const description = encodeURIComponent('{{ strip_tags(substr($product->description, 0, 200)) }}...');
+            const title = encodeURIComponent({!! json_encode($product->name) !!});
+            const description = encodeURIComponent({!! json_encode(strip_tags(substr($product->description, 0, 200)) . '...') !!});
             const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${title}%20-%20${description}`;
             window.open(shareUrl, '_blank', 'width=600,height=400');
         }
 
         function shareToTwitter() {
             const url = encodeURIComponent(window.location.href);
-            const title = encodeURIComponent('{{ $product->name }}');
+            const title = encodeURIComponent({!! json_encode($product->name) !!});
             const shareUrl = `https://twitter.com/intent/tweet?url=${url}&text=${title}`;
             window.open(shareUrl, '_blank', 'width=600,height=400');
         }
 
         function shareToWhatsApp() {
             const url = encodeURIComponent(window.location.href);
-            const title = encodeURIComponent('{{ $product->name }}');
+            const title = encodeURIComponent({!! json_encode($product->name) !!});
             const shareUrl = `https://wa.me/?text=${title}%20${url}`;
             window.open(shareUrl, '_blank');
         }
@@ -692,10 +692,10 @@
         // New Messenger System Functions
 
         function openFacebookMessenger() {
-            const productName = encodeURIComponent('{{ $product->name }}');
+            const productName = encodeURIComponent({!! json_encode($product->name) !!});
             const productUrl = encodeURIComponent(window.location.href);
-            const productPrice = '{{ $product->sale_price ? number_format($product->sale_price, 2) : number_format($product->price, 2) }}';
-            const currency = '{{ $settings->currency ?? "USD" }}';
+            const productPrice = {!! json_encode($product->sale_price ? number_format($product->sale_price, 2) : number_format($product->price, 2)) !!};
+            const currency = {!! json_encode($settings->currency ?? "USD") !!};
             
             let message = `Hi! I'm interested in this product: ${productName} (${currency} ${productPrice}). Could you provide more information? ${productUrl}`;
             const encodedMessage = encodeURIComponent(message);
@@ -738,7 +738,7 @@
 
         function shareToLinkedIn() {
             const url = encodeURIComponent(window.location.href);
-            const title = encodeURIComponent('{{ $product->name }}');
+            const title = encodeURIComponent({!! json_encode($product->name) !!});
             const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
             window.open(shareUrl, '_blank', 'width=600,height=400');
         }
@@ -1930,7 +1930,7 @@
                 
                 // Get product ID from data attribute or fallback to PHP variable
                 var productId = btnEl.getAttribute('data-product-id') || {{ $product->id ?? 'null' }};
-                var productName = btnEl.getAttribute('data-product-name') || '{{ $product->name ?? "Unknown Product" }}';
+                var productName = btnEl.getAttribute('data-product-name') || {!! json_encode($product->name ?? "Unknown Product") !!};
                 
                 // Validate product ID
                 if (!productId || productId === 'null' || productId === '') {
@@ -2048,8 +2048,8 @@
             // Function to get current product info dynamically
             function getCurrentProductInfo() {
                 var productId = {{ $product->id }};
-                var productName = '{{ $product->name }}';
-                var productSlug = '{{ $product->slug }}';
+                var productName = {!! json_encode($product->name) !!};
+                var productSlug = {!! json_encode($product->slug) !!};
 
                 return {
                     id: productId,
@@ -2097,8 +2097,8 @@
             // Additional debugging
             console.log('=== PHP DEBUG INFO ===');
             console.log('PHP Product ID:', {{ $product->id }});
-            console.log('PHP Product Name:', '{{ $product->name }}');
-            console.log('PHP Product Slug:', '{{ $product->slug }}');
+            console.log('PHP Product Name:', {!! json_encode($product->name) !!});
+            console.log('PHP Product Slug:', {!! json_encode($product->slug) !!});
             console.log('Container Product ID:', $('#reviews-list').data('product-id'));
             console.log('Container Product Slug:', $('#reviews-list').data('product-slug'));
             
