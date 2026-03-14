@@ -173,6 +173,15 @@
                                                 </tr>
                                             @endforeach
                                         </tbody>
+                                        <tfoot>
+                                            <tr class="fw-bold bg-light">
+                                                <td class="text-end">Total</td>
+                                                <td id="total_qty_footer" class="text-center text-primary">0</td>
+                                                <td></td>
+                                                <td id="total_price_footer" class="text-end text-primary">0.00</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -191,6 +200,10 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="bg-light rounded-4 p-4 text-end">
+                                            <div class="d-flex justify-content-between mb-2 align-items-center">
+                                                <span class="text-muted fw-semibold uppercase small">Total Qty</span>
+                                                <span class="fw-bold"><span id="totalQtyCell">0</span></span>
+                                            </div>
                                             <div class="d-flex justify-content-between mb-2 align-items-center">
                                                 <span class="text-muted fw-semibold uppercase small">Subtotal</span>
                                                 <span class="fw-bold">৳<span id="subtotalCell">0.00</span></span>
@@ -388,13 +401,18 @@
 
         function updateTotals() {
             let subtotal = 0;
+            let totalQty = 0;
             $('.item-row').each(function() {
                 const q = parseFloat($(this).find('.quantity').val()) || 0;
                 const p = parseFloat($(this).find('.unit_price').val()) || 0;
                 const t = q * p;
                 $(this).find('.item-total').text(t.toFixed(2));
                 subtotal += t;
+                totalQty += q;
             });
+            $('#total_qty_footer').text(totalQty);
+            $('#totalQtyCell').text(totalQty);
+            $('#total_price_footer').text(subtotal.toFixed(2));
             $('#subtotalCell').text(subtotal.toFixed(2));
 
             const discountVal = parseFloat($('#discount_value').val()) || 0;

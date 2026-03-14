@@ -84,12 +84,27 @@
                                 <tbody>
                                     <!-- Rows added dynamically via JavaScript -->
                                 </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="9" class="text-end">Total</td>
+                                        <td id="total_qty_footer" class="text-center text-primary">0</td>
+                                        <td></td>
+                                        <td id="total_price_footer" class="text-end text-primary">0.00</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
 
                         <!-- Grand Totals Section -->
                         <div class="row justify-content-end mb-5">
                             <div class="col-md-4 border-top pt-4">
+                                <div class="row align-items-center mb-3">
+                                    <div class="col-6 summary-label">Total Qty</div>
+                                    <div class="col-6">
+                                        <input type="text" id="total_qty_display" class="form-control summary-input" readonly value="0">
+                                    </div>
+                                </div>
                                 <div class="row align-items-center mb-3">
                                     <div class="col-6 summary-label">Subtotal</div>
                                     <div class="col-6">
@@ -417,14 +432,19 @@
 
         function updateTotals() {
             let subtotal = 0;
+            let totalQty = 0;
             $('.item-row').each(function() {
                 const qtyVal = parseFloat($(this).find('.quantity').val()) || 0;
                 const priceVal = parseFloat($(this).find('.unit_price').val()) || 0;
                 const rowTotal = qtyVal * priceVal;
                 $(this).find('.item-total-val').text(rowTotal.toFixed(2));
                 subtotal += rowTotal;
+                totalQty += qtyVal;
             });
 
+            $('#total_qty_footer').text(totalQty);
+            $('#total_qty_display').val(totalQty);
+            $('#total_price_footer').text(subtotal.toFixed(2));
             $('#sub_total_display').val(subtotal.toFixed(2));
 
             const discountVal = parseFloat($('#discount_value').val()) || 0;
