@@ -68,7 +68,7 @@
                 <!-- Top Selling Products -->
                 <div class="col-lg-5">
                     <div class="dash-section-header">Top Selling Products</div>
-                    <div class="dash-table-container table-responsive">
+                    <div class="dash-table-container table-responsive dash-top-selling">
                         <table class="premium-table compact table-hover w-100 mb-0">
                             <thead>
                                 <tr>
@@ -78,7 +78,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($topSellingItems as $item)
+                                @forelse($topSellingItems as $item)
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -94,7 +94,14 @@
                                     <td class="text-center fw-bold">{{ (int)$item['sales'] }}</td>
                                     <td class="text-center text-success fw-bold">{{ $item['revenue'] }}</td>
                                 </tr>
-                                @endforeach
+                                @empty
+                                <tr>
+                                    <td colspan="3" class="text-center py-5 text-muted">
+                                        <i class="fas fa-chart-line fa-3x mb-3 opacity-25"></i>
+                                        <p>No selling data available yet</p>
+                                    </td>
+                                </tr>
+                                @endforelse
                             </tbody>
                         </table>
                         <a href="{{ route('simple-accounting.top-products') }}" class="dash-btn-more">View More</a>
@@ -104,7 +111,7 @@
                 <!-- Outlet Performance -->
                 <div class="col-lg-7">
                     <div class="dash-section-header blue">Outlet Monthly Performance</div>
-                    <div class="dash-table-container table-responsive">
+                    <div class="dash-table-container table-responsive dash-outlet-performance">
                         <table class="premium-table compact table-hover w-100 mb-0">
                             <thead>
                                 <tr>
@@ -117,25 +124,34 @@
                             </thead>
                             <tbody>
                                 @php $gtAmountMonth = 0; $gtQtyMonth = 0; @endphp
-                                @foreach($outletPerformance as $outlet)
+                                @forelse($outletPerformance as $outlet)
                                     @php 
                                         $gtAmountMonth += $outlet['month_amount']; 
                                         $gtQtyMonth += $outlet['month_qty']; 
-                                    @endphp
-                                    <tr>
-                                        <td class="fw-bold">{{ $outlet['name'] }}</td>
-                                        <td class="text-center">{{ number_format($outlet['today_amount'], 2) }}</td>
-                                        <td class="text-center">{{ $outlet['today_qty'] }}</td>
-                                        <td class="text-center fw-bold text-primary">{{ number_format($outlet['month_amount'], 2) }}</td>
-                                        <td class="text-center">{{ $outlet['month_qty'] }}</td>
-                                    </tr>
-                                @endforeach
+                                     @endphp
+                                     <tr>
+                                         <td class="fw-bold">{{ $outlet['name'] }}</td>
+                                         <td class="text-center">{{ number_format($outlet['today_amount'], 2) }}</td>
+                                         <td class="text-center">{{ $outlet['today_qty'] }}</td>
+                                         <td class="text-center fw-bold text-primary">{{ number_format($outlet['month_amount'], 2) }}</td>
+                                         <td class="text-center">{{ $outlet['month_qty'] }}</td>
+                                     </tr>
+                                 @empty
+                                     <tr>
+                                         <td colspan="5" class="text-center py-5 text-muted">
+                                             <i class="fas fa-store-slash fa-3x mb-3 opacity-25"></i>
+                                             <p>No outlet performance data recorded</p>
+                                         </td>
+                                     </tr>
+                                 @endforelse
+                                 @if(count($outletPerformance) > 0)
                                 <tr class="fw-bold" style="background: #f8fafc;">
                                     <td class="text-end pe-4">Total</td>
                                     <td colspan="2"></td>
                                     <td class="text-center text-success">{{ number_format($gtAmountMonth, 2) }}</td>
                                     <td class="text-center text-success">{{ $gtQtyMonth }}</td>
                                 </tr>
+                                @endif
                             </tbody>
                         </table>
                         <a href="{{ route('branches.index') }}" class="dash-btn-more">View Branches</a>

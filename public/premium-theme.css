@@ -1081,10 +1081,20 @@
     -webkit-overflow-scrolling: touch;
 }
 
+.dash-top-selling, .dash-outlet-performance {
+    min-height: 445px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dash-top-selling .premium-table, .dash-outlet-performance .premium-table {
+    flex: 1;
+}
+
 .dash-btn-more {
     display: block;
     width: fit-content;
-    margin: 1.25rem auto;
+    margin: auto auto 1.25rem auto;
     padding: 0.5rem 1.5rem;
     border: 2px solid var(--primary-green);
     color: var(--primary-green);
