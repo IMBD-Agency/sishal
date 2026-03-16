@@ -9,190 +9,196 @@
         
 
 
-        <div class="container-fluid px-4 py-4 bg-white border-bottom mb-4">
-            <h2 class="fw-bold mb-0" style="font-size: 26px; color: var(--text-main);">Purchase</h2>
+    <!-- Premium Header -->
+    <div class="glass-header">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 text-uppercase" style="font-size: 0.75rem;">
+                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('purchase.list') }}" class="text-decoration-none text-muted">Purchases</a></li>
+                        <li class="breadcrumb-item active text-primary fw-bold">New Procurement</li>
+                    </ol>
+                </nav>
+                <h4 class="fw-bold mb-0 text-dark">Create New Purchase</h4>
+                <p class="text-muted small mb-0">Record a new procurement entry for inventory stock</p>
+            </div>
+            <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                <a href="{{ route('purchase.list') }}" class="btn btn-light border px-4 fw-bold shadow-sm" style="border-radius: 10px;">
+                    <i class="fas fa-history me-2"></i>Purchase History
+                </a>
+            </div>
         </div>
+    </div>
 
-        <div class="container-fluid px-4 pb-5">
-            <form id="purchaseForm" action="{{ route('purchase.store') }}" method="POST">
-                @csrf
-                
-                <div class="card purchase-card border-0">
-                    <div class="purchase-card-header">
-                        Purchase Information
-                    </div>
-                    <div class="card-body p-4">
-                        <!-- Top Row: General Info & Style Search -->
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-2">
-                                <label for="purchase_date" class="form-label">Purchase Date *</label>
-                                <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="location_selector" class="form-label">Receive At (Location) *</label>
-                                <select id="location_selector" class="form-select" required>
-                                    <option value="">Select Location</option>
-                                    <optgroup label="Branches">
-                                        @foreach($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                    <optgroup label="Warehouses">
-                                        @foreach($warehouses as $warehouse)
-                                            <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                </select>
-                                <input type="hidden" name="location_id" id="location_id" value="">
-                                <input type="hidden" name="ship_location_type" id="ship_location_type" value="">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="supplier_id" class="form-label">Select Supplier *</label>
-                                <select name="supplier_id" id="supplier_id" class="form-select select2 select2-premium-42" required>
-                                    <option value="">Select One</option>
-                                    @foreach($suppliers as $supplier)
-                                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+    <div class="container-fluid px-4 py-4">
+        <form id="purchaseForm" action="{{ route('purchase.store') }}" method="POST">
+            @csrf
+            
+            <div class="premium-card mb-4 shadow-sm">
+                <div class="card-header bg-white border-bottom p-4">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-file-invoice me-2 text-primary"></i>Procurement Details</h6>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Top Row: General Info & Style Search -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-2">
+                            <label for="purchase_date" class="form-label small fw-bold text-muted text-uppercase mb-2">Purchase Date <span class="text-danger">*</span></label>
+                            <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="location_selector" class="form-label small fw-bold text-muted text-uppercase mb-2">Receive At (Location) <span class="text-danger">*</span></label>
+                            <select id="location_selector" class="form-select select2-simple" required>
+                                <option value="">Select Location</option>
+                                <optgroup label="Branches">
+                                    @foreach($branches as $branch)
+                                        <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
                                     @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="styleNumberSearch" class="form-label">Product Search (Name/Style/SKU) *</label>
-                                <select id="styleNumberSearch" class="form-select select2-premium-42"></select>
-                            </div>
+                                </optgroup>
+                                <optgroup label="Warehouses">
+                                    @foreach($warehouses as $warehouse)
+                                        <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                    @endforeach
+                                </optgroup>
+                            </select>
+                            <input type="hidden" name="location_id" id="location_id" value="">
+                            <input type="hidden" name="ship_location_type" id="ship_location_type" value="">
                         </div>
-
-                        <!-- Product Table -->
-                        <div class="table-responsive mb-5">
-                            <table class="table premium-form-table" id="itemsTable">
-                                <thead>
-                                    <tr>
-                                        <th width="60">IMAGE</th>
-                                        <th>CATEGORY</th>
-                                        <th>BRAND</th>
-                                        <th>SEASON</th>
-                                        <th>GENDER</th>
-                                        <th width="200">PRODUCT NAME</th>
-                                        <th>STYLE NO.</th>
-                                        <th width="130">SIZE</th>
-                                        <th width="130">COLOR</th>
-                                        <th width="90">QTY</th>
-                                        <th width="130">UNIT PRICE</th>
-                                        <th width="140" class="text-end">TOTAL</th>
-                                        <th width="80"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Rows added dynamically via JavaScript -->
-                                </tbody>
-                                <tfoot>
-                                    <tr class="fw-bold">
-                                        <td colspan="9" class="text-end">Total</td>
-                                        <td id="total_qty_footer" class="text-center text-primary">0</td>
-                                        <td></td>
-                                        <td id="total_price_footer" class="text-end text-primary">0.00</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                        <div class="col-md-3">
+                            <label for="supplier_id" class="form-label small fw-bold text-muted text-uppercase mb-2">Select Supplier <span class="text-danger">*</span></label>
+                            <select name="supplier_id" id="supplier_id" class="form-select select2-premium-42" required>
+                                <option value="">Select One</option>
+                                @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
+                        <div class="col-md-4">
+                            <label for="styleNumberSearch" class="form-label small fw-bold text-muted text-uppercase mb-2">Product Search (Name/Style/SKU) <span class="text-danger">*</span></label>
+                            <select id="styleNumberSearch" class="form-select select2-premium-42"></select>
+                        </div>
+                    </div>
 
-                        <!-- Grand Totals Section -->
-                        <div class="row justify-content-end mb-5">
-                            <div class="col-md-4 border-top pt-4">
-                                <div class="row align-items-center mb-3">
-                                    <div class="col-6 summary-label">Total Qty</div>
-                                    <div class="col-6">
-                                        <input type="text" id="total_qty_display" class="form-control summary-input" readonly value="0">
-                                    </div>
-                                </div>
-                                <div class="row align-items-center mb-3">
-                                    <div class="col-6 summary-label">Subtotal</div>
-                                    <div class="col-6">
-                                        <input type="text" id="sub_total_display" class="form-control summary-input" readonly value="0.00">
-                                    </div>
-                                </div>
-                                <div class="row align-items-center mb-3">
-                                    <div class="col-6 summary-label">Discount</div>
-                                    <div class="col-6">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" name="discount_value" id="discount_value" class="form-control text-end fw-bold" value="0" step="0.01">
-                                            <div class="btn-group btn-group-sm ms-1" role="group">
-                                                <input type="radio" class="btn-check" name="discount_type" id="discount_flat" value="flat" checked>
-                                                <label class="btn btn-outline-secondary" for="discount_flat">৳</label>
-                                                
-                                                <input type="radio" class="btn-check" name="discount_type" id="discount_percent" value="percent">
-                                                <label class="btn btn-outline-secondary" for="discount_percent">%</label>
-                                            </div>
+                    <!-- Product Table -->
+                    <div class="table-responsive mb-4 border rounded">
+                        <table class="table premium-table mb-0" id="itemsTable">
+                            <thead>
+                                <tr class="bg-light">
+                                    <th width="60">IMAGE</th>
+                                    <th>SPECIFICATIONS</th>
+                                    <th width="200">PRODUCT NAME</th>
+                                    <th>STYLE NO.</th>
+                                    <th width="120">SIZE</th>
+                                    <th width="120">COLOR</th>
+                                    <th width="90" class="text-center">QTY</th>
+                                    <th width="130" class="text-end">UNIT PRICE</th>
+                                    <th width="140" class="text-end">TOTAL</th>
+                                    <th width="60" class="text-center"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows added dynamically via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Grand Totals Section -->
+                    <div class="row g-4 pt-4 border-top">
+                        <div class="col-md-7">
+                            <div class="premium-card bg-light border-0 shadow-none">
+                                <div class="card-body p-4">
+                                    <h6 class="fw-bold mb-3 text-uppercase text-muted small"><i class="fas fa-credit-card me-2"></i>Payment & Audit Notes</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="payment_method" class="form-label small fw-bold text-muted text-uppercase mb-2">Account Type <span class="text-danger">*</span></label>
+                                            <select name="payment_method" id="payment_method" class="form-select">
+                                                <option value="">Select Type</option>
+                                                @php
+                                                    $availableTypes = $bankAccounts->pluck('type')->unique();
+                                                    $typeLabels = ['cash' => 'Cash', 'bank' => 'Bank Account', 'mobile' => 'Mobile Banking'];
+                                                @endphp
+                                                @foreach($typeLabels as $typeVal => $typeLabel)
+                                                    @if($availableTypes->contains($typeVal))
+                                                        <option value="{{ $typeVal }}">{{ $typeLabel }}</option>
+                                                    @endif
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="account_id" class="form-label small fw-bold text-muted text-uppercase mb-2">Account Number <span class="text-danger">*</span></label>
+                                            <select name="account_id" id="account_id" class="form-select">
+                                                <option value="">Select Account</option>
+                                                @foreach($bankAccounts as $acc)
+                                                    <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                                        {{ $acc->provider_name }} — {{ $acc->account_number }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label for="notes" class="form-label small fw-bold text-muted text-uppercase mb-2">Internal Note</label>
+                                            <textarea name="notes" id="notes" class="form-control" rows="2" placeholder="Optional audit notes..."></textarea>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row align-items-center mb-3">
-                                    <div class="col-6 summary-label">Grand Total</div>
-                                    <div class="col-6">
-                                        <input type="text" id="total_amount_display" class="form-control summary-input fw-bold text-primary" readonly value="0.00">
-                                        <input type="hidden" name="total_amount" id="total_amount" value="0">
-                                    </div>
-                                </div>
-                                <div class="row align-items-center mb-3">
-                                    <div class="col-6 summary-label">Paid *</div>
-                                    <div class="col-6">
-                                        <input type="number" name="paid_amount" id="paid_amount" class="form-control text-end fw-bold text-success border-2" value="0" step="0.01">
-                                    </div>
-                                </div>
-                                <div class="row align-items-center">
-                                    <div class="col-6 summary-label text-danger">Due *</div>
-                                    <div class="col-6">
-                                        <input type="text" id="due_amount_display" class="form-control summary-input text-danger fw-bold" readonly value="0.00">
-                                    </div>
-                                </div>
                             </div>
                         </div>
-
-                        <!-- Payment & Notes Row -->
-                        <div class="row g-4 mt-2 mb-5 border-top pt-5">
-                            <div class="col-md-4">
-                                <label for="payment_method" class="form-label">Account Type *</label>
-                                <select name="payment_method" id="payment_method" class="form-select">
-                                    <option value="">Select Type</option>
-                                    @php
-                                        $availableTypes = $bankAccounts->pluck('type')->unique();
-                                        $typeLabels = ['cash' => 'Cash', 'bank' => 'Bank Account', 'mobile' => 'Mobile Banking'];
-                                    @endphp
-                                    @foreach($typeLabels as $typeVal => $typeLabel)
-                                        @if($availableTypes->contains($typeVal))
-                                            <option value="{{ $typeVal }}">{{ $typeLabel }}</option>
-                                        @endif
-                                    @endforeach
-                                </select>
+                        <div class="col-md-5">
+                            <div class="p-4 bg-white rounded border">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="small fw-bold text-muted text-uppercase">Total Quantity</span>
+                                    <span id="total_qty_display_text" class="fw-bold fs-5">0</span>
+                                    <input type="hidden" id="total_qty_display" value="0">
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="small fw-bold text-muted text-uppercase">Subtotal</span>
+                                    <span id="sub_total_display_text" class="fw-bold fs-5">0.00৳</span>
+                                    <input type="hidden" id="sub_total_display" value="0.00">
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-bold text-muted text-uppercase">Discount</span>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <input type="radio" class="btn-check" name="discount_type" id="discount_flat" value="flat" checked>
+                                            <label class="btn btn-outline-secondary py-0" for="discount_flat">৳</label>
+                                            <input type="radio" class="btn-check" name="discount_type" id="discount_percent" value="percent">
+                                            <label class="btn btn-outline-secondary py-0" for="discount_percent">%</label>
+                                        </div>
+                                    </div>
+                                    <input type="number" name="discount_value" id="discount_value" class="form-control text-end fw-bold" value="0" step="0.01">
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="fw-bold text-primary text-uppercase">Grand Total</span>
+                                    <span id="total_amount_display_text" class="fw-bold fs-4 text-primary">0.00৳</span>
+                                    <input type="hidden" name="total_amount" id="total_amount" value="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="small fw-bold text-muted text-uppercase mb-2">Paid Amount <span class="text-danger">*</span></label>
+                                    <input type="number" name="paid_amount" id="paid_amount" class="form-control text-end fw-bold fs-5 text-success border-2" value="0" step="0.01">
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-danger text-uppercase">Total Due</span>
+                                    <span id="due_amount_display_text" class="fw-bold fs-5 text-danger">0.00৳</span>
+                                    <input type="hidden" id="due_amount_display" value="0.00">
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label for="account_id" class="form-label">Account Number *</label>
-                                <select name="account_id" id="account_id" class="form-select">
-                                    <option value="">Select Account</option>
-                                    @foreach($bankAccounts as $acc)
-                                        <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
-                                            {{ $acc->provider_name }} — {{ $acc->account_number }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="notes" class="form-label">Purchase Note</label>
-                                <textarea name="notes" id="notes" class="form-control" rows="1" placeholder="Optional notes..."></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Submit Buttons -->
-                        <div class="text-center pt-4">
-                            <button type="submit" class="btn btn-teal px-5 shadow-sm me-3">
-                                <i class="fas fa-check-circle me-2"></i>COMPLETE PURCHASE
-                            </button>
-                            <a href="{{ route('purchase.list') }}" class="btn btn-red px-5 shadow-sm">
-                                <i class="fas fa-times-circle me-2"></i>DISCARD
-                            </a>
                         </div>
                     </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="d-flex justify-content-between align-items-center mt-5 pt-4 border-top">
+                        <a href="{{ route('purchase.list') }}" class="btn btn-light border px-5 fw-bold text-muted">
+                            <i class="fas fa-times-circle me-2"></i>Discard
+                        </a>
+                        <button type="submit" class="btn btn-create-premium px-5 py-3 fw-bold">
+                            <i class="fas fa-check-circle me-2"></i>COMPLETE PROCUREMENT
+                        </button>
+                    </div>
                 </div>
+            </div>
+        </form>
+    </div>
 
                 <!-- Location logic handled in header row -->
             </form>
@@ -310,13 +316,14 @@
 
             const rowTemplate = `
                 <tr class="item-row" data-index="${rowIndex}">
-                    <td><img src="${p.image}" width="40" height="40" class="img-thumbnail border-0 bg-light"></td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.category || '-'}</td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.brand || '-'}</td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.season || '-'}</td>
-                    <td class="text-uppercase text-muted" style="font-size: 0.75rem;">${p.gender || '-'}</td>
-                    <td class="fw-bold">${p.name}</td>
-                    <td class="text-secondary small">${p.style_number ? '#' + p.style_number : '-'}</td>
+                    <td class="text-center"><img src="${p.image}" width="40" height="40" class="rounded bg-light shadow-sm"></td>
+                    <td class="small text-muted text-uppercase" style="font-size: 0.65rem; line-height: 1.2;">
+                        <div><span class="fw-bold text-dark">CAT:</span> ${p.category || '-'}</div>
+                        <div><span class="fw-bold text-dark">BRD:</span> ${p.brand || '-'}</div>
+                        <div><span class="fw-bold text-dark">SEA:</span> ${p.season || '-'} / ${p.gender || '-'}</div>
+                    </td>
+                    <td class="fw-bold text-dark">${p.name}</td>
+                    <td><code class="text-primary bg-light px-2 py-1 rounded small">${p.style_number ?? p.sku ?? '-'}</code></td>
                     <td>
                         <select name="items[${rowIndex}][size_id]" class="form-select form-select-sm size-select" ${!showSize ? 'disabled' : ''}>
                             ${sizeOptions}
@@ -336,15 +343,15 @@
                         <input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm unit_price text-end border-2 fw-bold" value="${unitPrice}" step="0.01">
                     </td>
                     <td class="text-end fw-bold text-primary">
-                        <span class="item-total-val text-primary">${(parseFloat(unitPrice) * (options.quantity || 1)).toFixed(2)}</span>
+                        <span class="item-total-val">${(parseFloat(unitPrice) * (options.quantity || 1)).toFixed(2)}</span>
                     </td>
                     <td class="text-center">
                         <div class="d-flex justify-content-center gap-1">
-                            <button type="button" class="btn btn-sm btn-outline-primary border-0 copy-row" title="Add another size/color">
-                                <i class="fas fa-plus-circle"></i>
+                            <button type="button" class="btn btn-sm btn-light border p-1 rounded-circle copy-row" title="Add variation">
+                                <i class="fas fa-plus-circle text-primary"></i>
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger border-0 remove-row">
-                                <i class="fas fa-times-circle"></i>
+                            <button type="button" class="btn btn-sm btn-light border p-1 rounded-circle remove-row">
+                                <i class="fas fa-times-circle text-danger"></i>
                             </button>
                         </div>
                     </td>
@@ -442,9 +449,9 @@
                 totalQty += qtyVal;
             });
 
-            $('#total_qty_footer').text(totalQty);
+            $('#total_qty_display_text').text(totalQty);
             $('#total_qty_display').val(totalQty);
-            $('#total_price_footer').text(subtotal.toFixed(2));
+            $('#sub_total_display_text').text(subtotal.toFixed(2) + '৳');
             $('#sub_total_display').val(subtotal.toFixed(2));
 
             const discountVal = parseFloat($('#discount_value').val()) || 0;
@@ -458,11 +465,12 @@
             }
 
             const grandTotal = Math.max(0, subtotal - discountAmount);
-            $('#total_amount_display').val(grandTotal.toFixed(2));
+            $('#total_amount_display_text').text(grandTotal.toFixed(2) + '৳');
             $('#total_amount').val(grandTotal.toFixed(2));
 
             const paidVal = parseFloat($('#paid_amount').val()) || 0;
             const dueVal = grandTotal - paidVal;
+            $('#due_amount_display_text').text(dueVal.toFixed(2) + '৳');
             $('#due_amount_display').val(dueVal.toFixed(2));
 
             // Sync required status visually

@@ -35,9 +35,10 @@
         #salesTable thead th {
             position: sticky;
             top: 0; /* Sticks to the top of .table-responsive */
-            background-color: #f8fafc !important; 
+            background-color: #2d5a4c !important; 
+            color: #fff !important;
             z-index: 1000 !important;
-            border-bottom: 2px solid #e2e8f0 !important;
+            border-bottom: 2px solid #3d6a5c !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle depth shadow */
             padding-top: 12px !important;
             padding-bottom: 12px !important;
@@ -98,42 +99,42 @@
     <div class="container-fluid px-4 py-4">
         <!-- Advanced Filters -->
         <div class="premium-card mb-4">
-            <div class="card-header bg-white border-bottom p-4">
-                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Advanced Search Filter</h6>
-                    <!-- Report Period Toggles -->
-                    <div class="d-flex gap-3">
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
-                        </div>
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly</label>
-                        </div>
-                        <div class="form-check cursor-pointer">
-                            <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Yearly</label>
+            <div class="card-header bg-white border-bottom p-3">
+                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Filter Search</h6>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ route('pos.list') }}" method="GET" id="filterForm">
+                    <div class="mb-4">
+                        <div class="d-flex gap-4">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="card-body p-3">
-                <form action="{{ route('pos.list') }}" method="GET" id="filterForm">
-                    <div class="row g-2 align-items-end mb-2">
+
+                    <div class="row g-3">
                         <!-- Date Filters -->
                         <div class="col-md-2 daily-group">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">From Date</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                         </div>
                         <div class="col-md-2 daily-group">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">To Date</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                            <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                         </div>
 
                         <div class="col-md-2 monthly-group" style="display: none;">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
-                            <select name="month" class="form-select form-select-sm">
+                            <select name="month" class="form-select select2-simple">
                                 @foreach(range(1, 12) as $m)
                                     <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                 @endforeach
@@ -141,106 +142,112 @@
                         </div>
                         <div class="col-md-2 monthly-group yearly-group" style="display: none;">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
-                            <select name="year" class="form-select form-select-sm">
+                            <select name="year" class="form-select select2-simple">
                                 @foreach(range(date('Y'), date('Y') - 10) as $y)
                                     <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                 @endforeach
                             </select>
                         </div>
 
-                         <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
-                            <input type="text" class="form-control form-control-sm border-primary" placeholder="Sale #, Customer, Product..." name="search" value="{{ request('search') }}">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
+                            <select name="branch_id" class="form-select select2-simple">
+                                <option value="">All Branches</option>
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                         <div class="col-md-2">
+
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
-                            <select name="customer_id" class="form-select form-select-sm select2-simple" data-placeholder="All">
-                                <option value="">All</option>
+                            <select name="customer_id" class="form-select select2-simple" data-placeholder="Select Customer">
+                                <option value="">All Customers</option>
                                 @foreach($customers as $customer)
                                     <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
                                 @endforeach
                             </select>
                         </div>
+
                         <div class="col-md-2">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
-                             <select name="branch_id" class="form-select form-select-sm select2-simple">
-                                <option value="">All</option>
-                                @foreach($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                @endforeach
-                             </select>
-                        </div>
-                        <div class="col-md-2">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
-                             <select name="category_id" class="form-select form-select-sm select2-simple">
-                                <option value="">All</option>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
+                            <select name="category_id" class="form-select select2-simple">
+                                <option value="">All Categories</option>
                                 @foreach($categories as $category)
                                     <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
                                 @endforeach
-                             </select>
+                            </select>
                         </div>
-                    </div>
 
-                    <div class="row g-2 align-items-end">
                         <div class="col-md-2">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
-                             <select name="brand_id" class="form-select form-select-sm select2-simple">
-                                <option value="">All</option>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
+                            <select name="brand_id" class="form-select select2-simple">
+                                <option value="">All Brands</option>
                                 @foreach($brands as $brand)
                                     <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
                                 @endforeach
-                             </select>
+                            </select>
                         </div>
+
                         <div class="col-md-2">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
-                             <select name="season_id" class="form-select form-select-sm select2-simple">
-                                <option value="">All</option>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
+                            <select name="season_id" class="form-select select2-simple">
+                                <option value="">All Seasons</option>
                                 @foreach($seasons as $season)
                                     <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
                                 @endforeach
-                             </select>
+                            </select>
                         </div>
+
                         <div class="col-md-2">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
-                             <select name="gender_id" class="form-select form-select-sm select2-simple">
-                                <option value="">All</option>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
+                            <select name="gender_id" class="form-select select2-simple">
+                                <option value="">All Genders</option>
                                 @foreach($genders as $gender)
                                     <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
                                 @endforeach
-                             </select>
+                            </select>
                         </div>
+
                         <div class="col-md-2">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style #</label>
-                             <input type="text" name="style_number" class="form-control form-control-sm" placeholder="Style..." value="{{ request('style_number') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style #</label>
+                            <input type="text" name="style_number" class="form-control" placeholder="Style Number" value="{{ request('style_number') }}">
                         </div>
-                        <div class="col-md-3">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Specific Product</label>
-                             <select name="product_id" class="form-select form-select-sm select2-simple">
-                                <option value="">All Tools</option>
-                                @foreach($products as $product)
-                                    <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
-                                @endforeach
-                             </select>
-                        </div>
-                        <div class="col-md-1 d-flex gap-1 align-items-end">
-                             <a href="{{ route('pos.list') }}" class="btn btn-light border btn-sm flex-fill" title="Reset">
-                                <i class="fas fa-undo"></i>
-                            </a>
-                            <button type="submit" class="btn btn-create-premium btn-sm flex-fill" style="height: 31px;">
-                                <i class="fas fa-search"></i>
-                            </button>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Search</label>
+                            <input type="text" class="form-control border-primary" placeholder="Sale #, Product Name, SKU..." name="search" value="{{ request('search') }}">
                         </div>
                     </div>
                 </form>
+            </div>
+            <div class="card-footer bg-light border-top p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" onclick="exportData('excel')">
+                            <i class="fas fa-file-excel me-2"></i>Excel
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="exportData('pdf')">
+                            <i class="fas fa-file-pdf me-2"></i>PDF
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{{ route('pos.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                            <i class="fas fa-undo me-2"></i>Reset
+                        </a>
+                        <button type="submit" form="filterForm" class="btn btn-create-premium px-5" style="height: 42px;">
+                            <i class="fas fa-search me-2"></i>Apply Filters
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Data Table -->
         <div class="premium-card shadow-sm">
              <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                <div class="d-flex gap-2">
-                     <button onclick="exportData('excel')" class="btn btn-outline-dark btn-sm shadow-sm"><i class="fas fa-file-excel me-1"></i> Excel</button>
-                     <button onclick="exportData('pdf')" class="btn btn-outline-dark btn-sm shadow-sm"><i class="fas fa-file-pdf me-1"></i> PDF</button>
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Sales Registry</h6>
                 </div>
                 <div class="search-wrapper-premium">
                     <input type="text" id="salesSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
@@ -249,8 +256,8 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table premium-table compact-reporting-table table-bordered mb-0" id="salesTable">
-                        <thead class="bg-light">
+                    <table class="table premium-table compact reporting-table table-bordered mb-0" id="salesTable">
+                        <thead>
                             <tr>
                                 <th class="text-center" style="min-width: 40px;">#</th>
                                 <th style="min-width: 100px;">Invoice</th>

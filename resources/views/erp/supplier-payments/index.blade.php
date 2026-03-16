@@ -86,53 +86,52 @@
                 </div>
             </div>
 
-            <!-- Filters Section -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4">
-                <div class="card-header bg-white border-bottom p-3">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Advanced Filtering</h6>
-                        <div class="btn-group btn-group-sm p-1 bg-light rounded-pill">
-                            <input type="radio" class="btn-check report-type-radio" name="report_type_active" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                            <label class="btn btn-outline-primary border-0 rounded-pill px-3" for="dailyReport">Custom Range</label>
-                            
-                            <input type="radio" class="btn-check report-type-radio" name="report_type_active" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                            <label class="btn btn-outline-primary border-0 rounded-pill px-3" for="monthlyReport">Monthly</label>
-                            
-                            <input type="radio" class="btn-check report-type-radio" name="report_type_active" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                            <label class="btn btn-outline-primary border-0 rounded-pill px-3" for="yearlyReport">Yearly</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body p-3">
+            <!-- Advanced Analytics Filters -->
+            <div class="premium-card mb-4 shadow-sm">
+                <div class="card-body p-4">
                     <form method="GET" action="{{ route('supplier-payments.index') }}" id="filterForm">
                         <input type="hidden" name="report_type" id="report_type_hidden" value="{{ $reportType }}">
                         
-                        <div class="row g-2">
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3">
                             <!-- Daily Range -->
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
-                                <label class="form-label extra-small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                             </div>
 
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
-                                <label class="form-label extra-small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
 
                             <!-- Monthly Fields -->
                             <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
-                                <label class="form-label extra-small fw-bold text-muted text-uppercase mb-1">Month</label>
-                                <select name="month" class="form-select form-select-sm">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Month</label>
+                                <select name="month" class="form-select select2-setup">
                                     @foreach(range(1, 12) as $m)
                                         <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
-                            <!-- Yearly/Shared Year Field -->
-                            <div class="col-md-1 year-field {{ $reportType == 'daily' ? 'd-none' : '' }}">
-                                <label class="form-label extra-small fw-bold text-muted text-uppercase mb-1">Year</label>
-                                <select name="year" class="form-select form-select-sm">
+                            <div class="col-md-2 month-field year-field {{ $reportType == 'daily' ? 'd-none' : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
+                                <select name="year" class="form-select select2-setup">
                                     @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
                                         <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endforeach
@@ -140,8 +139,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label extra-small fw-bold text-muted text-uppercase mb-1">Supplier</label>
-                                <select name="supplier_id" class="form-select form-select-sm select2 shadow-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Supplier</label>
+                                <select name="supplier_id" class="form-select select2-setup shadow-none">
                                     <option value="all">All Suppliers</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
@@ -152,8 +151,8 @@
                             </div>
 
                             <div class="col-md-2">
-                                <label class="form-label extra-small fw-bold text-muted text-uppercase mb-1">Method</label>
-                                <select name="payment_method" class="form-select form-select-sm">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Method</label>
+                                <select name="payment_method" class="form-select select2-setup">
                                     <option value="all">Any Method</option>
                                     <option value="cash" {{ request('payment_method') == 'cash' ? 'selected' : '' }}>Cash</option>
                                     <option value="bank_transfer" {{ request('payment_method') == 'bank_transfer' ? 'selected' : '' }}>Bank Transfer</option>
@@ -161,51 +160,61 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-3 d-flex gap-1 align-items-end">
-                                <button type="submit" class="btn btn-theme flex-grow-1 fw-bold btn-sm">
-                                    <i class="fas fa-filter me-1"></i> APPLY FILTERS
-                                </button>
-                                <a href="{{ route('supplier-payments.index') }}" class="btn btn-light btn-sm border fw-bold text-muted">
-                                    <i class="fas fa-undo"></i>
-                                </a>
+                        </div>
+                        <div class="card-footer bg-light border-top p-3 mt-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('supplier-payments.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
+                                    </a>
+                                    <a href="{{ route('supplier-payments.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </a>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('supplier-payments.index') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Apply Filters
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Table Card -->
-            <div class="premium-card">
-                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                    <div class="d-flex gap-2">
-                        <a href="{{ route('supplier-payments.export.excel', request()->all()) }}" class="btn btn-light btn-sm border fw-bold text-success">
-                            <i class="fas fa-file-excel me-1"></i> EXCEL
-                        </a>
-                        <a href="{{ route('supplier-payments.export.pdf', request()->all()) }}" class="btn btn-light btn-sm border fw-bold text-danger">
-                            <i class="fas fa-file-pdf me-1"></i> PDF
-                        </a>
-                    </div>
-                    <div class="search-wrapper-premium">
-                        <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium" placeholder="Search by Voucher, Supplier, Amount...">
-                        <i class="fas fa-search search-icon-premium"></i>
-                    </div>
+            <!-- Table Search Wrapper -->
+            <div class="d-flex justify-content-end align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small fw-bold text-muted mb-0">Search:</label>
+                    <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input" placeholder="Quick Search..." style="width: 250px;">
                 </div>
-                <div class="table-responsive">
-                    <table class="table premium-table table-hover align-middle mb-0" id="paymentTable">
-                        <thead>
-                            <tr>
-                                <th class="ps-4">Voucher Info</th>
-                                <th>Supplier Name</th>
-                                <th>Bill Reference</th>
-                                <th class="text-end">Disbursed Amount</th>
-                                <th>Payment Method</th>
-                                <th class="text-center pe-4">Actions</th>
-                            </tr>
-                        </thead>
+            </div>
+
+            <!-- Table Card -->
+            <div class="premium-card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-money-bill-wave me-2 text-success"></i>Disbursement Registry</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table premium-table compact reporting-table table-hover align-middle mb-0" id="paymentTable">
+                            <thead>
+                                <tr>
+                                    <th class="ps-3">Voucher Info</th>
+                                    <th>Supplier Name</th>
+                                    <th>Bill Reference</th>
+                                    <th class="text-end">Disbursed Amount</th>
+                                    <th>Payment Method</th>
+                                    <th class="text-center pe-3">Actions</th>
+                                </tr>
+                            </thead>
                         <tbody>
                             @forelse($payments as $payment)
                             <tr>
-                                <td class="ps-4">
+                                <td class="ps-3">
                                     <div class="fw-bold text-primary mb-0">SP-{{ str_pad($payment->id, 6, '0', STR_PAD_LEFT) }}</div>
                                     <div class="extra-small text-muted fw-bold">{{ $payment->payment_date->format('d M, Y') }}</div>
                                 </td>
@@ -217,28 +226,28 @@
                                     @if($payment->bill)
                                         <span class="badge bg-soft-primary text-primary fw-bold">{{ $payment->bill->bill_number }}</span>
                                     @else
-                                        <span class="badge bg-soft-warning text-warning fw-bold">ADVANCE PAYMENT</span>
+                                        <span class="badge bg-soft-warning text-warning fw-bold">ADVANCE</span>
                                     @endif
                                 </td>
-                                <td class="text-end fw-bold text-dark fs-6">{{ number_format($payment->amount, 2) }}৳</td>
+                                <td class="text-end fw-bold text-dark">{{ number_format($payment->amount, 2) }}৳</td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
                                         @if($payment->financialAccount)
-                                            <i class="fas {{ $payment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($payment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }} small"></i>
-                                            <span class="small fw-bold text-uppercase">{{ $payment->financialAccount->provider_name }}</span>
+                                            <i class="fas {{ $payment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($payment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }}"></i>
+                                            <span class="fw-bold text-uppercase" style="font-size: 11px;">{{ $payment->financialAccount->provider_name }}</span>
                                         @else
                                             @if($payment->payment_method == 'cash')
-                                                <i class="fas fa-wallet text-success small"></i>
+                                                <i class="fas fa-wallet text-success"></i>
                                             @elseif($payment->payment_method == 'bank_transfer')
-                                                <i class="fas fa-university text-primary small"></i>
+                                                <i class="fas fa-university text-primary"></i>
                                             @else
-                                                <i class="fas fa-money-check text-warning small"></i>
+                                                <i class="fas fa-money-check text-warning"></i>
                                             @endif
-                                            <span class="small fw-bold text-uppercase">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
+                                            <span class="fw-bold text-uppercase" style="font-size: 11px;">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
                                         @endif
                                     </div>
                                 </td>
-                                <td class="text-center pe-4">
+                                <td class="text-center pe-3">
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport">
                                             <i class="fas fa-ellipsis-v text-muted"></i>

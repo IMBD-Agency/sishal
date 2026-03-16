@@ -9,49 +9,56 @@
 
 
 
-    <div class="container-fluid px-4 py-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0">Product Adjustment List</h4>
-            <a href="{{ route('stock.adjustment.create') }}" class="btn btn-primary btn-sm">
-                <i class="fas fa-plus me-1"></i> New Adjustment
-            </a>
+    <!-- Top Header -->
+    <div class="glass-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h4 class="fw-bold mb-0 text-dark">Product Adjustment List</h4>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <a href="{{ route('stock.adjustment.create') }}" class="btn btn-primary fw-bold shadow-sm">
+                    <i class="fas fa-plus me-2"></i>New Adjustment
+                </a>
+            </div>
         </div>
+    </div>
 
-        <!-- Filters -->
-        <div class="card premium-card report-filter-card mb-4">
-            <div class="card-body p-4">
-                <form action="{{ route('stock.adjustment.list') }}" method="GET" id="filterForm">
+    <div class="container-fluid px-4 py-4">
+        <!-- Advanced Filters -->
+        <div class="premium-card mb-3 shadow-sm">
+            <div class="card-body p-3">
+                <form action="{{ route('stock.adjustment.list') }}" method="GET" id="filterForm" autocomplete="off">
                     <div class="d-flex gap-4 mb-3">
                         <div class="form-check">
                             <input class="form-check-input filter-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small" for="dailyReport">Daily Reports</label>
+                            <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input filter-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small" for="monthlyReport">Monthly Reports</label>
+                            <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input filter-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small" for="yearlyReport">Yearly Reports</label>
+                            <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
                         </div>
                     </div>
 
-                    <div class="row g-3">
+                    <div class="row g-2 align-items-end">
                         <div class="col-md-2">
-                            <label class="form-label-small">Start Date *</label>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
                             <input type="date" name="start_date" class="form-control form-control-sm filter-input" value="{{ request('start_date', date('Y-m-d')) }}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label-small">End Date *</label>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
                             <input type="date" name="end_date" class="form-control form-control-sm filter-input" value="{{ request('end_date', date('Y-m-d')) }}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label-small">Invoice *</label>
-                            <input type="text" name="adjustment_number" class="form-control form-control-sm filter-input" placeholder="All Invoice" value="{{ request('adjustment_number') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Adjustment ID</label>
+                            <input type="text" name="adjustment_number" class="form-control form-control-sm filter-input" placeholder="INV-XXXX" value="{{ request('adjustment_number') }}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label-small">Product *</label>
-                            <select name="product_id" class="form-select form-select-sm select2-simple filter-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
+                            <select name="product_id" class="form-select form-select-sm select2-simple filter-select" data-placeholder="All Product">
                                 <option value="">All Product</option>
                                 @foreach($products as $product)
                                     <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
@@ -59,12 +66,12 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label-small">Style Number *</label>
-                            <input type="text" name="style_number" class="form-control form-control-sm filter-input" placeholder="All Style" value="{{ request('style_number') }}">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style Number</label>
+                            <input type="text" name="style_number" class="form-control form-control-sm filter-input" placeholder="Style SKU" value="{{ request('style_number') }}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label-small">Category *</label>
-                            <select name="category_id" class="form-select form-select-sm filter-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
+                            <select name="category_id" class="form-select form-select-sm filter-select" data-placeholder="All Category">
                                 <option value="">All Category</option>
                                 @foreach($categories as $category)
                                     <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
@@ -73,65 +80,82 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 mt-1">
-                        <div class="col-md-3">
-                            <label class="form-label-small">Brand *</label>
-                            <select name="brand_id" class="form-select form-select-sm filter-select">
+                    <div class="row g-2 align-items-end mt-1">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
+                            <select name="brand_id" class="form-select form-select-sm filter-select" data-placeholder="All Brand">
                                 <option value="">All Brand</option>
                                 @foreach($brands as $brand)
                                     <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label-small">Season *</label>
-                                <select name="season_id" class="form-select form-select-sm filter-select select2-premium-42">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
+                                <select name="season_id" class="form-select form-select-sm filter-select select2-simple" data-placeholder="All Season">
                                 <option value="">All Season</option>
                                 @foreach($seasons as $season)
                                     <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label-small">Gender *</label>
-                            <select name="gender_id" class="form-select form-select-sm filter-select">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
+                            <select name="gender_id" class="form-select form-select-sm filter-select" data-placeholder="All Gender">
                                 <option value="">All Gender</option>
                                 @foreach($genders as $gender)
                                     <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button type="submit" class="btn btn-info btn-sm w-100 text-white fw-bold">
-                                <i class="fas fa-search me-1"></i> Search
-                            </button>
+                        <div class="col-md-3">
+                            <div class="d-flex gap-2" style="margin-top: 25px;">
+                                <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
+                                    <i class="fas fa-search me-1"></i>Search
+                                </button>
+                                <a href="{{ route('stock.adjustment.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm">
+                                    <i class="fas fa-undo me-1"></i>Reset
+                                </a>
+                            </div>
                         </div>
                     </div>
+                <div class="card-footer bg-light border-top p-3 mt-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" id="btn-excel-export">
+                                <i class="fas fa-file-excel me-2"></i>Excel
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" id="btn-pdf-export">
+                                <i class="fas fa-file-pdf me-2"></i>PDF
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="window.print()">
+                                <i class="fas fa-print me-2"></i>Print
+                            </button>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="small text-muted fw-bold">Audit Sync: <span class="text-success">{{ now()->format('H:i') }}</span></span>
+                        </div>
+                    </div>
+                </div>
                 </form>
             </div>
         </div>
 
-        <!-- Export Buttons -->
-        <div class="mb-3 d-flex justify-content-between align-items-end">
-            <div class="btn-group shadow-sm">
-                <button type="button" class="btn btn-export btn-sm border-end" id="btn-csv-export">CSV</button>
-                <button type="button" class="btn btn-export btn-sm border-end" id="btn-excel-export">Excel</button>
-                <button type="button" class="btn btn-export btn-sm border-end" id="btn-pdf-export">PDF</button>
-                <button type="button" class="btn btn-export btn-sm" onclick="window.print()">Print</button>
-            </div>
+        <!-- Table Search Wrapper -->
+        <div class="d-flex justify-content-end align-items-center mb-3">
             
             <div class="d-flex align-items-center gap-2">
-                <label class="small fw-bold text-muted mb-0">Search:</label>
-                <input type="text" id="customSearch" class="form-control form-control-sm" placeholder="Search in results..." style="width: 200px;">
+                <label class="small fw-bold text-muted mb-0">Quick Search:</label>
+                <input type="text" id="customSearch" class="form-control form-control-sm" placeholder="Filter current results..." style="width: 220px;">
             </div>
         </div>
 
         <!-- Table Container -->
-        <div class="card report-filter-card table-card-relative">
-            <div id="loading-overlay">
+        <div class="premium-card shadow-sm table-card-relative">
+            <div id="loading-overlay" style="z-index: 10;">
                 <div class="spinner-border text-primary" role="status"></div>
             </div>
-            <div id="table-container">
+            <div id="table-container" class="card-body p-0">
                 @include('erp.productStock.components.adjustmentTable')
             </div>
         </div>

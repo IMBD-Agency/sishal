@@ -337,6 +337,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/sale-return/{id}/update-status', [\App\Http\Controllers\Erp\SaleReturnController::class, 'updateReturnStatus'])->name('saleReturn.updateStatus');
 
     // Exchange
+    Route::get('/exchange/export-excel', [\App\Http\Controllers\Erp\ExchangeController::class, 'exportExcel'])->name('exchange.export.excel');
+    Route::get('/exchange/export-pdf', [\App\Http\Controllers\Erp\ExchangeController::class, 'exportPdf'])->name('exchange.export.pdf');
     Route::get('/exchange', [\App\Http\Controllers\Erp\ExchangeController::class, 'index'])->name('exchange.list');
     Route::get('/exchange/create', [\App\Http\Controllers\Erp\ExchangeController::class, 'create'])->name('exchange.create');
     Route::get('/exchange/search-invoice', [\App\Http\Controllers\Erp\ExchangeController::class, 'searchInvoice'])->name('exchange.search.invoice');
@@ -469,6 +471,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // Order Return
     Route::get('/order-return', [\App\Http\Controllers\Erp\OrderReturnController::class, 'index'])->name('orderReturn.list');
+    Route::get('/order-return/export-excel', [\App\Http\Controllers\Erp\OrderReturnController::class, 'exportExcel'])->name('orderReturn.export.excel');
+    Route::get('/order-return/export-pdf', [\App\Http\Controllers\Erp\OrderReturnController::class, 'exportPdf'])->name('orderReturn.export.pdf');
     Route::get('/order-return/create', [\App\Http\Controllers\Erp\OrderReturnController::class, 'create'])->name('orderReturn.create');
     Route::post('/order-return/store', [\App\Http\Controllers\Erp\OrderReturnController::class, 'store'])->name('orderReturn.store');
     Route::get('/order-return/{id}', [\App\Http\Controllers\Erp\OrderReturnController::class, 'show'])->name('orderReturn.show');
@@ -516,6 +520,11 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/simple-accounting/top-products-export-pdf', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'exportTopProductsPdf'])->name('simple-accounting.top-products-export-pdf');
     Route::get('/simple-accounting/stock-export-excel', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'exportStockExcel'])->name('simple-accounting.stock-export-excel');
     Route::get('/simple-accounting/stock-export-pdf', [\App\Http\Controllers\Erp\SimpleAccountingController::class, 'exportStockPdf'])->name('simple-accounting.stock-export-pdf');
+
+    // Money Receipt
+    Route::get('/money-receipt/export-excel', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportExcel'])->name('money-receipt.export.excel');
+    Route::get('/money-receipt/export-pdf', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportPdf'])->name('money-receipt.export.pdf');
+    Route::get('/money-receipt', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'index'])->name('money-receipt.index');
 
     // User Role
     Route::get('/user-role', [\App\Http\Controllers\Erp\UserRoleController::class, 'index'])->name('userRole.index');

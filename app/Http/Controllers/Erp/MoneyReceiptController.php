@@ -14,6 +14,9 @@ use App\Models\JournalEntry;
 use App\Models\ChartOfAccount;
 use App\Models\ChartOfAccountType;
 use App\Models\FinancialAccount;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MoneyReceiptController extends Controller
 {
@@ -22,82 +25,12 @@ class MoneyReceiptController extends Controller
         if (!auth()->user()->hasPermissionTo('view money receipts')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Payment::with(['customer', 'invoice', 'creator.employee'])
-            ->whereNotNull('customer_id') // Assuming Money Receipts are always linked to a customer
-            ->latest('id');
+        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos'])
+            ->whereNotNull('customer_id');
 
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $query->where(function($q) use ($restrictedBranchId) {
-                // Link to POS branch
-                $q->whereHas('pos', function($pq) use ($restrictedBranchId) {
-                    $pq->where('branch_id', $restrictedBranchId);
-                })
-                // Link to Invoice -> POS branch
-                ->orWhereHas('invoice.pos', function($ipq) use ($restrictedBranchId) {
-                    $ipq->where('branch_id', $restrictedBranchId);
-                })
-                // Link to Creator's branch (for manual receipts)
-                ->orWhereHas('creator.employee', function($eq) use ($restrictedBranchId) {
-                    $eq->where('branch_id', $restrictedBranchId);
-                });
-            });
-        }
+        $query = $this->applyFilters($query, $request);
 
-        // Filters
-        if ($request->filled('report_type')) {
-            $type = $request->report_type;
-            if ($type === 'daily') {
-                $query->whereDate('payment_date', Carbon::today());
-            } elseif ($type === 'monthly') {
-                $month = $request->input('month', date('m'));
-                $year = $request->input('year', date('Y'));
-                $query->whereMonth('payment_date', $month)->whereYear('payment_date', $year);
-            } elseif ($type === 'yearly') {
-                $year = $request->input('year', date('Y'));
-                $query->whereYear('payment_date', $year);
-            }
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('payment_date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('payment_date', '<=', $request->end_date);
-        }
-        
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('payment_reference', 'like', "%{$search}%")
-                  ->orWhere('customer_id', 'like', "%{$search}%") 
-                  ->orWhereHas('customer', function($cq) use ($search) {
-                      $cq->where('name', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        if ($request->filled('payment_method')) {
-            $query->where('payment_method', $request->payment_method);
-        }
-
-        if ($request->filled('branch_id')) {
-            $branchId = $request->branch_id;
-            $query->where(function($q) use ($branchId) {
-                $q->whereHas('pos', function($pq) use ($branchId) {
-                    $pq->where('branch_id', $branchId);
-                })->orWhereHas('invoice.pos', function($ipq) use ($branchId) {
-                    $ipq->where('branch_id', $branchId);
-                });
-            });
-        }
-
-        $receipts = $query->paginate(20)->appends($request->all());
+        $receipts = $query->latest('id')->paginate(20)->appends($request->all());
         $totalAmount = $query->sum('amount');
 
         if ($request->ajax()) {
@@ -362,5 +295,150 @@ class MoneyReceiptController extends Controller
         }
 
         return $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function applyFilters($query, Request $request)
+    {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where(function($q) use ($restrictedBranchId) {
+                $q->whereHas('pos', function($pq) use ($restrictedBranchId) {
+                    $pq->where('branch_id', $restrictedBranchId);
+                })
+                ->orWhereHas('invoice.pos', function($ipq) use ($restrictedBranchId) {
+                    $ipq->where('branch_id', $restrictedBranchId);
+                })
+                ->orWhereHas('creator.employee', function($eq) use ($restrictedBranchId) {
+                    $eq->where('branch_id', $restrictedBranchId);
+                });
+            });
+        }
+
+        if ($request->filled('report_type')) {
+            $type = $request->report_type;
+            if ($type === 'daily') {
+                $query->whereDate('payment_date', Carbon::today());
+            } elseif ($type === 'monthly') {
+                $month = $request->input('month', date('m'));
+                $year = $request->input('year', date('Y'));
+                $query->whereMonth('payment_date', $month)->whereYear('payment_date', $year);
+            } elseif ($type === 'yearly') {
+                $year = $request->input('year', date('Y'));
+                $query->whereYear('payment_date', $year);
+            }
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('payment_date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('payment_date', '<=', $request->end_date);
+        }
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('payment_reference', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('invoice', function($iq) use ($search) {
+                      $iq->where('invoice_number', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        if ($request->filled('branch_id')) {
+            $branchId = $request->branch_id;
+            $query->where(function($q) use ($branchId) {
+                $q->whereHas('pos', function($pq) use ($branchId) {
+                    $pq->where('branch_id', $branchId);
+                })->orWhereHas('invoice.pos', function($ipq) use ($branchId) {
+                    $ipq->where('branch_id', $branchId);
+                });
+            });
+        }
+
+        return $query;
+    }
+
+    public function exportExcel(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos'])
+            ->whereNotNull('customer_id');
+        $query = $this->applyFilters($query, $request);
+        $receipts = $query->latest('id')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $headers = [
+            'Serial No', 'Receipt No', 'Receipt Date', 'Invoice Date', 'Customer', 'Mobile', 
+            'Outlet', 'Sales Invoice', 'Due Amount', 'Paid Amount', 'Account', 'Collector'
+        ];
+        
+        $sheet->fromArray([$headers], NULL, 'A1');
+        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+
+        $rowNum = 2;
+        foreach ($receipts as $index => $receipt) {
+            $data = [
+                $index + 1,
+                $receipt->payment_reference,
+                Carbon::parse($receipt->payment_date)->format('d/m/Y'),
+                $receipt->invoice ? Carbon::parse($receipt->invoice->issue_date)->format('d/m/Y') : '-',
+                $receipt->customer->name ?? 'Walk-in',
+                $receipt->customer->phone ?? '-',
+                $receipt->pos->branch->name ?? $receipt->invoice->pos->branch->name ?? '-',
+                $receipt->invoice->invoice_number ?? '-',
+                $receipt->invoice->due_amount ?? 0,
+                $receipt->amount,
+                $receipt->payment_method,
+                $receipt->creator->name ?? '-'
+            ];
+            $sheet->fromArray([$data], NULL, 'A' . $rowNum);
+            $rowNum++;
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'money_receipt_report_' . date('Ymd_His') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $writer->save('php://output');
+        exit;
+    }
+
+    public function exportPdf(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos'])
+            ->whereNotNull('customer_id');
+        $query = $this->applyFilters($query, $request);
+        $receipts = $query->latest('id')->get();
+        $totalAmount = $query->sum('amount');
+
+        $pdf = Pdf::loadView('erp.money-receipt.export-pdf', compact('receipts', 'totalAmount'));
+        $pdf->setPaper('A4', 'landscape');
+        
+        $filename = 'money_receipt_report_' . date('Ymd_His') . '.pdf';
+        if ($request->input('action') === 'print') {
+            return $pdf->stream($filename);
+        }
+        return $pdf->download($filename);
     }
 }

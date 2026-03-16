@@ -21,9 +21,7 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button class="btn btn-light border fw-bold shadow-sm" onclick="window.print()">
-                        <i class="fas fa-print me-2 text-primary"></i>Print Report
-                    </button>
+                  
                     <a href="{{ route('money-receipt.create') }}" class="btn btn-create-premium text-nowrap">
                         <i class="fas fa-plus-circle me-2"></i>New Receipt
                     </a>
@@ -51,49 +49,50 @@
 
             <!-- Advanced Filters -->
             <div class="premium-card mb-4 shadow-sm border-0">
-                <div class="card-header bg-white border-bottom p-4">
-                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Refine Registry View</h6>
-                        <!-- Report Period Toggles -->
-                        <div class="d-flex gap-3 bg-light p-1 rounded-3">
-                             <div class="form-check form-check-inline m-0 px-3 py-1 rounded-2 cursor-pointer transition-all">
-                                <input class="form-check-input filter-input cursor-pointer" type="radio" name="report_type" id="daily" value="daily" {{ request('report_type') == 'daily' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-600 small text-muted cursor-pointer" for="daily">Daily</label>
-                            </div>
-                            <div class="form-check form-check-inline m-0 px-3 py-1 rounded-2 cursor-pointer transition-all">
-                                <input class="form-check-input filter-input cursor-pointer" type="radio" name="report_type" id="monthly" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-600 small text-muted cursor-pointer" for="monthly">Monthly</label>
-                            </div>
-                            <div class="form-check form-check-inline m-0 px-3 py-1 rounded-2 cursor-pointer transition-all">
-                                <input class="form-check-input filter-input cursor-pointer" type="radio" name="report_type" id="yearly" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-600 small text-muted cursor-pointer" for="yearly">Yearly</label>
-                            </div>
-                        </div>
-                    </div>
+                <div class="card-header bg-white border-bottom p-3">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Filter Search</h6>
                 </div>
                 <div class="card-body p-4">
-                     <form id="filterForm">
-                        <div class="row g-3 align-items-end">
-                            <div class="col-md-2 daily-group">
+                    <form id="filterForm" onsubmit="event.preventDefault(); fetchData();">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-4">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_daily" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_daily">Daily Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_monthly" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_monthly">Monthly Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_yearly" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_yearly">Yearly Reports</label>
+                            </div>
+                        </div>
+
+                        <!-- Filter Fields Row -->
+                        <div class="row g-3">
+                            <!-- Date Groups -->
+                            <div class="col-md-2 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">From Date</label>
                                 <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                             </div>
-                            <div class="col-md-2 daily-group">
+                            <div class="col-md-2 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">To Date</label>
                                 <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
                             
-                            <div class="col-md-2 monthly-group" style="display: none;">
+                            <div class="col-md-2 report-field monthly-group d-none">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
-                                <select name="month" class="form-select">
+                                <select name="month" class="form-select select2-setup">
                                     @foreach(range(1, 12) as $m)
                                         <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2 monthly-group yearly-group" style="display: none;">
+                            <div class="col-md-2 report-field monthly-group yearly-group d-none">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
-                                <select name="year" class="form-select">
+                                <select name="year" class="form-select select2-setup">
                                     @foreach(range(date('Y'), date('Y') - 10) as $y)
                                         <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endforeach
@@ -102,8 +101,8 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
-                                <select name="customer_id" class="form-select select2-simple">
-                                    <option value="">All Customers</option>
+                                <select name="customer_id" class="form-select select2-setup" data-placeholder="All Customers">
+                                    <option value=""></option>
                                     @foreach($customers as $customer)
                                         <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
                                     @endforeach
@@ -111,39 +110,51 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Outlet</label>
-                                <select name="branch_id" class="form-select select2-simple">
-                                    <option value="">All Outlets</option>
+                                <select name="branch_id" class="form-select select2-setup" data-placeholder="All Outlets">
+                                    <option value=""></option>
                                     @foreach($branches as $branch)
                                         <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                             <div class="col-md-1">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Method</label>
-                                <select name="payment_method" class="form-select">
-                                    <option value="">All</option>
+                                <select name="payment_method" class="form-select select2-setup" data-placeholder="All Methods">
+                                    <option value=""></option>
                                     <option value="Cash" {{ request('payment_method') == 'Cash' ? 'selected' : '' }}>Cash</option>
                                     <option value="Bank" {{ request('payment_method') == 'Bank' ? 'selected' : '' }}>Bank</option>
                                     <option value="Mobile Money" {{ request('payment_method') == 'Mobile Money' ? 'selected' : '' }}>MFS</option>
                                 </select>
                             </div>
-                             <div class="col-md-2">
-                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Receipt</label>
-                                 <div class="input-group">
-                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted small"></i></span>
-                                    <input type="text" name="search" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Receipt No..." value="{{ request('search') }}">
-                                 </div>
-                             </div>
-                             <div class="col-md-1 d-flex gap-2">
-                                 <a href="{{ route('money-receipt.index') }}" class="btn btn-light border flex-fill" title="Reset Filters" style="height: 41px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-sync-alt text-muted"></i>
-                                 </a>
-                                 <button type="button" class="btn btn-indigo-premium flex-fill" onclick="fetchData()" style="height: 41px;">
-                                     <i class="fas fa-filter"></i>
-                                 </button>
-                             </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Action</label>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('money-receipt.index') }}" class="btn btn-light border flex-fill" title="Reset Filters" style="height: 42px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-undo"></i>
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium flex-fill" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Apply
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                     </form>
+                    </form>
+                </div>
+                <div class="card-footer bg-light border-top p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" onclick="exportData('excel')">
+                                <i class="fas fa-file-excel me-2"></i>Excel
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="exportData('pdf')">
+                                <i class="fas fa-file-pdf me-2"></i>PDF
+                            </button>
+                        </div>
+                        <div class="search-wrapper-premium" style="width: 300px;">
+                            <input type="text" name="search" id="searchInput" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
+                            <i class="fas fa-search search-icon-premium"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -189,61 +200,75 @@
     </div>
 
     <style>
-        .btn-indigo-premium { background: #4e73df; color: white; border: none; }
-        .btn-indigo-premium:hover { background: #2e59d9; color: white; }
         .bg-indigo-50 { background-color: #f8faff !important; }
         .premium-table thead th { background-color: #2d5a4c !important; color: white !important; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; height: 50px; vertical-align: middle; }
     </style>
 
     @push('scripts')
     <script>
-        $(document).ready(function() {
-            $('.select2-simple').select2({
-                width: '100%'
-            });
+        function exportData(format) {
+            const form = document.getElementById('filterForm');
+            const data = new FormData(form);
+            const params = new URLSearchParams();
+            for (const [key, value] of data.entries()) {
+                params.append(key, value);
+            }
+            
+            let url = format === 'excel' ? "{{ route('money-receipt.export.excel') }}" : "{{ route('money-receipt.export.pdf') }}";
+            window.location.href = url + '?' + params.toString();
+        }
 
-            // Toggle date groups based on report type
-            $('input[name="report_type"]').on('change', function() {
-                toggleDateGroups();
-                fetchData(); // Auto-fetch when type changes
+        $(document).ready(function() {
+            $('.select2-simple').each(function() {
+                $(this).select2({
+                    width: '100%',
+                    placeholder: $(this).data('placeholder'),
+                    allowClear: true
+                });
             });
 
             function toggleDateGroups() {
-                const type = $('input[name="report_type"]:checked').val();
-                $('.daily-group, .monthly-group, .yearly-group').hide();
+                const type = $('.report-type-radio:checked').val() || 'daily';
+                console.log('Money Receipt Toggle - Type:', type);
+                
+                $('.report-field').addClass('d-none');
                 
                 if (type === 'daily') {
-                    $('.daily-group').show();
+                    $('.daily-group').removeClass('d-none');
                 } else if (type === 'monthly') {
-                    $('.monthly-group').show();
-                    $('.yearly-group').show(); 
+                    $('.monthly-group').removeClass('d-none');
                 } else if (type === 'yearly') {
-                    $('.yearly-group').show();
+                    $('.yearly-group').removeClass('d-none');
                 }
             }
 
-            toggleDateGroups();
-        });
-    </script>
-    @endpush
-
-    <script>
-        // Debounce function for search
-        let timeout = null;
-        document.getElementById('searchInput').addEventListener('keyup', function (e) {
-            clearTimeout(timeout);
-            timeout = setTimeout(function () {
+            $('.report-type-radio').on('change', function() {
+                toggleDateGroups();
                 fetchData();
-            }, 500);
+            });
+
+            // Initial toggle
+            toggleDateGroups();
+            setTimeout(toggleDateGroups, 100);
+
+            // Quick Client-side Search
+            let searchTimeout;
+            $('#searchInput').on('input', function() {
+                const value = $(this).val().toLowerCase();
+                clearTimeout(searchTimeout);
+                
+                searchTimeout = setTimeout(function() {
+                    $('#tableBody tr').each(function() {
+                        const text = $(this).text().toLowerCase();
+                        $(this).toggle(text.indexOf(value) > -1);
+                    });
+                }, 250);
+            });
         });
 
         function fetchData(page = 1) {
             const form = document.getElementById('filterForm');
             const data = new FormData(form); 
-            
-            const reportType = document.querySelector('input[name="report_type"]:checked');
-            if(reportType) data.append('report_type', reportType.value);
-            
             data.append('page', page);
 
             const params = new URLSearchParams();
@@ -259,28 +284,23 @@
             .then(response => response.json())
             .then(data => {
                 document.getElementById('tableBody').innerHTML = data.html;
-                document.getElementById('totalAmount').innerText = data.totalAmount;
+                document.getElementById('totalAmount').innerText = '৳ ' + data.totalAmount;
                 document.getElementById('paginationLinks').innerHTML = data.pagination;
-                
-                // Re-bind pagination links
                 bindPagination();
             })
             .catch(error => console.error('Error:', error));
         }
 
         function bindPagination() {
-            document.querySelectorAll('.pagination a').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    let url = this.getAttribute('href');
-                    const urlParams = new URLSearchParams(url.split('?')[1]);
-                    let page = urlParams.get('page');
-                    fetchData(page);
-                });
+            $('#paginationLinks .pagination a').on('click', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                const urlParams = new URLSearchParams(url.split('?')[1]);
+                fetchData(urlParams.get('page'));
             });
         }
         
-        // Initial binding
         bindPagination();
     </script>
+    @endpush
 @endsection

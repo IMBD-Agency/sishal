@@ -12,18 +12,95 @@ use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class OrderReturnController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Export Order Returns to Excel
+     */
+    public function exportExcel(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('view returns')) {
             abort(403, 'Unauthorized action.');
         }
 
         $query = OrderReturn::query();
+        $this->applyFilters($query, $request);
+        $returns = $query->with(['customer', 'order', 'items'])->orderBy('created_at', 'desc')->get();
 
-        // Search by customer name, phone, email, or Order number
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $headers = [
+            'Serial No', 'Return ID', 'Date', 'Order #', 'Customer', 'Mobile', 
+            'Refund Type', 'Location', 'Status', 'Total Refund'
+        ];
+        
+        $sheet->fromArray([$headers], NULL, 'A1');
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+
+        $rowNum = 2;
+        foreach ($returns as $index => $return) {
+            $totalRefund = 0;
+            foreach ($return->items as $item) {
+                $totalRefund += $item->total_price;
+            }
+
+            $data = [
+                $index + 1,
+                '#RET-' . str_pad($return->id, 5, '0', STR_PAD_LEFT),
+                Carbon::parse($return->return_date)->format('d/m/Y'),
+                $return->order?->order_number ?? '-',
+                $return->customer?->name ?? 'Walk-in',
+                $return->customer?->phone ?? '-',
+                ucfirst($return->refund_type),
+                $return->destination_name,
+                ucfirst($return->status),
+                $totalRefund
+            ];
+            $sheet->fromArray([$data], NULL, 'A' . $rowNum);
+            $rowNum++;
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'order_return_report_' . date('Ymd_His') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Export Order Returns to PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $query = OrderReturn::query();
+        $this->applyFilters($query, $request);
+        $returns = $query->with(['customer', 'order', 'items'])->orderBy('created_at', 'desc')->get();
+
+        $pdf = Pdf::loadView('erp.orderReturn.export-pdf', compact('returns'));
+        $pdf->setPaper('A4', 'landscape');
+        
+        $filename = 'order_return_report_' . date('Ymd_His') . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Apply common filters to the query
+     */
+    private function applyFilters($query, Request $request)
+    {
         if ($search = $request->input('search')) {
             $query->where(function($q) use ($search) {
                 $q->whereHas('customer', function($qc) use ($search) {
@@ -37,36 +114,50 @@ class OrderReturnController extends Controller
             });
         }
 
-        // Filter by Date Range
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-        if ($startDate) {
-            $query->whereDate('return_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->whereDate('return_date', '<=', $endDate);
-        }
-
-        // Quick Filters
-        if ($request->has('quick_filter')) {
-            $filter = $request->input('quick_filter');
-            if ($filter == 'today') {
-                $query->whereDate('return_date', Carbon::today());
-            } elseif ($filter == 'monthly') {
-                $query->whereMonth('return_date', Carbon::now()->month)
-                      ->whereYear('return_date', Carbon::now()->year);
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType === 'daily') {
+            if ($request->filled('start_date')) {
+                $query->whereDate('return_date', '>=', $request->start_date, 'and');
             }
+            if ($request->filled('end_date')) {
+                $query->whereDate('return_date', '<=', $request->end_date, 'and');
+            }
+            // Default to today if no dates provided for daily report
+            if (!$request->filled('start_date') && !$request->filled('end_date')) {
+                $query->whereDate('return_date', '=', now()->toDateString(), 'and');
+            }
+        } elseif ($reportType === 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('return_date', '=', $month, 'and')
+                  ->whereYear('return_date', '=', $year, 'and');
+        } elseif ($reportType === 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('return_date', '=', $year, 'and');
         }
 
-        // Filter by status
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            $query->where('status', '=', $status, 'and');
         }
+    }
+
+    public function index(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view returns')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $query = OrderReturn::query();
+        $this->applyFilters($query, $request);
 
         $returns = $query->with(['customer', 'order', 'items'])
             ->orderBy('created_at', 'desc')
             ->paginate(15)
             ->appends($request->all());
+
+        if ($request->ajax()) {
+            return view('erp.orderReturn.orderreturnlist_partial', compact('returns'));
+        }
 
         $statuses = ['pending', 'approved', 'rejected', 'processed'];
         $filters = $request->all();

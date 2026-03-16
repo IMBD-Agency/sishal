@@ -7,177 +7,164 @@
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
         
-        <!-- Premium Header Area -->
-        <div class="glass-header">
-            <div class="row align-items-center">
-                <div class="col-md-7">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-1 breadcrumb-premium text-uppercase">
-                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted small">Dashboard</a></li>
-                            <li class="breadcrumb-item active text-primary fw-bold small">Return Registry</li>
-                        </ol>
-                    </nav>
-                    <div class="d-flex align-items-center gap-2">
-                        <h4 class="fw-bold mb-0 text-dark">Procurement Return Audit</h4>
-                        <span class="badge bg-light text-success border border-success small rounded-pill px-3 py-1">{{ $items->total() }} Returns</span>
-                    </div>
+    <!-- Premium Header -->
+    <div class="glass-header">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 text-uppercase" style="font-size: 0.75rem;">
+                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted small">Dashboard</a></li>
+                        <li class="breadcrumb-item active text-primary fw-bold small">Return Registry</li>
+                    </ol>
+                </nav>
+                <div class="d-flex align-items-center gap-2">
+                    <h4 class="fw-bold mb-0 text-dark">Procurement Return Audit</h4>
+                    <span class="badge bg-light text-success border border-success small rounded-pill px-3 py-1">{{ $items->total() }} Returns</span>
                 </div>
-                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button type="button" class="btn btn-outline-dark shadow-sm px-4 fw-bold" onclick="window.print()">
-                        <i class="fas fa-print me-2"></i>Print Registry
-                    </button>
-                    <a href="{{ route('purchaseReturn.create') }}" class="btn btn-create-premium text-nowrap">
+            </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <a href="{{ route('purchaseReturn.create') }}" class="btn btn-primary fw-bold px-4 shadow-sm" style="border-radius: 10px;">
                         <i class="fas fa-plus-circle me-2"></i>New Return Entry
                     </a>
                 </div>
-            </div>
         </div>
+    </div>
 
-        <div class="container-fluid px-4 py-4">
-            <!-- Advanced Analytics Filters -->
-            <div class="premium-card mb-4">
-                <div class="card-header bg-white border-bottom p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Reverse Procurement Filters</h6>
-                        <div class="d-flex gap-4">
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
-                            </div>
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly View</label>
-                            </div>
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Annual View</label>
-                            </div>
+    <div class="container-fluid px-4 py-4">
+        <!-- Advanced Filters -->
+        <div class="premium-card mb-3 shadow-sm">
+            <div class="card-body p-4">
+                <form action="{{ route('purchaseReturn.list') }}" method="GET" id="filterForm">
+                    <div class="d-flex gap-4 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input filter-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-2 date-group daily-group">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                        </div>
+                        <div class="col-md-2 date-group daily-group">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
+                            <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                        </div>
+                        <div class="col-md-2 date-group monthly-group" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Month</label>
+                            <select name="month" class="form-select select2-setup">
+                                @foreach(range(1, 12) as $m)
+                                    <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
+                            <select name="year" class="form-select select2-setup">
+                                @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                    <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Invoice #</label>
+                            <input type="text" name="search" class="form-control" placeholder="Return ID..." value="{{ request('search') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Supplier</label>
+                            <select name="supplier_id" class="form-select select2-setup" data-placeholder="Choose Supplier">
+                                <option value=""></option>
+                                @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Product</label>
+                            <select name="product_id" class="form-select select2-setup" data-placeholder="Choose Product">
+                                <option value=""></option>
+                                @foreach($products as $product)
+                                    <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Style Code</label>
+                            <input type="text" name="style_number" class="form-control" placeholder="Style SKU..." value="{{ request('style_number') }}">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Category</label>
+                            <select name="category_id" class="form-select select2-setup" data-placeholder="All Categories">
+                                <option value=""></option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Brand</label>
+                            <select name="brand_id" class="form-select select2-setup" data-placeholder="All Brands">
+                                <option value=""></option>
+                                @foreach($brands as $brand)
+                                    <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Season</label>
+                            <select name="season_id" class="form-select select2-setup" data-placeholder="All Seasons">
+                                <option value=""></option>
+                                @foreach($seasons as $season)
+                                    <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Gender</label>
+                            <select name="gender_id" class="form-select select2-setup" data-placeholder="All Genders">
+                                <option value=""></option>
+                                @foreach($genders as $gender)
+                                    <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                <div class="card-footer bg-light border-top p-3 mt-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex gap-2">
+                            <a href="{{ route('purchaseReturn.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
+                                <i class="fas fa-file-excel me-2"></i>Excel
+                            </a>
+                            <a href="{{ route('purchaseReturn.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
+                                <i class="fas fa-file-pdf me-2"></i>PDF
+                            </a>
+                            <button class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="window.print()">
+                                <i class="fas fa-print me-2"></i>Print Registry
+                            </button>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ route('purchaseReturn.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                <i class="fas fa-undo me-2"></i>Reset
+                            </a>
+                            <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                <i class="fas fa-search me-2"></i>Apply Filters
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-4">
-                    <form action="{{ route('purchaseReturn.list') }}" method="GET" id="filterForm">
-                        <div class="row g-3">
-                            <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Return Start Date</label>
-                                <input type="date" name="start_date" class="form-control shadow-none" value="{{ $startDate ? $startDate->toDateString() : '' }}">
-                            </div>
-                            <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Return End Date</label>
-                                <input type="date" name="end_date" class="form-control shadow-none" value="{{ $endDate ? $endDate->toDateString() : '' }}">
-                            </div>
-
-                            <div class="col-md-2 date-group monthly-group" style="display: none;">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Month</label>
-                                <select name="month" class="form-select select2-setup shadow-none">
-                                    @foreach(range(1, 12) as $m)
-                                        <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Year</label>
-                                <select name="year" class="form-select select2-setup shadow-none">
-                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
-                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Invoice / Ref #</label>
-                                <input type="text" name="search" class="form-control shadow-none" placeholder="Search return ID..." value="{{ request('search') }}">
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Assigned Supplier</label>
-                                <select name="supplier_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Supplier">
-                                    <option value=""></option>
-                                    @foreach($suppliers as $supplier)
-                                        <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Returned Product</label>
-                                <select name="product_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Product">
-                                    <option value=""></option>
-                                    @foreach($products as $product)
-                                        <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Style Ref Code</label>
-                                <input type="text" name="style_number" class="form-control shadow-none" placeholder="Style SKU..." value="{{ request('style_number') }}">
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Product Category</label>
-                                <select name="category_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Category">
-                                    <option value=""></option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Inventory Brand</label>
-                                <select name="brand_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Brand">
-                                    <option value=""></option>
-                                    @foreach($brands as $brand)
-                                        <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Inventory Season</label>
-                                <select name="season_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Season">
-                                    <option value=""></option>
-                                    @foreach($seasons as $season)
-                                        <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Target Gender</label>
-                                <select name="gender_id" class="form-select select2-setup shadow-none" data-placeholder="Choose Gender">
-                                    <option value=""></option>
-                                    @foreach($genders as $gender)
-                                        <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100 shadow-none" style="height: 42px;">
-                                    <i class="fas fa-search me-2"></i>Audit Returns
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
-                            <div class="d-flex gap-2">
-                                <div class="btn-group shadow-none border rounded overflow-hidden">
-                                    <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">CSV</button>
-                                    <a href="{{ route('purchaseReturn.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end no-loader" target="_blank">EXCEL</a>
-                                    <a href="{{ route('purchaseReturn.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end no-loader" target="_blank">PDF</a>
-                                    <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="small text-muted fw-bold">Live Return Sync: <span class="text-success">{{ now()->format('H:i:s') }}</span></span>
-                                <a href="{{ route('purchaseReturn.list') }}" class="btn btn-light btn-sm px-4 fw-bold border shadow-none">Flush Audit</a>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+                </form>
             </div>
+        </div>
 
             <!-- Script for Date Toggling -->
             <script>
@@ -217,7 +204,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table compact mb-0" id="returnTable">
+                        <table class="table premium-table compact reporting-table mb-0" id="returnTable">
                             <thead>
                                 <tr>
                                     <th class="ps-3">SL</th>
@@ -279,14 +266,14 @@
                                             @elseif($purchase) 
                                                 #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }}
                                             @else 
-                                                <span class="text-muted small italic">GLOBAL</span> 
+                                                <span class="italic">GLOBAL</span> 
                                             @endif
                                         </td>
                                         <td>
                                             @if($item->return_from_type == 'branch')
-                                                <span class="badge bg-light text-dark border"><i class="fas fa-store-alt me-1 text-info small"></i>{{ $item->branch->name ?? '-' }}</span>
+                                                <span class="badge bg-light text-dark border"><i class="fas fa-store-alt me-1 text-info"></i>{{ $item->branch->name ?? '-' }}</span>
                                             @else
-                                                <span class="badge bg-light text-dark border"><i class="fas fa-warehouse me-1 text-warning small"></i>{{ $item->warehouse->name ?? '-' }}</span>
+                                                <span class="badge bg-light text-dark border"><i class="fas fa-warehouse me-1 text-warning"></i>{{ $item->warehouse->name ?? '-' }}</span>
                                             @endif
                                         </td>
                                         <td class="fw-bold">
@@ -298,7 +285,7 @@
                                                 -
                                             @endif
                                         </td>
-                                        <td class="text-muted small">
+                                        <td>
                                             @if($purchase && $purchase->supplier)
                                                 {{ $purchase->supplier->phone }}
                                             @elseif($return && $return->supplier)
@@ -307,14 +294,14 @@
                                                 -
                                             @endif
                                         </td>
-                                        <td class="text-muted small">{{ $product->category->name ?? '-' }}</td>
-                                        <td class="text-muted small">{{ $product->brand->name ?? '-' }}</td>
-                                        <td class="text-muted small">{{ $product->season->name ?? '-' }}</td>
-                                        <td class="text-muted small">{{ $product->gender->name ?? '-' }}</td>
+                                        <td>{{ $product->category->name ?? '-' }}</td>
+                                        <td>{{ $product->brand->name ?? '-' }}</td>
+                                        <td>{{ $product->season->name ?? '-' }}</td>
+                                        <td>{{ $product->gender->name ?? '-' }}</td>
                                         <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
                                         <td class="text-pink fw-bold">{{ $product->style_number ?? '-' }}</td>
-                                        <td class="text-uppercase small fw-bold">{{ $color }}</td>
-                                        <td class="small fw-bold">{{ $size }}</td>
+                                        <td class="text-uppercase fw-bold">{{ $color }}</td>
+                                        <td class="fw-bold">{{ $size }}</td>
                                         <td class="text-center fw-bold">{{ number_format($item->returned_qty, 2) }}</td>
                                         <td class="text-end fw-bold">{{ number_format($amount, 2) }}৳</td>
                                         <td class="pe-3">

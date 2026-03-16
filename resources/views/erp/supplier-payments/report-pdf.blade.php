@@ -33,6 +33,7 @@
                 <th>Voucher #</th>
                 <th>Date</th>
                 <th>Supplier</th>
+                <th>Balance</th>
                 <th>Bill Reference</th>
                 <th>Method</th>
                 <th style="text-align: right;">Amount</th>
@@ -40,10 +41,17 @@
         </thead>
         <tbody>
             @foreach($payments as $payment)
+            @php 
+                $balance = $payment->supplier->balance;
+                $balanceText = number_format(abs($balance), 2) . ' ৳';
+                if ($balance > 0) $balanceText .= ' (DUE)';
+                elseif ($balance < 0) $balanceText .= ' (ADV)';
+            @endphp
             <tr>
                 <td><strong>SP-{{ str_pad($payment->id, 6, '0', STR_PAD_LEFT) }}</strong></td>
                 <td>{{ $payment->payment_date->format('d/m/Y') }}</td>
                 <td>{{ $payment->supplier->name }}</td>
+                <td>{{ $balanceText }}</td>
                 <td>{{ $payment->bill->bill_number ?? 'Advance Payment' }}</td>
                 <td>{{ strtoupper(str_replace('_', ' ', $payment->payment_method)) }}</td>
                 <td style="text-align: right;">{{ number_format($payment->amount, 2) }}৳</td>

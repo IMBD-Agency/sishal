@@ -35,96 +35,117 @@
             .product-name-cell .details { color: #64748b; font-size: 0.8rem; }
         </style>
 
-        <div class="container-fluid px-4 py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 class="fw-bold text-slate-800 mb-1">Create Purchase Return</h4>
-                    <p class="text-muted small mb-0">Manage product returns by invoice or global supplier-wise</p>
-                </div>
-                <div class="return-type-toggle">
-                    <button type="button" class="return-type-btn active" id="btnByInvoice"><i class="fas fa-file-invoice me-2"></i>By Invoice</button>
-                    <button type="button" class="return-type-btn" id="btnBySupplier"><i class="fas fa-tags me-2"></i>Global Return</button>
+    <!-- Premium Header Area -->
+    <div class="glass-header">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 text-uppercase" style="font-size: 0.75rem;">
+                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('purchaseReturn.list') }}" class="text-decoration-none text-muted">Returns</a></li>
+                        <li class="breadcrumb-item active text-primary fw-bold">Process Return</li>
+                    </ol>
+                </nav>
+                <h4 class="fw-bold mb-0 text-dark">Create Purchase Return</h4>
+                <p class="text-muted small mb-0">Manage product returns by invoice or global supplier-wise</p>
+            </div>
+            <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-3 align-items-md-center">
+                <div class="return-type-toggle shadow-sm" style="background: #f1f5f9; padding: 4px; border-radius: 12px; display: inline-flex;">
+                    <button type="button" class="btn btn-sm btn-white border-0 fw-bold px-3 active-toggle-btn" id="btnByInvoice" style="border-radius: 10px; transition: all 0.2s;">
+                        <i class="fas fa-file-invoice me-2"></i>By Invoice
+                    </button>
+                    <button type="button" class="btn btn-sm btn-white border-0 fw-bold px-3" id="btnBySupplier" style="border-radius: 10px; transition: all 0.2s;">
+                        <i class="fas fa-tags me-2"></i>Global Return
+                    </button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            @if ($errors->any())
-                <div class="alert alert-danger border-0 shadow-sm mb-4">
-                    <ul class="mb-0">@foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach</ul>
-                </div>
-            @endif
+    <style>
+        .active-toggle-btn { background: #fff !important; color: #3b82f6 !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .return-type-btn { padding: 8px 20px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; }
+    </style>
 
-            <form action="{{ route('purchaseReturn.store') }}" method="POST" id="mainReturnForm">
-                @csrf
-                <input type="hidden" name="return_mode" id="return_mode" value="invoice">
+    <div class="container-fluid px-4 py-4">
+        @if ($errors->any())
+            <div class="alert alert-danger border-0 shadow-sm mb-4">
+                <ul class="mb-0">@foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach</ul>
+            </div>
+        @endif
 
-                <div class="row g-4">
-                    <!-- Step 1: Selection -->
-                    <div class="col-xl-4">
-                        <div class="premium-card mb-4">
-                            <div class="card-header-premium">
-                                <h6 class="mb-0 fw-bold"><i class="fas fa-search me-2 text-primary"></i>Selection</h6>
-                            </div>
-                            <div class="card-body p-4">
-                                <div id="invoiceSelectionSection">
-                                    <label class="form-label">Search Purchase Invoice</label>
-                                    <div class="input-group">
-                                        <input type="text" id="invoice_search" class="form-control" placeholder="PUR-XXXXX or Bill No">
-                                        <button type="button" id="btnSearchInvoice" class="btn btn-primary px-3"><i class="fas fa-search"></i></button>
-                                    </div>
-                                    <input type="hidden" name="purchase_id" id="purchase_id">
-                                </div>
+        <form action="{{ route('purchaseReturn.store') }}" method="POST" id="mainReturnForm">
+            @csrf
+            <input type="hidden" name="return_mode" id="return_mode" value="invoice">
 
-                                <div id="supplierSelectionSection" style="display: none;">
-                                    <div class="mb-3">
-                                        <label class="form-label">Select Supplier</label>
-                                        <select name="supplier_id" id="supplier_id" class="form-select select2">
-                                            <option value="">Choose Supplier</option>
-                                            @foreach($suppliers as $supplier)
-                                                <option value="{{ $supplier->id }}">{{ $supplier->name }} ({{ $supplier->company_name }})</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="mb-0">
-                                        <label class="form-label">Search & Add Products</label>
-                                        <select id="product_search" class="form-select"></select>
-                                        <small class="text-muted">Type product name, SKU or Style no.</small>
-                                    </div>
-                                </div>
-                            </div>
+            <div class="row g-4">
+                <!-- Step 1: Selection -->
+                <div class="col-xl-4">
+                    <div class="premium-card mb-4 shadow-sm">
+                        <div class="card-header bg-white border-bottom p-4">
+                            <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-search me-2 text-primary"></i>Selection Registry</h6>
                         </div>
-
-                        <div class="premium-card">
-                            <div class="card-header-premium">
-                                <h6 class="mb-0 fw-bold"><i class="fas fa-cog me-2 text-primary"></i>Settings</h6>
+                        <div class="card-body p-4">
+                            <div id="invoiceSelectionSection">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Search Purchase Invoice</label>
+                                <div class="input-group">
+                                    <input type="text" id="invoice_search" class="form-control" placeholder="PUR-XXXXX or Bill No">
+                                    <button type="button" id="btnSearchInvoice" class="btn btn-primary px-3 shadow-sm"><i class="fas fa-search"></i></button>
+                                </div>
+                                <input type="hidden" name="purchase_id" id="purchase_id">
                             </div>
-                            <div class="card-body p-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Return Date</label>
-                                    <input type="date" name="return_date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Adjustment Type</label>
-                                    <select name="return_type" id="return_type" class="form-select" required>
-                                        <option value="adjust_to_due">Adjust to Supplier Balance (Payable)</option>
-                                        <option value="refund">Cash/Bank Refund</option>
-                                        <option value="none">No Adjustment</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3" id="accountSection" style="display: none;">
-                                    <label class="form-label">Refund Account</label>
-                                    <select name="account_id" class="form-select">
-                                        @foreach($accounts as $acc)
-                                            <option value="{{ $acc->id }}">{{ $acc->provider_name }} - {{ $acc->account_number }}</option>
+
+                            <div id="supplierSelectionSection" style="display: none;">
+                                <div class="mb-4">
+                                    <label class="form-label small fw-bold text-muted text-uppercase mb-2">Select Supplier</label>
+                                    <select name="supplier_id" id="supplier_id" class="form-select select2-premium-42">
+                                        <option value="">Choose Supplier</option>
+                                        @foreach($suppliers as $supplier)
+                                            <option value="{{ $supplier->id }}">{{ $supplier->name }} ({{ $supplier->company_name }})</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="mb-0">
-                                    <label class="form-label">Reason/Notes</label>
-                                    <textarea name="reason" class="form-control" rows="3" placeholder="Explain the reason..."></textarea>
+                                    <label class="form-label small fw-bold text-muted text-uppercase mb-2">Search & Add Products</label>
+                                    <select id="product_search" class="form-select select2-premium- setup"></select>
+                                    <small class="text-muted mt-2 d-block">Type product name, SKU or Style no.</small>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <div class="premium-card shadow-sm">
+                        <div class="card-header bg-white border-bottom p-4">
+                            <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-cog me-2 text-primary"></i>Return Configuration</h6>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Return Date</label>
+                                <input type="date" name="return_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Adjustment Type</label>
+                                <select name="return_type" id="return_type" class="form-select" required>
+                                    <option value="adjust_to_due">Adjust to Supplier Balance (Payable)</option>
+                                    <option value="refund">Cash/Bank Refund</option>
+                                    <option value="none">No Adjustment</option>
+                                </select>
+                            </div>
+                            <div class="mb-4" id="accountSection" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Refund Account</label>
+                                <select name="account_id" class="form-select">
+                                    @foreach($accounts as $acc)
+                                        <option value="{{ $acc->id }}">{{ $acc->provider_name }} - {{ $acc->account_number }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Reason/Notes</label>
+                                <textarea name="reason" class="form-control" rows="3" placeholder="Explain the reason..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                     <!-- Step 2: Items -->
                     <div class="col-xl-8">

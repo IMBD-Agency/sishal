@@ -1405,7 +1405,7 @@ class ReportController extends Controller
         if (!auth()->user()->hasPermissionTo('view executive reports')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'monthly');
+        $reportType = $request->get('report_type', 'daily');
         $branchId = $request->get('branch_id');
         $restrictedBranchId = $this->getRestrictedBranchId();
         
@@ -1413,17 +1413,17 @@ class ReportController extends Controller
             $branchId = $restrictedBranchId;
         }
 
+        $month = $request->get('month', Carbon::now()->month);
+        $year = $request->get('year', Carbon::now()->year);
+
         if ($reportType == 'monthly') {
-            $month = $request->get('month', Carbon::now()->month);
-            $year = $request->get('year', Carbon::now()->year);
             $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
             $endDate = $startDate->copy()->endOfMonth();
         } elseif ($reportType == 'yearly') {
-            $year = $request->get('year', Carbon::now()->year);
             $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfDay();
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
         }
 
@@ -1605,7 +1605,9 @@ class ReportController extends Controller
             'stockValue' => $stockValue,
             'grossRevenue' => $grossRevenue,
             'grossProfit' => $grossProfit,
-            'netProfit' => $netProfit
+            'netProfit' => $netProfit,
+            'month' => $month,
+            'year' => $year
         ];
 
         if ($request->filled('export')) {
@@ -1614,6 +1616,10 @@ class ReportController extends Controller
             } elseif ($request->export == 'pdf') {
                 return $this->exportExecutivePdf($data);
             }
+        }
+
+        if ($request->ajax()) {
+            return view('erp.reports.executive-report-partial', $data);
         }
 
         return view('erp.reports.executive-report', $data);

@@ -60,68 +60,120 @@
         </style>
 
         <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
+        <div class="container-fluid px-4 py-3 bg-white border-bottom shadow-sm">
             <div class="row align-items-center">
                 <div class="col-md-6">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
+                        <ol class="breadcrumb mb-1">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Order Returns</li>
+                            <li class="breadcrumb-item active" aria-current="page">Order Management</li>
                         </ol>
                     </nav>
-                    <h2 class="fw-bold mb-0">Order Returns</h2>
-                    <p class="text-muted mb-0">Manage and track E-commerce order returns.</p>
+                    <h2 class="fw-bold mb-0">Order Return List</h2>
                 </div>
                 <div class="col-md-6 text-end">
-                    <a href="{{ route('orderReturn.create') }}" class="btn btn-primary px-4 rounded-pill shadow-sm">
-                        <i class="fas fa-plus-circle me-2"></i>New Return
-                    </a>
+                    <div class="btn-group shadow-sm">
+                        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm fw-bold">
+                            <i class="fas fa-print me-1"></i>PRINT
+                        </button>
+                        <a href="{{ route('orderReturn.export.pdf', request()->query()) }}" class="btn btn-outline-danger btn-sm fw-bold export-link-pdf">
+                            <i class="fas fa-file-pdf me-1"></i>PDF
+                        </a>
+                        <a href="{{ route('orderReturn.export.excel', request()->query()) }}" class="btn btn-outline-success btn-sm fw-bold export-link-excel">
+                            <i class="fas fa-file-excel me-1"></i>EXCEL
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="container-fluid px-4 py-4">
             <!-- Filter Section -->
-            <div class="card border-0 shadow-sm rounded-3 mb-4 filter-card">
-                <div class="card-body p-4">
-                    <form method="GET" action="" id="filterForm">
-                        <div class="row g-3">
-                            <div class="col-lg-4 col-md-6">
-                                <label class="form-label fw-bold small text-uppercase text-muted">Quick Search</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-0"><i class="fas fa-search text-muted"></i></span>
-                                    <input type="text" name="search" class="form-control border-start-0" value="{{ $filters['search'] ?? '' }}" placeholder="Search ID, Customer, Order #">
-                                </div>
+            <div class="premium-card mb-4 shadow-sm">
+                <div class="card-body p-3">
+                    <form id="filterForm" action="{{ route('orderReturn.list') }}" method="GET" autocomplete="off">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily</label>
                             </div>
-                            <div class="col-lg-3 col-md-4">
-                                <label class="form-label fw-bold small text-uppercase text-muted">Return Date</label>
-                                <input type="date" name="return_date" class="form-control" value="{{ $filters['return_date'] ?? '' }}">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
                             </div>
-                            <div class="col-lg-3 col-md-4">
-                                <label class="form-label fw-bold small text-uppercase text-muted">Status</label>
-                                <select name="status" class="form-select">
-                                    <option value="">Status</option>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Keywords</label>
+                                <input type="text" name="search" class="form-control form-control-sm" placeholder="Order ID, Customer..." value="{{ request('search') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Status</label>
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="">Select an option</option>
                                     @foreach($statuses as $status)
-                                        <option value="{{ $status }}" {{ ($filters['status'] ?? '') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
+                                        <option value="{{ $status }}" {{ request('status') == $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-lg-2 col-md-4 d-flex align-items-end gap-2">
-                                <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-filter"></i></button>
-                                <a href="{{ route('orderReturn.list') }}" class="btn btn-light border flex-grow-1"><i class="fas fa-sync-alt"></i></a>
+
+                            <!-- Daily Fields -->
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+                            </div>
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
                             </div>
 
-                            <div class="col-12 d-flex align-items-center gap-3 mt-2">
-                                <label class="fw-bold small text-uppercase text-muted mb-0">Quick Filter:</label>
-                                <div class="btn-group shadow-sm" role="group">
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_all" value="" {{ !request('quick_filter') ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_all">All</label>
+                            <!-- Monthly Fields -->
+                            <div class="col-md-4 report-field monthly-group d-none">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month</label>
+                                        <select name="month" class="form-select form-select-sm">
+                                            @foreach(range(1, 12) as $m)
+                                                <option value="{{ $m }}" {{ (request('month') ?? date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
+                                        <select name="year" class="form-select form-select-sm">
+                                            @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                                <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
 
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_today" value="today" {{ request('quick_filter') == 'today' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_today">Today</label>
+                            <!-- Yearly Fields -->
+                            <div class="col-md-2 report-field yearly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
+                                <select name="year" class="form-select form-select-sm">
+                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                                    <input type="radio" class="btn-check" name="quick_filter" id="filter_monthly" value="monthly" {{ request('quick_filter') == 'monthly' ? 'checked' : '' }} onchange="applyQuickFilter(this.value)">
-                                    <label class="btn quick-filter-btn" for="filter_monthly">Monthly</label>
+                            <div class="col-md-auto ms-auto">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
+                                        <i class="fas fa-filter me-1"></i>APPLY
+                                    </button>
+                                    <a href="{{ route('orderReturn.list') }}" class="btn btn-light border btn-sm px-4 fw-bold shadow-sm">
+                                        <i class="fas fa-undo me-1"></i>RESET
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -130,7 +182,7 @@
             </div>
 
             <!-- Table Card -->
-            <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden" id="report-content-area">
                 <div class="card-header bg-white border-bottom py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -138,138 +190,13 @@
                             <p class="text-muted x-small mb-0">History of e-commerce product returns.</p>
                         </div>
                         <div class="d-flex align-items-center gap-3">
-                            <div class="btn-group shadow-sm">
-                                <button type="button" class="btn btn-sm btn-light border px-3" id="printReport">
-                                    <i class="fas fa-print me-1"></i>Print
-                                </button>
-                                <button type="button" class="btn btn-sm btn-light border px-3 text-danger" id="exportPdf">
-                                    <i class="fas fa-file-pdf me-1"></i>PDF
-                                </button>
-                                <button type="button" class="btn btn-sm btn-light border px-3 text-success" id="exportExcel">
-                                    <i class="fas fa-file-excel me-1"></i>Excel
-                                </button>
-                            </div>
-                            <div class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill fw-bold">
+                            <div class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill fw-bold" id="total-records-badge">
                                 {{ $returns->total() }} Records
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="returnTable">
-                            <thead class="bg-light text-muted small text-uppercase fw-bold">
-                                <tr>
-                                    <th class="ps-4 border-0 py-3">Reference</th>
-                                    <th class="border-0 py-3">Customer</th>
-                                    <th class="border-0 py-3">Order Source</th>
-                                    <th class="border-0 py-3">Location</th>
-                                    <th class="border-0 py-3">Date</th>
-                                    <th class="border-0 py-3 text-center">Status</th>
-                                    <th class="border-0 py-3">Refund</th>
-                                    <th class="pe-4 border-0 py-3 text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($returns as $return)
-                                    <tr class="transition-all">
-                                        <td class="ps-4 fw-bold">#OR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</td>
-                                        <td>
-                                            <div class="fw-bold text-dark">{{ $return->customer->name ?? 'Walk-in' }}</div>
-                                            @if($return->customer && $return->customer->phone)
-                                                <small class="text-muted"><i class="fas fa-phone-alt me-1 x-small"></i> {{ $return->customer->phone }}</small>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($return->order)
-                                                <span class="badge bg-primary-soft text-primary border-primary-soft rounded-pill px-2 py-1">
-                                                    <i class="fas fa-shopping-bag me-1"></i> {{ $return->order->order_number ?? 'OrderID-' . $return->order->id }}
-                                                </span>
-                                            @else
-                                                <span class="text-muted italic small">N/A</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <small class="fw-medium">
-                                                @if($return->return_to_type == 'branch') <i class="fas fa-store text-muted me-1"></i> {{ $return->destination_name }}
-                                                @elseif($return->return_to_type == 'warehouse') <i class="fas fa-warehouse text-muted me-1"></i> {{ $return->destination_name }}
-                                                @elseif($return->return_to_type == 'employee') <i class="fas fa-user-tie text-muted me-1"></i> {{ $return->destination_name }}
-                                                @else N/A
-                                                @endif
-                                            </small>
-                                        </td>
-                                        <td>
-                                            <div class="fw-medium text-dark">{{ \Carbon\Carbon::parse($return->return_date)->format('d M, Y') }}</div>
-                                            <small class="text-muted opacity-75">{{ \Carbon\Carbon::parse($return->created_at)->format('h:i A') }}</small>
-                                        </td>
-                                        <td class="text-center">
-                                            @php
-                                                $statusClasses = [
-                                                    'pending' => 'bg-warning-soft text-warning border-warning',
-                                                    'approved' => 'bg-success-soft text-success border-success',
-                                                    'rejected' => 'bg-danger-soft text-danger border-danger',
-                                                    'processed' => 'bg-info-soft text-info border-info',
-                                                ];
-                                                $currentClass = $statusClasses[$return->status] ?? 'bg-secondary-soft text-secondary border-secondary';
-                                            @endphp
-                                            <span class="badge border rounded-pill px-3 py-2 fw-medium status-badge {{ $currentClass }}"
-                                                  data-id="{{ $return->id }}" 
-                                                  data-status="{{ $return->status }}"
-                                                  style="cursor:pointer;">
-                                                <i class="fas fa-circle me-1 x-small"></i> {{ ucfirst($return->status) }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary-soft text-dark border-0 rounded-3">
-                                                {{ ucfirst($return->refund_type) }}
-                                            </span>
-                                            @if(\Illuminate\Support\Str::contains($return->notes, 'Exchanged for Order'))
-                                                <span class="badge bg-purple-soft text-purple border-0 rounded-3 ms-1" title="Includes Exchange">
-                                                    <i class="fas fa-exchange-alt"></i>
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="pe-4 text-end">
-                                            <div class="dropdown">
-                                                <button class="btn btn-sm btn-light border px-2 py-1 rounded-3" type="button" data-bs-toggle="dropdown">
-                                                    <i class="fas fa-ellipsis-v"></i>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2">
-                                                    <li><a class="dropdown-item py-2" href="{{ route('orderReturn.show', $return->id) }}"><i class="fas fa-eye me-2 text-primary"></i>Show Details</a></li>
-                                                    <li><a class="dropdown-item py-2" href="{{ route('orderReturn.edit', $return->id) }}"><i class="fas fa-edit me-2 text-warning"></i>Edit Record</a></li>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li>
-                                                        <form action="{{ route('orderReturn.delete', $return->id) }}" method="POST" class="d-inline">
-                                                            @csrf @method('DELETE')
-                                                            <button type="submit" class="dropdown-item py-2 text-danger" onclick="return confirm('Delete this return?')">
-                                                                <i class="fas fa-trash-alt me-2"></i>Delete
-                                                            </button>
-                                                        </form>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center py-5">
-                                            <div class="text-muted">
-                                                <i class="fas fa-box-open fs-1 d-block mb-3 opacity-25"></i>
-                                                No returns found matching your filters.
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white border-top py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Showing {{ $returns->firstItem() ?? 0 }}-{{ $returns->lastItem() ?? 0 }} of {{ $returns->total() }} returns</small>
-                        {{ $returns->links('vendor.pagination.bootstrap-5') }}
-                    </div>
-                </div>
+                @include('erp.orderReturn.orderreturnlist_partial')
             </div>
         </div>
     </div>
@@ -318,25 +245,104 @@
     @push('scripts')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-    function applyQuickFilter(value) {
-        document.querySelector('input[name="return_date"]').value = '';
-        document.getElementById('filterForm').submit();
+    function toggleReportFields() {
+        const type = $('.report-type-radio:checked').val();
+        $('.report-field').addClass('d-none');
+        $('.' + type + '-group').removeClass('d-none');
     }
 
-    $(document).ready(function() {
-        let activeBadge;
+    function refreshOrderReturn() {
+        const form = $('#filterForm');
+        const container = $('#report-content-area');
+        
+        container.css('opacity', '0.5');
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'GET',
+            data: form.serialize(),
+            success: function(response) {
+                // Find and update only the table container and pagination from the partial
+                const $response = $(response);
+                $('#order-return-table-container').replaceWith($response.filter('#order-return-table-container').length ? $response.filter('#order-return-table-container') : $response.find('#order-return-table-container'));
+                $('#order-return-pagination').replaceWith($response.filter('#order-return-pagination').length ? $response.filter('#order-return-pagination') : $response.find('#order-return-pagination'));
+                
+                // Update record count if badge exists
+                const totalText = $response.find('.text-muted').first().text();
+                const totalMatch = totalText.match(/of (\d+) returns/);
+                if (totalMatch) {
+                    $('#total-records-badge').text(totalMatch[1] + ' Records');
+                }
 
-        $('.status-badge').on('click', function() {
+                // Update Export URLs with current form data
+                const queryStr = form.serialize();
+                const pdfBaseUrl = "{{ route('orderReturn.export.pdf') }}";
+                const excelBaseUrl = "{{ route('orderReturn.export.excel') }}";
+                $('.export-link-pdf').attr('href', pdfBaseUrl + '?' + queryStr);
+                $('.export-link-excel').attr('href', excelBaseUrl + '?' + queryStr);
+
+                container.css('opacity', '1');
+                
+                // Re-bind status badge click
+                bindStatusBadges();
+            },
+            error: function() {
+                container.css('opacity', '1');
+                alert('Failed to load return data.');
+            }
+        });
+    }
+
+    function bindStatusBadges() {
+        $('.status-badge').off('click').on('click', function() {
             const id = $(this).data('id');
             const status = $(this).data('status');
-            activeBadge = $(this);
             
             $('#modalId').val(id);
             $('#currentStatus').val(status.charAt(0).toUpperCase() + status.slice(1));
             $('#newStatus').val(status);
             $('#statusNotes').val('');
-            $('#stockWarning').toggle(status !== 'processed');
+            $('#stockWarning').toggle(status === 'processed');
             $('#statusModal').modal('show');
+        });
+    }
+
+    $(document).ready(function() {
+        toggleReportFields();
+        bindStatusBadges();
+
+        $('.report-type-radio').change(function() {
+            const type = $(this).val();
+            if (type === 'daily') {
+                const today = new Date().toISOString().split('T')[0];
+                $('#start_date').val(today);
+                $('#end_date').val(today);
+            }
+            toggleReportFields();
+        });
+
+        $('#filterForm').on('submit', function(e) {
+            e.preventDefault();
+            refreshOrderReturn();
+        });
+
+        // Handle pagination links
+        $(document).on('click', '.pagination a', function(e) {
+            e.preventDefault();
+            const url = $(this).attr('href');
+            const container = $('#report-content-area');
+            container.css('opacity', '0.5');
+            
+            $.ajax({
+                url: url,
+                success: function(response) {
+                    const $response = $(response);
+                    $('#order-return-table-container').replaceWith($response.filter('#order-return-table-container').length ? $response.filter('#order-return-table-container') : $response.find('#order-return-table-container'));
+                    $('#order-return-pagination').replaceWith($response.filter('#order-return-pagination').length ? $response.filter('#order-return-pagination') : $response.find('#order-return-pagination'));
+                    container.css('opacity', '1');
+                    bindStatusBadges();
+                }
+            });
         });
 
         $('#newStatus').on('change', function() {
@@ -363,10 +369,7 @@
             });
         });
 
-        // Dummy export functionality (needs backend support)
-        $('#exportExcel').click(() => alert('Export Excel for Order Returns coming soon!'));
-        $('#exportPdf').click(() => alert('Export PDF for Order Returns coming soon!'));
-        $('#printReport').click(() => alert('Print for Order Returns coming soon!'));
+        // No-op for deleted IDs
     });
     </script>
     @endpush

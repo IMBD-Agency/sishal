@@ -156,29 +156,34 @@
                             <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Name, SKU, Style...">
                         </div>
 
-                        <div class="col-md-2 mt-2">
-                            <div class="d-flex gap-2" style="margin-top: 25px;">
-                                <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
-                                    <i class="fas fa-search me-1"></i>Search
-                                </button>
-                                <a href="{{ route('product.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
-                                    <i class="fas fa-undo me-1"></i>Reset
-                                </a>
-                            </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light border-top p-3 mt-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex gap-2">
+                            <a href="{{ route('product.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
+                                <i class="fas fa-file-excel me-2"></i>Excel
+                            </a>
+                            <a href="{{ route('product.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
+                                <i class="fas fa-file-pdf me-2"></i>PDF
+                            </a>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ route('product.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                <i class="fas fa-undo me-2"></i>Reset
+                            </a>
+                            <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                <i class="fas fa-search me-2"></i>Apply Filters
+                            </button>
                         </div>
                     </div>
+                </div>
                 </form>
             </div>
         </div>
 
-        <!-- Export and Table Search -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="btn-group shadow-sm">
-                <a href="{{ route('product.export.csv', request()->all()) }}" class="btn btn-secondary btn-sm fw-bold">CSV</a>
-                <a href="{{ route('product.export.excel', request()->all()) }}" class="btn btn-secondary btn-sm fw-bold">Excel</a>
-                <a href="{{ route('product.export.pdf', request()->all()) }}" class="btn btn-secondary btn-sm fw-bold">PDF</a>
-                <button class="btn btn-secondary btn-sm fw-bold" onclick="window.print()">Print</button>
-            </div>
+        <!-- Table Search Wrapper -->
+        <div class="d-flex justify-content-end align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
                 <label class="small fw-bold text-muted mb-0">Search:</label>
                 <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input" value="{{ request('search') }}" placeholder="Press Enter to search all...">
@@ -189,7 +194,7 @@
         <div class="premium-card shadow-sm">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table premium-table reporting-table mb-0" id="productTable">
+                    <table class="table premium-table reporting-table compact mb-0" id="productTable">
                         <thead>
                             <tr>
                                 <th class="text-center">#SN.</th>

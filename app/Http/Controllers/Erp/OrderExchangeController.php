@@ -68,62 +68,78 @@ class OrderExchangeController extends Controller
 
         // Core logic: Must be an exchange
         $query->where(function($q) {
-            $q->where('notes', 'like', '%Exchanged%')
+            $q->where('notes', 'like', '%Exchanged%', 'and')
               ->orWhere('reason', 'like', '%Exchange%')
               ->orWhereHas('order', function($qo) {
-                  $qo->where('payment_method', 'exchange_adjustment');
+                  $qo->where('payment_method', '=', 'exchange_adjustment', 'and');
               });
         });
 
         // Search (Reference, Name, Phone)
         if ($search = $request->input('search')) {
             $query->where(function($q) use ($search) {
-                $q->where('id', 'like', "%$search%")
+                $q->where('id', 'like', "%$search%", 'and')
                   ->orWhereHas('customer', function($qc) use ($search) {
-                      $qc->where('name', 'like', "%$search%")
+                      $qc->where('name', 'like', "%$search%", 'and')
                          ->orWhere('phone', 'like', "%$search%");
                   })
                   ->orWhereHas('order', function($qp) use ($search) {
-                      $qp->where('order_number', 'like', "%$search%");
+                      $qp->where('order_number', 'like', "%$search%", 'and');
                   });
             });
         }
 
         // Customer Filter
         if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
+            $query->where('customer_id', '=', $request->customer_id, 'and');
         }
 
-        // Date Range
-        if ($request->filled('start_date')) {
-            $query->whereDate('return_date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('return_date', '<=', $request->end_date);
+        // Handle Report Type Filters
+        $reportType = $request->get('report_type', 'daily');
+
+        if ($reportType === 'daily') {
+            if ($request->filled('start_date')) {
+                $query->whereDate('return_date', '>=', $request->start_date, 'and');
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('return_date', '<=', $request->end_date, 'and');
+            }
+            // Default to today if no dates provided for daily report
+            if (!$request->filled('start_date') && !$request->filled('end_date')) {
+                $query->whereDate('return_date', '=', now()->toDateString(), 'and');
+            }
+        } elseif ($reportType === 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('return_date', '=', $month, 'and')
+                  ->whereYear('return_date', '=', $year, 'and');
+        } elseif ($reportType === 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('return_date', '=', $year, 'and');
         }
 
         // Location Filter
         if ($request->filled('location_type') && $request->filled('location_id')) {
-            $query->where('return_to_type', $request->location_type)
-                  ->where('return_to_id', $request->location_id);
+            $query->where('return_to_type', '=', $request->location_type, 'and')
+                  ->where('return_to_id', '=', $request->location_id, 'and');
         }
 
         // Product Attributes Filters
         if ($request->filled('brand_id')) {
             $query->whereHas('items.product', function($q) use ($request) {
-                $q->where('brand_id', $request->brand_id);
+                $q->where('brand_id', '=', $request->brand_id, 'and');
             });
         }
 
         if ($request->filled('category_id')) {
             $query->whereHas('items.product', function($q) use ($request) {
-                $q->where('category_id', $request->category_id);
+                $q->where('category_id', '=', $request->category_id, 'and');
             });
         }
 
         if ($request->filled('season_id')) {
             $query->whereHas('items.product', function($q) use ($request) {
-                $q->where('season_id', $request->season_id);
+                $q->where('season_id', '=', $request->season_id, 'and');
             });
         }
 

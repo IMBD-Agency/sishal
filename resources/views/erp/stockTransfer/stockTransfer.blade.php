@@ -46,29 +46,29 @@
 
             <!-- Advanced Filters -->
             <div class="premium-card mb-4">
-                <div class="card-header bg-white border-bottom p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Transfer Filter</h6>
-                        <div class="d-flex gap-3">
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type_active" id="dailyReport" value="daily" checked>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Manual Range</label>
-                            </div>
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type_active" id="monthlyReport" value="monthly">
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly</label>
-                            </div>
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type_active" id="yearlyReport" value="yearly">
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Yearly</label>
-                            </div>
-                        </div>
-                    </div>
+                <div class="card-header bg-white border-bottom p-3">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Transfer Filter</h6>
                 </div>
                 <div class="card-body p-4">
                     <form method="GET" action="{{ route('stocktransfer.list') }}" id="filterForm">
                         <input type="hidden" name="quick_filter" id="quick_filter_hidden" value="">
                         
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-4">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="dailyReport" value="daily" checked>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Manual Range</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="monthlyReport" value="monthly">
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="yearlyReport" value="yearly">
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
+                            </div>
+                        </div>
+
                         <div class="row g-3">
                             <!-- Primary Row -->
                             <div class="col-md-2 date-range-field">
@@ -201,13 +201,25 @@
 
                         </div>
 
-                        <div class="d-flex gap-2 mt-4 pt-2">
-                            <button type="submit" class="btn btn-create-premium px-4">
-                                <i class="fas fa-search me-2"></i>Filter Transfers
-                            </button>
-                            <a href="{{ route('stocktransfer.list') }}" class="btn btn-light border fw-bold px-4">
-                                <i class="fas fa-undo me-2"></i>Reset
-                            </a>
+                        <div class="card-footer bg-light border-top p-3 mt-4 mx-n4 mb-n4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader" target="_blank">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
+                                    </a>
+                                    <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader" target="_blank">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </a>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('stocktransfer.list') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Filter Transfers
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -215,17 +227,10 @@
 
             <!-- Table Section Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="d-flex gap-2">
-                    <a href="{{ route('stocktransfer.export.excel', request()->all()) }}" class="btn btn-outline-dark btn-sm fw-bold shadow-sm no-loader" target="_blank">
-                        <i class="fas fa-file-excel me-1 text-success"></i> Excel
-                    </a>
-                    <a href="{{ route('stocktransfer.export.pdf', request()->all()) }}" class="btn btn-outline-dark btn-sm fw-bold shadow-sm no-loader" target="_blank">
-                        <i class="fas fa-file-pdf me-1 text-danger"></i> PDF
-                    </a>
-                </div>
-                <div class="position-relative search-wrap-premium">
-                    <i class="fas fa-search position-absolute top-50 start-3 translate-middle-y text-muted opacity-50"></i>
-                    <input type="text" id="tableSearch" class="form-control form-control-sm ps-5 border-2 rounded-pill shadow-none" placeholder="Search rows...">
+                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Transfer Data List</h6>
+                <div class="search-wrapper-premium" style="width: 300px;">
+                    <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
+                    <i class="fas fa-search search-icon-premium"></i>
                 </div>
             </div>
 
@@ -233,7 +238,7 @@
             <div class="premium-card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table table-hover align-middle mb-0 compact" id="transferTable">
+                        <table class="table premium-table reporting-table compact table-hover align-middle mb-0" id="transferTable">
                             <thead>
                                     <tr>
                                         <th class="ps-3">SL</th>
@@ -376,12 +381,9 @@
 @push('css')
     <style>
         .breadcrumb-premium { font-size: 0.8rem; }
-        .search-wrap-premium { width: 220px; }
-        .premium-table thead th {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #edeff2;
-            white-space: nowrap;
-        }
+        .search-wrapper-premium { position: relative; }
+        .search-input-premium { padding-left: 35px; border: 1px solid #e0e0e0; font-size: 0.85rem; }
+        .search-icon-premium { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9e9e9e; font-size: 0.8rem; }
     </style>
 @endpush
 

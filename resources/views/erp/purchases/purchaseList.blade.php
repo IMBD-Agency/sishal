@@ -34,9 +34,7 @@
             #procurementTable thead th {
                 position: sticky;
                 top: 0; /* Sticks to the top of .table-responsive */
-                background-color: #f8fafc !important; 
                 z-index: 1000 !important;
-                border-bottom: 2px solid #e2e8f0 !important;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle depth shadow */
                 padding-top: 12px !important;
                 padding-bottom: 12px !important;
@@ -85,10 +83,7 @@
                         <span class="badge bg-light text-primary border border-primary small rounded-pill px-3 py-1">{{ $items->total() }} Records</span>
                     </div>
                 </div>
-                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button type="button" class="btn btn-outline-dark shadow-sm px-4 fw-bold" onclick="window.print()">
-                        <i class="fas fa-print me-2"></i>Print Registry
-                    </button>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
                     <a href="{{ route('purchase.create') }}" class="btn btn-create-premium text-nowrap">
                         <i class="fas fa-plus-circle me-2"></i>New Procurement
                     </a>
@@ -99,27 +94,22 @@
         <div class="container-fluid px-4 py-4">
             <!-- Advanced Analytics Filters -->
             <div class="premium-card mb-4">
-                <div class="card-header bg-white border-bottom p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Procurement Audit Filters</h6>
-                        <div class="d-flex gap-4">
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="dailyReport">Custom Range</label>
-                            </div>
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="monthlyReport">Monthly View</label>
-                            </div>
-                            <div class="form-check cursor-pointer">
-                                <input class="form-check-input report-type-radio cursor-pointer" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-muted cursor-pointer" for="yearlyReport">Annual View</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <div class="card-body p-4">
                     <form action="{{ route('purchase.list') }}" method="GET" id="filterForm">
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
+                            </div>
+                        </div>
                         <div class="row g-3">
                             <div class="col-md-2 date-group daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date Registry</label>
@@ -246,23 +236,37 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100 shadow-none" style="height: 42px;">
-                                    <i class="fas fa-search me-2"></i>Apply
+                            <div class="col-md-2 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary flex-fill shadow-none fw-bold" style="height: 42px;">
+                                    <i class="fas fa-search me-1"></i>Search
                                 </button>
+                                <a href="{{ route('purchase.list') }}" class="btn btn-light border flex-fill fw-bold d-flex align-items-center justify-content-center" style="height: 42px;" title="Reset Filters">
+                                    <i class="fas fa-undo"></i> Reset
+                                </a>
                             </div>
                         </div>
 
-                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
-                            <div class="btn-group shadow-none border rounded overflow-hidden">
-                                <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">CSV</button>
-                                <a href="{{ route('purchase.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">EXCEL</a>
-                                <a href="{{ route('purchase.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">PDF</a>
-                                <button type="button" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
-                            </div>
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="small text-muted fw-bold">Live Data Sync: <span class="text-primary">{{ now()->format('H:i:s') }}</span></span>
-                                <a href="{{ route('purchase.list') }}" class="btn btn-light btn-sm px-4 fw-bold border shadow-none">Flush Filters</a>
+                        <div class="card-footer bg-light border-top p-3 mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('purchase.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
+                                    </a>
+                                    <a href="{{ route('purchase.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </a>
+                                    <button class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="window.print()">
+                                        <i class="fas fa-print me-2"></i>Print Registry
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('purchase.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Apply Filters
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -280,37 +284,37 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table compact mb-0" id="procurementTable">
+                        <table class="table premium-table compact reporting-table mb-0" id="procurementTable">
                             <thead>
                                 <tr>
                                     <th class="ps-3">SL</th>
-                                    <th>Invoice #</th>
-                                    <th>Registry Date</th>
+                                    <th>Inv #</th>
+                                    <th>Date</th>
+                                    <th class="text-center">Image</th>
                                     <th>Supplier</th>
-                                    <th class="text-center">Media</th>
                                     <th>Category</th>
                                     <th>Brand</th>
                                     <th>Season</th>
                                     <th>Gender</th>
-                                    <th style="min-width: 160px;">Product Name</th>
-                                    <th>Style Ref</th>
+                                    <th style="min-width: 150px;">Product Name</th>
+                                    <th>Style #</th>
                                     <th>Color</th>
                                     <th>Size</th>
                                     <th class="text-center">Pur. Qty</th>
                                     <th class="text-center bg-light">T. Pur. Qty</th>
                                     <th class="text-end">Pur. Value</th>
                                     <th class="text-end bg-light">T. Pur. Value</th>
-                                    <th class="text-center text-danger">Ret. Qty</th>
-                                    <th class="text-center text-danger bg-light">T. Ret. Qty</th>
-                                    <th class="text-end text-danger">Ret. Value</th>
-                                    <th class="text-end text-danger bg-light">T. Ret. Value</th>
-                                    <th class="text-center text-success">Act. Qty</th>
-                                    <th class="text-center text-success bg-light">T. Act. Qty</th>
-                                    <th class="text-end text-success">Act. Value</th>
-                                    <th class="text-end text-success bg-light">T. Act. Value</th>
-                                    <th class="text-end text-warning">Bill Disc.</th>
-                                    <th class="text-end text-primary">Paid A/C</th>
-                                    <th class="text-end text-danger">Due A/C</th>
+                                    <th class="text-center">Ret. Qty</th>
+                                    <th class="text-center bg-light">T. Ret. Qty</th>
+                                    <th class="text-end">Ret. Value</th>
+                                    <th class="text-end bg-light">T. Ret. Value</th>
+                                    <th class="text-center">Act. Qty</th>
+                                    <th class="text-center bg-light">T. Act. Qty</th>
+                                    <th class="text-end">Act. Value</th>
+                                    <th class="text-end bg-light">T. Act. Value</th>
+                                    <th class="text-end">Bill Disc.</th>
+                                    <th class="text-end">Paid A/C</th>
+                                    <th class="text-end">Due A/C</th>
                                     <th class="text-center">Status</th>
                                     <th class="text-center pe-3">ACTION</th>
                                 </tr>
@@ -369,14 +373,14 @@
                                                 <img src="{{ $product && $product->image ? asset($product->image) : asset('static/default-product.jpg') }}" alt="">
                                             </div>
                                         </td>
-                                        <td class="text-muted">{{ $product->category->name ?? '-' }}</td>
-                                        <td class="text-muted">{{ $product->brand->name ?? '-' }}</td>
-                                        <td class="text-muted">{{ $product->season->name ?? '-' }}</td>
-                                        <td class="text-muted">{{ $product->gender->name ?? '-' }}</td>
+                                        <td>{{ $product->category->name ?? '-' }}</td>
+                                        <td>{{ $product->brand->name ?? '-' }}</td>
+                                        <td>{{ $product->season->name ?? '-' }}</td>
+                                        <td>{{ $product->gender->name ?? '-' }}</td>
                                         <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
-                                        <td><code class="text-primary bg-light px-2 py-1 rounded small">{{ $product->sku ?? '-' }}</code></td>
-                                        <td class="text-uppercase small fw-bold">{{ $color }}</td>
-                                        <td class="small fw-bold">{{ $size }}</td>
+                                        <td><code class="text-primary bg-light px-2 py-1 rounded">{{ $product->sku ?? '-' }}</code></td>
+                                        <td class="text-uppercase fw-bold">{{ $color }}</td>
+                                        <td class="fw-bold">{{ $size }}</td>
                                         <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
                                         <td class="text-center fw-bold bg-light">{{ number_format($item->quantity, 2) }}</td>
                                         <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>

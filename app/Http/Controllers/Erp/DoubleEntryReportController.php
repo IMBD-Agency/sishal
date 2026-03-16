@@ -21,9 +21,23 @@ class DoubleEntryReportController extends Controller
         
         $query = JournalEntry::with(['journal', 'chartOfAccount']);
 
-        // Date Filtering
-        $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
-        $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        $reportType = $request->get('report_type', 'daily');
+        $now = Carbon::now();
+
+        if ($reportType == 'monthly') {
+            $month = $request->input('month', date('n'));
+            $year = $request->input('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->input('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            // Date Filtering
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfDay();
+            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        }
         
         $restrictedBranchId = $this->getRestrictedBranchId();
         $query->whereHas('journal', function($q) use ($startDate, $endDate, $restrictedBranchId) {
@@ -104,7 +118,7 @@ class DoubleEntryReportController extends Controller
 
         return view('erp.doubleEntry.ledgersummery', compact(
             'chartAccounts', 'ledgerEntries', 'totalDebits', 'totalCredits', 
-            'totalEntries', 'startDate', 'endDate'
+            'totalEntries', 'startDate', 'endDate', 'reportType'
         ));
     }
 
@@ -293,8 +307,23 @@ class DoubleEntryReportController extends Controller
         if (!auth()->user()->hasPermissionTo('view reports')) {
             abort(403, 'Unauthorized action.');
         }
-        $startDate = $request->filled('start_date') ? $request->start_date : date('Y-m-01');
-        $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
+
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $startDate = date('Y-m-01', mktime(0, 0, 0, $month, 1, $year));
+            $endDate = date('Y-m-t', mktime(0, 0, 0, $month, 1, $year));
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $startDate = date('Y-01-01', mktime(0, 0, 0, 1, 1, $year));
+            $endDate = date('Y-12-31', mktime(0, 0, 0, 1, 1, $year));
+        } else {
+            // Daily Mode
+            $startDate = $request->filled('start_date') ? $request->start_date : date('Y-m-d');
+            $endDate = $request->filled('end_date') ? $request->end_date : date('Y-m-d');
+        }
         
         // Fetch ALL relevant types to handle duplicates (e.g., "Revenue" AND "Income")
         $revenueTypes = \App\Models\ChartOfAccountType::where('name', 'Revenue')->pluck('id');
@@ -372,7 +401,7 @@ class DoubleEntryReportController extends Controller
         // For debugging - get account types with their accounts
         $accountTypes = \App\Models\ChartOfAccountType::with('accounts')->get();
 
-        return view('erp.doubleEntry.profitloss', compact('profitLossData', 'startDate', 'endDate', 'accountTypes'));
+        return view('erp.doubleEntry.profitloss', compact('profitLossData', 'startDate', 'endDate', 'accountTypes', 'reportType'));
     }
 
 }

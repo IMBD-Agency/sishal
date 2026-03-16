@@ -144,7 +144,7 @@ class SupplierPaymentController extends Controller
         $sheet->setCellValue('A1', 'Supplier Payment Report');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         
-        $headers = ['Voucher ID', 'Payment Date', 'Supplier', 'Bill No', 'Amount', 'Method', 'Recorded By'];
+        $headers = ['Voucher ID', 'Payment Date', 'Supplier', 'Current Balance', 'Bill No', 'Amount', 'Method', 'Recorded By'];
         foreach ($headers as $index => $header) {
             $sheet->setCellValue(chr(65 + $index) . '3', $header);
             $sheet->getStyle(chr(65 + $index) . '3')->getFont()->setBold(true);
@@ -152,17 +152,23 @@ class SupplierPaymentController extends Controller
         
         $dataRow = 4;
         foreach ($payments as $payment) {
+            $balance = $payment->supplier->balance;
+            $balanceText = number_format(abs($balance), 2);
+            if ($balance > 0) $balanceText .= ' (DUE)';
+            elseif ($balance < 0) $balanceText .= ' (ADV)';
+
             $sheet->setCellValue('A' . $dataRow, 'SP-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT));
             $sheet->setCellValue('B' . $dataRow, $payment->payment_date->format('d-m-Y'));
             $sheet->setCellValue('C' . $dataRow, $payment->supplier->name ?? '-');
-            $sheet->setCellValue('D' . $dataRow, $payment->bill->bill_number ?? 'Advance');
-            $sheet->setCellValue('E' . $dataRow, $payment->amount);
-            $sheet->setCellValue('F' . $dataRow, strtoupper($payment->payment_method));
-            $sheet->setCellValue('G' . $dataRow, $payment->creator->name ?? 'System');
+            $sheet->setCellValue('D' . $dataRow, $balanceText);
+            $sheet->setCellValue('E' . $dataRow, $payment->bill->bill_number ?? 'Advance');
+            $sheet->setCellValue('F' . $dataRow, $payment->amount);
+            $sheet->setCellValue('G' . $dataRow, strtoupper($payment->payment_method));
+            $sheet->setCellValue('H' . $dataRow, $payment->creator->name ?? 'System');
             $dataRow++;
         }
         
-        foreach (range('A', 'G') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        foreach (range('A', 'H') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
         
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filePath = storage_path('app/public/' . $filename);

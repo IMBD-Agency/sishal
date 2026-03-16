@@ -367,77 +367,62 @@ class CustomerController extends Controller
     {
         $query = Customer::with('addedBy');
 
-        // Search by Customer ID
-        if ($request->filled('customer_id')) {
-            $query->where('id', $request->customer_id);
+        // General Search (Enhanced)
+        if ($search = $request->input('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'LIKE', '%' . $search . '%', 'and')
+                  ->orWhere('name', 'LIKE', '%' . $search . '%')
+                  ->orWhere('email', 'LIKE', '%' . $search . '%')
+                  ->orWhere('phone', 'LIKE', '%' . $search . '%')
+                  ->orWhere('city', 'LIKE', '%' . $search . '%');
+            });
         }
 
-        // Search by Name
-        if ($request->filled('name')) {
-            $query->where('name', 'LIKE', '%' . $request->name . '%');
-        }
-
-        // Search by Email
-        if ($request->filled('email')) {
-            $query->where('email', 'LIKE', '%' . $request->email . '%');
-        }
-
-        // Search by Phone
-        if ($request->filled('phone')) {
-            $query->where('phone', 'LIKE', '%' . $request->phone . '%');
-        }
-
-        // Filter by Premium Status
-        if ($request->filled('premium')) {
-            $query->where('is_premium', $request->premium);
-        }
-
-        // Filter by Branch (based on transactions)
+        // Branch Filter
         if ($request->filled('branch_id')) {
             $branchId = $request->branch_id;
             $query->whereHas('posSales', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
+                $q->where('branch_id', '=', $branchId, 'and');
             });
         }
 
-        // Filter by Customer Source
+        // Customer Source Filter
         if ($request->filled('source')) {
             if ($request->source == 'online') {
-                $query->whereNotNull('user_id'); // Registered via web
+                $query->whereNotNull('user_id');
             } elseif ($request->source == 'pos') {
-                $query->whereHas('posSales'); // Has POS transactions
+                $query->whereHas('posSales');
+            } elseif ($request->source == 'manual') {
+                $query->whereNull('user_id')->whereDoesntHave('posSales');
             }
         }
 
-        // Filter by City
-        if ($request->filled('city')) {
-            $query->where('city', 'LIKE', '%' . $request->city . '%');
+        // Premium Status Filter
+        if ($request->filled('premium')) {
+            $query->where('is_premium', '=', $request->premium, 'and');
         }
 
-        // Filter by Country
-        if ($request->filled('country')) {
-            $query->where('country', 'LIKE', '%' . $request->country . '%');
-        }
-
-        // Filter by Registered as User
-        if ($request->filled('is_user')) {
-             if ($request->is_user == '1') {
-                 $query->whereNotNull('user_id');
-             } else {
-                 $query->whereNull('user_id');
-             }
-        }
-
-        // General Search (Enhanced)
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('id', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('name', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('email', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('phone', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('city', 'LIKE', '%' . $searchTerm . '%');
-            });
+        // Handle Report Type (Registration Date)
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType === 'daily') {
+            if ($request->filled('start_date')) {
+                $query->whereDate('created_at', '>=', $request->start_date, 'and');
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('created_at', '<=', $request->end_date, 'and');
+            }
+            // Default to today if no dates provided for daily report
+            if (!$request->filled('start_date') && !$request->filled('end_date') && $request->filled('report_type')) {
+                $query->whereDate('created_at', '=', now()->toDateString(), 'and');
+            }
+        } elseif ($reportType === 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('created_at', '=', $month, 'and')
+                  ->whereYear('created_at', '=', $year, 'and');
+        } elseif ($reportType === 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('created_at', '=', $year, 'and');
         }
 
         return $query;

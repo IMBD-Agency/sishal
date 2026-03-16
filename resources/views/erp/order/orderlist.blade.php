@@ -38,205 +38,92 @@
         </div>
 
         <div class="container-fluid px-4 py-4">
-            <!-- Filter Section -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white border-0 py-3">
-                    <h6 class="fw-bold mb-0"><i class="fas fa-filter me-2 text-primary"></i>Advanced Filters</h6>
-                </div>
-                <div class="card-body pt-0">
-                    <form method="GET" action="{{ route('order.list') }}" class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">General Search</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-0"><i class="fas fa-search"></i></span>
-                                <input type="text" name="search" class="form-control bg-light border-0 shadow-sm" placeholder="Order ID, Name, Phone..." value="{{ request('search') }}">
+            <!-- Premium Filter Card -->
+            <div class="premium-card mb-4 shadow-sm">
+                <div class="card-body p-3">
+                    <form id="filterForm" action="{{ route('order.list') }}" method="GET" autocomplete="off">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Customer</label>
-                            <select name="user_id" class="form-select bg-light border-0 shadow-sm select2" data-placeholder="Select Customer">
-                                <option value=""></option>
-                                <option value="">All Customers</option>
-                                @foreach($customers as $customer)
-                                    <option value="{{ $customer->id }}" {{ request('user_id') == $customer->id ? 'selected' : '' }}>
-                                        {{ trim($customer->first_name . ' ' . $customer->last_name) }} 
-                                        {{ $customer->phone ? '('.$customer->phone.')' : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold">Order Status</label>
-                            <select name="status" class="form-select bg-light border-0 shadow-sm">
-                                <option value="">All Statuses</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
-                                <option value="shipping" {{ request('status') == 'shipping' ? 'selected' : '' }}>Shipping</option>
-                                <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Payment Status</label>
-                            <select name="bill_status" class="form-select bg-light border-0 shadow-sm">
-                                <option value="">All Statuses</option>
-                                <option value="unpaid" {{ request('bill_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
-                                <option value="partial" {{ request('bill_status') == 'partial' ? 'selected' : '' }}>Partial</option>
-                                <option value="paid" {{ request('bill_status') == 'paid' ? 'selected' : '' }}>Paid</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Date Range</label>
-                            <div class="input-group border-0 shadow-sm rounded">
-                                <span class="input-group-text bg-light border-0 small">From</span>
-                                <input type="date" name="start_date" class="form-control bg-light border-0" value="{{ request('start_date') }}">
-                                <span class="input-group-text bg-light border-0 small">To</span>
-                                <input type="date" name="end_date" class="form-control bg-light border-0" value="{{ request('end_date') }}">
+
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Keywords</label>
+                                <input type="text" name="search" class="form-control form-control-sm" placeholder="Order ID, Customer..." value="{{ request('search') }}">
                             </div>
-                        </div>
-                        <div class="col-md-6 text-end align-self-end">
-                            <a href="{{ route('order.list') }}" class="btn btn-light px-4 border shadow-sm me-2">
-                                <i class="fas fa-undo me-1"></i> Reset
-                            </a>
-                            <button type="submit" class="btn btn-primary px-5 shadow-sm font-weight-bold">
-                                <i class="fas fa-filter me-1"></i> APPLY FILTERS
-                            </button>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Status</label>
+                                <select name="status" class="form-select form-select-sm select2-simple">
+                                    <option value="">All Statuses</option>
+                                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                    <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                                    <option value="shipping" {{ request('status') == 'shipping' ? 'selected' : '' }}>Shipping</option>
+                                    <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                                </select>
+                            </div>
+
+                            <!-- Field Blocks (Daily) -->
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+                            </div>
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                            </div>
+
+                            <!-- Monthly Fields -->
+                            <div class="col-md-2 report-field monthly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month</label>
+                                <select name="month" class="form-select form-select-sm select2-simple">
+                                    @foreach(range(1, 12) as $m)
+                                        <option value="{{ $m }}" {{ (request('month') ?? date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Yearly Fields -->
+                            <div class="col-md-2 report-field monthly-group yearly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
+                                <select name="year" class="form-select form-select-sm select2-simple">
+                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm">
+                                        <i class="fas fa-filter me-1"></i>APPLY
+                                    </button>
+                                    <a href="{{ route('order.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm">
+                                        <i class="fas fa-undo me-1"></i>RESET
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
 
             <!-- Stock order Listing Table -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Order List</h5>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="orderTable">
-                            <thead class="table-light sticky-top">
-                                <tr>
-                                    <th class="border-0">Order Info</th>
-                                    <th class="border-0">Customer</th>
-                                    <th class="border-0 text-center">Status</th>
-                                    <th class="border-0">Payment</th>
-                                    <th class="border-0">Subtotal</th>
-                                    <th class="border-0">Discount</th>
-                                    <th class="border-0">Delivery</th>
-                                    <th class="border-0">Total</th>
-                                    <th class="border-0 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($orders as $order)
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <a href="{{ route('order.show', $order->id) }}" class="fw-bold text-decoration-none">
-                                                    {{ $order->order_number ?? '-' }}
-                                                </a>
-                                                @if($order->payment_method == 'exchange_adjustment' || \Illuminate\Support\Str::contains($order->notes, 'Exchange Order'))
-                                                     <span class="badge bg-purple-soft text-purple border-0 rounded-pill px-2 py-0" style="font-size: 0.7rem;">
-                                                        Exchange
-                                                    </span>
-                                                @endif
-                                            </div>
-                                            <div class="small text-muted">{{ $order->created_at->format('d M, Y') }}</div>
-                                        </td>
-                                        <td>
-                                            <div class="fw-bold">{{ @$order->name }}</div>
-                                            <div class="small text-muted"><i class="fas fa-phone-alt me-1" style="font-size: 0.7rem;"></i>{{ @$order->phone }}</div>
-                                        </td>
-                                        <td class="text-center">
-                                            @php
-                                                $statusClass = [
-                                                    'pending' => 'bg-warning-subtle text-warning border-warning',
-                                                    'approved' => 'bg-info-subtle text-info border-info',
-                                                    'shipping' => 'bg-primary-subtle text-primary border-primary',
-                                                    'delivered' => 'bg-success-subtle text-success border-success',
-                                                    'received' => 'bg-success-subtle text-success border-success',
-                                                    'cancelled' => 'bg-danger-subtle text-danger border-danger',
-                                                ][$order->status] ?? 'bg-secondary-subtle text-secondary border-secondary';
-                                            @endphp
-                                            <span class="badge {{ $statusClass }} border px-3 py-2 update-status-btn"
-                                                style="cursor:pointer; font-size: 0.75rem;"
-                                                data-id="{{ $order->id }}"
-                                                data-status="{{ $order->status }}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#updateStatusModal"
-                                            >
-                                                {{ ucfirst($order->status ?? '-') }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            @php
-                                                $billStatus = $order->invoice->status ?? 'unpaid';
-                                                $billClass = [
-                                                    'paid' => 'bg-success-subtle text-success border-success',
-                                                    'partial' => 'bg-warning-subtle text-warning border-warning',
-                                                    'unpaid' => 'bg-danger-subtle text-danger border-danger',
-                                                ][$billStatus] ?? 'bg-secondary-subtle text-secondary border-secondary';
-                                            @endphp
-                                            <span class="badge {{ $billClass }} border px-2 py-1" style="font-size: 0.7rem;">
-                                                <i class="fas fa-file-invoice-dollar me-1"></i>{{ ucfirst($billStatus) }}
-                                            </span>
-                                        </td>
-                                        <td class="fw-medium">{{ number_format($order->subtotal, 2) }}৳</td>
-                                        <td class="text-danger">-{{ number_format($order->discount, 2) }}৳</td>
-                                        <td class="text-muted">+{{ number_format($order->delivery, 2) }}৳</td>
-                                        <td class="fw-bold text-primary">{{ number_format($order->total, 2) }}৳</td>
-                                        <td class="text-center">
-                                            <div class="dropdown">
-                                                <button class="btn btn-light btn-sm shadow-sm border" type="button" data-bs-toggle="dropdown">
-                                                    <i class="fas fa-ellipsis-v"></i>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                                                    <li><a class="dropdown-item" href="{{ route('order.show', $order->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
-                                                    @if($order->status != 'cancelled')
-                                                        <li><a class="dropdown-item text-danger" href="{{ route('orderReturn.create', ['order_id' => $order->id]) }}"><i class="fas fa-undo me-2"></i>Process Return</a></li>
-                                                        <li><a class="dropdown-item text-success" href="{{ route('orderExchange.create', ['order_id' => $order->id]) }}"><i class="fas fa-sync me-2"></i>Process Exchange</a></li>
-                                                    @endif
-                                                    @php
-                                                        $canCancel = !in_array($order->status, ['cancelled', 'delivered', 'received']);
-                                                        $canDelete = auth()->user()->can('delete orders') && 
-                                                                   (in_array($order->status, ['pending', 'cancelled']) && 
-                                                                    !in_array($order->status, ['shipping', 'shipped', 'delivered', 'received']) &&
-                                                                    (!$order->payments || $order->payments->count() == 0 || $order->status === 'cancelled'));
-                                                    @endphp
-                                                    @if($canCancel)
-                                                        <li><a class="dropdown-item cancel-order-direct" href="javascript:void(0)" data-id="{{ $order->id }}" data-number="{{ $order->order_number }}"><i class="fas fa-ban me-2 text-warning"></i>Cancel Order</a></li>
-                                                    @endif
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    @can('delete orders')
-                                                        @if($canDelete)
-                                                            <li><a class="dropdown-item text-danger delete-order-btn" href="javascript:void(0)" data-order-id="{{ $order->id }}" data-order-number="{{ $order->order_number }}" data-bs-toggle="modal" data-bs-target="#deleteOrderModal"><i class="fas fa-trash me-2"></i>Delete Order</a></li>
-                                                        @else
-                                                            <li><a class="dropdown-item text-muted disabled" href="javascript:void(0)"><i class="fas fa-lock me-2"></i>Locked (Paid/In-Process)</a></li>
-                                                        @endif
-                                                    @endcan
-                                                </ul>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty   
-                                <tr>
-                                    <td colspan="8" class="text-center py-5 text-muted">No orders found matching your filters.</td>
-                                </tr> 
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white border-0">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted">
-                            Showing {{ $orders->firstItem() }} to {{ $orders->lastItem() }} of {{ $orders->total() }} orders
-                        </span>
-                        {{ $orders->links('vendor.pagination.bootstrap-5') }}
-                    </div>
-                </div>
+            <div class="card border-0 shadow-sm" id="report-content-area">
+                @include('erp.order.orderlist_partial')
             </div>
         </div>
     </div>
@@ -328,6 +215,80 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    function toggleReportFields() {
+        var reportType = $('.report-type-radio:checked').val();
+        $('.report-field').addClass('d-none');
+        
+        if (reportType === 'daily') {
+            $('.daily-group').removeClass('d-none');
+        } else if (reportType === 'monthly') {
+            $('.monthly-group').removeClass('d-none');
+        } else if (reportType === 'yearly') {
+            $('.yearly-group').removeClass('d-none');
+        }
+    }
+
+    toggleReportFields();
+    $('.report-type-radio').change(function() {
+        const type = $(this).val();
+        if (type === 'daily') {
+            const today = new Date().toISOString().split('T')[0];
+            $('#start_date').val(today);
+            $('#end_date').val(today);
+        }
+        toggleReportFields();
+    });
+
+    function refreshOrder() {
+        const form = $('#filterForm');
+        const container = $('#report-content-area');
+        
+        container.css('opacity', '0.5');
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'GET',
+            data: form.serialize(),
+            success: function(response) {
+                container.html(response);
+                container.css('opacity', '1');
+                
+                // Update the Excel/PDF links
+                const queryParams = form.serialize();
+                $('.btn-group a').each(function() {
+                    const baseUrl = $(this).attr('href').split('?')[0];
+                    const exportType = $(this).text().toLowerCase().includes('pdf') ? 'pdf' : 'excel';
+                    $(this).attr('href', baseUrl + '?' + queryParams);
+                });
+            },
+            error: function() {
+                container.css('opacity', '1');
+                showAlert('error', 'Failed to load order data.');
+            }
+        });
+    }
+
+    $('#filterForm').on('submit', function(e) {
+        e.preventDefault();
+        refreshOrder();
+    });
+
+    // Handle pagination links
+    $(document).on('click', '.pagination a', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        const container = $('#report-content-area');
+        container.css('opacity', '0.5');
+        
+        $.ajax({
+            url: url,
+            success: function(response) {
+                container.html(response);
+                container.css('opacity', '1');
+            }
+        });
+    });
+
     // Update Status Modal
     let orderToUpdate = null;
     

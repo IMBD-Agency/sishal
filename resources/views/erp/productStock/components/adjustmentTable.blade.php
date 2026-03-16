@@ -1,6 +1,6 @@
 <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-        <thead class="bg-erp-success text-white">
+    <table class="table premium-table compact reporting-table table-hover align-middle mb-0">
+        <thead>
             <tr>
                 <th class="ps-3">Serial No</th>
                 <th>Invoice</th>
@@ -14,16 +14,16 @@
                 <th>Style Number</th>
                 <th class="text-center">Quantity</th>
                 <th>Adjusted By</th>
-                <th class="text-center">Action</th>
+                <th class="pe-3 text-center">Action</th>
             </tr>
         </thead>
         <tbody>
             @php $currentInvoice = null; @endphp
             @forelse($adjustments as $index => $item)
                 <tr>
-                    <td class="ps-3 text-muted small">{{ $adjustments->firstItem() + $index }}</td>
-                    <td class="fw-bold small">{{ $item->adjustment->adjustment_number }}</td>
-                    <td class="small">{{ \Carbon\Carbon::parse($item->adjustment->date)->format('m/d/Y') }}</td>
+                    <td class="ps-3">{{ $adjustments->firstItem() + $index }}</td>
+                    <td class="fw-bold">{{ $item->adjustment->adjustment_number }}</td>
+                    <td>{{ \Carbon\Carbon::parse($item->adjustment->date)->format('m/d/Y') }}</td>
                     <td>
                         @if($item->product && $item->product->image)
                             <img src="{{ asset($item->product->image) }}" class="rounded shadow-sm" style="width: 32px; height: 32px; object-fit: cover;">
@@ -33,12 +33,12 @@
                             </div>
                         @endif
                     </td>
-                    <td class="small text-muted">{{ optional($item->product)->category->name ?? '-' }}</td>
-                    <td class="small text-muted">{{ optional($item->product)->brand->name ?? '-' }}</td>
-                    <td class="small text-muted">{{ optional($item->product)->season->name ?? '-' }}</td>
-                    <td class="small text-muted">{{ optional($item->product)->gender->name ?? '-' }}</td>
-                    <td class="small fw-bold">{{ $item->product->name ?? 'Deleted Product' }}</td>
-                    <td class="small font-monospace text-info">{{ optional($item->product)->style_number ?? '-' }}</td>
+                    <td>{{ optional($item->product)->category->name ?? '-' }}</td>
+                    <td>{{ optional($item->product)->brand->name ?? '-' }}</td>
+                    <td>{{ optional($item->product)->season->name ?? '-' }}</td>
+                    <td>{{ optional($item->product)->gender->name ?? '-' }}</td>
+                    <td class="fw-bold">{{ $item->product->name ?? 'Deleted Product' }}</td>
+                    <td class="font-monospace text-info">{{ optional($item->product)->style_number ?? '-' }}</td>
                     <td class="text-center">
                         <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.85rem;">{{ $item->new_quantity }}</span>
                         @php $diff = $item->new_quantity - $item->old_quantity; @endphp
@@ -46,7 +46,7 @@
                             {{ $diff >= 0 ? '+' : '' }}{{ $diff }}
                         </div>
                     </td>
-                    <td class="small">{{ $item->adjustment->creator->name ?? 'Admin' }}</td>
+                    <td>{{ $item->adjustment->creator->name ?? 'Admin' }}</td>
                     <td class="text-center">
                         {{-- Action buttons if needed, keeping it clean for now --}}
                         <button type="button" class="btn btn-sm btn-light border" title="Quick View" onclick="alert('Adjustment Note: {{ $item->adjustment->notes ?? 'No notes' }}')">

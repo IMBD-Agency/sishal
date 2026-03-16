@@ -30,33 +30,65 @@
             </div>
 
             <!-- Enhanced Filter Card -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-                <div class="card-body p-4">
-                    <form id="profitLossFilterForm" method="GET" class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">From Date</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0"><i class="far fa-calendar-alt"></i></span>
-                                <input type="date" class="form-control bg-light border-start-0 ps-0" name="start_date" 
-                                       value="{{ $startDate }}" max="{{ date('Y-m-d') }}">
+            <div class="premium-card mb-4 shadow-sm">
+                <div class="card-body p-3">
+                    <form id="profitLossFilterForm" action="{{ route('profitLoss.index') }}" method="GET" autocomplete="off">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ ($reportType ?? 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Report</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ ($reportType ?? 'daily') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ ($reportType ?? 'daily') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">To Date</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0"><i class="far fa-calendar-check"></i></span>
-                                <input type="date" class="form-control bg-light border-start-0 ps-0" name="end_date" 
-                                       value="{{ $endDate }}" max="{{ date('Y-m-d') }}">
+
+                        <div class="row g-2 align-items-end">
+                            <!-- Field Blocks (Daily) -->
+                            <div class="col-md-3 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ request('start_date') ?: $startDate }}">
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-dark w-100 fw-bold py-2 shadow-sm">
-                                    <i class="fas fa-sync-alt me-2"></i>Generate Statement
-                                </button>
-                                <a href="{{ route('profitLoss.index') }}" class="btn btn-outline-light border text-dark fw-bold py-2 px-3 shadow-sm bg-white">
-                                    <i class="fas fa-undo"></i>
-                                </a>
+                            <div class="col-md-3 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ request('end_date') ?: $endDate }}">
+                            </div>
+
+                            <!-- Monthly Fields -->
+                            <div class="col-md-3 report-field monthly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month</label>
+                                <select name="month" class="form-select form-select-sm select2-simple">
+                                    @foreach(range(1, 12) as $m)
+                                        <option value="{{ $m }}" {{ (request('month') ?? date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Yearly Fields -->
+                            <div class="col-md-3 report-field monthly-group yearly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
+                                <select name="year" class="form-select form-select-sm select2-simple">
+                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
+                                        <i class="fas fa-search me-1"></i>Search
+                                    </button>
+                                    <a href="{{ route('profitLoss.index') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
+                                        <i class="fas fa-undo me-1"></i>Reset
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -286,10 +318,33 @@
     @push('scripts')
     <script>
         $(document).ready(function() {
+            // Function to handle report type toggling
+            function toggleReportFields() {
+                var reportType = $('.report-type-radio:checked').val();
+                
+                // Hide all groups first
+                $('.report-field').addClass('d-none');
+                
+                // Show relevant group based on selection
+                if (reportType === 'daily') {
+                    $('.daily-group').removeClass('d-none');
+                } else if (reportType === 'monthly') {
+                    $('.monthly-group').removeClass('d-none');
+                } else if (reportType === 'yearly') {
+                    $('.yearly-group').removeClass('d-none');
+                }
+            }
+
+            // Run on initial load
+            toggleReportFields();
+
+            // Run on change
+            $('.report-type-radio').change(toggleReportFields);
+
             // Date range validation
-            $('#start_date, #end_date, #modal_start_date, #modal_end_date').on('change', function() {
-                const startDate = $('#start_date').val() || $('#modal_start_date').val();
-                const endDate = $('#end_date').val() || $('#modal_end_date').val();
+            $('#start_date, #end_date').on('change', function() {
+                const startDate = $('#start_date').val();
+                const endDate = $('#end_date').val();
                 
                 if (startDate && endDate && startDate > endDate) {
                     alert('Start date cannot be after end date!');

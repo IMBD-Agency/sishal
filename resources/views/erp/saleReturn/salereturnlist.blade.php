@@ -16,101 +16,97 @@
                             <li class="breadcrumb-item active text-primary fw-600">Return History</li>
                         </ol>
                     </nav>
-                    <h4 class="fw-bold mb-0 text-dark">Full Sale Return Report</h4>
+                    <h4 class="fw-bold mb-0 text-dark">Sale Return Report</h4>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button type="button" class="btn btn-light fw-bold shadow-sm" onclick="exportData('excel')">
-                        <i class="fas fa-file-excel me-2"></i>Export Excel
-                    </button>
+                    
                     <a href="{{ route('saleReturn.create') }}" class="btn btn-create-premium text-nowrap">
                         <i class="fas fa-plus me-2"></i>New Return
                     </a>
                 </div>
             </div>
         </div>
-
+        <div class="container-fluid px-4 py-4">
             <!-- Advanced Filters -->
-            <div class="card border-0 shadow-sm rounded-3 mb-3">
-                <div class="card-body p-3">
+            <div class="premium-card mb-4">
+                <div class="card-header bg-white border-bottom p-3">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Filter Search</h6>
+                </div>
+                <div class="card-body p-4">
                     <form action="{{ route('saleReturn.list') }}" method="GET" id="filterForm">
-                        <div class="mb-3">
-                            <div class="d-flex gap-4">
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold small" for="dailyReport">Daily Reports</label>
-                                </div>
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold small" for="monthlyReport">Monthly Reports</label>
-                                </div>
-                                <div class="form-check custom-radio">
-                                    <input class="form-check-input" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold small" for="yearlyReport">Yearly Reports</label>
-                                </div>
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-4">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_daily" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_daily">Daily Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_monthly" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_monthly">Monthly Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_yearly" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_yearly">Yearly Reports</label>
                             </div>
                         </div>
 
-                        <div class="row g-2">
-                            <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date *</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                        <!-- Filter Fields Row -->
+                        <div class="row g-3">
+                            <!-- Date Range Group -->
+                            <div class="col-md-3 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                             </div>
-                            <div class="col-md-2 date-group daily-group">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date *</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                            <div class="col-md-3 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
 
-                            <div class="col-md-2 date-group monthly-group" style="display: none;">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month *</label>
-                                <select name="month" class="form-select form-select-sm select2">
+                            <!-- Month Group -->
+                            <div class="col-md-3 report-field monthly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
+                                <select name="month" class="form-select select2-setup">
                                     @foreach(range(1, 12) as $m)
                                         <option value="{{ $m }}" {{ (request('month') ?? date('m')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year *</label>
-                                <select name="year" class="form-select form-select-sm select2">
+                            
+                            <!-- Year Group -->
+                            <div class="col-md-3 report-field yearly-group monthly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
+                                <select name="year" class="form-select select2-setup">
                                     @foreach(range(date('Y'), date('Y') - 10) as $y)
                                         <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
-                                <input type="text" name="search" class="form-control form-control-sm border-primary" placeholder="Sale #, Customer, Product..." value="{{ request('search') }}">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
+                                <select name="branch_id" class="form-select select2-setup" data-placeholder="All Branches">
+                                    <option value="">All Branches</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
-                                <select name="customer_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
-                                    <option value=""></option>
+                                <select name="customer_id" class="form-select select2-setup" data-placeholder="Select Customer">
+                                    <option value="">All Customers</option>
                                     @foreach($customers as $customer)
                                         <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
-                                <select name="product_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
-                                    <option value=""></option>
-                                    @foreach($products as $product)
-                                        <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style #</label>
-                                <input type="text" name="style_number" class="form-control form-control-sm" placeholder="Style..." value="{{ request('style_number') }}">
-                            </div>
-
+                            <!-- Row 2 -->
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
-                                <select name="category_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
-                                    <option value=""></option>
+                                <select name="category_id" class="form-select select2-setup" data-placeholder="All Categories">
+                                    <option value="">All Categories</option>
                                     @foreach($categories as $category)
                                         <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
                                     @endforeach
@@ -119,8 +115,8 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
-                                <select name="brand_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
-                                    <option value=""></option>
+                                <select name="brand_id" class="form-select select2-setup" data-placeholder="All Brands">
+                                    <option value="">All Brands</option>
                                     @foreach($brands as $brand)
                                         <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
                                     @endforeach
@@ -129,8 +125,8 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
-                                <select name="season_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
-                                    <option value=""></option>
+                                <select name="season_id" class="form-select select2-setup" data-placeholder="All Seasons">
+                                    <option value="">All Seasons</option>
                                     @foreach($seasons as $season)
                                         <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
                                     @endforeach
@@ -139,30 +135,44 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
-                                <select name="gender_id" class="form-select form-select-sm select2-setup" data-placeholder="All">
-                                    <option value=""></option>
+                                <select name="gender_id" class="form-select select2-setup" data-placeholder="All Genders">
+                                    <option value="">All Genders</option>
                                     @foreach($genders as $gender)
                                         <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-create-premium btn-sm w-100" style="height: 31px;">
-                                    <i class="fas fa-search small"></i>
-                                </button>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style #</label>
+                                <input type="text" name="style_number" class="form-control" placeholder="Style Number" value="{{ request('style_number') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Search</label>
+                                <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
                             </div>
                         </div>
 
-                        <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
-                            <div class="btn-group shadow-sm">
-                                <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('csv')">CSV</button>
-                                <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('excel')">Excel</button>
-                                <button type="button" class="btn btn-dark btn-sm px-3" onclick="exportData('pdf')">PDF</button>
-                            </div>
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="small text-muted">Records: <strong>{{ $items->total() }}</strong></span>
-                                <a href="{{ route('saleReturn.list') }}" class="btn btn-light btn-sm px-3 border shadow-sm">Reset</a>
+                        <!-- Footer Actions -->
+                        <div class="card-footer bg-light border-top p-3 mt-4 mx-n4 mb-n4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" onclick="exportData('excel')">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="exportData('pdf')">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('saleReturn.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Apply Filters
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -180,8 +190,8 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table compact-reporting-table mb-0" id="returnTable">
-                            <thead class="bg-light">
+                        <table class="table premium-table compact reporting-table mb-0" id="returnTable">
+                            <thead>
                                 <tr>
                                     <th class="text-center">SL</th>
                                     <th>Date</th>
@@ -290,25 +300,44 @@
         </div>
     </div>
 
+    @push('scripts')
     <!-- Select2 Configuration -->
     <script>
         $(document).ready(function() {
-
-            const reportRadios = document.querySelectorAll('input[name="report_type"]');
-            function toggleDateGroups() {
-                const type = document.querySelector('input[name="report_type"]:checked').value;
-                document.querySelectorAll('.date-group').forEach(el => el.style.display = 'none');
+            function updateReportToggles() {
+                const reportType = $('.report-type-radio:checked').val();
+                console.log('Toggling fields for:', reportType);
                 
-                if (type === 'daily') {
-                    document.querySelectorAll('.daily-group').forEach(el => el.style.display = 'block');
-                } else if (type === 'monthly') {
-                    document.querySelectorAll('.monthly-group').forEach(el => el.style.display = 'block');
-                } else if (type === 'yearly') {
-                    document.querySelectorAll('.yearly-group').forEach(el => el.style.display = 'block');
+                // Hide using standard Bootstrap class d-none
+                $('.report-field').addClass('d-none');
+                
+                if (reportType === 'daily') {
+                    $('.daily-group').removeClass('d-none');
+                } else if (reportType === 'monthly') {
+                    $('.monthly-group').removeClass('d-none');
+                } else if (reportType === 'yearly') {
+                    $('.yearly-group').removeClass('d-none');
                 }
             }
-            reportRadios.forEach(radio => radio.addEventListener('change', toggleDateGroups));
-            toggleDateGroups();
+
+            // Bind change event
+            $('.report-type-radio').on('change', updateReportToggles);
+            
+            // Initial call
+            updateReportToggles();
+            
+            // Safety re-calls for select2 initialization delays
+            setTimeout(updateReportToggles, 100);
+            setTimeout(updateReportToggles, 500);
+
+            // Initialize select2 if available
+            if ($.fn.select2) {
+                $('.select2-setup').select2({
+                    width: '100%',
+                    theme: 'bootstrap-5',
+                    dropdownParent: $('#filterForm')
+                });
+            }
 
             // Quick Search Table Functionality with Debounce
             let returnSearchTimeout;
@@ -353,4 +382,5 @@
             form.target = originalTarget;
         }
     </script>
+    @endpush
 @endsection

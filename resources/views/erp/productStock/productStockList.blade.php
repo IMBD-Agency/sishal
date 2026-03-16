@@ -41,48 +41,7 @@
         <div class="premium-card mb-3 shadow-sm">
             <div class="card-body p-3">
                 <form method="GET" action="{{ route('productstock.list') }}" id="filterForm" autocomplete="off">
-                    <!-- Report Period Toggles -->
-                    <div class="d-flex gap-4 mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
-                        </div>
-                    </div>
-
                     <div class="row g-2 align-items-end">
-                        <div class="col-md-2 date-range-field">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
-                        </div>
-                        <div class="col-md-2 date-range-field">
-                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
-                        </div>
-
-                        <div class="col-md-2 month-field" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
-                            <select name="month" class="form-select form-select-sm">
-                                @foreach(range(1, 12) as $m)
-                                    <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2 year-field" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
-                            <select name="year" class="form-select form-select-sm">
-                                @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
-                                    <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                                @endforeach
-                            </select>
-                        </div>
 
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
@@ -93,15 +52,17 @@
                                 @endforeach
                             </select>
                         </div>
+                        @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasRole('Admin') || !empty($warehouses) && count($warehouses) > 0)
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Warehouse</label>
                             <select class="form-select form-select-sm select2-simple" name="warehouse_id" data-placeholder="All Warehouses">
                                 <option value="">All Warehouses</option>
                                 @foreach ($warehouses as $wh)
-                                    <option value="{{ $wh->id }}" {{ $selectedWarehouseId == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                    <option value="{{ $wh->id }}" {{ isset($selectedWarehouseId) && $selectedWarehouseId == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
                             <select class="form-select form-select-sm select2-simple" name="category_id" data-placeholder="All Categories">
@@ -120,7 +81,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-2 mt-2">
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
                             <select class="form-select form-select-sm select2-simple" name="season_id" data-placeholder="All Seasons">
                                 <option value="">All Seasons</option>
@@ -129,21 +90,36 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-2 mt-2">
-                            <div class="form-check form-switch pt-1">
-                                <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockSwitch" value="1" {{ request('low_stock') ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold small text-danger" for="lowStockSwitch">Low Stock Only</label>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Stock Status</label>
+                            <div class="form-check form-switch pt-1 pt-1 mt-1 border rounded px-3 py-1 bg-light">
+                                <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockSwitch" value="1" {{ request('low_stock') ? 'checked' : '' }} style="margin-left: -1em;">
+                                <label class="form-check-label fw-bold small text-danger ms-2" for="lowStockSwitch">Low Stock Only</label>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="col-md-2 mt-2">
+                    <!-- Footer Actions -->
+                    <div class="card-footer bg-light border-top p-3 mt-4 mx-n3 mb-n3" style="border-bottom-left-radius: var(--bs-border-radius-xl); border-bottom-right-radius: var(--bs-border-radius-xl);">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
-                                    <i class="fas fa-search me-1"></i>Search
-                                </button>
-                                <a href="{{ route('productstock.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
-                                    <i class="fas fa-undo me-1"></i>Reset
+                                <a href="{{ route('productstock.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
+                                    <i class="fas fa-file-excel me-2"></i>Excel
                                 </a>
+                                <a href="{{ route('productstock.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader">
+                                    <i class="fas fa-file-pdf me-2"></i>PDF
+                                </a>
+                                <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm no-loader" onclick="window.print()">
+                                    <i class="fas fa-print me-2"></i>Print
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('productstock.list') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                    <i class="fas fa-undo me-2"></i>Reset
+                                </a>
+                                <button type="submit" class="btn btn-create-premium px-5 filter-btn" style="height: 42px;">
+                                    <i class="fas fa-search me-2"></i>Filter
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -200,17 +176,15 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center mb-4 pt-2 border-top">
-            <div class="btn-group shadow-none border rounded overflow-hidden">
-                 <a href="{{ route('productstock.export.excel', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">EXCEL</a>
-                <a href="{{ route('productstock.export.pdf', request()->all()) }}" class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted border-end">PDF</a>
-                <button class="btn btn-white bg-white border-0 py-2 px-3 fw-bold small text-muted" onclick="window.print()">PRINT</button>
-            </div>
-            <div class="search-wrapper-premium">
-                <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium" placeholder="Live search items...">
+        <!-- Table Area -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Live Products Inventory</h6>
+            <div class="search-wrapper-premium" style="width: 300px;">
+                <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium table-search-input" placeholder="Quick find in inventory...">
                 <i class="fas fa-search search-icon-premium"></i>
             </div>
         </div>
+
         <div class="premium-card shadow-sm">
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -373,26 +347,8 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Handle Report Type Toggle
-    function toggleReportFields() {
-        const reportType = $('.report-type-radio:checked').val();
-        
-        if (reportType === 'daily') {
-            $('.date-range-field').show();
-            $('.month-field').hide();
-            $('.year-field').hide();
-        } else if (reportType === 'monthly') {
-            $('.date-range-field').hide();
-            $('.month-field').show();
-            $('.year-field').show();
-        } else if (reportType === 'yearly') {
-            $('.date-range-field').hide();
-            $('.month-field').hide();
-            $('.year-field').show();
-        }
-    }
-    toggleReportFields();
-    $('.report-type-radio').on('change', toggleReportFields);
+    // Initialize tooltips/select2
+
 
     $('.view-breakdown').on('click', function() {
         var branchData = $(this).data('branch-stock') || [];

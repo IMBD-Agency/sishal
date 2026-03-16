@@ -27,17 +27,20 @@ class VoucherController extends Controller
         $now = Carbon::now();
 
         if ($reportType == 'monthly') {
-            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfMonth() : $now->copy()->startOfMonth();
-            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfMonth() : $now->copy()->endOfMonth();
+            $month = $request->input('month', date('n'));
+            $year = $request->input('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
         } elseif ($reportType == 'yearly') {
-            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfYear() : $now->copy()->startOfYear();
-            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfYear() : $now->copy()->endOfYear();
+            $year = $request->input('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
         } else {
             $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : $now->copy()->startOfDay();
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : $now->copy()->endOfDay();
         }
 
-        $query = Journal::with(['branch', 'customer', 'supplier', 'expenseAccount', 'creator'])
+        $query = Journal::with(['branch', 'customer', 'supplier', 'expenseAccount', 'creator', 'entries.chartOfAccount'])
             ->whereBetween('entry_date', [$startDate, $endDate]);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -61,6 +64,15 @@ class VoucherController extends Controller
         // Calculate Totals for all filtered results (not just current page)
         $totals = (clone $query)->selectRaw('SUM(voucher_amount) as total_voucher, SUM(paid_amount) as total_paid')->first();
         $vouchers = $query->latest()->paginate(50)->withQueryString();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('erp.vouchers.table_rows', compact('vouchers'))->render(),
+                'total_voucher' => number_format(optional($totals)->total_voucher ?? 0, 2),
+                'total_paid' => number_format(optional($totals)->total_paid ?? 0, 2),
+                'pagination' => (string) $vouchers->links('vendor.pagination.bootstrap-5')
+            ]);
+        }
 
         $customers = Customer::orderBy('name')->take(200)->get();
         $suppliers = Supplier::orderBy('name')->take(200)->get();

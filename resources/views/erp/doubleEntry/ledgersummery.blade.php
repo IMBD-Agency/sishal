@@ -25,9 +25,7 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button class="btn btn-light border shadow-sm fw-bold" onclick="window.print()">
-                        <i class="fas fa-print me-2"></i>Print Ledger
-                    </button>
+                    
                     <button class="btn btn-create-premium text-nowrap" onclick="exportLedger()">
                         <i class="fas fa-file-pdf me-2"></i>Download PDF
                     </button>
@@ -40,14 +38,51 @@
             <div class="premium-card mb-3 shadow-sm">
                 <div class="card-body p-3">
                     <form action="{{ route('ledger.index') }}" method="GET" id="filterForm" autocomplete="off">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate->format('Y-m-d') }}">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ ($reportType ?? 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Report</label>
                             </div>
-                            <div class="col-md-2">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ ($reportType ?? 'daily') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ ($reportType ?? 'daily') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 align-items-end">
+                            <!-- Field Blocks (Daily, Monthly, Yearly) -->
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') ?: $startDate->format('Y-m-d') }}">
+                            </div>
+                            <div class="col-md-2 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate->format('Y-m-d') }}">
+                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') ?: $endDate->format('Y-m-d') }}">
+                            </div>
+
+                            <!-- Monthly Fields -->
+                            <div class="col-md-2 report-field monthly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month</label>
+                                <select name="month" class="form-select form-select-sm select2-simple">
+                                    @foreach(range(1, 12) as $m)
+                                        <option value="{{ $m }}" {{ (request('month') ?? date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Yearly Fields -->
+                            <div class="col-md-2 report-field monthly-group yearly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
+                                <select name="year" class="form-select form-select-sm select2-simple">
+                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Account Filter</label>
@@ -76,14 +111,28 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Keywords</label>
                                 <input type="text" name="search" class="form-control form-control-sm" placeholder="Voucher # or Account..." value="{{ request('search') }}">
                             </div>
-                            <div class="col-md-2">
+                        </div>
+
+                        <div class="card-footer bg-light border-top p-3 mt-4 mx-n3 mb-n3">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm">
-                                        <i class="fas fa-search me-1"></i>Search
+                                    <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader" onclick="exportExcel()">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
                                     </button>
-                                    <a href="{{ route('ledger.index') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm">
-                                        <i class="fas fa-undo me-1"></i>Reset
+                                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader" onclick="exportLedger()">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm no-loader" onclick="window.print()">
+                                        <i class="fas fa-print me-2"></i>Print
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('ledger.index') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
                                     </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Filter
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -151,15 +200,12 @@
                 </div>
             </div>
 
+            <!-- Table Section Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="btn-group shadow-sm">
-                    <button class="btn btn-secondary btn-sm fw-bold" onclick="exportExcel()">Excel</button>
-                    <button class="btn btn-secondary btn-sm fw-bold" onclick="exportLedger()">PDF</button>
-                    <button class="btn btn-secondary btn-sm fw-bold" onclick="window.print()">Print</button>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <label class="small fw-bold text-muted mb-0">Live Search:</label>
-                    <input type="text" id="tableSearch" class="form-control form-control-sm table-search-input" placeholder="Search in current page...">
+                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Ledger Data List</h6>
+                <div class="search-wrapper-premium" style="width: 300px;">
+                    <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium table-search-input" placeholder="Quick find in this registry...">
+                    <i class="fas fa-search search-icon-premium"></i>
                 </div>
             </div>
 
@@ -167,7 +213,7 @@
             <div class="premium-card shadow-sm mb-5">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table premium-table mb-0 align-middle" id="ledgerTable">
+                        <table class="table premium-table reporting-table mb-0 align-middle" id="ledgerTable">
                             <thead>
                                 <tr>
                                     <th class="ps-4">Date</th>
@@ -215,18 +261,18 @@
                                             </span>
                                         </td>
                                         <td class="text-center pe-4">
-                                            <div class="btn-group btn-group-sm rounded-3 overflow-hidden border shadow-sm">
-                                                <a href="{{ route('journal.show', $entry->journal_id) }}" class="btn btn-white text-primary" title="View Voucher">
-                                                    <i class="fas fa-eye"></i>
+                                            <div class="d-flex gap-2 justify-content-center">
+                                                <a href="{{ route('journal.show', $entry->journal_id) }}" class="action-circle bg-light" title="View Voucher">
+                                                    <i class="fas fa-eye text-primary"></i>
                                                 </a>
-                                                <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}" class="btn btn-white text-info" title="View Full Account Ledger">
-                                                    <i class="fas fa-book"></i>
+                                                <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}" class="action-circle bg-light" title="View Full Account Ledger">
+                                                    <i class="fas fa-book text-info"></i>
                                                 </a>
                                                 <form action="{{ route('journal.destroy', $entry->journal_id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this journal?');">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-white text-danger" title="Delete Journal">
-                                                        <i class="fas fa-trash-alt"></i>
+                                                    <button type="submit" class="action-circle bg-light border-0" title="Delete Journal">
+                                                        <i class="fas fa-trash-alt text-danger"></i>
                                                     </button>
                                                 </form>
                                             </div>
@@ -298,6 +344,27 @@
                     });
                 }, 300);
             });
+
+            // Handle Report Toggles (Daily, Monthly, Yearly)
+            function toggleDateGroups() {
+                const type = $('.report-type-radio:checked').val() || 'daily';
+                $('.report-field').addClass('d-none');
+                
+                if (type === 'daily') {
+                    $('.daily-group').removeClass('d-none');
+                } else if (type === 'monthly') {
+                    $('.monthly-group').removeClass('d-none');
+                } else if (type === 'yearly') {
+                    $('.yearly-group').removeClass('d-none');
+                }
+            }
+
+            $('.report-type-radio').on('change', function() {
+                toggleDateGroups();
+            });
+
+            // Initial setup run
+            toggleDateGroups();
         });
 
         function exportLedger() {

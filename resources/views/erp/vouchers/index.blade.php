@@ -7,47 +7,91 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
 
-        <div class="container-fluid px-4 py-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold mb-0">Voucher List</h4>
-                <a href="{{ route('vouchers.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>New Voucher
-                </a>
+        <!-- Premium Header -->
+        <div class="glass-header">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 breadcrumb-premium">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Vouchers</li>
+                        </ol>
+                    </nav>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar-sm bg-info text-white d-flex align-items-center justify-content-center rounded-circle fw-bold">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <h4 class="fw-bold mb-0 text-dark">Voucher Registry</h4>
+                    </div>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <a href="{{ route('vouchers.create') }}" class="btn btn-create-premium">
+                        <i class="fas fa-plus-circle me-2"></i>New Voucher
+                    </a>
+                </div>
             </div>
+        </div>
+
+        <div class="container-fluid px-4 py-4">
 
             <!-- Filters Area -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
+            <div class="premium-card mb-4">
+                <div class="card-header bg-white border-bottom p-3">
+                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-filter me-2 text-primary"></i>Voucher Filtering</h6>
+                </div>
+                <div class="card-body p-4">
                     <form action="{{ route('vouchers.index') }}" method="GET" id="filterForm">
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="dailyReport">Daily Reports</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="monthlyReport">Monthly Reports</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="yearlyReport">Yearly Reports</label>
-                                </div>
+                        
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-4">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
                             </div>
                         </div>
 
                         <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold">Start Date *</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate->format('Y-m-d') }}">
+                            <!-- Field Blocks (Daily, Monthly, Yearly) -->
+                            <div class="col-md-3 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date *</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') ?: $startDate->format('Y-m-d') }}">
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold">End Date *</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate->format('Y-m-d') }}">
+                            <div class="col-md-3 report-field daily-group">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date *</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') ?: $endDate->format('Y-m-d') }}">
                             </div>
+
+                            <!-- Monthly Fields -->
+                            <div class="col-md-3 report-field monthly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month *</label>
+                                <select name="month" class="form-select select2-setup">
+                                    @foreach(range(1, 12) as $m)
+                                        <option value="{{ $m }}" {{ (request('month') ?? date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Yearly Fields -->
+                            <div class="col-md-3 report-field monthly-group yearly-group d-none">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year *</label>
+                                <select name="year" class="form-select select2-setup">
+                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold">Customer *</label>
-                                <select name="customer_id" class="form-select form-select-sm select2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer *</label>
+                                <select name="customer_id" class="form-select select2">
                                     <option value="all">All Customer</option>
                                     @foreach($customers as $customer)
                                         <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
@@ -55,8 +99,8 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold">Supplier *</label>
-                                <select name="supplier_id" class="form-select form-select-sm select2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Supplier *</label>
+                                <select name="supplier_id" class="form-select select2">
                                     <option value="all">All Supplier</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
@@ -65,8 +109,8 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold">Cost Type *</label>
-                                <select name="account_id" class="form-select form-select-sm select2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Cost Type *</label>
+                                <select name="account_id" class="form-select select2">
                                     <option value="all">All Cost Type</option>
                                     @foreach($expenseAccounts as $acc)
                                         <option value="{{ $acc->id }}" {{ request('account_id') == $acc->id ? 'selected' : '' }}>{{ $acc->name }}</option>
@@ -74,8 +118,8 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold">Voucher Type *</label>
-                                <select name="voucher_type" class="form-select form-select-sm">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Voucher Type *</label>
+                                <select name="voucher_type" class="form-select">
                                     <option value="all">All</option>
                                     <option value="Payment" {{ request('voucher_type') == 'Payment' ? 'selected' : '' }}>Payment</option>
                                     <option value="Receipt" {{ request('voucher_type') == 'Receipt' ? 'selected' : '' }}>Receipt</option>
@@ -84,45 +128,63 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold">Select Account *</label>
-                                <select name="account_id" class="form-select form-select-sm select2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Account *</label>
+                                <select name="account_id" class="form-select select2">
                                     <option value="all">All Account</option>
                                     @foreach($expenseAccounts as $acc)
                                         <option value="{{ $acc->id }}" {{ request('account_id') == $acc->id ? 'selected' : '' }}>{{ $acc->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-info w-100 text-white">
-                                    <i class="fas fa-search me-1"></i> Search
-                                </button>
+                        </div>
+
+                        <div class="card-footer bg-light border-top p-3 mt-4 mx-n4 mb-n4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
+                                        <i class="fas fa-file-csv me-2"></i>CSV
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm no-loader">
+                                        <i class="fas fa-print me-2"></i>Print
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('vouchers.index') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Filter
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Table Area -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-0">
-                    <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-secondary">CSV</button>
-                            <button class="btn btn-secondary">Excel</button>
-                            <button class="btn btn-secondary">PDF</button>
-                            <button class="btn btn-secondary">Print</button>
-                        </div>
-                        <div class="ms-auto d-flex align-items-center">
-                            <label class="me-2 small">Search:</label>
-                            <input type="text" id="voucherSearch" class="form-control form-control-sm" style="width: 200px;">
-                        </div>
-                    </div>
+            <!-- Table Section Header -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Voucher Data List</h6>
+                <div class="search-wrapper-premium" style="width: 300px;">
+                    <input type="text" id="voucherSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
+                    <i class="fas fa-search search-icon-premium"></i>
+                </div>
+            </div>
 
+            <!-- Table Area -->
+            <div class="premium-card">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0 align-middle" id="voucherTable">
-                            <thead class="bg-erp-success text-white">
+                        <table class="table premium-table reporting-table compact table-hover align-middle mb-0" id="voucherTable">
+                            <thead>
                                 <tr>
-                                    <th>SL.</th>
+                                    <th class="ps-3">SL.</th>
                                     <th>Voucher No.</th>
                                     <th>Voucher Type</th>
                                     <th>Date</th>
@@ -130,70 +192,55 @@
                                     <th>Customer</th>
                                     <th>Expense</th>
                                     <th>Details</th>
-                                    <th>Voucher Amount</th>
-                                    <th>Paid Amount</th>
+                                    <th class="text-end">Voucher Amount</th>
+                                    <th class="text-end">Paid Amount</th>
                                     <th>Account</th>
-                                    <th>Action</th>
+                                    <th class="text-center pe-3">Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @forelse($vouchers as $index => $voucher)
-                                    <tr>
-                                        <td>{{ $index + 1 }}</td>
-                                        <td class="fw-bold">{{ $voucher->voucher_no }}</td>
-                                        <td><span class="badge bg-light text-dark border">{{ $voucher->type }}</span></td>
-                                        <td>{{ \Carbon\Carbon::parse($voucher->entry_date)->format('d/m/Y') }}</td>
-                                        <td>{{ $voucher->branch->name ?? '-' }}</td>
-                                        <td>{{ $voucher->customer->name ?? '-' }}</td>
-                                        <td>{{ $voucher->expenseAccount->name ?? '-' }}</td>
-                                        <td>{{ Str::limit($voucher->description, 30) }}</td>
-                                        <td class="text-end fw-bold">{{ number_format($voucher->voucher_amount, 2) }}৳</td>
-                                        <td class="text-end fw-bold">{{ number_format($voucher->paid_amount, 2) }}৳</td>
-                                        <td>{{ $voucher->entries->where('credit', '>', 0)->first()->chartOfAccount->name ?? 'N/A' }}</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{{ route('journal.show', $voucher->id) }}" class="btn btn-outline-info" title="View"><i class="fas fa-eye"></i></a>
-                                                <a href="#" class="btn btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
-                                                <button class="btn btn-outline-danger" title="Delete" onclick="deleteVoucher({{ $voucher->id }}, '{{ $voucher->voucher_no }}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="12" class="text-center py-4 text-muted">No data available in table</td>
-                                    </tr>
-                                @endforelse
+                            <tbody id="tableBody">
+                                @include('erp.vouchers.table_rows', ['vouchers' => $vouchers])
                             </tbody>
                             <tfoot class="bg-light">
                                 <tr>
                                     <td colspan="8" class="text-end fw-bold">Grand Total (Filtered)</td>
-                                    <td class="text-end fw-bold">{{ number_format($totals->total_voucher ?? 0, 2) }}৳</td>
-                                    <td class="text-end fw-bold">{{ number_format($totals->total_paid ?? 0, 2) }}৳</td>
+                                    <td class="text-end fw-bold text-dark" id="totalVoucherAmount">{{ number_format($totals->total_voucher ?? 0, 2) }}৳</td>
+                                    <td class="text-end fw-bold text-success" id="totalPaidAmount">{{ number_format($totals->total_paid ?? 0, 2) }}৳</td>
                                     <td colspan="2"></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
-                    
-                    <div class="p-3 d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Showing {{ $vouchers->firstItem() ?? 0 }} to {{ $vouchers->lastItem() ?? 0 }} of {{ $vouchers->total() }} entries</small>
-                        <div class="premium-pagination">
-                            {{ $vouchers->links() }}
-                        </div>
-                    </div>
+                </div>
+                
+                <div class="card-footer bg-white border-top py-3 px-4 d-flex justify-content-between align-items-center" id="paginationContainer">
+                    @if($vouchers->hasPages())
+                        <small class="text-muted fw-500">Showing {{ $vouchers->firstItem() ?? 0 }} to {{ $vouchers->lastItem() ?? 0 }} of {{ $vouchers->total() }} entries</small>
+                        {{ $vouchers->links('vendor.pagination.bootstrap-5') }}
+                    @endif
                 </div>
             </div>
         </div>
     </div>
+
+@push('css')
+    <style>
+        .breadcrumb-premium { font-size: 0.8rem; }
+        .search-wrapper-premium { position: relative; }
+        .search-input-premium { padding-left: 35px; border: 1px solid #e0e0e0; font-size: 0.85rem; }
+        .search-icon-premium { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9e9e9e; font-size: 0.8rem; }
+        .select2-container .select2-selection--single { height: 38px; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 38px; }
+        .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+    </style>
+@endpush
 
 
 
     @push('scripts')
     <script>
         $(document).ready(function() {
-            // Live Search
+            // Live Search Helper local (or can trigger AJAX if configured)
             $("#voucherSearch").on("keyup", function() {
                 var value = $(this).val().toLowerCase();
                 $("#voucherTable tbody tr").filter(function() {
@@ -201,10 +248,71 @@
                 });
             });
 
-            // Report Type Radio Redirection
-            $('input[name="report_type"]').on('change', function() {
-                $('#filterForm').submit();
+            // Handle Report Toggles (Daily, Monthly, Yearly)
+            function toggleDateGroups() {
+                const type = $('.report-type-radio:checked').val() || 'daily';
+                $('.report-field').addClass('d-none');
+                
+                if (type === 'daily') {
+                    $('.daily-group').removeClass('d-none');
+                } else if (type === 'monthly') {
+                    $('.monthly-group').removeClass('d-none');
+                } else if (type === 'yearly') {
+                    $('.yearly-group').removeClass('d-none');
+                }
+            }
+
+            $('.report-type-radio').on('change', function() {
+                toggleDateGroups();
             });
+
+            // Initial setup run
+            toggleDateGroups();
+
+            // Prevent form submit & Handle AJAX Request
+            $('#filterForm').on('submit', function(e) {
+                e.preventDefault();
+                fetchData();
+            });
+
+            $(document).on('click', '.pagination a', function(e) {
+                e.preventDefault();
+                let url = $(this).attr('href');
+                fetchData(url);
+            });
+
+            // Listen for changes on select elements to trigger fetching automatically
+            // Removed auto-fetch to only filter on 'Filter' button click per user request
+            // $('.select2, select[name="voucher_type"]').on('change', function(e) {
+            //     if($(this).attr('name') !== 'month' && $(this).attr('name') !== 'year') {
+            //         fetchData();
+            //     }
+            // });
+
+            function fetchData(url = null) {
+                let form = $('#filterForm');
+                let targetUrl = url ? url : form.attr('action');
+                let formData = form.serialize();
+
+                $.ajax({
+                    url: targetUrl,
+                    type: 'GET',
+                    data: formData,
+                    beforeSend: function() {
+                        $('#tableBody').css('opacity', '0.5'); // Minimal visual loading queue
+                    },
+                    success: function(response) {
+                        $('#tableBody').css('opacity', '1').html(response.html);
+                        $('#paginationContainer').html(response.pagination);
+                        $('#totalVoucherAmount').text(response.total_voucher + '৳');
+                        $('#totalPaidAmount').text(response.total_paid + '৳');
+                    },
+                    error: function(xhr) {
+                        console.error("Error fetching data.", xhr);
+                        $('#tableBody').css('opacity', '1');
+                    }
+                });
+            }
         });
 
         function deleteVoucher(id, voucherNo) {

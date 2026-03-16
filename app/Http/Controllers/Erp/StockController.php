@@ -63,6 +63,20 @@ class StockController extends Controller
             }
         }], 'quantity');
 
+        // Fetch Date Ranges filters 
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            // Since there is no single date for stock, stock list represents current state. 
+            // We do not filter 'stock list' by month/year because stock is live.
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            // Stock is live. 
+        } else {
+            // Stock is live.
+        }
+
         // Filter by product name or SKU/Style Number
         if ($request->filled('search')) {
             $search = $request->search;
@@ -125,6 +139,11 @@ class StockController extends Controller
             'variations.stocks.warehouse:id,name'
         ]);
         
+        // Only pass branch/warehouse selections based on permissions
+        if ($restrictedBranchId) {
+            $warehouses = collect(); // Avoid letting branch users select warehouses
+        }
+
         return view('erp.productStock.productStockList', compact(
             'productStocks', 'branches', 'warehouses', 'categories', 'brands', 'seasons', 'genders',
             'totalStockQty', 'totalStockValue', 'selectedBranchId', 'selectedWarehouseId'

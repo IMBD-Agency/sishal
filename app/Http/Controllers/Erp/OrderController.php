@@ -33,6 +33,10 @@ class OrderController extends Controller
             ->orderBy('first_name')
             ->get();
 
+        if ($request->ajax()) {
+            return view('erp.order.orderlist_partial', compact('orders'));
+        }
+
         return view('erp.order.orderlist', compact('orders', 'customers'));
     }
 
@@ -118,17 +122,33 @@ class OrderController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by Date Range (Created At)
-        if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
+        // Handle Report Type Filters
+        $reportType = $request->get('report_type', 'daily');
+
+        if ($reportType === 'daily') {
+            if ($request->filled('start_date')) {
+                $query->whereDate('created_at', '>=', $request->start_date, 'and');
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('created_at', '<=', $request->end_date, 'and');
+            }
+            // Default to today if no dates provided for daily report
+            if (!$request->filled('start_date') && !$request->filled('end_date')) {
+                $query->whereDate('created_at', '=', now()->toDateString(), 'and');
+            }
+        } elseif ($reportType === 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('created_at', '=', $month, 'and')
+                  ->whereYear('created_at', '=', $year, 'and');
+        } elseif ($reportType === 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('created_at', '=', $year, 'and');
         }
 
         // Filter by estimated delivery date
         if ($request->filled('estimated_delivery_date')) {
-            $query->whereDate('estimated_delivery_date', $request->estimated_delivery_date);
+            $query->whereDate('estimated_delivery_date', '=', $request->estimated_delivery_date, 'and');
         }
 
         // Filter by bill status (invoice status)

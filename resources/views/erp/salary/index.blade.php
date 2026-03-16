@@ -7,22 +7,32 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
 
-        <div class="container-fluid px-4 py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 class="fw-bold text-dark mb-1">Staff / Employee Payments</h2>
+        <!-- Premium Header (Glass Style) -->
+        <div class="glass-header">
+            <div class="row align-items-center">
+                <div class="col-md-7">
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb small mb-0">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item active">Staff Salary</li>
+                        <ol class="breadcrumb pe-3 mb-1" style="font-size: 0.85rem;">
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-primary fw-600">Staff Salary</li>
                         </ol>
                     </nav>
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="fw-bold mb-0 text-dark">Staff / Employee Payments</h4>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1">
+                            Salary Registry
+                        </span>
+                    </div>
                 </div>
-                <a href="{{ route('salary.create') }}" class="btn btn-primary px-4 shadow-sm">
-                    <i class="fas fa-plus me-2"></i>New Payment
-                </a>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <a href="{{ route('salary.create') }}" class="btn btn-create-premium shadow-sm">
+                        <i class="fas fa-plus me-2"></i>New Payment
+                    </a>
+                </div>
             </div>
+        </div>
 
+        <div class="container-fluid px-4 py-4">
             @if(session('success'))
                 <div class="alert alert-success border-0 shadow-sm alert-dismissible fade show mb-4" role="alert">
                     <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
@@ -30,7 +40,7 @@
                 </div>
             @endif
 
-            <!-- Filters -->
+            <div class="container-fluid px-4 py-4">
             <div class="card premium-card report-filter-card mb-4">
                 <div class="card-body p-4">
                     <form action="{{ route('salary.index') }}" method="GET" id="filterForm">
@@ -84,34 +94,51 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-info text-white fw-bold btn-sm w-100">
-                                    <i class="fas fa-search me-1"></i> Search
-                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Footer Actions -->
+                        <div class="card-footer bg-light border-top p-3 mt-4 mx-n4 mb-n4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('salary.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
+                                        <i class="fas fa-file-excel me-2"></i>Excel
+                                    </a>
+                                    <a href="{{ route('salary.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader">
+                                        <i class="fas fa-file-pdf me-2"></i>PDF
+                                    </a>
+                                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm no-loader" onclick="window.print()">
+                                        <i class="fas fa-print me-2"></i>Print
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('salary.index') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                        <i class="fas fa-undo me-2"></i>Reset
+                                    </a>
+                                    <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                        <i class="fas fa-search me-2"></i>Filter
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Table Area -->
-            <div class="card premium-card">
-                <div class="card-header bg-white py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="btn-group btn-group-sm mb-0">
-                            <a href="{{ route('salary.export.excel', request()->all()) }}" class="btn btn-export border-end">Excel</a>
-                            <a href="{{ route('salary.export.pdf', request()->all()) }}" class="btn btn-export border-end">PDF</a>
-                            <button class="btn btn-export" onclick="window.print()">Print</button>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <label class="small fw-bold text-muted me-2 mb-0">Search:</label>
-                            <input type="text" id="customSearch" class="form-control form-control-sm" style="width: 200px;">
-                        </div>
-                    </div>
+            <!-- Table Section Header -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Salary Registry List</h6>
+                <div class="search-wrapper-premium" style="width: 300px;">
+                    <input type="text" id="customSearch" class="form-control rounded-pill search-input-premium table-search-input" placeholder="Quick find in this registry...">
+                    <i class="fas fa-search search-icon-premium"></i>
                 </div>
+            </div>
+
+            <div class="card premium-card shadow-sm mb-5">
+                <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" id="paymentTable">
-                        <thead class="bg-erp-success text-white">
+                    <table class="table premium-table reporting-table mb-0 align-middle" id="paymentTable">
+                        <thead>
                             <tr>
                                 <th>Serial No</th>
                                 <th>Staff Name</th>
@@ -140,10 +167,14 @@
                                         @endif
                                     </td>
                                     <td class="small text-muted">{{ Str::limit($payment->note, 30) }}</td>
-                                    <td class="text-center">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ route('salary.show', $payment->id) }}" class="btn btn-outline-info"><i class="fas fa-eye"></i></a>
-                                            <button class="btn btn-outline-danger" onclick="deletePayment({{ $payment->id }})"><i class="fas fa-trash"></i></button>
+                                    <td class="text-center pe-3">
+                                        <div class="d-flex gap-2 justify-content-center">
+                                            <a href="{{ route('salary.show', $payment->id) }}" class="action-circle bg-light" title="View">
+                                                <i class="fas fa-eye text-info"></i>
+                                            </a>
+                                            <button type="button" class="action-circle bg-light border-0" title="Delete" onclick="deletePayment({{ $payment->id }})">
+                                                <i class="fas fa-trash text-danger"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -169,13 +200,13 @@
                         @endif
                     </table>
                 </div>
-                <div class="card-footer bg-white py-3 border-0">
+                <div class="card-footer bg-white border-0 py-3 px-4">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div class="small text-muted">
+                        <div class="small fw-500 text-muted">
                             Showing {{ $payments->firstItem() ?? 0 }} to {{ $payments->lastItem() ?? 0 }} of {{ $payments->total() }} entries
                         </div>
                         <div class="pagination-sm mb-0">
-                            {{ $payments->links() }}
+                            {{ $payments->links('vendor.pagination.bootstrap-5') }}
                         </div>
                     </div>
                 </div>
