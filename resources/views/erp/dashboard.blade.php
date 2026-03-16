@@ -64,9 +64,9 @@
                 </div>
             </div>
 
-            <div class="row">
+            <div class="row row-cols-equal">
                 <!-- Top Selling Products -->
-                <div class="col-lg-5">
+                <div class="col-lg-5 d-flex flex-column mb-4">
                     <div class="dash-section-header">Top Selling Products</div>
                     <div class="dash-table-container table-responsive dash-top-selling">
                         <table class="premium-table compact table-hover w-100 mb-0">
@@ -109,7 +109,7 @@
                 </div>
 
                 <!-- Outlet Performance -->
-                <div class="col-lg-7">
+                <div class="col-lg-7 d-flex flex-column mb-4">
                     <div class="dash-section-header blue">Outlet Monthly Performance</div>
                     <div class="dash-table-container table-responsive dash-outlet-performance">
                         <table class="premium-table compact table-hover w-100 mb-0">

@@ -1075,16 +1075,17 @@
     border-radius: 0 0 10px 10px;
     border: 1px solid #e2e8f0;
     border-top: none;
-    margin-bottom: 2rem;
+    margin-bottom: 0; /* Changed from 2rem to allow flex filling */
     box-shadow: var(--premium-shadow);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    flex: 1; /* Stretch to fill parent column */
+    display: flex;
+    flex-direction: column;
 }
 
 .dash-top-selling, .dash-outlet-performance {
-    min-height: 445px;
-    display: flex;
-    flex-direction: column;
+    min-height: 480px; /* Increased slightly for better balance */
 }
 
 .dash-top-selling .premium-table, .dash-outlet-performance .premium-table {

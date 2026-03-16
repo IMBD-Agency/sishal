@@ -52,7 +52,7 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
     <link href="{{ asset('erp.css') }}" rel="stylesheet">
-    <link href="{{ asset('premium-theme.css') }}?v=1.0.3" rel="stylesheet">
+    <link href="{{ asset('premium-theme.css') }}?v=1.0.4" rel="stylesheet">
     <link href="{{ asset('erp-style-fixes.css') }}?v=1.0.3" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
