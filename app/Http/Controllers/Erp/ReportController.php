@@ -259,17 +259,17 @@ class ReportController extends Controller
         }
 
         // POS Items Query
-        $posQuery = PosItem::with(['pos.customer', 'pos.employee', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues'])
+        $posQuery = PosItem::with(['pos.customer', 'pos.employee.user', 'pos.soldBy', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues'])
             ->whereHas('pos', function($q) use ($startDate, $endDate, $customerId, $employeeId, $invoiceNo, $branchId) {
                 $q->whereBetween('sale_date', [$startDate, $endDate]);
                 if ($customerId) $q->where('customer_id', $customerId);
-                if ($employeeId) $q->where('created_by', $employeeId);
+                if ($employeeId) $q->where('sold_by', $employeeId);
                 if ($invoiceNo) $q->where('invoice_number', 'like', '%' . $invoiceNo . '%');
                 if ($branchId) $q->where('branch_id', $branchId);
             });
 
         // Online Order Items Query
-        $orderQuery = OrderItem::with(['order.customer', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues'])
+        $orderQuery = OrderItem::with(['order.customer', 'order.employee.user', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues'])
             ->whereHas('order', function($q) use ($startDate, $endDate, $customerId, $invoiceNo, $branchId) {
                 $q->whereBetween('created_at', [$startDate, $endDate])
                   ->where('status', '!=', 'cancelled');
@@ -310,23 +310,29 @@ class ReportController extends Controller
         $summary['total_net'] = $summary['total_amount'];
         $summary['total_profit'] = $summary['total_amount'] - $summary['total_cost'];
 
-        // On-screen List: Limit to top 200 for browser performance
-        $posItems = $posQuery->take(100)->get()->map(function($item) {
+        // On-screen List: Limit for browser performance, but full for export
+        $isExport = $request->filled('export');
+        $posItemsQuery = $isExport ? $posQuery : $posQuery->take(100);
+        $orderItemsQuery = $isExport ? $orderQuery : $orderQuery->take(100);
+
+        $posItems = $posItemsQuery->get()->map(function($item) {
             $item->source = 'POS';
             $item->date = $item->pos->sale_date;
             $item->invoice = $item->pos->invoice_number;
             $item->customer_name = $item->pos->customer->name ?? 'Walk-in';
+            $item->created_by_name = $item->pos->soldBy->name ?? ($item->pos->employee->user->name ?? 'Admin');
             $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
             return $item;
         });
 
-        $orderItems = $orderQuery->take(100)->get()->map(function($item) {
+        $orderItems = $orderItemsQuery->get()->map(function($item) {
             $item->source = 'Online';
             $item->date = $item->order->created_at;
             $item->invoice = '#' . $item->order->id;
-            $item->customer_name = $item->order->customer->first_name ?? ($item->order->first_name . ' ' . $item->order->last_name);
+            $item->customer_name = $item->order->customer->name ?? ($item->order->first_name . ' ' . $item->order->last_name);
+            $item->created_by_name = $item->order->employee->user->name ?? 'Website';
             $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
@@ -344,7 +350,7 @@ class ReportController extends Controller
         $products = Product::where('type', 'product')->orderBy('name')->get();
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
 
-        if ($request->filled('export')) {
+        if ($isExport) {
             if ($request->export == 'excel') {
                 return $this->exportSaleExcel($allItems, $startDate, $endDate);
             } elseif ($request->export == 'pdf') {

@@ -59,11 +59,12 @@
                             <div class="row g-3">
                                 <div class="col-md-8">
                                     <label for="name" class="form-label fw-bold small text-uppercase">Product Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="name" name="name" required value="{{ old('name') }}" placeholder="e.g. Premium Cotton T-Shirt">
+                                    <input type="text" class="form-control" id="name" name="name" required value="{{ old('name') }}" placeholder="e.g. Cotton T-Shirt">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="sku" class="form-label fw-bold small text-uppercase">Style Code <span class="text-danger">*</span></label>
+                                    <label for="sku" class="form-label fw-bold small text-uppercase">Style Number <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="sku" name="sku" required value="{{ old('sku') }}" placeholder="e.g. SN-2024-001">
+                                    <input type="hidden" name="style_number" id="style_number_hidden">
                                 </div>
                                 <div class="col-md-12">
                                     <label for="slug" class="form-label fw-bold small text-uppercase">URL Slug</label>
@@ -341,7 +342,13 @@ $(document).ready(function() {
         minimumInputLength: 0
     });
 
-    $('#name').on('input', function(){ $('#slug').val(slugify($(this).val())); });
+    $('#name, #sku').on('input', function(){
+        let name = $('#name').val();
+        let style = $('#sku').val();
+        let combined = style ? style + ' ' + name : name;
+        $('#slug').val(slugify(combined));
+        $('#style_number_hidden').val(style);
+    });
 
     // CKEditor for Short Description
     ClassicEditor.create(document.querySelector('#short_desc'), {

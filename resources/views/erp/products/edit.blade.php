@@ -65,8 +65,9 @@
                                     <input type="text" class="form-control" id="name" name="name" required value="{{ old('name', $product->name) }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="sku" class="form-label fw-bold small text-uppercase">Style Code <span class="text-danger">*</span></label>
+                                    <label for="sku" class="form-label fw-bold small text-uppercase">Style Number <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="sku" name="sku" required value="{{ old('sku', $product->sku) }}">
+                                    <input type="hidden" name="style_number" id="style_number_hidden" value="{{ old('style_number', $product->style_number) }}">
                                 </div>
                                 <div class="col-md-12">
                                     <label for="slug" class="form-label fw-bold small text-uppercase">URL Slug</label>
@@ -375,9 +376,12 @@ $(document).ready(function() {
         minimumInputLength: 0
     });
 
-    $('#name').on('input', function(){
-        // Only auto-slug if user hasn't manually edited it (optional logic, kept simple for now)
-         // $('#slug').val(slugify($(this).val())); 
+    $('#name, #sku').on('input', function(){
+        let name = $('#name').val();
+        let style = $('#sku').val();
+        let combined = style ? style + ' ' + name : name;
+        $('#slug').val(slugify(combined));
+        $('#style_number_hidden').val(style);
     });
 
     // Editors
