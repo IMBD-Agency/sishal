@@ -34,8 +34,14 @@
                             </li>
                             @endforeach
                         @else
-                            <li class="splide__slide"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1800&auto=format&fit=crop" alt="fallback-1" class="hero-slide-img"></li>
-                            <li class="splide__slide"><img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1800&auto=format&fit=crop" alt="fallback-2" class="hero-slide-img"></li>
+                            <li class="splide__slide">
+                                <div class="d-flex align-items-center justify-content-center bg-light w-100" style="min-height: 400px; color: #999;">
+                                    <div class="text-center">
+                                        <i class="fas fa-image fa-3x mb-3"></i>
+                                        <p class="mt-2 fw-medium">No Image Found</p>
+                                    </div>
+                                </div>
+                            </li>
                         @endif
                     </ul>
                 </div>
@@ -586,13 +592,25 @@
             background: linear-gradient(90deg, #e53935, #ffb199);
         }
 
-        .custom-toast.hide {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.98);
-        }
-
         .wishlist-btn i.fa-heart.active {
             color: #e53935 !important;
+        }
+
+        /* Mobile specific font reductions for section headers */
+        @media (max-width: 768px) {
+            .section-header--fancy .section-title {
+                font-size: 1.1rem !important;
+                letter-spacing: 0 !important;
+            }
+            .section-header--fancy .section-see-all {
+                font-size: 10px !important;
+                padding: 4px 8px !important;
+                text-transform: uppercase;
+                font-weight: 600;
+            }
+            .splide__arrows {
+                display: none !important;
+            }
         }
     </style>
 @endsection

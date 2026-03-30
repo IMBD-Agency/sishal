@@ -50,7 +50,7 @@ Route::get('/best-deal', [PageController::class, 'bestDeals'])->name('best.deal'
 // Removed service archive and details routes
 Route::get('/vlogs', [PageController::class, 'vlogs'])->name('vlogs');
 Route::get('/pages/{slug}', [PageController::class, 'additionalPage'])->name('additionalPage.show');
-Route::get('/additional-pages/{slug}', [PageController::class, 'additionalPage'])->name('additionalPages.show');
+Route::get('/additional-pages/{slug}', [PageController::class, 'additionalPage'])->name('ecommerce.additionalPages.show');
 
 
 Route::get('/invoice/print/{invoice_number}', [InvoiceController::class, 'print'])->name('invoice.print');
@@ -180,9 +180,6 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/branches/remove-employee/{employee}', [\App\Http\Controllers\Erp\BranchController::class, 'removeEmployeeFromBranch'])->name('branches.remove_employee');
     Route::delete('/branches/products/{id}', [\App\Http\Controllers\Erp\BranchController::class, 'removeProduct'])->name('branches.products.remove');
     Route::post('/branches/{branch}/warehouses', [\App\Http\Controllers\Erp\WarehouseController::class, 'storeWarehousePerBranch'])->name('branches.warehouses.store');
-    Route::patch('/warehouses/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'update'])->name('warehouses.update');
-    Route::delete('/warehouses/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'destroy'])->name('warehouses.destroy');
-    Route::get('warehouse/show/{warehouse}', [\App\Http\Controllers\Erp\WarehouseController::class, 'show'])->name('warehouses.show');
 
     // Master Settings Dashboard
     Route::get('/master-settings', [\App\Http\Controllers\Erp\MasterSettingController::class, 'index'])->name('master.settings');

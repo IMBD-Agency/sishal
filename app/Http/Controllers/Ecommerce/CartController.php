@@ -17,8 +17,8 @@ class CartController extends Controller
         $sessionId = session()->getId();
 
         try {
-            // Validate product exists
-            $product = \App\Models\Product::find($productId);
+            // Validate product exists and is published
+            $product = \App\Models\Product::published()->find($productId);
             if (!$product) {
                 return response()->json([
                     'success' => false,
@@ -133,7 +133,7 @@ class CartController extends Controller
             $qty = 1;
 
         // Always load product with variations to validate variation requirements
-        $product = \App\Models\Product::with('variations.combinations')->findOrFail($productId);
+        $product = \App\Models\Product::published()->with('variations.combinations')->findOrFail($productId);
 
         // Resolve variation either by id or by attribute value ids
         $variation = null;
@@ -497,14 +497,17 @@ class CartController extends Controller
         
         foreach ($cartItems as $item) {
             $product = $item->product;
-            if (!$product) {
-                // Product no longer exists, mark for removal
+            // Check if product exists and is currently published
+            if (!$product || $product->status !== 'active' || !$product->show_in_ecommerce) {
+                // Product no longer exists or is hidden, mark for removal
                 $itemsToRemove[] = $item->id;
-                Log::warning('Cart item references non-existent product', [
-                    'cart_id' => $item->id,
-                    'product_id' => $item->product_id,
-                    'user_id' => $item->user_id
-                ]);
+                continue;
+            }
+            
+            // Check category status (nested check for published products)
+            $category = $product->category;
+            if (!$category || $category->status !== 'active' || ($category->parent && $category->parent->status !== 'active')) {
+                $itemsToRemove[] = $item->id;
                 continue;
             }
             // Calculate price with bulk discount and variation support
@@ -660,8 +663,9 @@ class CartController extends Controller
             $qty = (int) $request->input('qty', 1);
             if ($qty < 1) $qty = 1;
             
-            // Load product to check if it has variations
-            $product = \App\Models\Product::findOrFail($productId);
+            // Load product to check if it has variations and if it is published
+            $product = \App\Models\Product::published()->findOrFail($productId);
+            
             
             // CRITICAL: For products with variations, variation_id is REQUIRED
             if ($product->has_variations && !$variationId) {

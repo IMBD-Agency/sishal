@@ -41,8 +41,15 @@ class OrderController extends Controller
         $hasProductFreeDelivery = false;
         foreach ($carts as $cart) {
             $product = $cart->product;
-            if (!$product)
+            if (!$product || $product->status !== 'active' || !$product->show_in_ecommerce) {
                 continue;
+            }
+            
+            // Check category status
+            $category = $product->category;
+            if (!$category || $category->status !== 'active' || ($category->parent && $category->parent->status !== 'active')) {
+                continue;
+            }
             
             // Calculate max stock for this item
             if ($cart->variation) {
@@ -139,8 +146,17 @@ class OrderController extends Controller
 
         foreach ($carts as $cart) {
             $product = $cart->product;
-            if (!$product) {
-                \Log::warning("Missing product for cart ID {$cart->id}");
+            if (!$product || $product->status !== 'active' || !$product->show_in_ecommerce) {
+                $cart->delete();
+                $invalidItemsDeleted++;
+                continue;
+            }
+            
+            // Check category status
+            $category = $product->category;
+            if (!$category || $category->status !== 'active' || ($category->parent && $category->parent->status !== 'active')) {
+                $cart->delete();
+                $invalidItemsDeleted++;
                 continue;
             }
 

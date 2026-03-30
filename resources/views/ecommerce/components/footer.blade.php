@@ -50,14 +50,25 @@
             </div>
             <div class="col-lg-3">
                 <h4 class="footer-title">Contact Info</h4>
-                <p><i class="fas fa-phone"></i> {{$general_settings->contact_phone}}</p>
-                <p><i class="fas fa-envelope"></i> {{$general_settings->contact_email}}</p>
-                <p><i class="fas fa-map-marker-alt"></i> {{$general_settings->contact_address}}</p>
+                <div class="footer-contact-item">
+                    <i class="fas fa-phone"></i>
+                    <span>{{$general_settings->contact_phone}}</span>
+                </div>
+                <div class="footer-contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>{{$general_settings->contact_email}}</span>
+                </div>
+                <div class="footer-contact-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>{{$general_settings->contact_address}}</span>
+                </div>
             </div>
         </div>
-        <div class="footer-bottom text-center">
-            <p class="mb-0">&copy; {{ Date('Y') }} {{ $general_settings->site_title }}. All rights reserved.</p>
         </div>
+        <div class="footer-bottom text-center">
+            <div class="container">
+                <p class="mb-0">&copy; {{ Date('Y') }} {{ $general_settings->site_title }}. All rights reserved.</p>
+            </div>
         </div>
     </div>
 </footer>

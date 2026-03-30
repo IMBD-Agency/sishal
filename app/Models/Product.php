@@ -47,6 +47,24 @@ class Product extends Model
         'alert_quantity' => 'integer',
     ];
 
+    /**
+     * Scope a query to only include products that are active and belong to active categories/subcategories.
+     */
+    public function scopePublished($query)
+    {
+        return $query->where('status', 'active')
+            ->where('show_in_ecommerce', true)
+            ->whereHas('category', function ($q) {
+                $q->where('status', 'active')
+                  ->where(function ($q2) {
+                      $q2->whereNull('parent_id')
+                        ->orWhereHas('parent', function ($q3) {
+                            $q3->where('status', 'active');
+                        });
+                  });
+            });
+    }
+
     public function galleries()
     {
         return $this->hasMany(ProductGallery::class);

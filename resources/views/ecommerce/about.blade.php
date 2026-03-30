@@ -1,12 +1,44 @@
 @extends('ecommerce.master')
 
 @section('main-section')
-    <!-- Hero Section -->
-    <div class="hero-section text-white py-5">
-        <div class="container text-center">
-            <h1 class="hero-title d-flex justify-content-center">About Sisal <br><span class="hero-second-title ms-2">Fashion</span></h1>
+    <!-- Page Header -->
+    <div class="page-header-premium mb-5">
+        <div class="container container-custom">
+            <h1 class="page-title-main text-white mb-0">About Us</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0 mt-2">
+                    <li class="breadcrumb-item"><a href="/" class="text-white-50">Home</a></li>
+                    <li class="breadcrumb-item active text-white" aria-current="page">About Us</li>
+                </ol>
+            </nav>
         </div>
     </div>
+
+    <style>
+        .page-header-premium {
+            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+            padding: 80px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-header-premium::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 400px;
+            height: 400px;
+            background: var(--primary-color, #7fad39);
+            filter: blur(150px);
+            opacity: 0.1;
+        }
+        .page-title-main {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 2.8rem;
+            letter-spacing: -1px;
+        }
+    </style>
 
     <!-- Main Content -->
     <div class="container py-5">

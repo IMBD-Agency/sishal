@@ -4,60 +4,159 @@
 
 @push('styles')
 <style>
-.categories-section .section-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1a202c;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-    .categories-section .section-title {
-        font-size: 1.5rem;
-        margin-bottom: 1.5rem;
+    .categories-section {
+        background-color: #f8f9fa;
     }
-}
+    .category-card-simple {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        border: 1px solid #eee;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none !important;
+    }
+    .category-card-simple:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        border-color: var(--primary-color, #7fad39);
+    }
+    .category-icon-wrapper {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: #fdfdfd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        overflow: hidden;
+    }
+    .category-icon-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    .category-card-simple:hover .category-icon-wrapper img {
+        transform: scale(1.1);
+    }
+    .category-name-simple {
+        font-weight: 600;
+        color: #333;
+        font-size: 1.1rem;
+        margin-top: 10px;
+    }
+    .category-product-count {
+        font-size: 0.85rem;
+        color: #888;
+        margin-top: 5px;
+    }
+    .page-header-simple {
+        padding: 80px 0;
+        background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)), 
+                    url('https://www.transparenttextures.com/patterns/cubes.png'),
+                    linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-bottom: 1px solid #e1e8ed;
+        margin-bottom: 40px;
+        box-shadow: inset 0 -10px 20px rgba(0,0,0,0.02);
+    }
+    .page-title-simple {
+        font-weight: 800;
+        color: #1a202c;
+        margin-bottom: 15px;
+        font-size: 2.8rem;
+        letter-spacing: -1px;
+    }
+    .breadcrumb-item a {
+        color: var(--primary-color, #7fad39);
+        font-weight: 500;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    .breadcrumb-item a:hover {
+        color: #5d822b;
+        text-decoration: underline;
+    }
+    .breadcrumb-item.active {
+        color: #718096;
+        font-weight: 400;
+    }
+    .breadcrumb-divider {
+        color: #cbd5e0;
+        margin: 0 10px;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .page-header-simple {
+            padding: 40px 15px;
+            margin-bottom: 25px;
+        }
+        .page-title-simple {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+        .category-icon-wrapper {
+            width: 80px;
+            height: 80px;
+        }
+        .category-name-simple {
+            font-size: 0.95rem;
+        }
+    }
 </style>
 @endpush
 
 @section('main-section')
-<!-- Categories Grid Only -->
-<section class="categories-section py-5">
+<div class="page-header-simple">
+    <div class="container text-center">
+        <h1 class="page-title-simple text-uppercase">Shop By Category</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb justify-content-center mb-0">
+                <li class="breadcrumb-item"><a href="{{ route('ecommerce.home') }}">Home</a></li>
+                <li class="breadcrumb-divider">/</li>
+                <li class="breadcrumb-item active" aria-current="page">All Categories</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<section class="categories-section pb-5">
     <div class="container">
-        <h2 class="section-title mb-4">All Categories</h2>
         <div class="row g-4">
             @forelse($categories as $category)
-            <div class="col-6 col-md-4 col-lg-3 col-xxl-2">
-                <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="d-block text-decoration-none category-tile">
-                    <div class="tile-card">
-                        <div class="tile-img">
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="category-card-simple">
+                        <div class="category-icon-wrapper shadow-sm">
                             @if($category->image)
                                 <img src="{{ asset($category->image) }}" alt="{{ $category->name }}">
                             @else
-                                <div class="placeholder-image">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="60" height="60" fill="currentColor"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2"/></svg>
+                                <div class="bg-light w-100 h-100 d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-tags fa-2x text-muted opacity-50"></i>
                                 </div>
                             @endif
                         </div>
-                        <div class="tile-title">{{ $category->name }}</div>
-                    </div>
-                </a>
-            </div>
-            @empty
-            <div class="col-12 text-center">
-                <div class="no-categories">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="80" height="80" fill="currentColor"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2"/></svg>
-                    <h3>No Categories Available</h3>
-                    <p>Check back later for new categories!</p>
+                        <h3 class="category-name-simple">{{ $category->name }}</h3>
+                        @if($category->products_count > 0)
+                            <span class="category-product-count">{{ $category->products_count }} Products</span>
+                        @endif
+                    </a>
                 </div>
-            </div>
+            @empty
+                <div class="col-12 text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h3 class="text-muted">No categories found</h3>
+                </div>
             @endforelse
         </div>
     </div>
 </section>
 
-<!-- Add bottom spacing to prevent footer from being too close -->
-<div class="bottom-spacing" style="height: 60px;"></div>
+<div style="height: 50px;"></div>
 @endsection
-

@@ -69,9 +69,8 @@ class SalesAnalyticsService
                     AND order_items.created_at >= ?
                 ), 0) as total_revenue
             ', [$startDate, $startDate, $startDate, $startDate])
+            ->published()
             ->where('products.type', 'product')
-            ->where('products.status', 'active')
-            ->where('products.show_in_ecommerce', true)
             ->orderByDesc('total_sold')
             ->orderByDesc('total_revenue')
             ->orderByDesc('products.created_at')
@@ -92,9 +91,8 @@ class SalesAnalyticsService
                     'products.cost', 'products.meta_title', 'products.meta_description',
                     'products.meta_keywords'
                 ])
+                ->published()
                 ->where('products.type', 'product')
-                ->where('products.status', 'active')
-                ->where('products.show_in_ecommerce', true)
                 ->inRandomOrder(date('Ymd')) // Random order but consistent per day
                 ->take($limit)
                 ->get();

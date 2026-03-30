@@ -24,6 +24,16 @@ class ProductServiceCategory extends Model
         return $this->hasMany(self::class, 'parent_id');
     }
 
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'category_id');
+    }
+
+    public function publishedProducts()
+    {
+        return $this->hasMany(Product::class, 'category_id')->published();
+    }
+
     /**
      * Get all child category IDs recursively (including nested children)
      * 

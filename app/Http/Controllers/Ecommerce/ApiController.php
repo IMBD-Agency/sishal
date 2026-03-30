@@ -322,8 +322,7 @@ class ApiController extends Controller
                             }
                         ])
                         ->where('type', 'product')
-                        ->where('status', 'active')
-                        ->where('show_in_ecommerce', true);
+                        ->published();
                         
                         // Apply Stock Filtering
                         if ($ecommerceSourceType && $ecommerceSourceId) {
@@ -396,8 +395,7 @@ class ApiController extends Controller
                     }
                 ])
                 ->where('type', 'product')
-                ->where('status', 'active')
-                ->where('show_in_ecommerce', true);
+                ->published();
                 
                 // Apply Stock Filtering
                 if ($ecommerceSourceType && $ecommerceSourceId) {
@@ -611,8 +609,7 @@ class ApiController extends Controller
                         'variations.stocks'
                     ])
                         ->where('type', 'product')
-                        ->where('status', 'active')
-                        ->where('show_in_ecommerce', true);
+                        ->published();
                     
                     // Apply Stock Filtering
                     if ($ecommerceSourceType && $ecommerceSourceId) {
@@ -669,8 +666,7 @@ class ApiController extends Controller
                     'variations.stocks'
                 ])
                     ->where('type', 'product')
-                    ->where('status', 'active')
-                    ->where('show_in_ecommerce', true);
+                    ->published();
                 
                 // Apply Stock Filtering
                 if ($ecommerceSourceType && $ecommerceSourceId) {
