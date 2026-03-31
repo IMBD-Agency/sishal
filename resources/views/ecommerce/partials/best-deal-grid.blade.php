@@ -1,26 +1,33 @@
 @if($products->count() > 0)
     @foreach($products as $product)
-        <div class="col-lg-3 col-md-6 col-6 mt-0 mb-3 mb-md-4">
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
             <div class="product-card position-relative mb-0 h-100" 
+                style="border: 1px solid #e5e7eb !important; box-shadow: none !important; border-radius: 4px !important; background: #fff !important; transition: border-color 0.3s ease !important;"
                 data-href="{{ route('product.details', $product->slug) }}"
                 data-gtm-id="{{ $product->id }}"
                 data-gtm-name="{{ $product->name }}"
                 data-gtm-price="{{ $product->effective_price }}"
                 data-gtm-category="{{ $product->category->name ?? '' }}">
                 
-                <!-- Top Wishlist Button (Premium Design) -->
+                @php
+                    $effectivePrice = $product->effective_price;
+                    $originalPrice = $product->original_price;
+                    $hasDiscount = $product->hasDiscount() && $effectivePrice < $originalPrice;
+                    $discountPercentage = $hasDiscount ? round((($originalPrice - $effectivePrice) / $originalPrice) * 100) : 0;
+                    $saveAmount = $hasDiscount ? ($originalPrice - $effectivePrice) : 0;
+                @endphp
+
+                <!-- Top Discount Badge -->
+                @if($hasDiscount)
+                    <div class="product-discount-label">-{{ $discountPercentage }}%</div>
+                @endif
+
+                <!-- Top Wishlist Button -->
                 <button class="product-wishlist-top {{$product->is_wishlisted ? ' active' : ''}}"
                     data-product-id="{{ $product->id }}"
                     onclick="event.stopPropagation(); toggleWishlist({{ $product->id }});"
                     title="Add to Wishlist">
                     <i class="{{ $product->is_wishlisted ? 'fas' : 'far' }} fa-heart"></i>
-                </button>
-                
-                <!-- Wishlist Button (Compatibility) -->
-                <button class="wishlist-btn {{$product->is_wishlisted ? ' active' : ''}}"
-                    data-product-id="{{ $product->id }}"
-                    onclick="event.stopPropagation();">
-                    <i class="{{ $product->is_wishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
                 </button>
 
                 <div class="product-image-container">
@@ -31,54 +38,40 @@
                         onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
                 </div>
                 
-                <div class="product-info">
-                    <a href="{{ route('product.details', $product->slug) }}" class="product-title"
-                        style="text-decoration: none;">{{ $product->name }}</a>
+                <div class="product-info p-3">
+                    <a href="{{ route('product.details', $product->slug) }}" 
+                       class="product-title" 
+                       style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4; margin-bottom: 2px;"
+                       title="{{ $product->name }}">
+                        {{ $product->name }}
+                    </a>
                     
-                    <div class="product-meta" style="margin-top:6px;">
-                        @php
-                            $avgRating = $product->avg_rating ?? 0;
-                            $totalReviews = $product->total_reviews ?? 0;
-                        @endphp
-                        <div class="stars" aria-label="{{ $avgRating }} out of 5">
-                            @for ($i = 1; $i <= 5; $i++)
-                                <i class="fa{{ $i <= $avgRating ? 's' : 'r' }} fa-star"></i>
-                            @endfor
-                        </div>
-                        <div class="rating-text" style="font-size: 11px; color: #666; margin-top: 2px;">
-                            ({{ $totalReviews }} review{{ $totalReviews !== 1 ? 's' : '' }})
-                        </div>
-                    </div>
+                    @if($hasDiscount)
+                        <div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ {{ number_format($saveAmount) }}</div>
+                    @endif
 
-                    <div class="price">
-                        @php
-                            $effectivePrice = $product->effective_price;
-                            $originalPrice = $product->original_price;
-                            $hasDiscount = $product->hasDiscount();
-                        @endphp
-                        @if($hasDiscount && $effectivePrice < $originalPrice)
-                            <span class="fw-bold text-primary">
-                                {{ number_format($effectivePrice, 2) }}৳
-                            </span>
-                            <span class="text-muted text-decoration-line-through ms-2">
-                                {{ number_format($originalPrice, 2) }}৳
-                            </span>
-                        @else
-                            <span class="fw-bold text-primary">
-                                {{ number_format($originalPrice, 2) }}৳
-                            </span>
-                        @endif
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center gap-2">
-                        <a href="{{ route('product.details', $product->slug) }}" class="btn-add-cart" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;">
-                            <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
-                                <path
-                                    d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z">
-                                </path>
-                                <circle cx="7" cy="22" r="2"></circle>
-                                <circle cx="17" cy="22" r="2"></circle>
-                            </svg> View Product</a>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <div class="price-container">
+                            <div class="product-price-current fw-bold" style="color: #1a1a1a; font-size: 1.1rem;">
+                                ৳ {{ number_format($effectivePrice) }}
+                            </div>
+                            @if($hasDiscount)
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="product-price-old text-muted text-decoration-line-through" style="font-size: 0.8rem;">
+                                        ৳ {{ number_format($originalPrice) }}
+                                    </span>
+                                    <span class="product-discount-text" style="color: #ef4444; font-size: 0.8rem; font-weight: 600;">
+                                        -{{ $discountPercentage }}%
+                                    </span>
+                                </div>
+                            @endif
+                        </div>
+                        <a href="{{ route('product.details', $product->slug) }}" 
+                           class="floating-cart-btn" 
+                           onclick="event.stopPropagation();" 
+                           title="Add to Cart">
+                            <i class="fas fa-shopping-cart"></i>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -95,13 +88,3 @@
         </div>
     </div>
 @endif
-
-@if($products->hasPages() && !isset($hidePagination))
-    <div class="col-12">
-        <div class="d-flex justify-content-center mt-4">
-            {{ $products->links('vendor.pagination.bootstrap-5') }}
-        </div>
-    </div>
-@endif
-
-

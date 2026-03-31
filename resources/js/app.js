@@ -13,7 +13,7 @@ Alpine.start();
 
 // Delegated wishlist toggle handler (use capture so inline stopPropagation doesn't block)
 document.addEventListener('click', async (event) => {
-    const button = event.target.closest('.wishlist-btn');
+    const button = event.target.closest('.wishlist-btn, .product-wishlist-top');
     if (!button) return;
     event.preventDefault();
     event.stopPropagation();
@@ -315,33 +315,28 @@ document.addEventListener('DOMContentLoaded', function () {
                             return `
                         <li class="splide__slide">
                             <div class="product-card position-relative no-hover-border" data-href="/product/${product.slug}" data-gtm-id="${product.id}" data-gtm-name="${product.name}" data-gtm-price="${finalPrice}" data-gtm-category="${product.category_name || product.category || ''}">
-                                <button class="wishlist-btn${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
-                                    <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
+                                ${discount > 0 && discount < price ? `<div class="product-discount-label">-${Math.round(((price - discount) / price) * 100)}%</div>` : ''}
+                                <button class="product-wishlist-top ${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
+                                    <i class="${isWishlisted ? 'fas' : 'far'} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
                                     <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
-                                    ${rating > 0 ? `<div class="rating-badge">
-                                        <span>${rating.toFixed(1)}</span>
-                                        <i class="fas fa-star star"></i>
-                                        <span>| ${reviews}</span>
-                                    </div>` : ''}
                                 </div>
-                                <div class="product-info">
-                                    <a href="/product/${product.slug}" style="text-decoration: none" class="product-title" title="${product.name}">${product.name}</a>
-                                    <div class="price">
-                                        ${discount > 0 && discount < price ?
-                                    `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span><span class="old">${price.toFixed(2)}৳</span>` :
-                                    `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span>`
-                                }
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                        <a href="/product/${product.slug}" class="btn-add-cart" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;" title="View Product">
-                                            <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
-                                                <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
-                                                <circle cx="7" cy="22" r="2"></circle>
-                                                <circle cx="17" cy="22" r="2"></circle>
-                                            </svg> 
-                                            View Product
+                                <div class="product-info p-3">
+                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name}</a>
+                                    ${discount > 0 && discount < price ? `<div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ ${(price - discount).toLocaleString()}</div>` : ''}
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <div class="price-container">
+                                            <div class="product-price-current fw-bold" style="color: #1a1a1a; font-size: 1.1rem;">৳ ${finalPrice.toLocaleString()}</div>
+                                            ${discount > 0 && discount < price ? `
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="product-price-old text-muted text-decoration-line-through" style="font-size: 0.8rem;">৳ ${price.toLocaleString()}</span>
+                                                    <span class="product-discount-text" style="color: #ef4444; font-size: 0.8rem; font-weight: 600;">-${Math.round(((price - discount) / price) * 100)}%</span>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        <a href="/product/${product.slug}" class="floating-cart-btn" onclick="event.stopPropagation();" title="Add to Cart">
+                                            <i class="fas fa-shopping-cart"></i>
                                         </a>
                                     </div>
                                 </div>
@@ -572,29 +567,28 @@ document.addEventListener('DOMContentLoaded', function () {
                             return `
                         <li class="splide__slide">
                             <div class="product-card position-relative no-hover-border" data-href="/product/${product.slug}" data-gtm-id="${product.id}" data-gtm-name="${product.name}" data-gtm-price="${finalPrice}" data-gtm-category="${product.category_name || product.category || ''}">
-                                <button class="wishlist-btn${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
-                                    <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
+                                ${discount > 0 && discount < price ? `<div class="product-discount-label">-${Math.round(((price - discount) / price) * 100)}%</div>` : ''}
+                                <button class="product-wishlist-top ${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
+                                    <i class="${isWishlisted ? 'fas' : 'far'} fa-heart"></i>
                                 </button>
-                                <div class=\"product-image-container\">
-                                    <img src=\"${image}\" class=\"product-image\" alt=\"${product.name}\" loading=\"lazy\" onerror=\"this.onerror=null; this.src='/static/default-product.jpg';\">
-                                    ${rating > 0 ? `<div class=\"rating-badge\"><span>${rating.toFixed(1)}</span><i class=\"fas fa-star star\"></i><span>| ${reviews}</span></div>` : ''}
+                                <div class="product-image-container">
+                                    <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
                                 </div>
-                                <div class=\"product-info\">
-                                    <a href=\"/product/${product.slug}\" style=\"text-decoration: none\" class=\"product-title\" title=\"${product.name}\">${product.name}</a>
-                                    <div class="price">
-                                        ${discount > 0 && discount < price ?
-                                    `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span><span class="old">${price.toFixed(2)}৳</span>` :
-                                    `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span>`
-                                }
-                                    </div>
-                                    <div class=\"d-flex justify-content-between align-items-center gap-2 product-actions\">
-                                        <a href=\"/product/${product.slug}\" class=\"btn-add-cart\" style=\"text-decoration: none; display: inline-flex; justify-content: center; align-items: center;\" title=\"View Product\">
-                                            <svg xmlns=\"http://www.w3.org/2000/svg\" id=\"Outline\" viewBox=\"0 0 24 24\" fill=\"#fff\" width=\"14\" height=\"14\">
-                                                <path d=\"M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z\"></path>
-                                                <circle cx=\"7\" cy=\"22\" r=\"2\"></circle>
-                                                <circle cx=\"17\" cy=\"22\" r=\"2\"></circle>
-                                            </svg> 
-                                            View Product
+                                <div class="product-info p-3">
+                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name}</a>
+                                    ${discount > 0 && discount < price ? `<div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ ${(price - discount).toLocaleString()}</div>` : ''}
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <div class="price-container">
+                                            <div class="product-price-current fw-bold" style="color: #1a1a1a; font-size: 1.1rem;">৳ ${finalPrice.toLocaleString()}</div>
+                                            ${discount > 0 && discount < price ? `
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="product-price-old text-muted text-decoration-line-through" style="font-size: 0.8rem;">৳ ${price.toLocaleString()}</span>
+                                                    <span class="product-discount-text" style="color: #ef4444; font-size: 0.8rem; font-weight: 600;">-${Math.round(((price - discount) / price) * 100)}%</span>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        <a href="/product/${product.slug}" class="floating-cart-btn" onclick="event.stopPropagation();" title="Add to Cart">
+                                            <i class="fas fa-shopping-cart"></i>
                                         </a>
                                     </div>
                                 </div>
@@ -820,33 +814,28 @@ document.addEventListener('DOMContentLoaded', function () {
                             return `
                         <li class="splide__slide">
                             <div class="product-card position-relative no-hover-border" data-href="/product/${product.slug}" data-gtm-id="${product.id}" data-gtm-name="${product.name}" data-gtm-price="${finalPrice}" data-gtm-category="${product.category_name || product.category || ''}">
-                                <button class="wishlist-btn${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
-                                    <i class="${isWishlisted ? 'fas text-danger' : 'far'} fa-heart"></i>
+                                ${discount > 0 && discount < price ? `<div class="product-discount-label">-${Math.round(((price - discount) / price) * 100)}%</div>` : ''}
+                                <button class="product-wishlist-top ${isWishlisted ? ' active' : ''}" data-product-id="${product.id}" title="${isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}" type="button" onclick="event.stopPropagation();">
+                                    <i class="${isWishlisted ? 'fas' : 'far'} fa-heart"></i>
                                 </button>
                                 <div class="product-image-container">
                                     <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
-                                    ${rating > 0 ? `<div class="rating-badge">
-                                        <span>${rating.toFixed(1)}</span>
-                                        <i class="fas fa-star star"></i>
-                                        <span>| ${reviews}</span>
-                                    </div>` : ''}
                                 </div>
-                                <div class="product-info">
-                                    <a href="/product/${product.slug}" style="text-decoration: none" class="product-title" title="${product.name}">${product.name}</a>
-                                    <div class="price">
-                                        ${discount > 0 && discount < price ?
-                                    `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span><span class="old">${price.toFixed(2)}৳</span>` :
-                                    `<span class="fw-bold text-primary">${finalPrice.toFixed(2)}৳</span>`
-                                }
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center gap-2 product-actions">
-                                        <a href="/product/${product.slug}" class="btn-add-cart" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;" title="View Product">
-                                            <svg xmlns="http://www.w3.org/2000/svg" id="Outline" viewBox="0 0 24 24" fill="#fff" width="14" height="14">
-                                                <path d="M22.713,4.077A2.993,2.993,0,0,0,20.41,3H4.242L4.2,2.649A3,3,0,0,0,1.222,0H1A1,1,0,0,0,1,2h.222a1,1,0,0,1,.993.883l1.376,11.7A5,5,0,0,0,8.557,19H19a1,1,0,0,0,0-2H8.557a3,3,0,0,1-2.82-2h11.92a5,5,0,0,0,4.921-4.113l.785-4.354A2.994,2.994,0,0,0,22.713,4.077ZM21.4,6.178l-.786,4.354A3,3,0,0,1,17.657,13H5.419L4.478,5H20.41A1,1,0,0,1,21.4,6.178Z"></path>
-                                                <circle cx="7" cy="22" r="2"></circle>
-                                                <circle cx="17" cy="22" r="2"></circle>
-                                            </svg> 
-                                            View Product
+                                <div class="product-info p-3">
+                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name}</a>
+                                    ${discount > 0 && discount < price ? `<div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ ${(price - discount).toLocaleString()}</div>` : ''}
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <div class="price-container">
+                                            <div class="product-price-current fw-bold" style="color: #1a1a1a; font-size: 1.1rem;">৳ ${finalPrice.toLocaleString()}</div>
+                                            ${discount > 0 && discount < price ? `
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="product-price-old text-muted text-decoration-line-through" style="font-size: 0.8rem;">৳ ${price.toLocaleString()}</span>
+                                                    <span class="product-discount-text" style="color: #ef4444; font-size: 0.8rem; font-weight: 600;">-${Math.round(((price - discount) / price) * 100)}%</span>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        <a href="/product/${product.slug}" class="floating-cart-btn" onclick="event.stopPropagation();" title="Add to Cart">
+                                            <i class="fas fa-shopping-cart"></i>
                                         </a>
                                     </div>
                                 </div>

@@ -5,6 +5,22 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    /* Splide Arrows Synchronization for Related Products section */
+    #relatedProductsSplide .splide__arrow {
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        opacity: 0 !important;
+        width: 40px !important;
+        height: 40px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+        transition: all 0.3s ease !important;
+    }
+    #relatedProductsSplide:hover .splide__arrow { opacity: 1 !important; }
+    #relatedProductsSplide .splide__arrow:hover { background: #00512C !important; border-color: #00512C !important; color: #fff !important; }
+    #relatedProductsSplide .splide__arrow svg { fill: #374151 !important; transition: all 0.3s ease !important; }
+    #relatedProductsSplide .splide__arrow:hover svg { fill: white !important; }
+</style>
 @endpush
 
 @section('main-section')
@@ -522,11 +538,11 @@
             $sourceType = $settings->ecommerce_source_type ?? null;
             $sourceId = $settings->ecommerce_source_id ?? null;
         @endphp
-        <section class="pd-related-section mt-4 py-4 bg-light">
+        <section class="pd-related-section mt-4 py-5" style="background: #fff; border-top: 1px solid #f0f0f0;">
             <div class="container">
-                <div class="pd-section-header text-center mb-4">
-                    <h2 class="pd-section-title" style="font-size: 24px; font-weight: 800; margin-bottom: 5px;">You Might Also Like</h2>
-                    <p class="text-muted small m-0">Handpicked selection of similar premium items</p>
+                <div class="pd-section-header text-center mb-5">
+                    <h2 class="pd-section-title" style="font-size: 28px; font-weight: 800; color: #111827; margin-bottom: 8px;">You Might Also Like</h2>
+                    <p class="text-muted" style="font-size: 15px;">Handpicked selection of similar premium items</p>
                 </div>
 
                 <div id="relatedProductsSplide" class="splide pd-related-splide" aria-label="You Might Also Like">
@@ -537,9 +553,8 @@
                                     $isWishlisted = in_array($relatedProduct->id, $wishlistedIds);
                                     $effPrice = $relatedProduct->effective_price;
                                     $origPrice = $relatedProduct->original_price;
-                                    $avgRating = $relatedProduct->reviews->avg('rating') ?? 0;
                                     
-                                    // Stock logic for related
+                                    // Stock logic
                                     $hasStock = false;
                                     if ($sourceType && $sourceId) {
                                         if ($relatedProduct->has_variations) {
@@ -556,47 +571,34 @@
                                     }
                                 @endphp
                                 <li class="splide__slide">
-                                    <div class="pd-product-card" 
-                                        data-href="{{ route('product.details', $relatedProduct->slug) }}"
-                                        data-gtm-id="{{ $relatedProduct->id }}"
-                                        data-gtm-name="{{ $relatedProduct->name }}"
-                                        data-gtm-price="{{ $effPrice }}"
-                                        data-gtm-category="{{ $relatedProduct->category->name ?? '' }}">
+                                    <div class="product-card" 
+                                        data-href="{{ route('product.details', $relatedProduct->slug) }}">
                                         
-                                        <div class="pd-card-image">
+                                        <div class="product-image-container">
                                             <img src="{{ asset($relatedProduct->image) }}" 
+                                                 class="product-image"
                                                  alt="{{ $relatedProduct->name }}" 
-                                                 loading="lazy" 
-                                                 onerror="this.onerror=null; this.src='{{ asset('static/default-product.jpg') }}';">
+                                                 loading="lazy">
                                             
-                                            <button class="pd-card-wishlist{{ $isWishlisted ? ' active' : '' }}" 
-                                                    data-product-id="{{ $relatedProduct->id }}" 
+                                            <button class="product-wishlist-top{{ $isWishlisted ? ' active' : '' }}" 
+                                                    data-product-id="{{ $relatedProduct->id }}"
                                                     onclick="event.stopPropagation(); toggleWishlist({{ $relatedProduct->id }}, this)">
-                                                <i class="{{ $isWishlisted ? 'fas text-danger' : 'far' }} fa-heart"></i>
+                                                <i class="{{ $isWishlisted ? 'fas text-danger' : 'far' }} fa-heart" style="font-size: 1.1rem;"></i>
                                             </button>
 
-                                            @if(!$hasStock)
-                                                <div class="pd-card-badge stock-out">Out of Stock</div>
-                                            @elseif($effPrice < $origPrice)
-                                                @php
-                                                    $off = round((($origPrice - $effPrice) / $origPrice) * 100);
-                                                @endphp
-                                                <div class="pd-card-badge discount">-{{ $off }}%</div>
-                                            @endif
-
-                                            <div class="pd-card-overlay">
-                                                <span class="pd-overlay-text">VIEW DETAILS</span>
-                                            </div>
+                                            <button class="floating-cart-btn" 
+                                                    title="Select Options"
+                                                    onclick="event.stopPropagation(); window.location.href='{{ route('product.details', $relatedProduct->slug) }}'">
+                                                <i class="fas fa-shopping-basket"></i>
+                                            </button>
                                         </div>
 
-                                        <div class="pd-card-info">
-                                            <h3 class="pd-card-title">{{ $relatedProduct->name }}</h3>
-                                            <div class="pd-card-price">
+                                        <div class="product-card-info">
+                                            <h3 class="product-title">{{ $relatedProduct->name }}</h3>
+                                            <div class="product-card-price">
+                                                <span class="current">TK. {{ number_format($effPrice, 0) }}</span>
                                                 @if($effPrice < $origPrice)
-                                                    <span class="current">TK. {{ number_format($effPrice, 0) }}</span>
                                                     <span class="original">TK. {{ number_format($origPrice, 0) }}</span>
-                                                @else
-                                                    <span class="current">TK. {{ number_format($effPrice, 0) }}</span>
                                                 @endif
                                             </div>
                                         </div>
@@ -1889,11 +1891,15 @@
             });
 
             // Related product card clicks
-            document.querySelectorAll('.pd-product-card').forEach(card => {
+            document.querySelectorAll('.product-card').forEach(card => {
                 card.onclick = function(e) {
-                    if (e.target.closest('.pd-card-wishlist')) return;
+                    // Correctly exclude interactive buttons from card click
+                    if (e.target.closest('.product-wishlist-top') || e.target.closest('.floating-cart-btn')) {
+                        console.log('[PD] Interactive element clicked, preventing card redirect');
+                        return;
+                    }
                     const href = this.getAttribute('data-href');
-            if (href) window.location.href = href;
+                    if (href) window.location.href = href;
                 };
             });
 

@@ -3,7 +3,7 @@
 @section('main-section')
     <section class="featured-categories pb-2 pb-md-3 pt-3 pt-md-5">
         <div class="container container-80 featured-plain">
-            <h2 class="section-title text-start mb-0">Our Products</h2>
+            <h2 class="section-title text-start mb-0">OUR PRODUCTS</h2>
             
         </div>
     </section>
@@ -11,7 +11,7 @@
     <div class="container container-80 py-2 py-md-4">
         <div class="row">
             <!-- Sidebar Filters (hidden on mobile) -->
-            <div id="filterFormDesktop" class="col-md-3 mb-4 d-none d-md-block">
+            <div id="filterFormDesktop" class="col-md-3 mb-4 d-none d-md-block" style="position: sticky; top: 160px; z-index: 1000; align-self: flex-start; max-height: calc(100vh - 180px); overflow-y: auto; scrollbar-width: none;">
                 <div class="filter-card">
                     <div class="filter-header">
                         <h5 class="filter-title">
@@ -1486,8 +1486,8 @@
         /* Sticky filter/sort bar for mobile */
         .sticky-filter-bar {
             position: sticky;
-            top: 72px; /* keep below fixed header */
-            z-index: 100;
+            top: 100px; /* keep below fixed header (80px on mobile) */
+            z-index: 1000;
             background: #fff;
             padding: 12px 0;
             margin-bottom: 16px;

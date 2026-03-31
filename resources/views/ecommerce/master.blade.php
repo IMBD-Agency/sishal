@@ -781,6 +781,25 @@
                 });
         };
 
+        // Global helper for simplified add-to-cart clicks (used by floating buttons)
+        window.handleGlobalAddToCart = function (productId, productName) {
+            console.log('[CART] handleGlobalAddToCart triggered for:', productId, productName);
+            
+            // Create a dummy button that globalCartHandler expects
+            var dummyBtn = document.createElement('button');
+            dummyBtn.className = 'btn-add-cart';
+            dummyBtn.setAttribute('data-product-id', productId);
+            dummyBtn.setAttribute('data-product-name', productName);
+            dummyBtn.setAttribute('data-has-stock', 'true'); 
+            
+            // Call the handler
+            window.globalCartHandler({
+                target: dummyBtn,
+                preventDefault: function(){},
+                stopPropagation: function(){}
+            });
+        };
+
         // Remove any existing global cart listeners and add the new one
         document.removeEventListener('click', window.globalCartHandler);
         document.addEventListener('click', window.globalCartHandler);
