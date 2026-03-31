@@ -1,6 +1,6 @@
 @if($products->count() > 0)
     @foreach($products as $product)
-        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+        <div class="col-6 col-md-4 col-lg-3 mb-3 px-2 px-md-3">
             <div class="product-card position-relative mb-0 h-100" 
                 style="border: 1px solid #e5e7eb !important; box-shadow: none !important; border-radius: 4px !important; background: #fff !important; transition: border-color 0.3s ease !important;"
                 data-href="{{ route('product.details', $product->slug) }}"

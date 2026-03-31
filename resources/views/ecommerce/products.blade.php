@@ -2,25 +2,95 @@
 
 @section('main-section')
     <section class="featured-categories pb-2 pb-md-3 pt-3 pt-md-5">
-        <div class="container container-80 featured-plain">
+        <div class="container-fluid px-lg-4 px-xl-5 featured-plain">
             <h2 class="section-title text-start mb-0">OUR PRODUCTS</h2>
-            
         </div>
     </section>
 
-    <div class="container container-80 py-2 py-md-4">
+    <div class="container-fluid px-lg-4 px-xl-5 py-2 py-md-4">
         <div class="row">
             <!-- Sidebar Filters (hidden on mobile) -->
-            <div id="filterFormDesktop" class="col-md-3 mb-4 d-none d-md-block" style="position: sticky; top: 160px; z-index: 1000; align-self: flex-start; max-height: calc(100vh - 180px); overflow-y: auto; scrollbar-width: none;">
-                <div class="filter-card">
-                    <div class="filter-header">
-                        <h5 class="filter-title">
-                            <i class="fas fa-filter me-2"></i>Filters
-                        </h5>
-                        <button type="button" class="btn-clear-filters" id="clearFilters">
-                            <i class="fas fa-times"></i> Clear All
-                        </button>
-                    </div>
+            <div class="col-md-3 mb-4 d-none d-md-block">
+                <div id="filterFormDesktop" style="position: sticky; top: 140px; z-index: 1000; max-height: calc(100vh - 160px); overflow-y: auto; padding-right: 12px; transition: scrollbar 0.3s ease;">
+                    <style>
+                        /* SENIOR UI REFINEMENTS */
+                        #filterFormDesktop::-webkit-scrollbar { width: 5px; }
+                        #filterFormDesktop::-webkit-scrollbar-track { background: transparent; }
+                        #filterFormDesktop::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                        
+                        .filter-card {
+                            background: #fafafa !important;
+                            border: 1px solid #f1f5f9 !important;
+                            border-radius: 12px !important;
+                            padding: 20px !important;
+                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                        }
+                        
+                        .filter-section { border-bottom: 1px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 20px; }
+                        .filter-section:last-child { border-bottom: none; }
+                        
+                        .filter-section-title { 
+                            font-size: 0.85rem !important; 
+                            font-weight: 700 !important; 
+                            color: #1e293b !important; 
+                            text-transform: uppercase; 
+                            letter-spacing: 0.5px; 
+                        }
+
+                        /* Premium Price Styling */
+                        .product-card .current {
+                            font-size: 1.15rem !important;
+                            font-weight: 800 !important;
+                            color: #000 !important;
+                            letter-spacing: -0.2px;
+                        }
+
+                        /* Custom Sort Select */
+                        #sortSelect, #sortSelectMobile {
+                            border-radius: 8px;
+                            border: 1px solid #e2e8f0;
+                            font-size: 14px;
+                            padding: 8px 36px 8px 12px;
+                            background-color: #f8fafc;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        }
+                        #sortSelect:hover { border-color: #00512C; background-color: #fff; }
+
+                        /* Section Title refinement */
+                        .section-title {
+                            font-family: 'Outfit', sans-serif;
+                            font-weight: 800;
+                            letter-spacing: -0.5px;
+                            color: #1e293b;
+                            position: relative;
+                            padding-bottom: 10px;
+                        }
+                        .section-title::after {
+                            content: '';
+                            position: absolute;
+                            bottom: 0;
+                            left: 0;
+                            width: 40px;
+                            height: 3px;
+                            background: #00512C;
+                            border-radius: 2px;
+                        }
+
+                        @media (max-width: 768px) {
+                            .product-card .current { font-size: 1rem !important; }
+                            .section-title { font-size: 1.25rem !important; }
+                        }
+                    </style>
+                    <div class="filter-card">
+                        <div class="filter-header d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="filter-title m-0" style="font-weight: 800; font-size: 1.1rem; color: #1e293b;">
+                                <i class="fas fa-sliders-h me-2 text-primary"></i>Filters
+                            </h5>
+                            <button type="button" class="btn-clear-filters border-0 bg-transparent text-muted small" id="clearFilters" style="font-size: 0.75rem; text-decoration: underline;">
+                                Clear All
+                            </button>
+                        </div>
                     
                     <!-- Category Filter -->
                     <div class="filter-section">
@@ -139,11 +209,11 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
+        </div>
 
-            <!-- Product Grid -->
+        <!-- Product Grid -->
             <div class="col-md-9 col-12">
                 <!-- Sticky filter/sort bar for mobile -->
                 <div class="sticky-filter-bar d-md-none">

@@ -3,19 +3,19 @@
 @section('main-section')
     <style></style>
     <section class="featured-categories featured-plain pb-3 pt-5">
-        <div class="container container-80">
+        <div class="container-fluid px-lg-4 px-xl-5">
             <h2 class="section-title text-start">Best Deal</h2>
         </div>
     </section>
 
-    <div class="container container-80 py-4">
-        <div class="row g-4 grid-5" id="best-deal-container" data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}" data-current-page="{{ $products->currentPage() }}">
+    <div class="container-fluid px-lg-4 px-xl-5 py-4">
+        <div class="row g-2 g-md-4 grid-5" id="best-deal-container" data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}" data-current-page="{{ $products->currentPage() }}">
             @include('ecommerce.partials.best-deal-grid', ['products' => $products, 'hidePagination' => true])
         </div>
     </div>
     
     <!-- Loading indicator and Load More button (outside container for proper positioning) -->
-    <div class="container container-80">
+    <div class="container-fluid px-lg-4 px-xl-5">
         <div id="best-deal-loading" class="text-center py-4" style="display: none;">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>

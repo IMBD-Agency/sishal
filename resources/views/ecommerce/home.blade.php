@@ -601,16 +601,6 @@
 
         /* Mobile specific font reductions for section headers */
         @media (max-width: 768px) {
-            .section-header--fancy .section-title {
-                font-size: 1.1rem !important;
-                letter-spacing: 0 !important;
-            }
-            .section-header--fancy .section-see-all {
-                font-size: 10px !important;
-                padding: 4px 8px !important;
-                text-transform: uppercase;
-                font-weight: 600;
-            }
             .splide__arrows {
                 display: none !important;
             }
