@@ -45,14 +45,16 @@
 
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
-                            <select class="form-select form-select-sm select2-simple" name="branch_id" data-placeholder="All Branches">
+                            <select class="form-select form-select-sm select2-simple" name="branch_id" data-placeholder="All Branches" {{ $restrictedBranchId ? 'disabled' : '' }}>
                                 <option value="">All Branches</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}" {{ $selectedBranchId == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                                 @endforeach
                             </select>
+                            @if($restrictedBranchId)
+                                <input type="hidden" name="branch_id" value="{{ $restrictedBranchId }}">
+                            @endif
                         </div>
-                        @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasRole('Admin') || !empty($warehouses) && count($warehouses) > 0)
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Warehouse</label>
                             <select class="form-select form-select-sm select2-simple" name="warehouse_id" data-placeholder="All Warehouses">
@@ -62,7 +64,6 @@
                                 @endforeach
                             </select>
                         </div>
-                        @endif
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
                             <select class="form-select form-select-sm select2-simple" name="category_id" data-placeholder="All Categories">
@@ -195,9 +196,7 @@
                                 <th>Item Details</th>
                                 <th>Style / SKU</th>
                                 <th>Category</th>
-                                <th>Brand</th>
-                                <th>Season</th>
-                                <th>Gender</th>
+                                <th>Size Breakdown</th>
                                 <th class="text-end">Pur. Price</th>
                                 <th class="text-end">MRP</th>
                                 <th class="text-center">Total Stock</th>
@@ -213,31 +212,39 @@
 
                                     $branchStockData = [];
                                     $warehouseStockData = [];
+                                    $sizeSumData = []; // Combined sizes across visible locations
                                     $hasNegativeStock = false;
 
                                     if ($stock->has_variations) {
                                         foreach ($stock->variations as $var) {
+                                            $sizeName = $var->attributeValues->pluck('value')->implode(', ') ?: 'Default';
                                             foreach ($var->stocks as $s) {
                                                 if ($s->branch_id) {
-                                                    $name = $s->branch->name ?? 'Unknown';
-                                                    $branchStockData[$name] = ($branchStockData[$name] ?? 0) + $s->quantity;
+                                                    $locName = $s->branch->name ?? 'Unknown';
+                                                    if(!isset($branchStockData[$locName])) $branchStockData[$locName] = [];
+                                                    $branchStockData[$locName][] = ['size' => $sizeName, 'qty' => $s->quantity];
+                                                    
+                                                    $sizeSumData[$sizeName] = ($sizeSumData[$sizeName] ?? 0) + $s->quantity;
                                                     if ($s->quantity < 0) $hasNegativeStock = true;
                                                 } else {
-                                                    $name = $s->warehouse->name ?? 'Unknown';
-                                                    $warehouseStockData[$name] = ($warehouseStockData[$name] ?? 0) + $s->quantity;
+                                                    $locName = $s->warehouse->name ?? 'Unknown';
+                                                    if(!isset($warehouseStockData[$locName])) $warehouseStockData[$locName] = [];
+                                                    $warehouseStockData[$locName][] = ['size' => $sizeName, 'qty' => $s->quantity];
+                                                    
+                                                    $sizeSumData[$sizeName] = ($sizeSumData[$sizeName] ?? 0) + $s->quantity;
                                                     if ($s->quantity < 0) $hasNegativeStock = true;
                                                 }
                                             }
                                         }
                                     } else {
                                         foreach ($stock->branchStock as $s) {
-                                            $name = $s->branch->name ?? 'Unknown';
-                                            $branchStockData[$name] = ($branchStockData[$name] ?? 0) + $s->quantity;
+                                            $locName = $s->branch->name ?? 'Unknown';
+                                            $branchStockData[$locName] = [['size' => 'N/A', 'qty' => $s->quantity]];
                                             if ($s->quantity < 0) $hasNegativeStock = true;
                                         }
                                         foreach ($stock->warehouseStock as $s) {
-                                            $name = $s->warehouse->name ?? 'Unknown';
-                                            $warehouseStockData[$name] = ($warehouseStockData[$name] ?? 0) + $s->quantity;
+                                            $locName = $s->warehouse->name ?? 'Unknown';
+                                            $warehouseStockData[$locName] = [['size' => 'N/A', 'qty' => $s->quantity]];
                                             if ($s->quantity < 0) $hasNegativeStock = true;
                                         }
                                     }
@@ -255,19 +262,31 @@
                                             </div>
                                             <div>
                                                 <div class="fw-bold text-dark">{{ $stock->name }}</div>
-                                                <div class="small text-muted">{{ number_format($stock->price, 2) }}৳</div>
+                                                <div class="small text-muted">{{ $stock->brand->name ?? '-' }} | {{ $stock->gender->name ?? 'ALL' }}</div>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <code class="text-primary bg-light px-2 py-1 rounded small">{{ $stock->sku }}</code>
+                                        <code class="text-primary bg-light px-2 py-1 rounded small">{{ $stock->style_number ?? $stock->sku }}</code>
                                     </td>
                                     <td>
                                         <span class="category-tag">{{ $stock->category->name ?? '-' }}</span>
                                     </td>
-                                    <td>{{ $stock->brand->name ?? '-' }}</td>
-                                    <td class="text-uppercase small">{{ $stock->season->name ?? 'ALL' }}</td>
-                                    <td class="text-uppercase small">{{ $stock->gender->name ?? 'ALL' }}</td>
+                                    <td>
+                                        @if($stock->has_variations)
+                                            <div class="d-flex flex-wrap gap-1">
+                                                @foreach($sizeSumData as $size => $qty)
+                                                    @if($qty > 0)
+                                                        <span class="badge bg-light text-dark border small fw-normal">
+                                                            <span class="text-muted">{{ $size }}:</span> <strong class="{{ $qty <= 5 ? 'text-danger' : 'text-primary' }}">{{ $qty }}</strong>
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <span class="text-muted small italic">No variations</span>
+                                        @endif
+                                    </td>
                                     <td class="text-end fw-bold">{{ number_format($stock->cost, 2) }}</td>
                                     <td class="text-end fw-bold">{{ number_format($stock->price, 2) }}</td>
                                     <td class="text-center">
@@ -279,7 +298,7 @@
                                         @endif
                                     </td>
                                     <td class="text-end fw-bold">
-                                        {{ number_format($totalStock * $stock->cost, 2) }}
+                                         {{ number_format($totalStock * $stock->cost, 2) }}
                                     </td>
                                     <td class="text-center">
                                         @php $locCount = count($branchStockData) + count($warehouseStockData); @endphp
@@ -289,6 +308,7 @@
                                     </td>
                                     <td class="text-center pe-3">
                                         <button class="btn btn-action view-breakdown" 
+                                                data-name="{{ $stock->name }}"
                                                 data-branch-stock='@json($branchStockData)'
                                                 data-warehouse-stock='@json($warehouseStockData)'>
                                             <i class="fas fa-eye"></i>
@@ -297,6 +317,18 @@
                                 </tr>
                             @endforeach
                         </tbody>
+                        <tfoot class="bg-light fw-bold border-top-0">
+                            <tr>
+                                <td colspan="7" class="text-end ps-3 py-3">GRAND TOTAL (Filtered)</td>
+                                <td class="text-center py-3">
+                                    <span class="badge bg-dark fs-6 px-3">{{ number_format($totalStockQty) }}</span>
+                                </td>
+                                <td class="text-end py-3 text-primary">
+                                    ৳{{ number_format($totalStockValue, 2) }}
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -313,10 +345,10 @@
 
     <!-- Stock Breakdown Modal -->
     <div class="modal fade" id="stockBreakdownModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-white border-bottom p-4">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-warehouse me-2 text-primary"></i>Stock Distribution</h5>
+                    <h5 class="modal-title fw-bold"><i class="fas fa-warehouse me-2 text-primary"></i> <span id="modalProductName">Stock Distribution</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0">
@@ -326,6 +358,7 @@
                                 <tr>
                                     <th class="ps-4 py-3">Location Type</th>
                                     <th class="py-3">Name</th>
+                                    <th class="py-3">Size/Variation</th>
                                     <th class="text-end pe-4 py-3">Available Qty</th>
                                 </tr>
                             </thead>
@@ -347,62 +380,50 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize tooltips/select2
-
-
     $('.view-breakdown').on('click', function() {
-        var branchData = $(this).data('branch-stock') || [];
-        var warehouseData = $(this).data('warehouse-stock') || [];
+        var branchData = $(this).data('branch-stock') || {};
+        var warehouseData = $(this).data('warehouse-stock') || {};
+        var productName = $(this).data('name');
 
-        // Convert object to array if needed (handles PHP's json_encode behavior for associative arrays)
-        var branchStock = (Array.isArray(branchData)) ? branchData : Object.entries(branchData).map(([k,v]) => ({name: k, qty: v}));
-        var warehouseStock = (Array.isArray(warehouseData)) ? warehouseData : Object.entries(warehouseData).map(([k,v]) => ({name: k, qty: v}));
-
-        // Use entries if simple key-value pairs were passed directly
-        if(branchData && !Array.isArray(branchData) && typeof branchData === 'object' && branchStock.length === 0){
-             branchStock = Object.keys(branchData).map(key => ({name: key, qty: branchData[key]}));
-        }
-         if(warehouseData && !Array.isArray(warehouseData) && typeof warehouseData === 'object' && warehouseStock.length === 0){
-             warehouseStock = Object.keys(warehouseData).map(key => ({name: key, qty: warehouseData[key]}));
-        }
+        $('#modalProductName').text(productName + ' - Stock Breakdown');
 
         var tbody = $('#stockBreakdownTableBody');
         tbody.empty();
         
         let hasData = false;
 
-        branchStock.forEach(function(item) {
-            let name = item.name || item.branch_name; // Fallback
-            let qty = item.qty || item.quantity;
-            if(name) {
+        // Process Branches
+        Object.entries(branchData).forEach(([locName, items]) => {
+            items.forEach((item, index) => {
                 hasData = true;
                 tbody.append(`
                     <tr>
-                        <td class="ps-4"><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Branch</span></td>
-                        <td class="fw-bold text-dark">${name}</td>
-                        <td class="text-end pe-4"><span class="fw-bold ${qty < 5 ? 'text-danger' : 'text-success'}">${qty}</span></td>
+                        <td class="ps-4">${index === 0 ? '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Branch</span>' : ''}</td>
+                        <td class="fw-bold text-dark">${index === 0 ? locName : ''}</td>
+                        <td><span class="badge bg-light text-muted border fw-normal">${item.size}</span></td>
+                        <td class="text-end pe-4"><span class="fw-bold ${item.qty < 5 ? 'text-danger' : 'text-success'}">${item.qty}</span></td>
                     </tr>
                 `);
-            }
+            });
         });
 
-        warehouseStock.forEach(function(item) {
-             let name = item.name || item.warehouse_name;
-             let qty = item.qty || item.quantity;
-             if(name) {
+        // Process Warehouses
+        Object.entries(warehouseData).forEach(([locName, items]) => {
+            items.forEach((item, index) => {
                 hasData = true;
                 tbody.append(`
                     <tr>
-                        <td class="ps-4"><span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Warehouse</span></td>
-                        <td class="fw-bold text-dark">${name}</td>
-                        <td class="text-end pe-4"><span class="fw-bold ${qty < 5 ? 'text-danger' : 'text-success'}">${qty}</span></td>
+                        <td class="ps-4">${index === 0 ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Warehouse</span>' : ''}</td>
+                        <td class="fw-bold text-dark">${index === 0 ? locName : ''}</td>
+                        <td><span class="badge bg-light text-muted border fw-normal">${item.size}</span></td>
+                        <td class="text-end pe-4"><span class="fw-bold ${item.qty < 5 ? 'text-danger' : 'text-success'}">${item.qty}</span></td>
                     </tr>
                 `);
-            }
+            });
         });
 
         if (!hasData) {
-            tbody.append('<tr><td colspan="3" class="text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-3 opacity-25"></i><p class="mb-0">No stock allocated to specific locations.</p></td></tr>');
+            tbody.append('<tr><td colspan="4" class="text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-3 opacity-25"></i><p class="mb-0">No stock allocated to specific locations.</p></td></tr>');
         }
 
         $('#stockBreakdownModal').modal('show');

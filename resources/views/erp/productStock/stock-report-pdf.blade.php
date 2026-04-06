@@ -25,28 +25,36 @@
         <thead>
             <tr>
                 <th style="width: 3%;">#</th>
-                <th style="width: 22%;">Product Name</th>
-                <th style="width: 12%;">Style/SKU</th>
-                <th style="width: 10%;">Category</th>
-                <th style="width: 10%;">Brand</th>
-                <th style="width: 8%;">Season</th>
-                <th style="width: 8%;">Gender</th>
-                <th style="width: 8%; text-align: right;">Cost</th>
-                <th style="width: 8%; text-align: right;">MRP</th>
-                <th style="width: 7%; text-align: center;">Qty</th>
-                <th style="width: 12%; text-align: right;">Value</th>
+                <th style="width: 18%;">Product</th>
+                <th style="width: 10%;">Style/SKU</th>
+                <th style="width: 8%;">Category</th>
+                <th style="width: 8%;">Brand</th>
+                <th style="width: 18%;">Sizes Breakdown</th>
+                <th style="width: 7%; text-align: right;">Cost</th>
+                <th style="width: 7%; text-align: right;">MRP</th>
+                <th style="width: 5%; text-align: center;">Qty</th>
+                <th style="width: 10%; text-align: right;">Value</th>
             </tr>
         </thead>
         <tbody>
             @foreach($products as $index => $product)
                 @php
                     $total = 0;
+                    $sizes = [];
                     if ($product->has_variations) {
-                        foreach($product->variations as $v) { $total += $v->stocks ? $v->stocks->sum('quantity') : 0; }
+                        foreach($product->variations as $v) { 
+                            $qty = $v->stocks ? $v->stocks->sum('quantity') : 0;
+                            $total += $qty;
+                            if($qty > 0) {
+                                $sizeName = $v->attributeValues->pluck('value')->implode(', ');
+                                $sizes[] = "$sizeName($qty)";
+                            }
+                        }
                     } else {
                         $total = ($product->branchStock ? $product->branchStock->sum('quantity') : 0) + 
                                 ($product->warehouseStock ? $product->warehouseStock->sum('quantity') : 0);
                     }
+                    $sizeBreakdown = implode(', ', $sizes);
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
@@ -54,8 +62,7 @@
                     <td>{{ $product->style_number ?? $product->sku }}</td>
                     <td>{{ $product->category->name ?? '-' }}</td>
                     <td>{{ $product->brand->name ?? '-' }}</td>
-                    <td style="text-transform: uppercase;">{{ $product->season->name ?? 'ALL' }}</td>
-                    <td style="text-transform: uppercase;">{{ $product->gender->name ?? 'ALL' }}</td>
+                    <td style="color: #555; line-height: 1.2;">{{ $sizeBreakdown ?: '-' }}</td>
                     <td class="text-end">{{ number_format($product->cost, 2) }}</td>
                     <td class="text-end">{{ number_format($product->price, 2) }}</td>
                     <td class="text-center {{ $total <= 5 ? 'low-stock' : '' }}">

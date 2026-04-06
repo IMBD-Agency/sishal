@@ -35,13 +35,15 @@ class StockController extends Controller
                 'gender:id,name'
             ]);
 
-        $restrictedBranchId = $this->getRestrictedBranchId();
         $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
         $selectedWarehouseId = $request->warehouse_id;
 
-        $query->withSum(['branchStock as simple_branch_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
+        // Restriction Logic: If user is at a branch, they only see their branch and all warehouses
+        $query->withSum(['branchStock as simple_branch_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
             if ($selectedBranchId) { 
                 $q->where('branch_id', $selectedBranchId); 
+            } elseif ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId);
             } elseif ($selectedWarehouseId) {
                 $q->whereRaw('1=0'); 
             }
@@ -50,32 +52,28 @@ class StockController extends Controller
         $query->withSum(['warehouseStock as simple_warehouse_stock' => function($q) use ($selectedWarehouseId, $selectedBranchId) {
             if ($selectedWarehouseId) { 
                 $q->where('warehouse_id', $selectedWarehouseId); 
-            } elseif ($selectedBranchId) {
-                $q->whereRaw('1=0'); 
             }
+            // If branch is selected, we STILL want warehouse stock according to instructions
         }], 'quantity');
 
-        $query->withSum(['variationStocks as var_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId) {
-            if ($selectedBranchId) { 
-                $q->where('branch_id', $selectedBranchId); 
+        $query->withSum(['variationStocks as var_stock' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+            if ($selectedBranchId && $selectedWarehouseId) {
+                $q->where(function($sq) use ($selectedBranchId, $selectedWarehouseId) {
+                    $sq->where('branch_id', $selectedBranchId)->orWhere('warehouse_id', $selectedWarehouseId);
+                });
+            } elseif ($selectedBranchId) { 
+                // When branch is selected (or restricted), also include ALL warehouse stock
+                $q->where(function($sq) use ($selectedBranchId) {
+                    $sq->where('branch_id', $selectedBranchId)->orWhereNotNull('warehouse_id');
+                });
             } elseif ($selectedWarehouseId) { 
                 $q->where('warehouse_id', $selectedWarehouseId); 
+            } elseif ($restrictedBranchId) {
+                $q->where(function($sq) use ($restrictedBranchId) {
+                    $sq->where('branch_id', $restrictedBranchId)->orWhereNotNull('warehouse_id');
+                });
             }
         }], 'quantity');
-
-        // Fetch Date Ranges filters 
-        $reportType = $request->get('report_type', 'daily');
-        if ($reportType == 'monthly') {
-            $month = $request->get('month', date('n'));
-            $year = $request->get('year', date('Y'));
-            // Since there is no single date for stock, stock list represents current state. 
-            // We do not filter 'stock list' by month/year because stock is live.
-        } elseif ($reportType == 'yearly') {
-            $year = $request->get('year', date('Y'));
-            // Stock is live. 
-        } else {
-            // Stock is live.
-        }
 
         // Filter by product name or SKU/Style Number
         if ($request->filled('search')) {
@@ -87,12 +85,6 @@ class StockController extends Controller
             });
         }
 
-        // Filter by Warehouse
-        if ($request->filled('warehouse_id')) {
-            $warehouseId = $request->warehouse_id;
-            // No restrictive whereHas filter here to match Product List behavior
-        }
-
         // Product Attribute Filters
         if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
         if ($request->filled('brand_id')) { $query->where('brand_id', $request->brand_id); }
@@ -101,18 +93,20 @@ class StockController extends Controller
 
         // Low Stock Filter
         if ($request->boolean('low_stock')) {
-            $query->where(function($q) use ($selectedBranchId, $request) {
-                $q->whereHas('branchStock', function($sq) use ($selectedBranchId) {
-                    if ($selectedBranchId) $sq->where('branch_id', $selectedBranchId);
+            $query->where(function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                
+                $q->whereHas('branchStock', function($sq) use ($activeBranch) {
+                    if ($activeBranch) $sq->where('branch_id', $activeBranch);
                     $sq->havingRaw('SUM(quantity) <= 5');
                 })
-                ->orWhereHas('warehouseStock', function($sq) use ($request) {
-                    if ($request->filled('warehouse_id')) $sq->where('warehouse_id', $request->warehouse_id);
+                ->orWhereHas('warehouseStock', function($sq) use ($selectedWarehouseId) {
+                    if ($selectedWarehouseId) $sq->where('warehouse_id', $selectedWarehouseId);
                     $sq->havingRaw('SUM(quantity) <= 5');
                 })
-                ->orWhereHas('variationStocks', function($sq) use ($selectedBranchId, $request) {
-                    if ($selectedBranchId) $sq->where('branch_id', $selectedBranchId);
-                    if ($request->filled('warehouse_id')) $sq->where('warehouse_id', $request->warehouse_id);
+                ->orWhereHas('variationStocks', function($sq) use ($activeBranch, $selectedWarehouseId) {
+                    if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                    if ($selectedWarehouseId) $sq->where('warehouse_id', $selectedWarehouseId);
                     $sq->havingRaw('SUM(quantity) <= 5');
                 });
             });
@@ -129,24 +123,38 @@ class StockController extends Controller
             return $qty * $p->cost;
         });
 
-        $productStocks = $query->latest()->paginate(20)->appends($request->except('page'));
+        $productStocks = $query->latest()->paginate(100)->appends($request->except('page'));
 
-        // Load breakdown relations ONLY for the the 20 items on the current page
+        // Load breakdown relations ONLY for the 20 items on the current page
         $productStocks->load([
-            'branchStock.branch:id,name', 
+            'branchStock' => function($q) use ($restrictedBranchId, $selectedBranchId) {
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch) $q->where('branch_id', $activeBranch);
+                $q->with('branch:id,name');
+            },
             'warehouseStock.warehouse:id,name', 
-            'variations.stocks.branch:id,name', 
-            'variations.stocks.warehouse:id,name'
+            'variations.attributeValues',
+            'variations.stocks' => function($q) use ($restrictedBranchId, $selectedBranchId) {
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch) {
+                    $q->where(function($sq) use ($activeBranch) {
+                        $sq->where('branch_id', $activeBranch)->orWhereNotNull('warehouse_id');
+                    });
+                }
+                $q->with(['branch:id,name', 'warehouse:id,name']);
+            }
         ]);
         
         // Only pass branch/warehouse selections based on permissions
         if ($restrictedBranchId) {
-            $warehouses = collect(); // Avoid letting branch users select warehouses
+            // Branches already limited above
+            // Don't empty warehouses if they should see it, but maybe limit the filter?
+            // Actually, if they are restricted to a branch, the 'Branch' filter should probably be fixed or hidden.
         }
 
         return view('erp.productStock.productStockList', compact(
             'productStocks', 'branches', 'warehouses', 'categories', 'brands', 'seasons', 'genders',
-            'totalStockQty', 'totalStockValue', 'selectedBranchId', 'selectedWarehouseId'
+            'totalStockQty', 'totalStockValue', 'selectedBranchId', 'selectedWarehouseId', 'restrictedBranchId'
         ));
     }
 
@@ -160,7 +168,7 @@ class StockController extends Controller
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $headers = ['Name', 'Style Number', 'Category', 'Brand', 'Season', 'Gender', 'Purchase Price', 'MRP', 'Total Stock', 'Stock Value'];
+        $headers = ['Name', 'Style Number', 'Category', 'Brand', 'Season', 'Gender', 'Sizes', 'Purchase Price', 'MRP', 'Total Stock', 'Stock Value'];
         foreach ($headers as $key => $header) {
             $sheet->setCellValue(chr(65 + $key) . '1', $header);
         }
@@ -168,11 +176,20 @@ class StockController extends Controller
         $row = 2;
         foreach ($products as $product) {
             $total = 0;
+            $sizes = [];
             if ($product->has_variations) {
-                foreach($product->variations as $v) { $total += $v->stocks->sum('quantity'); }
+                foreach($product->variations as $v) { 
+                    $qty = $v->stocks->sum('quantity');
+                    $total += $qty;
+                    if($qty > 0) {
+                        $sizeName = $v->attributeValues->pluck('value')->implode(', ');
+                        $sizes[] = "$sizeName: $qty";
+                    }
+                }
             } else {
                 $total = $product->branchStock->sum('quantity') + $product->warehouseStock->sum('quantity');
             }
+            $sizeBreakdown = implode(', ', $sizes);
             
             $sheet->setCellValue('A' . $row, $product->name);
             $sheet->setCellValue('B' . $row, $product->style_number ?? $product->sku);
@@ -180,10 +197,11 @@ class StockController extends Controller
             $sheet->setCellValue('D' . $row, $product->brand->name ?? '-');
             $sheet->setCellValue('E' . $row, $product->season->name ?? 'ALL');
             $sheet->setCellValue('F' . $row, $product->gender->name ?? 'ALL');
-            $sheet->setCellValue('G' . $row, number_format($product->cost, 2));
-            $sheet->setCellValue('H' . $row, number_format($product->price, 2));
-            $sheet->setCellValue('I' . $row, $total);
-            $sheet->setCellValue('J' . $row, number_format($total * $product->cost, 2));
+            $sheet->setCellValue('G' . $row, $sizeBreakdown ?: '-');
+            $sheet->setCellValue('H' . $row, number_format($product->cost, 2));
+            $sheet->setCellValue('I' . $row, number_format($product->price, 2));
+            $sheet->setCellValue('J' . $row, $total);
+            $sheet->setCellValue('K' . $row, number_format($total * $product->cost, 2));
             $row++;
         }
         
@@ -207,7 +225,28 @@ class StockController extends Controller
 
     private function getStockQuery(Request $request)
     {
-        $query = Product::with(['branchStock', 'warehouseStock', 'category', 'brand', 'variations.stocks']);
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
+        $selectedWarehouseId = $request->warehouse_id;
+
+        $query = Product::with([
+            'category', 
+            'brand',
+            'branchStock' => function($q) use ($selectedBranchId, $restrictedBranchId) {
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch) $q->where('branch_id', $activeBranch);
+            },
+            'warehouseStock',
+            'variations.attributeValues',
+            'variations.stocks' => function($q) use ($selectedBranchId, $restrictedBranchId) {
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch) {
+                    $q->where(function($sq) use ($activeBranch) {
+                        $sq->where('branch_id', $activeBranch)->orWhereNotNull('warehouse_id');
+                    });
+                }
+            }
+        ]);
         
         if ($request->filled('search')) {
             $search = $request->search;
@@ -217,7 +256,11 @@ class StockController extends Controller
         }
 
         if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
-        if ($request->filled('branch_id')) { $query->whereHas('branchStock', function($q) use ($request) { $q->where('branch_id', $request->branch_id); }); }
+        if ($request->filled('branch_id')) { 
+            $query->whereHas('branchStock', function($q) use ($request) { 
+                $q->where('branch_id', $request->branch_id); 
+            }); 
+        }
         
         if ($request->boolean('low_stock')) {
             $query->where(function($q) {
