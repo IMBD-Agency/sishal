@@ -485,6 +485,7 @@
         </div>
     </div>
 
+    @push('scripts')
     <!-- Select2 Configuration -->
     <script>
         $(document).ready(function() {
@@ -519,4 +520,5 @@
             });
         });
     </script>
+    @endpush
 @endsection

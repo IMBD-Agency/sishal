@@ -56,7 +56,7 @@ class PurchaseController extends Controller
         $totalQty = $query->sum('quantity');
         $totalAmount = $query->sum('total_price');
 
-        $items = $query->latest()->paginate(20)->appends($request->all());
+        $items = $query->latest()->paginate(100)->appends($request->all());
         
         // Dropdown Data
         $suppliers = \App\Models\Supplier::orderBy('name')->get();
@@ -386,14 +386,15 @@ class PurchaseController extends Controller
                 'ship_location_type'  => $locationType,
                 'location_id'         => $locationId,
                 'purchase_date'       => $request->purchase_date,
-                'status'              => 'pending',
+                'status'              => 'received',
                 'created_by'          => auth()->id(),
                 'notes'               => $request->notes,
             ]);
     
-            // Add Purchase Items
+            // Add Purchase Items (Bulk Insert version for better performance)
+            $itemsToInsert = [];
             foreach ($request->items as $item) {
-                PurchaseItem::create([
+                $itemsToInsert[] = [
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
                     'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
@@ -401,8 +402,14 @@ class PurchaseController extends Controller
                     'unit_price'   => $item['unit_price'],
                     'total_price'  => $item['quantity'] * $item['unit_price'],
                     'description'     => $item['description'] ?? null,
-                ]);
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ];
             }
+            PurchaseItem::insert($itemsToInsert);
+
+            // Update stock immediately for direct purchase
+            $this->increaseStock($purchase);
     
             // Create Bill (only if supplier is provided)
             if ($request->supplier_id) {
@@ -657,71 +664,7 @@ class PurchaseController extends Controller
 
             // Only add stock the first time we move into "received" status
             if ($request->status === 'received' && $previousStatus !== 'received') {
-                foreach ($purchase->items as $item) {
-                    if ($item->variation_id) {
-                        // Update detailed variation stock
-                        if ($purchase->ship_location_type === 'branch') {
-                            $stock = \App\Models\ProductVariationStock::firstOrNew([
-                                'variation_id' => $item->variation_id,
-                                'branch_id' => $purchase->location_id,
-                            ]);
-                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                            $stock->updated_by = auth()->id() ?? 1;
-                            $stock->last_updated_at = now();
-                            $stock->save();
-
-                            // Also mirror into branch product stock so POS can see this product
-                            $branchStock = \App\Models\BranchProductStock::firstOrNew([
-                                'branch_id'  => $purchase->location_id,
-                                'product_id' => $item->product_id,
-                            ]);
-                            $branchStock->quantity = ($branchStock->quantity ?? 0) + $item->quantity;
-                            $branchStock->updated_by = auth()->id() ?? 1;
-                            $branchStock->last_updated_at = now();
-                            $branchStock->save();
-                        } elseif ($purchase->ship_location_type === 'warehouse') {
-                            $stock = \App\Models\ProductVariationStock::firstOrNew([
-                                'variation_id' => $item->variation_id,
-                                'warehouse_id' => $purchase->location_id,
-                            ]);
-                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                            $stock->updated_by = auth()->id() ?? 1;
-                            $stock->last_updated_at = now();
-                            $stock->save();
-
-                            // Mirror into warehouse product stock so non-variation flows can see it
-                            $warehouseStock = \App\Models\WarehouseProductStock::firstOrNew([
-                                'warehouse_id' => $purchase->location_id,
-                                'product_id'   => $item->product_id,
-                            ]);
-                            $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $item->quantity;
-                            $warehouseStock->updated_by = auth()->id() ?? 1;
-                            $warehouseStock->last_updated_at = now();
-                            $warehouseStock->save();
-                        }
-                    } else {
-                        // Simple (non-variation) products: existing behavior
-                        if ($purchase->ship_location_type === 'branch') {
-                            $stock = \App\Models\BranchProductStock::firstOrNew([
-                                'branch_id' => $purchase->location_id,
-                                'product_id' => $item->product_id,
-                            ]);
-                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                            $stock->updated_by = auth()->id() ?? 1;
-                            $stock->last_updated_at = now();
-                            $stock->save();
-                        } elseif ($purchase->ship_location_type === 'warehouse') {
-                            $stock = \App\Models\WarehouseProductStock::firstOrNew([
-                                'warehouse_id' => $purchase->location_id,
-                                'product_id' => $item->product_id,
-                            ]);
-                            $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                            $stock->updated_by = auth()->id() ?? 1;
-                            $stock->last_updated_at = now();
-                            $stock->save();
-                        }
-                    }
-                }
+                $this->increaseStock($purchase);
             }
 
             // Remove old items
@@ -790,69 +733,7 @@ class PurchaseController extends Controller
 
         // Only add stock the first time we move into "received" status
         if ($request->status === 'received' && $previousStatus !== 'received') {
-            foreach ($purchase->items as $item) {
-                if ($item->variation_id) {
-                    if ($purchase->ship_location_type === 'branch') {
-                        $stock = \App\Models\ProductVariationStock::firstOrNew([
-                            'variation_id' => $item->variation_id,
-                            'branch_id' => $purchase->location_id,
-                        ]);
-                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                        $stock->updated_by = auth()->id() ?? 1;
-                        $stock->last_updated_at = now();
-                        $stock->save();
-
-                        // Mirror into branch product stock so POS can see this product
-                        $branchStock = \App\Models\BranchProductStock::firstOrNew([
-                            'branch_id'  => $purchase->location_id,
-                            'product_id' => $item->product_id,
-                        ]);
-                        $branchStock->quantity = ($branchStock->quantity ?? 0) + $item->quantity;
-                        $branchStock->updated_by = auth()->id() ?? 1;
-                        $branchStock->last_updated_at = now();
-                        $branchStock->save();
-                    } elseif ($purchase->ship_location_type === 'warehouse') {
-                        $stock = \App\Models\ProductVariationStock::firstOrNew([
-                            'variation_id' => $item->variation_id,
-                            'warehouse_id' => $purchase->location_id,
-                        ]);
-                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                        $stock->updated_by = auth()->id() ?? 1;
-                        $stock->last_updated_at = now();
-                        $stock->save();
-
-                        // Mirror into warehouse product stock so other flows can see it
-                        $warehouseStock = \App\Models\WarehouseProductStock::firstOrNew([
-                            'warehouse_id' => $purchase->location_id,
-                            'product_id'   => $item->product_id,
-                        ]);
-                        $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $item->quantity;
-                        $warehouseStock->updated_by = auth()->id() ?? 1;
-                        $warehouseStock->last_updated_at = now();
-                        $warehouseStock->save();
-                    }
-                } else {
-                    if ($purchase->ship_location_type === 'branch') {
-                        $stock = \App\Models\BranchProductStock::firstOrNew([
-                            'branch_id' => $purchase->location_id,
-                            'product_id' => $item->product_id,
-                        ]);
-                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                        $stock->updated_by = auth()->id() ?? 1;
-                        $stock->last_updated_at = now();
-                        $stock->save();
-                    } elseif ($purchase->ship_location_type === 'warehouse') {
-                        $stock = \App\Models\WarehouseProductStock::firstOrNew([
-                            'warehouse_id' => $purchase->location_id,
-                            'product_id' => $item->product_id,
-                        ]);
-                        $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
-                        $stock->updated_by = auth()->id() ?? 1;
-                        $stock->last_updated_at = now();
-                        $stock->save();
-                    }
-                }
-            }
+            $this->increaseStock($purchase);
         }
         return redirect()->back()->with('success', 'Purchase status updated successfully.');
     }
@@ -932,4 +813,72 @@ class PurchaseController extends Controller
         return response()->json(['results' => $results]);
     }
 
+    private function increaseStock(Purchase $purchase)
+    {
+        foreach ($purchase->items as $item) {
+            if ($item->variation_id) {
+                // Update detailed variation stock
+                if ($purchase->ship_location_type === 'branch') {
+                    $stock = \App\Models\ProductVariationStock::firstOrNew([
+                        'variation_id' => $item->variation_id,
+                        'branch_id' => $purchase->location_id,
+                    ]);
+                    $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                    $stock->updated_by = auth()->id() ?? 1;
+                    $stock->last_updated_at = now();
+                    $stock->save();
+
+                    // Also mirror into branch product stock so POS can see this product
+                    $branchStock = \App\Models\BranchProductStock::firstOrNew([
+                        'branch_id'  => $purchase->location_id,
+                        'product_id' => $item->product_id,
+                    ]);
+                    $branchStock->quantity = ($branchStock->quantity ?? 0) + $item->quantity;
+                    $branchStock->updated_by = auth()->id() ?? 1;
+                    $branchStock->last_updated_at = now();
+                    $branchStock->save();
+                } elseif ($purchase->ship_location_type === 'warehouse') {
+                    $stock = \App\Models\ProductVariationStock::firstOrNew([
+                        'variation_id' => $item->variation_id,
+                        'warehouse_id' => $purchase->location_id,
+                    ]);
+                    $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                    $stock->updated_by = auth()->id() ?? 1;
+                    $stock->last_updated_at = now();
+                    $stock->save();
+
+                    // Mirror into warehouse product stock so non-variation flows can see it
+                    $warehouseStock = \App\Models\WarehouseProductStock::firstOrNew([
+                        'warehouse_id' => $purchase->location_id,
+                        'product_id'   => $item->product_id,
+                    ]);
+                    $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $item->quantity;
+                    $warehouseStock->updated_by = auth()->id() ?? 1;
+                    $warehouseStock->last_updated_at = now();
+                    $warehouseStock->save();
+                }
+            } else {
+                // Simple (non-variation) products: existing behavior
+                if ($purchase->ship_location_type === 'branch') {
+                    $stock = \App\Models\BranchProductStock::firstOrNew([
+                        'branch_id' => $purchase->location_id,
+                        'product_id' => $item->product_id,
+                    ]);
+                    $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                    $stock->updated_by = auth()->id() ?? 1;
+                    $stock->last_updated_at = now();
+                    $stock->save();
+                } elseif ($purchase->ship_location_type === 'warehouse') {
+                    $stock = \App\Models\WarehouseProductStock::firstOrNew([
+                        'warehouse_id' => $purchase->location_id,
+                        'product_id' => $item->product_id,
+                    ]);
+                    $stock->quantity = ($stock->quantity ?? 0) + $item->quantity;
+                    $stock->updated_by = auth()->id() ?? 1;
+                    $stock->last_updated_at = now();
+                    $stock->save();
+                }
+            }
+        }
+    }
 }

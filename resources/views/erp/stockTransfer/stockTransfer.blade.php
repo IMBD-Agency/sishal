@@ -276,9 +276,9 @@
                                             </div>
                                         </td>
                                         <td class="text-center">
-                                            <span class="badge bg-light text-dark border">{{ $transfer->item_count }} Items</span>
+                                            <span class="badge bg-light text-dark border">{{ number_format($transfer->grouped_quantity, 0) }} Qty</span>
                                         </td>
-                                        <td class="text-end fw-bold">{{ number_format($transfer->grouped_total_price ?? $transfer->total_amount ?? 0, 2) }}৳</td>
+                                        <td class="text-end fw-bold">{{ number_format($transfer->grouped_total_price, 2) }}৳</td>
                                         <td class="text-center">
                                             @php
                                                 $statusClass = match($transfer->status) {
@@ -332,12 +332,12 @@
                 <div class="d-inline-flex align-items-center gap-4 bg-white border premium-card px-4 py-3 shadow-sm">
                     <div class="d-flex align-items-center gap-2">
                         <span class="fw-bold text-muted text-uppercase small">Consolidated Total Qty:</span>
-                        <span class="h5 fw-bold text-info mb-0">{{ number_format($transfers->sum('quantity'), 0) }}</span>
+                        <span class="h5 fw-bold text-info mb-0">{{ number_format($totalQuantity, 0) }}</span>
                     </div>
                     <div class="vr"></div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="fw-bold text-muted text-uppercase small">Total Dispatch Value:</span>
-                        <span class="h5 fw-bold text-success mb-0">{{ number_format($transfers->sum('total_price'), 2) }}৳</span>
+                        <span class="h5 fw-bold text-success mb-0">{{ number_format($totalValue, 2) }}৳</span>
                     </div>
                 </div>
             </div>

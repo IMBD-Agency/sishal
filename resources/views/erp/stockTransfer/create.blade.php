@@ -95,6 +95,16 @@
                                     <option value="">Searching Style Number...</option>
                                 </select>
                             </div>
+
+                            <div class="col-md-12">
+                                <div class="form-check form-switch p-3 bg-light rounded-3 border">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" name="is_direct" id="is_direct" value="1">
+                                    <label class="form-check-label fw-bold text-dark" for="is_direct">
+                                        <i class="fas fa-bolt text-warning me-2"></i>Direct Transfer (Skip pending and approve instantly)
+                                        <div class="small text-muted fw-normal">Stock will be deducted from source and added to destination immediately.</div>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
