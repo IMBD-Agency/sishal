@@ -47,15 +47,23 @@ class LoginRequest extends FormRequest
         // Detect if it's a phone number (digits / starts with 0 or +) or email
         $emailToUse = $loginInput;
         if (! filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
-            // Strip non-numeric chars and look up the auto-generated internal email
-            $phoneClean = preg_replace('/[^0-9a-zA-Z]/', '', $loginInput);
-            // Also try the raw input stripped of non-alphanumeric
+            // Strip non-numeric chars for matching
+            $phoneClean = preg_replace('/[^0-9]/', '', $loginInput);
+            
+            // 1. Check if user with this internal email exists (legacy support)
             $internalEmail = $phoneClean . '@staff.internal';
-
-            // Check if a user with this internal email exists
             $user = DB::table('users')->where('email', $internalEmail)->first();
+            
+            if (!$user) {
+                // 2. Check Employee table for this phone number
+                $employee = DB::table('employees')->where('phone', $loginInput)->orWhere('phone', $phoneClean)->first();
+                if ($employee) {
+                    $user = DB::table('users')->where('id', $employee->user_id)->first();
+                }
+            }
+
             if ($user) {
-                $emailToUse = $internalEmail;
+                $emailToUse = $user->email;
             }
         }
 
