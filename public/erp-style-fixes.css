@@ -16,22 +16,7 @@
     --text-muted: #6b7280;
 }
 
-/* Page Transitions */
-.main-content {
-    animation: fadeInSlide 0.4s ease-out;
-}
-
-@keyframes fadeInSlide {
-    from {
-        opacity: 0;
-        transform: translateY(4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+/* Removed jumping animation for stability */
 
 /* Premium Wrapper Cards */
 .purchase-card,

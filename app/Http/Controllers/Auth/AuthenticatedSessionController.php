@@ -21,6 +21,14 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
+     * Display the ERP login view.
+     */
+    public function erpLogin(): View
+    {
+        return view('erp.auth.login');
+    }
+
+    /**
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse
@@ -29,6 +37,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // If explicitly coming from ERP login, go to Dashboard
+        if ($request->login_source === 'erp') {
+            return redirect()->intended(route('erp.dashboard', absolute: false));
+        }
+
+        // Otherwise, go to Ecommerce Home (even for admins)
         return redirect()->intended(route('ecommerce.home', absolute: false));
     }
 
@@ -43,6 +57,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        $redirectUrl = route('login');
+        if (str_contains(url()->previous(), '/erp')) {
+            $redirectUrl = route('erp.login');
+        }
+
+        return redirect($redirectUrl);
     }
 }

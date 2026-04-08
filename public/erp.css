@@ -15,19 +15,7 @@ body {
     background-color: #f8f9fa;
 }
 
-.sidebar {
-    background: #ffffff;
-    border-right: 1px solid #E5E7EB;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 1050;
-    overflow-x: hidden;
-    scrollbar-gutter: stable;
-    /* Keeps scrollbar space reserved to prevent shaking */
-    contain: layout size;
-    /* STRICTLY lock dimensions to prevent repaint shifts */
-}
+/* Sidebar Structure Stabilized in Master */
 
 /* Enable transition only when class is added after load */
 .sidebar.transition-enabled {
@@ -77,13 +65,7 @@ body {
     display: block;
 }
 
-.main-content {
-    margin-left: var(--sidebar-width);
-    padding-top: 70px;
-    min-height: 100vh;
-    background-color: #f8f9fa;
-    /* Removed default transition to prevent shift on load */
-}
+/* Main Content Stabilized in Master */
 
 @media (max-width: 768px) {
     .main-content {
@@ -109,29 +91,7 @@ body {
     z-index: 10;
 }
 
-.brand-logo-link {
-    display: block;
-    width: 150px;
-    height: 60px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: left center;
-    transition: none !important;
-    /* Block any flickering transition on logo */
-}
-
-.sidebar-brand .brand-logo {
-    width: 40px;
-    height: 40px;
-    background: var(--primary-color);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 1.1rem;
-}
+/* Logo Stabilized in Sidebar Component */
 
 /* Sidebar Navigation Hierarchy & Visuals */
 .sidebar-brand {
@@ -154,7 +114,7 @@ body {
 .sidebar-nav {
     padding-bottom: 3rem;
     overflow-y: auto;
-    height: calc(100vh - 90px);
+    height: calc(100vh - 70px);
 }
 
 .sidebar-category-title {
@@ -265,27 +225,7 @@ body {
     border-color: var(--primary-color) !important;
 }
 
-.header {
-    background: white;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 0.75rem 1.5rem;
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: var(--sidebar-width);
-    z-index: 1020;
-    height: 70px;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
-}
-
-@media (max-width: 768px) {
-    .header {
-        left: 0;
-        height: 64px;
-    }
-}
+/* Header Stabilized in Master */
 
 .stats-card {
     background: white;

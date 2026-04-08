@@ -22,9 +22,7 @@
                 <p class="text-muted small mb-0"><span id="outletCount">Loading...</span> in our network</p>
             </div>
             <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#exportModal">
-                    <i class="fas fa-file-export me-2"></i>Export Center
-                </button>
+
                 <a href="{{ route('branches.create') }}" class="btn btn-create-premium">
                     <i class="fas fa-plus-circle me-2"></i>New Outlet
                 </a>

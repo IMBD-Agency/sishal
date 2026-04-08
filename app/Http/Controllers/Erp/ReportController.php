@@ -1757,6 +1757,23 @@ class ReportController extends Controller
     $expenseCategories = \App\Models\ChartOfAccount::whereIn('id', $expenseAccountIds)->get();
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
 
+        // Handle Export
+        if ($request->filled('export')) {
+            $data = [
+                'expenses' => $expenses,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'totalAmount' => $expenses->sum('amount'),
+                'branchName' => $branchId ? (\App\Models\Branch::find($branchId)->name ?? 'All') : 'All Branches'
+            ];
+
+            if ($request->export == 'excel') {
+                return $this->exportExpenseExcel($data);
+            } elseif ($request->export == 'pdf') {
+                return $this->exportExpensePdf($data);
+            }
+        }
+
         // Return JSON for AJAX
         if ($request->ajax()) {
             return response()->json([
@@ -1767,5 +1784,52 @@ class ReportController extends Controller
         }
 
         return view('erp.reports.expense-report', compact('expenses', 'startDate', 'endDate', 'reportType', 'branches', 'branchId', 'expenseCategories'));
+    }
+
+    private function exportExpenseExcel($data)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', 'Expense Report - Sisal Fashion');
+        $sheet->setCellValue('A2', 'Period: ' . $data['startDate']->format('d M Y') . ' to ' . $data['endDate']->format('d M Y'));
+        $sheet->setCellValue('A3', 'Branch: ' . $data['branchName']);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $headers = ['Date', 'Ref No', 'Category', 'Branch', 'Note', 'Amount'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '5', $header);
+            $sheet->getStyle($col . '5')->getFont()->setBold(true);
+            $col++;
+        }
+
+        $row = 6;
+        foreach ($data['expenses'] as $exp) {
+            $sheet->setCellValue('A' . $row, $exp['date']);
+            $sheet->setCellValue('B' . $row, $exp['ref_no']);
+            $sheet->setCellValue('C' . $row, $exp['category']);
+            $sheet->setCellValue('D' . $row, $exp['branch']);
+            $sheet->setCellValue('E' . $row, $exp['note']);
+            $sheet->setCellValue('F' . $row, $exp['amount']);
+            $row++;
+        }
+
+        $sheet->setCellValue('E' . $row, 'TOTAL:');
+        $sheet->setCellValue('F' . $row, $data['totalAmount']);
+        $sheet->getStyle('E' . $row . ':F' . $row)->getFont()->setBold(true);
+
+        $filename = "Expense_Report_" . date('Ymd') . ".xlsx";
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    private function exportExpensePdf($data)
+    {
+        $pdf = Pdf::loadView('erp.reports.pdf.expense', $data)->setPaper('a4', 'portrait');
+        return $pdf->download('Expense_Report_' . date('Y-m-d') . '.pdf');
     }
 }

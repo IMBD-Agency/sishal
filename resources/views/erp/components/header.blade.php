@@ -1,12 +1,18 @@
 <div class="header">
     <div class="d-flex justify-content-between align-items-center w-100">
-        <div class="d-flex align-items-center">
-            <button class="btn btn-link d-md-none me-3 p-0" id="sidebarToggle">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-link d-md-none p-0" id="sidebarToggle">
                 <i class="fas fa-bars fs-5"></i>
             </button>
             @if(Auth::user()->employee && Auth::user()->employee->branch)
-                <div>
-                    <h2 class="mb-1">{{ Auth::user()->employee->branch->name }} Branch</h2>
+                <div class="branch-info-badge">
+                    <span class="fw-bold text-dark d-flex align-items-center" style="font-size: 1.1rem; letter-spacing: -0.02em;">
+                        <span class="bg-primary bg-opacity-10 text-primary p-2 rounded-3 me-2 d-none d-md-flex">
+                            <i class="fas fa-store" style="font-size: 0.9rem;"></i>
+                        </span>
+                        {{ Auth::user()->employee->branch->name }}
+                        <span class="text-muted fw-normal ms-1 d-none d-lg-inline" style="font-size: 0.85rem;">(Branch)</span>
+                    </span>
                 </div>
             @endif
         </div>

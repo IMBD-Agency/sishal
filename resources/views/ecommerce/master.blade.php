@@ -882,12 +882,8 @@
                     return;
                 }
                 
-                var separator = href.indexOf('?') !== -1 ? '&' : '?';
-                // Append no_cache timestamp to satisfy Controller logic and bypass browser cache
-                var newUrl = href + separator + 'no_cache=' + new Date().getTime();
-                
-                // Use a direct assignment to bypass any intercepted assign() method
-                window.location.href = newUrl;
+                // Navigate directly — no cache-busting needed
+                window.location.href = href;
             }
         });
     });

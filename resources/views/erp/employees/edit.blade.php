@@ -119,6 +119,29 @@
                                             <input type="number" step="0.01" class="form-control" id="salary" name="salary" value="{{ old('salary', $employee->salary) }}" placeholder="0.00">
                                         </div>
                                     </div>
+
+                                    <h6 class="text-muted text-uppercase fw-bold small mb-3 border-top pt-4">Security Update</h6>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">New Password <span class="text-muted small">(Leave blank to keep current)</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-muted"><i class="fas fa-lock"></i></span>
+                                            <input type="password" class="form-control" id="password" name="password" placeholder="Min 6 characters" autocomplete="new-password">
+                                            <button class="btn btn-outline-light border text-muted toggle-password" type="button" data-target="password">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="password_confirmation" class="form-label">Confirm New Password</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-muted"><i class="fas fa-check-circle"></i></span>
+                                            <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" placeholder="Re-enter new password" autocomplete="new-password">
+                                            <button class="btn btn-outline-light border text-muted toggle-password" type="button" data-target="password_confirmation">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Operational Assignment -->
@@ -170,7 +193,20 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Select2 logic if needed in future
+    // Password Toggle Logic
+    $('.toggle-password').on('click', function() {
+        const targetId = $(this).data('target');
+        const input = $('#' + targetId);
+        const icon = $(this).find('i');
+        
+        if (input.attr('type') === 'password') {
+            input.attr('type', 'text');
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+        } else {
+            input.attr('type', 'password');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+        }
+    });
 });
 </script>
 @endpush

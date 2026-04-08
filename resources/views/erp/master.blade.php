@@ -12,15 +12,13 @@
         html { scrollbar-gutter: stable; }
         
         /* Critical Layout Styles */
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; opacity: 0; transition: opacity 0.3s ease; }
-        body.loaded { opacity: 1; }
-        .sidebar { width: var(--sidebar-width); position: fixed; left: 0; top: 0; height: 100vh; background: #fff; z-index: 1050; border-right: 1px solid #E5E7EB; overflow-y: auto; }
-        .main-content { margin-left: var(--sidebar-width); padding-top: 70px; min-height: 100vh; }
-        .header { position: fixed; top: 0; right: 0; left: var(--sidebar-width); height: 70px; z-index: 1020; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 1.5rem; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { width: var(--sidebar-width); position: fixed; left: 0; top: 0; height: 100vh; background: #fff; z-index: 1050; border-right: 1px solid #E5E7EB; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; contain: layout size; }
+        .main-content { margin-left: 320px; padding-top: 70px; min-height: 100vh; }
+        .header { position: fixed; top: 0; right: 0; left: 320px; height: 70px; z-index: 1020; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03); }
         
         /* Sidebar Brand & Logo - Left Aligned */
-        .sidebar-brand { padding: 0 1.5rem; background: #ffffff; height: 90px; display: flex; align-items: center; border-bottom: 2px solid #f8fafc; position: sticky; top: 0; z-index: 10; justify-content: flex-start; }
-        .brand-logo-link { display: block; width: 100%; height: 60px; background-size: contain; background-repeat: no-repeat; background-position: left center; }
+        .sidebar-brand { padding: 0 1.5rem; background: #ffffff; height: 70px; display: flex; align-items: center; border-bottom: 2px solid #f8fafc; position: sticky; top: 0; z-index: 10; justify-content: flex-start; }
         
         /* Navigation Styles - Strictly Left Aligned */
         .sidebar-nav { padding-bottom: 3rem; }
@@ -77,12 +75,10 @@
             const body = document.body;
             const sidebar = document.getElementById('sidebar');
             
-            // Remove loading screen (Turbo-Fast Mode)
-            setTimeout(() => {
-                body.classList.remove('loading');
-                body.classList.add('loaded');
-                if (sidebar) sidebar.classList.add('transition-enabled');
-            }, 10); // Reduced delay for instant feel
+            // Remove loading screen (Instant Mode)
+            body.classList.remove('loading');
+            body.classList.add('loaded');
+            if (sidebar) sidebar.classList.add('transition-enabled');
 
             // Global Select2 Initializer
             $('.select2, .select2-simple, .select2-setup').each(function() {

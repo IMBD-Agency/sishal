@@ -15,9 +15,6 @@
                     <p class="text-muted small mb-0">Track and manage business expenditures</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> Print
-                    </button>
                     <!-- Add Export buttons later if needed -->
                 </div>
             </div>
@@ -78,10 +75,9 @@
             <!-- Action Toolbar -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="btn-group">
-                    <button class="btn btn-secondary btn-sm">CSV</button>
-                    <button class="btn btn-secondary btn-sm">Excel</button>
-                    <button class="btn btn-secondary btn-sm">PDF</button>
-                    <button class="btn btn-secondary btn-sm" onclick="window.print()">Print</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="downloadReport('excel')">Excel</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="downloadReport('pdf')">PDF</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">Print</button>
                 </div>
                 <div class="d-flex align-items-center">
                     <label class="me-2 text-muted small">Search:</label>
@@ -199,6 +195,16 @@
             
             // Trigger fetch instead of submit
             fetchExpenses();
+        }
+
+
+        function downloadReport(format) {
+            const form = document.getElementById('filterForm');
+            const params = new URLSearchParams(new FormData(form));
+            params.append('export', format);
+            
+            const url = `{{ route('reports.expenses') }}?${params.toString()}`;
+            window.location.href = url;
         }
 
         // Live Search Filter

@@ -3,9 +3,16 @@
     @php $logoUrl = $general_settings && $general_settings->site_logo ? asset($general_settings->site_logo) : asset('static/default-logo.webp'); @endphp
     <div class="sidebar-brand">
         <a href="{{ route('erp.dashboard') }}" 
-           class="brand-logo-link"
-           style="background-image: url('{{ $logoUrl }}');"
-           aria-label="Home">
+           class="d-flex align-items-center justify-content-center w-100 h-100 text-decoration-none"
+           style="background-image: url('{{ $logoUrl }}'); background-size: contain; background-repeat: no-repeat; background-position: center; background-origin: content-box; padding: 10px;">
+            <img src="{{ $logoUrl }}" 
+                 alt="Sisal Fashion Logo" 
+                 width="150" 
+                 height="50"
+                 loading="eager"
+                 fetchpriority="high"
+                 decoding="sync"
+                 style="max-width: 150px; max-height: 50px; width: auto; height: auto; object-fit: contain; opacity: 0; pointer-events: none;">
         </a>
     </div>
 
@@ -224,6 +231,15 @@
             </a>
         </div>
         @endcan
+        
+        @can('view reports')
+        <div class="nav-item">
+            <a href="{{ route('reports.expenses') }}" class="nav-link {{ request()->is('erp/reports/expenses*') ? ' active' : '' }}">
+                <i class="fas fa-file-invoice-dollar nav-icon text-warning"></i>
+                <span>Expense Report</span>
+            </a>
+        </div>
+        @endcan
 
         <!-- ECOMMERCE -->
         <span class="sidebar-category-title">Ecommerce</span>
@@ -363,6 +379,18 @@
             </a>
         </div>
         @endcan
+        
+        <!-- LOGOUT -->
+        <div class="nav-item border-top mt-auto pt-2 mb-3">
+            <a href="{{ route('logout') }}" class="nav-link text-danger fw-bold" 
+               onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
+                <i class="fas fa-sign-out-alt nav-icon text-danger"></i>
+                <span>Logout System</span>
+            </a>
+            <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                @csrf
+            </form>
+        </div>
     </nav>
 
     <script>

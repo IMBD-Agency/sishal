@@ -345,11 +345,11 @@
         <form method="POST" action="{{ route('login') }}" id="loginForm">
             @csrf
 
-            <!-- Email Address -->
+            <!-- Email or Phone -->
             <div class="form-group">
-                <label for="email" class="form-label">Email Address</label>
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" 
-                       class="form-control" placeholder="Enter your email address">
+                <label for="email" class="form-label">Email or Phone Number</label>
+                <input id="email" type="text" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" 
+                       class="form-control" placeholder="Email address or phone number">
                 @error('email')
                     <div class="error-message">
                         <i class="fas fa-exclamation-circle me-2"></i>

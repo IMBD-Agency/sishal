@@ -17,6 +17,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
+
+        $middleware->appendToGroup('web', [
+            \App\Http\Middleware\PreventBackHistory::class,
+        ]);
+
+        $middleware->redirectGuestsTo(fn ($request) => (
+            ($request->is('erp') || $request->is('erp/*')) 
+                ? route('erp.login') 
+                : route('login')
+        ));
     })
 
     ->withExceptions(function (Exceptions $exceptions): void {

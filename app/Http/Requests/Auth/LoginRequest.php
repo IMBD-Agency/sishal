@@ -5,6 +5,7 @@ namespace App\Http\Requests\Auth;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -27,7 +28,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email'    => ['required', 'string'],  // accepts email OR phone
             'password' => ['required', 'string'],
         ];
     }
@@ -41,7 +42,24 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $loginInput = $this->input('email');
+
+        // Detect if it's a phone number (digits / starts with 0 or +) or email
+        $emailToUse = $loginInput;
+        if (! filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
+            // Strip non-numeric chars and look up the auto-generated internal email
+            $phoneClean = preg_replace('/[^0-9a-zA-Z]/', '', $loginInput);
+            // Also try the raw input stripped of non-alphanumeric
+            $internalEmail = $phoneClean . '@staff.internal';
+
+            // Check if a user with this internal email exists
+            $user = DB::table('users')->where('email', $internalEmail)->first();
+            if ($user) {
+                $emailToUse = $internalEmail;
+            }
+        }
+
+        if (! Auth::attempt(['email' => $emailToUse, 'password' => $this->input('password')], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

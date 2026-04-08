@@ -65,22 +65,27 @@ class EmployeeController extends Controller
        
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
-            'branch_id' => 'nullable|exists:branches,id',
-            'role' => 'nullable|string|max:255',
-            'phone' => 'required|string|max:20',
-            'salary' => 'nullable|numeric|min:0'
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'nullable|email|unique:users,email',
+            'password'   => 'required|string|min:6|confirmed',
+            'branch_id'  => 'nullable|exists:branches,id',
+            'role'       => 'nullable|string|max:255',
+            'phone'      => 'required|string|max:20|unique:employees,phone',
+            'salary'     => 'nullable|numeric|min:0'
         ]);
+
+        // Auto-generate an internal email from phone if none provided
+        $email = $request->filled('email')
+            ? $request->email
+            : preg_replace('/[^0-9a-zA-Z]/', '', $request->phone) . '@staff.internal';
 
         $user = new User();
 
         $user->first_name = $request->first_name;
-        $user->last_name = $request->last_name;
-        $user->email = $request->email;
-        $user->password = $request->password;
-        $user->is_admin = 1;
+        $user->last_name  = $request->last_name;
+        $user->email      = $email;
+        $user->password   = $request->password;
+        $user->is_admin   = 1;
         $user->assignRole($request->role);
         $user->save();
 
@@ -162,6 +167,7 @@ class EmployeeController extends Controller
             'phone' => 'required|string|max:20',
             'salary' => 'nullable|numeric|min:0',
             'status' => 'required|in:active,inactive',
+            'password' => 'nullable|string|min:6|confirmed',
         ]);
         $user = $employee->user;
         // Remove existing role if user has any
@@ -171,6 +177,12 @@ class EmployeeController extends Controller
         $user->assignRole($validated['role']);
         $user->first_name = $validated['first_name'];
         $user->last_name = $validated['last_name'];
+        
+        // Update password only if provided
+        if ($request->filled('password')) {
+            $user->password = $request->password;
+        }
+        
         $user->save();
         $employee->branch_id = $validated['branch_id'];
         $employee->designation = $validated['role'];

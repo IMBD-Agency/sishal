@@ -67,11 +67,12 @@
                                     </div>
 
                                     <div class="mt-3">
-                                        <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                        <label for="email" class="form-label">Email Address <span class="text-muted small">(Optional)</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-light text-muted"><i class="fas fa-envelope"></i></span>
-                                            <input type="email" class="form-control" id="email" name="email" value="{{ old('email') }}" required placeholder="john.doe@company.com">
+                                            <input type="email" class="form-control" id="email" name="email" value="{{ old('email') }}" placeholder="john.doe@company.com">
                                         </div>
+                                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i>If left blank, login will use the phone number as username.</small>
                                     </div>
                                     
                                     <div class="mt-3">
@@ -92,6 +93,9 @@
                                         <div class="input-group">
                                             <span class="input-group-text bg-light text-muted"><i class="fas fa-lock"></i></span>
                                             <input type="password" class="form-control" id="password" name="password" required placeholder="Min 8 characters">
+                                            <button class="btn btn-outline-light border text-muted toggle-password" type="button" data-target="password">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -100,6 +104,9 @@
                                         <div class="input-group">
                                             <span class="input-group-text bg-light text-muted"><i class="fas fa-lock text-success"></i></span>
                                             <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required placeholder="Re-enter password">
+                                            <button class="btn btn-outline-light border text-muted toggle-password" type="button" data-target="password_confirmation">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -180,31 +187,20 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Select2 implementation if needed for branch
-    /*
-    $('#branch_id').select2({
-        theme: "bootstrap-5",
-        placeholder: 'Search for a branch',
-        ajax: {
-            url: '{{ url('/erp/branches/fetch') }}',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return { name: params.term || '', page: params.page || 1 };
-            },
-            processResults: function(data, params) {
-                params.page = params.page || 1;
-                return {
-                    results: data.data.map(function(branch) {
-                        return { id: branch.id, text: branch.name + ' (' + branch.location + ')' };
-                    }),
-                    pagination: { more: data.current_page < data.last_page }
-                };
-            },
-            cache: true
+    // Password Toggle Logic
+    $('.toggle-password').on('click', function() {
+        const targetId = $(this).data('target');
+        const input = $('#' + targetId);
+        const icon = $(this).find('i');
+        
+        if (input.attr('type') === 'password') {
+            input.attr('type', 'text');
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+        } else {
+            input.attr('type', 'password');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
         }
     });
-    */
 });
 </script>
 @endpush
