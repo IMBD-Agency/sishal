@@ -53,7 +53,7 @@
     <section class="popular-categories">
         <div class="container">
             <div class="section-header section-header--fancy">
-                <h2 class="section-title"> CATEGORIES</h2>
+                <h2 class="section-title">CATEGORIES</h2>
                 <a href="{{ route('categories') }}" class="section-see-all">View All</a>
             </div>
 
@@ -62,11 +62,15 @@
                     <ul class="splide__list" role="listbox">
                         @foreach ($featuredCategories as $category)
                         <li class="splide__slide" role="option">
-                            <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="category-chip d-block">
-                                <div class="chip-thumb full-bg">
+                            <a href="{{ route('product.archive') }}?category={{ $category->slug }}" class="cat-card">
+                                <div class="cat-card__img">
                                     <img src="{{ asset($category->image) }}" alt="{{ $category->name }}">
+                                    <div class="cat-card__overlay"></div>
                                 </div>
-                                <div class="chip-title badge-title">{{ strtoupper($category->name) }}</div>
+                                <div class="cat-card__body">
+                                    <span class="cat-card__name">{{ $category->name }}</span>
+                                    <span class="cat-card__cta">Shop Now <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+                                </div>
                             </a>
                         </li>
                         @endforeach
@@ -456,55 +460,139 @@
         
         
         @media (max-width: 991.98px) { #newArrivalsSplide .product-image-container { height: 240px; } }
-        /* Categories carousel container - prevent layout shifts */
-        #categorySplide { 
-            background:rgb(253, 253, 253);
-            /* Prevent layout shifts from carousel initialization */
+        /* ── Category Carousel Container ──────────────────────────── */
+        #categorySplide {
+            background: transparent;
             contain: layout style;
             will-change: auto;
+            padding: 8px 0 16px;
         }
-        /* Category card styles - full poster with floating badge title */
-        .popular-categories #categorySplide .splide__slide > a.category-chip { position: relative; display: block; width: 100%; height: 250px; border-radius: 8px; overflow: hidden; text-decoration: none; border: none; }
-        .popular-categories .chip-thumb.full-bg { position: absolute; inset: 0; width: 100% !important; height: 100% !important; border-radius: inherit !important; overflow: hidden; display: block; }
-        .popular-categories .chip-thumb.full-bg img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block; transform: scale(1.01); transition: transform .35s ease; }
-        .popular-categories #categorySplide .splide__slide > a.category-chip:hover .chip-thumb.full-bg img { transform: scale(1.05); }
-        .popular-categories .badge-title { position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; background: #fff; color: #111827; font-weight: 800; letter-spacing: .08em; font-size: 14px; padding: 10px 16px; border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,0.16); border: 1px solid rgba(17,24,39,0.06); display: inline-block; white-space: nowrap; max-width: 90%; }
-        
-        /* Enhanced mobile responsive for categories */
-        @media (max-width: 768px) { 
-            .popular-categories #categorySplide .splide__slide > a.category-chip { 
-                height: 160px; 
-                border-radius: 6px;
-            } 
-            .popular-categories .badge-title { 
-                font-size: 11px; 
-                padding: 6px 10px; 
-                left: 50%; 
-                transform: translateX(-50%); 
-                bottom: 10px; 
-                max-width: 90%; 
-                border-radius: 6px;
-            } 
+        .popular-categories #categorySplide .splide__list  { align-items: stretch; }
+        .popular-categories #categorySplide .splide__slide  { padding: 0 6px; }
+
+        /* ── Cat Card ──────────────────────────────────────────────── */
+        .cat-card {
+            position: relative;
+            display: block;
+            width: 100%;
+            height: 280px;
+            border-radius: 14px;
+            overflow: hidden;
+            text-decoration: none !important;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+            transition: transform .35s cubic-bezier(.22,.61,.36,1),
+                        box-shadow .35s cubic-bezier(.22,.61,.36,1);
         }
-        
-        @media (max-width: 576px) { 
-            .popular-categories #categorySplide .splide__slide > a.category-chip { 
-                height: 140px; 
-                border-radius: 4px;
-            } 
-            .popular-categories .badge-title { 
-                font-size: 10px; 
-                padding: 5px 8px; 
-                left: 50%; 
-                transform: translateX(-50%); 
-                bottom: 8px; 
-                max-width: 88%; 
-                border-radius: 4px;
-            } 
+        .cat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.18);
         }
-        
-        .popular-categories #categorySplide .splide__list { align-items: stretch; }
-        .popular-categories .category-chip { text-align: center; }
+
+        /* Image + zoom */
+        .cat-card__img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .cat-card__img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform .55s cubic-bezier(.22,.61,.36,1);
+        }
+        .cat-card:hover .cat-card__img img {
+            transform: scale(1.08);
+        }
+
+        /* Dark gradient overlay */
+        .cat-card__overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to top,
+                rgba(10,10,10,0.78) 0%,
+                rgba(10,10,10,0.28) 50%,
+                rgba(10,10,10,0.04) 100%
+            );
+            transition: opacity .35s ease;
+        }
+        .cat-card:hover .cat-card__overlay {
+            opacity: 0.92;
+        }
+
+        /* Text body at bottom */
+        .cat-card__body {
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            padding: 20px 18px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        .cat-card__name {
+            display: block;
+            color: #fff;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            line-height: 1.2;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            position: relative;
+        }
+        /* animated underline on name */
+        .cat-card__name::after {
+            content: '';
+            position: absolute;
+            left: 0; bottom: -3px;
+            width: 0; height: 2px;
+            background: #fff;
+            border-radius: 2px;
+            transition: width .35s ease;
+        }
+        .cat-card:hover .cat-card__name::after {
+            width: 100%;
+        }
+
+        .cat-card__cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: rgba(255,255,255,0.75);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity .3s ease .05s, transform .3s ease .05s;
+        }
+        .cat-card:hover .cat-card__cta {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .cat-card__cta svg {
+            transition: transform .25s ease;
+        }
+        .cat-card:hover .cat-card__cta svg {
+            transform: translateX(3px);
+        }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .cat-card { height: 190px; border-radius: 10px; }
+            .cat-card__name { font-size: 14px; }
+            .cat-card__body { padding: 14px 12px 12px; gap: 4px; }
+        }
+        @media (max-width: 576px) {
+            .cat-card { height: 165px; border-radius: 8px; }
+            .cat-card__name { font-size: 13px; }
+            .cat-card__cta { display: none; }
+        }
 		/* Scope styles to vlogs section only */
 		@media (min-width: 1200px) {
 			.home-vlogs > .container {
