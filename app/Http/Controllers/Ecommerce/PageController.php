@@ -111,6 +111,23 @@ class PageController extends Controller
         $selectedRatings = $request->get('rating', []);
         $selectedSort = $request->get('sort', '');
 
+        // Return JSON for AJAX / infinite scroll requests
+        if ($request->ajax() || $request->get('infinite_scroll')) {
+            $html = view('ecommerce.partials.best-deal-grid', [
+                'products'       => $products,
+                'hidePagination' => true,
+            ])->render();
+
+            return response()->json([
+                'success'     => true,
+                'html'        => $html,
+                'hasMore'     => $products->hasMorePages(),
+                'currentPage' => $products->currentPage(),
+                'total'       => $products->total(),
+                'count'       => $products->count(),
+            ]);
+        }
+
         $pageTitle = 'Best Deals';
         return view('ecommerce.best-deal', compact('products', 'categories', 'pageTitle', 'priceMin', 'priceMax', 'maxProductPrice', 'selectedCategories', 'selectedRatings', 'selectedSort'));
     }

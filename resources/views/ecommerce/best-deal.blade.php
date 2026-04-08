@@ -183,27 +183,17 @@
             fetchPromise
             .then(response => {
                 console.log('Response received, status:', response.status);
-                // Check if response is ok (status 200-299)
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.message || 'An error occurred while loading products');
-                    }).catch(() => {
-                        throw new Error('Server error. Please try again.');
-                    });
-                }
-                // Try to parse as JSON first
-                return response.json().catch(error => {
-                    // If JSON parsing fails, try to get text to see what we got
-                    console.error('Failed to parse JSON, trying text:', error);
-                    return response.text().then(text => {
-                        console.error('Response is not JSON, got:', text.substring(0, 200));
-                        // Try to parse as JSON manually if it looks like JSON
-                        try {
-                            return JSON.parse(text);
-                        } catch (e) {
-                            throw new Error('Server returned non-JSON response');
-                        }
-                    });
+                // Read body ONCE as text, then parse
+                return response.text().then(text => {
+                    if (!response.ok) {
+                        throw new Error('Server error ' + response.status + '. Please try again.');
+                    }
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Response is not JSON:', text.substring(0, 300));
+                        throw new Error('Server returned non-JSON response. Please try again.');
+                    }
                 });
             })
             .then(data => {
