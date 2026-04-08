@@ -46,7 +46,10 @@ class PurchaseController extends Controller
             'product.brand',
             'product.season',
             'product.gender',
+            'product.branchStock',
+            'product.warehouseStock',
             'variation.attributeValues.attribute',
+            'variation.stocks',
             'returnItems'
         ]);
 
@@ -57,6 +60,32 @@ class PurchaseController extends Controller
         $totalAmount = $query->sum('total_price');
 
         $items = $query->latest()->paginate(100)->appends($request->all());
+        
+        // Use eager loaded relationships to attach stock without causing N+1 queries
+        $items->getCollection()->transform(function ($item) {
+            $product = $item->product;
+            $variation = $item->variation;
+            $purchase = $item->purchase;
+            $currentStock = 0;
+            
+            if ($product) {
+                if ($product->has_variations && $variation) {
+                    if ($purchase->ship_location_type === 'branch') {
+                        $currentStock = $variation->stocks->where('branch_id', $purchase->location_id)->sum('quantity');
+                    } else {
+                        $currentStock = $variation->stocks->where('warehouse_id', $purchase->location_id)->sum('quantity');
+                    }
+                } else {
+                    if ($purchase->ship_location_type === 'branch') {
+                        $currentStock = $product->branchStock->where('branch_id', $purchase->location_id)->sum('quantity');
+                    } else {
+                        $currentStock = $product->warehouseStock->where('warehouse_id', $purchase->location_id)->sum('quantity');
+                    }
+                }
+            }
+            $item->current_stock = $currentStock;
+            return $item;
+        });
         
         // Dropdown Data
         $suppliers = \App\Models\Supplier::orderBy('name')->get();

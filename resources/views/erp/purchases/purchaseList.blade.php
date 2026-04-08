@@ -300,6 +300,7 @@
                                     <th>Style #</th>
                                     <th>Color</th>
                                     <th>Size</th>
+                                    <th class="text-center bg-info bg-opacity-10" style="min-width: 80px;">Stock</th>
                                     <th class="text-center">Pur. Qty</th>
                                     <th class="text-center bg-light">T. Pur. Qty</th>
                                     <th class="text-end">Pur. Value</th>
@@ -381,6 +382,9 @@
                                         <td><code class="text-primary bg-light px-2 py-1 rounded">{{ $product->sku ?? '-' }}</code></td>
                                         <td class="text-uppercase fw-bold">{{ $color }}</td>
                                         <td class="fw-bold">{{ $size }}</td>
+                                        
+                                        <td class="text-center bg-info bg-opacity-10 fw-bold">{{ number_format($item->current_stock ?? 0, 2) }}</td>
+
                                         <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
                                         <td class="text-center fw-bold bg-light">{{ number_format($item->quantity, 2) }}</td>
                                         <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>
@@ -436,7 +440,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="29" class="text-center py-5">
+                                        <td colspan="30" class="text-center py-5">
                                             <div class="text-muted opacity-50 py-4">
                                                 <i class="fas fa-file-invoice fa-3x mb-3"></i>
                                                 <h6 class="fw-bold">No Procurement Records Found</h6>
@@ -448,7 +452,7 @@
                             </tbody>
                             <tfoot class="bg-light border-top-0">
                                 <tr class="fw-bold text-dark text-uppercase" style="font-size: 13px;">
-                                    <td colspan="13" class="text-end py-3">Global Registry Totals</td>
+                                    <td colspan="14" class="text-end py-3">Global Registry Totals</td>
                                     <td class="text-center">{{ number_format($grandTotalPurQty, 2) }}</td>
                                     <td class="text-center bg-white">{{ number_format($grandTotalPurQty, 2) }}</td>
                                     <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}৳</td>

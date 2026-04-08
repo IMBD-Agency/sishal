@@ -58,8 +58,7 @@ class PageController extends Controller
         $categories = $this->getSidebarCategories();
 
         $featuredCategories = ProductServiceCategory::where('status', 'active')
-            ->has('publishedProducts')
-            ->take(8)
+            ->whereNull('parent_id')
             ->get();
 
         $bestDeals = Product::published()
