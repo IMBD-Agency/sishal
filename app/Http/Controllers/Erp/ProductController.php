@@ -556,57 +556,58 @@ class ProductController extends Controller
             $data['meta_keywords'] = json_encode(array_values($keywords));
         }
 
-        // Handle main image upload
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('uploads/products'), $imageName);
-            $data['image'] = 'uploads/products/' . $imageName;
-        }
-
-        // Handle size chart image upload
-        if ($request->hasFile('size_chart')) {
-            $sizeChart = $request->file('size_chart');
-            $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
-            $sizeChart->move(public_path('uploads/products'), $sizeChartName);
-            $data['size_chart'] = 'uploads/products/' . $sizeChartName;
-        }
-
-        $product = Product::create($data);
-
-        // Handle gallery images upload
-        if ($request->hasFile('gallery')) {
-            foreach ($request->file('gallery') as $galleryImage) {
-                $galleryImageName = time().'_'.uniqid().'.'.$galleryImage->getClientOriginalExtension();
-                $galleryImage->move(public_path('uploads/products/gallery'), $galleryImageName);
-                $product->galleries()->create([
-                    'image' => 'uploads/products/gallery/' . $galleryImageName
-                ]);
-            }
-        }
-
-        // Handle product attributes (specifications)
-        if ($request->has('attributes')) {
-            // Get attributes data properly
-            $attributesData = $request->get('attributes');
-            
-            foreach ($attributesData as $attributeData) {
-                // Check if both attribute_id and value are not empty
-                if (!empty($attributeData['attribute_id']) && 
-                    !empty($attributeData['value']) && 
-                    trim($attributeData['value']) !== '') {
-                    
-                    $product->productAttributes()->attach($attributeData['attribute_id'], [
-                        'value' => trim($attributeData['value'])
-                    ]);
+        try {
+            return \DB::transaction(function() use ($request, $data) {
+                // Handle main image upload
+                if ($request->hasFile('image')) {
+                    $image = $request->file('image');
+                    $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
+                    $image->move(public_path('uploads/products'), $imageName);
+                    $data['image'] = 'uploads/products/' . $imageName;
                 }
-            }
+
+                // Handle size chart image upload
+                if ($request->hasFile('size_chart')) {
+                    $sizeChart = $request->file('size_chart');
+                    $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
+                    $sizeChart->move(public_path('uploads/products'), $sizeChartName);
+                    $data['size_chart'] = 'uploads/products/' . $sizeChartName;
+                }
+
+                $product = Product::create($data);
+
+                // Handle gallery images upload
+                if ($request->hasFile('gallery')) {
+                    foreach ($request->file('gallery') as $galleryImage) {
+                        $galleryImageName = time().'_'.uniqid().'.'.$galleryImage->getClientOriginalExtension();
+                        $galleryImage->move(public_path('uploads/products/gallery'), $galleryImageName);
+                        $product->galleries()->create([
+                            'image' => 'uploads/products/gallery/' . $galleryImageName
+                        ]);
+                    }
+                }
+
+                // Handle product attributes (specifications)
+                if ($request->has('attributes')) {
+                    $attributesData = $request->get('attributes');
+                    foreach ($attributesData as $attributeData) {
+                        if (!empty($attributeData['attribute_id']) && !empty($attributeData['value']) && trim($attributeData['value']) !== '') {
+                            $product->productAttributes()->attach($attributeData['attribute_id'], [
+                                'value' => trim($attributeData['value'])
+                            ]);
+                        }
+                    }
+                }
+
+                // Clear product cache after creating new product
+                $this->clearProductCache($product->id);
+
+                return redirect()->route('product.list')->with('success', 'Product created successfully!');
+            });
+        } catch (\Exception $e) {
+            \Log::error('Product creation failed: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Failed to create product. Please try again or contact support.');
         }
-
-        // Clear product cache after creating new product
-        $this->clearProductCache($product->id);
-
-        return redirect()->route('product.list')->with('success', 'Product created successfully!');
     }
 
     /**
@@ -791,10 +792,10 @@ class ProductController extends Controller
             'discount' => 'nullable|numeric',
             'cost' => 'required|numeric',
             'alert_quantity' => 'nullable|integer',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'size_chart' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'gallery' => 'nullable',
-            'gallery.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'gallery.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'status' => 'nullable|in:active,inactive',
             'meta_keywords' => 'nullable|array',
             'meta_keywords.*' => 'nullable|string|max:255',
@@ -821,105 +822,72 @@ class ProductController extends Controller
             $data['meta_keywords'] = json_encode(array_values($keywords));
         }
 
-        // Handle main image upload
-        if ($request->hasFile('image')) {
-            // Delete old image if exists
-            if ($product->image && file_exists(public_path($product->image))) {
-                @unlink(public_path($product->image));
-            }
-            $image = $request->file('image');
-            $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('uploads/products'), $imageName);
-            $data['image'] = 'uploads/products/' . $imageName;
-        }
+        try {
+            return \DB::transaction(function() use ($request, $product, $data) {
+                // Handle main image upload
+                if ($request->hasFile('image')) {
+                    if ($product->image && file_exists(public_path($product->image))) {
+                        @unlink(public_path($product->image));
+                    }
+                    $image = $request->file('image');
+                    $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
+                    $image->move(public_path('uploads/products'), $imageName);
+                    $data['image'] = 'uploads/products/' . $imageName;
+                }
 
-        // Handle size chart image deletion
-        if ($request->has('delete_size_chart') && $request->delete_size_chart == '1') {
-            // Delete old size chart if exists
-            if ($product->size_chart && file_exists(public_path($product->size_chart))) {
-                @unlink(public_path($product->size_chart));
-            }
-            $data['size_chart'] = null;
-        }
+                // Handle size chart image deletion/upload
+                if ($request->has('delete_size_chart') && $request->delete_size_chart == '1') {
+                    if ($product->size_chart && file_exists(public_path($product->size_chart))) {
+                        @unlink(public_path($product->size_chart));
+                    }
+                    $data['size_chart'] = null;
+                }
 
-        // Handle size chart image upload
-        if ($request->hasFile('size_chart')) {
-            // Delete old size chart if exists
-            if ($product->size_chart && file_exists(public_path($product->size_chart))) {
-                @unlink(public_path($product->size_chart));
-            }
-            $sizeChart = $request->file('size_chart');
-            $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
-            $sizeChart->move(public_path('uploads/products'), $sizeChartName);
-            $data['size_chart'] = 'uploads/products/' . $sizeChartName;
-        }
+                if ($request->hasFile('size_chart')) {
+                    if ($product->size_chart && file_exists(public_path($product->size_chart))) {
+                        @unlink(public_path($product->size_chart));
+                    }
+                    $sizeChart = $request->file('size_chart');
+                    $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
+                    $sizeChart->move(public_path('uploads/products'), $sizeChartName);
+                    $data['size_chart'] = 'uploads/products/' . $sizeChartName;
+                }
 
-        $product->update($data);
+                $product->update($data);
 
-        // Handle gallery images upload
-        if ($request->hasFile('gallery')) {
-            foreach ($request->file('gallery') as $galleryImage) {
-                $galleryImageName = time().'_'.uniqid().'.'.$galleryImage->getClientOriginalExtension();
-                $galleryImage->move(public_path('uploads/products/gallery'), $galleryImageName);
-                $product->galleries()->create([
-                    'image' => 'uploads/products/gallery/' . $galleryImageName
-                ]);
-            }
-        }
-
-        // Handle product attributes (specifications) - sync to replace existing
-        \Log::info('Attributes data received:', $request->get('attributes', []));
-        
-        // Always detach existing attributes first
-        $product->productAttributes()->detach();
-        \Log::info('Detached existing attributes for product:', ['product_id' => $product->id]);
-        
-        if ($request->has('attributes')) {
-            // Get attributes data properly
-            $attributesData = $request->get('attributes');
-            \Log::info('Processing attributes data:', $attributesData);
-            
-            foreach ($attributesData as $index => $attributeData) {
-                \Log::info("Processing attribute {$index}:", $attributeData);
-                
-                // Check if both attribute_id and value are not empty
-                if (!empty($attributeData['attribute_id']) && 
-                    !empty($attributeData['value']) && 
-                    trim($attributeData['value']) !== '') {
-                    
-                    \Log::info('Adding attribute to product:', [
-                        'product_id' => $product->id,
-                        'attribute_id' => $attributeData['attribute_id'],
-                        'value' => trim($attributeData['value'])
-                    ]);
-                    
-                    try {
-                        $result = $product->productAttributes()->attach($attributeData['attribute_id'], [
-                            'value' => trim($attributeData['value'])
-                        ]);
-                        \Log::info('Attribute attached successfully:', ['result' => $result]);
-                    } catch (\Exception $e) {
-                        \Log::error('Error attaching attribute:', [
-                            'error' => $e->getMessage(),
-                            'attribute_data' => $attributeData
+                // Handle gallery images upload
+                if ($request->hasFile('gallery')) {
+                    foreach ($request->file('gallery') as $galleryImage) {
+                        $galleryImageName = time().'_'.uniqid().'.'.$galleryImage->getClientOriginalExtension();
+                        $galleryImage->move(public_path('uploads/products/gallery'), $galleryImageName);
+                        $product->galleries()->create([
+                            'image' => 'uploads/products/gallery/' . $galleryImageName
                         ]);
                     }
-                } else {
-                    \Log::info('Skipping empty attribute:', $attributeData);
                 }
-            }
-        } else {
-            \Log::info('No attributes provided or not an array/object');
+
+                // Handle product attributes (specifications) - sync
+                $product->productAttributes()->detach();
+                if ($request->has('attributes')) {
+                    $attributesData = $request->get('attributes');
+                    foreach ($attributesData as $attributeData) {
+                        if (!empty($attributeData['attribute_id']) && !empty($attributeData['value']) && trim($attributeData['value']) !== '') {
+                            $product->productAttributes()->attach($attributeData['attribute_id'], [
+                                'value' => trim($attributeData['value'])
+                            ]);
+                        }
+                    }
+                }
+
+                // Clear product cache after updating product
+                $this->clearProductCache($product->id);
+
+                return redirect()->route('product.list')->with('success', 'Product updated successfully!');
+            });
+        } catch (\Exception $e) {
+            \Log::error('Product update failed: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Failed to update product. Please try again or contact support.');
         }
-        
-        // Check final state
-        $finalAttributes = $product->productAttributes()->get();
-        \Log::info('Final product attributes count:', ['count' => $finalAttributes->count()]);
-
-        // Clear product cache after updating product
-        $this->clearProductCache($product->id);
-
-        return redirect()->route('product.list')->with('success', 'Product updated successfully!');
     }
 
     /**

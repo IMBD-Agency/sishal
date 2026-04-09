@@ -14,9 +14,15 @@ class ProductVariationGallery extends Model
         'sort_order'
     ];
 
-    /**
-     * Get the variation that owns the gallery image.
-     */
+    protected static function booted()
+    {
+        static::deleting(function ($gallery) {
+            if ($gallery->image && file_exists(public_path($gallery->image))) {
+                @unlink(public_path($gallery->image));
+            }
+        });
+    }
+
     public function variation(): BelongsTo
     {
         return $this->belongsTo(ProductVariation::class, 'variation_id');

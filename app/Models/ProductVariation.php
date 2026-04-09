@@ -28,10 +28,19 @@ class ProductVariation extends Model
     protected static function booted()
     {
         static::deleting(function ($variation) {
+            // Delete main variation image
+            if ($variation->image && file_exists(public_path($variation->image))) {
+                @unlink(public_path($variation->image));
+            }
+
             // Manual cascading delete for internal data
             $variation->stocks()->delete();
             $variation->combinations()->delete();
-            $variation->galleries()->delete();
+            
+            // Trigger individual gallery deletions to handle file cleanup
+            foreach ($variation->galleries as $gallery) {
+                $gallery->delete();
+            }
         });
     }
 

@@ -20,8 +20,22 @@ class Product extends Model
     protected static function booted()
     {
         static::deleting(function ($product) {
+            // Delete main product image
+            if ($product->image && file_exists(public_path($product->image))) {
+                @unlink(public_path($product->image));
+            }
+            
+            // Delete size chart image
+            if ($product->size_chart && file_exists(public_path($product->size_chart))) {
+                @unlink(public_path($product->size_chart));
+            }
+
             // Manual cascading delete for MyISAM tables (no foreign keys)
-            $product->galleries()->delete();
+            // Trigger individual gallery deletions to handle file cleanup
+            foreach ($product->galleries as $gallery) {
+                $gallery->delete();
+            }
+            
             $product->branchStock()->delete();
             $product->warehouseStock()->delete();
             $product->productAttributes()->detach();
