@@ -17,7 +17,11 @@ class UserRoleController extends Controller
         }
         $roles = Role::all();
         $permissions = Permission::all();
-        $users = User::with(['roles', 'employee.branch'])->get();
+        // Filter to only show actual Staff/Admins, excluding frontend e-commerce customers
+        $users = User::with(['roles', 'employee.branch'])
+            ->whereHas('employee')
+            ->orWhereHas('roles')
+            ->get();
         
         // Group permissions by category
         $permissionsByCategory = $permissions->groupBy('category');
