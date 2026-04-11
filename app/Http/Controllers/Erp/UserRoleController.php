@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use App\Models\User;
 
 class UserRoleController extends Controller
 {
@@ -16,11 +17,12 @@ class UserRoleController extends Controller
         }
         $roles = Role::all();
         $permissions = Permission::all();
+        $users = User::with(['roles', 'employee.branch'])->get();
         
         // Group permissions by category
         $permissionsByCategory = $permissions->groupBy('category');
         
-        return view('erp.userRole.userrole', compact('roles', 'permissions', 'permissionsByCategory'));
+        return view('erp.userRole.userrole', compact('roles', 'permissions', 'permissionsByCategory', 'users'));
     }
 
     public function store(Request $request)

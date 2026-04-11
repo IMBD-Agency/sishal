@@ -33,6 +33,16 @@
             .product-name-cell { max-width: 280px; }
             .product-name-cell .name { color: #1e293b; font-weight: 700; font-size: 1rem; margin-bottom: 2px; }
             .product-name-cell .details { color: #64748b; font-size: 0.8rem; }
+
+            /* Refined Inputs for Table */
+            .table-input-premium { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; transition: all 0.2s; background: #fff; }
+            .table-input-premium:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); outline: none; }
+            
+            /* Remove number arrows for cleaner look */
+            input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+            input[type=number] { -moz-appearance: textfield; }
+
+            .location-picker-premium { min-width: 200px !important; font-weight: 600; color: #475569; background-color: #f8fafc; }
         </style>
 
     <!-- Premium Header Area -->
@@ -76,7 +86,7 @@
 
         <form action="{{ route('purchaseReturn.store') }}" method="POST" id="mainReturnForm">
             @csrf
-            <input type="hidden" name="return_mode" id="return_mode" value="invoice">
+            <input type="hidden" name="return_mode" id="return_mode" value="{{ old('return_mode', 'invoice') }}">
 
             <div class="row g-4">
                 <!-- Step 1: Selection -->
@@ -88,10 +98,7 @@
                         <div class="card-body p-4">
                             <div id="invoiceSelectionSection">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Search Purchase Invoice</label>
-                                <div class="input-group">
-                                    <input type="text" id="invoice_search" class="form-control" placeholder="PUR-XXXXX or Bill No">
-                                    <button type="button" id="btnSearchInvoice" class="btn btn-primary px-3 shadow-sm"><i class="fas fa-search"></i></button>
-                                </div>
+                                <select id="invoice_search" class="form-select select2-premium-42"></select>
                                 <input type="hidden" name="purchase_id" id="purchase_id">
                             </div>
 
@@ -101,7 +108,7 @@
                                     <select name="supplier_id" id="supplier_id" class="form-select select2-premium-42">
                                         <option value="">Choose Supplier</option>
                                         @foreach($suppliers as $supplier)
-                                            <option value="{{ $supplier->id }}">{{ $supplier->name }} ({{ $supplier->company_name }})</option>
+                                            <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }} ({{ $supplier->company_name }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -159,17 +166,18 @@
                                     <table class="table table-premium mb-0" id="returnItemsTable">
                                         <thead>
                                             <tr>
+                                                <th class="text-center" style="width: 80px;">Image</th>
                                                 <th>Item Details</th>
-                                                <th style="width: 180px;">Return From</th>
-                                                <th class="text-center" style="width: 100px;">Qty</th>
-                                                <th class="text-end" style="width: 120px;">Unit Price</th>
-                                                <th class="text-end" style="width: 130px;">Total</th>
-                                                <th style="width: 50px;"></th>
+                                                <th style="width: 220px;">Return From</th>
+                                                <th class="text-center" style="width: 110px;">Qty</th>
+                                                <th class="text-end" style="width: 140px;">Unit Price</th>
+                                                <th class="text-end" style="width: 140px;">Total</th>
+                                                <th style="width: 60px;"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr id="emptyPlaceholder">
-                                                <td colspan="6" class="text-center py-5 text-muted italic">
+                                                <td colspan="8" class="text-center py-5 text-muted italic">
                                                     <i class="fas fa-shopping-basket fa-3x mb-3 opacity-20"></i><br>
                                                     Search an invoice or add products manually to start
                                                 </td>
@@ -177,7 +185,9 @@
                                         </tbody>
                                         <tfoot class="bg-light border-top-2">
                                             <tr>
-                                                <td colspan="4" class="text-end fw-bold py-3 text-slate-600">Grand Total</td>
+                                                <td colspan="4" class="text-end fw-bold py-3 text-slate-600">Total Quantity</td>
+                                                <td class="text-center fw-bold py-3 text-dark" id="totalQtyDisplay">0</td>
+                                                <td colspan="1" class="text-end fw-bold py-3 text-slate-600">Grand Total</td>
                                                 <td class="text-end fw-bold py-3 text-primary text-lg" id="grandTotal">0.00</td>
                                                 <td></td>
                                             </tr>
@@ -235,10 +245,19 @@
                 }
             });
 
+            // Restore State on Validation Failure
+            if ($('#return_mode').val() === 'global') {
+                $('#btnByInvoice').removeClass('active-toggle-btn');
+                $('#btnBySupplier').addClass('active-toggle-btn');
+                $('#invoiceSelectionSection').hide();
+                $('#supplierSelectionSection').show();
+            }
+
             // Toggle Modes
             $('#btnByInvoice').click(function() {
-                $('.return-type-btn').removeClass('active');
-                $(this).addClass('active');
+                if ($('#return_mode').val() === 'invoice') return; // Prevent reset if already active
+                $('#btnBySupplier').removeClass('active-toggle-btn');
+                $(this).addClass('active-toggle-btn');
                 $('#return_mode').val('invoice');
                 $('#invoiceSelectionSection').show();
                 $('#supplierSelectionSection').hide();
@@ -246,8 +265,9 @@
             });
 
             $('#btnBySupplier').click(function() {
-                $('.return-type-btn').removeClass('active');
-                $(this).addClass('active');
+                if ($('#return_mode').val() === 'global') return; // Prevent reset if already active
+                $('#btnByInvoice').removeClass('active-toggle-btn');
+                $(this).addClass('active-toggle-btn');
                 $('#return_mode').val('global');
                 $('#invoiceSelectionSection').hide();
                 $('#supplierSelectionSection').show();
@@ -259,17 +279,35 @@
                 else $('#accountSection').slideUp();
             });
 
-            // Search Invoice
-            $('#btnSearchInvoice').click(function() {
-                const q = $('#invoice_search').val();
-                if (!q) return;
+            // Smart Invoice Search (Select2)
+            $('#invoice_search').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Choose Invoice (#PUR or Bill No)',
+                ajax: {
+                    url: "{{ route('purchaseReturn.search.invoice') }}",
+                    dataType: 'json',
+                    delay: 250,
+                    data: params => ({ q: params.term || '' }),
+                    processResults: data => ({ results: data.results })
+                }
+            }).on('select2:select', function(e) {
+                const purchaseId = e.params.data.id;
+                loadInvoiceDetails(purchaseId);
+                $(this).val(null).trigger('change'); // Auto-clear search bar
+            });
 
-                $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+            function loadInvoiceDetails(id) {
+                Swal.fire({
+                    title: 'Loading Items...',
+                    didOpen: () => { Swal.showLoading(); },
+                    allowOutsideClick: false
+                });
 
                 $.ajax({
                     url: "{{ route('purchaseReturn.search.invoice.detail') }}",
-                    data: { invoice_no: q },
+                    data: { invoice_no: id },
                     success: res => {
+                        Swal.close();
                         if (res.success) {
                             resetForm();
                             $('#purchase_id').val(res.data.id);
@@ -283,18 +321,22 @@
                                     max_qty: item.quantity,
                                     purchase_item_id: item.id,
                                     from_type: item.location_type,
-                                    from_id: item.location_id
+                                    from_id: item.location_id,
+                                    color: item.color,
+                                    size: item.size,
+                                    image: item.image
                                 });
                             });
                         } else {
                             Swal.fire('Error', res.message, 'error');
                         }
                     },
-                    complete: () => {
-                        $(this).prop('disabled', false).html('<i class="fas fa-search"></i>');
+                    error: () => {
+                        Swal.close();
+                        Swal.fire('Error', 'Failed to fetch invoice details', 'error');
                     }
                 });
-            });
+            }
 
             function addRow(data) {
                 $('#emptyPlaceholder').hide();
@@ -309,26 +351,34 @@
 
                 const row = `
                     <tr class="return-row" data-index="${idx}">
+                        <td class="text-center">
+                            <img src="${data.image || '/static/default-product.jpg'}" alt="Product" class="rounded shadow-sm border" style="width: 50px; height: 50px; object-fit: cover;">
+                        </td>
                         <td class="product-name-cell">
                             <div class="name">${data.text}</div>
+                            <div class="small d-flex gap-1 flex-wrap mt-1">
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2">Style: ${data.style || data.style_number || '-'}</span>
+                                ${data.color && data.color !== '-' ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2">Color: ${data.color}</span>` : ''}
+                                ${data.size && data.size !== '-' ? `<span class="badge bg-info-subtle text-info border border-info-subtle px-2">Size: ${data.size}</span>` : ''}
+                            </div>
                             <input type="hidden" name="items[${idx}][product_id]" value="${productId}">
                             <input type="hidden" name="items[${idx}][variation_id]" value="${variationId}">
                             <input type="hidden" name="items[${idx}][purchase_item_id]" value="${data.purchase_item_id || ''}">
                         </td>
                         <td>
-                            <select name="items[${idx}][location_combined]" class="form-select form-select-sm location-picker">
+                            <select name="items[${idx}][location_combined]" class="form-select form-select-sm location-picker location-picker-premium table-input-premium">
                                 ${locationOptions}
                             </select>
                             <input type="hidden" name="items[${idx}][return_from]" class="hidden-from" value="${data.from_type || 'warehouse'}">
                             <input type="hidden" name="items[${idx}][from_id]" class="hidden-from-id" value="${data.from_id || warehouses[0]?.id || 1}">
-                            <div class="mt-2"><span class="badge-stock badge-stock-checking stock-display"><i class="fas fa-spinner fa-spin me-1"></i>Checking...</span></div>
+                            <div class="mt-2 text-center"><span class="badge-stock badge-stock-checking stock-display"><i class="fas fa-spinner fa-spin me-1"></i>Checking...</span></div>
                         </td>
                         <td>
-                            <input type="number" name="items[${idx}][returned_qty]" class="form-control form-control-sm text-center return-qty" value="1" min="1" step="1">
+                            <input type="number" name="items[${idx}][returned_qty]" class="form-control form-control-sm text-center return-qty table-input-premium fw-bold" value="1" min="1" step="1">
                             ${data.max_qty ? `<small class="text-muted d-block text-center mt-1 fw-bold" style="font-size: 0.7rem;">MAX: ${data.max_qty}</small>` : ''}
                         </td>
                         <td>
-                            <input type="number" name="items[${idx}][unit_price]" class="form-control form-control-sm text-end unit-price font-monospace" value="${data.price || 0}" step="0.01">
+                            <input type="number" name="items[${idx}][unit_price]" class="form-control form-control-sm text-end unit-price font-monospace table-input-premium" value="${data.price || 0}" step="0.01">
                         </td>
                         <td class="text-end fw-bold row-total font-monospace text-slate-700" style="font-size: 1.1rem;">0.00</td>
                         <td class="text-center">
@@ -389,15 +439,18 @@
             function calculateAll() {
                 let grand = 0;
                 let count = 0;
+                let totalQty = 0;
                 $('.return-row').each(function() {
                     const q = parseFloat($(this).find('.return-qty').val()) || 0;
                     const p = parseFloat($(this).find('.unit-price').val()) || 0;
                     const tot = q * p;
                     $(this).find('.row-total').text(tot.toFixed(2));
                     grand += tot;
+                    totalQty += q;
                     count++;
                 });
                 $('#grandTotal').text(grand.toFixed(2));
+                $('#totalQtyDisplay').text(totalQty);
                 $('#itemCount').text(`${count} Item${count != 1 ? 's' : ''}`);
             }
 
@@ -406,6 +459,7 @@
                 $('#emptyPlaceholder').show();
                 $('#purchase_id').val('');
                 $('#grandTotal').text('0.00');
+                $('#totalQtyDisplay').text('0');
                 $('#itemCount').text('0 Items');
                 itemIndex = 0;
             }

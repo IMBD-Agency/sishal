@@ -21,6 +21,52 @@
             .select2-container--default .select2-selection--single { height: 42px; border: 1px solid #e9ecef; border-radius: 0.375rem; }
             .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 40px; padding-left: 12px; }
             .select2-container--default .select2-selection--single .select2-selection__arrow { height: 40px; }
+            .select2-container--default .select2-selection--single .select2-selection__arrow { height: 40px; }
+
+            /* Premium Qty Controls */
+            .qty-control-wrapper {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #f8fafc;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 2px;
+                width: fit-content;
+                margin: 0;
+            }
+            .btn-qty {
+                width: 26px;
+                height: 26px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: none;
+                background: transparent;
+                color: #6c757d;
+                border-radius: 6px;
+                transition: all 0.2s;
+                cursor: pointer;
+                font-size: 0.75rem;
+            }
+            .btn-qty:hover:not(:disabled) {
+                background: #fff;
+                color: #0d6efd;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .qty-input-premium {
+                width: 45px !important;
+                border: none !important;
+                background: transparent !important;
+                text-align: center;
+                font-weight: 700 !important;
+                color: #212529 !important;
+                padding: 0 !important;
+                height: 26px !important;
+                box-shadow: none !important;
+            }
+            input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+            input[type=number] { -moz-appearance: textfield; }
         </style>
 
         <!-- Header Section -->
@@ -296,7 +342,11 @@
                         </div>
                     </td>
                     <td class="align-top">
-                        <input type="number" name="items[${itemIndex}][quantity]" class="form-control quantity fw-bold border-2" min="1" step="1" required>
+                        <div class="qty-control-wrapper">
+                            <button type="button" class="btn-qty btn-minus"><i class="fas fa-minus"></i></button>
+                            <input type="number" name="items[${itemIndex}][quantity]" class="form-control qty-input-premium quantity" min="1" step="1" required>
+                            <button type="button" class="btn-qty btn-plus"><i class="fas fa-plus"></i></button>
+                        </div>
                     </td>
                     <td class="align-top">
                         <div class="input-group">
@@ -430,7 +480,25 @@
             $('#total_amount').val(grandTotal.toFixed(2));
         }
 
-        $(document).on('input change', '.quantity, .unit_price, #discount_value, input[name="discount_type"]', updateTotals);
+        $(document).on('input change', '.quantity, .unit_price', updateTotals);
+
+        $(document).on('click', '.btn-minus', function() {
+            const input = $(this).siblings('.quantity');
+            if (input.prop('readonly')) return;
+            const val = parseInt(input.val()) || 1;
+            if (val > 1) {
+                input.val(val - 1).trigger('input');
+            }
+        });
+
+        $(document).on('click', '.btn-plus', function() {
+            const input = $(this).siblings('.quantity');
+            if (input.prop('readonly')) return;
+            const val = parseInt(input.val()) || 0;
+            input.val(val + 1).trigger('input');
+        });
+
+        $(document).on('input change', '#discount_value, input[name="discount_type"]', updateTotals);
         function updateRemoveButtons() { $('.remove-row').prop('disabled', $('.item-row').length <= 1); }
     </script>
 @endsection

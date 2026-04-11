@@ -90,7 +90,7 @@
                                     <th>STYLE NO.</th>
                                     <th width="120">SIZE</th>
                                     <th width="120">COLOR</th>
-                                    <th width="90" class="text-center">QTY</th>
+                                    <th width="120" class="text-center">QTY</th>
                                     <th width="130" class="text-end">UNIT PRICE</th>
                                     <th width="140" class="text-end">TOTAL</th>
                                     <th width="60" class="text-center"></th>
@@ -335,12 +335,19 @@
                         </select>
                         <input type="hidden" name="items[${rowIndex}][variation_id]" class="variation-id-input" value="${variationId}">
                     </td>
-                    <td>
-                        <input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm quantity text-center border-2 fw-bold" value="${options.quantity || 1}" min="1" step="1">
+                    <td class="text-center">
+                        <div class="qty-control-wrapper">
+                            <button type="button" class="btn-qty btn-minus"><i class="fas fa-minus"></i></button>
+                            <input type="number" name="items[${rowIndex}][quantity]" class="form-control qty-input-premium quantity" value="${options.quantity || 1}" min="1" step="1">
+                            <button type="button" class="btn-qty btn-plus"><i class="fas fa-plus"></i></button>
+                        </div>
                         <input type="hidden" name="items[${rowIndex}][product_id]" value="${p.id}">
                     </td>
                     <td>
-                        <input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm unit_price text-end border-2 fw-bold" value="${unitPrice}" step="0.01">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-end-0 text-muted small">৳</span>
+                            <input type="number" name="items[${rowIndex}][unit_price]" class="form-control unit-price-input unit_price text-end border-start-0 ps-0" value="${unitPrice}" step="0.01">
+                        </div>
                     </td>
                     <td class="text-end fw-bold text-primary">
                         <span class="item-total-val">${(parseFloat(unitPrice) * (options.quantity || 1)).toFixed(2)}</span>
@@ -390,6 +397,21 @@
         });
 
         $(document).on('input', '.quantity, .unit_price', updateTotals);
+
+        // Qty Switchers Logic
+        $(document).on('click', '.btn-minus', function() {
+            const input = $(this).siblings('.quantity');
+            const val = parseInt(input.val()) || 1;
+            if (val > 1) {
+                input.val(val - 1).trigger('input');
+            }
+        });
+
+        $(document).on('click', '.btn-plus', function() {
+            const input = $(this).siblings('.quantity');
+            const val = parseInt(input.val()) || 0;
+            input.val(val + 1).trigger('input');
+        });
 
         // ENHANCED: Dynamic Variation Selection Logic
         $(document).on('change', '.size-select, .color-select', function() {

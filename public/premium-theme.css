@@ -1181,3 +1181,79 @@
 
 
 
+
+/* ==========================================================================
+   Premium Quantity Controls & Numeric Inputs
+   ========================================================================== */
+
+.qty-control-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 2px;
+    width: fit-content;
+    margin: 0 auto;
+}
+
+.btn-qty {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    border-radius: 6px;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.btn-qty:hover:not(:disabled) {
+    background: #fff;
+    color: var(--primary-green);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.qty-input-premium {
+    width: 50px !important;
+    border: none !important;
+    background: transparent !important;
+    text-align: center;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    padding: 0 !important;
+    height: 28px !important;
+    box-shadow: none !important;
+}
+
+/* Hide spin buttons globally for premium numeric inputs */
+input.qty-input-premium[type=number]::-webkit-inner-spin-button, 
+input.qty-input-premium[type=number]::-webkit-outer-spin-button,
+.no-spin[type=number]::-webkit-inner-spin-button,
+.no-spin[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+
+input.qty-input-premium[type=number],
+.no-spin[type=number] { 
+    -moz-appearance: textfield; 
+}
+
+.unit-price-input {
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+}
+
+.item-total-val {
+    font-size: 1rem;
+    color: var(--primary-green);
+    letter-spacing: -0.01em;
+}

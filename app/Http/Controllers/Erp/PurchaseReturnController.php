@@ -346,64 +346,70 @@ class PurchaseReturnController extends Controller
      */
     public function searchInvoice(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view purchases')) {
-            abort(403, 'Unauthorized action.');
-        }
-        $invoiceNo = $request->invoice_no;
-        if (!$invoiceNo) {
-            return response()->json(['success' => false, 'message' => 'Invoice number is required.']);
-        }
+        try {
+            if (!auth()->user()->hasPermissionTo('view purchases')) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized action.']);
+            }
+            $invoiceNo = $request->invoice_no;
+            if (!$invoiceNo) {
+                return response()->json(['success' => false, 'message' => 'Invoice ID/No is required.']);
+            }
 
-        // Strip '#' if user included it in search (e.g., #28 -> 28)
-        $cleanInvoiceNo = ltrim($invoiceNo, '#');
+            $cleanInvoiceNo = ltrim($invoiceNo, '#');
 
-        $purchase = Purchase::with(['supplier', 'bill', 'items.product', 'items.variation.attributeValues.attribute'])
-            ->whereHas('bill', function($q) use ($invoiceNo, $cleanInvoiceNo) {
-                $q->where('bill_number', $invoiceNo)
-                  ->orWhere('bill_number', $cleanInvoiceNo);
-            })
-            ->orWhere('id', $cleanInvoiceNo)
-            ->first();
-
-        if (!$purchase) {
-            return response()->json(['success' => false, 'message' => 'Purchase not found.']);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $purchase->id,
-                'invoice_no' => $purchase->bill->bill_number ?? 'PUR-' . $purchase->id,
-                'supplier_id' => $purchase->supplier_id,
-                'supplier_name' => $purchase->supplier->name ?? 'N/A',
-                'purchase_date' => $purchase->purchase_date,
-                'items' => $purchase->items->map(function($item) use ($purchase) {
-                    $color = '-'; $size = '-';
-                    if ($item->variation && $item->variation->attributeValues) {
-                        foreach($item->variation->attributeValues as $val) {
-                            $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color')) $color = $val->value;
-                            elseif (str_contains($attrName, 'size')) $size = $val->value;
-                        }
-                    }
-
-                    return [
-                        'id' => $item->id,
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product->name,
-                        'variation_id' => $item->variation_id,
-                        'variation_name' => $item->variation->name ?? 'Standard',
-                        'quantity' => $item->quantity,
-                        'unit_price' => $item->unit_price,
-                        'color' => $color,
-                        'size' => $size,
-                        'style_number' => $item->product->style_number ?? '-',
-                        'location_type' => $purchase->ship_location_type ?? 'branch',
-                        'location_id' => $purchase->location_id,
-                    ];
+            // Find by ID directly first (since Select2 sends IDs), then fallback to Bill Number
+            $purchase = Purchase::with(['supplier', 'bill', 'items.product', 'items.variation.attributeValues.attribute'])
+                ->where('id', $cleanInvoiceNo)
+                ->orWhereHas('bill', function($q) use ($invoiceNo, $cleanInvoiceNo) {
+                    $q->where('bill_number', $invoiceNo)
+                      ->orWhere('bill_number', $cleanInvoiceNo);
                 })
-            ]
-        ]);
+                ->first();
+
+            if (!$purchase) {
+                return response()->json(['success' => false, 'message' => 'Purchase invoice not found.']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $purchase->id,
+                    'invoice_no' => optional($purchase->bill)->bill_number ?? 'PUR-' . $purchase->id,
+                    'supplier_id' => $purchase->supplier_id,
+                    'supplier_name' => optional($purchase->supplier)->name ?? 'N/A',
+                    'purchase_date' => $purchase->purchase_date,
+                    'items' => $purchase->items->map(function($item) use ($purchase) {
+                        $color = '-'; $size = '-';
+                        if ($item->variation && $item->variation->attributeValues) {
+                            foreach($item->variation->attributeValues as $val) {
+                                $attrName = strtolower(optional($val->attribute)->name ?? '');
+                                if (str_contains($attrName, 'color')) $color = $val->value;
+                                elseif (str_contains($attrName, 'size')) $size = $val->value;
+                            }
+                        }
+
+                        return [
+                            'id' => $item->id,
+                            'product_id' => $item->product_id,
+                            'product_name' => optional($item->product)->name ?? 'Unknown Product',
+                            'variation_id' => $item->variation_id,
+                            'variation_name' => optional($item->variation)->name ?? 'Standard',
+                            'quantity' => $item->quantity,
+                            'unit_price' => $item->unit_price,
+                            'color' => $color,
+                            'size' => $size,
+                            'image' => optional($item->product)->image ? asset($item->product->image) : asset('static/default-product.jpg'),
+                            'style_number' => optional($item->product)->sku ?? (optional($item->product)->style_number ?? '-'),
+                            'location_type' => $purchase->ship_location_type ?? 'branch',
+                            'location_id' => $purchase->location_id,
+                        ];
+                    })
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Purchase Return Search Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'System Error: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -423,6 +429,7 @@ class PurchaseReturnController extends Controller
                       $billQuery->where('bill_number', 'LIKE', "%{$query}%");
                   });
             })
+            ->latest('id')
             ->limit(20)
             ->get();
 
@@ -474,7 +481,9 @@ class PurchaseReturnController extends Controller
                         'product_id' => $product->id,
                         'variation_id' => $variation->id,
                         'text' => $product->name . " - " . $variation->name,
-                        'price' => $variation->cost > 0 ? $variation->cost : ($product->cost > 0 ? $product->cost : $product->price)
+                        'price' => $variation->cost > 0 ? $variation->cost : ($product->cost > 0 ? $product->cost : $product->price),
+                        'image' => $variation->image ? asset($variation->image) : ($product->image ? asset($product->image) : asset('static/default-product.jpg')),
+                        'style' => $product->sku ?? ($product->style_number ?? '-')
                     ];
                 }
             } else {
@@ -483,7 +492,9 @@ class PurchaseReturnController extends Controller
                     'product_id' => $product->id,
                     'variation_id' => null,
                     'text' => $product->name,
-                    'price' => $product->cost > 0 ? $product->cost : $product->price
+                    'price' => $product->cost > 0 ? $product->cost : $product->price,
+                    'image' => $product->image ? asset($product->image) : asset('static/default-product.jpg'),
+                    'style' => $product->sku ?? ($product->style_number ?? '-')
                 ];
             }
         }
@@ -508,7 +519,49 @@ class PurchaseReturnController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.returned_qty' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
+        ], [
+            'items.required' => 'At least one product must be added to process a return.',
+            'items.*.product_id.required' => 'A valid product must be selected for all rows.',
+            'items.*.product_id.exists' => 'One or more selected products cannot be found (they may have been deleted). Please remove them from the list.',
+            'items.*.returned_qty.min' => 'The return quantity must be greater than zero.',
+            'items.*.returned_qty.required' => 'Please specify the return quantity for all items.',
+            'items.*.unit_price.min' => 'Unit price cannot be negative.',
+            'supplier_id.required_without' => 'A Supplier must be selected when processing a Global Return.',
+            'account_id.required_if' => 'Please select a destination Bank/Financial Account for the refund.'
         ]);
+
+        // Advanced Validation: Pre-check physical stock before allowing the return
+        if ($request->has('items')) {
+            foreach ($request->items as $idx => $item) {
+                $returnedQty = floatval($item['returned_qty'] ?? 0);
+                if ($returnedQty <= 0) continue;
+
+                $productId = $item['product_id'];
+                $variationId = (!empty($item['variation_id']) && $item['variation_id'] !== 'null') ? $item['variation_id'] : null;
+                $returnFromType = $item['return_from'] ?? 'warehouse';
+                $returnFromId = $item['from_id'] ?? 1;
+
+                $stock = null;
+                if ($returnFromType == 'warehouse') {
+                    $stock = $variationId 
+                        ? \App\Models\ProductVariationStock::where('variation_id', $variationId)->where('warehouse_id', $returnFromId)->first()
+                        : \App\Models\WarehouseProductStock::where('product_id', $productId)->where('warehouse_id', $returnFromId)->first();
+                } elseif ($returnFromType == 'branch') {
+                    $stock = $variationId 
+                        ? \App\Models\ProductVariationStock::where('variation_id', $variationId)->where('branch_id', $returnFromId)->first()
+                        : \App\Models\BranchProductStock::where('product_id', $productId)->where('branch_id', $returnFromId)->first();
+                } elseif ($returnFromType == 'employee') {
+                    $stock = \App\Models\EmployeeProductStock::where('product_id', $productId)->where('employee_id', $returnFromId)->first();
+                }
+
+                $availableStock = $stock ? $stock->quantity : 0;
+
+                if ($returnedQty > $availableStock) {
+                    $productName = \App\Models\Product::find($productId)->name ?? 'Item';
+                    return back()->withErrors(['error' => "Cannot return {$returnedQty}x {$productName}. You only have {$availableStock} left at the selected location."])->withInput();
+                }
+            }
+        }
 
         DB::beginTransaction();
         try {

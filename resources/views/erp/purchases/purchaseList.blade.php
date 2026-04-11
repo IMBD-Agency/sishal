@@ -4,7 +4,7 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content" id="mainContent">
+    <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         
         <style>
@@ -69,7 +69,7 @@
         </style>
 
         <!-- Premium Header Area -->
-        <div class="glass-header">
+        <div class="glass-header px-4 py-3 bg-white">
             <div class="row align-items-center">
                 <div class="col-md-7">
                     <nav aria-label="breadcrumb">
@@ -298,20 +298,21 @@
                                     <th>Gender</th>
                                     <th style="min-width: 150px;">Product Name</th>
                                     <th>Style #</th>
-                                    <th>Color</th>
-                                    <th>Size</th>
+                                    <th width="120">Color</th>
+                                    <th width="100">Size</th>
                                     <th class="text-center">Pur. Qty</th>
-                                    <th class="text-center bg-light">T. Pur. Qty</th>
+                                    <th class="text-center bg-light" title="Total items in this Invoice">Inv. T. Qty</th>
                                     <th class="text-end">Pur. Value</th>
-                                    <th class="text-end bg-light">T. Pur. Value</th>
+                                    <th class="text-end bg-light" title="Total value of this Invoice">Inv. T. Value</th>
                                     <th class="text-center">Ret. Qty</th>
-                                    <th class="text-center bg-light">T. Ret. Qty</th>
+                                    <th class="text-center bg-light">Inv. T. Ret. Qty</th>
                                     <th class="text-end">Ret. Value</th>
-                                    <th class="text-end bg-light">T. Ret. Value</th>
+                                    <th class="text-end bg-light">Inv. T. Ret. Value</th>
                                     <th class="text-center">Act. Qty</th>
-                                    <th class="text-center bg-light">T. Act. Qty</th>
+                                    <th class="text-center bg-light">Inv. T. Act. Qty</th>
                                     <th class="text-end">Act. Value</th>
-                                    <th class="text-end bg-light">T. Act. Value</th>
+                                    <th class="text-end bg-light">Inv. T. Act. Value</th>
+                                    <th class="text-center fw-bold text-info">Live Stock</th>
                                     <th class="text-end">Bill Disc.</th>
                                     <th class="text-end">Paid A/C</th>
                                     <th class="text-end">Due A/C</th>
@@ -351,6 +352,16 @@
                                         $actualQty = $item->quantity - $retQty;
                                         $actualAmt = $item->total_price - $retAmt;
 
+                                        // Invoice-Level Summary
+                                        $showInvoiceTotals = ($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id);
+                                        $invPurQty = $purchase->items->sum('quantity');
+                                        $invPurAmt = $purchase->items->sum('total_price');
+                                        $invRetQty = $purchase->items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
+                                        $invRetAmt = $purchase->items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
+                                        
+                                        $invActQty = $invPurQty - $invRetQty;
+                                        $invActAmt = $invPurAmt - $invRetAmt;
+
                                         $grandTotalPurQty += $item->quantity;
                                         $grandTotalPurAmt += $item->total_price;
                                         $grandTotalRetQty += $retQty;
@@ -383,34 +394,38 @@
                                         <td class="fw-bold">{{ $size }}</td>
                                         
                                         <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
-                                        <td class="text-center fw-bold bg-light">{{ number_format($item->quantity, 2) }}</td>
+                                        <td class="text-center fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invPurQty, 2) }} @else - @endif</td>
                                         <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>
-                                        <td class="text-end fw-bold bg-light">{{ number_format($item->total_price, 2) }}৳</td>
+                                        <td class="text-end fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invPurAmt, 2) }}৳ @else - @endif</td>
                                         
                                         <td class="text-center text-danger">{{ number_format($retQty, 2) }}</td>
-                                        <td class="text-center text-danger fw-bold bg-light">{{ number_format($retQty, 2) }}</td>
+                                        <td class="text-center text-danger fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invRetQty, 2) }} @else - @endif</td>
                                         <td class="text-end text-danger">{{ number_format($retAmt, 2) }}৳</td>
-                                        <td class="text-end text-danger fw-bold bg-light">{{ number_format($retAmt, 2) }}৳</td>
+                                        <td class="text-end text-danger fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invRetAmt, 2) }}৳ @else - @endif</td>
                                         
                                         <td class="text-center text-success">{{ number_format($actualQty, 2) }}</td>
-                                        <td class="text-center text-success fw-bold bg-light">{{ number_format($actualQty, 2) }}</td>
+                                        <td class="text-center text-success fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invActQty, 2) }} @else - @endif</td>
                                         <td class="text-end text-success">{{ number_format($actualAmt, 2) }}৳</td>
-                                        <td class="text-end text-success fw-bold bg-light">{{ number_format($actualAmt, 2) }}৳</td>
+                                        <td class="text-end text-success fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invActAmt, 2) }}৳ @else - @endif</td>
+                                        
+                                        <td class="text-center fw-bold text-info">
+                                            {{ $variation ? $variation->available_stock : ($product ? $product->total_stock : 0) }}
+                                        </td>
                                         
                                         <td class="text-end text-warning fw-bold">
-                                            @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
+                                            @if($showInvoiceTotals)
                                                 {{ number_format($bill->discount_amount ?? 0, 2) }}৳
                                                 @php $grandTotalDiscount += ($bill->discount_amount ?? 0); @endphp
                                             @else - @endif
                                         </td>
                                         <td class="text-end text-primary fw-bold">
-                                            @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
+                                            @if($showInvoiceTotals)
                                                 {{ number_format($bill->paid_amount ?? 0, 2) }}৳
                                                 @php $grandTotalPaid += ($bill->paid_amount ?? 0); @endphp
                                             @else - @endif
                                         </td>
                                         <td class="text-end text-danger fw-bold">
-                                            @if($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id)
+                                            @if($showInvoiceTotals)
                                                 {{ number_format($bill->due_amount ?? 0, 2) }}৳
                                                 @php $grandTotalDue += ($bill->due_amount ?? 0); @endphp
                                             @else - @endif
@@ -437,7 +452,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="29" class="text-center py-5">
+                                        <td colspan="30" class="text-center py-5">
                                             <div class="text-muted opacity-50 py-4">
                                                 <i class="fas fa-file-invoice fa-3x mb-3"></i>
                                                 <h6 class="fw-bold">No Procurement Records Found</h6>
@@ -451,19 +466,21 @@
                                 <tr class="fw-bold text-dark text-uppercase" style="font-size: 13px;">
                                     <td colspan="13" class="text-end py-3">Global Registry Totals</td>
                                     <td class="text-center">{{ number_format($grandTotalPurQty, 2) }}</td>
-                                    <td class="text-center bg-white">{{ number_format($grandTotalPurQty, 2) }}</td>
+                                    <td class="text-center bg-white">-</td>
                                     <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
-                                    <td class="text-end bg-white">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
+                                    <td class="text-end bg-white">-</td>
                                     
                                     <td class="text-center text-danger">{{ number_format($grandTotalRetQty, 2) }}</td>
-                                    <td class="text-center text-danger bg-white">{{ number_format($grandTotalRetQty, 2) }}</td>
+                                    <td class="text-center text-danger bg-white">-</td>
                                     <td class="text-end text-danger">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
-                                    <td class="text-end text-danger bg-white">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
+                                    <td class="text-end text-danger bg-white">-</td>
                                     
                                     <td class="text-center text-success">{{ number_format($grandTotalActQty, 2) }}</td>
-                                    <td class="text-center text-success bg-white">{{ number_format($grandTotalActQty, 2) }}</td>
+                                    <td class="text-center text-success bg-white">-</td>
                                     <td class="text-end text-success">{{ number_format($grandTotalActAmt, 2) }}৳</td>
-                                    <td class="text-end text-success bg-white">{{ number_format($grandTotalActAmt, 2) }}৳</td>
+                                    <td class="text-end text-success bg-white">-</td>
+                                    
+                                    <td class="text-center text-info">-</td>
                                     
                                     <td class="text-end text-warning">{{ number_format($grandTotalDiscount, 2) }}৳</td>
                                     <td class="text-end text-primary">{{ number_format($grandTotalPaid, 2) }}৳</td>

@@ -4,11 +4,31 @@
 
 @section('body')
     @include('erp.components.sidebar')
-    <div class="main-content" id="mainContent">
+    <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         
+        <style>
+            /* Premium Sticky Header & Horizontal Scroll Fix */
+            .premium-card { overflow: hidden !important; border: 1px solid #edf2f7; }
+            .table-responsive { max-height: 80vh; overflow: auto !important; position: relative; background: #fff; }
+            #returnTable { border-collapse: separate; border-spacing: 0; width: 100%; }
+            #returnTable thead th { 
+                position: sticky; top: 0; z-index: 1000 !important; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+                padding-top: 12px !important; padding-bottom: 12px !important;
+                background-color: #f8f9fa;
+            }
+            #returnTable tbody td { background-color: #fff; }
+            
+            /* Slim Scrollbar */
+            .table-responsive::-webkit-scrollbar { width: 6px; height: 6px; }
+            .table-responsive::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+            
+            .glass-header { box-shadow: none !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important; margin-bottom: 1rem !important; }
+        </style>
+        
     <!-- Premium Header -->
-    <div class="glass-header">
+    <div class="glass-header px-4 py-3 bg-white">
         <div class="row align-items-center">
             <div class="col-md-7">
                 <nav aria-label="breadcrumb">
@@ -211,6 +231,7 @@
                                     <th>Return Date</th>
                                     <th>R-Inv #</th>
                                     <th>P-Inv #</th>
+                                    <th class="text-center">Image</th>
                                     <th>Outlet / Source</th>
                                     <th>Supplier</th>
                                     <th>Mobile</th>
@@ -220,8 +241,8 @@
                                     <th>Gender</th>
                                     <th style="min-width: 150px;">Product Name</th>
                                     <th>Style #</th>
-                                    <th>Color</th>
-                                    <th>Size</th>
+                                    <th width="120">Color</th>
+                                    <th width="100">Size</th>
                                     <th class="text-center">Ret. Qty</th>
                                     <th class="text-end">Ret. Amount</th>
                                     <th class="text-center pe-3">ACTION</th>
@@ -241,13 +262,13 @@
                                         $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
                                         
                                         $color = '-'; $size = '-';
-                                        if ($variation && $variation->variationAttributes) {
-                                            foreach($variation->variationAttributes as $attr) {
-                                                $attrName = strtolower($attr->attribute->name ?? '');
-                                                if (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || $attr->attribute->is_color) {
-                                                    $color = $attr->value;
+                                        if ($variation && $variation->attributeValues) {
+                                            foreach($variation->attributeValues as $val) {
+                                                $attrName = strtolower($val->attribute->name ?? '');
+                                                if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                                                    $color = $val->value;
                                                 } elseif (str_contains($attrName, 'size')) {
-                                                    $size = $attr->value;
+                                                    $size = $val->value;
                                                 }
                                             }
                                         }
@@ -262,12 +283,17 @@
                                         <td class="fw-bold text-success">#RET-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</td>
                                         <td class="fw-bold text-dark">
                                             @if($purchase && $purchase->bill && $purchase->bill->bill_number) 
-                                                {{ $purchase->bill->bill_number }}
+                                                <a href="{{ route('purchase.show', $purchase->id) }}" class="text-decoration-none text-primary">{{ $purchase->bill->bill_number }}</a>
                                             @elseif($purchase) 
-                                                #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }}
+                                                <a href="{{ route('purchase.show', $purchase->id) }}" class="text-decoration-none text-primary">#PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }}</a>
                                             @else 
-                                                <span class="italic">GLOBAL</span> 
+                                                <span class="text-muted small">GLOBAL</span> 
                                             @endif
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="thumbnail-box mx-auto" style="width: 35px; height: 35px;">
+                                                <img src="{{ $product && $product->image ? asset($product->image) : asset('static/default-product.jpg') }}" alt="">
+                                            </div>
                                         </td>
                                         <td>
                                             @if($item->return_from_type == 'branch')
@@ -277,29 +303,17 @@
                                             @endif
                                         </td>
                                         <td class="fw-bold">
-                                            @if($purchase && $purchase->supplier)
-                                                {{ $purchase->supplier->name }}
-                                            @elseif($return && $return->supplier)
-                                                {{ $return->supplier->name }}
-                                            @else
-                                                -
-                                            @endif
+                                            {{ $purchase->supplier->name ?? ($return->supplier->name ?? '-') }}
                                         </td>
-                                        <td>
-                                            @if($purchase && $purchase->supplier)
-                                                {{ $purchase->supplier->phone }}
-                                            @elseif($return && $return->supplier)
-                                                {{ $return->supplier->phone }}
-                                            @else
-                                                -
-                                            @endif
+                                        <td class="small">
+                                            {{ $purchase->supplier->phone ?? ($return->supplier->phone ?? '-') }}
                                         </td>
                                         <td>{{ $product->category->name ?? '-' }}</td>
                                         <td>{{ $product->brand->name ?? '-' }}</td>
                                         <td>{{ $product->season->name ?? '-' }}</td>
                                         <td>{{ $product->gender->name ?? '-' }}</td>
                                         <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
-                                        <td class="text-pink fw-bold">{{ $product->style_number ?? '-' }}</td>
+                                        <td><code class="text-primary bg-light px-2 py-1 rounded">{{ $product->sku ?? ($product->style_number ?? '-') }}</code></td>
                                         <td class="text-uppercase fw-bold">{{ $color }}</td>
                                         <td class="fw-bold">{{ $size }}</td>
                                         <td class="text-center fw-bold">{{ number_format($item->returned_qty, 2) }}</td>
@@ -314,7 +328,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="18" class="text-center py-5">
+                                        <td colspan="20" class="text-center py-5">
                                             <div class="text-muted opacity-50 py-4">
                                                 <i class="fas fa-undo-alt fa-3x mb-3"></i>
                                                 <h6 class="fw-bold">No Procurement Returns Found</h6>
@@ -326,13 +340,13 @@
                             </tbody>
                             <tfoot class="bg-light border-top-0">
                                 <tr class="fw-bold text-dark text-uppercase" style="font-size: 13px;">
-                                    <td colspan="15" class="text-end py-3">Batch Registry Totals</td>
+                                    <td colspan="16" class="text-end py-3">Batch Registry Totals</td>
                                     <td class="text-center font-monospace">{{ number_format($pageTotalQty, 2) }}</td>
                                     <td class="text-end font-monospace">{{ number_format($pageTotalAmount, 2) }}৳</td>
                                     <td></td>
                                 </tr>
                                 <tr class="fw-bold text-primary text-uppercase" style="font-size: 13px;">
-                                    <td colspan="15" class="text-end py-3 bg-white">Global Return Auditor Total</td>
+                                    <td colspan="16" class="text-end py-3 bg-white">Global Return Auditor Total</td>
                                     <td class="text-center font-monospace bg-white">{{ number_format($totalQty, 2) }}</td>
                                     <td class="text-end font-monospace bg-white">{{ number_format($totalPrice, 2) }}৳</td>
                                     <td class="bg-white"></td>
