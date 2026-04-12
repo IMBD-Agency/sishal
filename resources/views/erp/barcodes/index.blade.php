@@ -56,10 +56,10 @@
                                 <label class="form-label fw-bold text-muted small text-uppercase">Label Quantity</label>
                                 <div class="input-group" style="max-width: 180px;">
                                     <button class="btn btn-outline-secondary" type="button" onclick="adjustQty(-1)"><i class="fas fa-minus"></i></button>
-                                    <input type="number" class="form-control text-center fw-bold" id="labelQty" value="1" min="1" max="100">
+                                    <input type="number" class="form-control text-center fw-bold" id="labelQty" value="1" min="1" max="500">
                                     <button class="btn btn-outline-secondary" type="button" onclick="adjustQty(1)"><i class="fas fa-plus"></i></button>
                                 </div>
-                                <small class="text-muted">Maximum 100 labels at once</small>
+                                <small class="text-muted">Maximum 500 labels at once</small>
                             </div>
 
                             <div class="d-grid gap-2">
@@ -137,8 +137,10 @@
         line-height: 1;
     }
     .sticker-name {
-        font-size: 10px;
+        font-size: 11px;
+        font-weight: bold;
         color: #111;
+        margin-top: 2px;
         overflow: hidden;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -147,10 +149,10 @@
         width: 100%;
     }
     .sticker-barcode {
-        margin: 2px 0;
+        margin: 0;
         display: flex;
         justify-content: center;
-        height: 35px;
+        height: 40px;
         width: 100%;
     }
     .sticker-barcode svg, .sticker-barcode img {
@@ -160,15 +162,18 @@
     }
     .sticker-sku {
         font-family: 'Courier New', monospace;
-        font-size: 8px;
+        font-size: 11px;
         font-weight: bold;
         letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
     }
     .sticker-price {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 900;
         border-top: 1px solid #000;
-        padding-top: 2px;
+        padding-top: 3px;
+        margin-top: 2px;
         width: 90%;
         color: #000;
     }
@@ -233,10 +238,10 @@
                             <label class="form-label fw-bold text-muted small text-uppercase">Label Quantity</label>
                             <div class="input-group" style="max-width: 180px;">
                                 <button class="btn btn-outline-secondary" type="button" onclick="adjustQty(-1)"><i class="fas fa-minus"></i></button>
-                                <input type="number" class="form-control text-center fw-bold" id="labelQty" value="1" min="1" max="100">
+                                <input type="number" class="form-control text-center fw-bold" id="labelQty" value="1" min="1" max="500">
                                 <button class="btn btn-outline-secondary" type="button" onclick="adjustQty(1)"><i class="fas fa-plus"></i></button>
                             </div>
-                            <small class="text-muted">Maximum 100 labels at once</small>
+                            <small class="text-muted">Maximum 500 labels at once</small>
                         </div>
 
                         <div class="d-grid gap-2">
@@ -269,6 +274,8 @@
             if(!currentProduct) return;
 
             const variationId = $('#variationSelect').val();
+            const qty = $('#labelQty').val() || 1;
+
             if(currentProduct.has_variations && !variationId) {
                 alert('Please select a variation first');
                 return;
@@ -291,11 +298,20 @@
                     currentVariation = res.variation;
 
                     const previewHtml = `
-                        <div class="barcode-sticker-preview">
-                            <div class="sticker-name">${name}</div>
+                        <div class="barcode-sticker-preview mx-auto position-relative">
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size:12px; z-index:10; transform: translate(-30%, -30%) !important;">
+                                ${qty}x
+                            </span>
                             <div class="sticker-barcode">${res.barcode}</div>
                             <div class="sticker-sku">${sku}</div>
-                            <div class="sticker-price">৳${parseFloat(price).toFixed(2)}</div>
+                            <div class="sticker-name">${name}</div>
+                            <div class="sticker-price">MRP: ৳${parseFloat(price).toFixed(2)}</div>
+                        </div>
+                        <div class="mt-4 animate__animated animate__fadeIn">
+                            <div class="alert alert-success bg-success bg-opacity-10 py-2 px-3 border-0 rounded-3 mb-0 d-inline-flex align-items-center">
+                                <i class="fas fa-check-circle text-success me-2 fa-lg"></i>
+                                <span>Ready to print <strong>${qty}</strong> labels</span>
+                            </div>
                         </div>
                     `;
                     
@@ -313,7 +329,7 @@
         const $input = $('#labelQty');
         let val = parseInt($input.val()) + v;
         if(val < 1) val = 1;
-        if(val > 100) val = 100;
+        if(val > 500) val = 500;
         $input.val(val);
     }
 

@@ -29,17 +29,22 @@
             height: 25mm;
             padding: 1mm;
             text-align: center;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             position: relative;
             page-break-after: always;
         }
 
         .barcode-container {
             width: 100%;
-            height: 28pt;
             text-align: center;
             margin-bottom: 1pt;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .barcode-img-box {
@@ -54,10 +59,11 @@
         }
 
         .sku-text {
-            font-size: 6pt;
+            font-size: 7.5pt;
             font-weight: bold;
             font-family: 'Courier', monospace;
-            margin-top: 1pt;
+            margin-top: 2pt;
+            margin-bottom: 2pt;
             text-align: center;
         }
 
@@ -73,18 +79,23 @@
         }
 
         .product-brief {
-            font-size: 5.5pt;
-            color: #333;
-            height: 8pt;
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #111;
+            max-height: 16pt; /* roughly 2 lines depending on line-height */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
+            margin-top: 1pt;
         }
 
         .price-line {
-            border-top: 0.5pt solid #000;
+            border-top: 1pt solid #000;
             width: 90%;
-            margin: 2pt auto 0;
-            padding-top: 1pt;
-            font-size: 9pt;
+            margin: 3pt auto 0;
+            padding-top: 2pt;
+            font-size: 10pt;
             font-weight: bold;
             text-align: center;
         }
@@ -101,9 +112,9 @@
             </div>
 
             <div class="details-section">
-                @if($color || $size)
+                @if($color)
                     <div class="detail-item">
-                        {{ $color }} {{ $color && $size ? '|' : '' }} {{ $size }}
+                        {{ $color }}
                     </div>
                 @endif
                 <div class="product-brief">{{ $name }}</div>

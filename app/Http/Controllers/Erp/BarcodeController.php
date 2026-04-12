@@ -79,7 +79,8 @@ class BarcodeController extends Controller
         
         // Generate linear barcode SVG (Prioritize style_number as requested)
         $identifier = $product->style_number ?? $product->sku;
-        $barcode = $this->generateLinearBarcode($identifier);
+        // Generate barcode with reduced width and increased height to match print
+        $barcode = $this->generateLinearBarcode($identifier, 1.5, 75);
         
         return response()->json([
             'success' => true,
@@ -90,7 +91,7 @@ class BarcodeController extends Controller
                 'sku' => $identifier,
                 'price' => $product->price,
                 'discount' => $product->discount,
-                'available_stock' => $product->manage_stock ? ($product->warehouseStock()->sum('quantity') - $product->warehouseStock()->sum('reserved_quantity')) : 0,
+                'available_stock' => $product->manage_stock ? $product->warehouseStock()->sum('quantity') : 0,
             ]
         ]);
     }
@@ -112,7 +113,8 @@ class BarcodeController extends Controller
         $baseIdentifier = $product->style_number ?? $product->sku;
         $sku = $variation->sku ?? ($baseIdentifier . '-' . $variation->id);
         
-        $barcode = $this->generateLinearBarcode($sku);
+        // Generate barcode with reduced width and increased height to match print
+        $barcode = $this->generateLinearBarcode($sku, 1.5, 75);
         
         return response()->json([
             'success' => true,
@@ -153,7 +155,8 @@ class BarcodeController extends Controller
             $product = Product::find($productId);
             if ($product) {
                 $identifier = $product->style_number ?? $product->sku;
-                $barcode = $this->generateLinearBarcode($identifier);
+                // Generate barcode with reduced width and increased height to match print
+                $barcode = $this->generateLinearBarcode($identifier, 1.5, 75);
                 
                 $barcodes[] = [
                     'product_id' => $product->id,
@@ -208,9 +211,8 @@ class BarcodeController extends Controller
             }
         }
 
-        // Generate barcode with optimized dimensions for professional look
-        // We'll use a slightly taller height and viewBox for scaling
-        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 60);
+        // Generate barcode with reduced width and increased height
+        $barcodeSvg = $this->generateLinearBarcode($sku, 1.5, 75);
         
         // Convert SVG to base64 data URI for better browser rendering
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
@@ -258,8 +260,8 @@ class BarcodeController extends Controller
             }
         }
 
-        // Generate barcode with optimized size for small PDF labels
-        $barcodeSvg = $this->generateLinearBarcode($sku, 2.0, 60);
+        // Generate barcode with reduced width and increased height
+        $barcodeSvg = $this->generateLinearBarcode($sku, 1.5, 75);
         
         // Convert SVG to base64 data URI for better PDF compatibility
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
