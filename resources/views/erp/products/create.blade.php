@@ -14,7 +14,7 @@
             <div class="col-md-7">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
-                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="{{ route('product.list') }}" class="text-decoration-none text-muted">Products</a></li>
                         <li class="breadcrumb-item active text-primary fw-600">Create New</li>
                     </ol>

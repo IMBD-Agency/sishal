@@ -115,6 +115,7 @@
                                     <th>Holder</th>
                                     <th>Currency</th>
                                     <th>Details</th>
+                                    <th>Location</th>
                                     <th>Chart Account</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
@@ -147,6 +148,13 @@
                                             @endif
                                         </td>
                                         <td class="small">
+                                            @if($account->branch)
+                                                <span class="badge bg-primary">{{ $account->branch->name }}</span>
+                                            @else
+                                                <span class="badge bg-dark">Global Account</span>
+                                            @endif
+                                        </td>
+                                        <td class="small">
                                             @if($account->chartOfAccount)
                                                 <span class="badge bg-light text-dark border">{{ $account->chartOfAccount->name }}</span>
                                             @else
@@ -156,7 +164,7 @@
                                         <td class="text-center">
                                             <div class="btn-group btn-group-sm">
                                                 <button class="btn btn-outline-primary" title="Edit"
-                                                    onclick="editAccount({{ $account->id }}, '{{ $account->type }}', '{{ addslashes($account->provider_name) }}', '{{ $account->account_number }}', '{{ addslashes($account->account_holder_name) }}', '{{ $account->currency }}', '{{ addslashes($account->branch_name) }}', '{{ $account->swift_code }}', '{{ $account->mobile_number }}', {{ $account->account_id ?? 'null' }})">
+                                                    onclick="editAccount({{ $account->id }}, '{{ $account->type }}', '{{ addslashes($account->provider_name) }}', '{{ $account->account_number }}', '{{ addslashes($account->account_holder_name) }}', '{{ $account->currency }}', '{{ addslashes($account->branch_name) }}', '{{ $account->swift_code }}', '{{ $account->mobile_number }}', {{ $account->account_id ?? 'null' }}, {{ $account->branch_id ?? 'null' }})">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                                 <button class="btn btn-outline-danger" title="Delete"
@@ -203,6 +211,16 @@
                                     <option value="">Select Type</option>
                                     @foreach($accountTypes as $value => $label)
                                         <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <!-- System Branch -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">System Location (Branch)</label>
+                                <select name="branch_id" id="branch_id" class="form-select">
+                                    <option value="">Global Account (All Branches)</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -298,7 +316,7 @@
             document.getElementById('mobileFields').classList.add('d-none');
         });
 
-        function editAccount(id, type, providerName, accountNumber, holderName, currency, branchName, swiftCode, mobileNumber, accountId) {
+        function editAccount(id, type, providerName, accountNumber, holderName, currency, branchName, swiftCode, mobileNumber, accountId, branchId) {
             document.getElementById('type').value = type;
             document.getElementById('provider_name').value = providerName;
             document.getElementById('account_number').value = accountNumber;
@@ -308,6 +326,10 @@
             document.getElementById('swift_code').value = swiftCode;
             document.getElementById('mobile_number').value = mobileNumber;
             if (accountId) document.getElementById('account_id').value = accountId;
+            else document.getElementById('account_id').value = '';
+            
+            if (branchId) document.getElementById('branch_id').value = branchId;
+            else document.getElementById('branch_id').value = '';
 
             toggleTypeFields(type);
 

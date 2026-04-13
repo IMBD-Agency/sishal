@@ -61,7 +61,7 @@
                 <div class="col-md-7">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
-                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{{ route('journal.list') }}" class="text-decoration-none text-muted">Journal Entries</a></li>
                             <li class="breadcrumb-item active text-primary fw-600">Voucher Details</li>
                         </ol>

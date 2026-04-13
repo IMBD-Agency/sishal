@@ -184,6 +184,12 @@
                 <span>Financial Accounts</span>
             </a>
         </div>
+        <div class="nav-item">
+            <a href="{{ route('journal.list') }}" class="nav-link {{ request()->is('erp/double-entry/journals*') ? ' active' : '' }}">
+                <i class="fas fa-book nav-icon text-warning"></i>
+                <span>Journal Entries</span>
+            </a>
+        </div>
         @endcan
 
         @can('view salary')

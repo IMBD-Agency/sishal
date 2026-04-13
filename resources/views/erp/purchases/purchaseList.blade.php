@@ -74,7 +74,7 @@
                 <div class="col-md-7">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-1 breadcrumb-premium text-uppercase">
-                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted small">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted small">Dashboard</a></li>
                             <li class="breadcrumb-item active text-primary fw-bold small">Purchase History</li>
                         </ol>
                     </nav>

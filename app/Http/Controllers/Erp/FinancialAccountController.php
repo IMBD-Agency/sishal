@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Erp;
 use App\Http\Controllers\Controller;
 use App\Models\FinancialAccount;
 use App\Models\ChartOfAccount;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 
 class FinancialAccountController extends Controller
@@ -14,11 +15,12 @@ class FinancialAccountController extends Controller
         if (!auth()->user()->hasPermissionTo('view accounts')) {
             abort(403, 'Unauthorized action.');
         }
-        $accounts = FinancialAccount::with('chartOfAccount')->orderBy('type')->get();
+        $accounts = FinancialAccount::with(['chartOfAccount', 'branch'])->orderBy('type')->get();
         $chartAccounts = ChartOfAccount::orderBy('name')->get();
+        $branches = Branch::orderBy('name')->get();
         $accountTypes = FinancialAccount::getTypes();
 
-        return view('erp.financialAccount.list', compact('accounts', 'chartAccounts', 'accountTypes'));
+        return view('erp.financialAccount.list', compact('accounts', 'chartAccounts', 'accountTypes', 'branches'));
     }
 
     public function store(Request $request)
@@ -33,13 +35,14 @@ class FinancialAccountController extends Controller
             'account_holder_name'  => 'nullable|string|max:255',
             'currency'             => 'required|string|max:10',
             'account_id'           => 'nullable|exists:chart_of_accounts,id',
+            'branch_id'            => 'nullable|exists:branches,id',
             'branch_name'          => 'nullable|string|max:255',
             'swift_code'           => 'nullable|string|max:50',
             'mobile_number'        => 'nullable|string|max:20',
         ]);
 
         FinancialAccount::create($request->only([
-            'account_id', 'type', 'provider_name', 'account_number',
+            'branch_id', 'account_id', 'type', 'provider_name', 'account_number',
             'account_holder_name', 'currency', 'branch_name', 'swift_code', 'mobile_number'
         ]));
 
@@ -61,13 +64,14 @@ class FinancialAccountController extends Controller
             'account_holder_name'  => 'nullable|string|max:255',
             'currency'             => 'required|string|max:10',
             'account_id'           => 'nullable|exists:chart_of_accounts,id',
+            'branch_id'            => 'nullable|exists:branches,id',
             'branch_name'          => 'nullable|string|max:255',
             'swift_code'           => 'nullable|string|max:50',
             'mobile_number'        => 'nullable|string|max:20',
         ]);
 
         $account->update($request->only([
-            'account_id', 'type', 'provider_name', 'account_number',
+            'branch_id', 'account_id', 'type', 'provider_name', 'account_number',
             'account_holder_name', 'currency', 'branch_name', 'swift_code', 'mobile_number'
         ]));
 

@@ -12,7 +12,7 @@
                 <div class="col-md-7">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
-                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
                             <li class="breadcrumb-item active text-primary fw-600">Accounting & Finance</li>
                         </ol>
                     </nav>
@@ -27,9 +27,12 @@
                     <button type="button" class="btn btn-light border shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addJournalModal">
                         <i class="fas fa-plus me-2 text-primary"></i>New Journal
                     </button>
-                    <button class="btn btn-create-premium text-nowrap">
-                        <i class="fas fa-download me-2"></i>Export Report
-                    </button>
+                    <a href="{{ route('journal.export.excel', request()->all()) }}" class="btn btn-create-premium text-nowrap bg-success border-success text-white">
+                        <i class="fas fa-file-excel me-2"></i>Excel
+                    </a>
+                    <a href="{{ route('journal.export.pdf', request()->all()) }}" class="btn btn-create-premium text-nowrap bg-danger border-danger text-white">
+                        <i class="fas fa-file-pdf me-2"></i>PDF
+                    </a>
                 </div>
             </div>
         </div>
@@ -66,7 +69,7 @@
                 <div class="card-body p-3">
                     <form action="{{ route('journal.list') }}" method="GET">
                         <div class="row g-3 align-items-end">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label for="start_date" class="form-label text-muted small fw-bold">From Date</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar-alt text-primary"></i></span>
@@ -74,12 +77,26 @@
                                            value="{{ request('start_date') }}">
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label for="end_date" class="form-label text-muted small fw-bold">To Date</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar-alt text-primary"></i></span>
                                     <input type="date" class="form-control border-start-0 ps-0" id="end_date" name="end_date" 
                                            value="{{ request('end_date') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="type" class="form-label text-muted small fw-bold">Type</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-filter text-primary"></i></span>
+                                    <select class="form-select border-start-0 ps-0" name="type">
+                                        <option value="">All</option>
+                                        <option value="Journal" {{ request('type') == 'Journal' ? 'selected' : '' }}>Journal</option>
+                                        <option value="Payment" {{ request('type') == 'Payment' ? 'selected' : '' }}>Payment</option>
+                                        <option value="Receipt" {{ request('type') == 'Receipt' ? 'selected' : '' }}>Receipt</option>
+                                        <option value="Contra" {{ request('type') == 'Contra' ? 'selected' : '' }}>Contra</option>
+                                        <option value="Adjustment" {{ request('type') == 'Adjustment' ? 'selected' : '' }}>Adjustment</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -257,6 +274,16 @@
                                             </tr>
                                         @endforelse
                                     </tbody>
+                                    @if(isset($journals) && count($journals) > 0)
+                                    <tfoot class="table-light fw-bold border-top border-2">
+                                        <tr>
+                                            <td colspan="4" class="text-end pe-3">Grand Total:</td>
+                                            <td class="text-end text-success fs-6">৳{{ number_format($journals->sum('total_debit'), 2) }}</td>
+                                            <td class="text-end text-warning fs-6">৳{{ number_format($journals->sum('total_credit'), 2) }}</td>
+                                            <td colspan="3"></td>
+                                        </tr>
+                                    </tfoot>
+                                    @endif
                                 </table>
                             </div>
                         </div>
@@ -278,7 +305,16 @@
                     @csrf
                     <div class="modal-body">
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="voucher_no" class="form-label">Voucher No <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('voucher_no') is-invalid @enderror"
+                                    id="voucher_no" name="voucher_no" value="{{ old('voucher_no') }}" placeholder="e.g. JVN-001"
+                                    required>
+                                @error('voucher_no')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-3">
                                 <label for="entry_date" class="form-label">Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control @error('entry_date') is-invalid @enderror"
                                     id="entry_date" name="entry_date" value="{{ old('entry_date', date('Y-m-d')) }}"
@@ -287,7 +323,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="type" class="form-label">Journal Type</label>
                                 <select class="form-control @error('type') is-invalid @enderror" id="type" name="type">
                                     <option value="">Select Type</option>
@@ -302,7 +338,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Balance Status</label>
                                 <div class="d-flex align-items-center">
                                     <span id="balanceStatus" class="badge bg-danger me-2">Unbalanced</span>
@@ -525,7 +561,7 @@
                 const rowHtml = `
                         <tr id="entryRow${entryRowCount}">
                             <td>
-                                <select class="form-control chart-account-select" name="entries[${entryRowCount}][chart_of_account_id]" required>
+                                <select class="form-control chart-account-select" name="entries[${entryRowCount}][account_id]" required>
                                     <option value="">Select Account</option>
                                     ${chartAccounts.map(account =>
                     `<option value="${account.id}">${account.name} (${account.code}) - ${account.parent ? account.parent.name : 'N/A'}</option>`
@@ -616,6 +652,7 @@
                 entryRowCount = 0;
 
                 // Populate form fields
+                $('#voucher_no').val(''); // Or populate if you fetch it
                 $('#entry_date').val(date);
                 $('#description').val(description);
                 $('#type').val(type);
@@ -659,7 +696,7 @@
 
                                 const rowHtml = '<tr id="entryRow' + entryRowCount + '">' +
                                     '<td>' +
-                                    '<select class="form-control chart-account-select" name="entries[' + entryRowCount + '][chart_of_account_id]" required>' +
+                                    '<select class="form-control chart-account-select" name="entries[' + entryRowCount + '][account_id]" required>' +
                                     chartAccountOptions +
                                     '</select>' +
                                     '</td>' +

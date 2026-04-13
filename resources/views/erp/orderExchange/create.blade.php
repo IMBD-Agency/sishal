@@ -14,7 +14,7 @@
                         <div>
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb mb-1">
-                                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+                                    <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
                                     <li class="breadcrumb-item"><a href="{{ route('orderExchange.list') }}" class="text-decoration-none">Order Exchanges</a></li>
                                     <li class="breadcrumb-item active">Create Exchange</li>
                                 </ol>

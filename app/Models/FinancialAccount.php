@@ -11,6 +11,7 @@ class FinancialAccount extends Model
     const TYPE_CASH = 'cash';
 
     protected $fillable = [
+        'branch_id',
         'account_id',
         'type',
         'provider_name',
@@ -43,5 +44,10 @@ class FinancialAccount extends Model
     public function journalEntries()
     {
         return $this->hasMany(JournalEntry::class, 'financial_account_id');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 }

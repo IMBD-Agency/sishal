@@ -12,7 +12,7 @@
                 <div class="col-md-7">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-1 breadcrumb-premium">
-                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{{ route('supplier-payments.index') }}" class="text-decoration-none text-muted">Suppliers</a></li>
                             <li class="breadcrumb-item active text-primary fw-600">Disbursement Entry</li>
                         </ol>
@@ -51,8 +51,7 @@
                                             <select name="supplier_id" id="supplier_id" class="form-select select2 shadow-none" required>
                                                 <option value="">Choose Supplier</option>
                                                 @foreach($suppliers as $supplier)
-                                                    <option value="{{ $supplier->id }}" {{ $selectedSupplierId == $supplier->id ? 'selected' : '' }}
-                                                            data-balance="{{ $supplier->balance }}">
+                                                    <option value="{{ $supplier->id }}" data-balance="{{ $supplier->balance }}">
                                                         {{ $supplier->name }} (Payable: {{ number_format($supplier->balance, 2) }}৳)
                                                     </option>
                                                 @endforeach
@@ -62,25 +61,18 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="p-3 bg-light rounded-4 h-100">
-                                            <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">2. Search Bill/Invoice <span class="text-danger">*</span></label>
-                                            <select name="purchase_bill_id" id="purchase_bill_id" class="form-select select2 shadow-none" required>
+                                            <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">2. Search Bill/Invoice (Optional)</label>
+                                            <select name="purchase_bill_id_display" id="purchase_bill_id" class="form-select select2 shadow-none">
                                                 <option value="">Search by Reference #</option>
-                                                @if(!empty($bills))
-                                                    @foreach($bills as $bill)
-                                                        <option value="{{ $bill->id }}" data-due="{{ $bill->due_amount }}">
-                                                            {{ $bill->bill_number }} (Due: {{ number_format($bill->due_amount, 2) }}৳)
-                                                        </option>
-                                                    @endforeach
-                                                @endif
                                             </select>
                                             <div class="mt-2 small text-muted">Only unpaid or partially paid bills are listed</div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="premium-card mb-5 border-0 shadow-sm overflow-hidden">
-                                    <div class="bg-dark p-3 d-flex justify-content-between align-items-center">
-                                        <h6 class="text-white mb-0 small fw-bold text-uppercase"><i class="fas fa-list-check me-2 text-success"></i>Payment Allocation</h6>
+                                <div class="premium-card mb-5 border shadow-sm overflow-hidden rounded-4">
+                                    <div class="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="text-dark mb-0 small fw-bold text-uppercase"><i class="fas fa-list-check me-2 text-success"></i>Payment Allocation</h6>
                                         <div id="allocationBadge" class="badge bg-success rounded-pill px-3 py-2 fw-bold d-none">1 BILL SELECTED</div>
                                     </div>
                                     <div class="table-responsive">
@@ -108,11 +100,11 @@
                                 <div class="row g-4">
                                     <div class="col-md-3">
                                         <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Voucher Date</label>
-                                        <input type="date" name="payment_date" class="form-control form-control-lg bg-light" value="{{ date('Y-m-d') }}" required>
+                                        <input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Total Pay (৳)</label>
-                                        <input type="number" step="0.01" name="amount" id="total_amount" class="form-control form-control-lg fw-bold text-primary bg-light" placeholder="0.00" required readonly>
+                                        <input type="number" step="0.01" name="amount" id="total_amount" class="form-control fw-bold text-primary bg-light" placeholder="0.00" required readonly>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Account Type <span class="text-danger">*</span></label>
@@ -176,14 +168,42 @@
         $(document).ready(function() {
             let selectedChallans = [];
 
-            // When supplier changes, reload to get their bills
+            // When supplier changes, use AJAX to get their bills without reloading page
             $('#supplier_id').on('change', function() {
                 const supplierId = $(this).val();
                 if (supplierId) {
-                    window.location.href = `{{ route('supplier-payments.create') }}?supplier_id=${supplierId}`;
+                    $('#purchase_bill_id').html('<option value="">Loading bills...</option>').trigger('change');
+                    
+                    const fetchUrl = `{{ route('supplier-payments.get-bills', ['supplierId' => '__ID__']) }}`.replace('__ID__', supplierId);
+                    
+                    $.ajax({
+                        url: fetchUrl,
+                        type: 'GET',
+                        success: function(bills) {
+                            let options = '<option value="">Search by Reference #</option>';
+                            if (bills.length === 0) {
+                                options = '<option value="">No pending bills found</option>';
+                            } else {
+                                bills.forEach(function(bill) {
+                                    options += `<option value="${bill.id}" data-due="${bill.due_amount}">${bill.bill_number} (Due: ${parseFloat(bill.due_amount).toFixed(2)}৳)</option>`;
+                                });
+                            }
+                            $('#purchase_bill_id').html(options).trigger('change');
+                            
+                            // Reset table as user changed supplier
+                            selectedChallans = [];
+                            updateChallanTable();
+                            updateTotalAmount();
+                        },
+                        error: function() {
+                            $('#purchase_bill_id').html('<option value="">Error loading bills</option>').trigger('change');
+                        }
+                    });
                 } else {
-                    $('#purchase_bill_id').html('<option value="">Select One</option>');
-                    $('#challanTableBody').html('<tr class="text-center text-muted"><td colspan="4" class="py-4">No challan selected</td></tr>');
+                    $('#purchase_bill_id').html('<option value="">Select One</option>').trigger('change');
+                    selectedChallans = [];
+                    updateChallanTable();
+                    updateTotalAmount();
                 }
             });
 

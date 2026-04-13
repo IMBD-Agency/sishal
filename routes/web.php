@@ -193,6 +193,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('suppliers/{supplier}/ledger', [\App\Http\Controllers\Erp\SupplierController::class, 'ledger'])->name('suppliers.ledger');
     Route::get('supplier-payments/export-excel', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportExcel'])->name('supplier-payments.export.excel');
     Route::get('supplier-payments/export-pdf', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportPdf'])->name('supplier-payments.export.pdf');
+    Route::get('supplier-payments/get-bills/{supplierId}', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'getSupplierBills'])->name('supplier-payments.get-bills');
     Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
 
     // Advanced Reporting
@@ -592,6 +593,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
         // Journals (Vouchers)
         Route::get('/journals', [JournalController::class, 'index'])->name('journal.list');
+        Route::get('/journals/export-excel', [JournalController::class, 'exportExcel'])->name('journal.export.excel');
+        Route::get('/journals/export-pdf', [JournalController::class, 'exportPdf'])->name('journal.export.pdf');
         Route::post('/journals', [JournalController::class, 'store'])->name('journal.store');
         Route::get('/journals/{id}', [JournalController::class, 'show'])->name('journal.show');
         Route::put('/journals/{id}', [JournalController::class, 'update'])->name('journal.update');

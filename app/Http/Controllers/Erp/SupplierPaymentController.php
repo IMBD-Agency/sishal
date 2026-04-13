@@ -218,29 +218,31 @@ class SupplierPaymentController extends Controller
         return $pdf->download('supplier_payments_' . date('Y-m-d') . '.pdf');
     }
 
+    public function getSupplierBills($supplierId)
+    {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        
+        $billQuery = PurchaseBill::where('supplier_id', $supplierId)
+            ->where('status', '!=', 'paid')
+            ->select('id', 'bill_number', 'due_amount');
+            
+        if ($restrictedBranchId) {
+            $billQuery->whereHas('purchase', function($q) use ($restrictedBranchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
+            });
+        }
+        
+        return response()->json($billQuery->get());
+    }
+
     public function create(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('manage payments')) {
             abort(403, 'Unauthorized action.');
         }
         $suppliers = Supplier::all();
-        $selectedSupplierId = $request->supplier_id;
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        $bills = [];
-        if ($selectedSupplierId) {
-            $billQuery = PurchaseBill::where('supplier_id', $selectedSupplierId)
-                ->where('status', '!=', 'paid');
-            
-            if ($restrictedBranchId) {
-                $billQuery->whereHas('purchase', function($q) use ($restrictedBranchId) {
-                    $q->where('ship_location_type', 'branch')->where('location_id', $restrictedBranchId);
-                });
-            }
-            
-            $bills = $billQuery->get();
-        }
         $bankAccounts = FinancialAccount::orderBy('type')->orderBy('provider_name')->get();
-        return view('erp.supplier-payments.create', compact('suppliers', 'selectedSupplierId', 'bills', 'bankAccounts'));
+        return view('erp.supplier-payments.create', compact('suppliers', 'bankAccounts'));
     }
 
     public function store(Request $request)
@@ -302,6 +304,13 @@ class SupplierPaymentController extends Controller
                 $request->payment_date,
                 $payment
             );
+
+            // Deduct the payment from the actual Supplier's balance
+            $supplierInstance = Supplier::find($request->supplier_id);
+            if ($supplierInstance) {
+                $supplierInstance->balance -= $request->amount;
+                $supplierInstance->save();
+            }
 
             // =====================================================
             // AUTO JOURNAL ENTRY (Double-Entry Accounting)
@@ -404,6 +413,13 @@ class SupplierPaymentController extends Controller
 
             // Delete ledger entry
             $supplierPayment->ledger()->delete();
+
+            // Reverse the deduction from the actual Supplier's balance
+            $supplierInstance = Supplier::find($supplierPayment->supplier_id);
+            if ($supplierInstance) {
+                $supplierInstance->balance += $supplierPayment->amount;
+                $supplierInstance->save();
+            }
             
             // Recalibrate subsequent ledger entries' balance? 
             // In a real accounting system, we'd add a reverse entry instead of deleting.
