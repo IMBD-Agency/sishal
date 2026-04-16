@@ -40,18 +40,18 @@
                 
                 <div class="product-info p-3">
                     <a href="{{ route('product.details', $product->slug) }}" 
-                       class="product-title" 
+                       class="product-title stretched-link" 
                        style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4; margin-bottom: 2px;"
                        title="{{ $product->name }}">
                         {{ $product->name }}
                     </a>
                     
                     @if($hasDiscount)
-                        <div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ {{ number_format($saveAmount) }}</div>
+                        <div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px; position: relative; z-index: 2;">Save ৳ {{ number_format($saveAmount) }}</div>
                     @endif
 
                     <div class="d-flex justify-content-between align-items-center mt-1">
-                        <div class="price-container">
+                        <div class="price-container" style="position: relative; z-index: 2;">
                             <div class="product-price-current fw-bold" style="color: #1a1a1a; font-size: 1.1rem;">
                                 ৳ {{ number_format($effectivePrice) }}
                             </div>
@@ -69,7 +69,8 @@
                         <a href="{{ route('product.details', $product->slug) }}" 
                            class="floating-cart-btn" 
                            onclick="event.stopPropagation();" 
-                           title="Add to Cart">
+                           title="Add to Cart"
+                           style="position: relative; z-index: 3;">
                             <i class="fas fa-shopping-cart"></i>
                         </a>
                     </div>

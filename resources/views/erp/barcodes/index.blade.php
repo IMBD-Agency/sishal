@@ -101,18 +101,20 @@
         border-left: 4px solid #0d6efd !important;
     }
     .barcode-sticker-preview {
-        background: white;
-        padding: 10px;
+        background: #fff;
+        border: 1px dashed #4e73df; /* Subtle dashed border for preview */
+        padding: 8px 10px; 
         border-radius: 4px;
-        width: 154px; /* Scaled down version of 38mm */
-        height: 102px; /* Scaled down version of 25mm */
+        width: 154px; 
+        height: 102px; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         text-align: center;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
         align-items: center;
+        gap: 2px; /* Consistent small gaps */
         font-family: 'Arial Narrow', sans-serif;
+        position: relative;
     }
     #barcodePreview {
         background: white;
@@ -137,22 +139,24 @@
         line-height: 1;
     }
     .sticker-name {
-        font-size: 11px;
-        font-weight: bold;
-        color: #111;
-        margin-top: 2px;
+        font-size: 10px;
+        font-weight: 850;
+        color: #000;
+        margin: 0;
         overflow: hidden;
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
-        line-height: 1.1;
+        line-height: 1;
         width: 100%;
+        text-transform: uppercase;
+        height: 12px; /* Explicit height to reserve space */
     }
     .sticker-barcode {
         margin: 0;
         display: flex;
         justify-content: center;
-        height: 40px;
+        height: 32px; /* Even shorter to ensure name fits */
         width: 100%;
     }
     .sticker-barcode svg, .sticker-barcode img {
@@ -162,20 +166,22 @@
     }
     .sticker-sku {
         font-family: 'Courier New', monospace;
-        font-size: 11px;
+        font-size: 9px;
         font-weight: bold;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        margin-bottom: 2px;
+        margin: 0;
+        line-height: 1;
     }
     .sticker-price {
-        font-size: 14px;
-        font-weight: 900;
+        font-size: 13px;
+        font-weight: 950;
         border-top: 1px solid #000;
-        padding-top: 3px;
-        margin-top: 2px;
-        width: 90%;
+        padding-top: 4px;
+        margin-top: auto; /* Push to bottom of flex container */
+        width: 100%;
         color: #000;
+        margin-bottom: 2px;
     }
 </style>
 @endpush
@@ -257,8 +263,8 @@
                     // Re-bind preview button click since we replaced the HTML
                     $('#previewBtn').on('click', generatePreview);
 
-                    // Reset effects
-                    $('#previewContainer').html('<i class="fas fa-barcode fa-5x text-muted opacity-25 mb-3"></i><p class="text-muted">Product selected. Click "Generate Preview".</p>');
+                    // Reset effects with the product name for clarity
+                    $('#previewContainer').html('<i class="fas fa-barcode fa-5x text-muted opacity-25 mb-3"></i><p class="text-muted">Selected: <strong class="text-dark">' + res.product.name + '</strong>. <br>Click "Generate Preview" to see the label.</p>');
                     $('#previewActions').hide();
 
                 } else {
@@ -302,15 +308,15 @@
                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size:12px; z-index:10; transform: translate(-30%, -30%) !important;">
                                 ${qty}x
                             </span>
+                            <div class="sticker-name" title="${name}">${name || 'PRODUCT NAME MISSING'}</div>
                             <div class="sticker-barcode">${res.barcode}</div>
-                            <div class="sticker-sku">${sku}</div>
-                            <div class="sticker-name">${name}</div>
+                            <div class="sticker-sku">${sku || 'NO SKU'}</div>
                             <div class="sticker-price">MRP: ৳${parseFloat(price).toFixed(2)}</div>
                         </div>
                         <div class="mt-4 animate__animated animate__fadeIn">
                             <div class="alert alert-success bg-success bg-opacity-10 py-2 px-3 border-0 rounded-3 mb-0 d-inline-flex align-items-center">
                                 <i class="fas fa-check-circle text-success me-2 fa-lg"></i>
-                                <span>Ready to print <strong>${qty}</strong> labels</span>
+                                <span>Ready to print <strong>${qty}</strong> labels for <b>${name}</b></span>
                             </div>
                         </div>
                     `;

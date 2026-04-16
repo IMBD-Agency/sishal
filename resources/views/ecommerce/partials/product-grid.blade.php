@@ -1,7 +1,7 @@
 @if($products->count() > 0)
     @foreach($products as $product)
         <div class="col-lg-3 col-md-6 col-6 mt-0 mb-3 mb-md-4">
-            <div class="product-card" 
+            <div class="product-card position-relative" 
                 data-href="{{ route('product.details', $product->slug) }}">
                 
                 @php
@@ -24,13 +24,18 @@
 
                     <button class="floating-cart-btn" 
                             title="Select Options"
-                            onclick="event.stopPropagation(); window.location.href='{{ route('product.details', $product->slug) }}'">
+                            onclick="event.stopPropagation(); window.location.href='{{ route('product.details', $product->slug) }}'"
+                            style="z-index: 11; position: relative;">
                         <i class="fas fa-shopping-basket"></i>
                     </button>
                 </div>
 
                 <div class="product-card-info">
-                    <h3 class="product-title">{{ $product->name }}</h3>
+                    <h3 class="product-title">
+                        <a href="{{ route('product.details', $product->slug) }}" class="stretched-link" style="text-decoration: none; color: inherit;">
+                            {{ $product->name }}
+                        </a>
+                    </h3>
                     <div class="product-card-price">
                         <span class="current">TK. {{ number_format($effectivePrice, 0) }}</span>
                         @if($hasDiscount)

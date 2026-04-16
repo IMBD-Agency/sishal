@@ -104,20 +104,20 @@
 <body>
     @for ($i = 0; $i < $quantity; $i++)
         <div class="label-page">
-            <div class="barcode-container">
-                <div class="barcode-img-box">
-                    <img src="{{ $barcodeBase64 }}" alt="Barcode">
-                </div>
-                <div class="sku-text">{{ strtoupper($sku) }}</div>
-            </div>
-
             <div class="details-section">
+                <div class="product-brief">{{ $name }}</div>
                 @if($color)
-                    <div class="detail-item">
+                    <div class="detail-item" style="font-size: 6pt; margin-top: 1pt;">
                         {{ $color }}
                     </div>
                 @endif
-                <div class="product-brief">{{ $name }}</div>
+            </div>
+
+            <div class="barcode-container" style="margin-top: 2pt;">
+                <div class="barcode-img-box" style="height: 24pt;">
+                    <img src="{{ $barcodeBase64 }}" alt="Barcode">
+                </div>
+                <div class="sku-text">{{ strtoupper($sku) }}</div>
             </div>
 
             <div class="price-line">

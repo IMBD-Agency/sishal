@@ -159,25 +159,25 @@
 
     <div class="print-container">
         @for ($i = 0; $i < $quantity; $i++)
-        <div class="label-page">
-            <!-- 1. Barcode Section (Top) -->
-            <div class="barcode-section">
-                <div class="barcode-svg-container">
-                    <img src="{{ $barcodeBase64 }}" alt="Barcode">
-                </div>
-                <div class="sku-under-barcode">{{ strtoupper($sku) }}</div>
+        <div class="label-page" style="padding: 1.2mm 2mm; display: flex; flex-direction: column; align-items: center;">
+            <!-- 1. Product Name (Top) -->
+            <div class="info-section" style="width: 100%; text-align: center;">
+                <div class="product-name-footer" style="margin-bottom: 0.8mm; line-height: 1;">{{ $name }}</div>
+                @if($color)
+                    <div class="detail-line" style="font-size: 6pt; margin-top: -0.5mm;">{{ $color }}</div>
+                @endif
             </div>
 
-            <!-- 2. Info Section (Middle) -->
-            <div class="info-section">
-                @if($color)
-                    <div class="detail-line">{{ $color }}</div>
-                @endif
-                <div class="product-name-footer">{{ $name }}</div>
+            <!-- 2. Barcode Section (Middle) -->
+            <div class="barcode-section" style="margin-top: 1mm; margin-bottom: 0.5mm; width: 100%; text-align: center;">
+                <div class="barcode-svg-container" style="height: 8mm;">
+                    <img src="{{ $barcodeBase64 }}" alt="Barcode">
+                </div>
+                <div class="sku-under-barcode" style="margin-top: 0.8mm; line-height: 1;">{{ strtoupper($sku) }}</div>
             </div>
 
             <!-- 3. Price Section (Bottom) -->
-            <div class="price-section">
+            <div class="price-section" style="margin-top: auto; width: 100%;">
                 MRP: ৳{{ number_format($price, 2) }}
             </div>
         </div>
