@@ -198,7 +198,7 @@ class BarcodeController extends Controller
             $baseIdentifier = $product->style_number ?? $product->sku;
             $sku = $variation->sku ?? ($baseIdentifier . '-' . $variation->id);
             $price = $variation->price ?? $product->price;
-            $name = $product->name . ' - ' . ($variation->display_name ?? $variation->name);
+            $name = $product->name;
             
             // Try to extract color and size for the professional label
             if ($variation->combinations) {
@@ -247,7 +247,7 @@ class BarcodeController extends Controller
             $baseIdentifier = $product->style_number ?? $product->sku;
             $sku = $variation->sku ?? ($baseIdentifier . '-' . $variation->id);
             $price = $variation->price ?? $product->price;
-            $name = $product->name . ' - ' . ($variation->display_name ?? $variation->name);
+            $name = $product->name;
 
             // Extract color and size for PDF label too
             if ($variation->combinations) {

@@ -299,7 +299,7 @@
                 if(res.success) {
                     const sku = res.variation ? res.variation.sku : (res.product.style_number || res.product.sku);
                     const price = res.variation ? res.variation.price : res.product.price;
-                    const name = res.variation ? res.product.name + ' (' + res.variation.display_name + ')' : res.product.name;
+                    const name = res.product.name;
                     
                     currentVariation = res.variation;
 
