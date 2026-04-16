@@ -51,9 +51,14 @@ class OrderController extends Controller
                 continue;
             }
             
-            // Calculate max stock for this item
+            // Calculate max stock for this item using unified logic
             if ($cart->variation) {
-                $cart->max_stock = (int) $cart->variation->available_stock;
+                // Get stock for this specific variation respecting ecommerce settings
+                $generalSetting = \App\Models\GeneralSetting::first();
+                $cart->max_stock = (int) $cart->variation->getAvailableStockWithSource(
+                    $generalSetting->ecommerce_source_type ?? null,
+                    $generalSetting->ecommerce_source_id ?? null
+                );
             } else {
                 $cart->max_stock = (int) $product->total_variation_stock;
             }
@@ -161,21 +166,36 @@ class OrderController extends Controller
             }
 
             // CRITICAL: Check if cart item is missing variation_id for product with variations
-            // This happens when cart was created before variation was selected
             $variationId = $cart->variation_id;
+            $variation = null;
 
-            if ($product->has_variations && !$variationId) {
-                // Delete the invalid cart item - user must re-add with variation selected
-                $cart->delete();
-                $invalidItemsDeleted++;
+            if ($product->has_variations) {
+                if (!$variationId) {
+                    $cart->delete();
+                    $invalidItemsDeleted++;
+                    continue;
+                }
 
-                // Continue to next item instead of throwing error immediately
-                // This allows processing other valid cart items
-                continue;
+                // Validate that the variation_id belongs to this product and fetch it
+                $variation = \App\Models\ProductVariation::where('id', $variationId)
+                    ->where('product_id', $product->id)
+                    ->first();
+
+                if (!$variation) {
+                    $errorMessage = "Invalid variation selected for product '{$product->name}'. Please re-add to cart.";
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $errorMessage], 422);
+                    }
+                    return redirect()->back()->with('error', $errorMessage);
+                }
             }
 
-            // Check available stock
-            $maxStock = $variationId ? (int)($variation->available_stock ?? 0) : (int)($product->total_variation_stock ?? 0);
+            // Check available stock using unified logic
+            $generalSetting = \App\Models\GeneralSetting::first();
+            $maxStock = $variation 
+                ? (int)$variation->getAvailableStockWithSource($generalSetting->ecommerce_source_type ?? null, $generalSetting->ecommerce_source_id ?? null)
+                : (int)$product->total_variation_stock;
+
             if ($cart->qty > $maxStock) {
                 $errorMessage = "Insufficient stock for '{$product->name}'. Only $maxStock available. Please adjust your cart.";
                 if ($request->ajax() || $request->wantsJson()) {
@@ -194,29 +214,7 @@ class OrderController extends Controller
             $total = $price * $cart->qty;
             $subtotal += $total;
 
-            // Validate that the variation_id belongs to this product
-            if ($variationId) {
-                $variation = \App\Models\ProductVariation::where('id', $variationId)
-                    ->where('product_id', $product->id)
-                    ->first();
-
-                if (!$variation) {
-                    $errorMessage = "Invalid variation selected for product '{$product->name}'. ";
-                    $errorMessage .= "Please remove this item from your cart and add it again with a valid variation.";
-
-                    if ($request->ajax() || $request->wantsJson()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => $errorMessage,
-                            'error_type' => 'invalid_variation',
-                            'product_id' => $product->id,
-                            'variation_id' => $variationId
-                        ], 422);
-                    }
-
-                    throw new \Exception($errorMessage);
-                }
-            }
+            // ... variation lookup moved above ...
 
             $items[] = [
                 'product_id' => $product->id,
@@ -427,7 +425,7 @@ class OrderController extends Controller
                             ->get()
                             ->keyBy('variation_id');
                      }
-                     $productBranchStocks = \App\Models\BranchStock::whereIn('product_id', $productIds)
+                      $productBranchStocks = \App\Models\BranchProductStock::whereIn('product_id', $productIds)
                         ->where('branch_id', $ecommerceSourceId)
                         ->get()
                         ->keyBy('product_id');
@@ -1229,7 +1227,7 @@ class OrderController extends Controller
                 }
              } else {
                 // Product Branch Stock
-                $productStock = \App\Models\BranchStock::where('product_id', $productId)
+                $productStock = \App\Models\BranchProductStock::where('product_id', $productId)
                     ->where('branch_id', $branchId)
                     ->lockForUpdate()
                     ->first();

@@ -313,6 +313,8 @@ class StockController extends Controller
             }
         }
 
+        \App\Services\CacheService::clearProductCaches($productId);
+
         return response()->json(['success' => true, 'message' => 'Stock added to branches successfully.']);
     }
 
@@ -355,6 +357,8 @@ class StockController extends Controller
                 ]);
             }
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
 
         return response()->json(['success' => true, 'message' => 'Stock added to warehouses successfully.']);
     }
@@ -506,6 +510,8 @@ class StockController extends Controller
                 }
             }
         }
+        
+        \App\Services\CacheService::clearProductCaches($request->product_id);
         
         return redirect()->back()->with('success', 'Stock adjusted successfully.');
     }
@@ -660,6 +666,10 @@ class StockController extends Controller
                     'old_quantity' => $oldQty,
                     'new_quantity' => $newQty,
                 ]);
+            }
+
+            foreach ($request->items as $itemData) {
+                \App\Services\CacheService::clearProductCaches($itemData['product_id']);
             }
 
             \DB::commit();

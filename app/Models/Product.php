@@ -249,10 +249,29 @@ class Product extends Model
      */
     public function getTotalVariationStockAttribute()
     {
-        if ($this->has_variations) {
-            return $this->activeVariations->sum('available_stock');
+        static $sourceSettings = null;
+        if ($sourceSettings === null) {
+            $sourceSettings = \App\Models\GeneralSetting::select('ecommerce_source_type', 'ecommerce_source_id')->first() ?: (object)['ecommerce_source_type' => null, 'ecommerce_source_id' => null];
         }
         
+        $sourceType = $sourceSettings->ecommerce_source_type;
+        $sourceId = $sourceSettings->ecommerce_source_id;
+
+        if ($this->has_variations) {
+            // Use local method for variations to handle source filtering
+            return $this->activeVariations->sum(function($v) use ($sourceType, $sourceId) {
+                return $v->getAvailableStockWithSource($sourceType, $sourceId);
+            });
+        }
+        
+        // Product-level stock check with source filtering
+        if ($sourceType === 'branch' && $sourceId) {
+            return $this->branchStock()->where('branch_id', $sourceId)->sum('quantity') ?? 0;
+        } elseif ($sourceType === 'warehouse' && $sourceId) {
+            return $this->warehouseStock()->where('warehouse_id', $sourceId)->sum('quantity') ?? 0;
+        }
+
+        // Default or Fallback: Sum all warehouses + online branches
         $warehouseStock = $this->warehouseStock()->sum('quantity') ?? 0;
         $activeBranchStock = $this->branchStock()
             ->whereHas('branch', function($q){ $q->where('show_online', true); })
@@ -267,6 +286,9 @@ class Product extends Model
      */
     public function hasStock()
     {
+        if (!$this->manage_stock) {
+            return true;
+        }
         return $this->total_variation_stock > 0;
     }
 

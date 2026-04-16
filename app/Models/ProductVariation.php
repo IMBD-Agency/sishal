@@ -161,21 +161,30 @@ class ProductVariation extends Model
      */
     public function getAvailableStockAttribute(): int
     {
-        // 1. Get stock from all Warehouses (Legacy support for your live server)
-        $warehouseStock = $this->stocks()
-            ->whereNotNull('warehouse_id')
-            ->sum('quantity') ?? 0;
-
-        // 2. Get stock from Branches that are specifically marked for Online Sales
-        $branchStock = $this->stocks()
-            ->whereHas('branch', function($query) {
-                $query->where('show_online', true);
-            })
-            ->sum('quantity') ?? 0;
-
-        $reservedStock = $this->stocks()->sum('reserved_quantity') ?? 0;
+        static $sourceSettings = null;
+        if ($sourceSettings === null) {
+            $sourceSettings = \App\Models\GeneralSetting::select('ecommerce_source_type', 'ecommerce_source_id')->first() ?: (object)['ecommerce_source_type' => null, 'ecommerce_source_id' => null];
+        }
         
-        return ($warehouseStock + $branchStock) - $reservedStock;
+        return $this->getAvailableStockWithSource($sourceSettings->ecommerce_source_type, $sourceSettings->ecommerce_source_id);
+    }
+
+    /**
+     * Get available stock with optional source filtering.
+     */
+    public function getAvailableStockWithSource($sourceType = null, $sourceId = null): int
+    {
+        if ($sourceType === 'branch' && $sourceId) {
+            $qty = $this->stocks()->where('branch_id', $sourceId)->sum('quantity') ?? 0;
+            $reserved = $this->stocks()->where('branch_id', $sourceId)->sum('reserved_quantity') ?? 0;
+            return $qty - $reserved;
+        } elseif ($sourceType === 'warehouse' && $sourceId) {
+            $qty = $this->stocks()->where('warehouse_id', $sourceId)->sum('quantity') ?? 0;
+            $reserved = $this->stocks()->where('warehouse_id', $sourceId)->sum('reserved_quantity') ?? 0;
+            return $qty - $reserved;
+        }
+
+        return $this->available_stock;
     }
 
     /**

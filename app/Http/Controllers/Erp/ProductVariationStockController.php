@@ -78,6 +78,8 @@ class ProductVariationStockController extends Controller
     }
         
 
+        \App\Services\CacheService::clearProductCaches($variation->product_id);
+
         return response()->json(['success' => true, 'message' => 'Stock added to branches successfully.']);
     }
 
@@ -121,6 +123,8 @@ class ProductVariationStockController extends Controller
                 ]);
             }
         }
+
+        \App\Services\CacheService::clearProductCaches($variation->product_id);
 
         return response()->json(['success' => true, 'message' => 'Stock added to warehouses successfully.']);
     }
@@ -205,6 +209,8 @@ class ProductVariationStockController extends Controller
                 }
             }
         }
+
+        \App\Services\CacheService::clearProductCaches($variation->product_id);
 
         return response()->json(['success' => true, 'message' => 'Stock adjusted successfully.']);
     }

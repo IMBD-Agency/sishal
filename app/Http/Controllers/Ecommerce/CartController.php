@@ -218,8 +218,14 @@ class CartController extends Controller
         }
 
         
-        // Check available stock
-        $maxStock = $variation ? (int)$variation->available_stock : (int)$product->total_variation_stock;
+        // Check available stock using unified logic
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $sourceType = $generalSetting->ecommerce_source_type ?? null;
+        $sourceId = $generalSetting->ecommerce_source_id ?? null;
+        
+        $maxStock = $variation 
+            ? (int)$variation->getAvailableStockWithSource($sourceType, $sourceId)
+            : (int)$product->total_variation_stock;
         $requestedQty = $qty;
         
         if ($existingCart) {
@@ -519,11 +525,15 @@ class CartController extends Controller
             }
             
             $total = $price * $item->qty;
-            $maxStock = 999;
+            $maxStock = 0;
+            $generalSetting = \App\Models\GeneralSetting::first();
+            $sourceType = $generalSetting->ecommerce_source_type ?? null;
+            $sourceId = $generalSetting->ecommerce_source_id ?? null;
+
             if ($item->variation) {
-                $maxStock = max(0, (int) $item->variation->available_stock);
+                $maxStock = (int) $item->variation->getAvailableStockWithSource($sourceType, $sourceId);
             } elseif ($product) {
-                $maxStock = max(0, (int) $product->total_variation_stock);
+                $maxStock = (int) $product->total_variation_stock;
             }
             $cartList[] = [
                 'cart_id' => $item->id,
@@ -592,12 +602,16 @@ class CartController extends Controller
             return response()->json(['success' => false, 'message' => 'Cart item not found']);
         }
 
-        // Check stock limit
-        $maxStock = 999;
+        // Check stock limit using unified logic
+        $generalSetting = \App\Models\GeneralSetting::first();
+        $sourceType = $generalSetting->ecommerce_source_type ?? null;
+        $sourceId = $generalSetting->ecommerce_source_id ?? null;
+        
+        $maxStock = 0;
         if ($cartItem->variation) {
-            $maxStock = max(0, (int) $cartItem->variation->available_stock);
+            $maxStock = (int) $cartItem->variation->getAvailableStockWithSource($sourceType, $sourceId);
         } elseif ($cartItem->product) {
-            $maxStock = max(0, (int) $cartItem->product->total_variation_stock);
+            $maxStock = (int) $cartItem->product->total_variation_stock;
         }
 
         if ($cartItem->qty >= $maxStock) {
@@ -688,8 +702,14 @@ class CartController extends Controller
                 }
             }
             
-            // Check available stock
-            $maxStock = $variation ? (int)$variation->available_stock : (int)$product->total_variation_stock;
+            // Check available stock using unified logic
+            $generalSetting = \App\Models\GeneralSetting::first();
+            $sourceType = $generalSetting->ecommerce_source_type ?? null;
+            $sourceId = $generalSetting->ecommerce_source_id ?? null;
+            
+            $maxStock = $variation 
+                ? (int)$variation->getAvailableStockWithSource($sourceType, $sourceId)
+                : (int)$product->total_variation_stock;
             if ($qty > $maxStock) {
                 return redirect()->back()->with('error', "Only $maxStock item(s) available in stock. Please reduce your quantity.");
             }

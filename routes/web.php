@@ -859,34 +859,36 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 
 
 // Route to run migrations from web
-Route::get('/run-migrate', function() {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
-    } catch (\Exception $e) {
-        return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+// Route::get('/run-migrate', function() {
+//     try {
+//         Artisan::call('migrate', ['--force' => true]);
+//         return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+//     } catch (\Exception $e) {
+//         return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
 // Route to run Permission Seeder from web
-Route::get('/run-seed', function() {
-    try {
-        // Run the seeder
-        Artisan::call('db:seed', [
-            '--class' => 'PermissionSeeder',
-            '--force' => true
-        ]);
-        $output = Artisan::output();
+// Route::get('/run-seed', function() {
+//     try {
+//         // Run the seeder
+//         Artisan::call('db:seed', [
+//             '--class' => 'PermissionSeeder',
+//             '--force' => true
+//         ]);
+//         $output = Artisan::output();
 
-        // Clear all caches to ensure permissions reflect immediately
-        Artisan::call('optimize:clear');
-        $output .= "\n" . Artisan::output();
+//         // Clear all caches to ensure permissions reflect immediately
+//         Artisan::call('optimize:clear');
+//         $output .= "\n" . Artisan::output();
 
-        return '<h1>Permissions Seeded & Cache Cleared Successfully!</h1><br><pre>' . $output . '</pre>';
-    } catch (\Exception $e) {
-        return '<h1>Maintenance Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+//         return '<h1>Permissions Seeded & Cache Cleared Successfully!</h1><br><pre>' . $output . '</pre>';
+//     } catch (\Exception $e) {
+//         return '<h1>Maintenance Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
+
+
 
 // Specific fix for POS table if migrations are out of sync
 // Route::get('/fix-pos-columns', function() {
@@ -915,6 +917,10 @@ Route::get('/run-seed', function() {
 //     } catch (\Exception $e) {
 //         return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
 //     }
+
 // });
+
+
+
 
 require __DIR__ . '/auth.php';

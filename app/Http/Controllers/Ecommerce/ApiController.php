@@ -353,16 +353,9 @@ class ApiController extends Controller
                             $product->avg_rating = $product->reviews->avg('rating') ?? 0;
                             $product->total_reviews = $product->reviews->count();
                             
-                            // Pre-calculate stock status
-                            if ($product->has_variations) {
-                                $product->has_stock = $product->variations->where('status', 'active')
-                                    ->flatMap->stocks
-                                    ->sum('quantity') > 0;
-                            } else {
-                                $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                                $product->has_stock = ($branchStock + $warehouseStock) > 0;
-                            }
+                            // Use unified stock check from model
+                            $product->has_stock = $product->hasStock();
+
                             
                             return $product;
                         });
@@ -426,16 +419,8 @@ class ApiController extends Controller
                     $product->avg_rating = $product->reviews->avg('rating') ?? 0;
                     $product->total_reviews = $product->reviews->count();
                     
-                    // Pre-calculate stock status
-                    if ($product->has_variations) {
-                        $product->has_stock = $product->variations->where('status', 'active')
-                            ->flatMap->stocks
-                            ->sum('quantity') > 0;
-                    } else {
-                        $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                        $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                        $product->has_stock = ($branchStock + $warehouseStock) > 0;
-                    }
+                    // Use unified stock check from model
+                    $product->has_stock = $product->hasStock();
                     
                     return $product;
                 });
@@ -641,16 +626,9 @@ class ApiController extends Controller
                             $product->avg_rating = $product->reviews->avg('rating') ?? 0;
                             $product->total_reviews = $product->reviews->count();
                             
-                            // Pre-calculate stock status
-                            if ($product->has_variations) {
-                                $product->has_stock = $product->variations->where('status', 'active')
-                                    ->flatMap->stocks
-                                    ->sum('quantity') > 0;
-                            } else {
-                                $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                                $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                                $product->has_stock = ($branchStock + $warehouseStock) > 0;
-                            }
+                            // Use unified stock check from model
+                            $product->has_stock = $product->hasStock();
+
                             
                             return $product;
                         });
@@ -698,16 +676,8 @@ class ApiController extends Controller
                         $product->avg_rating = $product->reviews->avg('rating') ?? 0;
                         $product->total_reviews = $product->reviews->count();
                         
-                        // Pre-calculate stock status
-                        if ($product->has_variations) {
-                            $product->has_stock = $product->variations->where('status', 'active')
-                                ->flatMap->stocks
-                                ->sum('quantity') > 0;
-                        } else {
-                            $branchStock = $product->branchStock->sum('quantity') ?? 0;
-                            $warehouseStock = $product->warehouseStock->sum('quantity') ?? 0;
-                            $product->has_stock = ($branchStock + $warehouseStock) > 0;
-                        }
+                        // Use unified stock check from model
+                        $product->has_stock = $product->hasStock();
                         
                         return $product;
                     });
