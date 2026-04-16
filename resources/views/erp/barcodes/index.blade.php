@@ -102,8 +102,8 @@
     }
     .barcode-sticker-preview {
         background: #fff;
-        border: 1px dashed #4e73df; /* Subtle dashed border for preview */
-        padding: 8px 10px; 
+        border: 1px dashed #4e73df;
+        padding: 6px 8px; /* Balanced padding */
         border-radius: 4px;
         width: 154px; 
         height: 102px; 
@@ -112,9 +112,11 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2px; /* Consistent small gaps */
+        justify-content: center; /* Center everything vertically */
+        gap: 2px;
         font-family: 'Arial Narrow', sans-serif;
         position: relative;
+        box-sizing: border-box;
     }
     #barcodePreview {
         background: white;
@@ -147,16 +149,15 @@
         display: -webkit-box;
         -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
-        line-height: 1;
+        line-height: 1.2; /* Better line height to prevent cutting */
         width: 100%;
         text-transform: uppercase;
-        height: 12px; /* Explicit height to reserve space */
     }
     .sticker-barcode {
         margin: 0;
         display: flex;
         justify-content: center;
-        height: 32px; /* Even shorter to ensure name fits */
+        height: 30px; /* Slightly shorter for preview safety */
         width: 100%;
     }
     .sticker-barcode svg, .sticker-barcode img {
@@ -174,14 +175,13 @@
         line-height: 1;
     }
     .sticker-price {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 950;
         border-top: 1px solid #000;
-        padding-top: 4px;
-        margin-top: auto; /* Push to bottom of flex container */
-        width: 100%;
+        padding-top: 2px;
+        margin-top: 2px; 
+        width: 95%;
         color: #000;
-        margin-bottom: 2px;
     }
 </style>
 @endpush
