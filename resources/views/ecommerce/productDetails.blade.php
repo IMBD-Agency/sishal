@@ -1,5 +1,9 @@
 @extends('ecommerce.master')
 
+@php
+    $settings = $general_settings;
+@endphp
+
 @push('head')
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">

@@ -177,14 +177,29 @@ class ProductVariation extends Model
         if ($sourceType === 'branch' && $sourceId) {
             $qty = $this->stocks()->where('branch_id', $sourceId)->sum('quantity') ?? 0;
             $reserved = $this->stocks()->where('branch_id', $sourceId)->sum('reserved_quantity') ?? 0;
-            return $qty - $reserved;
+            return (int)($qty - $reserved);
         } elseif ($sourceType === 'warehouse' && $sourceId) {
             $qty = $this->stocks()->where('warehouse_id', $sourceId)->sum('quantity') ?? 0;
             $reserved = $this->stocks()->where('warehouse_id', $sourceId)->sum('reserved_quantity') ?? 0;
-            return $qty - $reserved;
+            return (int)($qty - $reserved);
         }
 
-        return $this->available_stock;
+        // Fallback or Default Logic: 
+        // 1. Get stock from all Warehouses
+        $warehouseStock = $this->stocks()
+            ->whereNotNull('warehouse_id')
+            ->sum('quantity') ?? 0;
+
+        // 2. Get stock from Branches that are specifically marked for Online Sales
+        $branchStock = $this->stocks()
+            ->whereHas('branch', function($query) {
+                $query->where('show_online', true);
+            })
+            ->sum('quantity') ?? 0;
+
+        $reservedStock = $this->stocks()->sum('reserved_quantity') ?? 0;
+        
+        return (int)(($warehouseStock + $branchStock) - $reservedStock);
     }
 
     /**
