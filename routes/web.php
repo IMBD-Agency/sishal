@@ -868,6 +868,13 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 //     }
 // });
 
+Route::get('/run-perm-fix', function() {
+    \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'PermissionSeeder']);
+    return "Permissions Fixed! Output: <pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
+})->middleware(['auth', 'admin']);
+
+
+
 // Route to run Permission Seeder from web
 // Route::get('/run-seed', function() {
 //     try {

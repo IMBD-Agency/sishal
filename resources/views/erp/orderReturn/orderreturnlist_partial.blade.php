@@ -50,6 +50,7 @@
                             <span class="badge {{ $currentClass }} border px-3 py-2 fw-medium status-badge"
                                   data-id="{{ $return->id }}" 
                                   data-status="{{ $return->status }}"
+                                  data-refund-type="{{ $return->refund_type }}"
                                   style="cursor:pointer; font-size: 0.75rem;">
                                 {{ ucfirst($return->status) }}
                             </span>
@@ -104,6 +105,17 @@
                     </tr>
                 @endforelse
             </tbody>
+            <tfoot class="table-light border-top-2">
+                <tr>
+                    <td colspan="4" class="ps-4 py-3 fw-bold text-end text-uppercase small" style="letter-spacing: 0.05em;">Total Refund for Current Page:</td>
+                    <td class="py-3">
+                        <div class="fw-bold text-primary fs-6">
+                            {{ number_format($returns->sum(fn($r) => $r->items->sum('total_price')), 2) }}৳
+                        </div>
+                    </td>
+                    <td colspan="3"></td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 </div>

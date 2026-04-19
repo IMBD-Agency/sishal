@@ -161,8 +161,9 @@ class OrderReturnController extends Controller
 
         $statuses = ['pending', 'approved', 'rejected', 'processed'];
         $filters = $request->all();
+        $bankAccounts = \App\Models\FinancialAccount::all();
 
-        return view('erp.orderReturn.orderreturnlist', compact('returns', 'statuses', 'filters'));
+        return view('erp.orderReturn.orderreturnlist', compact('returns', 'statuses', 'filters', 'bankAccounts'));
     }
 
     public function create(Request $request)
@@ -183,10 +184,11 @@ class OrderReturnController extends Controller
         }
 
         $generalSettings = \App\Models\GeneralSetting::first();
+        $bankAccounts = \App\Models\FinancialAccount::all();
         
         return view('erp.orderReturn.create', compact(
             'customers', 'orders', 'invoices', 'products', 'branches', 'warehouses', 
-            'preSelectedOrder', 'generalSettings'
+            'preSelectedOrder', 'generalSettings', 'bankAccounts'
         ));
     }
 
@@ -289,7 +291,8 @@ class OrderReturnController extends Controller
         $products = \App\Models\Product::all();
         $branches = \App\Models\Branch::all();
         $warehouses = \App\Models\Warehouse::all();
-        return view('erp.orderReturn.edit', compact('orderReturn', 'customers', 'orders', 'invoices', 'products', 'branches', 'warehouses'));
+        $bankAccounts = \App\Models\FinancialAccount::all();
+        return view('erp.orderReturn.edit', compact('orderReturn', 'customers', 'orders', 'invoices', 'products', 'branches', 'warehouses', 'bankAccounts'));
     }
 
     public function update(Request $request, $id)
@@ -393,41 +396,40 @@ class OrderReturnController extends Controller
 
             $orderReturn->update($updateData);
 
-            // If status is being processed, adjust stock (add returned qty)
+            // If status is being processed, adjust stock AND accounting
             if ($newStatus === 'processed') {
-                // Refresh items to ensure we have latest data including variation_id
                 $orderReturn->refresh();
                 $orderReturn->load('items');
                 
                 foreach ($orderReturn->items as $item) {
-                    // Refresh item to ensure we have latest data
                     $item->refresh();
-                    
-                    // Log item details before processing
-                    \Log::info('Processing return item', [
-                        'item_id' => $item->id,
-                        'product_id' => $item->product_id,
-                        'variation_id' => $item->variation_id,
-                        'returned_qty' => $item->returned_qty,
-                        'return_to_type' => $orderReturn->return_to_type,
-                        'return_to_id' => $orderReturn->return_to_id
-                    ]);
-                    
-                    // Verify variation_id is set if product has variations
-                    if ($item->product_id) {
-                        $product = \App\Models\Product::find($item->product_id);
-                        if ($product && $product->has_variations && !$item->variation_id) {
-                            \Log::warning('Product has variations but variation_id is missing in return item', [
-                                'item_id' => $item->id,
-                                'product_id' => $item->product_id
-                            ]);
-                        }
-                    }
-                    
                     $this->addStockForReturnItem($orderReturn, $item);
                 }
-                
-                // Track who processed and when
+
+                // --- ACCOUNTING INTEGRATION ---
+                $totalRefund = $orderReturn->items->sum('total_price');
+
+                // 1. Deduct from Financial Account (Cash/Bank)
+                if (in_array($orderReturn->refund_type, ['cash', 'bank', 'mobile'])) {
+                    if ($orderReturn->account_id) {
+                        $account = \App\Models\FinancialAccount::find($orderReturn->account_id);
+                        if ($account) {
+                            $account->decrement('balance', $totalRefund);
+                            \Log::info("Refund Accounting: Deducted {$totalRefund} from Account ID {$account->id}");
+                        }
+                    }
+                } 
+                // 2. Add to Customer Balance (Store Credit)
+                elseif ($orderReturn->refund_type === 'credit' && $orderReturn->customer_id) {
+                    $balance = \App\Models\Balance::firstOrCreate(
+                        ['source_type' => 'customer', 'source_id' => $orderReturn->customer_id],
+                        ['balance' => 0, 'description' => 'Customer Balance']
+                    );
+                    $balance->increment('balance', $totalRefund);
+                    \Log::info("Refund Accounting: Added {$totalRefund} credit to Customer ID {$orderReturn->customer_id}");
+                }
+                // --- END ACCOUNTING ---
+
                 $orderReturn->processed_by = auth()->id();
                 $orderReturn->processed_at = now();
                 $orderReturn->save();

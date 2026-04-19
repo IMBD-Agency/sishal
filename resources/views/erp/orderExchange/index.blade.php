@@ -213,6 +213,32 @@
                                         </tr>
                                     @endforelse
                                 </tbody>
+                                <tfoot class="table-light border-top-2 fw-bold">
+                                    @php
+                                        $totalQty = 0;
+                                        $totalCredit = 0;
+                                        $totalDisc = 0;
+                                        $totalPaid = 0;
+                                        $totalDue = 0;
+                                        foreach($exchanges as $exc) {
+                                            $totalQty += $exc->items->sum('returned_qty');
+                                            $totalCredit += $exc->items->sum('total_price');
+                                            $totalDisc += ($exc->exchangeOrder->discount ?? 0);
+                                            $totalPaid += ($exc->exchangeOrder->invoice->paid_amount ?? 0);
+                                            $totalDue += ($exc->exchangeOrder->invoice->due_amount ?? 0);
+                                        }
+                                    @endphp
+                                    <tr style="font-size: 0.8rem;">
+                                        <td colspan="5" class="ps-4 py-3 text-end text-uppercase small" style="letter-spacing: 0.05em;">Current Page Totals:</td>
+                                        <td class="text-center py-3">{{ $totalQty }}</td>
+                                        <td class="py-3">৳{{ number_format($totalCredit, 2) }}</td>
+                                        <td class="py-3"></td>
+                                        <td class="py-3 text-muted">৳{{ number_format($totalDisc, 2) }}</td>
+                                        <td class="py-3 text-success">৳{{ number_format($totalPaid, 2) }}</td>
+                                        <td class="py-3 text-danger">৳{{ number_format($totalDue, 2) }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>

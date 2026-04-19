@@ -111,6 +111,16 @@
                 </tr> 
                 @endforelse
             </tbody>
+            <tfoot class="table-light border-top-2">
+                <tr class="fw-bold">
+                    <td colspan="4" class="ps-4 py-3 text-end text-uppercase small" style="letter-spacing: 0.05em;">Current Page Totals:</td>
+                    <td class="py-3 text-dark">{{ number_format($orders->sum('subtotal'), 2) }}৳</td>
+                    <td class="py-3 text-danger">-{{ number_format($orders->sum('discount'), 2) }}৳</td>
+                    <td class="py-3 text-muted">+{{ number_format($orders->sum('delivery'), 2) }}৳</td>
+                    <td class="py-3 text-primary fs-6">{{ number_format($orders->sum('total'), 2) }}৳</td>
+                    <td></td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 </div>

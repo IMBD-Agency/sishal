@@ -131,15 +131,28 @@
                                     </select>
                                 </div>
 
+                                <div class="mb-3" id="account_selection_wrapper" style="{{ in_array($orderReturn->refund_type, ['cash', 'bank']) ? '' : 'display:none;' }}">
+                                    <label for="account_id" class="form-label fw-bold small">Refund From Account <span class="text-danger">*</span></label>
+                                    <select name="account_id" id="account_id" class="form-select">
+                                        <option value="">Select Finance Account</option>
+                                        @foreach($bankAccounts as $account)
+                                            <option value="{{ $account->id }}" {{ $orderReturn->account_id == $account->id ? 'selected' : '' }}>
+                                                {{ $account->provider_name ?? ucfirst($account->type) }} ({{ number_format($account->balance, 2) }}৳)
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted mt-1 d-block">The account to deduct money from upon processing.</small>
+                                </div>
+
                                 <div class="mb-3">
                                     <label for="return_to_type" class="form-label fw-bold small">Restock Location <span class="text-danger">*</span></label>
                                     <select name="return_to_type" id="return_to_type" class="form-select mb-2" required>
                                         <option value="">Select Location Type</option>
                                         <option value="branch" {{ $orderReturn->return_to_type == 'branch' ? 'selected' : '' }}>Branch Office</option>
                                         <option value="warehouse" {{ $orderReturn->return_to_type == 'warehouse' ? 'selected' : '' }}>Central Warehouse</option>
-                                        <option value="employee" {{ $orderReturn->return_to_type == 'employee' ? 'selected' : '' }}>Field Employee</option>
+
                                     </select>
-                                    <select name="return_to_id" id="return_to_id" class="form-select" {{ $orderReturn->return_to_type == 'employee' ? 'style=display:none;' : '' }} required>
+                                    <select name="return_to_id" id="return_to_id" class="form-select" required>
                                         <option value="">Select Specific Location</option>
                                         @if($orderReturn->return_to_type == 'branch')
                                             @foreach($branches as $branch)
@@ -149,9 +162,7 @@
                                             @foreach($warehouses as $warehouse)
                                                 <option value="{{ $warehouse->id }}" {{ $orderReturn->return_to_id == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                             @endforeach
-                                        @elseif($orderReturn->return_to_type == 'employee')
-                                            <option value="{{ $orderReturn->return_to_id }}" selected>{{ $orderReturn->destination_name }}</option>
-                                        @endif
+
                                     </select>
                                 </div>
                             </div>
@@ -428,17 +439,17 @@
                     opts.forEach(o => $idSelect.append(`<option value="${o.id}">${o.name}</option>`));
                     $idSelect.show();
                     if ($idSelect.hasClass('select2-hidden-accessible')) $idSelect.select2('destroy');
-                } else if (type === 'employee') {
-                    $idSelect.show().select2({
-                        placeholder: 'Search Employee...',
-                        width: '100%',
-                        ajax: {
-                            url: '/erp/employees/search',
-                            dataType: 'json',
-                            data: params => ({ q: params.term }),
-                            processResults: data => ({ results: data.map(i => ({ id: i.id, text: i.name })) })
-                        }
-                    });
+                }
+            });
+
+            $('#refund_type').on('change', function() {
+                const val = $(this).val();
+                if (['cash', 'bank'].includes(val)) {
+                    $('#account_selection_wrapper').slideDown();
+                    $('#account_id').prop('required', true);
+                } else {
+                    $('#account_selection_wrapper').slideUp();
+                    $('#account_id').prop('required', false);
                 }
             });
         });

@@ -73,6 +73,9 @@
                 </div>
                 <div class="col-md-6 text-end">
                     <div class="btn-group shadow-sm">
+                        <a href="{{ route('orderReturn.create') }}" class="btn btn-primary btn-sm fw-bold px-3">
+                            <i class="fas fa-plus me-1"></i>CREATE RETURN
+                        </a>
                         <button onclick="window.print()" class="btn btn-outline-secondary btn-sm fw-bold">
                             <i class="fas fa-print me-1"></i>PRINT
                         </button>
@@ -219,14 +222,24 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold">New State</label>
                             <select class="form-select border-2" name="status" id="newStatus" required>
-                                <option value="pending">Pending</option>
-                                <option value="approved">Approved</option>
-                                <option value="rejected">Rejected</option>
-                                <option value="processed">Processed (Restores Stock)</option>
+                                <option value="pending">Keep as Pending</option>
+                                <option value="approved">Approve Return</option>
+                                <option value="rejected">Reject Return</option>
+                                <option value="processed">Complete Process (Restocks & Refund)</option>
                             </select>
-                            <div class="form-text text-danger mt-2" id="stockWarning" style="display:none;">
-                                <i class="fas fa-exclamation-triangle me-1"></i> Marking as Processed will increment inventory levels!
-                            </div>
+                        </div>
+                        <div class="mb-3" id="modalAccountWrapper" style="display:none;">
+                            <label class="form-label fw-semibold">Deduct From Account <span class="text-danger">*</span></label>
+                            <select class="form-select border-2" name="account_id" id="modalAccountId">
+                                <option value="">Select Financial Account</option>
+                                @foreach($bankAccounts as $account)
+                                    <option value="{{ $account->id }}">{{ $account->provider_name ?? ucfirst($account->type) }} ({{ number_format($account->balance, 2) }}৳)</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text mt-1 text-muted">Money will be deducted when you confirm.</div>
+                        </div>
+                        <div class="form-text text-danger mt-2 mb-3" id="stockWarning" style="display:none;">
+                            <i class="fas fa-exclamation-triangle me-1"></i> Marking as Processed will increment inventory levels!
                         </div>
                         <div class="mb-0">
                             <label class="form-label fw-semibold">Notes</label>
@@ -293,16 +306,23 @@
         });
     }
 
+    let currentRefundType = '';
+
     function bindStatusBadges() {
         $('.status-badge').off('click').on('click', function() {
             const id = $(this).data('id');
             const status = $(this).data('status');
+            currentRefundType = $(this).data('refund-type');
             
             $('#modalId').val(id);
             $('#currentStatus').val(status.charAt(0).toUpperCase() + status.slice(1));
             $('#newStatus').val(status);
             $('#statusNotes').val('');
-            $('#stockWarning').toggle(status === 'processed');
+            
+            // Clean state toggle
+            $('#stockWarning').hide();
+            $('#modalAccountWrapper').hide();
+            
             $('#statusModal').modal('show');
         });
     }
@@ -346,7 +366,13 @@
         });
 
         $('#newStatus').on('change', function() {
-            $('#stockWarning').toggle($(this).val() === 'processed');
+            const status = $(this).val();
+            const showStockWarning = (status === 'processed');
+            const showAccountSelect = (status === 'processed' && currentRefundType !== 'credit');
+            
+            $('#stockWarning').toggle(showStockWarning);
+            $('#modalAccountWrapper').toggle(showAccountSelect);
+            $('#modalAccountId').prop('required', showAccountSelect);
         });
 
         $('#statusForm').on('submit', function(e) {

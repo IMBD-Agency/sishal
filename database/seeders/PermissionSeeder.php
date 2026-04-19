@@ -117,10 +117,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'manage additional pages', 'category' => 'Setup'],
             ['name' => 'manage pages', 'category' => 'Setup'],
 
-            // Customer Support
-            ['name' => 'view services', 'category' => 'Customer Support'],
-            ['name' => 'manage services', 'category' => 'Customer Support'],
-
             // Dashboard
             ['name' => 'view dashboard', 'category' => 'Dashboard'],
         ];
