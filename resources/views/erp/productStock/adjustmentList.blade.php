@@ -46,11 +46,11 @@
                     <div class="row g-2 align-items-end">
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm filter-input" value="{{ request('start_date', date('Y-m-d')) }}">
+                            <input type="date" name="start_date" class="form-control form-control-sm filter-input" value="{{ request('start_date') }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm filter-input" value="{{ request('end_date', date('Y-m-d')) }}">
+                            <input type="date" name="end_date" class="form-control form-control-sm filter-input" value="{{ request('end_date') }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Adjustment ID</label>

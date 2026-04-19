@@ -62,11 +62,11 @@
                             <!-- Field Blocks (Daily, Monthly, Yearly) -->
                             <div class="col-md-3 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date *</label>
-                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') ?: $startDate->format('Y-m-d') }}">
+                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                             </div>
                             <div class="col-md-3 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date *</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') ?: $endDate->format('Y-m-d') }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
 
                             <!-- Monthly Fields -->
