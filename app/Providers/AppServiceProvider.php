@@ -11,6 +11,7 @@ use App\Models\AdditionalPage;
 use App\Models\ProductServiceCategory;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +28,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Paginator::useBootstrapFive();
+
         // Force HTTPS for assets (Critical for Live Server behind Proxy)
         if (config('app.env') === 'production' || config('app.env') === 'live') {
             \Illuminate\Support\Facades\URL::forceScheme('https');
