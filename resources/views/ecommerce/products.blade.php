@@ -28,11 +28,12 @@
                 #filterFormDesktop {
                     position: -webkit-sticky;
                     position: sticky;
-                    top: 135px; /* Adjust based on header height */
-                    max-height: calc(100vh - 160px);
+                    top: 150px; /* Offset from fixed header */
+                    max-height: calc(100vh - 180px);
                     overflow-y: auto !important;
                     z-index: 100;
                     padding-bottom: 20px;
+                    transition: top 0.3s ease-in-out;
                     
                     /* Hide scrollbar but keep functionality */
                     -ms-overflow-style: none !important;
@@ -55,8 +56,8 @@
 
                 /* Offset for hide-upper-headers (when marquee is hidden) */
                 body.hide-upper-headers #filterFormDesktop {
-                    top: 105px;
-                    max-height: calc(100vh - 130px);
+                    top: 110px;
+                    max-height: calc(100vh - 140px);
                 }
             }
         </style>
@@ -879,7 +880,7 @@
                 var documentHeight = document.documentElement.scrollHeight;
                 
                 var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-                if (distanceFromBottom < 600) { // Increased threshold for smoother infinite scroll
+                if (distanceFromBottom < 1000) { // High threshold for smoother infinite scroll
                     loadMoreProducts();
                 }
             };
