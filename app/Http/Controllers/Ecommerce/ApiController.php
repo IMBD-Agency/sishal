@@ -303,8 +303,8 @@ class ApiController extends Controller
                 $products = Cache::remember($cacheKey, 300, function () use ($limit, $ecommerceSourceType, $ecommerceSourceId) {
                     try {
                         $query = \App\Models\Product::select([
-                            'products.id', 'products.name', 'products.slug', 'products.price', 
-                            'products.discount', 'products.image', 'products.category_id',
+                            'products.id', 'products.name', 'products.slug', 'products.style_number', 'products.sku', 
+                            'products.price', 'products.discount', 'products.image', 'products.category_id',
                             'products.has_variations', 'products.status', 'products.created_at'
                         ])
                         ->with([
@@ -369,8 +369,8 @@ class ApiController extends Controller
                 });
             } else {
                 $query = \App\Models\Product::select([
-                    'products.id', 'products.name', 'products.slug', 'products.style_number', 'products.sku', 'products.price', 
-                    'products.discount', 'products.image', 'products.category_id',
+                    'products.id', 'products.name', 'products.slug', 'products.style_number', 'products.sku', 
+                    'products.price', 'products.discount', 'products.image', 'products.category_id',
                     'products.has_variations', 'products.status', 'products.created_at'
                 ])
                 ->with([

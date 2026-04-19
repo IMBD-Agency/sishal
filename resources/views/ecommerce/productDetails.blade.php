@@ -24,6 +24,40 @@
     #relatedProductsSplide .splide__arrow:hover { background: #00512C !important; border-color: #00512C !important; color: #fff !important; }
     #relatedProductsSplide .splide__arrow svg { fill: #374151 !important; transition: all 0.3s ease !important; }
     #relatedProductsSplide .splide__arrow:hover svg { fill: white !important; }
+
+    /* Product Metadata Badges Styling */
+    .pd-meta-badge {
+        display: flex;
+        align-items: center;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    .pd-meta-badge:hover {
+        border-color: #00512C;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .pd-meta-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #fff;
+        background: #111827;
+        padding: 4px 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .pd-meta-value {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+        padding: 4px 10px;
+    }
+    .pd-meta-badge:hover .pd-meta-label {
+        background: #00512C;
+    }
 </style>
 @endpush
 
@@ -121,9 +155,35 @@
                 <div class="pd-info-section">
                     <div class="pd-premium-badge"><i class="fas fa-crown me-2"></i>Premium Selection</div>
                     <h1 class="pd-title">{{ $product->name }}</h1>
-                    <div class="pd-style-code-row mb-2 d-flex align-items-center gap-2">
-                        <span style="font-size: 0.7rem; font-weight: 700; color: #fff; background: #111827; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Product Code</span>
-                        <span style="font-size: 0.9rem; font-weight: 600; color: #374151;">{{ $product->style_number ?? $product->sku }}</span>
+                    <div class="pd-meta-badges-row mb-3 d-flex flex-wrap align-items-center gap-2">
+                        <div class="pd-meta-badge">
+                            <span class="pd-meta-label">Product Code:</span>
+                            <span class="pd-meta-value">{{ $product->style_number ?? $product->sku }}</span>
+                        </div>
+                        @if($product->category)
+                        <div class="pd-meta-badge">
+                            <span class="pd-meta-label">Category:</span>
+                            <span class="pd-meta-value">{{ $product->category->name }}</span>
+                        </div>
+                        @endif
+                        @if($product->brand)
+                        <div class="pd-meta-badge">
+                            <span class="pd-meta-label">Brand:</span>
+                            <span class="pd-meta-value">{{ $product->brand->name }}</span>
+                        </div>
+                        @endif
+                        @if($product->season)
+                        <div class="pd-meta-badge">
+                            <span class="pd-meta-label">Season:</span>
+                            <span class="pd-meta-value">{{ $product->season->name }}</span>
+                        </div>
+                        @endif
+                        @if($product->gender)
+                        <div class="pd-meta-badge">
+                            <span class="pd-meta-label">Gender:</span>
+                            <span class="pd-meta-value">{{ $product->gender->name }}</span>
+                        </div>
+                        @endif
                     </div>
                     
                     <div class="pd-rating-row">

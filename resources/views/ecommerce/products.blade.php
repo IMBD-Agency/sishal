@@ -7,16 +7,57 @@
         </div>
     </section>
 
-    <div class="container-fluid px-lg-4 px-xl-5 py-2 py-md-4">
-        <div class="row">
+    <div class="container-fluid px-lg-4 px-xl-5 py-2 py-md-4 products-page-wrapper">
+        <style>
+            @media (min-width: 992px) {
+                .products-page-wrapper {
+                    height: auto !important;
+                    overflow: visible !important;
+                    display: block;
+                }
+                .products-main-row {
+                    display: flex;
+                    align-items: flex-start;
+                }
+                .products-sidebar-col {
+                    position: sticky;
+                    top: 130px; /* Adjust based on header height */
+                    height: calc(100vh - 150px);
+                    overflow-y: auto !important;
+                    padding-bottom: 20px;
+                    
+                    /* Hide scrollbar but keep functionality */
+                    -ms-overflow-style: none !important;
+                    scrollbar-width: none !important;
+                }
+                .products-sidebar-col::-webkit-scrollbar {
+                    display: none !important;
+                }
+                
+                .products-grid-col {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                
+                /* Ensure no internal scrollbar on the grid */
+                .products-grid-col::-webkit-scrollbar,
+                #products-container::-webkit-scrollbar {
+                    display: none !important;
+                }
+
+                /* Offset for hide-upper-headers */
+                body.hide-upper-headers .products-sidebar-col {
+                    top: 100px;
+                    height: calc(100vh - 120px);
+                }
+            }
+        </style>
+        <div class="row products-main-row">
             <!-- Sidebar Filters (hidden on mobile) -->
-            <div class="col-md-3 mb-4 d-none d-md-block" style="position: relative; align-self: flex-start;">
-                <div id="filterFormDesktop" style="position: -webkit-sticky; position: sticky; top: 130px; z-index: 1000; max-height: calc(100vh - 150px); overflow-y: auto; padding-right: 12px; transition: all 0.3s ease; scrollbar-width: thin;">
+            <div class="col-md-3 mb-4 d-none d-md-block products-sidebar-col">
+                <div id="filterFormDesktop">
                     <style>
                         /* SENIOR UI REFINEMENTS */
-                        #filterFormDesktop::-webkit-scrollbar { width: 5px; }
-                        #filterFormDesktop::-webkit-scrollbar-track { background: transparent; }
-                        #filterFormDesktop::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
                         
                         .filter-card {
                             background: #fafafa !important;
@@ -214,7 +255,7 @@
         </div>
 
         <!-- Product Grid -->
-            <div class="col-md-9 col-12">
+            <div class="col-md-9 col-12 products-grid-col">
                 <!-- Sticky filter/sort bar for mobile -->
                 <div class="sticky-filter-bar d-md-none">
                     <div class="d-flex align-items-center gap-2 w-100">
@@ -795,107 +836,62 @@
             var container = document.getElementById('products-container');
             if (!container) return;
             
-            // Get initial state from data attributes if available
+            // Revert to window-based scroll for the entire page
+            var scrollableContainer = window;
+
+            // Get initial state
             var hasMoreAttr = container.getAttribute('data-has-more');
             var currentPageAttr = container.getAttribute('data-current-page');
             
-            // Reset state
             if (currentPageAttr) {
                 infiniteScrollState.currentPage = parseInt(currentPageAttr) || 1;
             } else {
                 infiniteScrollState.currentPage = 1;
             }
             infiniteScrollState.isLoading = false;
+            infiniteScrollState.hasMore = hasMoreAttr === 'true';
             
-            // Set hasMore from data attribute if available, otherwise check product count
-            if (hasMoreAttr !== null) {
-                infiniteScrollState.hasMore = hasMoreAttr === 'true';
-            } else {
-                // Fallback: check if there are pagination links or if we have 20 products
-                var hasPagination = container.querySelector('.pagination') !== null;
-                var productCount = container.querySelectorAll('.product-card').length;
-                infiniteScrollState.hasMore = hasPagination || productCount >= 20;
-            }
-            
-            // Show/hide load more button based on initial state
             var loadMoreBtn = document.getElementById('products-load-more-btn');
             if (loadMoreBtn) {
-                if (infiniteScrollState.hasMore) {
-                    loadMoreBtn.style.display = 'block';
-                } else {
-                    loadMoreBtn.style.display = 'none';
-                }
+                loadMoreBtn.style.display = infiniteScrollState.hasMore ? 'block' : 'none';
             }
             
-            // Remove existing scroll listener
-            if (window.productsScrollHandler) {
-                window.removeEventListener('scroll', window.productsScrollHandler);
-                window.removeEventListener('touchmove', window.productsScrollHandler);
+            // Cleanup existing listeners
+            if (window._productsThrottledHandler) {
+                window.removeEventListener('scroll', window._productsThrottledHandler);
+                window.removeEventListener('touchmove', window._productsThrottledHandler);
             }
             
             // Create scroll handler
-            window.productsScrollHandler = function() {
-                // Only proceed if we have more products and not currently loading
-                if (infiniteScrollState.isLoading || !infiniteScrollState.hasMore) {
-                    return;
-                }
+            var checkScroll = function() {
+                if (infiniteScrollState.isLoading || !infiniteScrollState.hasMore) return;
                 
-                // Check if we're near the bottom of the page
-                var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
-                var windowHeight = window.innerHeight || document.documentElement.clientHeight;
-                var documentHeight = Math.max(
-                    document.body.scrollHeight,
-                    document.body.offsetHeight,
-                    document.documentElement.clientHeight,
-                    document.documentElement.scrollHeight,
-                    document.documentElement.offsetHeight
-                );
+                var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                var windowHeight = window.innerHeight;
+                var documentHeight = document.documentElement.scrollHeight;
                 
-                // Load more when user is 300px from bottom
                 var distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-                
-                if (distanceFromBottom < 300) {
-                    console.log('Triggering load more products - distance from bottom:', distanceFromBottom);
+                if (distanceFromBottom < 600) { // Increased threshold for smoother infinite scroll
                     loadMoreProducts();
                 }
             };
             
-            // Add scroll listeners with throttling to improve performance
-            var scrollTimeout;
-            var lastScrollTop = 0;
-            var isScrolling = false;
-            var throttledScrollHandler = function() {
-                var currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                
-                // Only process if user scrolled down (not up)
-                if (currentScrollTop < lastScrollTop) {
-                    lastScrollTop = currentScrollTop;
-                    return;
-                }
-                lastScrollTop = currentScrollTop;
-                
-                if (scrollTimeout || isScrolling) {
-                    return;
-                }
-                isScrolling = true;
-                scrollTimeout = requestAnimationFrame(function() {
-                    window.productsScrollHandler();
-                    scrollTimeout = null;
-                    isScrolling = false;
+            // Throttling
+            var isRunning = false;
+            window._productsThrottledHandler = function() {
+                if (isRunning) return;
+                isRunning = true;
+                requestAnimationFrame(function() {
+                    checkScroll();
+                    isRunning = false;
                 });
             };
             
-            window.addEventListener('scroll', throttledScrollHandler, { passive: true });
-            window.addEventListener('touchmove', throttledScrollHandler, { passive: true });
+            window.addEventListener('scroll', window._productsThrottledHandler, { passive: true });
+            window.addEventListener('touchmove', window._productsThrottledHandler, { passive: true });
             
-            // Also listen to scrollend if available (better for performance)
-            if ('onscrollend' in window) {
-                window.addEventListener('scrollend', function() {
-                    if (!scrollTimeout) {
-                        window.productsScrollHandler();
-                    }
-                }, { passive: true });
-            }
+            // Check once immediately
+            checkScroll();
         }
 
         function applyFilters() {
