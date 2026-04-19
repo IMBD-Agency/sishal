@@ -10,8 +10,8 @@
     <div class="container-fluid px-lg-4 px-xl-5 py-2 py-md-4">
         <div class="row">
             <!-- Sidebar Filters (hidden on mobile) -->
-            <div class="col-md-3 mb-4 d-none d-md-block">
-                <div id="filterFormDesktop" style="position: sticky; top: 140px; z-index: 1000; max-height: calc(100vh - 160px); overflow-y: auto; padding-right: 12px; transition: scrollbar 0.3s ease;">
+            <div class="col-md-3 mb-4 d-none d-md-block" style="position: relative; align-self: flex-start;">
+                <div id="filterFormDesktop" style="position: -webkit-sticky; position: sticky; top: 130px; z-index: 1000; max-height: calc(100vh - 150px); overflow-y: auto; padding-right: 12px; transition: all 0.3s ease; scrollbar-width: thin;">
                     <style>
                         /* SENIOR UI REFINEMENTS */
                         #filterFormDesktop::-webkit-scrollbar { width: 5px; }

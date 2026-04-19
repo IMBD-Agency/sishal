@@ -369,7 +369,7 @@ class ApiController extends Controller
                 });
             } else {
                 $query = \App\Models\Product::select([
-                    'products.id', 'products.name', 'products.slug', 'products.price', 
+                    'products.id', 'products.name', 'products.slug', 'products.style_number', 'products.sku', 'products.price', 
                     'products.discount', 'products.image', 'products.category_id',
                     'products.has_variations', 'products.status', 'products.created_at'
                 ])

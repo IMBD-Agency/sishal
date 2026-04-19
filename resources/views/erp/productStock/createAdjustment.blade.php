@@ -187,12 +187,13 @@
                 
                 if (variation && variation.attributes) {
                     variation.attributes.forEach(attr => {
-                        const name = attr.value.toLowerCase();
-                        // Crude check for size/color names or just show values
-                        // In findProductByStyle we already format things well but let's be safe
-                        if (attr.value) {
-                            if (attr.name && attr.name.toLowerCase() === 'color') color = attr.value;
-                            else size = attr.value; 
+                        const attrName = attr.attribute_name || '';
+                        if (attrName === 'color' || attrName === 'colour') {
+                            color = attr.value;
+                        } else if (attrName === 'size' || attrName === 'sizes') {
+                            size = attr.value;
+                        } else {
+                            if (size === '-') size = attr.value;
                         }
                     });
                 }
@@ -205,9 +206,9 @@
                         <td class="small text-muted">${product.season}</td>
                         <td class="small text-muted">${product.gender}</td>
                         <td class="fw-bold">${product.name}</td>
-                        <td class="text-info mono small font-monospace">${product.style_number}</td>
-                        <td class="small fw-bold">${variation ? variation.name.split('-')[1] || variation.name : '-'}</td>
-                        <td class="small">${variation ? variation.name.split('-')[0] || '-' : '-'}</td>
+                        <td class="text-info mono small font-monospace">${product.style_number || '-'}</td>
+                        <td class="small fw-bold">${size}</td>
+                        <td class="small">${color}</td>
                         <td class="text-center fw-bold text-muted">${currentStock}</td>
                         <td>
                             <input type="number" name="items[${rowId}][quantity]" class="form-control input-qty mx-auto" value="${currentStock}" required>

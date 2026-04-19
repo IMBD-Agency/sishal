@@ -1571,6 +1571,7 @@ class ProductController extends Controller
                         'attributes' => $v->combinations->map(function($c) {
                             return [
                                 'attribute_id' => $c->attribute_id,
+                                'attribute_name' => strtolower($c->attributeValue->attribute->name ?? ''),
                                 'value_id' => $c->attribute_value_id,
                                 'value' => $c->attributeValue->value ?? ''
                             ];

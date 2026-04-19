@@ -375,7 +375,7 @@
                             <thead>
                                 <tr>
                                     <th>Product</th>
-                                    <th>SKU</th>
+                                    <th>Style Number</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-end">Unit Price</th>
                                     <th class="text-end">Total</th>
@@ -397,7 +397,11 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="sku-badge">{{ $item->product->sku ?? 'N/A' }}</span>
+                                        @if($item->variation)
+                                            <span class="sku-badge">{{ $item->variation->sku ?? '-' }}</span>
+                                        @else
+                                            <span class="sku-badge">{{ $item->product->style_number ?? ($item->product->sku ?? 'N/A') }}</span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <span class="quantity-badge">{{ $item->quantity }}</span>

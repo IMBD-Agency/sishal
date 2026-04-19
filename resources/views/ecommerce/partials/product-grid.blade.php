@@ -32,8 +32,9 @@
 
                 <div class="product-card-info">
                     <h3 class="product-title">
+                        @php $displayCode = $product->style_number ?? $product->sku; @endphp
                         <a href="{{ route('product.details', $product->slug) }}" class="stretched-link" style="text-decoration: none; color: inherit;">
-                            {{ $product->name }}
+                            {{ $product->name }} @if($displayCode) <span class="style-number text-muted" style="font-size: 0.85em; font-weight: 400;">({{ $displayCode }})</span> @endif
                         </a>
                     </h3>
                     <div class="product-card-price">

@@ -472,7 +472,7 @@
                                                     @if($item->variation)
                                                         <span class="badge bg-light text-dark">{{ $item->variation->sku ?? '-' }}</span>
                                                     @else
-                                                        <span class="badge bg-light text-dark">{{ @$item->product->sku ?? '-' }}</span>
+                                                        <span class="badge bg-light text-dark">{{ $item->product->style_number ?? ($item->product->sku ?? '-') }}</span>
                                                     @endif
                                                 </td>
                                                 <td class="border-0 py-3 text-center">

@@ -28,6 +28,7 @@ class SalesAnalyticsService
                 'products.name', 
                 'products.slug',
                 'products.sku',
+                'products.style_number',
                 'products.price',
                 'products.discount',
                 'products.image',
@@ -83,7 +84,7 @@ class SalesAnalyticsService
             // so we don't just show the exact same "New Arrivals" everywhere.
             if ($products->isEmpty()) {
                 $products = Product::select([
-                    'products.id', 'products.name', 'products.slug', 'products.sku',
+                    'products.id', 'products.name', 'products.slug', 'products.sku', 'products.style_number',
                     'products.price', 'products.discount', 'products.image',
                     'products.short_desc', 'products.description', 'products.status',
                     'products.has_variations', 'products.manage_stock', 'products.created_at',

@@ -242,7 +242,8 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 50%;">Item</th>
+                    <th style="width: 35%;">Item</th>
+                    <th style="width: 15%;">Style Number</th>
                     <th style="width: 15%;" class="text-center">Quantity</th>
                     <th style="width: 17.5%;" class="text-right">Unit Price</th>
                     <th style="width: 17.5%;" class="text-right">Total</th>
@@ -261,6 +262,13 @@
                         {{ $productName }}
                         @if($variationName)
                             <br><small>{{ $variationName }}</small>
+                        @endif
+                    </td>
+                    <td>
+                        @if($item->variation)
+                            {{ $item->variation->sku ?? '-' }}
+                        @else
+                            {{ $item->product->style_number ?? ($item->product->sku ?? '-') }}
                         @endif
                     </td>
                     <td class="text-center">{{ $item->quantity }}</td>

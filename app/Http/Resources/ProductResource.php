@@ -24,6 +24,7 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
+            'style_number' => $this->style_number,
             'price' => (float) $this->price,
             'discount' => $discountValue,
             'image' => $this->getImageUrl(),

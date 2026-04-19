@@ -120,7 +120,11 @@
                 <!-- Product Info -->
                 <div class="pd-info-section">
                     <div class="pd-premium-badge"><i class="fas fa-crown me-2"></i>Premium Selection</div>
-                    <h1 class="pd-title">{{ $product->name }} <small class="text-muted" style="font-size: 0.6em;">(#{{ $product->style_number ?? $product->sku }})</small></h1>
+                    <h1 class="pd-title">{{ $product->name }}</h1>
+                    <div class="pd-style-code-row mb-2 d-flex align-items-center gap-2">
+                        <span style="font-size: 0.7rem; font-weight: 700; color: #fff; background: #111827; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Product Code</span>
+                        <span style="font-size: 0.9rem; font-weight: 600; color: #374151;">{{ $product->style_number ?? $product->sku }}</span>
+                    </div>
                     
                     <div class="pd-rating-row">
                         <div class="pd-stars">

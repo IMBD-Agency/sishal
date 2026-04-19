@@ -220,6 +220,7 @@
                 <tr>
                     <th>SL</th>
                     <th>DESCRIPTION</th>
+                    <th>STYLE NO</th>
                     <th>QUANTITY</th>
                     <th>UNIT</th>
                     <th>PRICE</th>
@@ -233,9 +234,16 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td style="text-align:left;">
-                        {{ @$item->product->name }} <small style="color: #888;">#{{ $item->product->style_number ?? $item->product->sku }}</small>
+                        {{ @$item->product->name }}
                         @if($item->variation)
-                            <br><small style="color: #666;">Variation: {{ $item->variation->name ?? $item->variation->sku }}</small>
+                            <br><small style="color: #666;">Variation: {{ $item->variation->name ?? '-' }}</small>
+                        @endif
+                    </td>
+                    <td>
+                        @if($item->variation)
+                            {{ $item->variation->sku ?? '-' }}
+                        @else
+                            {{ $item->product->style_number ?? ($item->product->sku ?? '-') }}
                         @endif
                     </td>
                     <td>{{ number_format($item->quantity, 0) }}</td>

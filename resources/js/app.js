@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
                                 </div>
                                 <div class="product-info p-3">
-                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name}</a>
+                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name} ${(product.style_number || product.sku) ? ` <span class="style-number text-muted" style="font-size: 0.85em; font-weight: 400;">(${(product.style_number || product.sku)})</span>` : ''}</a>
                                     ${discount > 0 && discount < price ? `<div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ ${(price - discount).toLocaleString()}</div>` : ''}
                                     <div class="d-flex justify-content-between align-items-center mt-1">
                                         <div class="price-container">
@@ -575,7 +575,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
                                 </div>
                                 <div class="product-info p-3">
-                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name}</a>
+                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name} ${(product.style_number || product.sku) ? ` <span class="style-number text-muted" style="font-size: 0.85em; font-weight: 400;">(${(product.style_number || product.sku)})</span>` : ''}</a>
                                     ${discount > 0 && discount < price ? `<div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ ${(price - discount).toLocaleString()}</div>` : ''}
                                     <div class="d-flex justify-content-between align-items-center mt-1">
                                         <div class="price-container">
@@ -822,7 +822,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <img src="${image}" class="product-image" alt="${product.name}" loading="lazy" onerror="this.onerror=null; this.src='/static/default-product.jpg';">
                                 </div>
                                 <div class="product-info p-3">
-                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name}</a>
+                                    <a href="/product/${product.slug}" style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4;" class="product-title" title="${product.name}">${product.name} ${(product.style_number || product.sku) ? ` <span class="style-number text-muted" style="font-size: 0.85em; font-weight: 400;">(${(product.style_number || product.sku)})</span>` : ''}</a>
                                     ${discount > 0 && discount < price ? `<div class="save-badge mt-1" style="font-size: 9px; padding: 2px 6px;">Save ৳ ${(price - discount).toLocaleString()}</div>` : ''}
                                     <div class="d-flex justify-content-between align-items-center mt-1">
                                         <div class="price-container">

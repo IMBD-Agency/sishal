@@ -222,6 +222,7 @@
                                 <tr>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium">#</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium">Product</th>
+                                    <th class="border-0 px-4 py-3 text-muted fw-medium">Style Number</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium text-center">Qty</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium text-end">Unit Price</th>
                                     <th class="border-0 px-4 py-3 text-muted fw-medium text-end">Discount</th>
@@ -237,8 +238,15 @@
                                             @if($item->variation)
                                                 <div class="small text-muted mt-1">
                                                     <span class="badge bg-info-subtle text-info">Variation:
-                                                        {{ $item->variation->name ?? $item->variation->sku }}</span>
+                                                        {{ $item->variation->name ?? '-' }}</span>
                                                 </div>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if($item->variation)
+                                                <span class="badge bg-light text-dark">{{ $item->variation->sku ?? '-' }}</span>
+                                            @else
+                                                <span class="badge bg-light text-dark">{{ $item->product->style_number ?? ($item->product->sku ?? '-') }}</span>
                                             @endif
                                         </td>
                                         <td class="px-4 py-3 text-center">

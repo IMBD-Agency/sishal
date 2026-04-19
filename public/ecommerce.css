@@ -6649,9 +6649,11 @@ turbo-progress-bar {
     }
 
     .pd-size-btn {
-        width: 34px;
+        min-width: 34px;
         height: 34px;
+        padding: 0 8px;
         font-size: 12px;
+        border-radius: 6px;
     }
 
     .pd-color-btn {
@@ -6881,18 +6883,21 @@ turbo-progress-bar {
 }
 
 .pd-size-btn {
-    width: 40px;
+    min-width: 40px;
+    width: auto;
     height: 40px;
+    padding: 0 15px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 8px;
     border: 2px solid var(--pd-border);
     background: white;
     font-weight: 700;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
+    white-space: nowrap;
 }
 
 .pd-size-btn:hover {
@@ -8331,19 +8336,38 @@ turbo-progress-bar {
     margin-bottom: 20px;
 }
 
-.pd-color-btn,
-.pd-size-btn {
-    border: 1px solid #e2e8f0;
+.pd-color-btn {
+    border: 2px solid #e2e8f0;
     background: white;
-    padding: 10px 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 40px;
+    height: 40px;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.pd-size-btn {
+    border: 2px solid #e2e8f0;
+    background: white;
+    padding: 8px 16px;
     border-radius: 8px;
     font-weight: 700;
     font-size: 14px;
     color: #475569;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 50px;
+    min-width: 45px;
+    height: auto;
+    min-height: 40px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .pd-color-btn:hover,

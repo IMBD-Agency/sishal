@@ -39,11 +39,12 @@
                 </div>
                 
                 <div class="product-info p-3">
+                    @php $displayCode = $product->style_number ?? $product->sku; @endphp
                     <a href="{{ route('product.details', $product->slug) }}" 
                        class="product-title stretched-link" 
                        style="text-decoration: none; font-weight: 500; color: #374151; display: block; line-height: 1.4; margin-bottom: 2px;"
                        title="{{ $product->name }}">
-                        {{ $product->name }}
+                        {{ $product->name }} @if($displayCode) <span class="style-number text-muted" style="font-size: 0.85em; font-weight: 400;">({{ $displayCode }})</span> @endif
                     </a>
                     
                     @if($hasDiscount)
