@@ -18,19 +18,27 @@
                 .products-main-row {
                     display: flex;
                     align-items: flex-start;
+                    position: relative; /* Context for sticky */
                 }
                 .products-sidebar-col {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                
+                #filterFormDesktop {
+                    position: -webkit-sticky;
                     position: sticky;
-                    top: 130px; /* Adjust based on header height */
-                    height: calc(100vh - 150px);
+                    top: 135px; /* Adjust based on header height */
+                    max-height: calc(100vh - 160px);
                     overflow-y: auto !important;
+                    z-index: 100;
                     padding-bottom: 20px;
                     
                     /* Hide scrollbar but keep functionality */
                     -ms-overflow-style: none !important;
                     scrollbar-width: none !important;
                 }
-                .products-sidebar-col::-webkit-scrollbar {
+                #filterFormDesktop::-webkit-scrollbar {
                     display: none !important;
                 }
                 
@@ -45,10 +53,10 @@
                     display: none !important;
                 }
 
-                /* Offset for hide-upper-headers */
-                body.hide-upper-headers .products-sidebar-col {
-                    top: 100px;
-                    height: calc(100vh - 120px);
+                /* Offset for hide-upper-headers (when marquee is hidden) */
+                body.hide-upper-headers #filterFormDesktop {
+                    top: 105px;
+                    max-height: calc(100vh - 130px);
                 }
             }
         </style>
@@ -285,7 +293,7 @@
                         </select>
                     </div>
                 </div>
-                <div id="products-container" class="row g-2 g-md-4 mt-2 mt-md-4" 
+                <div id="products-container" class="row g-2 g-md-4 grid-5 mt-2 mt-md-4" 
                      data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
                      data-current-page="{{ $products->currentPage() }}">
                     @include('ecommerce.partials.product-grid', ['products' => $products, 'hidePagination' => true])
