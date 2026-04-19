@@ -4,7 +4,7 @@
     $settings = $general_settings;
 @endphp
 
-@push('head')
+@push('styles')
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -29,34 +29,43 @@
     .pd-meta-badge {
         display: flex;
         align-items: center;
-        background: #f3f4f6;
-        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        border: 1.5px solid #f1f5f9;
         border-radius: 6px;
         overflow: hidden;
-        transition: all 0.2s ease;
-    }
-    .pd-meta-badge:hover {
-        border-color: #00512C;
-        background: #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     .pd-meta-label {
-        font-size: 11px;
-        font-weight: 700;
+        font-size: 10px;
+        font-weight: 800;
         color: #fff;
-        background: #111827;
-        padding: 4px 8px;
+        background: #00512C;
+        padding: 5px 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     .pd-meta-value {
         font-size: 12px;
-        font-weight: 600;
-        color: #374151;
-        padding: 4px 10px;
+        font-weight: 700;
+        color: #1e293b;
+        padding: 5px 12px;
     }
-    .pd-meta-badge:hover .pd-meta-label {
-        background: #00512C;
+
+    /* Right side info section styling */
+    .pd-info-section {
+        background: #ffffff;
+        border: 1px solid #f1f5f9; /* Light gray border */
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        height: fit-content;
+    }
+
+    @media (max-width: 768px) {
+        .pd-info-section {
+            padding: 16px;
+            border-radius: 8px;
+        }
     }
 </style>
 @endpush
@@ -153,34 +162,27 @@
                 </div>
                 <!-- Product Info -->
                 <div class="pd-info-section">
-                    <div class="pd-premium-badge"><i class="fas fa-crown me-2"></i>Premium Selection</div>
                     <h1 class="pd-title">{{ $product->name }}</h1>
-                    <div class="pd-meta-badges-row mb-3 d-flex flex-wrap align-items-center gap-2">
+                    <div class="pd-meta-badges-row mb-4 d-flex flex-wrap align-items-center gap-3">
                         <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Product Code:</span>
+                            <span class="pd-meta-label">Product Code</span>
                             <span class="pd-meta-value">{{ $product->style_number ?? $product->sku }}</span>
                         </div>
-                        @if($product->category)
-                        <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Category:</span>
-                            <span class="pd-meta-value">{{ $product->category->name }}</span>
-                        </div>
-                        @endif
                         @if($product->brand)
                         <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Brand:</span>
+                            <span class="pd-meta-label">Brand</span>
                             <span class="pd-meta-value">{{ $product->brand->name }}</span>
                         </div>
                         @endif
                         @if($product->season)
                         <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Season:</span>
+                            <span class="pd-meta-label">Season</span>
                             <span class="pd-meta-value">{{ $product->season->name }}</span>
                         </div>
                         @endif
                         @if($product->gender)
                         <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Gender:</span>
+                            <span class="pd-meta-label">Gender</span>
                             <span class="pd-meta-value">{{ $product->gender->name }}</span>
                         </div>
                         @endif
