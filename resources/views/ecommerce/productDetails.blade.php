@@ -174,18 +174,6 @@
                             <span class="pd-meta-value">{{ $product->brand->name }}</span>
                         </div>
                         @endif
-                        @if($product->season)
-                        <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Season</span>
-                            <span class="pd-meta-value">{{ $product->season->name }}</span>
-                        </div>
-                        @endif
-                        @if($product->gender)
-                        <div class="pd-meta-badge">
-                            <span class="pd-meta-label">Gender</span>
-                            <span class="pd-meta-value">{{ $product->gender->name }}</span>
-                        </div>
-                        @endif
                     </div>
                     
                     <div class="pd-rating-row">
