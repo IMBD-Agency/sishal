@@ -38,7 +38,7 @@
                     <td>{{ optional($item->product)->season->name ?? '-' }}</td>
                     <td>{{ optional($item->product)->gender->name ?? '-' }}</td>
                     <td class="fw-bold">{{ $item->product->name ?? 'Deleted Product' }}</td>
-                    <td class="font-monospace text-info">{{ optional($item->product)->style_number ?? '-' }}</td>
+                    <td class="font-monospace text-info">{{ $item->product->style_number ?? ($item->product->sku ?? '-') }}</td>
                     <td class="text-center">
                         <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.85rem;">{{ $item->new_quantity }}</span>
                         @php $diff = $item->new_quantity - $item->old_quantity; @endphp

@@ -206,7 +206,7 @@
                         <td class="small text-muted">${product.season}</td>
                         <td class="small text-muted">${product.gender}</td>
                         <td class="fw-bold">${product.name}</td>
-                        <td class="text-info mono small font-monospace">${product.style_number || '-'}</td>
+                        <td class="text-info mono small font-monospace">${product.style_number || product.sku || '-'}</td>
                         <td class="small fw-bold">${size}</td>
                         <td class="small">${color}</td>
                         <td class="text-center fw-bold text-muted">${currentStock}</td>
