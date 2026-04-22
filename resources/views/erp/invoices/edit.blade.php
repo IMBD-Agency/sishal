@@ -379,7 +379,7 @@
                                 results: data.map(function (product) {
                                     return {
                                         id: product.id,
-                                        text: product.name
+                                        text: product.name + (product.style_number ? ' [' + product.style_number + ']' : '')
                                     };
                                 })
                             };
@@ -401,12 +401,47 @@
                 }, 10);
             });
 
+
             $('#addItemBtn').on('click', function () {
-                setTimeout(function () {
-                    initProductSelect2('.product-select');
-                }, 100);
+                const row = $('#itemsTable tbody tr:first').clone();
+                
+                // Remove select2 initialization from cloned row
+                row.find('.select2-container').remove();
+                row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').show();
+                
+                row.find('select, input').each(function () {
+                    const name = $(this).attr('name');
+                    if (name) {
+                        const newName = name.replace(/\d+/, itemIndex);
+                        $(this).attr('name', newName);
+                    }
+                    if ($(this).is('select')) {
+                        $(this).val('');
+                        if ($(this).hasClass('variation-select')) {
+                            $(this).prop('disabled', true).html('<option value="">No Variation</option>');
+                        }
+                    }
+                    else {
+                        if ($(this).hasClass('item-discount')) {
+                            $(this).val('0');
+                        } else {
+                            $(this).val('');
+                        }
+                    }
+                });
+                row.find('.remove-item').prop('disabled', false);
+                $('#itemsTable tbody').append(row);
+                
+                // Re-initialize Select2 for the new product-select
+                const productSelect = row.find('.product-select');
+                productSelect.empty().append('<option value="">Search and select product...</option>');
+                initProductSelect2(productSelect);
+                
+                itemIndex++;
+                updateTotals();
             });
         });
+
         let itemIndex = {{ count($invoice->items) }};
 
         function recalcRow(row) {

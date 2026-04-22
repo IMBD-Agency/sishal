@@ -985,7 +985,7 @@ class ProductController extends Controller
                   ->orWhere('sku', 'like', "%$q%")
                   ;
         }
-        $products = $query->orderBy('name')->limit(20)->get(['id', 'name', 'sku', 'has_variations']);
+        $products = $query->orderBy('name')->limit(20)->get(['id', 'name', 'sku', 'style_number', 'has_variations']);
         return response()->json($products);
     }
 

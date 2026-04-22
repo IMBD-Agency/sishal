@@ -22,59 +22,32 @@ class StockTransferController extends Controller
         if (!auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
+
+        // Grab view_mode before it can affect anything
+        $viewMode = $request->input('view_mode', 'all');
+
+        // Build the base query with all OTHER filters applied (no type/view_mode filter yet)
         $query = $this->applyFilters($request);
 
-        // Group by invoice_number to show as "Invoices" instead of individual items
-        // For records without invoice_number (old ones), we'll group them by ID so they appear individually
-        // Since we can't easily mix grouped and non-grouped in one query efficiently without raw SQL,
-        // we will fetch the latest item for each invoice or the item itself if no invoice.
-        
-        // Use a subquery strategy to get the "Representative" transfer for each invoice
-        // BUT strict mode makes this hard.
-        // EASIER: Just list them. If user wants "Like invoice", they usually mean Create One Invoice.
-        // Viewing them in list: we can visually group them in blade if they are consecutive?
-        // NO, pagination breaks that.
-        
-        // Let's use a distinct approach on invoice_number where it exists
-        $transfers = StockTransfer::select('invoice_number', \DB::raw('MAX(id) as id'), \DB::raw('COUNT(*) as item_count'), \DB::raw('SUM(total_price) as total_amount'), \DB::raw('MAX(requested_at) as requested_at'), \DB::raw('MAX(status) as status'))
-            ->whereNotNull('invoice_number')
-            ->groupBy('invoice_number')
-            ->orderBy('requested_at', 'desc')
-            ->orderBy('id', 'desc')
-            ->paginate(15);
-        
-        // If we want to support old records without invoice number, we'd need a UNION.
-        // For now, let's assume we proceed with new "Invoice" style transfers.
-        // Or better: update old records to have an invoice number? Too risky.
-        
-        // Let's try to include both: records with invoice_number (grouped) AND records without (individual).
-        // This is complex for pagination.
-        // Simple fallback: Show ALL, but in the LIST VIEW (Blade), simple records show as is.
-        // BUT the user request is "Invoice in one".
-        
-        // LET'S STICK TO THE ORIGINAL QUERY but we will modify the BLADE to visualy group?
-        // No, user specifically asked "Invoice in one". This implies a list of "Dispatch Notes".
-        
-        // Adjusted Strategy: 
-        // We will default to showing a list of "Transfers" (Grouped).
-        // If needed we can drill down.
-        
-        // Since I just added the column, all previous are NULL.
-        // I will display records with invoice_number as a SINGLE ROW.
-        // Records without invoice_number (old) will display as SINGLE ROW each.
-        
-        // We can mimic this by generating a fake invoice ID for nulls in the select?
-        // "COALESCE(invoice_number, CONCAT('INDIV-', id)) as group_id"
-        
-        $restrictedBranchId = $this->getRestrictedBranchId();
+        // Count tabs on base query BEFORE adding the type filter
+        $transferCount = (clone $query)->where('type', '!=', 'return')->count();
+        $returnCount   = (clone $query)->where('type', 'return')->count();
 
-        // Calculate Global Totals BEFORE applying grouped selection
+        // NOW apply the view_mode type filter on top
+        if ($viewMode === 'returns') {
+            $query->where('type', 'return');
+        } elseif ($viewMode === 'transfers') {
+            $query->where('type', '!=', 'return');
+        }
+
+        // Global totals for summary bar (after view_mode filter)
         $totalQuantity = (clone $query)->sum('quantity');
-        $totalValue = (clone $query)->sum('total_price');
+        $totalValue    = (clone $query)->sum('total_price');
 
+        // Grouped listing by invoice
         $transfers = $query->select(
                 \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
-                \DB::raw('MAX(id) as id'), // To link to details
+                \DB::raw('MAX(id) as id'),
                 \DB::raw('MAX(invoice_number) as invoice_number'),
                 \DB::raw('COUNT(*) as item_count'),
                 \DB::raw('SUM(quantity) as grouped_quantity'),
@@ -86,27 +59,32 @@ class StockTransferController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(100);
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $branches = Branch::where('id', $restrictedBranchId)->get();
+            $branches   = Branch::where('id', $restrictedBranchId)->get();
             $warehouses = collect();
         } else {
-            $branches = Branch::all();
+            $branches   = Branch::all();
             $warehouses = Warehouse::all();
         }
-        $statuses = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
-        
-        // Get filter options
-        $categories = \App\Models\ProductServiceCategory::all();
-        $brands = \App\Models\Brand::all();
-        $seasons = \App\Models\Season::all();
-        $genders = \App\Models\Gender::all();
-        $styleNumbers = \App\Models\Product::whereNotNull('style_number')
-            ->distinct()
-            ->pluck('style_number');
-        
-        $filters = $request->only(['search', 'from_branch_id', 'from_warehouse_id', 'to_branch_id', 'to_warehouse_id', 'status', 'date_from', 'date_to', 'variation_id', 'quick_filter']);
 
-        return view('erp.stockTransfer.stockTransfer', compact('transfers', 'branches', 'warehouses', 'statuses', 'filters', 'categories', 'brands', 'seasons', 'genders', 'styleNumbers', 'totalQuantity', 'totalValue'));
+        $statuses     = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
+        $categories   = \App\Models\ProductServiceCategory::all();
+        $brands       = \App\Models\Brand::all();
+        $seasons      = \App\Models\Season::all();
+        $genders      = \App\Models\Gender::all();
+        $styleNumbers = \App\Models\Product::whereNotNull('style_number')->distinct()->pluck('style_number');
+        $filters      = $request->only([
+            'search', 'from_branch_id', 'from_warehouse_id', 'to_branch_id',
+            'to_warehouse_id', 'status', 'date_from', 'date_to',
+            'variation_id', 'quick_filter', 'view_mode',
+        ]);
+
+        return view('erp.stockTransfer.stockTransfer', compact(
+            'transfers', 'branches', 'warehouses', 'statuses', 'filters',
+            'categories', 'brands', 'seasons', 'genders', 'styleNumbers',
+            'totalQuantity', 'totalValue', 'transferCount', 'returnCount'
+        ));
     }
 
     public function create()
@@ -265,6 +243,17 @@ class StockTransferController extends Controller
                 $query->whereMonth('requested_at', now()->month)
                       ->whereYear('requested_at', now()->year);
             }
+        }
+
+        // Filter by transfer type (transfer vs return)
+        if ($request->filled('view_mode')) {
+            if ($request->view_mode === 'returns') {
+                $query->where('type', 'return');
+            } elseif ($request->view_mode === 'transfers') {
+                $query->where('type', '!=', 'return');
+            }
+        } else {
+            // Default: show both but separate view handled in blade
         }
 
         return $query;
@@ -450,17 +439,18 @@ class StockTransferController extends Controller
 
         // Generate sequential invoice number for this batch
         $today = date('Ymd');
-        $lastInvoice = StockTransfer::where('invoice_number', 'like', "TRF-{$today}-%")
+        $prefix = $request->return_of_id ? 'RET' : 'TRF';
+        $lastInvoice = StockTransfer::where('invoice_number', 'like', "{$prefix}-{$today}-%")
             ->orderBy('invoice_number', 'desc')
             ->first();
         
-        if ($lastInvoice && preg_match('/TRF-\d{8}-(\d+)/', $lastInvoice->invoice_number, $matches)) {
+        if ($lastInvoice && preg_match('/' . $prefix . '-\d{8}-(\d+)/', $lastInvoice->invoice_number, $matches)) {
             $nextNumber = intval($matches[1]) + 1;
         } else {
             $nextNumber = 1;
         }
         
-        $invoiceNumber = 'TRF-' . $today . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        $invoiceNumber = $prefix . '-' . $today . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
         // Calculate total dispatch value first for pro-rating (Calculate ONCE for performance)
         $totalDispatchValue = 0;
@@ -489,9 +479,9 @@ class StockTransferController extends Controller
             if ($variationId) {
                 $query = \App\Models\ProductVariationStock::where('variation_id', $variationId);
                 if ($fromType === 'branch') {
-                    $query->where('branch_id', $fromId);
+                    $query->where('branch_id', $fromId)->whereNull('warehouse_id');
                 } else {
-                    $query->where('warehouse_id', $fromId);
+                    $query->where('warehouse_id', $fromId)->whereNull('branch_id');
                 }
                 $totalStock = $query->sum('quantity');
             } else {
@@ -528,12 +518,13 @@ class StockTransferController extends Controller
                     'sender_account_number' => $request->sender_account_number,
                     'receiver_account_type' => $request->receiver_account_type,
                     'receiver_account_number' => $request->receiver_account_number,
-                    'type' => 'transfer',
+                    'type' => $request->return_of_id ? 'return' : 'transfer',
                     'status' => $status,
                     'requested_by' => auth()->id(),
                     'requested_at' => $request->transfer_date,
                     'notes' => $request->note ?? null,
                     'invoice_number' => $invoiceNumber,
+                    'return_of_id' => $request->return_of_id ?? null,
                 ]);
 
                 if ($request->is_direct) {
@@ -868,11 +859,14 @@ class StockTransferController extends Controller
         }
     }
 
-    private function processAccounting($transfers)
+    public function processAccounting($transfers)
     {
         $totalBatchPaid = $transfers->sum('paid_amount');
+        $totalBatchDue  = $transfers->sum('due_amount');
+        $firstTransfer  = $transfers->first();
+
+        // 1. Process Paid Amount (Cash/Bank Movement)
         if ($totalBatchPaid > 0) {
-            $firstTransfer = $transfers->first();
             $senderAccId = $firstTransfer->sender_account_id;
             $receiverAccId = $firstTransfer->receiver_account_id;
 
@@ -898,8 +892,8 @@ class StockTransferController extends Controller
                             'voucher_amount' => $totalBatchPaid,
                             'paid_amount'    => $totalBatchPaid,
                             'reference'      => $firstTransfer->invoice_number,
-                            'created_by'     => auth()->id(),
-                            'updated_by'     => auth()->id(),
+                            'created_by'     => auth()->id() ?? 1,
+                            'updated_by'     => auth()->id() ?? 1,
                         ]);
 
                         JournalEntry::create([
@@ -909,8 +903,8 @@ class StockTransferController extends Controller
                             'debit'                => $totalBatchPaid,
                             'credit'               => 0,
                             'memo'                 => 'Received payment for stock transfer',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
+                            'created_by'           => auth()->id() ?? 1,
+                            'updated_by'           => auth()->id() ?? 1,
                         ]);
 
                         JournalEntry::create([
@@ -920,13 +914,111 @@ class StockTransferController extends Controller
                             'debit'                => 0,
                             'credit'               => $totalBatchPaid,
                             'memo'                 => 'Paid for stock transfer receipt',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
+                            'created_by'           => auth()->id() ?? 1,
+                            'updated_by'           => auth()->id() ?? 1,
                         ]);
                     }
                 }
             }
         }
+
+        // 2. Process Due Amount (Inter-branch Debt - Option B)
+        if ($totalBatchDue > 0) {
+            $receivableAcc = \App\Models\ChartOfAccount::where('name', 'Inter-branch Receivable')->first();
+            $payableAcc    = \App\Models\ChartOfAccount::where('name', 'Inter-branch Payable')->first();
+
+            if ($receivableAcc && $payableAcc) {
+                $voucherNo = 'STD-' . str_pad($firstTransfer->id, 6, '0', STR_PAD_LEFT);
+                if (!Journal::where('voucher_no', $voucherNo)->exists()) {
+                    $journal = Journal::create([
+                        'voucher_no'     => $voucherNo,
+                        'entry_date'     => now(),
+                        'type'           => 'Journal',
+                        'description'    => 'Debt Recording for Stock Transfer #' . ($firstTransfer->invoice_number ?? $firstTransfer->id),
+                        'branch_id'      => $firstTransfer->from_type == 'branch' ? $firstTransfer->from_id : null,
+                        'voucher_amount' => $totalBatchDue,
+                        'paid_amount'    => 0,
+                        'reference'      => $firstTransfer->invoice_number,
+                        'created_by'     => auth()->id() ?? 1,
+                        'updated_by'     => auth()->id() ?? 1,
+                    ]);
+
+                    // Sender Branch: Increase Receivable
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $receivableAcc->id,
+                        'debit'                => $totalBatchDue,
+                        'credit'               => 0,
+                        'memo'                 => 'Inter-branch receivable recorded',
+                        'created_by'           => auth()->id() ?? 1,
+                        'updated_by'           => auth()->id() ?? 1,
+                    ]);
+
+                    // Receiver Branch: Increase Payable
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $payableAcc->id,
+                        'debit'                => 0,
+                        'credit'               => $totalBatchDue,
+                        'memo'                 => 'Inter-branch payable recorded',
+                        'created_by'           => auth()->id() ?? 1,
+                        'updated_by'           => auth()->id() ?? 1,
+                    ]);
+                }
+            }
+        }
+    }
+    public function return($id)
+    {
+        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $originalTransfer = StockTransfer::with([
+            'fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse'
+        ])->findOrFail($id);
+
+        // Guard: only allow returns on delivered transfers
+        if ($originalTransfer->status !== 'delivered') {
+            return redirect()->route('stocktransfer.show', $id)
+                ->with('error', 'Only delivered transfers can be returned.');
+        }
+
+        // Guard: don't allow returning a return
+        if ($originalTransfer->type === 'return') {
+            return redirect()->route('stocktransfer.show', $id)
+                ->with('error', 'A return transfer cannot be returned again.');
+        }
+
+        // Find all items in this batch (invoice), with full relations for the view
+        $relations = [
+            'product.category',
+            'product.brand',
+            'product.season',
+            'variation.combinations.attribute',
+            'variation.combinations.attributeValue',
+        ];
+
+        if ($originalTransfer->invoice_number) {
+            $items = StockTransfer::with($relations)
+                ->where('invoice_number', $originalTransfer->invoice_number)
+                ->get();
+        } else {
+            $items = collect([$originalTransfer->load($relations)]);
+        }
+
+        // Swap outlets: return FROM the destination, TO the original source
+        $fromOutlet = ($originalTransfer->to_type === 'branch' ? 'branch_' : 'warehouse_') . $originalTransfer->to_id;
+        $toOutlet   = ($originalTransfer->from_type === 'branch' ? 'branch_' : 'warehouse_') . $originalTransfer->from_id;
+
+        $branches         = Branch::all();
+        $warehouses       = Warehouse::all();
+        $financialAccounts = \App\Models\FinancialAccount::orderBy('provider_name')->get();
+
+        return view('erp.stockTransfer.create', compact(
+            'branches', 'warehouses', 'financialAccounts',
+            'items', 'fromOutlet', 'toOutlet', 'originalTransfer'
+        ));
     }
 }
 

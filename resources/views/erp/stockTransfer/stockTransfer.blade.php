@@ -25,6 +25,9 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
+                    <a href="{{ route('stocktransfer.list') }}?view_mode=returns" class="btn btn-outline-warning fw-bold shadow-sm">
+                        <i class="fas fa-undo-alt me-2"></i>View Returns
+                    </a>
                     <a href="{{ route('stocktransfer.create') }}" class="btn btn-create-premium">
                         <i class="fas fa-plus-circle me-2"></i>New Transfer
                     </a>
@@ -44,6 +47,26 @@
                 </div>
             @endif
 
+            {{-- View Mode Tabs --}}
+            @php $viewMode = request('view_mode', 'all'); @endphp
+            <div class="d-flex gap-2 mb-4">
+                <a href="{{ route('stocktransfer.list') }}?{{ http_build_query(array_merge(request()->except('view_mode'), [])) }}"
+                   class="btn btn-sm fw-bold px-4 {{ $viewMode === 'all' ? 'btn-dark' : 'btn-outline-secondary' }}">
+                    <i class="fas fa-list me-2"></i>All Records
+                    <span class="badge {{ $viewMode === 'all' ? 'bg-light text-dark' : 'bg-secondary text-white' }} ms-1">{{ $transferCount + $returnCount }}</span>
+                </a>
+                <a href="{{ route('stocktransfer.list') }}?{{ http_build_query(array_merge(request()->except('view_mode'), ['view_mode' => 'transfers'])) }}"
+                   class="btn btn-sm fw-bold px-4 {{ $viewMode === 'transfers' ? 'btn-primary' : 'btn-outline-primary' }}">
+                    <i class="fas fa-truck me-2"></i>Transfers Only
+                    <span class="badge {{ $viewMode === 'transfers' ? 'bg-light text-dark' : 'bg-primary text-white' }} ms-1">{{ $transferCount }}</span>
+                </a>
+                <a href="{{ route('stocktransfer.list') }}?{{ http_build_query(array_merge(request()->except('view_mode'), ['view_mode' => 'returns'])) }}"
+                   class="btn btn-sm fw-bold px-4 {{ $viewMode === 'returns' ? 'btn-warning text-dark' : 'btn-outline-warning' }}">
+                    <i class="fas fa-undo-alt me-2"></i>Returns Only
+                    <span class="badge {{ $viewMode === 'returns' ? 'bg-dark text-white' : 'bg-warning text-dark' }} ms-1">{{ $returnCount }}</span>
+                </a>
+            </div>
+
             <!-- Advanced Filters -->
             <div class="premium-card mb-4">
                 <div class="card-header bg-white border-bottom p-3">
@@ -52,6 +75,7 @@
                 <div class="card-body p-4">
                     <form method="GET" action="{{ route('stocktransfer.list') }}" id="filterForm">
                         <input type="hidden" name="quick_filter" id="quick_filter_hidden" value="">
+                        <input type="hidden" name="view_mode" value="{{ request('view_mode', '') }}">
                         
                         <!-- Report Type Radios -->
                         <div class="d-flex gap-4 mb-4">
@@ -227,7 +251,15 @@
 
             <!-- Table Section Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Transfer Data List</h6>
+                <h6 class="fw-bold mb-0 text-uppercase text-muted small">
+                    @if($viewMode === 'returns')
+                        <i class="fas fa-undo-alt me-2 text-warning"></i>Transfer Return Records
+                    @elseif($viewMode === 'transfers')
+                        <i class="fas fa-truck me-2 text-primary"></i>Transfer Records Only
+                    @else
+                        <i class="fas fa-list me-2 text-primary"></i>All Transfer Data
+                    @endif
+                </h6>
                 <div class="search-wrapper-premium" style="width: 300px;">
                     <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
                     <i class="fas fa-search search-icon-premium"></i>
@@ -249,17 +281,24 @@
                                         <th>Requested By</th>
                                         <th class="text-center">Total Items</th>
                                         <th class="text-end">Total Amount</th>
+                                        <th class="text-center">Type</th>
                                         <th class="text-center">Status</th>
                                         <th class="text-center pe-3">Action</th>
                                     </tr>
 </thead>
                             <tbody>
                                 @forelse ($transfers as $index => $transfer)
-                                    <tr>
+                                    @php
+                                        $isReturn = str_starts_with($transfer->invoice_number ?? '', 'RET-');
+                                    @endphp
+                                    <tr class="{{ $isReturn ? 'table-warning' : '' }}">
                                         <td class="ps-3 text-muted">{{ $transfers->firstItem() + $index }}</td>
                                         <td class="fw-bold text-dark">
                                             @if($transfer->invoice_number)
                                                 {{ $transfer->invoice_number }}
+                                                @if($isReturn)
+                                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i class="fas fa-undo-alt me-1"></i>RETURN</span>
+                                                @endif
                                             @else
                                                 <span class="text-muted small">N/A (ID: {{ $transfer->id }})</span>
                                             @endif
@@ -280,6 +319,13 @@
                                         </td>
                                         <td class="text-end fw-bold">{{ number_format($transfer->grouped_total_price, 2) }}৳</td>
                                         <td class="text-center">
+                                            @if($isReturn)
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-undo-alt me-1"></i>Return</span>
+                                            @else
+                                                <span class="badge bg-light text-dark border"><i class="fas fa-truck me-1"></i>Transfer</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
                                             @php
                                                 $statusClass = match($transfer->status) {
                                                     'approved' => 'success',
@@ -296,11 +342,12 @@
                                                 <a href="{{ route('stocktransfer.show', $transfer->id) }}" class="action-circle" title="View Details">
                                                     <i class="fas fa-eye text-primary"></i>
                                                 </a>
-                                                <!-- Only allow status update if we handle invoice-level status. For now, button triggers for 'id' which is one item. 
-                                                     Ideally, we should update status for the whole invoice. 
-                                                     Let's disable direct status update from list for now to encourage detail view? 
-                                                     Or assume updating one updates all? (Requires backend change). 
-                                                     Let's keep it simple: View Detail to manage. -->
+                                                @if($transfer->status === 'delivered' && !$isReturn)
+                                                    <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="action-circle" title="Return Items"
+                                                       onclick="return confirm('Initiate a return of these items?')">
+                                                        <i class="fas fa-undo-alt text-warning"></i>
+                                                    </a>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>

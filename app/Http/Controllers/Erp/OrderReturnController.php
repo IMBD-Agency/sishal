@@ -25,7 +25,7 @@ class OrderReturnController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view online returns') && !auth()->user()->hasPermissionTo('view returns')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -81,7 +81,7 @@ class OrderReturnController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view online returns') && !auth()->user()->hasPermissionTo('view returns')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -143,7 +143,7 @@ class OrderReturnController extends Controller
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view online returns') && !auth()->user()->hasPermissionTo('view returns')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -168,7 +168,7 @@ class OrderReturnController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns') && !auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
         $customers = Customer::all();
@@ -194,7 +194,7 @@ class OrderReturnController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns') && !auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -266,7 +266,7 @@ class OrderReturnController extends Controller
 
     public function show($id)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view online returns') && !auth()->user()->hasPermissionTo('view returns')) {
             abort(403, 'Unauthorized action.');
         }
         $orderReturn = OrderReturn::with(['items.product', 'items.variation', 'employee.user'])->findOrFail($id);

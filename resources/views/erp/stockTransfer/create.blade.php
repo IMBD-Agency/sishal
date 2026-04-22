@@ -1,6 +1,6 @@
 @extends('erp.master')
 
-@section('title', 'Record Stock Transfer')
+@section('title', isset($originalTransfer) ? 'Transfer Return' : 'Record Stock Transfer')
 
 @section('body')
     @include('erp.components.sidebar')
@@ -15,20 +15,30 @@
                         <ol class="breadcrumb mb-1 breadcrumb-premium">
                             <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{{ route('stocktransfer.list') }}" class="text-decoration-none text-muted">Stock Transfer</a></li>
-                            <li class="breadcrumb-item active text-primary fw-600">New Disptach</li>
+                            <li class="breadcrumb-item active text-primary fw-600">
+                                {{ isset($originalTransfer) ? 'Return Items' : 'New Dispatch' }}
+                            </li>
                         </ol>
                     </nav>
                     <div class="d-flex align-items-center gap-3">
-                        <div class="avatar-sm bg-primary text-white d-flex align-items-center justify-content-center rounded-circle fw-bold">
-                            <i class="fas fa-truck-loading"></i>
+                        <div class="avatar-sm {{ isset($originalTransfer) ? 'bg-warning' : 'bg-primary' }} text-white d-flex align-items-center justify-content-center rounded-circle fw-bold">
+                            <i class="fas {{ isset($originalTransfer) ? 'fa-undo-alt' : 'fa-truck-loading' }}"></i>
                         </div>
-                        <h4 class="fw-bold mb-0 text-dark">Initiate Stock Transfer</h4>
+                        <h4 class="fw-bold mb-0 text-dark">
+                            {{ isset($originalTransfer) ? 'Return Transferred Stock' : 'Initiate Stock Transfer' }}
+                        </h4>
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <a href="{{ route('stocktransfer.list') }}" class="btn btn-light fw-bold shadow-sm">
-                        <i class="fas fa-arrow-left me-2"></i>Transfer History
-                    </a>
+                    @if(isset($originalTransfer))
+                        <a href="{{ route('stocktransfer.show', $originalTransfer->id) }}" class="btn btn-light fw-bold shadow-sm">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Invoice
+                        </a>
+                    @else
+                        <a href="{{ route('stocktransfer.list') }}" class="btn btn-light fw-bold shadow-sm">
+                            <i class="fas fa-arrow-left me-2"></i>Transfer History
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -40,8 +50,32 @@
                 </div>
             @endif
 
+            {{-- Return Notice Banner --}}
+            @if(isset($originalTransfer))
+            <div class="alert border-0 shadow-sm mb-4 d-flex align-items-start gap-3" style="background: linear-gradient(135deg, #fff3cd, #ffe8a0); border-left: 5px solid #f0a500 !important;">
+                <div class="flex-shrink-0 mt-1">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;background-color:#f0a500;">
+                        <i class="fas fa-undo-alt text-white"></i>
+                    </div>
+                </div>
+                <div>
+                    <h6 class="fw-bold mb-1 text-dark">📦 Stock Return — Ref: {{ $originalTransfer->invoice_number ?? 'TRF-'.$originalTransfer->id }}</h6>
+                    <p class="mb-0 small text-dark">
+                        You are returning leftover items from a previous branch transfer back to the source location. 
+                        The <strong>Source</strong> (returning from) and <strong>Destination</strong> (returning to) have been pre-filled and locked. 
+                        Adjust quantities to match what is actually being returned.
+                    </p>
+                </div>
+            </div>
+            @endif
+
             <form action="{{ route('stocktransfer.store') }}" method="POST" id="transferForm">
                 @csrf
+
+                {{-- Hidden field for return linkage --}}
+                @if(isset($originalTransfer))
+                    <input type="hidden" name="return_of_id" value="{{ $originalTransfer->id }}">
+                @endif
                 
                 <!-- Main Configuration Card -->
                 <div class="premium-card mb-4">
@@ -56,49 +90,64 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sender Outlet <span class="text-danger">*</span></label>
-                                <select name="from_outlet" id="from_outlet" class="form-select shadow-none select2-basic" required>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">
+                                    {{ isset($originalTransfer) ? 'Return From (Source)' : 'Sender Outlet' }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select name="from_outlet" id="from_outlet" class="form-select shadow-none select2-basic {{ isset($originalTransfer) ? 'bg-light' : '' }}" required {{ isset($originalTransfer) ? 'disabled' : '' }}>
                                     <option value="">Select Source Location</option>
                                     <optgroup label="Warehouses">
                                         @foreach($warehouses as $warehouse)
-                                            <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                            <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Branches">
                                         @foreach($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
+                                            <option value="branch_{{ $branch->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
                                         @endforeach
                                     </optgroup>
                                 </select>
+                                {{-- Mirror disabled select as hidden input so it submits --}}
+                                @if(isset($originalTransfer))
+                                    <input type="hidden" name="from_outlet" value="{{ $fromOutlet ?? '' }}">
+                                @endif
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Receiver Outlet <span class="text-danger">*</span></label>
-                                <select name="to_outlet" id="to_outlet" class="form-select shadow-none select2-basic" required>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">
+                                    {{ isset($originalTransfer) ? 'Return To (Destination/Original Source)' : 'Receiver Outlet' }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select name="to_outlet" id="to_outlet" class="form-select shadow-none select2-basic {{ isset($originalTransfer) ? 'bg-light' : '' }}" required {{ isset($originalTransfer) ? 'disabled' : '' }}>
                                     <option value="">Select Target Destination</option>
                                     <optgroup label="Branches">
                                         @foreach($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
+                                            <option value="branch_{{ $branch->id }}" {{ (isset($toOutlet) && $toOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Warehouses">
                                         @foreach($warehouses as $warehouse)
-                                            <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                            <option value="warehouse_{{ $warehouse->id }}" {{ (isset($toOutlet) && $toOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                         @endforeach
                                     </optgroup>
                                 </select>
+                                @if(isset($originalTransfer))
+                                    <input type="hidden" name="to_outlet" value="{{ $toOutlet ?? '' }}">
+                                @endif
                             </div>
 
+                            @if(!isset($originalTransfer))
                             <div class="col-md-4">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Scan/Select Style Number <span class="text-danger">*</span></label>
-                                <select name="style_number" id="style_number" class="form-select shadow-none" required>
+                                <select name="style_number" id="style_number" class="form-select shadow-none">
                                     <option value="">Searching Style Number...</option>
                                 </select>
                             </div>
+                            @endif
 
                             <div class="col-md-12">
                                 <div class="form-check form-switch p-3 bg-light rounded-3 border">
-                                    <input class="form-check-input ms-0 me-3" type="checkbox" name="is_direct" id="is_direct" value="1">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" name="is_direct" id="is_direct" value="1" {{ isset($originalTransfer) ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold text-dark" for="is_direct">
                                         <i class="fas fa-bolt text-warning me-2"></i>Direct Transfer (Skip pending and approve instantly)
                                         <div class="small text-muted fw-normal">Stock will be deducted from source and added to destination immediately.</div>
@@ -111,8 +160,15 @@
 
                 <!-- Items Table Card -->
                 <div class="premium-card mb-4">
-                    <div class="card-header bg-white border-bottom p-4">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-box-open me-2 text-primary"></i>Allocated Items</h6>
+                    <div class="card-header bg-white border-bottom p-4 d-flex align-items-center justify-content-between">
+                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-box-open me-2 text-primary"></i>
+                            {{ isset($originalTransfer) ? 'Items to Return' : 'Allocated Items' }}
+                        </h6>
+                        @if(isset($originalTransfer))
+                        <span class="badge bg-warning text-dark px-3 py-2 small fw-bold">
+                            <i class="fas fa-lock me-1"></i>Products locked — adjust quantities only
+                        </span>
+                        @endif
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -125,13 +181,18 @@
                                         <th>Variant</th>
                                         <th>Attributes</th>
                                         <th class="text-center">Avail.</th>
-                                        <th style="width: 130px;">Transfer Qty</th>
+                                        <th style="width: 130px;">
+                                            {{ isset($originalTransfer) ? 'Return Qty' : 'Transfer Qty' }}
+                                        </th>
                                         <th class="text-end">Unit Price</th>
                                         <th class="text-end">Total Price</th>
+                                        @if(!isset($originalTransfer))
                                         <th class="text-center pe-3">Action</th>
+                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody id="productTableBody">
+                                    @if(!isset($items) || $items->isEmpty())
                                     <tr class="empty-placeholder">
                                         <td colspan="10" class="text-center py-5">
                                             <div class="text-muted opacity-50">
@@ -140,6 +201,96 @@
                                             </div>
                                         </td>
                                     </tr>
+                                    @else
+                                    {{-- Pre-filled rows for return --}}
+                                    @foreach($items as $item)
+                                    @php
+                                        $product = $item->product;
+                                        $variation = $item->variation;
+                                        $rowId = $variation ? "var_{$variation->id}" : "prod_{$product->id}";
+                                        $unitPrice = $item->unit_price;
+                                        $originalQty = $item->quantity;
+                                        $displayImage = ($variation && $variation->image) ? $variation->image : ($product->image ?? '');
+                                        
+                                        // Get size/color from variation combinations
+                                        $size = '-'; $color = '-';
+                                        if ($variation && $variation->combinations) {
+                                            foreach($variation->combinations as $combo) {
+                                                $attrName = strtolower($combo->attribute->name ?? '');
+                                                if (in_array($attrName, ['color','colour'])) $color = $combo->attributeValue->value ?? '-';
+                                                if (in_array($attrName, ['size','sizes'])) $size = $combo->attributeValue->value ?? '-';
+                                            }
+                                        }
+
+                                        // Available stock at return-from location (original to_type/to_id)
+                                        $availStock = 0;
+                                        if ($variation) {
+                                            if ($item->to_type === 'branch') {
+                                                $vs = \App\Models\ProductVariationStock::where('variation_id', $variation->id)->where('branch_id', $item->to_id)->whereNull('warehouse_id')->first();
+                                            } else {
+                                                $vs = \App\Models\ProductVariationStock::where('variation_id', $variation->id)->where('warehouse_id', $item->to_id)->whereNull('branch_id')->first();
+                                            }
+                                            $availStock = $vs ? $vs->quantity : 0;
+                                        } else {
+                                            if ($item->to_type === 'branch') {
+                                                $bs = \App\Models\BranchProductStock::where('product_id', $product->id)->where('branch_id', $item->to_id)->first();
+                                            } else {
+                                                $bs = \App\Models\WarehouseProductStock::where('product_id', $product->id)->where('warehouse_id', $item->to_id)->first();
+                                            }
+                                            $availStock = $bs ? $bs->quantity : 0;
+                                        }
+                                        $maxReturnQty = min($originalQty, $availStock);
+                                    @endphp
+                                    <tr id="{{ $rowId }}" class="item-row">
+                                        <td class="ps-3">
+                                            @if($displayImage)
+                                                <img src="/{{ $displayImage }}" class="rounded border shadow-sm" style="width: 35px; height: 35px; object-fit: cover;">
+                                            @else
+                                                <div class="bg-light rounded border d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
+                                                    <i class="fas fa-image text-muted opacity-50"></i>
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold text-dark">{{ $product->name ?? '-' }}</div>
+                                            <div class="extra-small text-muted text-uppercase">{{ $product->category->name ?? 'General' }}</div>
+                                        </td>
+                                        <td class="text-pink fw-bold">{{ $product->style_number ?? '-' }}</td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border me-1">{{ $size }}</span>
+                                            <span class="badge bg-light text-dark border">{{ $color }}</span>
+                                        </td>
+                                        <td class="extra-small text-muted">
+                                            {{ $product->brand->name ?? '-' }} | {{ $product->season->name ?? '-' }}
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            <span class="{{ $availStock < $originalQty ? 'text-danger' : 'text-success' }}">
+                                                {{ $availStock }}
+                                            </span>
+                                            <div class="extra-small text-muted">(orig: {{ $originalQty }})</div>
+                                        </td>
+                                        <td>
+                                            <input type="number"
+                                                   class="form-control form-control-sm transfer-qty shadow-none border-warning"
+                                                   data-row-id="{{ $rowId }}"
+                                                   data-price="{{ $unitPrice }}"
+                                                   min="0" step="1"
+                                                   max="{{ $maxReturnQty }}"
+                                                   value="{{ $maxReturnQty }}">
+                                            <input type="hidden" name="items[{{ $rowId }}][quantity]" value="{{ $maxReturnQty }}">
+                                            <input type="hidden" name="items[{{ $rowId }}][product_id]" value="{{ $product->id }}">
+                                            <input type="hidden" name="items[{{ $rowId }}][variation_id]" value="{{ $variation ? $variation->id : '' }}">
+                                            <input type="hidden" name="items[{{ $rowId }}][unit_price]" value="{{ $unitPrice }}">
+                                            @if($maxReturnQty < $originalQty)
+                                            <div class="extra-small text-danger mt-1">⚠ Only {{ $availStock }} at branch</div>
+                                            @endif
+                                        </td>
+                                        <td class="text-end fw-bold">{{ number_format($unitPrice, 2) }}৳</td>
+                                        <td class="text-end fw-bold total-price-col" id="total_price_{{ $rowId }}" data-value="{{ number_format($maxReturnQty * $unitPrice, 2, '.', '') }}">{{ number_format($maxReturnQty * $unitPrice, 2) }}৳</td>
+                                        {{-- No remove button for returns --}}
+                                    </tr>
+                                    @endforeach
+                                    @endif
                                 </tbody>
                             </table>
                         </div>
@@ -189,7 +340,10 @@
                                         <select name="sender_account_id" id="sender_account_id" class="form-select shadow-none" required>
                                             <option value="">Select Account</option>
                                             @foreach($financialAccounts as $acc)
-                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
+                                                <option value="{{ $acc->id }}" 
+                                                        data-branch-id="{{ $acc->branch_id }}"
+                                                        data-type="{{ $acc->type }}" 
+                                                        data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
                                                     {{ $acc->provider_name }} ({{ $acc->account_number ?? $acc->mobile_number }})
                                                 </option>
                                             @endforeach
@@ -205,7 +359,10 @@
                                         <select name="receiver_account_id" id="receiver_account_id" class="form-select shadow-none" required>
                                             <option value="">Select Account</option>
                                             @foreach($financialAccounts as $acc)
-                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
+                                                <option value="{{ $acc->id }}" 
+                                                        data-branch-id="{{ $acc->branch_id }}"
+                                                        data-type="{{ $acc->type }}" 
+                                                        data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
                                                     {{ $acc->provider_name }} ({{ $acc->account_number ?? $acc->mobile_number }})
                                                 </option>
                                             @endforeach
@@ -221,7 +378,7 @@
 
                             <div class="col-12 mt-4 pt-3 border-top">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Consignment Note / Instructions</label>
-                                <textarea name="note" class="form-control shadow-none" rows="3" placeholder="Enter any specific shipping or handling instructions..."></textarea>
+                                <textarea name="note" class="form-control shadow-none" rows="3" placeholder="{{ isset($originalTransfer) ? 'Return of items from '.($originalTransfer->invoice_number ?? 'transfer') : 'Enter any specific shipping or handling instructions...' }}"></textarea>
                             </div>
                         </div>
                     </div>
@@ -229,10 +386,11 @@
 
                 <!-- Form Controls -->
                 <div class="mt-5 pt-4 border-top text-center">
-                    <button type="submit" class="btn btn-create-premium px-5 py-3 me-3">
-                        <i class="fas fa-check-circle me-2"></i>FINALIZE TRANSFER DISPATCH
+                    <button type="submit" class="btn {{ isset($originalTransfer) ? 'btn-warning' : 'btn-create-premium' }} px-5 py-3 me-3">
+                        <i class="fas {{ isset($originalTransfer) ? 'fa-undo-alt' : 'fa-check-circle' }} me-2"></i>
+                        {{ isset($originalTransfer) ? 'CONFIRM STOCK RETURN' : 'FINALIZE TRANSFER DISPATCH' }}
                     </button>
-                    <a href="{{ route('stocktransfer.list') }}" class="btn btn-light border fw-bold px-5 py-3">
+                    <a href="{{ isset($originalTransfer) ? route('stocktransfer.show', $originalTransfer->id) : route('stocktransfer.list') }}" class="btn btn-light border fw-bold px-5 py-3">
                         CANCEL
                     </a>
                 </div>
@@ -244,6 +402,7 @@
     <style>
         .breadcrumb-premium { font-size: 0.8rem; }
         .form-control-sm, .form-select-sm { font-size: 0.75rem !important; }
+        .extra-small { font-size: 0.72rem; }
     </style>
 @endpush
 
@@ -256,23 +415,19 @@
             // Initialize Select2
             $('.select2-basic').select2();
 
+            @if(!isset($originalTransfer))
+            // --- Style number search (only for new transfers) ---
             $('#style_number').select2({
                 placeholder: 'Scan or search style number...',
                 ajax: {
                     url: '/erp/products/search-by-style',
                     dataType: 'json',
                     delay: 250,
-                    data: function(params) {
-                        return { q: params.term };
-                    },
+                    data: function(params) { return { q: params.term }; },
                     processResults: function(data) {
                         return {
                             results: data.map(function(item) {
-                                return {
-                                    id: item.id,
-                                    text: (item.style_number ? item.style_number + ' - ' : '') + item.name,
-                                    product: item
-                                };
+                                return { id: item.id, text: (item.style_number ? item.style_number + ' - ' : '') + item.name, product: item };
                             })
                         };
                     },
@@ -291,48 +446,42 @@
             // Clear table when sender changes to prevent stock mismatch
             $('#from_outlet').on('change', function() {
                 if ($('#productTableBody tr:not(.empty-placeholder)').length > 0) {
-                    if(confirm('Changing the sender will clear the current item list because stock availability depends on the source location. Continue?')) {
-                        $('#productTableBody').html(`
-                            <tr class="empty-placeholder">
-                                <td colspan="10" class="text-center py-5">
-                                    <div class="text-muted opacity-50">
-                                        <i class="fas fa-barcode fa-3x mb-3"></i>
-                                        <p class="fw-bold mb-0">Scan or select a style number to build the dispatch list.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        `);
-                        updateTotals();
-                        $('#style_number').val(null).trigger('change');
-                    } else {
-                        // Revert selection (this is tricky with select2/html select, simpler to just let them know or auto-clear)
-                        // For now, simpler: just clear list without confirm or with notice.
-                        // Let's stick to the confirm. If they say Cancel, we need to revert value.
-                        // Reverting select value is complex without storing previous.
-                        // Let's just auto-clear for data integrity.
+                    if(confirm('Changing the sender will clear the current item list. Continue?')) {
+                        resetTable();
                     }
                 }
             });
 
+            function resetTable() {
+                $('#productTableBody').html(`
+                    <tr class="empty-placeholder">
+                        <td colspan="10" class="text-center py-5">
+                            <div class="text-muted opacity-50">
+                                <i class="fas fa-barcode fa-3x mb-3"></i>
+                                <p class="fw-bold mb-0">Scan or select a style number to build the dispatch list.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+                updateTotals();
+                $('#style_number').val(null).trigger('change');
+            }
+
             function loadProductVariations(product) {
                 const fromOutlet = $('#from_outlet').val();
                 let queryParams = '';
-                
                 if (fromOutlet) {
                     const parts = fromOutlet.split('_');
                     if (parts.length === 2) {
                         queryParams = `?location_type=${parts[0]}&location_id=${parts[1]}`;
                     }
                 }
-
                 $.ajax({
                     url: '/erp/products/' + product.id + '/variations-with-stock' + queryParams,
                     type: 'GET',
                     success: function(variations) {
                         if (variations && variations.length > 0) {
-                            variations.forEach(function(variation) {
-                                addProductRow(product, variation);
-                            });
+                            variations.forEach(function(variation) { addProductRow(product, variation); });
                         } else {
                             addProductRow(product, null);
                         }
@@ -346,11 +495,7 @@
                 if ($(`#${rowId}`).length > 0) return;
 
                 const stock = variation ? (variation.stock || 0) : (product.stock || 0);
-                // Default to Purchase Price (Cost) for Stock Transfers
-                const unitPrice = variation ? 
-                    (variation.cost && variation.cost > 0 ? variation.cost : (product.cost || 0)) : 
-                    (product.cost || 0);
-
+                const unitPrice = variation ? (variation.cost && variation.cost > 0 ? variation.cost : (product.cost || 0)) : (product.cost || 0);
                 const displayImage = (variation && variation.image) ? variation.image : (product.image || '');
                 const imgHtml = displayImage 
                     ? `<img src="/${displayImage}" class="rounded border shadow-sm" style="width: 35px; height: 35px; object-fit: cover;">`
@@ -358,9 +503,7 @@
 
                 const row = `
                     <tr id="${rowId}" class="item-row">
-                        <td class="ps-3">
-                            ${imgHtml}
-                        </td>
+                        <td class="ps-3">${imgHtml}</td>
                         <td>
                             <div class="fw-bold text-dark">${product.name}</div>
                             <div class="extra-small text-muted text-uppercase">${product.category?.name || 'General'}</div>
@@ -378,6 +521,7 @@
                             <input type="number" class="form-control form-control-sm transfer-qty shadow-none border-info" 
                                    data-row-id="${rowId}" data-price="${unitPrice}" 
                                    min="0" step="1" max="${stock}" value="0">
+                            <input type="hidden" name="items[${rowId}][quantity]" value="0">
                             <input type="hidden" name="items[${rowId}][product_id]" value="${product.id}">
                             <input type="hidden" name="items[${rowId}][variation_id]" value="${(variation && variation.id) ? variation.id : ''}">
                             <input type="hidden" name="items[${rowId}][unit_price]" value="${unitPrice}">
@@ -392,10 +536,17 @@
                     </tr>
                 `;
                 $('#productTableBody').append(row);
-                // Also update the table's class if not already there
-                $('#productTable').addClass('compact-table');
             }
 
+            $(document).on('click', '.remove-row', function() {
+                const rowId = $(this).data('row-id');
+                $(`#${rowId}`).remove();
+                if($('#productTableBody tr').length === 0) $('.empty-placeholder').show();
+                updateTotals();
+            });
+            @endif
+
+            // --- Shared: quantity change handler ---
             $(document).on('input', '.transfer-qty', function() {
                 const rowId = $(this).data('row-id');
                 let qty = parseFloat($(this).val()) || 0;
@@ -409,25 +560,15 @@
                 }
                 
                 const total = (qty * price).toFixed(2);
-                $(`#total_price_${rowId}`).text(total + '৳').attr('data-value', total);
+                $(`#total_price_${rowId}`).text(parseFloat(total).toLocaleString('en-BD', {minimumFractionDigits:2}) + '৳').attr('data-value', total);
                 
-                $(`input[name="items[${rowId}][quantity]"]`).remove();
-                $(this).after(`<input type="hidden" name="items[${rowId}][quantity]" value="${qty}">`);
+                $(`input[name="items[${rowId}][quantity]"]`).val(qty);
                 
-                updateTotals();
-            });
-
-            $(document).on('click', '.remove-row', function() {
-                const rowId = $(this).data('row-id');
-                $(`#${rowId}`).remove();
-                if($('#productTableBody tr').length === 0) $('.empty-placeholder').show();
                 updateTotals();
             });
 
             let autoSyncPaid = true;
-
             $('#paid_amount').on('input', function() {
-                // If the user manually changes the paid amount, stop auto-syncing
                 autoSyncPaid = false;
                 updateTotals();
             });
@@ -445,7 +586,6 @@
                     totalQty += parseFloat($(this).val()) || 0;
                 });
                 
-                // Automatically sync paid amount with total if autoSync is active
                 if (autoSyncPaid) {
                     $('#paid_amount').val(totalAmount > 0 ? totalAmount.toFixed(2) : 0);
                 }
@@ -469,19 +609,56 @@
             // Handle Financial Account Selection
             $('#sender_account_id').on('change', function() {
                 const selected = $(this).find(':selected');
-                const type = selected.data('type') || '';
-                const number = selected.data('number') || '';
-                $('#sender_account_type').val(type);
-                $('#sender_account_number').val(number);
+                $('#sender_account_type').val(selected.data('type') || '');
+                $('#sender_account_number').val(selected.data('number') || '');
             });
 
             $('#receiver_account_id').on('change', function() {
                 const selected = $(this).find(':selected');
-                const type = selected.data('type') || '';
-                const number = selected.data('number') || '';
-                $('#receiver_account_type').val(type);
-                $('#receiver_account_number').val(number);
+                $('#receiver_account_type').val(selected.data('type') || '');
+                $('#receiver_account_number').val(selected.data('number') || '');
             });
+
+            // Account Filtering Logic
+            function filterAccounts(outletSelector, accountSelector) {
+                const outletVal = $(outletSelector).val();
+                let branchId = '';
+                
+                if (outletVal && outletVal.startsWith('branch_')) {
+                    branchId = outletVal.replace('branch_', '');
+                }
+
+                const $accSelect = $(accountSelector);
+                
+                $accSelect.find('option').each(function() {
+                    const accBranchId = $(this).data('branch-id');
+                    // Skip placeholder
+                    if (!$(this).val()) return;
+
+                    // Show if: No outlet selected, OR Account is global (no branch_id), OR Branch matches
+                    if (!outletVal || !accBranchId || accBranchId == branchId) {
+                        $(this).prop('disabled', false).show();
+                    } else {
+                        $(this).prop('disabled', true).hide();
+                        if ($(this).is(':selected')) $accSelect.val('');
+                    }
+                });
+            }
+
+            $('#from_outlet').on('change', function() {
+                filterAccounts('#from_outlet', '#sender_account_id');
+            });
+
+            $('#to_outlet').on('change', function() {
+                filterAccounts('#to_outlet', '#receiver_account_id');
+            });
+
+            // Run once on load
+            filterAccounts('#from_outlet', '#sender_account_id');
+            filterAccounts('#to_outlet', '#receiver_account_id');
+
+            // Initialize totals on page load (important for pre-filled return rows)
+            updateTotals();
         });
     </script>
 @endpush

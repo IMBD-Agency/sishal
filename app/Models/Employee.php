@@ -11,7 +11,7 @@ class Employee extends Model
         'branch_id',
         'phone',
         'address',
-        'position',
+        'designation',
         'salary',
         'hire_date',
         'status'

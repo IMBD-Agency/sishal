@@ -2,7 +2,7 @@
     <!-- Brand -->
     @php $logoUrl = $general_settings && $general_settings->site_logo ? asset($general_settings->site_logo) : asset('static/default-logo.webp'); @endphp
     <div class="sidebar-brand">
-        <a href="{{ route('erp.dashboard') }}" 
+        <a href="{{ auth()->user()->hasPermissionTo('view dashboard') ? route('erp.dashboard') : route('erp.profile') }}" 
            class="d-flex align-items-center justify-content-center w-100 h-100 text-decoration-none"
            style="background-image: url('{{ $logoUrl }}'); background-size: contain; background-repeat: no-repeat; background-position: center; background-origin: content-box; padding: 10px;">
             <img src="{{ $logoUrl }}" 
@@ -21,12 +21,14 @@
         <!-- GENERAL -->
         <!-- <span class="sidebar-category-title">General</span> -->
         
+        @can('view dashboard')
         <div class="nav-item">
             <a href="{{ route('erp.dashboard') }}" class="nav-link {{ request()->is('erp/dashboard*') ? ' active' : '' }}">
                 <i class="fas fa-home nav-icon"></i>
                 <span>Dashboard</span>
             </a>
         </div>
+        @endcan
 
         @can('view branches')
         <div class="nav-item">
@@ -130,6 +132,9 @@
                 <span>Sale Return</span>
             </a>
         </div>
+        @endcan
+
+        @can('view exchanges')
         <div class="nav-item">
             <a href="{{ route('exchange.list') }}" class="nav-link {{ request()->is('erp/exchange*') ? ' active' : '' }}">
                 <i class="fas fa-sync nav-icon text-warning"></i>
@@ -259,13 +264,16 @@
         </div>
         @endcan
 
-        @can('manage online orders')
+        @can('view online returns')
         <div class="nav-item">
             <a href="{{ route('orderReturn.list') }}" class="nav-link {{ request()->is('erp/order-return*') ? ' active' : '' }}">
                 <i class="fas fa-reply nav-icon text-danger"></i>
                 <span>Order Returns</span>
             </a>
         </div>
+        @endcan
+
+        @can('view online exchanges')
         <div class="nav-item">
             <a href="{{ route('orderExchange.list') }}" class="nav-link {{ request()->is('erp/order-exchange*') ? ' active' : '' }}">
                 <i class="fas fa-sync nav-icon text-success"></i>

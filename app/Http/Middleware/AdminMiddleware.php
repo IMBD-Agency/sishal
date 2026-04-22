@@ -20,8 +20,8 @@ class AdminMiddleware
             return redirect('login');
         }
 
-        if (Auth::user()->is_admin != 1) {
-            return redirect('login')->with('error', 'Access denied. Admin privileges required.');
+        if (Auth::user()->is_admin != 1 && Auth::user()->roles->isEmpty() && !Auth::user()->employee) {
+            return redirect('login')->with('error', 'Access denied. You do not have ERP access privileges.');
         }
 
         return $next($request);

@@ -317,6 +317,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'show'])->name('stocktransfer.show');
     Route::post('/stock-transfer', [\App\Http\Controllers\Erp\StockTransferController::class, 'store'])->name('stocktransfer.store');
     Route::patch('/stock-transfer/{id}/status', [\App\Http\Controllers\Erp\StockTransferController::class, 'updateStatus'])->name('stocktransfer.status');
+    Route::get('/stock-transfer/{id}/return', [\App\Http\Controllers\Erp\StockTransferController::class, 'return'])->name('stocktransfer.return');
     Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.delete');
 
 
@@ -859,14 +860,14 @@ Route::post('/buy-now/{productId}', [App\Http\Controllers\Ecommerce\CartControll
 
 
 // Route to run migrations from web
-// Route::get('/run-migrate', function() {
-//     try {
-//         Artisan::call('migrate', ['--force' => true]);
-//         return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
-//     } catch (\Exception $e) {
-//         return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
-//     }
-// });
+Route::get('/run-migrate', function() {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return '<h1>Migration Completed Successfully!</h1><br><pre>' . Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return '<h1>Migration Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
 
 Route::get('/run-perm-fix', function() {
     \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'PermissionSeeder']);

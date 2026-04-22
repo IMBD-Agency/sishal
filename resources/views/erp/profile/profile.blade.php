@@ -20,7 +20,7 @@
                              alt="Profile Avatar" class="profile-avatar me-3">
                         <div>
                             <h3 class="mb-1">{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h3>
-                            <p class="mb-1 text-muted-simple">{{ Auth::user()->email }}</p>
+                            <p class="mb-1 text-muted-simple">{{ Auth::user()->email }} @if(Auth::user()->employee) | <span class="fw-bold">{{ Auth::user()->employee->designation }}</span> @endif</p>
                             <small class="text-muted-simple">Member since {{ Auth::user()->created_at->format('M Y') }}</small>
                         </div>
                     </div>
@@ -90,45 +90,14 @@
                                        id="email" 
                                        name="email" 
                                        value="{{ old('email', Auth::user()->email) }}" 
-                                       required>
+                                       required
+                                       {{ str_ends_with(Auth::user()->email, '@staff.internal') ? 'readonly' : '' }}>
+                                @if(str_ends_with(Auth::user()->email, '@staff.internal'))
+                                    <small class="text-muted-simple">Internal staff email cannot be changed.</small>
+                                @endif
                                 @error('email')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="phone" class="form-label-simple">Phone Number</label>
-                                        <input type="tel" 
-                                               class="form-control-simple @error('phone') is-invalid @enderror" 
-                                               id="phone" 
-                                               name="phone" 
-                                               value="{{ old('phone', Auth::user()->phone) }}"
-                                               placeholder="+1 (555) 123-4567">
-                                        @error('phone')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="timezone" class="form-label-simple">Timezone</label>
-                                        <select class="form-control-simple @error('timezone') is-invalid @enderror" 
-                                                id="timezone" 
-                                                name="timezone">
-                                            <option value="">Select Timezone</option>
-                                            <option value="UTC" {{ old('timezone', Auth::user()->timezone) == 'UTC' ? 'selected' : '' }}>UTC</option>
-                                            <option value="America/New_York" {{ old('timezone', Auth::user()->timezone) == 'America/New_York' ? 'selected' : '' }}>Eastern Time</option>
-                                            <option value="America/Chicago" {{ old('timezone', Auth::user()->timezone) == 'America/Chicago' ? 'selected' : '' }}>Central Time</option>
-                                            <option value="America/Denver" {{ old('timezone', Auth::user()->timezone) == 'America/Denver' ? 'selected' : '' }}>Mountain Time</option>
-                                            <option value="America/Los_Angeles" {{ old('timezone', Auth::user()->timezone) == 'America/Los_Angeles' ? 'selected' : '' }}>Pacific Time</option>
-                                        </select>
-                                        @error('timezone')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
                             </div>
                             
                             <div class="d-flex justify-content-between align-items-center pt-2">
@@ -183,7 +152,7 @@
                                        oninput="checkPasswordStrength(this.value)">
                                 <div class="password-strength" id="passwordStrength"></div>
                                 <small class="text-muted-simple">
-                                    Password must be at least 8 characters with uppercase, lowercase, number, and special character.
+                                    Password must be at least 8 characters.
                                 </small>
                                 @error('password')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -214,50 +183,27 @@
                 <!-- Account Activity -->
                 <div class="card-simple">
                     <div class="card-header-simple">
-                        Recent Activity
+                        Account Information
                     </div>
                     <div class="card-body-simple">
                         <div class="activity-item-simple">
-                            <small class="text-muted-simple">Last login</small>
-                            <div class="fw-semibold">{{ Auth::user()->last_login_at?->diffForHumans() ?? 'Never' }}</div>
+                            <small class="text-muted-simple">System Role</small>
+                            <div class="fw-semibold">{{ Auth::user()->roles->first()->name ?? 'N/A' }}</div>
+                        </div>
+                        @if(Auth::user()->employee)
+                        <div class="activity-item-simple">
+                            <small class="text-muted-simple">Designation</small>
+                            <div class="fw-semibold">{{ Auth::user()->employee->designation ?? 'N/A' }}</div>
                         </div>
                         <div class="activity-item-simple">
-                            <small class="text-muted-simple">Profile updated</small>
-                            <div class="fw-semibold">{{ Auth::user()->updated_at->diffForHumans() }}</div>
+                            <small class="text-muted-simple">Assigned Branch</small>
+                            <div class="fw-semibold">{{ Auth::user()->employee->branch->name ?? 'Global' }}</div>
                         </div>
+                        @endif
+                        <hr>
                         <div class="activity-item-simple">
                             <small class="text-muted-simple">Account created</small>
-                            <div class="fw-semibold">{{ Auth::user()->created_at->diffForHumans() }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Security Settings -->
-                <div class="card-simple">
-                    <div class="card-header-simple">
-                        Security Settings
-                    </div>
-                    <div class="card-body-simple">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <div class="fw-semibold">Two-Factor Authentication</div>
-                                <small class="text-muted-simple">Add an extra layer of security</small>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="twoFactorSwitch" 
-                                       {{ Auth::user()->two_factor_enabled ? 'checked' : '' }}>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-semibold">Email Notifications</div>
-                                <small class="text-muted-simple">Receive security alerts</small>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="emailNotifications" 
-                                       {{ Auth::user()->email_notifications ? 'checked' : '' }}>
-                            </div>
+                            <div class="fw-semibold">{{ Auth::user()->created_at->format('M d, Y') }}</div>
                         </div>
                     </div>
                 </div>

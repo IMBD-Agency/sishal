@@ -37,7 +37,19 @@ class StockTransfer extends Model
         'delivered_at',
         'notes',
         'invoice_number',
+        'return_of_id',
     ];
+
+
+    public function originalTransfer()
+    {
+        return $this->belongsTo(StockTransfer::class, 'return_of_id');
+    }
+
+    public function returns()
+    {
+        return $this->hasMany(StockTransfer::class, 'return_of_id');
+    }
 
 
     

@@ -46,9 +46,14 @@
                                         <div class="row mb-4">
                                             <div class="col-md-12">
                                                 <label class="form-label small text-muted fw-bold">Select Customer <span class="text-danger">*</span></label>
-                                                <select name="customer_id" id="customerSelect" class="form-select shadow-sm" required style="width:100%">
-                                                    <option value="">Search and select customer...</option>
-                                                </select>
+                                                <div class="input-group shadow-sm">
+                                                    <select name="customer_id" id="customerSelect" class="form-select border-0" required style="width:calc(100% - 50px)">
+                                                        <option value="">Search and select customer...</option>
+                                                    </select>
+                                                    <button class="btn btn-success" type="button" title="Add New Customer" data-bs-toggle="modal" data-bs-target="#quickAddCustomerModal">
+                                                        <i class="fas fa-user-plus"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -297,6 +302,45 @@
             </div>
         </div>
     </div>
+
+    <!-- Quick Add Customer Modal -->
+    <div class="modal fade" id="quickAddCustomerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Quick Add Customer</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickAddCustomerForm">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="quickCustomerName" class="form-label fw-bold">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control shadow-sm" id="quickCustomerName" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quickCustomerPhone" class="form-label fw-bold">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control shadow-sm" id="quickCustomerPhone" name="phone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quickCustomerEmail" class="form-label fw-bold">Email (Optional)</label>
+                            <input type="email" class="form-control shadow-sm" id="quickCustomerEmail" name="email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="quickCustomerAddress" class="form-label fw-bold">Address (Optional)</label>
+                            <textarea class="form-control shadow-sm" id="quickCustomerAddress" name="address_1" rows="2" placeholder="Street address..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success rounded-pill px-4" id="saveQuickCustomer">
+                        <i class="fas fa-save me-1"></i>Save Customer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 <style>
@@ -376,7 +420,7 @@
                                 results: data.map(function (product) {
                                     return {
                                         id: product.id,
-                                        text: product.name
+                                        text: product.name + ' [' + (product.style_number ? product.style_number : product.sku) + ']'
                                     };
                                 })
                             };
@@ -398,12 +442,102 @@
                 }, 10);
             });
 
+
             $('#addItemBtn').on('click', function () {
-                setTimeout(function () {
-                    initProductSelect2('.product-select');
-                }, 100);
+                const row = $('#itemsTable tbody tr:first').clone();
+                
+                // Remove select2 initialization from cloned row
+                row.find('.select2-container').remove();
+                row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').show();
+                
+                row.find('select, input').each(function () {
+                    const name = $(this).attr('name');
+                    if (name) {
+                        const newName = name.replace(/\d+/, itemIndex);
+                        $(this).attr('name', newName);
+                    }
+                    if ($(this).is('select')) {
+                        $(this).val('');
+                        if ($(this).hasClass('variation-select')) {
+                            $(this).prop('disabled', true).html('<option value="">No Variation</option>');
+                        }
+                    }
+                    else {
+                        if ($(this).hasClass('item-discount')) {
+                            $(this).val('0');
+                        } else {
+                            $(this).val('');
+                        }
+                    }
+                });
+                row.find('.remove-item').prop('disabled', false);
+                $('#itemsTable tbody').append(row);
+                
+                // Re-initialize Select2 for the new product-select
+                const productSelect = row.find('.product-select');
+                productSelect.empty().append('<option value="">Search and select product...</option>');
+                initProductSelect2(productSelect);
+                
+                itemIndex++;
+                updateTotals();
+            });
+
+            // Quick Add Customer Handler
+            $('#saveQuickCustomer').on('click', function() {
+                const $btn = $(this);
+                const $form = $('#quickAddCustomerForm');
+                
+                const name = $('#quickCustomerName').val().trim();
+                const phone = $('#quickCustomerPhone').val().trim();
+                
+                if (!name || !phone) {
+                    alert('Name and Phone are required!');
+                    return;
+                }
+                
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Saving...');
+                
+                $.ajax({
+                    url: '/erp/customers',
+                    method: 'POST',
+                    data: {
+                        name: name,
+                        phone: phone,
+                        email: $('#quickCustomerEmail').val(),
+                        address_1: $('#quickCustomerAddress').val(),
+                        _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            const customer = response.customer;
+                            // Add to select2 and select it
+                            const newOption = new Option(customer.name + (customer.phone ? ' [' + customer.phone + ']' : ''), customer.id, true, true);
+                            $('#customerSelect').append(newOption).trigger('change');
+                            
+                            // Manually trigger the select event to autofill address
+                            $('#customerSelect').trigger({
+                                type: 'select2:select',
+                                params: {
+                                    data: {
+                                        id: customer.id
+                                    }
+                                }
+                            });
+
+                            $('#quickAddCustomerModal').modal('hide');
+                            $form[0].reset();
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Error: ' + (xhr.responseJSON?.message || 'Failed to save customer'));
+                    },
+                    complete: function() {
+                        $btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>Save Customer');
+                    }
+                });
             });
         });
+
         let itemIndex = 1;
 
         function recalcRow(row) {
@@ -532,42 +666,6 @@
             updateTotals();
         });
 
-        $('#addItemBtn').on('click', function () {
-            const row = $('#itemsTable tbody tr:first').clone();
-            
-            // Remove select2 initialization from cloned row
-            row.find('.select2-container').remove();
-            row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').show();
-            
-            row.find('select, input').each(function () {
-                const name = $(this).attr('name');
-                if (name) {
-                    const newName = name.replace(/\d+/, itemIndex);
-                    $(this).attr('name', newName);
-                }
-                if ($(this).is('select')) {
-                    $(this).val('');
-                    if ($(this).hasClass('variation-select')) {
-                        $(this).prop('disabled', true).html('<option value="">No Variation</option>');
-                    }
-                }
-                else {
-                    if ($(this).hasClass('item-discount')) {
-                        $(this).val('0');
-                    } else {
-                        $(this).val('');
-                    }
-                }
-            });
-            row.find('.remove-item').prop('disabled', false);
-            $('#itemsTable tbody').append(row);
-            
-            // Re-initialize Select2 for the new product-select
-            initProductSelect2(row.find('.product-select'));
-            
-            itemIndex++;
-            updateTotals();
-        });
 
         $(document).on('click', '.remove-item', function () {
             if ($('#itemsTable tbody tr').length > 1) {

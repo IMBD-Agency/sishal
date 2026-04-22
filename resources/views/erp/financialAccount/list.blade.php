@@ -20,6 +20,9 @@
                     </nav>
                 </div>
                 <div class="col-md-6 text-end">
+                    <a href="{{ route('chart-of-account.index') }}" class="btn btn-outline-info me-2">
+                        <i class="fas fa-sitemap me-2"></i>Chart of Accounts
+                    </a>
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
                         <i class="fas fa-plus me-2"></i>Add Account
                     </button>

@@ -83,6 +83,16 @@
                 </a>
             </div>
 
+            @if ($errors->any())
+                <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <form action="{{ route('erp.variation-attributes.store') }}" method="POST" enctype="multipart/form-data" id="attributeForm">
                 @csrf
                 
@@ -117,6 +127,13 @@
                                         <input class="form-check-input" type="checkbox" name="is_color" id="is_color" value="1">
                                         <label class="form-check-label" for="is_color">Color-based Attribute</label>
                                     </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status <span class="text-danger">*</span></label>
+                                    <select name="status" class="form-select shadow-sm border-0 bg-light" required>
+                                        <option value="active" selected>Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>

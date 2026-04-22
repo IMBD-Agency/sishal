@@ -287,6 +287,14 @@
                                     </form>
                                 @endif
 
+                                {{-- Return Items Button: visible only after delivery, and not shown on return-type transfers --}}
+                                @if($transfer->status == 'delivered' && $transfer->type !== 'return')
+                                    <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="btn btn-warning px-5 fw-bold text-dark"
+                                       onclick="return confirm('You are about to initiate a Return of items from this transfer. Proceed?')">
+                                        <i class="fas fa-undo-alt me-2"></i>RETURN ITEMS TO SOURCE
+                                    </a>
+                                @endif
+
                                 @if(in_array($transfer->status, ['pending', 'rejected']))
                                     <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
                                         @csrf
@@ -297,6 +305,22 @@
                                     </form>
                                 @endif
                             </div>
+
+                            {{-- Show linked returns if any --}}
+                            @php
+                                $returnCount = \App\Models\StockTransfer::where('return_of_id', $transfer->id)->count();
+                            @endphp
+                            @if($returnCount > 0)
+                            <div class="mt-4 alert alert-info border-0 d-flex align-items-center gap-2" style="background: #e8f4fd;">
+                                <i class="fas fa-info-circle text-info"></i>
+                                <span class="small fw-bold">
+                                    This transfer has <strong>{{ $returnCount }} return(s)</strong> recorded against it.
+                                    <a href="{{ route('stocktransfer.list') }}?search={{ $transfer->invoice_number }}" class="ms-2 text-decoration-none fw-bold text-info">
+                                        View in History →
+                                    </a>
+                                </span>
+                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>

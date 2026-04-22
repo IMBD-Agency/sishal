@@ -83,6 +83,16 @@
                 </a>
             </div>
 
+            @if ($errors->any())
+                <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <form action="{{ route('erp.variation-attributes.update', $attribute->id) }}" method="POST" enctype="multipart/form-data" id="attributeForm">
                 @csrf
                 @method('PUT')

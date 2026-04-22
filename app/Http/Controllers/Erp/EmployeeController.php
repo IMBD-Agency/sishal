@@ -70,6 +70,7 @@ class EmployeeController extends Controller
             'password'   => 'required|string|min:6|confirmed',
             'branch_id'  => 'nullable|exists:branches,id',
             'role'       => 'nullable|string|max:255',
+            'designation' => 'nullable|string|max:255',
             'phone'      => 'required|string|max:20|unique:employees,phone',
             'salary'     => 'nullable|numeric|min:0'
         ]);
@@ -92,7 +93,7 @@ class EmployeeController extends Controller
         $employee = new Employee();
         $employee->user_id = $user->id;
         $employee->branch_id = $request->branch_id;
-        $employee->designation = $request->role;
+        $employee->designation = $request->designation;
         $employee->phone = $request->phone;
         $employee->salary = $request->salary ?? 0;
         $employee->status = $request->status;
@@ -164,6 +165,7 @@ class EmployeeController extends Controller
             'last_name' => 'required|string|max:255',
             'branch_id' => 'nullable|exists:branches,id',
             'role' => 'required|string|max:255',
+            'designation' => 'nullable|string|max:255',
             'phone' => 'required|string|max:20',
             'salary' => 'nullable|numeric|min:0',
             'status' => 'required|in:active,inactive',
@@ -185,7 +187,7 @@ class EmployeeController extends Controller
         
         $user->save();
         $employee->branch_id = $validated['branch_id'];
-        $employee->designation = $validated['role'];
+        $employee->designation = $validated['designation'];
         $employee->phone = $validated['phone'];
         $employee->salary = $validated['salary'] ?? 0;
         $employee->status = $validated['status'];

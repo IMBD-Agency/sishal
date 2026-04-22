@@ -37,9 +37,29 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // If explicitly coming from ERP login, go to Dashboard
+        // If explicitly coming from ERP login, go to the best available page based on permissions
         if ($request->login_source === 'erp') {
-            return redirect()->intended(route('erp.dashboard', absolute: false));
+            $user = Auth::user();
+            
+            // Define prioritized landing pages based on permissions
+            $landingPages = [
+                'view dashboard' => 'erp.dashboard',
+                'view products' => 'product.list',
+                'use pos' => 'pos.add',
+                'view sales' => 'pos.list',
+                'view purchases' => 'purchase.list',
+                'view online orders' => 'order.list',
+                'view branches' => 'branches.index',
+            ];
+
+            foreach ($landingPages as $permission => $routeName) {
+                if ($user->hasPermissionTo($permission)) {
+                    return redirect()->intended(route($routeName, absolute: false));
+                }
+            }
+
+            // Ultimate fallback for ERP users
+            return redirect()->intended(route('erp.profile', absolute: false));
         }
 
         // Otherwise, go to Ecommerce Home (even for admins)

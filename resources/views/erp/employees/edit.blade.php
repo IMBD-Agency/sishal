@@ -94,22 +94,27 @@
                                 <div class="col-md-6">
                                     <h6 class="text-muted text-uppercase fw-bold small mb-3">Role & Access Control</h6>
 
-                                    <div class="mb-3">
-                                        <label for="role" class="form-label">System Role <span class="text-danger">*</span></label>
-                                        <select class="form-select" id="role" name="role">
-                                            <option value="">Select Role...</option>
-                                            @foreach ($roles as $role)
-                                                <option value="{{ $role->name }}" {{ (old('role') ?? ($employee->user->roles->first()->name ?? '')) == $role->name ? 'selected' : '' }}>{{ $role->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="status" class="form-label">Account Status</label>
-                                        <select class="form-select" id="status" name="status">
-                                            <option value="active" {{ old('status', $employee->status) == 'active' ? 'selected' : '' }}>Active & Enabled</option>
-                                            <option value="inactive" {{ old('status', $employee->status) == 'inactive' ? 'selected' : '' }}>Suspended / Inactive</option>
-                                        </select>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="role" class="form-label">System Role <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="role" name="role">
+                                                <option value="">Select Role...</option>
+                                                @foreach ($roles as $role)
+                                                    <option value="{{ $role->name }}" {{ (old('role') ?? ($employee->user->roles->first()->name ?? '')) == $role->name ? 'selected' : '' }}>{{ $role->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="designation" class="form-label">Designation</label>
+                                            <input type="text" class="form-control" id="designation" name="designation" value="{{ old('designation', $employee->designation) }}" placeholder="e.g. Sales Manager">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="status" class="form-label">Account Status</label>
+                                            <select class="form-select" id="status" name="status">
+                                                <option value="active" {{ old('status', $employee->status) == 'active' ? 'selected' : '' }}>Active</option>
+                                                <option value="inactive" {{ old('status', $employee->status) == 'inactive' ? 'selected' : '' }}>Suspended</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div class="mb-3">

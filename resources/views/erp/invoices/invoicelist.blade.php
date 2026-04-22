@@ -163,8 +163,10 @@
                                             <div class="fw-bold text-dark">{{ number_format($invoice->total_amount, 2) }} ৳</div>
                                             @if($invoice->due_amount > 0)
                                                 <div class="extra-small text-danger">Due: {{ number_format($invoice->due_amount, 2) }} ৳</div>
-                                            @else
+                                            @elseif($invoice->total_amount > 0)
                                                 <div class="extra-small text-success">Fully Paid</div>
+                                            @else
+                                                <div class="extra-small text-muted">No Items</div>
                                             @endif
                                         </td>
                                         <td class="text-center">

@@ -77,6 +77,10 @@ class PermissionSeeder extends Seeder
             // Ecommerce
             ['name' => 'view online orders', 'category' => 'Ecommerce'],
             ['name' => 'manage online orders', 'category' => 'Ecommerce'],
+            ['name' => 'view online returns', 'category' => 'Ecommerce'],
+            ['name' => 'manage online returns', 'category' => 'Ecommerce'],
+            ['name' => 'view online exchanges', 'category' => 'Ecommerce'],
+            ['name' => 'manage online exchanges', 'category' => 'Ecommerce'],
             ['name' => 'view customers', 'category' => 'Ecommerce'],
             ['name' => 'manage customers', 'category' => 'Ecommerce'],
             ['name' => 'view internal invoices', 'category' => 'Ecommerce'],

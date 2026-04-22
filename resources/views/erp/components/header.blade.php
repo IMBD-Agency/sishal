@@ -29,7 +29,7 @@
                     <div class="d-none d-md-block text-start">
                         <div class="fw-bold">{{ Auth::user()->first_name ?? 'User' }}
                             {{ Auth::user()->last_name ?? '' }}</div>
-                        <small class="text-muted">{{ Auth::user()->roles->first()->name ?? 'No Role' }}</small>
+                        <small class="text-muted">{{ Auth::user()->employee->designation ?? (Auth::user()->roles->first()->name ?? 'No Role') }}</small>
                     </div>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end mt-2" aria-labelledby="userDropdown">

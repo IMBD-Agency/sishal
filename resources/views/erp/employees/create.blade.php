@@ -111,7 +111,7 @@
                                     </div>
 
                                     <div class="row g-3">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label for="role" class="form-label">System Role <span class="text-danger">*</span></label>
                                             <select class="form-select" id="role" name="role">
                                                 <option value="">Select Role...</option>
@@ -120,11 +120,15 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
+                                            <label for="designation" class="form-label">Designation</label>
+                                            <input type="text" class="form-control" id="designation" name="designation" value="{{ old('designation') }}" placeholder="e.g. Sales Manager">
+                                        </div>
+                                        <div class="col-md-4">
                                             <label for="status" class="form-label">Account Status</label>
                                             <select class="form-select" id="status" name="status">
-                                                <option value="active" selected>Active & Enabled</option>
-                                                <option value="inactive">Suspended / Draft</option>
+                                                <option value="active" selected>Active</option>
+                                                <option value="inactive">Suspended</option>
                                             </select>
                                         </div>
                                         <div class="col-md-12 mt-3">

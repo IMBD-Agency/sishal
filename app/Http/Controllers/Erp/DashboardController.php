@@ -18,7 +18,8 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('view dashboard')) {
-            abort(403, 'Unauthorized action.');
+            // If user has ERP access but no dashboard permission, redirect to profile
+            return redirect()->route('erp.profile')->with('error', 'You do not have permission to view the dashboard.');
         }
         $dateRange = $request->get('range', 'week');
         $branchId = $this->getRestrictedBranchId() ?? 0;

@@ -29,7 +29,7 @@ class OrderExchangeController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+        if (!auth()->user()->hasPermissionTo('view online exchanges') && !auth()->user()->hasPermissionTo('view exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $exchanges = $this->getFilteredQuery($request)
@@ -220,7 +220,7 @@ class OrderExchangeController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('manage online exchanges') && !auth()->user()->hasPermissionTo('manage exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $customers = Customer::all();
@@ -244,7 +244,7 @@ class OrderExchangeController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('manage online exchanges') && !auth()->user()->hasPermissionTo('manage exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -377,7 +377,7 @@ class OrderExchangeController extends Controller
 
     public function show($id)
     {
-        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+        if (!auth()->user()->hasPermissionTo('view online exchanges') && !auth()->user()->hasPermissionTo('view exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $orderReturn = OrderReturn::with([
