@@ -85,14 +85,14 @@
                             <thead>
                                 <tr class="bg-light">
                                     <th width="60">IMAGE</th>
-                                    <th>SPECIFICATIONS</th>
-                                    <th width="200">PRODUCT NAME</th>
-                                    <th>STYLE NO.</th>
-                                    <th width="120">SIZE</th>
-                                    <th width="120">COLOR</th>
-                                    <th width="120" class="text-center">QTY</th>
-                                    <th width="130" class="text-end">UNIT PRICE</th>
-                                    <th width="140" class="text-end">TOTAL</th>
+                                    <th width="160" style="min-width: 160px;">SPECIFICATIONS</th>
+                                    <th width="180" style="min-width: 180px;">PRODUCT NAME</th>
+                                    <th width="140" style="min-width: 130px;">STYLE NO.</th>
+                                    <th width="120" style="min-width: 110px;">SIZE</th>
+                                    <th width="120" style="min-width: 110px;">COLOR</th>
+                                    <th width="120" class="text-center" style="min-width: 120px;">QTY</th>
+                                    <th width="150" class="text-end" style="min-width: 160px; white-space: nowrap;">UNIT PRICE</th>
+                                    <th width="150" class="text-end" style="min-width: 150px; white-space: nowrap;">TOTAL</th>
                                     <th width="60" class="text-center"></th>
                                 </tr>
                             </thead>
@@ -226,7 +226,6 @@
 
             // Supplier dropdown is handled by global .select2 class in master.blade.php
 
-
             // ENHANCED: Auto-add on Style Number Select
             $('#styleNumberSearch').select2({
                 theme: 'bootstrap-5',
@@ -323,7 +322,7 @@
                         <div><span class="fw-bold text-dark">SEA:</span> ${p.season || '-'} / ${p.gender || '-'}</div>
                     </td>
                     <td class="fw-bold text-dark">${p.name}</td>
-                    <td><code class="text-primary bg-light px-2 py-1 rounded small">${p.style_number ?? p.sku ?? '-'}</code></td>
+                    <td><code class="text-danger bg-light px-2 py-1 rounded small" style="white-space: nowrap; font-weight: 600;">${p.style_number ?? p.sku ?? '-'}</code></td>
                     <td>
                         <select name="items[${rowIndex}][size_id]" class="form-select form-select-sm size-select" ${!showSize ? 'disabled' : ''}>
                             ${sizeOptions}
@@ -344,9 +343,9 @@
                         <input type="hidden" name="items[${rowIndex}][product_id]" value="${p.id}">
                     </td>
                     <td>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light border-end-0 text-muted small">৳</span>
-                            <input type="number" name="items[${rowIndex}][unit_price]" class="form-control unit-price-input unit_price text-end border-start-0 ps-0" value="${unitPrice}" step="0.01">
+                        <div class="input-group input-group-sm flex-nowrap" style="min-width: 140px !important;">
+                            <span class="input-group-text bg-light border-end-0 text-muted px-2" style="font-weight: 600;">৳</span>
+                            <input type="number" name="items[${rowIndex}][unit_price]" class="form-control unit-price-input unit_price text-end border-start-0" value="${unitPrice}" step="0.01">
                         </div>
                     </td>
                     <td class="text-end fw-bold text-primary">

@@ -188,6 +188,7 @@ class DoubleEntryReportController extends Controller
         if (!auth()->user()->hasPermissionTo('view reports')) {
             abort(403, 'Unauthorized action.');
         }
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
         $restrictedBranchId = $this->getRestrictedBranchId();
         $accounts = ChartOfAccount::whereHas('entries', function($q) use ($endDate, $restrictedBranchId) {
             $q->whereHas('journal', function($jq) use ($endDate, $restrictedBranchId) {
