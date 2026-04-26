@@ -143,8 +143,11 @@
                                         <tr>
                                             <td class="ps-4">
                                                 <div class="d-flex align-items-center py-1">
-                                                    <div class="thumbnail-box me-3" style="width: 35px; height: 35px;">
-                                                        <img src="{{ $item->product && $item->product->image ? asset('storage/'.$item->product->image) : asset('static/default-product.png') }}" alt="P">
+                                                    <div class="thumbnail-box me-3" style="width: 45px; height: 45px; overflow: hidden; border-radius: 8px;">
+                                                        <img src="{{ $item->product && $item->product->image ? (Str::startsWith($item->product->image, 'http') ? $item->product->image : asset($item->product->image)) : asset('static/default-product.jpg') }}" 
+                                                             alt="Product" 
+                                                             style="width: 100%; height: 100%; object-fit: cover;"
+                                                             onerror="this.src='{{ asset('static/default-product.jpg') }}'">
                                                     </div>
                                                     <div>
                                                         <h6 class="mb-0 fw-bold text-dark small">{{ $item->product->name ?? 'N/A' }}</h6>
@@ -302,13 +305,13 @@
     <script>
         $(document).ready(function() {
             // Handle status badge click to open modal
-            $(document).on('click', '.status-badge', function() {
+            $(document).on('click', '.status-badge, .update-status-btn', function() {
                 const returnId = $(this).data('return-id');
-                const currentStatus = $(this).data('current-status');
+                const newStatus = $(this).data('status') || $(this).data('current-status');
                 
                 // Set modal data
                 $('#returnId').val(returnId);
-                $('#newStatus').val(currentStatus);
+                $('#newStatus').val(newStatus);
                 
                 // Show modal
                 $('#statusUpdateModal').modal('show');

@@ -268,12 +268,12 @@ class PurchaseReturnController extends Controller
             $searchTerm = $request->search;
             $query->whereHas('purchaseReturn', function($q) use ($searchTerm) {
                 $q->where('id', 'LIKE', "%{$searchTerm}%")
-                  ->orWhereHas('purchase', function($purchaseQuery) use ($searchTerm) {
-                      $purchaseQuery->where('id', 'LIKE', "%{$searchTerm}%")
-                           ->orWhereHas('bill', function($bq) use ($searchTerm) {
-                               $bq->where('invoice_number', 'LIKE', "%{$searchTerm}%");
-                           });
-                  });
+                ->orWhereHas('purchase', function($purchaseQuery) use ($searchTerm) {
+                    $purchaseQuery->where('id', 'LIKE', "%{$searchTerm}%")
+                         ->orWhereHas('bill', function($bq) use ($searchTerm) {
+                             $bq->where('bill_number', 'LIKE', "%{$searchTerm}%");
+                         });
+                });
             });
         }
 
@@ -296,8 +296,6 @@ class PurchaseReturnController extends Controller
             });
         }
         if ($request->filled('purchase_id')) {
-            $query->where('purchase_return_id', $request->purchase_id); // This might need adjustment if purchase_id refers to original purchase
-            // If filtering by Original Purchase ID:
              $query->whereHas('purchaseReturn', function($q) use ($request) {
                 $q->where('purchase_id', $request->purchase_id);
              });
