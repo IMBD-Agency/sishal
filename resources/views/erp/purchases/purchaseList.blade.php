@@ -98,26 +98,26 @@
                     <form action="{{ route('purchase.list') }}" method="GET" id="filterForm">
                         <div class="d-flex gap-4 mb-3">
                             <div class="form-check">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type') == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
                             </div>
                         </div>
                         <div class="row g-3">
                             <div class="col-md-2 date-group daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date Registry</label>
-                                <input type="date" name="start_date" class="form-control shadow-none" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                                <input type="date" name="start_date" class="form-control shadow-none" value="{{ request('report_type') == 'daily' && $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-2 date-group daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date Registry</label>
-                                <input type="date" name="end_date" class="form-control shadow-none" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                                <input type="date" name="end_date" class="form-control shadow-none" value="{{ request('report_type') == 'daily' && $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 date-group monthly-group" style="display: none;">
@@ -236,33 +236,26 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-2 d-flex align-items-end gap-2">
-                                <button type="submit" class="btn btn-primary flex-fill shadow-none fw-bold" style="height: 42px;">
-                                    <i class="fas fa-search me-1"></i>Search
-                                </button>
-                                <a href="{{ route('purchase.list') }}" class="btn btn-light border flex-fill fw-bold d-flex align-items-center justify-content-center" style="height: 42px;" title="Reset Filters">
-                                    <i class="fas fa-undo"></i> Reset
-                                </a>
-                            </div>
+
                         </div>
 
                         <div class="card-footer bg-light border-top p-3 mt-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('purchase.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
+                                    <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" onclick="exportData('excel')">
                                         <i class="fas fa-file-excel me-2"></i>Excel
-                                    </a>
-                                    <a href="{{ route('purchase.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="exportData('pdf')">
                                         <i class="fas fa-file-pdf me-2"></i>PDF
-                                    </a>
+                                    </button>
                                     <button class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="window.print()">
                                         <i class="fas fa-print me-2"></i>Print Registry
                                     </button>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('purchase.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                    <button type="button" id="resetFilters" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
                                         <i class="fas fa-undo me-2"></i>Reset
-                                    </a>
+                                    </button>
                                     <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
                                         <i class="fas fa-search me-2"></i>Apply Filters
                                     </button>
@@ -282,223 +275,9 @@
                         <i class="fas fa-search search-icon-premium"></i>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table compact reporting-table mb-0" id="procurementTable">
-                            <thead>
-                                <tr>
-                                    <th class="ps-3">SL</th>
-                                    <th>Inv #</th>
-                                    <th>Date</th>
-                                    <th class="text-center">Image</th>
-                                    <th>Supplier</th>
-                                    <th>Category</th>
-                                    <th>Brand</th>
-                                    <th>Season</th>
-                                    <th>Gender</th>
-                                    <th style="min-width: 150px;">Product Name</th>
-                                    <th>Style #</th>
-                                    <th width="120">Color</th>
-                                    <th width="100">Size</th>
-                                    <th class="text-center">Pur. Qty</th>
-                                    <th class="text-center bg-light" title="Total items in this Invoice">Inv. T. Qty</th>
-                                    <th class="text-end">Pur. Value</th>
-                                    <th class="text-end bg-light" title="Total value of this Invoice">Inv. T. Value</th>
-                                    <th class="text-center">Ret. Qty</th>
-                                    <th class="text-center bg-light">Inv. T. Ret. Qty</th>
-                                    <th class="text-end">Ret. Value</th>
-                                    <th class="text-end bg-light">Inv. T. Ret. Value</th>
-                                    <th class="text-center">Act. Qty</th>
-                                    <th class="text-center bg-light">Inv. T. Act. Qty</th>
-                                    <th class="text-end">Act. Value</th>
-                                    <th class="text-end bg-light">Inv. T. Act. Value</th>
-                                    <th class="text-center fw-bold text-info">Live Stock</th>
-                                    <th class="text-end">Bill Disc.</th>
-                                    <th class="text-end">Paid A/C</th>
-                                    <th class="text-end">Due A/C</th>
-                                    <th class="text-center">Status</th>
-                                    <th class="text-center pe-3">ACTION</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php 
-                                    $grandTotalPurQty = 0; $grandTotalPurAmt = 0;
-                                    $grandTotalRetQty = 0; $grandTotalRetAmt = 0;
-                                    $grandTotalActQty = 0; $grandTotalActAmt = 0;
-                                    $grandTotalDiscount = 0;
-                                    $grandTotalPaid = 0; $grandTotalDue = 0;
-                                @endphp
-                                @forelse($items as $index => $item)
-                                    @php
-                                        $purchase = $item->purchase;
-                                        $bill = $purchase->bill;
-                                        $product = $item->product;
-                                        $variation = $item->variation;
-                                        
-                                        $color = '-'; $size = '-';
-                                        if ($variation && $variation->attributeValues) {
-                                            foreach($variation->attributeValues as $val) {
-                                                $attrName = strtolower($val->attribute->name ?? '');
-                                                if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
-                                                    $color = $val->value;
-                                                } elseif (str_contains($attrName, 'size')) {
-                                                    $size = $val->value;
-                                                }
-                                            }
-                                        }
-
-                                        $retQty = $item->returnItems->sum('returned_qty');
-                                        $retAmt = $item->returnItems->sum(function($ri) { return $ri->returned_qty * $ri->unit_price; });
-                                        $actualQty = $item->quantity - $retQty;
-                                        $actualAmt = $item->total_price - $retAmt;
-
-                                        // Invoice-Level Summary
-                                        $showInvoiceTotals = ($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id);
-                                        $invPurQty = $purchase->items->sum('quantity');
-                                        $invPurAmt = $purchase->items->sum('total_price');
-                                        $invRetQty = $purchase->items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
-                                        $invRetAmt = $purchase->items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
-                                        
-                                        $invActQty = $invPurQty - $invRetQty;
-                                        $invActAmt = $invPurAmt - $invRetAmt;
-
-                                        $grandTotalPurQty += $item->quantity;
-                                        $grandTotalPurAmt += $item->total_price;
-                                        $grandTotalRetQty += $retQty;
-                                        $grandTotalRetAmt += $retAmt;
-                                        $grandTotalActQty += $actualQty;
-                                        $grandTotalActAmt += $actualAmt;
-                                    @endphp
-                                    <tr>
-                                        <td class="ps-3 text-muted">{{ $items->firstItem() + $index }}</td>
-                                        <td class="fw-bold">
-                                            <a href="{{ route('purchase.show', $purchase->id) }}" class="text-decoration-none text-primary">
-                                                @if($bill && $bill->bill_number) {{ $bill->bill_number }} 
-                                                @else #PUR-{{ str_pad($purchase->id, 5, '0', STR_PAD_LEFT) }} @endif
-                                            </a>
-                                        </td>
-                                        <td>{{ $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') : '-' }}</td>
-                                        <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
-                                        <td class="text-center">
-                                            <div class="thumbnail-box mx-auto" style="width: 35px; height: 35px;">
-                                                <img src="{{ $product && $product->image ? asset($product->image) : asset('static/default-product.jpg') }}" alt="">
-                                            </div>
-                                        </td>
-                                        <td>{{ $product->category->name ?? '-' }}</td>
-                                        <td>{{ $product->brand->name ?? '-' }}</td>
-                                        <td>{{ $product->season->name ?? '-' }}</td>
-                                        <td>{{ $product->gender->name ?? '-' }}</td>
-                                        <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
-                                        <td><code class="text-primary bg-light px-2 py-1 rounded">{{ $product->sku ?? '-' }}</code></td>
-                                        <td class="text-uppercase fw-bold">{{ $color }}</td>
-                                        <td class="fw-bold">{{ $size }}</td>
-                                        
-                                        <td class="text-center">{{ number_format($item->quantity, 2) }}</td>
-                                        <td class="text-center fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invPurQty, 2) }} @else - @endif</td>
-                                        <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>
-                                        <td class="text-end fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invPurAmt, 2) }}৳ @else - @endif</td>
-                                        
-                                        <td class="text-center text-danger">{{ number_format($retQty, 2) }}</td>
-                                        <td class="text-center text-danger fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invRetQty, 2) }} @else - @endif</td>
-                                        <td class="text-end text-danger">{{ number_format($retAmt, 2) }}৳</td>
-                                        <td class="text-end text-danger fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invRetAmt, 2) }}৳ @else - @endif</td>
-                                        
-                                        <td class="text-center text-success">{{ number_format($actualQty, 2) }}</td>
-                                        <td class="text-center text-success fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invActQty, 2) }} @else - @endif</td>
-                                        <td class="text-end text-success">{{ number_format($actualAmt, 2) }}৳</td>
-                                        <td class="text-end text-success fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invActAmt, 2) }}৳ @else - @endif</td>
-                                        
-                                        <td class="text-center fw-bold text-info">
-                                            {{ $variation ? $variation->available_stock : ($product ? $product->total_stock : 0) }}
-                                        </td>
-                                        
-                                        <td class="text-end text-warning fw-bold">
-                                            @if($showInvoiceTotals)
-                                                {{ number_format($bill->discount_amount ?? 0, 2) }}৳
-                                                @php $grandTotalDiscount += ($bill->discount_amount ?? 0); @endphp
-                                            @else - @endif
-                                        </td>
-                                        <td class="text-end text-primary fw-bold">
-                                            @if($showInvoiceTotals)
-                                                {{ number_format($bill->paid_amount ?? 0, 2) }}৳
-                                                @php $grandTotalPaid += ($bill->paid_amount ?? 0); @endphp
-                                            @else - @endif
-                                        </td>
-                                        <td class="text-end text-danger fw-bold">
-                                            @if($showInvoiceTotals)
-                                                {{ number_format($bill->due_amount ?? 0, 2) }}৳
-                                                @php $grandTotalDue += ($bill->due_amount ?? 0); @endphp
-                                            @else - @endif
-                                        </td>
-                                        <td class="text-center">
-                                            @php
-                                                $statusDot = [
-                                                    'pending' => 'bg-warning',
-                                                    'received' => 'bg-success',
-                                                    'cancelled' => 'bg-danger',
-                                                ][$purchase->status] ?? 'bg-secondary';
-                                            @endphp
-                                            <span class="status-pill {{ str_replace('bg-', 'status-', $statusDot) }}">
-                                                <i class="fas fa-circle extra-small"></i>{{ ucfirst($purchase->status) }}
-                                            </span>
-                                        </td>
-                                        <td class="pe-3">
-                                            <div class="d-flex gap-2 justify-content-center">
-                                                <a href="{{ route('purchase.show', $purchase->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
-                                                    <i class="fas fa-eye text-primary"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="30" class="text-center py-5">
-                                            <div class="text-muted opacity-50 py-4">
-                                                <i class="fas fa-file-invoice fa-3x mb-3"></i>
-                                                <h6 class="fw-bold">No Procurement Records Found</h6>
-                                                <p class="small mb-0">Adjust your filters or try scanning a different batch.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                            <tfoot class="bg-light border-top-0">
-                                <tr class="fw-bold text-dark text-uppercase" style="font-size: 13px;">
-                                    <td colspan="13" class="text-end py-3">Global Registry Totals</td>
-                                    <td class="text-center">{{ number_format($grandTotalPurQty, 2) }}</td>
-                                    <td class="text-center bg-white">-</td>
-                                    <td class="text-end">{{ number_format($grandTotalPurAmt, 2) }}৳</td>
-                                    <td class="text-end bg-white">-</td>
-                                    
-                                    <td class="text-center text-danger">{{ number_format($grandTotalRetQty, 2) }}</td>
-                                    <td class="text-center text-danger bg-white">-</td>
-                                    <td class="text-end text-danger">{{ number_format($grandTotalRetAmt, 2) }}৳</td>
-                                    <td class="text-end text-danger bg-white">-</td>
-                                    
-                                    <td class="text-center text-success">{{ number_format($grandTotalActQty, 2) }}</td>
-                                    <td class="text-center text-success bg-white">-</td>
-                                    <td class="text-end text-success">{{ number_format($grandTotalActAmt, 2) }}৳</td>
-                                    <td class="text-end text-success bg-white">-</td>
-                                    
-                                    <td class="text-center text-info">-</td>
-                                    
-                                    <td class="text-end text-warning">{{ number_format($grandTotalDiscount, 2) }}৳</td>
-                                    <td class="text-end text-primary">{{ number_format($grandTotalPaid, 2) }}৳</td>
-                                    <td class="text-end text-danger">{{ number_format($grandTotalDue, 2) }}৳</td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                @if($items->hasPages())
-                <div class="card-footer bg-white py-3 border-top">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 0.05em;">Registry Batch: {{ $items->firstItem() }} - {{ $items->lastItem() }} of {{ $items->total() }}</small>
-                        {{ $items->links('vendor.pagination.bootstrap-5') }}
-                    </div>
+                <div class="card-body p-0" id="table-container">
+                    @include('erp.purchases.partials.table')
                 </div>
-                @endif
             </div>
         </div>
     </div>
@@ -521,22 +300,97 @@
                     document.querySelectorAll('.yearly-group').forEach(el => el.style.display = 'block');
                 }
             }
-            reportRadios.forEach(radio => radio.addEventListener('change', toggleDateGroups));
+            reportRadios.forEach(radio => radio.addEventListener('change', () => {
+                toggleDateGroups();
+            }));
             toggleDateGroups();
+            
+            // AJAX Filtering Logic
+            function fetchPurchasesData(url = null) {
+                const form = $('#filterForm');
+                const targetUrl = url || form.attr('action');
+                const data = url ? null : form.serialize();
 
-            // Quick Search Table Functionality with Debounce
-            let searchTimeout;
-            $('#procurementSearch').on('input', function() {
-                const value = $(this).val().toLowerCase();
-                clearTimeout(searchTimeout);
-                
-                searchTimeout = setTimeout(function() {
-                    $('#procurementTable tbody tr').filter(function() {
-                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-                    });
-                }, 300);
+                $('#table-container').css('opacity', '0.5');
+
+                $.ajax({
+                    url: targetUrl,
+                    data: data,
+                    success: function(response) {
+                        $('#table-container').html(response);
+                        $('#table-container').css('opacity', '1');
+                        initializeTableScripts();
+                    },
+                    error: function() {
+                        $('#table-container').css('opacity', '1');
+                        alert('Error loading data. Please try again.');
+                    }
+                });
+            }
+
+            // Reset Filters Button
+            $('#resetFilters').on('click', function() {
+                const form = $('#filterForm');
+                form[0].reset();
+                $('.select2-setup').val('').trigger('change');
+                $('#yearlyReport').prop('checked', true).trigger('change');
+                fetchPurchasesData("{{ route('purchase.list') }}");
             });
+
+            // Intercept Filter Form Submission
+            $('#filterForm').on('submit', function(e) {
+                e.preventDefault();
+                fetchPurchasesData();
+            });
+
+            // Intercept Pagination Clicks
+            $(document).on('click', '.pagination a', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                if (url) {
+                    fetchPurchasesData(url);
+                    $('html, body').animate({
+                        scrollTop: $("#table-container").offset().top - 100
+                    }, 200);
+                }
+            });
+
+            function initializeTableScripts() {
+                let searchTimeout;
+                $('#procurementSearch').off('input').on('input', function() {
+                    const value = $(this).val().toLowerCase();
+                    clearTimeout(searchTimeout);
+                    
+                    searchTimeout = setTimeout(function() {
+                        $('#procurementTable tbody tr').filter(function() {
+                            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                        });
+                    }, 300);
+                });
+            }
+
+            initializeTableScripts();
         });
+
+        function exportData(format) {
+            const form = document.getElementById('filterForm');
+            const originalAction = form.action;
+            const originalTarget = form.target;
+
+            if (format === 'excel') {
+                form.action = "{{ route('purchase.export.excel') }}";
+                form.target = "_blank";
+                form.submit();
+            } else if (format === 'pdf') {
+                form.action = "{{ route('purchase.export.pdf') }}";
+                form.target = "_blank";
+                form.submit();
+            } 
+
+            // Restore
+            form.action = originalAction;
+            form.target = originalTarget;
+        }
     </script>
     @endpush
 @endsection

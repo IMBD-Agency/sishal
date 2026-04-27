@@ -112,17 +112,19 @@ class StockController extends Controller
             });
         }
 
-        // Calculate Totals for Summary (before pagination)
-        $summaryQuery = clone $query;
-        $summaryData = $summaryQuery->get();
-        $totalStockQty = $summaryData->sum(function($p) {
-            return $p->has_variations ? ($p->var_stock ?? 0) : (($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0));
-        });
-        $totalStockValue = $summaryData->sum(function($p) {
-            $qty = $p->has_variations ? ($p->var_stock ?? 0) : (($p->simple_branch_stock ?? 0) + ($p->simple_warehouse_stock ?? 0));
-            return $qty * $p->cost;
-        });
+        // Ultimate Big Data Optimization: Calculate totals in the database
+        $totals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
+            ->mergeBindings($query->getQuery())
+            ->selectRaw("
+                SUM(CASE WHEN has_variations = 1 THEN var_stock ELSE COALESCE(simple_branch_stock, 0) + COALESCE(simple_warehouse_stock, 0) END) as total_qty,
+                SUM((CASE WHEN has_variations = 1 THEN var_stock ELSE COALESCE(simple_branch_stock, 0) + COALESCE(simple_warehouse_stock, 0) END) * cost) as total_value
+            ")
+            ->first();
 
+        $totalStockQty = $totals->total_qty ?? 0;
+        $totalStockValue = $totals->total_value ?? 0;
+
+        // Use paginate for UI, but simplePaginate is even faster for millions of rows
         $productStocks = $query->latest()->paginate(100)->appends($request->except('page'));
 
         // Load breakdown relations ONLY for the 20 items on the current page
@@ -150,6 +152,12 @@ class StockController extends Controller
             // Branches already limited above
             // Don't empty warehouses if they should see it, but maybe limit the filter?
             // Actually, if they are restricted to a branch, the 'Branch' filter should probably be fixed or hidden.
+        }
+
+        if ($request->ajax()) {
+            return view('erp.productStock.partials.table', compact(
+                'productStocks', 'totalStockQty', 'totalStockValue'
+            ))->render();
         }
 
         return view('erp.productStock.productStockList', compact(

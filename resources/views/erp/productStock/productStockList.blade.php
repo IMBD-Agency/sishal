@@ -104,20 +104,20 @@
                     <div class="card-footer bg-light border-top p-3 mt-4 mx-n3 mb-n3" style="border-bottom-left-radius: var(--bs-border-radius-xl); border-bottom-right-radius: var(--bs-border-radius-xl);">
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="d-flex gap-2">
-                                <a href="{{ route('productstock.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
+                                <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader" onclick="exportData('excel')">
                                     <i class="fas fa-file-excel me-2"></i>Excel
-                                </a>
-                                <a href="{{ route('productstock.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader">
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader" onclick="exportData('pdf')">
                                     <i class="fas fa-file-pdf me-2"></i>PDF
-                                </a>
+                                </button>
                                 <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm no-loader" onclick="window.print()">
                                     <i class="fas fa-print me-2"></i>Print
                                 </button>
                             </div>
                             <div class="d-flex gap-2">
-                                <a href="{{ route('productstock.list') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                <button type="button" id="resetFilters" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
                                     <i class="fas fa-undo me-2"></i>Reset
-                                </a>
+                                </button>
                                 <button type="submit" class="btn btn-create-premium px-5 filter-btn" style="height: 42px;">
                                     <i class="fas fa-search me-2"></i>Filter
                                 </button>
@@ -128,218 +128,8 @@
             </div>
         </div>
 
-        <!-- Inventory Summary Cards -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm rounded-4 bg-primary text-white">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Total Stock Items</h6>
-                                <h2 class="fw-bold mb-0">{{ number_format($totalStockQty) }}</h2>
-                            </div>
-                            <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
-                                <i class="fas fa-boxes fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm rounded-4 bg-success text-white">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Total Stock Value</h6>
-                                <h2 class="fw-bold mb-0">৳ {{ number_format($totalStockValue, 2) }}</h2>
-                            </div>
-                            <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
-                                <i class="fas fa-coins fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm rounded-4 bg-info text-white">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Active Products</h6>
-                                <h2 class="fw-bold mb-0">{{ $productStocks->total() }}</h2>
-                            </div>
-                            <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
-                                <i class="fas fa-tag fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Table Area -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Live Products Inventory</h6>
-            <div class="search-wrapper-premium" style="width: 300px;">
-                <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium table-search-input" placeholder="Quick find in inventory...">
-                <i class="fas fa-search search-icon-premium"></i>
-            </div>
-        </div>
-
-        <div class="premium-card shadow-sm">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table premium-table reporting-table mb-0" id="stockTable">
-                        <thead>
-                             <tr>
-                                <th class="ps-3">SL</th>
-                                <th>Item Details</th>
-                                <th>Style / SKU</th>
-                                <th>Category</th>
-                                <th>Size Breakdown</th>
-                                <th class="text-end">Pur. Price</th>
-                                <th class="text-end">MRP</th>
-                                <th class="text-center">Total Stock</th>
-                                <th class="text-end">Stock Value</th>
-                                <th class="text-center">Locations</th>
-                                <th class="text-center pe-3">ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($productStocks as $index => $stock)
-                                @php
-                                    $totalStock = $stock->has_variations ? ($stock->var_stock ?? 0) : (($stock->simple_branch_stock ?? 0) + ($stock->simple_warehouse_stock ?? 0));
-
-                                    $branchStockData = [];
-                                    $warehouseStockData = [];
-                                    $sizeSumData = []; // Combined sizes across visible locations
-                                    $hasNegativeStock = false;
-
-                                    if ($stock->has_variations) {
-                                        foreach ($stock->variations as $var) {
-                                            $sizeName = $var->attributeValues->pluck('value')->implode(', ') ?: 'Default';
-                                            foreach ($var->stocks as $s) {
-                                                if ($s->branch_id) {
-                                                    $locName = $s->branch->name ?? 'Unknown';
-                                                    if(!isset($branchStockData[$locName])) $branchStockData[$locName] = [];
-                                                    $branchStockData[$locName][] = ['size' => $sizeName, 'qty' => $s->quantity];
-                                                    
-                                                    $sizeSumData[$sizeName] = ($sizeSumData[$sizeName] ?? 0) + $s->quantity;
-                                                    if ($s->quantity < 0) $hasNegativeStock = true;
-                                                } else {
-                                                    $locName = $s->warehouse->name ?? 'Unknown';
-                                                    if(!isset($warehouseStockData[$locName])) $warehouseStockData[$locName] = [];
-                                                    $warehouseStockData[$locName][] = ['size' => $sizeName, 'qty' => $s->quantity];
-                                                    
-                                                    $sizeSumData[$sizeName] = ($sizeSumData[$sizeName] ?? 0) + $s->quantity;
-                                                    if ($s->quantity < 0) $hasNegativeStock = true;
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        foreach ($stock->branchStock as $s) {
-                                            $locName = $s->branch->name ?? 'Unknown';
-                                            $branchStockData[$locName] = [['size' => 'N/A', 'qty' => $s->quantity]];
-                                            if ($s->quantity < 0) $hasNegativeStock = true;
-                                        }
-                                        foreach ($stock->warehouseStock as $s) {
-                                            $locName = $s->warehouse->name ?? 'Unknown';
-                                            $warehouseStockData[$locName] = [['size' => 'N/A', 'qty' => $s->quantity]];
-                                            if ($s->quantity < 0) $hasNegativeStock = true;
-                                        }
-                                    }
-                                @endphp
-                                <tr class="{{ $totalStock <= 5 ? 'bg-danger bg-opacity-10' : '' }}">
-                                    <td class="ps-3 text-muted">{{ $productStocks->firstItem() + $index }}</td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="thumbnail-box me-3" style="width: 38px; height: 38px;">
-                                                 @if($stock->image)
-                                                    <img src="{{ asset($stock->image) }}" alt="img" style="width: 100%; height: 100%; object-fit: cover;">
-                                                 @else
-                                                    <i class="fas fa-image text-muted opacity-50 fa-lg"></i>
-                                                 @endif
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold text-dark">{{ $stock->name }}</div>
-                                                <div class="small text-muted">{{ $stock->brand->name ?? '-' }} | {{ $stock->gender->name ?? 'ALL' }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <code class="text-primary bg-light px-2 py-1 rounded small">{{ $stock->style_number ?? $stock->sku }}</code>
-                                    </td>
-                                    <td>
-                                        <span class="category-tag">{{ $stock->category->name ?? '-' }}</span>
-                                    </td>
-                                    <td>
-                                        @if($stock->has_variations)
-                                            <div class="d-flex flex-wrap gap-1">
-                                                @foreach($sizeSumData as $size => $qty)
-                                                    @if($qty > 0)
-                                                        <span class="badge bg-light text-dark border small fw-normal">
-                                                            <span class="text-muted">{{ $size }}:</span> <strong class="{{ $qty <= 5 ? 'text-danger' : 'text-primary' }}">{{ $qty }}</strong>
-                                                        </span>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                        @else
-                                            <span class="text-muted small italic">No variations</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-end fw-bold">{{ number_format($stock->cost, 2) }}</td>
-                                    <td class="text-end fw-bold">{{ number_format($stock->price, 2) }}</td>
-                                    <td class="text-center">
-                                         <span class="badge {{ $totalStock > 5 ? 'bg-success' : 'bg-danger' }} fs-6">
-                                            {{ $totalStock }}
-                                        </span>
-                                        @if($hasNegativeStock)
-                                            <i class="fas fa-exclamation-triangle text-warning ms-1" title="Negative Stock Detected"></i>
-                                        @endif
-                                    </td>
-                                    <td class="text-end fw-bold">
-                                         {{ number_format($totalStock * $stock->cost, 2) }}
-                                    </td>
-                                    <td class="text-center">
-                                        @php $locCount = count($branchStockData) + count($warehouseStockData); @endphp
-                                        <span class="badge bg-light text-dark border pointer" onclick="$(this).closest('tr').find('.view-breakdown').click()">
-                                            {{ $locCount }} Locations
-                                        </span>
-                                    </td>
-                                    <td class="text-center pe-3">
-                                        <button class="btn btn-action view-breakdown" 
-                                                data-name="{{ $stock->name }}"
-                                                data-branch-stock='@json($branchStockData)'
-                                                data-warehouse-stock='@json($warehouseStockData)'>
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot class="bg-light fw-bold border-top-0">
-                            <tr>
-                                <td colspan="7" class="text-end ps-3 py-3">GRAND TOTAL (Filtered)</td>
-                                <td class="text-center py-3">
-                                    <span class="badge bg-dark fs-6 px-3">{{ number_format($totalStockQty) }}</span>
-                                </td>
-                                <td class="text-end py-3 text-primary">
-                                    ৳{{ number_format($totalStockValue, 2) }}
-                                </td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-             <!-- Pagination -->
-            <div class="card-footer bg-white border-top-0 py-3 px-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <p class="text-muted small mb-0">Displaying {{ $productStocks->firstItem() }} to {{ $productStocks->lastItem() }} of {{ $productStocks->total() }} items</p>
-                    {{ $productStocks->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
-                </div>
-            </div>
+        <div id="stock-container">
+            @include('erp.productStock.partials.table')
         </div>
     </div>
 
@@ -380,68 +170,142 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    $('.view-breakdown').on('click', function() {
-        var branchData = $(this).data('branch-stock') || {};
-        var warehouseData = $(this).data('warehouse-stock') || {};
-        var productName = $(this).data('name');
+    $('.select2-simple').select2({
+        width: '100%',
+        dropdownParent: $('body')
+    });
 
-        $('#modalProductName').text(productName + ' - Stock Breakdown');
+    // AJAX Filtering Logic
+    function fetchStockData(url = null) {
+        const form = $('#filterForm');
+        const targetUrl = url || form.attr('action');
+        const data = url ? null : form.serialize();
 
-        var tbody = $('#stockBreakdownTableBody');
-        tbody.empty();
-        
-        let hasData = false;
+        $('#stock-container').css('opacity', '0.5');
 
-        // Process Branches
-        Object.entries(branchData).forEach(([locName, items]) => {
-            items.forEach((item, index) => {
-                hasData = true;
-                tbody.append(`
-                    <tr>
-                        <td class="ps-4">${index === 0 ? '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Branch</span>' : ''}</td>
-                        <td class="fw-bold text-dark">${index === 0 ? locName : ''}</td>
-                        <td><span class="badge bg-light text-muted border fw-normal">${item.size}</span></td>
-                        <td class="text-end pe-4"><span class="fw-bold ${item.qty < 5 ? 'text-danger' : 'text-success'}">${item.qty}</span></td>
-                    </tr>
-                `);
-            });
+        $.ajax({
+            url: targetUrl,
+            data: data,
+            success: function(response) {
+                $('#stock-container').html(response);
+                $('#stock-container').css('opacity', '1');
+                initializeTableScripts();
+            },
+            error: function() {
+                $('#stock-container').css('opacity', '1');
+                alert('Error loading data. Please try again.');
+            }
         });
+    }
 
-        // Process Warehouses
-        Object.entries(warehouseData).forEach(([locName, items]) => {
-            items.forEach((item, index) => {
-                hasData = true;
-                tbody.append(`
-                    <tr>
-                        <td class="ps-4">${index === 0 ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Warehouse</span>' : ''}</td>
-                        <td class="fw-bold text-dark">${index === 0 ? locName : ''}</td>
-                        <td><span class="badge bg-light text-muted border fw-normal">${item.size}</span></td>
-                        <td class="text-end pe-4"><span class="fw-bold ${item.qty < 5 ? 'text-danger' : 'text-success'}">${item.qty}</span></td>
-                    </tr>
-                `);
-            });
-        });
+    // Reset Filters Button
+    $('#resetFilters').on('click', function() {
+        const form = $('#filterForm');
+        form[0].reset();
+        $('.select2-simple').val('').trigger('change');
+        fetchStockData("{{ route('productstock.list') }}");
+    });
 
-        if (!hasData) {
-            tbody.append('<tr><td colspan="4" class="text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-3 opacity-25"></i><p class="mb-0">No stock allocated to specific locations.</p></td></tr>');
+    // Intercept Filter Form Submission
+    $('#filterForm').on('submit', function(e) {
+        e.preventDefault();
+        fetchStockData();
+    });
+
+    // Intercept Pagination Clicks
+    $(document).on('click', '.pagination a', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        if (url) {
+            fetchStockData(url);
+            $('html, body').animate({
+                scrollTop: $("#stock-container").offset().top - 100
+            }, 200);
         }
-
-        $('#stockBreakdownModal').modal('show');
     });
 
-    // Debounced Live Search
-    let searchTimeout;
-    $('#tableSearch').on('input', function() {
-        clearTimeout(searchTimeout);
-        const value = $(this).val().toLowerCase();
-        searchTimeout = setTimeout(function() {
-            $("#stockTable tbody tr").filter(function() {
-                const text = $(this).text().toLowerCase();
-                $(this).toggle(text.indexOf(value) > -1);
+    function initializeTableScripts() {
+        // Breakdown Modal Logic (re-attach)
+        $('.view-breakdown').off('click').on('click', function() {
+            var branchData = $(this).data('branch-stock') || {};
+            var warehouseData = $(this).data('warehouse-stock') || {};
+            var productName = $(this).data('name');
+
+            $('#modalProductName').text(productName + ' - Stock Breakdown');
+            var tbody = $('#stockBreakdownTableBody');
+            tbody.empty();
+            let hasData = false;
+
+            Object.entries(branchData).forEach(([locName, items]) => {
+                items.forEach((item, index) => {
+                    hasData = true;
+                    tbody.append(`
+                        <tr>
+                            <td class="ps-4">${index === 0 ? '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Branch</span>' : ''}</td>
+                            <td class="fw-bold text-dark">${index === 0 ? locName : ''}</td>
+                            <td><span class="badge bg-light text-muted border fw-normal">${item.size}</span></td>
+                            <td class="text-end pe-4"><span class="fw-bold ${item.qty < 5 ? 'text-danger' : 'text-success'}">${item.qty}</span></td>
+                        </tr>
+                    `);
+                });
             });
-        }, 300);
-    });
+
+            Object.entries(warehouseData).forEach(([locName, items]) => {
+                items.forEach((item, index) => {
+                    hasData = true;
+                    tbody.append(`
+                        <tr>
+                            <td class="ps-4">${index === 0 ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Warehouse</span>' : ''}</td>
+                            <td class="fw-bold text-dark">${index === 0 ? locName : ''}</td>
+                            <td><span class="badge bg-light text-muted border fw-normal">${item.size}</span></td>
+                            <td class="text-end pe-4"><span class="fw-bold ${item.qty < 5 ? 'text-danger' : 'text-success'}">${item.qty}</span></td>
+                        </tr>
+                    `);
+                });
+            });
+
+            if (!hasData) {
+                tbody.append('<tr><td colspan="4" class="text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-3 opacity-25"></i><p class="mb-0">No stock allocated to specific locations.</p></td></tr>');
+            }
+            $('#stockBreakdownModal').modal('show');
+        });
+
+        // Live Search
+        let searchTimeout;
+        $('#tableSearch').off('input').on('input', function() {
+            clearTimeout(searchTimeout);
+            const value = $(this).val().toLowerCase();
+            searchTimeout = setTimeout(function() {
+                $("#stockTable tbody tr").filter(function() {
+                    const text = $(this).text().toLowerCase();
+                    $(this).toggle(text.indexOf(value) > -1);
+                });
+            }, 300);
+        });
+    }
+
+    initializeTableScripts();
 });
+
+function exportData(format) {
+    const form = document.getElementById('filterForm');
+    const originalAction = form.action;
+    const originalTarget = form.target;
+
+    if (format === 'excel') {
+        form.action = "{{ route('productstock.export.excel') }}";
+        form.target = "_blank";
+        form.submit();
+    } else if (format === 'pdf') {
+        form.action = "{{ route('productstock.export.pdf') }}";
+        form.target = "_blank";
+        form.submit();
+    } 
+
+    // Restore
+    form.action = originalAction;
+    form.target = originalTarget;
+}
 </script>
 @endpush
 @endsection

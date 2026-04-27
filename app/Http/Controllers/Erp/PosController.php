@@ -441,7 +441,7 @@ class PosController extends Controller
         if (!auth()->user()->hasPermissionTo('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -457,40 +457,85 @@ class PosController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = \App\Models\PosItem::with([
-            'pos.customer',
-            'pos.invoice',
-            'pos.branch',
-            'pos.soldBy',
-            'product.category',
-            'product.brand',
-            'product.season',
-            'product.gender',
-            'variation.attributeValues.attribute',
-            'returnItems'
-        ]);
+        // Optimized query with specific columns
+        $query = \App\Models\PosItem::select('id', 'pos_sale_id', 'product_id', 'variation_id', 'quantity', 'unit_price', 'total_price')
+            ->with([
+                'pos:id,sale_number,customer_id,branch_id,sold_by,sale_date,delivery,discount,total_amount,exchange_amount',
+                'pos.customer:id,name',
+                'pos.invoice:id,paid_amount,due_amount',
+                'pos.branch:id,name',
+                'pos.soldBy:id,first_name,last_name',
+                'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image',
+                'product.category:id,name',
+                'product.brand:id,name',
+                'product.season:id,name',
+                'product.gender:id,name',
+                'variation.attributeValues.attribute',
+                'returnItems:id,sale_item_id,returned_qty,total_price'
+            ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
-        // Sums for filtered items
-        $totalQty = $query->sum('quantity');
-        $totalAmount = $query->sum('total_price');
+        // Comprehensive Big Data Optimization for ALL Totals
+        // 1. Item-level totals (Sales Qty, Sales Amt, Returns)
+        $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
+            ->mergeBindings($query->getQuery())
+            ->selectRaw("
+                SUM(quantity) as total_qty, 
+                SUM(total_price) as total_amount
+            ")
+            ->first();
 
-        $items = $query->latest()->paginate(20)->appends($request->all());
+        // 2. Sale-level totals (Delivery, Discount, Grand Total, Paid, Due)
+        // We use a subquery to get unique POS IDs from the filtered items
+        $filteredPosIds = clone $query;
+        $saleTotals = \DB::table('pos')
+            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+            ->whereIn('pos.id', $filteredPosIds->select('pos_sale_id')->distinct())
+            ->selectRaw("
+                SUM(pos.delivery) as total_delivery,
+                SUM(pos.discount) as total_discount,
+                SUM(pos.exchange_amount) as total_exchange,
+                SUM(pos.total_amount) as final_total,
+                SUM(invoices.paid_amount) as total_paid,
+                SUM(invoices.due_amount) as total_due
+            ")
+            ->first();
+
+        $totalQty = $itemTotals->total_qty ?? 0;
+        $totalAmount = $itemTotals->total_amount ?? 0;
         
-        // Dropdown Data
+        // Pass all totals to the view
+        $reportTotals = [
+            'sell_qty' => $totalQty,
+            'sell_amt' => $totalAmount,
+            'delivery' => $saleTotals->total_delivery ?? 0,
+            'discount' => $saleTotals->total_discount ?? 0,
+            'exchange' => $saleTotals->total_exchange ?? 0,
+            'final_total' => $saleTotals->final_total ?? 0,
+            'paid' => $saleTotals->total_paid ?? 0,
+            'due' => $saleTotals->total_due ?? 0,
+        ];
+
+        $items = $query->latest()->paginate(100)->appends($request->all());
+        
+        // Big Data Dropdown Optimization: Only load top 100 for initial view
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
-        $customers = Customer::orderBy('name')->get();
+        $customers = Customer::orderBy('name')->limit(100)->get();
         $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
         $brands = \App\Models\Brand::orderBy('name')->get();
         $seasons = \App\Models\Season::orderBy('name')->get();
         $genders = \App\Models\Gender::orderBy('name')->get();
-        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
+        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->limit(100)->get();
+
+        if ($request->ajax()) {
+            return view('erp.pos.partials.table', compact('items', 'reportTotals'));
+        }
 
         return view('erp.pos.index', compact(
             'items', 'branches', 'customers', 'categories', 'brands', 'seasons', 'genders', 'products', 
-            'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+            'reportType', 'startDate', 'endDate', 'reportTotals'
         ));
     }
 

@@ -23,7 +23,7 @@ class PurchaseController extends Controller
         if (!auth()->user()->hasPermissionTo('view purchases')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -55,13 +55,29 @@ class PurchaseController extends Controller
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
-        // Calculate Totals before pagination
-        $totalQty = $query->sum('quantity');
-        $totalAmount = $query->sum('total_price');
+        // Big Data Optimization: Calculate accurate totals in SQL
+        $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
+            ->mergeBindings($query->getQuery())
+            ->selectRaw("SUM(quantity) as total_qty, SUM(total_price) as total_amount")
+            ->first();
+
+        // Sale-level totals (Discount, Paid, Due)
+        $filteredPurchaseIds = clone $query;
+        $purchaseTotals = \DB::table('purchase_bills')
+            ->whereIn('purchase_id', $filteredPurchaseIds->select('purchase_id')->distinct())
+            ->selectRaw("SUM(discount_amount) as total_discount, SUM(paid_amount) as total_paid, SUM(due_amount) as total_due")
+            ->first();
+
+        $reportTotals = [
+            'pur_qty'  => $itemTotals->total_qty ?? 0,
+            'pur_amt'  => $itemTotals->total_amount ?? 0,
+            'discount' => $purchaseTotals->total_discount ?? 0,
+            'paid'     => $purchaseTotals->total_paid ?? 0,
+            'due'      => $purchaseTotals->total_due ?? 0,
+        ];
 
         $items = $query->latest()->paginate(100)->appends($request->all());
         
-        // Use eager loaded relationships to attach stock without causing N+1 queries
         $items->getCollection()->transform(function ($item) {
             $product = $item->product;
             $variation = $item->variation;
@@ -87,13 +103,13 @@ class PurchaseController extends Controller
             return $item;
         });
         
-        // Dropdown Data
-        $suppliers = \App\Models\Supplier::orderBy('name')->get();
+        // Big Data Dropdown Optimization: Limit initial load
+        $suppliers = \App\Models\Supplier::orderBy('name')->limit(100)->get();
         $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
         $brands = \App\Models\Brand::orderBy('name')->get();
         $seasons = \App\Models\Season::orderBy('name')->get();
         $genders = \App\Models\Gender::orderBy('name')->get();
-        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
+        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->limit(100)->get();
         
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
@@ -105,9 +121,13 @@ class PurchaseController extends Controller
         }
         $bankAccounts = \DB::table('financial_accounts')->get();
 
+        if ($request->ajax()) {
+            return view('erp.purchases.partials.table', compact('items', 'reportTotals'));
+        }
+
         return view('erp.purchases.purchaseList', compact(
             'items', 'suppliers', 'categories', 'brands', 'seasons', 'genders', 'products', 
-            'branches', 'warehouses', 'bankAccounts', 'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+            'branches', 'warehouses', 'bankAccounts', 'reportType', 'startDate', 'endDate', 'reportTotals'
         ));
     }
 
