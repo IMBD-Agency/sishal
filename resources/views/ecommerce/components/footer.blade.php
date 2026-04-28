@@ -67,7 +67,10 @@
         </div>
         <div class="footer-bottom text-center">
             <div class="container">
-                <p class="mb-0">&copy; {{ Date('Y') }} {{ $general_settings->site_title }}. All rights reserved.</p>
+                <p class="mb-0">
+                    &copy; {{ Date('Y') }} {{ $general_settings->site_title }}. All rights reserved. | 
+                    Designed & Developed <a href="https://www.imbdagency.com/" target="_blank" style="text-decoration: underline; color: inherit;">IMBD Agency</a>
+                </p>
             </div>
         </div>
     </div>

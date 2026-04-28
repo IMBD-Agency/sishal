@@ -60,13 +60,8 @@ class StockTransferController extends Controller
             ->paginate(100);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $branches   = Branch::where('id', $restrictedBranchId)->get();
-            $warehouses = collect();
-        } else {
-            $branches   = Branch::all();
-            $warehouses = Warehouse::all();
-        }
+        $branches   = Branch::all();
+        $warehouses = Warehouse::all();
 
         $statuses     = ['pending', 'approved', 'rejected', 'shipped', 'delivered'];
         $categories   = \App\Models\ProductServiceCategory::all();
@@ -92,16 +87,15 @@ class StockTransferController extends Controller
         if (!auth()->user()->hasPermissionTo('manage transfers')) {
             abort(403, 'Unauthorized action.');
         }
+        
         $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $branches = Branch::where('id', $restrictedBranchId)->get();
-            $warehouses = collect();
-        } else {
-            $branches = Branch::all();
-            $warehouses = Warehouse::all();
-        }
+        
+        // Fetch all locations to allow transfers BETWEEN branches
+        $branches = Branch::all();
+        $warehouses = Warehouse::all();
+        
         $financialAccounts = \App\Models\FinancialAccount::orderBy('provider_name')->get();
-        return view('erp.stockTransfer.create', compact('branches', 'warehouses', 'financialAccounts'));
+        return view('erp.stockTransfer.create', compact('branches', 'warehouses', 'financialAccounts', 'restrictedBranchId'));
     }
 
     private function applyFilters(Request $request)
@@ -1013,11 +1007,12 @@ class StockTransferController extends Controller
 
         $branches         = Branch::all();
         $warehouses       = Warehouse::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
         $financialAccounts = \App\Models\FinancialAccount::orderBy('provider_name')->get();
 
         return view('erp.stockTransfer.create', compact(
             'branches', 'warehouses', 'financialAccounts',
-            'items', 'fromOutlet', 'toOutlet', 'originalTransfer'
+            'items', 'fromOutlet', 'toOutlet', 'originalTransfer', 'restrictedBranchId'
         ));
     }
 }

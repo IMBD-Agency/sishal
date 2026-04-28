@@ -103,7 +103,10 @@
                                     </optgroup>
                                     <optgroup label="Branches">
                                         @foreach($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                            <option value="branch_{{ $branch->id }}" 
+                                                {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : ( (!isset($fromOutlet) && isset($restrictedBranchId) && $restrictedBranchId == $branch->id) ? 'selected' : '' ) }}>
+                                                {{ $branch->name }}
+                                            </option>
                                         @endforeach
                                     </optgroup>
                                 </select>
@@ -645,12 +648,28 @@
                 });
             }
 
-            $('#from_outlet').on('change', function() {
-                filterAccounts('#from_outlet', '#sender_account_id');
-            });
-
             $('#to_outlet').on('change', function() {
                 filterAccounts('#to_outlet', '#receiver_account_id');
+                
+                // Prevent same-location transfer
+                const fromVal = $('#from_outlet').val();
+                const toVal = $(this).val();
+                if (fromVal && toVal && fromVal === toVal) {
+                    alert('Source and Destination cannot be the same location.');
+                    $(this).val('').trigger('change');
+                }
+            });
+
+            $('#from_outlet').on('change', function() {
+                filterAccounts('#from_outlet', '#sender_account_id');
+
+                // Prevent same-location transfer
+                const fromVal = $(this).val();
+                const toVal = $('#to_outlet').val();
+                if (fromVal && toVal && fromVal === toVal) {
+                    alert('Source and Destination cannot be the same location.');
+                    $('#to_outlet').val('').trigger('change');
+                }
             });
 
             // Run once on load
