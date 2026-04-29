@@ -249,8 +249,48 @@
 
                         <!-- Action Buttons (No Print) -->
                         <div class="no-print mt-4 pt-4 border-top">
+                            @php
+                                // Role-based button visibility
+                                // $restrictedBranchId = null  → Super Admin (can do everything)
+                                // $restrictedBranchId = X     → Branch user restricted to branch X
+
+                                $isSuperAdmin    = !$restrictedBranchId;
+
+                                // Is the current user on the SENDING side?
+                                $isSenderUser    = $restrictedBranchId
+                                    && $transfer->from_type === 'branch'
+                                    && $restrictedBranchId == $transfer->from_id;
+
+                                // Is the current user on the RECEIVING side?
+                                $isReceiverUser  = $restrictedBranchId
+                                    && $transfer->to_type === 'branch'
+                                    && $restrictedBranchId == $transfer->to_id;
+
+                                // Permissions:
+                                // Approve / Reject / Ship  → Admin OR Sender
+                                // Confirm Delivery         → Admin OR Receiver (destination branch)
+                                // Return / Void            → Admin OR Sender
+                                $canManageSending  = $isSuperAdmin || $isSenderUser;
+                                $canConfirmDelivery = $isSuperAdmin || $isReceiverUser;
+                            @endphp
+
+                            {{-- Role indicator badge (helpful context) --}}
+                            <div class="text-center mb-3">
+                                @if($isSuperAdmin)
+                                    <span class="badge bg-dark px-3 py-2"><i class="fas fa-shield-alt me-1"></i>Super Admin — Full Access</span>
+                                @elseif($isSenderUser)
+                                    <span class="badge bg-info text-white px-3 py-2"><i class="fas fa-warehouse me-1"></i>Sending Side — You dispatched this transfer</span>
+                                @elseif($isReceiverUser)
+                                    <span class="badge bg-success px-3 py-2"><i class="fas fa-store me-1"></i>Receiving Side — Awaiting your confirmation</span>
+                                @else
+                                    <span class="badge bg-secondary px-3 py-2"><i class="fas fa-eye me-1"></i>View Only</span>
+                                @endif
+                            </div>
+
                             <div class="d-flex flex-wrap justify-content-center gap-3">
-                                @if($transfer->status == 'pending')
+
+                                {{-- APPROVE / REJECT: Sender or Admin only --}}
+                                @if($transfer->status == 'pending' && $canManageSending)
                                     <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
                                         @csrf @method('PATCH')
                                         <input type="hidden" name="status" value="approved">
@@ -265,9 +305,14 @@
                                             <i class="fas fa-times-circle me-2"></i>REJECT
                                         </button>
                                     </form>
+                                @elseif($transfer->status == 'pending' && !$canManageSending)
+                                    <div class="alert alert-warning border-0 py-2 px-4 mb-0 small">
+                                        <i class="fas fa-lock me-2"></i>Awaiting approval by the <strong>sending side</strong>.
+                                    </div>
                                 @endif
 
-                                @if($transfer->status == 'approved')
+                                {{-- MARK AS SHIPPED: Sender or Admin only --}}
+                                @if($transfer->status == 'approved' && $canManageSending)
                                     <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
                                         @csrf @method('PATCH')
                                         <input type="hidden" name="status" value="shipped">
@@ -275,27 +320,37 @@
                                             <i class="fas fa-shipping-fast me-2"></i>MARK AS SHIPPED
                                         </button>
                                     </form>
+                                @elseif($transfer->status == 'approved' && !$canManageSending)
+                                    <div class="alert alert-info border-0 py-2 px-4 mb-0 small">
+                                        <i class="fas fa-truck me-2"></i>Approved — waiting for <strong>sender to dispatch</strong>.
+                                    </div>
                                 @endif
 
-                                @if($transfer->status == 'shipped')
+                                {{-- CONFIRM DELIVERY: Receiver or Admin only --}}
+                                @if($transfer->status == 'shipped' && $canConfirmDelivery)
                                     <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
                                         @csrf @method('PATCH')
                                         <input type="hidden" name="status" value="delivered">
-                                        <button type="submit" class="btn btn-primary px-5 fw-bold" onclick="return confirm('Mark this invoice as Delivered? Stock will be added to destination for all items.')">
-                                            <i class="fas fa-box-open me-2"></i>CONFIRM DELIVERY
+                                        <button type="submit" class="btn btn-primary px-5 fw-bold" onclick="return confirm('Confirm you have received these items? Stock will be added to your inventory.')">
+                                            <i class="fas fa-box-open me-2"></i>CONFIRM RECEIPT
                                         </button>
                                     </form>
+                                @elseif($transfer->status == 'shipped' && !$canConfirmDelivery)
+                                    <div class="alert alert-secondary border-0 py-2 px-4 mb-0 small">
+                                        <i class="fas fa-clock me-2"></i>Shipped — waiting for <strong>destination branch to confirm receipt</strong>.
+                                    </div>
                                 @endif
 
-                                {{-- Return Items Button: visible only after delivery, and not shown on return-type transfers --}}
-                                @if($transfer->status == 'delivered' && $transfer->type !== 'return')
+                                {{-- RETURN ITEMS: Sender or Admin only (after delivery) --}}
+                                @if($transfer->status == 'delivered' && $transfer->type !== 'return' && $canManageSending)
                                     <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="btn btn-warning px-5 fw-bold text-dark"
                                        onclick="return confirm('You are about to initiate a Return of items from this transfer. Proceed?')">
                                         <i class="fas fa-undo-alt me-2"></i>RETURN ITEMS TO SOURCE
                                     </a>
                                 @endif
 
-                                @if(in_array($transfer->status, ['pending', 'rejected']))
+                                {{-- VOID TRANSFER: Sender or Admin only --}}
+                                @if(in_array($transfer->status, ['pending', 'rejected']) && $canManageSending)
                                     <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
@@ -304,6 +359,7 @@
                                         </button>
                                     </form>
                                 @endif
+
                             </div>
 
                             {{-- Show linked returns if any --}}

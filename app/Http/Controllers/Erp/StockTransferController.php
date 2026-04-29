@@ -385,8 +385,10 @@ class StockTransferController extends Controller
         } else {
             $transfers = collect([$transfer]);
         }
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
         
-        return view('erp.stockTransfer.show', compact('transfer', 'transfers'));
+        return view('erp.stockTransfer.show', compact('transfer', 'transfers', 'restrictedBranchId'));
     }
 
     public function store(Request $request)

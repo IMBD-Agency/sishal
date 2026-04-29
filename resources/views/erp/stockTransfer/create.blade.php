@@ -94,25 +94,46 @@
                                     {{ isset($originalTransfer) ? 'Return From (Source)' : 'Sender Outlet' }}
                                     <span class="text-danger">*</span>
                                 </label>
-                                <select name="from_outlet" id="from_outlet" class="form-select shadow-none select2-basic {{ isset($originalTransfer) ? 'bg-light' : '' }}" required {{ isset($originalTransfer) ? 'disabled' : '' }}>
-                                    <option value="">Select Source Location</option>
-                                    <optgroup label="Warehouses">
-                                        @foreach($warehouses as $warehouse)
-                                            <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
-                                        @endforeach
-                                    </optgroup>
-                                    <optgroup label="Branches">
-                                        @foreach($branches as $branch)
-                                            <option value="branch_{{ $branch->id }}" 
-                                                {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : ( (!isset($fromOutlet) && isset($restrictedBranchId) && $restrictedBranchId == $branch->id) ? 'selected' : '' ) }}>
-                                                {{ $branch->name }}
-                                            </option>
-                                        @endforeach
-                                    </optgroup>
-                                </select>
-                                {{-- Mirror disabled select as hidden input so it submits --}}
-                                @if(isset($originalTransfer))
-                                    <input type="hidden" name="from_outlet" value="{{ $fromOutlet ?? '' }}">
+
+                                @if($restrictedBranchId && !isset($originalTransfer))
+                                    {{-- Branch user: can only send FROM their own branch --}}
+                                    @php
+                                        $myBranch = $branches->firstWhere('id', $restrictedBranchId);
+                                    @endphp
+                                    @if($myBranch)
+                                        <input type="text"
+                                               class="form-control shadow-none bg-light fw-bold"
+                                               value="{{ $myBranch->name }}"
+                                               readonly>
+                                        <input type="hidden" id="from_outlet" name="from_outlet" value="branch_{{ $myBranch->id }}">
+                                        <div class="extra-small text-muted mt-1">
+                                            <i class="fas fa-lock me-1"></i>You can only dispatch from your own branch.
+                                        </div>
+                                    @else
+                                        <div class="alert alert-danger py-2 small">Your branch was not found. Contact admin.</div>
+                                    @endif
+                                @else
+                                    {{-- Super admin OR return mode: see all locations --}}
+                                    <select name="from_outlet" id="from_outlet" class="form-select shadow-none select2-basic {{ isset($originalTransfer) ? 'bg-light' : '' }}" required {{ isset($originalTransfer) ? 'disabled' : '' }}>
+                                        <option value="">Select Source Location</option>
+                                        <optgroup label="Warehouses">
+                                            @foreach($warehouses as $warehouse)
+                                                <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                        <optgroup label="Branches">
+                                            @foreach($branches as $branch)
+                                                <option value="branch_{{ $branch->id }}"
+                                                    {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>
+                                                    {{ $branch->name }}
+                                                </option>
+                                            @endforeach
+                                        </optgroup>
+                                    </select>
+                                    {{-- Mirror disabled select as hidden input so it submits --}}
+                                    @if(isset($originalTransfer))
+                                        <input type="hidden" name="from_outlet" value="{{ $fromOutlet ?? '' }}">
+                                    @endif
                                 @endif
                             </div>
 
