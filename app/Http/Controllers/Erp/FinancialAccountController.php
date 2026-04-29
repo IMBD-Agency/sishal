@@ -15,12 +15,34 @@ class FinancialAccountController extends Controller
         if (!auth()->user()->hasPermissionTo('view accounts')) {
             abort(403, 'Unauthorized action.');
         }
-        $accounts = FinancialAccount::with(['chartOfAccount', 'branch'])->orderBy('type')->get();
-        $chartAccounts = ChartOfAccount::orderBy('name')->get();
-        $branches = Branch::orderBy('name')->get();
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+
+        $query = FinancialAccount::with(['chartOfAccount', 'branch'])->orderBy('type');
+        
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+            $branches = Branch::where('id', $restrictedBranchId)->orderBy('name')->get();
+        } else {
+            $branches = Branch::orderBy('name')->get();
+        }
+
+        $accounts = $query->get();
+        $chartAccounts = ChartOfAccount::whereHas('type', function($q) {
+            $q->whereIn('name', ['Asset', 'Current Asset', 'Cash', 'Bank']);
+        })->orWhere('name', 'like', '%Cash%')
+          ->orWhere('name', 'like', '%Bank%')
+          ->orWhere('name', 'like', '%Wallet%')
+          ->orderBy('name')->get();
+        
+        // Fallback if the above filter returns nothing
+        if ($chartAccounts->isEmpty()) {
+            $chartAccounts = ChartOfAccount::orderBy('name')->get();
+        }
+
         $accountTypes = FinancialAccount::getTypes();
 
-        return view('erp.financialAccount.list', compact('accounts', 'chartAccounts', 'accountTypes', 'branches'));
+        return view('erp.financialAccount.list', compact('accounts', 'chartAccounts', 'accountTypes', 'branches', 'restrictedBranchId'));
     }
 
     public function store(Request $request)
@@ -41,10 +63,17 @@ class FinancialAccountController extends Controller
             'mobile_number'        => 'nullable|string|max:20',
         ]);
 
-        FinancialAccount::create($request->only([
+        $data = $request->only([
             'branch_id', 'account_id', 'type', 'provider_name', 'account_number',
             'account_holder_name', 'currency', 'branch_name', 'swift_code', 'mobile_number'
-        ]));
+        ]);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $data['branch_id'] = $restrictedBranchId;
+        }
+
+        FinancialAccount::create($data);
 
         return redirect()->route('financial-accounts.index')
             ->with('success', 'Financial account created successfully.');
@@ -70,10 +99,17 @@ class FinancialAccountController extends Controller
             'mobile_number'        => 'nullable|string|max:20',
         ]);
 
-        $account->update($request->only([
+        $data = $request->only([
             'branch_id', 'account_id', 'type', 'provider_name', 'account_number',
             'account_holder_name', 'currency', 'branch_name', 'swift_code', 'mobile_number'
-        ]));
+        ]);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $data['branch_id'] = $restrictedBranchId;
+        }
+
+        $account->update($data);
 
         return redirect()->route('financial-accounts.index')
             ->with('success', 'Financial account updated successfully.');
@@ -100,6 +136,12 @@ class FinancialAccountController extends Controller
         }
         $type = $request->get('type');
         $query = FinancialAccount::orderBy('provider_name');
+        
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
+
         if ($type) {
             $query->where('type', $type);
         }

@@ -220,10 +220,12 @@
                             <!-- System Branch -->
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">System Location (Branch)</label>
-                                <select name="branch_id" id="branch_id" class="form-select">
+                                <select name="branch_id" id="branch_id" class="form-select" @if(isset($restrictedBranchId) && $restrictedBranchId) readonly style="pointer-events: none; background-color: #e9ecef;" @endif>
+                                    @if(!isset($restrictedBranchId) || !$restrictedBranchId)
                                     <option value="">Global Account (All Branches)</option>
+                                    @endif
                                     @foreach($branches as $branch)
-                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                        <option value="{{ $branch->id }}" @if(isset($restrictedBranchId) && $restrictedBranchId == $branch->id) selected @endif>{{ $branch->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
