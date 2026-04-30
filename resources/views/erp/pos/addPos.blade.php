@@ -143,9 +143,20 @@
                             </div>
                         </div>
 
-                        <div class="total-payable-widget d-flex justify-content-between align-items-center">
-                            <div class="terminal-section-title m-0 text-primary opacity-75">Payable</div>
-                            <div class="h3 mb-0 fw-bold" id="finalTotalDisplay">0.00</div>
+                        <!-- Order Summary Breakdowns -->
+                        <div class="mb-2 p-2 rounded bg-light border">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted fw-bold small">Subtotal</span>
+                                <span class="fw-bold" id="subtotalDisplay">0.00৳</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1 text-danger" id="discountRow" style="display: none !important;">
+                                <span class="fw-bold small">Discount</span>
+                                <span class="fw-bold">- <span id="discountAmountDisplay">0.00</span>৳</span>
+                            </div>
+                            <div class="d-flex justify-content-between border-top pt-1 mt-1">
+                                <span class="terminal-section-title m-0 text-primary opacity-75">Payable</span>
+                                <span class="h4 mb-0 fw-bold text-primary" id="finalTotalDisplay">0.00</span>
+                            </div>
                         </div>
 
                         <!-- Payment Method -->
@@ -185,7 +196,7 @@
                                 <input type="number" class="form-control form-control-sm" id="paidAmountInput" name="paid_amount" placeholder="0.00">
                              </div>
                              <div class="change-return-box d-flex justify-content-between align-items-center border-top pt-1">
-                                <span class="terminal-section-title m-0">Change</span>
+                                <span class="terminal-section-title m-0" id="changeReturnLabel">Change</span>
                                 <span class="h6 mb-0 fw-bold text-success" id="changeReturnDisplay">0.00</span>
                             </div>
                          </div>
@@ -641,13 +652,28 @@ $(document).ready(function() {
         let finalTotal = (subtotal + delivery) - discount;
         if(finalTotal < 0) finalTotal = 0;
 
-        $('#subtotalDisplay').text('Subtotal: ' + subtotal.toFixed(2) + '৳');
+        $('#subtotalDisplay').text(subtotal.toFixed(2) + '৳');
+        
+        if(discount > 0) {
+            $('#discountRow').attr('style', 'display: flex !important;');
+            $('#discountAmountDisplay').text(discount.toFixed(2));
+        } else {
+            $('#discountRow').attr('style', 'display: none !important;');
+        }
+
         $('#finalTotalDisplay').text(finalTotal.toFixed(2));
         
         // Auto update change
         let paid = parseFloat($('#paidAmountInput').val()) || 0;
         let change = paid - finalTotal;
-        $('#changeReturnDisplay').text(change >= 0 ? change.toFixed(2) : '0.00');
+        
+        if (change >= 0) {
+            $('#changeReturnLabel').text('Change');
+            $('#changeReturnDisplay').text(change.toFixed(2)).removeClass('text-danger').addClass('text-success');
+        } else {
+            $('#changeReturnLabel').text('Due Amount');
+            $('#changeReturnDisplay').text(Math.abs(change).toFixed(2)).removeClass('text-success').addClass('text-danger');
+        }
 
         // Validation for button
         if(cart.length > 0 && paid >= finalTotal) {

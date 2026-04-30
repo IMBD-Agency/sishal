@@ -180,9 +180,20 @@ class PosController extends Controller
                 }
             }
 
+            // --- Proportional Discount Distribution Logic ---
+            $totalInvoiceDiscount = floatval($pos->discount ?? 0);
+            $invoiceSubtotal = floatval($pos->sub_total ?? 0);
+            $discountRatio = ($invoiceSubtotal > 0) ? ($totalInvoiceDiscount / $invoiceSubtotal) : 0;
+
             // Save POS items
             foreach ($request->items as $item) {
                 $product = Product::find($item['product_id']);
+                
+                // Calculate this item's share of the total discount
+                $itemOriginalTotal = floatval($item['total_price']);
+                $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
+                $itemNetTotal = $itemOriginalTotal - $allocatedDiscount;
+
                 $createdItem = PosItem::create([
                     'pos_sale_id' => $pos->id,
                     'product_id' => $item['product_id'],
@@ -190,7 +201,7 @@ class PosController extends Controller
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'unit_cost' => $product->cost ?? 0,
-                    'total_price' => $item['total_price'],
+                    'total_price' => $itemNetTotal, // Save the Net Price after discount
                     'current_position_type' => 'branch',
                     'current_position_id' => $request->branch_id
                 ]);
@@ -201,7 +212,8 @@ class PosController extends Controller
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'total_price' => $item['total_price'],
+                    'discount'   => $allocatedDiscount, // Save the distributed discount
+                    'total_price' => $itemNetTotal, // Save the Net Price after discount
                 ]);
             }
 
@@ -460,7 +472,7 @@ class PosController extends Controller
         // Optimized query with specific columns
         $query = \App\Models\PosItem::select('id', 'pos_sale_id', 'product_id', 'variation_id', 'quantity', 'unit_price', 'total_price')
             ->with([
-                'pos:id,sale_number,customer_id,branch_id,sold_by,sale_date,delivery,discount,total_amount,exchange_amount',
+                'pos:id,sale_number,customer_id,branch_id,sold_by,sale_date,delivery,discount,total_amount,exchange_amount,invoice_id,status',
                 'pos.customer:id,name',
                 'pos.invoice:id,paid_amount,due_amount',
                 'pos.branch:id,name',

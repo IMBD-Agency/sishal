@@ -351,6 +351,7 @@ class SaleReturnController extends Controller
                         'variation_name' => $item->variation->name ?? 'Standard',
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
+                        'net_unit_price' => $item->quantity > 0 ? round($item->total_price / $item->quantity, 2) : $item->unit_price,
                         'color' => $color,
                         'size' => $size,
                         'style_number' => $item->product->style_number ?? '-',

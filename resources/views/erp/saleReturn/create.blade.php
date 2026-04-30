@@ -111,7 +111,7 @@
                                                 <th>Product Information</th>
                                                 <th class="text-center">Sale Qty</th>
                                                 <th class="text-center" style="width: 120px;">Return Qty</th>
-                                                <th class="text-end" style="width: 140px;">Unit Price</th>
+                                                <th class="text-end" style="width: 140px;">Return Price</th>
                                                 <th class="text-end" style="width: 140px;">Subtotal</th>
                                                 <th>Return Reason</th>
                                             </tr>
@@ -215,8 +215,9 @@
                                     style="width: 80px;" min="0" max="${item.quantity}" step="1" value="0">
                             </td>
                             <td class="text-end">
-                                <input type="number" name="items[${index}][unit_price]" class="form-control form-control-sm text-end unit-price" 
-                                    style="width: 100px; display: inline-block;" step="0.01" value="${item.unit_price}">
+                                <input type="number" name="items[${index}][unit_price]" class="form-control form-control-sm text-end unit-price fw-bold text-primary" 
+                                    style="width: 100px; display: inline-block;" step="0.01" value="${item.net_unit_price}">
+                                ${item.net_unit_price != item.unit_price ? `<div class="small text-muted mt-1" style="font-size: 0.75rem;">Orig: <del>${item.unit_price}</del></div>` : ''}
                             </td>
                             <td class="text-end fw-bold row-total">0.00</td>
                             <td>
