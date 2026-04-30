@@ -28,12 +28,15 @@ class FinancialAccountController extends Controller
         }
 
         $accounts = $query->get();
-        $chartAccounts = ChartOfAccount::whereHas('type', function($q) {
-            $q->whereIn('name', ['Asset', 'Current Asset', 'Cash', 'Bank']);
-        })->orWhere('name', 'like', '%Cash%')
-          ->orWhere('name', 'like', '%Bank%')
-          ->orWhere('name', 'like', '%Wallet%')
-          ->orderBy('name')->get();
+        $chartAccounts = ChartOfAccount::where(function($query) {
+            $query->whereHas('type', function($q) {
+                $q->whereIn('name', ['Asset', 'Current Asset', 'Cash', 'Bank']);
+            })->orWhere('name', 'like', '%Cash%')
+              ->orWhere('name', 'like', '%Bank%')
+              ->orWhere('name', 'like', '%Wallet%');
+        })
+        ->where('name', 'not like', '%Receivable%')
+        ->orderBy('name')->get();
         
         // Fallback if the above filter returns nothing
         if ($chartAccounts->isEmpty()) {
