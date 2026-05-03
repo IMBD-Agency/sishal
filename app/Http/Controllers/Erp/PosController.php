@@ -708,20 +708,41 @@ class PosController extends Controller
         if (!auth()->user()->hasPermissionTo('manage sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $pos = Pos::with(['customer', 'branch', 'items.product', 'items.variation.attributeValues.attribute'])->findOrFail($id);
-        
-        // Only allow editing if status is pending or delivered (not cancelled)
-        if ($pos->status === 'cancelled') {
-            return redirect()->route('pos.show', $id)->with('error', 'Cannot edit a cancelled sale.');
-        }
 
-        $categories = ProductServiceCategory::all();
-        $branches = Branch::all();
-        $customers = Customer::all();
-        $bankAccounts = FinancialAccount::all();
-        $shippingMethods = ShippingMethod::orderBy('sort_order')->get();
-        
-        return view('erp.pos.edit', compact('pos', 'categories', 'branches', 'customers', 'bankAccounts', 'shippingMethods'));
+        try {
+            $pos = Pos::with(['customer', 'branch', 'items.product', 'items.variation.attributeValues.attribute'])->findOrFail($id);
+
+            // Only allow editing if status is pending or delivered (not cancelled)
+            if ($pos->status === 'cancelled') {
+                return redirect()->route('pos.show', $id)->with('error', 'Cannot edit a cancelled sale.');
+            }
+
+            $categories = ProductServiceCategory::all();
+            $branches = Branch::all();
+            $customers = Customer::all();
+            $bankAccounts = FinancialAccount::all();
+            $shippingMethods = ShippingMethod::orderBy('sort_order')->get();
+
+            return view('erp.pos.edit', compact('pos', 'categories', 'branches', 'customers', 'bankAccounts', 'shippingMethods'));
+
+        } catch (\Throwable $e) {
+            // TEMPORARY DEBUG — shows real error instead of generic 500
+            // Remove this catch block after identifying and fixing the root cause
+            \Log::error('PosController@edit crash', [
+                'pos_id' => $id,
+                'error'  => $e->getMessage(),
+                'file'   => $e->getFile(),
+                'line'   => $e->getLine(),
+            ]);
+            return response("<div style='font-family:monospace;padding:20px;background:#1e1e1e;color:#f88;'>
+                <h2>&#9888; DEBUG: Sale Edit Crash (Sale #{$id})</h2>
+                <p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>
+                <p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . "</p>
+                <p><strong>Line:</strong> " . $e->getLine() . "</p>
+                <hr style='border-color:#555'>
+                <pre style='color:#ffa;white-space:pre-wrap'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>
+            </div>", 200);
+        }
     }
 
     public function update(Request $request, $id)

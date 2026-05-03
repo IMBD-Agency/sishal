@@ -363,33 +363,12 @@ class InvoiceController extends Controller
         if (!auth()->user()->hasPermissionTo('manage invoices')) {
             abort(403, 'Unauthorized action.');
         }
-
-        try {
-            $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product', 'items.variation'])->findOrFail($id);
-            $this->checkGranularAccess($invoice);
-            $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
-            $generalSettings = \App\Models\GeneralSetting::first();
-            $tax_rate = $generalSettings ? $generalSettings->tax_rate : 0;
-            return view('erp.invoices.edit', compact('invoice', 'templates', 'tax_rate'));
-        } catch (\Throwable $e) {
-            // TEMPORARY DEBUG — shows real error instead of generic 500
-            // Remove this catch block after identifying and fixing the root cause
-            \Log::error('InvoiceController@edit crash', [
-                'invoice_id' => $id,
-                'error'      => $e->getMessage(),
-                'file'       => $e->getFile(),
-                'line'       => $e->getLine(),
-                'trace'      => $e->getTraceAsString(),
-            ]);
-            return response("<div style='font-family:monospace;padding:20px;background:#1e1e1e;color:#f88;'>
-                <h2>&#9888; DEBUG: Invoice Edit Crash (Invoice #{$id})</h2>
-                <p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>
-                <p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . "</p>
-                <p><strong>Line:</strong> " . $e->getLine() . "</p>
-                <hr style='border-color:#555'>
-                <pre style='color:#ffa;white-space:pre-wrap'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>
-            </div>", 200);
-        }
+        $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product', 'items.variation'])->findOrFail($id);
+        $this->checkGranularAccess($invoice);
+        $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
+        $generalSettings = \App\Models\GeneralSetting::first();
+        $tax_rate = $generalSettings ? $generalSettings->tax_rate : 0;
+        return view('erp.invoices.edit', compact('invoice', 'templates', 'tax_rate'));
     }
 
     public function show($id)
