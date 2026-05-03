@@ -411,6 +411,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/pos/product/{productId}/stock', [\App\Http\Controllers\Erp\PosController::class, 'getMultiBranchStock'])->name('pos.product.stock');
     Route::get('/pos/product/{productId}/variation/{variationId}/stock', [\App\Http\Controllers\Erp\PosController::class, 'getMultiBranchStock'])->name('pos.variation.stock');
     Route::get('/pos/product/{productId}/branch/{branchId}/stock/{variationId?}', [\App\Http\Controllers\Erp\PosController::class, 'getBranchStock'])->name('pos.product.branch.stock');
+    Route::post('/pos/bulk-delete', [\App\Http\Controllers\Erp\PosController::class, 'bulkDestroy'])->name('pos.bulkDelete');
+    Route::delete('/pos/{id}/delete', [\App\Http\Controllers\Erp\PosController::class, 'destroy'])->name('pos.delete');
     // Technician assignment route removed - not needed for ecommerce-only business
     // Route::post('/pos/assign-tech/{saleId}/{techId}', [\App\Http\Controllers\Erp\PosController::class, 'assignTechnician'])->name('pos.assign.tech');
     Route::post('/pos/update-note/{saleId}', [\App\Http\Controllers\Erp\PosController::class, 'updateNote'])->name('pos.update.note');
@@ -445,6 +447,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/invoices/add-payment/{id}', [InvoiceController::class, 'addPayment'])->name('invoice.addPayment');
     Route::get('/erp/invoices/{id}/edit', [InvoiceController::class, 'edit'])->name('invoice.edit');
     Route::patch('/erp/invoices/{id}', [InvoiceController::class, 'update'])->name('invoice.update');
+    Route::post('/invoices/bulk-delete', [InvoiceController::class, 'bulkDestroy'])->name('invoice.bulkDelete');
+    Route::delete('/invoices/{id}/delete', [InvoiceController::class, 'destroy'])->name('invoice.delete');
 
 
 

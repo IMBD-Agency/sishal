@@ -232,34 +232,46 @@
         <!-- Summary Table -->
         <table class="summary-table">
             <tr>
-                <td class="summary-label">Sub Total</td>
+                <td class="summary-label">Sub Total (Gross)</td>
                 <td class="summary-value">{{ number_format($pos->sub_total ?? 0, 2) }}</td>
             </tr>
+
+            @if($pos->discount > 0)
+            @php
+                $effectivePercent = ($pos->sub_total > 0) ? round(($pos->discount / $pos->sub_total) * 100, 1) : 0;
+            @endphp
+            <tr>
+                <td class="summary-label">
+                    Discount (-) 
+                    @if($effectivePercent > 0)
+                        <small>({{ $effectivePercent }}%)</small>
+                    @endif
+                </td>
+                <td class="summary-value">{{ number_format($pos->discount ?? 0, 2) }}</td>
+            </tr>
+            @endif
+
             @if($pos->delivery > 0)
             <tr>
-                <td class="summary-label">Delivery Charge</td>
+                <td class="summary-label">Delivery Charge (+)</td>
                 <td class="summary-value">{{ number_format($pos->delivery ?? 0, 2) }}</td>
             </tr>
             @endif
+
             @if(($pos->invoice->tax ?? 0) > 0)
             <tr>
                 <td class="summary-label">VAT & Tax (+)</td>
                 <td class="summary-value">{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
             </tr>
             @endif
-            @if($pos->discount > 0)
-            <tr>
-                <td class="summary-label">Discount (-)</td>
-                <td class="summary-value">{{ number_format($pos->discount ?? 0, 2) }}</td>
-            </tr>
-            @endif
+
             <tr class="total-row">
-                <td class="summary-label">NET PAYABLE</td>
-                <td class="summary-value bold">{{ number_format($pos->total_amount ?? 0, 2) }}</td>
+                <td class="summary-label bold" style="font-size: 10pt;">NET PAYABLE</td>
+                <td class="summary-value bold" style="font-size: 12pt;">{{ number_format($pos->total_amount ?? 0, 2) }}</td>
             </tr>
-            <tr>
-                <td class="summary-label">Cash Received</td>
-                <td class="summary-value">{{ number_format($pos->invoice->paid_amount ?? 0, 2) }}</td>
+            <tr style="border-top: 1px solid #eee;">
+                <td class="summary-label" style="padding-top: 2mm;">Cash Received</td>
+                <td class="summary-value" style="padding-top: 2mm;">{{ number_format($pos->invoice->paid_amount ?? 0, 2) }}</td>
             </tr>
             @php
                 $paid = $pos->invoice->paid_amount ?? 0;

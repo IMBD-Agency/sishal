@@ -141,6 +141,11 @@ class Product extends Model
         return $this->hasMany(PurchaseItem::class, 'product_id');
     }
 
+    public function invoiceItems()
+    {
+        return $this->hasMany(InvoiceItem::class, 'product_id');
+    }
+
     public function reviews()
     {
         return $this->hasMany(Review::class);

@@ -890,6 +890,55 @@ class InvoiceController extends Controller
         }
     }
 
+    /**
+     * Delete an invoice and all its related records.
+     */
+    public function destroy($id)
+    {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $invoice = Invoice::with(['items', 'payments'])->findOrFail($id);
+        \DB::beginTransaction();
+        try {
+            $invoice->items()->delete();
+            $invoice->payments()->delete();
+            $invoice->delete();
+            \DB::commit();
+            return redirect()->route('invoice.list')->with('success', 'Invoice #' . $invoice->invoice_number . ' deleted successfully.');
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to delete invoice: ' . $e->getMessage());
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete invoices')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
+        $ids = $request->input('ids');
+        if (empty($ids) || !is_array($ids)) {
+            return response()->json(['success' => false, 'message' => 'No invoices selected.']);
+        }
+
+        \DB::beginTransaction();
+        try {
+            $invoices = Invoice::whereIn('id', $ids)->with(['items', 'payments'])->get();
+            foreach ($invoices as $invoice) {
+                $invoice->items()->delete();
+                $invoice->payments()->delete();
+                $invoice->delete();
+            }
+            \DB::commit();
+            return response()->json(['success' => true, 'message' => 'Selected invoices deleted successfully.']);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to delete invoices: ' . $e->getMessage()]);
+        }
+    }
+
     private function generateInvoiceNumber()
     {
         $generalSettings = GeneralSetting::first();

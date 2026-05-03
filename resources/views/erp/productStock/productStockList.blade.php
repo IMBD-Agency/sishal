@@ -41,8 +41,67 @@
         <div class="premium-card mb-3 shadow-sm">
             <div class="card-body p-3">
                 <form method="GET" action="{{ route('productstock.list') }}" id="filterForm" autocomplete="off">
-                    <div class="row g-2 align-items-end">
+                    <!-- Row 1: Search & Settings -->
+                    <div class="row g-3 align-items-end mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2"><i class="fas fa-search me-1"></i> Global Search</label>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ request('search') }}" placeholder="Search by Name, SKU, Style Number...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2"><i class="fas fa-sort me-1"></i> Sort By Stock</label>
+                            <select class="form-select shadow-sm" name="sort">
+                                <option value="">Default (Latest)</option>
+                                <option value="low_to_high" {{ request('sort') == 'low_to_high' ? 'selected' : '' }}>Low to High</option>
+                                <option value="high_to_low" {{ request('sort') == 'high_to_low' ? 'selected' : '' }}>High to Low</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2"><i class="fas fa-list-ol me-1"></i> Per Page</label>
+                            <select class="form-select shadow-sm" name="per_page">
+                                <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50 Records</option>
+                                <option value="100" {{ request('per_page', 100) == 100 ? 'selected' : '' }}>100 Records</option>
+                                <option value="200" {{ request('per_page') == 200 ? 'selected' : '' }}>200 Records</option>
+                                <option value="500" {{ request('per_page') == 500 ? 'selected' : '' }}>500 Records</option>
+                            </select>
+                        </div>
+                    </div>
 
+                    <!-- Row 2: Time & Date Filters -->
+                    <div class="row g-3 align-items-end mb-4 bg-light p-3 rounded-3 mx-0 border">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Year</label>
+                            <select class="form-select form-select-sm" name="filter_year">
+                                <option value="">Custom Range</option>
+                                <option value="{{ date('Y') }}" {{ request('filter_year', !request()->has('start_date') ? date('Y') : '') == date('Y') ? 'selected' : '' }}>{{ date('Y') }}</option>
+                                @for($i = date('Y') - 1; $i >= date('Y') - 5; $i--)
+                                    <option value="{{ $i }}" {{ request('filter_year') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Month</label>
+                            <select class="form-select form-select-sm" name="filter_month">
+                                <option value="">All Year</option>
+                                @foreach(range(1, 12) as $m)
+                                    <option value="{{ $m }}" {{ request('filter_month') == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Specific Start Date</label>
+                            <input type="date" class="form-control form-control-sm" name="start_date" value="{{ request('start_date') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Specific End Date</label>
+                            <input type="date" class="form-control form-control-sm" name="end_date" value="{{ request('end_date') }}">
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Organizational Filters -->
+                    <div class="row g-2 align-items-end mb-3">
                         <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
                             <select class="form-select form-select-sm select2-simple" name="branch_id" data-placeholder="All Branches" {{ $restrictedBranchId ? 'disabled' : '' }}>
@@ -92,11 +151,22 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Stock Status</label>
-                            <div class="form-check form-switch pt-1 pt-1 mt-1 border rounded px-3 py-1 bg-light">
-                                <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockSwitch" value="1" {{ request('low_stock') ? 'checked' : '' }} style="margin-left: -1em;">
-                                <label class="form-check-label fw-bold small text-danger ms-2" for="lowStockSwitch">Low Stock Only</label>
-                            </div>
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
+                            <select class="form-select form-select-sm select2-simple" name="gender_id" data-placeholder="All Genders">
+                                <option value="">All Genders</option>
+                                @foreach ($genders as $gender)
+                                    <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Specific Variation</label>
+                            <select class="form-select form-select-sm select2-simple" name="variation_value_id" data-placeholder="All Variations">
+                                <option value="">All Variations</option>
+                                @foreach($variationValues as $val)
+                                    <option value="{{ $val->id }}" {{ request('variation_value_id') == $val->id ? 'selected' : '' }}>{{ $val->value }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
 
@@ -270,17 +340,49 @@ $(document).ready(function() {
             $('#stockBreakdownModal').modal('show');
         });
 
-        // Live Search
-        let searchTimeout;
-        $('#tableSearch').off('input').on('input', function() {
-            clearTimeout(searchTimeout);
-            const value = $(this).val().toLowerCase();
-            searchTimeout = setTimeout(function() {
-                $("#stockTable tbody tr").filter(function() {
-                    const text = $(this).text().toLowerCase();
-                    $(this).toggle(text.indexOf(value) > -1);
-                });
-            }, 300);
+        // Live Search removed in favor of global server-side search
+        
+        // Initialize Bootstrap tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Date Filter Interactions
+        const filterYear = $('select[name="filter_year"]');
+        const filterMonth = $('select[name="filter_month"]');
+        const startDate = $('input[name="start_date"]');
+        const endDate = $('input[name="end_date"]');
+
+        filterYear.on('change', function() {
+            if ($(this).val()) {
+                startDate.val('');
+                endDate.val('');
+            }
+        });
+
+        filterMonth.on('change', function() {
+            if ($(this).val() && !filterYear.val()) {
+                filterYear.val(new Date().getFullYear());
+            }
+            if ($(this).val()) {
+                startDate.val('');
+                endDate.val('');
+            }
+        });
+
+        startDate.on('change', function() {
+            if ($(this).val()) {
+                filterYear.val('');
+                filterMonth.val('');
+            }
+        });
+
+        endDate.on('change', function() {
+            if ($(this).val()) {
+                filterYear.val('');
+                filterMonth.val('');
+            }
         });
     }
 

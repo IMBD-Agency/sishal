@@ -22,6 +22,11 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="d-flex justify-content-end gap-2">
+                        @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete invoices'))
+                        <button type="button" id="bulkDeleteBtn" class="btn btn-danger text-white d-none" onclick="bulkDeleteInvoices()">
+                            <i class="fas fa-trash-alt me-2"></i>Bulk Delete
+                        </button>
+                        @endif
                         <a href="{{ route('invoice.create') }}" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Add Invoice
                         </a>
@@ -121,7 +126,12 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0 py-3 ps-4">Invoice #</th>
+                                    @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete invoices'))
+                                    <th class="border-0 py-3 ps-4" style="width: 40px;">
+                                        <input class="form-check-input" type="checkbox" id="selectAll">
+                                    </th>
+                                    @endif
+                                    <th class="border-0 py-3 ps-2">Invoice #</th>
                                     <th class="border-0 py-3">Source & Date</th>
                                     <th class="border-0 py-3">Customer Information</th>
                                     <th class="border-0 py-3 text-end">Grand Total</th>
@@ -132,7 +142,12 @@
                             <tbody>
                                 @forelse($invoices as $invoice)
                                     <tr>
+                                        @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete invoices'))
                                         <td class="ps-4">
+                                            <input class="form-check-input row-checkbox" type="checkbox" value="{{ $invoice->id }}">
+                                        </td>
+                                        @endif
+                                        <td class="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete invoices')) ? 'ps-2' : 'ps-4' }}">
                                             <a href="{{ route('invoice.show',$invoice->id) }}" class="fw-bold text-decoration-none text-primary">
                                                 #{{ $invoice->invoice_number }}
                                             </a>
@@ -193,13 +208,23 @@
                                                     <li><a class="dropdown-item py-2" href="{{ route('invoice.edit', $invoice->id) }}"><i class="fas fa-edit me-2 text-warning"></i>Edit Invoice</a></li>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item py-2 text-primary" href="{{ route('invoice.print', ['invoice_number' => $invoice->invoice_number]) }}" target="_blank"><i class="fas fa-print me-2"></i>Print Invoice</a></li>
+                                                    @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete invoices'))
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <form action="{{ route('invoice.delete', $invoice->id) }}" method="POST" onsubmit="return confirm('Delete Invoice #{{ $invoice->invoice_number }}? This cannot be undone.')">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit" class="dropdown-item py-2 text-danger"><i class="fas fa-trash me-2"></i>Delete Invoice</button>
+                                                        </form>
+                                                    </li>
+                                                    @endif
                                                 </ul>
                                             </div>
                                         </td>
+
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center py-5 text-muted">
+                                        <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete invoices')) ? '7' : '6' }}" class="text-center py-5 text-muted">
                                             <i class="fas fa-file-invoice fa-3x mb-3 opacity-25"></i>
                                             <p class="mb-0">No invoices found match your criteria</p>
                                         </td>
@@ -225,5 +250,68 @@
 @endsection
 
 @push('scripts')
+<script>
+    $(document).ready(function() {
+        $('#selectAll').change(function() {
+            $('.row-checkbox').prop('checked', $(this).prop('checked'));
+            toggleBulkDeleteBtn();
+        });
 
+        $('.row-checkbox').change(function() {
+            if (!$(this).prop('checked')) {
+                $('#selectAll').prop('checked', false);
+            }
+            toggleBulkDeleteBtn();
+        });
+
+        function toggleBulkDeleteBtn() {
+            if ($('.row-checkbox:checked').length > 0) {
+                $('#bulkDeleteBtn').removeClass('d-none');
+            } else {
+                $('#bulkDeleteBtn').addClass('d-none');
+            }
+        }
+    });
+
+    function bulkDeleteInvoices() {
+        let selected = [];
+        $('.row-checkbox:checked').each(function() {
+            selected.push($(this).val());
+        });
+
+        if (selected.length === 0) return;
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Delete ' + selected.length + ' selected invoices? This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete them!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "{{ route('invoice.bulkDelete') }}",
+                    type: 'POST',
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        ids: selected
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            window.showToast('success', response.message);
+                            location.reload();
+                        } else {
+                            window.showToast('error', response.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        window.showToast('error', 'An error occurred while deleting.');
+                    }
+                });
+            }
+        });
+    }
+</script>
 @endpush

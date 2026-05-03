@@ -37,26 +37,6 @@
 
             <!-- Operations Summary Cards -->
             <div class="dash-summary-cards mb-4">
-                <div class="dash-card">
-                    <h2>{{ $todayPurchases['gross_amount'] }}</h2>
-                    <p>Today's Purchase</p>
-                    <i class="fas fa-shopping-basket icon-bg"></i>
-                </div>
-                <div class="dash-card">
-                    <h2>{{ str_pad($todayPurchases['gross_qty'], 2, '0', STR_PAD_LEFT) }}</h2>
-                    <p>Today's Purchase Qty</p>
-                    <i class="fas fa-chart-bar icon-bg"></i>
-                </div>
-                <div class="dash-card">
-                    <h2>{{ $todayPurchases['actual_amount'] }}</h2>
-                    <p>Today's Actual Purchase</p>
-                    <i class="fas fa-shopping-basket icon-bg"></i>
-                </div>
-                <div class="dash-card">
-                    <h2>{{ str_pad($todayPurchases['actual_qty'], 2, '0', STR_PAD_LEFT) }}</h2>
-                    <p>Today's Actual Purchase Qty</p>
-                    <i class="fas fa-chart-bar icon-bg"></i>
-                </div>
                 <div class="dash-card card-alt">
                     <h2>{{ $todayExpenses }}</h2>
                     <p>Today's Expense</p>

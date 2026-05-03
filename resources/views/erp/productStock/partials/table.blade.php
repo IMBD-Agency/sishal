@@ -1,6 +1,6 @@
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card border-0 shadow-sm rounded-4 bg-primary text-white">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center">
@@ -15,13 +15,13 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 bg-success text-white">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 bg-secondary text-white">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Total Stock Value</h6>
-                        <h2 class="fw-bold mb-0">৳ {{ number_format($totalStockValue, 2) }}</h2>
+                        <h2 class="fw-bold mb-0" style="font-size: 1.5rem;">৳ {{ number_format($totalStockValue, 2) }}</h2>
                     </div>
                     <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
                         <i class="fas fa-coins fs-4"></i>
@@ -30,16 +30,31 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 bg-success text-white">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Potential Revenue</h6>
+                        <h2 class="fw-bold mb-0" style="font-size: 1.5rem;">৳ {{ number_format($totalStockRevenue, 2) }}</h2>
+                    </div>
+                    <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
+                        <i class="fas fa-chart-line fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
         <div class="card border-0 shadow-sm rounded-4 bg-info text-white">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Active Products</h6>
-                        <h2 class="fw-bold mb-0">{{ $productStocks->total() }}</h2>
+                        <h6 class="text-white-50 text-uppercase small fw-bold mb-1">Projected Profit</h6>
+                        <h2 class="fw-bold mb-0" style="font-size: 1.5rem;">৳ {{ number_format($totalStockRevenue - $totalStockValue, 2) }}</h2>
                     </div>
                     <div class="avatar-md bg-white bg-opacity-25 rounded-3 d-flex align-items-center justify-content-center">
-                        <i class="fas fa-tag fs-4"></i>
+                        <i class="fas fa-hand-holding-usd fs-4"></i>
                     </div>
                 </div>
             </div>
@@ -59,7 +74,7 @@
                         <th>Style / SKU</th>
                         <th>Category</th>
                         <th>Size Breakdown</th>
-                        <th class="text-center">Total Purchase (YTD)</th>
+                        <th class="text-center" style="min-width: 150px;">Purchased vs Sold <br><small class="text-muted fw-normal">({{ isset($isDateFiltered) && $isDateFiltered ? 'Filtered' : 'YTD' }})</small></th>
                         <th class="text-end">Pur. Price</th>
                         <th class="text-end">MRP</th>
                         <th class="text-center">Current Stock</th>
@@ -81,20 +96,26 @@
                             if ($stock->has_variations) {
                                 foreach ($stock->variations as $var) {
                                     $sizeName = $var->attributeValues->pluck('value')->implode(', ') ?: 'Default';
+                                    
+                                    // Initialize size sum data even if no stock exists yet
+                                    if (!isset($sizeSumData[$sizeName])) {
+                                        $sizeSumData[$sizeName] = 0;
+                                    }
+
                                     foreach ($var->stocks as $s) {
                                         if ($s->branch_id) {
                                             $locName = $s->branch->name ?? 'Unknown';
                                             if(!isset($branchStockData[$locName])) $branchStockData[$locName] = [];
                                             $branchStockData[$locName][] = ['size' => $sizeName, 'qty' => $s->quantity];
                                             
-                                            $sizeSumData[$sizeName] = ($sizeSumData[$sizeName] ?? 0) + $s->quantity;
+                                            $sizeSumData[$sizeName] += $s->quantity;
                                             if ($s->quantity < 0) $hasNegativeStock = true;
                                         } else {
                                             $locName = $s->warehouse->name ?? 'Unknown';
                                             if(!isset($warehouseStockData[$locName])) $warehouseStockData[$locName] = [];
                                             $warehouseStockData[$locName][] = ['size' => $sizeName, 'qty' => $s->quantity];
                                             
-                                            $sizeSumData[$sizeName] = ($sizeSumData[$sizeName] ?? 0) + $s->quantity;
+                                            $sizeSumData[$sizeName] += $s->quantity;
                                             if ($s->quantity < 0) $hasNegativeStock = true;
                                         }
                                     }
@@ -113,7 +134,9 @@
                             }
 
                             $totalPurchase = 0;
+                            $totalSold = 0;
                             $purchaseSumData = [];
+                            $soldSumData = [];
 
                             if ($stock->relationLoaded('purchaseItems')) {
                                 foreach ($stock->purchaseItems as $pi) {
@@ -131,6 +154,41 @@
                                     }
                                 }
                             }
+
+                            // Calculate Total Sold from PosItems and InvoiceItems
+                            if ($stock->relationLoaded('saleItems')) {
+                                foreach ($stock->saleItems as $si) {
+                                    $totalSold += $si->quantity;
+                                    if ($si->variation_id && $stock->has_variations) {
+                                        $sizeName = 'Unknown';
+                                        $var = collect($stock->variations)->firstWhere('id', $si->variation_id);
+                                        if ($var) {
+                                            $sizeName = collect($var->attributeValues)->pluck('value')->implode(', ') ?: 'Default';
+                                        }
+                                        $soldSumData[$sizeName] = ($soldSumData[$sizeName] ?? 0) + $si->quantity;
+                                    } else {
+                                        $soldSumData['N/A'] = ($soldSumData['N/A'] ?? 0) + $si->quantity;
+                                    }
+                                }
+                            }
+
+                            if ($stock->relationLoaded('invoiceItems')) {
+                                foreach ($stock->invoiceItems as $ii) {
+                                    $totalSold += $ii->quantity;
+                                    if ($ii->variation_id && $stock->has_variations) {
+                                        $sizeName = 'Unknown';
+                                        $var = collect($stock->variations)->firstWhere('id', $ii->variation_id);
+                                        if ($var) {
+                                            $sizeName = collect($var->attributeValues)->pluck('value')->implode(', ') ?: 'Default';
+                                        }
+                                        $soldSumData[$sizeName] = ($soldSumData[$sizeName] ?? 0) + $ii->quantity;
+                                    } else {
+                                        $soldSumData['N/A'] = ($soldSumData['N/A'] ?? 0) + $ii->quantity;
+                                    }
+                                }
+                            }
+                            
+                            $sellThroughRate = $totalPurchase > 0 ? round(($totalSold / $totalPurchase) * 100) : ($totalSold > 0 ? 100 : 0);
                         @endphp
                         <tr class="{{ $totalStock <= 5 ? 'bg-danger bg-opacity-10' : '' }}">
                             <td class="ps-3 text-muted">{{ $productStocks->firstItem() + $index }}</td>
@@ -161,11 +219,11 @@
                                         @foreach($sizeSumData as $size => $qty)
                                             @php
                                                 $purQty = $purchaseSumData[$size] ?? 0;
+                                                $soldQty = $soldSumData[$size] ?? 0;
                                             @endphp
-                                            <span class="badge bg-light text-dark border small fw-normal" title="Current Stock: {{ $qty }} | Purchased YTD: {{ $purQty }}">
-                                                <span class="text-muted">{{ $size }}:</span> 
-                                                <strong class="{{ $qty <= 5 ? 'text-danger' : 'text-primary' }}">{{ $qty }}</strong>
-                                                <small class="text-success ms-1"><i class="fas fa-arrow-down" style="font-size: 0.6rem;"></i>{{ $purQty }}</small>
+                                            <span class="badge bg-light text-dark border fw-normal p-2 me-1 mb-1 shadow-sm" data-bs-toggle="tooltip" data-bs-placement="top" title="Bought: {{ $purQty }} | Sold: {{ $soldQty }}" style="font-size: 0.8rem; cursor: help;">
+                                                <span class="text-muted fw-bold me-1">{{ $size }}:</span> 
+                                                <strong class="{{ $qty <= 5 ? 'text-danger' : 'text-primary' }} fs-6">{{ $qty }}</strong>
                                             </span>
                                         @endforeach
                                     </div>
@@ -173,7 +231,16 @@
                                     <span class="text-muted small italic">No variations</span>
                                 @endif
                             </td>
-                            <td class="text-center fw-bold text-success">{{ $totalPurchase }}</td>
+                            <td class="text-center align-middle">
+                                <div class="d-flex flex-column align-items-center">
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 mb-1 w-100" style="max-width: 120px; font-size: 0.75rem;">
+                                        <i class="fas fa-cart-arrow-down me-1"></i> Bought: {{ $totalPurchase }}
+                                    </span>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 w-100" style="max-width: 120px; font-size: 0.75rem;">
+                                        <i class="fas fa-money-bill-wave me-1"></i> Sold: {{ $totalSold }}
+                                    </span>
+                                </div>
+                            </td>
                             <td class="text-end fw-bold">{{ number_format($stock->cost, 2) }}</td>
                             <td class="text-end fw-bold">{{ number_format($stock->price, 2) }}</td>
                             <td class="text-center">

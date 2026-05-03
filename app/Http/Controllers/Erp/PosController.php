@@ -725,6 +725,67 @@ class PosController extends Controller
         return view('erp.pos.edit', compact('pos', 'categories', 'branches', 'customers', 'bankAccounts', 'shippingMethods'));
     }
 
+    public function destroy($id)
+    {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete sales')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $pos = Pos::with(['items', 'invoice.items', 'invoice.payments', 'payments'])->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            // Delete invoice if linked
+            if ($pos->invoice) {
+                $pos->invoice->items()->delete();
+                $pos->invoice->payments()->delete();
+                $pos->invoice->delete();
+            }
+            // Delete POS payments and items
+            $pos->payments()->delete();
+            $pos->items()->delete();
+            $pos->delete();
+
+            DB::commit();
+            return redirect()->route('pos.list')->with('success', 'Sale #' . $pos->sale_number . ' deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to delete sale: ' . $e->getMessage());
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete sales')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
+        $ids = $request->input('ids');
+        if (empty($ids) || !is_array($ids)) {
+            return response()->json(['success' => false, 'message' => 'No sales selected.']);
+        }
+
+        DB::beginTransaction();
+        try {
+            $sales = Pos::whereIn('id', $ids)->with(['items', 'invoice.items', 'invoice.payments', 'payments'])->get();
+            foreach ($sales as $pos) {
+                if ($pos->invoice) {
+                    $pos->invoice->items()->delete();
+                    $pos->invoice->payments()->delete();
+                    $pos->invoice->delete();
+                }
+                $pos->payments()->delete();
+                $pos->items()->delete();
+                $pos->delete();
+            }
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Selected sales deleted successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to delete sales: ' . $e->getMessage()]);
+        }
+    }
+
     public function update(Request $request, $id)
     {
         if (!auth()->user()->hasPermissionTo('manage sales')) {

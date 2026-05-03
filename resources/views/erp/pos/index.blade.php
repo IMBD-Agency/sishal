@@ -248,6 +248,11 @@
              <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2">
                     <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Sales Registry</h6>
+                    @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
+                    <button type="button" id="bulkDeleteBtn" class="btn btn-danger btn-sm text-white d-none ms-3" onclick="bulkDeleteSales()">
+                        <i class="fas fa-trash-alt me-2"></i>Bulk Delete
+                    </button>
+                    @endif
                 </div>
                 <div class="search-wrapper-premium">
                     <input type="text" id="salesSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
@@ -362,7 +367,70 @@
         }
 
         initializeTableScripts();
+
+        // Event Delegation for Checkboxes (works after AJAX reload)
+        $(document).on('change', '#selectAll', function() {
+            $('.row-checkbox').prop('checked', $(this).prop('checked'));
+            toggleBulkDeleteBtn();
+        });
+
+        $(document).on('change', '.row-checkbox', function() {
+            if (!$(this).prop('checked')) {
+                $('#selectAll').prop('checked', false);
+            }
+            toggleBulkDeleteBtn();
+        });
+
     });
+
+    function toggleBulkDeleteBtn() {
+        if ($('.row-checkbox:checked').length > 0) {
+            $('#bulkDeleteBtn').removeClass('d-none');
+        } else {
+            $('#bulkDeleteBtn').addClass('d-none');
+        }
+    }
+
+    function bulkDeleteSales() {
+        let selected = [];
+        $('.row-checkbox:checked').each(function() {
+            selected.push($(this).val());
+        });
+
+        if (selected.length === 0) return;
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Delete ' + selected.length + ' selected sales? This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete them!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "{{ route('pos.bulkDelete') }}",
+                    type: 'POST',
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        ids: selected
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            window.showToast('success', response.message);
+                            location.reload();
+                        } else {
+                            window.showToast('error', response.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        window.showToast('error', 'An error occurred while deleting.');
+                    }
+                });
+            }
+        });
+    }
 
     function exportData(format) {
         const form = document.getElementById('filterForm');

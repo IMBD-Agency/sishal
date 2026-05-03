@@ -2,6 +2,11 @@
     <table class="table premium-table compact reporting-table table-bordered mb-0" id="salesTable">
         <thead>
             <tr>
+                @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
+                <th class="text-center" style="min-width: 40px;">
+                    <input class="form-check-input" type="checkbox" id="selectAll">
+                </th>
+                @endif
                 <th class="text-center" style="min-width: 40px;">#</th>
                 <th style="min-width: 100px;">Invoice</th>
                 <th style="min-width: 90px;">Date</th>
@@ -56,6 +61,11 @@
                     $actualAmt = $item->total_price - $retAmt;
                 @endphp
                 <tr>
+                    <td class="text-center">
+                        @if($isFirst && (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')))
+                            <input class="form-check-input row-checkbox" type="checkbox" value="{{ $sale->id }}">
+                        @endif
+                    </td>
                     <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
                     <td>
                         @if($isFirst)
@@ -122,26 +132,37 @@
                     </td>
                     <td class="text-center">
                         @if($isFirst)
-                            <a href="{{ route('pos.show', $sale->id) }}" class="btn btn-action btn-sm" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </a>
+                            <div class="d-flex gap-1 justify-content-center">
+                                <a href="{{ route('pos.show', $sale->id) }}" class="btn btn-action btn-sm" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
+                                <form action="{{ route('pos.delete', $sale->id) }}" method="POST"
+                                    onsubmit="return confirm('Delete Sale {{ $sale->sale_number }}? This will also delete its invoice and payments. Cannot be undone.')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Sale" style="padding: 2px 7px;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                @endif
+                            </div>
                         @endif
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="27" class="text-center py-5 text-muted">No sales records found.</td></tr>
+                <tr><td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '28' : '27' }}" class="text-center py-5 text-muted">No sales records found.</td></tr>
             @endforelse
         </tbody>
         <tfoot class="bg-light fw-bold">
             <tr class="text-muted small border-top">
-                <td colspan="15" class="text-end">Page Subtotal</td>
+                <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '16' : '15' }}" class="text-end">Page Subtotal</td>
                 <td class="text-center">{{ $items->sum('quantity') }}</td>
                 <td class="text-end">{{ number_format($items->sum('total_price'), 2) }}</td>
                 <td class="text-end text-danger">{{ number_format($sale->discount ?? 0, 2) }}</td>
                 <td colspan="11"></td>
             </tr>
             <tr class="bg-soft-primary border-top-2">
-                <td colspan="15" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
+                <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '16' : '15' }}" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
                 <td class="text-center py-3">{{ $reportTotals['sell_qty'] }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['sell_amt'], 2) }}</td>
                 <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>

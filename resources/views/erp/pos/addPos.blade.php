@@ -150,7 +150,7 @@
                                 <span class="fw-bold" id="subtotalDisplay">0.00৳</span>
                             </div>
                             <div class="d-flex justify-content-between mb-1 text-danger" id="discountRow" style="display: none !important;">
-                                <span class="fw-bold small">Discount</span>
+                                <span class="fw-bold small">Discount <span id="discountPercentTag" class="text-muted extra-small"></span></span>
                                 <span class="fw-bold">- <span id="discountAmountDisplay">0.00</span>৳</span>
                             </div>
                             <div class="d-flex justify-content-between border-top pt-1 mt-1">
@@ -654,8 +654,16 @@ $(document).ready(function() {
         if(disc > 0) {
             $('#discountRow').attr('style', 'display: flex !important;');
             $('#discountAmountDisplay').text(disc.toFixed(2));
+            
+            if (discInp.includes('%')) {
+                $('#discountPercentTag').text('(' + discInp + ')');
+            } else {
+                let percent = (sub > 0) ? ((disc / sub) * 100).toFixed(1) : 0;
+                $('#discountPercentTag').text('(' + percent + '%)');
+            }
         } else {
             $('#discountRow').attr('style', 'display: none !important;');
+            $('#discountPercentTag').text('');
         }
 
         $('#finalTotalDisplay').text(final);

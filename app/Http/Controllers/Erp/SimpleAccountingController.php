@@ -155,11 +155,29 @@ class SimpleAccountingController extends Controller
         $brandId = $request->get('brand_id');
         $seasonId = $request->get('season_id');
         $genderId = $request->get('gender_id');
+        $variationValueId = $request->get('variation_value_id');
         
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branchId = $restrictedBranchId;
             $source = 'pos';
+        }
+
+        // Quick Month/Year Filters
+        if ($request->filled('filter_year')) {
+            $year = $request->filter_year;
+            $month = $request->filled('filter_month') ? str_pad($request->filter_month, 2, '0', STR_PAD_LEFT) : null;
+            
+            if ($month) {
+                $startDate = Carbon::parse("$year-$month-01")->startOfDay();
+                $endDate = Carbon::parse("$year-$month-01")->endOfMonth()->endOfDay();
+                $request->merge(['date_from' => $startDate->toDateString(), 'date_to' => $endDate->toDateString()]);
+            } else {
+                $startDate = Carbon::parse("$year-01-01")->startOfDay();
+                $endDate = Carbon::parse("$year-12-31")->endOfDay();
+                $request->merge(['date_from' => $startDate->toDateString(), 'date_to' => $endDate->toDateString()]);
+            }
+            $dateRange = 'custom';
         }
 
         if ($dateRange === 'custom') {
@@ -171,16 +189,16 @@ class SimpleAccountingController extends Controller
         }
 
         // Get top products with filters
-        $filters = compact('search', 'brandId', 'seasonId', 'genderId');
-        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
-        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
-        $topByQuantity = $this->getTopProductsByQuantity($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
+        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
+        $topByQuantity = $this->getTopProductsByQuantity($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
 
         $categories = $this->getFormattedCategories();
         $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
         $brands = Brand::all();
         $seasons = Season::all();
         $genders = Gender::all();
+        $variationValues = \App\Models\VariationAttributeValue::whereHas('variations')->orderBy('value')->get();
 
         return view('erp.simple-accounting.top-products', compact(
             'topByRevenue',
@@ -197,11 +215,13 @@ class SimpleAccountingController extends Controller
             'brandId',
             'seasonId',
             'genderId',
+            'variationValueId',
             'categories',
             'branches',
             'brands',
             'seasons',
-            'genders'
+            'genders',
+            'variationValues'
         ));
     }
 
@@ -749,7 +769,7 @@ class SimpleAccountingController extends Controller
     /**
      * Get product profits
      */
-    private function getProductProfits($startDate, $endDate, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
+    private function getProductProfits($startDate, $endDate, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null, $variationValueId = null)
     {
         // Get COD percentage from settings
         $generalSetting = \App\Models\GeneralSetting::first();
@@ -794,6 +814,12 @@ class SimpleAccountingController extends Controller
                 });
             }
 
+            if ($variationValueId) {
+                $ordersQuery->whereHas('items.variation.attributeValues', function($q) use ($variationValueId) {
+                    $q->where('variation_attribute_values.id', $variationValueId);
+                });
+            }
+
             $orders = $ordersQuery->get();
         }
 
@@ -835,6 +861,12 @@ class SimpleAccountingController extends Controller
             if ($genderId) {
                 $posItemsQuery->whereHas('product', function($q) use ($genderId) {
                     $q->where('gender_id', $genderId);
+                });
+            }
+
+            if ($variationValueId) {
+                $posItemsQuery->whereHas('variation.attributeValues', function($q) use ($variationValueId) {
+                    $q->where('variation_attribute_values.id', $variationValueId);
                 });
             }
 
@@ -979,27 +1011,27 @@ class SimpleAccountingController extends Controller
     /**
      * Get top products by revenue
      */
-    private function getTopProductsByRevenue($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
+    private function getTopProductsByRevenue($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null, $variationValueId = null)
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
         return $productProfits->sortByDesc('revenue')->take($limit);
     }
 
     /**
      * Get top products by profit
      */
-    private function getTopProductsByProfit($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
+    private function getTopProductsByProfit($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null, $variationValueId = null)
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
         return $productProfits->sortByDesc('profit')->take($limit);
     }
 
     /**
      * Get top products by quantity sold
      */
-    private function getTopProductsByQuantity($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null)
+    private function getTopProductsByQuantity($startDate, $endDate, $limit, $source = 'all', $categoryId = null, $branchId = null, $search = null, $brandId = null, $seasonId = null, $genderId = null, $variationValueId = null)
     {
-        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $productProfits = $this->getProductProfits($startDate, $endDate, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
         return $productProfits->sortByDesc('quantity_sold')->take($limit);
     }
 
@@ -1017,6 +1049,7 @@ class SimpleAccountingController extends Controller
         $brandId = $request->get('brand_id');
         $seasonId = $request->get('season_id');
         $genderId = $request->get('gender_id');
+        $variationValueId = $request->get('variation_value_id');
 
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subMonth()->startOfDay();
@@ -1026,8 +1059,8 @@ class SimpleAccountingController extends Controller
             $endDate = Carbon::now();
         }
 
-        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
-        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
+        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -1112,6 +1145,7 @@ class SimpleAccountingController extends Controller
         $brandId = $request->get('brand_id');
         $seasonId = $request->get('season_id');
         $genderId = $request->get('gender_id');
+        $variationValueId = $request->get('variation_value_id');
 
         if ($dateRange === 'custom') {
             $startDate = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->subMonth()->startOfDay();
@@ -1121,8 +1155,8 @@ class SimpleAccountingController extends Controller
             $endDate = Carbon::now();
         }
 
-        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
-        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId);
+        $topByRevenue = $this->getTopProductsByRevenue($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
+        $topByProfit = $this->getTopProductsByProfit($startDate, $endDate, $limit, $source, $categoryId, $branchId, $search, $brandId, $seasonId, $genderId, $variationValueId);
 
         $pdf = Pdf::loadView('erp.simple-accounting.exports.top-products-pdf', [
             'topByRevenue' => $topByRevenue,
