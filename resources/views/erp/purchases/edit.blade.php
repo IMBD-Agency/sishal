@@ -94,6 +94,7 @@
         <div class="container-fluid px-4 pb-5">
             <form id="purchaseForm" action="{{ route('purchase.update', $purchase->id) }}" method="POST">
                 @csrf
+                @method('PUT')
                 
                 <div class="row g-4">
                     <!-- Left Sidebar -->
@@ -103,17 +104,25 @@
                                 <div class="form-section-title"><i class="fas fa-info-circle me-2"></i>Purchase Info</div>
                                 
                                 <div class="mb-4">
-                                    <label class="form-label fw-semibold small text-muted text-uppercase">Target Branch (Delivery)</label>
-                                    <input type="hidden" name="ship_location_type" value="branch">
-                                </div>
-                                
-                                <div class="mb-4">
-                                    <label for="location_id" class="form-label fw-semibold small text-muted text-uppercase">Destination Branch</label>
-                                    <select name="location_id" id="location_id" class="form-select border-2 rounded-3" required>
-                                        @foreach($branches as $loc)
-                                            <option value="{{ $loc->id }}" {{ $purchase->location_id == $loc->id ? 'selected' : '' }}>{{ $loc->name }}</option>
+                                    <label for="supplier_id" class="form-label fw-semibold small text-muted text-uppercase">Supplier <span class="text-danger">*</span></label>
+                                    <select name="supplier_id" id="supplier_id" class="form-select border-2 rounded-3 select2-basic" required>
+                                        <option value="">Select Supplier</option>
+                                        @foreach($suppliers as $supplier)
+                                            <option value="{{ $supplier->id }}" {{ $purchase->supplier_id == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
                                         @endforeach
                                     </select>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label for="location_id" class="form-label fw-semibold small text-muted text-uppercase">Target Warehouse <span class="text-danger">*</span></label>
+                                    <input type="hidden" name="ship_location_type" value="warehouse">
+                                    <select name="location_id" id="location_id" class="form-select border-2 rounded-3" required>
+                                        <option value="">Select Warehouse</option>
+                                        @foreach($warehouses as $loc)
+                                            <option value="{{ $loc->id }}" {{ ($purchase->ship_location_type == 'warehouse' && $purchase->location_id == $loc->id) ? 'selected' : '' }}>{{ $loc->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted extra-small"><i class="fas fa-info-circle me-1"></i>Purchases are only allowed for warehouses.</small>
                                 </div>
                                 
                                 <div class="mb-4">
@@ -126,17 +135,20 @@
                                     <select name="status" id="status" class="form-select border-2 rounded-3 shadow-sm {{ $purchase->status == 'received' ? 'bg-light' : '' }}" {{ $purchase->status == 'received' ? 'disabled' : '' }}>
                                         <option value="pending" {{ $purchase->status == 'pending' ? 'selected' : '' }}>Pending</option>
                                         <option value="received" {{ $purchase->status == 'received' ? 'selected' : '' }}>Received</option>
+                                        <option value="ordered" {{ $purchase->status == 'ordered' ? 'selected' : '' }}>Ordered</option>
                                         <option value="cancelled" {{ $purchase->status == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                                     </select>
                                     @if($purchase->status == 'received')
-                                        <small class="text-info mt-1 d-block"><i class="fas fa-lock me-1"></i> Stock already updated. Status cannot be changed.</small>
+                                        <div class="alert alert-warning py-2 mt-2 border-0 extra-small">
+                                            <i class="fas fa-lock me-1"></i> Stock already updated. Items and status are locked.
+                                        </div>
                                         <input type="hidden" name="status" value="received">
                                     @endif
                                 </div>
                                 
                                 <div class="mb-0">
-                                    <label for="notes" class="form-label fw-semibold small text-muted text-uppercase">Purchase Notes</label>
-                                    <textarea name="notes" id="notes" class="form-control border-2 rounded-3" rows="4">{{ $purchase->notes }}</textarea>
+                                    <label for="notes" class="form-label fw-semibold small text-muted text-uppercase">Internal Notes</label>
+                                    <textarea name="notes" id="notes" class="form-control border-2 rounded-3" rows="3" placeholder="Add any specific details about this purchase...">{{ $purchase->notes }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -320,11 +332,14 @@
                 if ($s.data('selected-id')) {
                     const opt = new Option($s.data('selected-text'), $s.data('selected-id'), true, true);
                     $s.append(opt).trigger('change');
-                    // Special logic for initial variation loading if needed
+                    
+                    // Force variation load for initial items
+                    handleProductChange($s[0]);
                 }
             });
             $(document).on('change', '.product-select', function() { handleProductChange(this); });
             updateTotals();
+            $('.select2-basic').select2();
         });
 
         // ... Add Item Row and other logic similar to create.blade.php ...
