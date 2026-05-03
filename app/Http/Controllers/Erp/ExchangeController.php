@@ -84,6 +84,31 @@ class ExchangeController extends Controller
         return view('erp.exchange.create');
     }
 
+    public function latestInvoices(Request $request)
+    {
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        
+        $sales = Pos::with(['customer'])
+                    ->when($restrictedBranchId, function($q) use ($restrictedBranchId) {
+                        $q->where('branch_id', $restrictedBranchId);
+                    })
+                    ->latest()
+                    ->take(10)
+                    ->get();
+
+        $data = $sales->map(function($sale) {
+            return [
+                'id' => $sale->id,
+                'sale_number' => $sale->sale_number,
+                'customer_name' => $sale->customer?->name ?? 'Walk-in',
+                'date' => \Carbon\Carbon::parse($sale->sale_date)->format('d M, Y'),
+                'amount' => number_format($sale->total_amount, 2)
+            ];
+        });
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
     public function searchInvoice(Request $request)
     {
         $invoiceNo = $request->get('invoice_no');

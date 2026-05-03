@@ -29,22 +29,31 @@
 
         <div class="container-fluid px-4 py-4">
             <!-- Invoice Search Card -->
-            <div class="premium-card mb-4">
+            <div class="premium-card mb-4" style="overflow: visible;">
                 <div class="card-header bg-white py-3 px-4 border-bottom">
                     <h6 class="mb-0 fw-bold text-uppercase text-muted small"><i class="fas fa-search me-2 text-primary"></i>Sales Exchange Information</h6>
                 </div>
                 <div class="card-body p-4">
                     <div class="row align-items-end g-3">
-                        <div class="col-md-5">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Sales Invoice No. *</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-file-invoice"></i></span>
-                                <input type="text" id="invoice_search" class="form-control border-start-0" placeholder="Invoice Number/Scan Barcode">
-                                <button type="button" id="btnSearch" class="btn btn-primary px-4">
-                                    <i class="fas fa-save me-2"></i>Search
-                                </button>
+                            <div class="position-relative" style="z-index: 1060;">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Sales Invoice No. *</label>
+                                <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                                    <span class="input-group-text bg-white border-end-0 text-primary"><i class="fas fa-file-invoice"></i></span>
+                                    <input type="text" id="invoice_search" class="form-control border-start-0 fw-bold" placeholder="Invoice Number/Scan Barcode" autocomplete="off">
+                                    <button type="button" id="btnSearch" class="btn btn-primary px-4 fw-bold">
+                                        <i class="fas fa-search me-2"></i>Search
+                                    </button>
+                                </div>
+                                <!-- Latest Invoices Dropdown -->
+                                <div id="latestInvoicesDropdown" class="position-absolute w-100 bg-white shadow-lg rounded-3 border mt-1 d-none" style="z-index: 9999; max-height: 350px; overflow-y: auto;">
+                                    <div class="p-2 border-bottom bg-light sticky-top">
+                                        <small class="fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Recent 10 Sales</small>
+                                    </div>
+                                    <div id="latestInvoicesList" class="list-group list-group-flush">
+                                        <!-- Items will be loaded here via AJAX -->
+                                    </div>
+                                </div>
                             </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -140,32 +149,74 @@
                         <div class="premium-card">
                             <div class="card-body p-4">
                                 <div class="row justify-content-end">
-                                    <div class="col-md-5 col-lg-4">
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Return Credit:</span>
-                                            <span class="fw-bold text-danger" id="summaryReturn">0.00</span>
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="bg-light p-4 rounded-4 shadow-sm border">
+                                            <h6 class="fw-bold text-uppercase small text-muted mb-4 border-bottom pb-2">Settlement Summary</h6>
+                                            
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Purchase Subtotal:</span>
+                                                <span class="fw-bold" id="summarySubtotal">0.00</span>
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Return Credit:</span>
+                                                <span class="fw-bold text-danger" id="summaryReturn">(-) 0.00</span>
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div class="text-muted d-flex align-items-center small fw-bold">
+                                                    DISCOUNT:
+                                                    <div class="btn-group btn-group-sm ms-2" role="group" style="height: 24px;">
+                                                        <input type="radio" class="btn-check" name="discount_type" id="disc_fixed" value="fixed" checked>
+                                                        <label class="btn btn-outline-secondary py-0 px-2 d-flex align-items-center" for="disc_fixed">৳</label>
+                                                        <input type="radio" class="btn-check" name="discount_type" id="disc_percent" value="percent">
+                                                        <label class="btn btn-outline-secondary py-0 px-2 d-flex align-items-center" for="disc_percent">%</label>
+                                                    </div>
+                                                </div>
+                                                <div class="input-group input-group-sm" style="width: 100px;">
+                                                    <input type="number" name="discount" id="discountInput" class="form-control text-end fw-bold" value="0" step="0.01">
+                                                </div>
+                                            </div>
+
+                                            <div class="d-flex justify-content-between mb-3">
+                                                <span class="text-muted small fw-bold">DELIVERY:</span>
+                                                <div class="input-group input-group-sm" style="width: 100px;">
+                                                    <input type="number" name="delivery" id="deliveryInput" class="form-control text-end" value="0" step="0.01">
+                                                </div>
+                                            </div>
+
+                                            <div class="border-top border-2 border-dashed pt-3 mt-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h5 class="fw-bold mb-0">Net Payable:</h5>
+                                                    <div class="text-end">
+                                                        <h3 class="fw-bold text-primary mb-0" id="netAmountDisplay">৳0.00</h3>
+                                                        <input type="hidden" id="netAmountHidden">
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <label class="form-label small fw-bold text-muted text-uppercase mb-0">Payment Amount</label>
+                                                        <span id="paymentStatusBadge" class="badge rounded-pill px-2 py-1 small">Difference</span>
+                                                    </div>
+                                                    <div class="input-group input-group-lg shadow-sm">
+                                                        <span class="input-group-text bg-white border-end-0 text-muted">৳</span>
+                                                        <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg border-start-0 ps-0 fw-bold text-end" value="0" step="0.01">
+                                                    </div>
+                                                </div>
+
+                                                <div id="changeAmountSection" class="bg-warning bg-opacity-10 p-3 rounded-4 mb-4 border border-warning border-opacity-25" style="display: none;">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="fw-bold text-warning-emphasis"><i class="fas fa-hand-holding-usd me-2"></i>Change:</span>
+                                                        <h4 class="fw-bold text-warning-emphasis mb-0" id="changeAmountDisplay">৳0.00</h4>
+                                                    </div>
+                                                </div>
+
+                                                <button type="submit" class="btn btn-primary w-100 py-3 shadow-lg fw-bold text-uppercase rounded-pill mt-2">
+                                                    <i class="fas fa-check-circle me-2"></i>Complete Exchange
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">New Purchase:</span>
-                                            <span class="fw-bold text-success" id="summaryPurchase">0.00</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="text-muted">Discount Adjustment:</span>
-                                            <input type="number" name="discount" id="discountInput" class="form-control text-end" style="width: 140px;" value="0" step="0.01">
-                                        </div>
-                                        <hr>
-                                        <div class="d-flex justify-content-between mb-3 align-items-center">
-                                            <h5 class="fw-bold mb-0">Net Payable:</h5>
-                                            <h4 class="fw-bold text-primary mb-0" id="netAmount">0.00</h4>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-bold">Amount to Pay Now</label>
-                                            <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg text-end fw-bold" value="0" step="0.01">
-                                            <div class="form-text text-end small" id="paymentStatusText"></div>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary w-100 py-3 shadow-lg fw-bold text-uppercase">
-                                            <i class="fas fa-check-circle me-2"></i>Complete Exchange
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -235,6 +286,67 @@
             // Focus invoice search on load
             $invoiceInput.focus();
 
+            // Recent Invoices Dropdown Logic
+            const $latestDropdown = $('#latestInvoicesDropdown');
+            const $latestList = $('#latestInvoicesList');
+
+            $invoiceInput.on('focus click', function() {
+                if ($invoiceInput.val().trim().length === 0) {
+                    showLatestInvoices();
+                }
+            });
+
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.position-relative').length) {
+                    $latestDropdown.addClass('d-none');
+                }
+            });
+
+            function showLatestInvoices() {
+                $latestList.html('<div class="p-4 text-center text-muted small"><i class="fas fa-spinner fa-spin me-2"></i>Loading recent sales...</div>');
+                $latestDropdown.removeClass('d-none');
+
+                $.get("{{ route('exchange.latest.invoices') }}", function(res) {
+                    if (res.success && res.data.length > 0) {
+                        let html = '';
+                        res.data.forEach(sale => {
+                            html += `
+                                <button type="button" class="list-group-item list-group-item-action py-3 select-latest-invoice" data-invoice="${sale.sale_number}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-dark">${sale.sale_number}</div>
+                                            <div class="small text-muted">${sale.customer_name}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold text-primary">৳${sale.amount}</div>
+                                            <div class="small text-muted" style="font-size: 0.7rem;">${sale.date}</div>
+                                        </div>
+                                    </div>
+                                </button>
+                            `;
+                        });
+                        $latestList.html(html);
+                    } else {
+                        $latestList.html('<div class="p-4 text-center text-muted small">No recent sales found</div>');
+                    }
+                });
+            }
+
+            $(document).on('click', '.select-latest-invoice', function() {
+                const invoice = $(this).data('invoice');
+                $invoiceInput.val(invoice);
+                $latestDropdown.addClass('d-none');
+                $btnSearch.click();
+            });
+
+            $invoiceInput.on('input', function() {
+                if ($(this).val().trim().length > 0) {
+                    $latestDropdown.addClass('d-none');
+                } else {
+                    showLatestInvoices();
+                }
+            });
+
             $btnSearch.on('click', function() {
                 const invoiceNo = $invoiceInput.val().trim();
                 if (!invoiceNo) return Swal.fire('Error', 'Enter invoice number', 'error');
@@ -254,7 +366,7 @@
                         }
                     },
                     complete: function() {
-                        $btnSearch.prop('disabled', false).html('<i class="fas fa-save me-2"></i>Search');
+                        $btnSearch.prop('disabled', false).html('<i class="fas fa-search me-2"></i>Search');
                     }
                 });
             });
@@ -575,29 +687,8 @@
                 calculateAll();
             }
 
-            $(document).on('input', '.new-qty, .new-price, #discountInput', function() {
-                const $row = $(this).closest('tr');
-                const $qtyInput = $row.find('.new-qty');
-                const qty = parseFloat($qtyInput.val()) || 0;
-                const price = parseFloat($row.find('.new-price').val()) || 0;
-                const max = parseFloat($qtyInput.data('max'));
-
-                if (max && qty > max) {
-                    $qtyInput.addClass('is-invalid');
-                    // Optional: Validation feedback
-                    if ($row.find('.invalid-feedback').length === 0) {
-                        $row.find('.stock-info').addClass('text-danger').removeClass('text-muted').text(`Max Limit: ${max}`);
-                    }
-                } else {
-                    $qtyInput.removeClass('is-invalid');
-                    if(max) {
-                         $row.find('.stock-info').removeClass('text-danger').addClass('text-muted').text(`Max: ${max}`);
-                    }
-                }
-
-                $row.find('.row-new-total').text((qty * price).toFixed(2));
-                calculateAll();
-            });
+            $(document).on('input', '.new-qty, .new-price, #discountInput, #deliveryInput, #paidInput', calculateAll);
+            $(document).on('change', 'input[name="discount_type"]', calculateAll);
 
             $(document).on('click', '.remove-item', function() {
                 $(this).closest('tr').remove();
@@ -617,31 +708,66 @@
                     totalPurchase += parseFloat($(this).text()) || 0;
                 });
 
-                let discount = parseFloat($('#discountInput').val()) || 0;
+                let discountVal = parseFloat($('#discountInput').val()) || 0;
+                let discountType = $('input[name="discount_type"]:checked').val();
+                let delivery = parseFloat($('#deliveryInput').val()) || 0;
                 
-                // Logic: Net = Purchase - Return - Discount
-                const net = totalPurchase - totalReturn - discount;
+                let discountAmount = 0;
+                if (discountType === 'percent') {
+                    discountAmount = (totalPurchase * discountVal) / 100;
+                } else {
+                    discountAmount = discountVal;
+                }
+
+                // Logic: Net = (Purchase + Delivery) - Return - Discount
+                const net = (totalPurchase + delivery) - totalReturn - discountAmount;
                 
-                // Update text
+                // Update UI Display
                 $('#totalReturnValue').text(totalReturn.toFixed(2));
                 $('#totalPurchaseValue').text(totalPurchase.toFixed(2));
-                $('#summaryReturn').text(totalReturn.toFixed(2));
-                $('#summaryPurchase').text(totalPurchase.toFixed(2));
                 
-                const returnCredit = totalReturn;
-                const grandTotal = totalPurchase;
+                $('#summarySubtotal').text(totalPurchase.toFixed(2));
+                $('#summaryReturn').text('(-) ' + totalReturn.toFixed(2));
+                
+                const $badge = $('#paymentStatusBadge');
+                const $changeSection = $('#changeAmountSection');
                 
                 if (net < 0) {
-                    // Credit due to customer
+                    // Credit due to customer (Refund)
                     const creditAmount = Math.abs(net);
-                    $('#netAmount').html(`<span class="text-success">Refund: ${creditAmount.toFixed(2)}</span>`);
-                    $('#paidInput').val(0);
-                    $('#paymentStatusText').text('Customer receives change');
+                    $('#netAmountDisplay').html(`<span class="text-success">Refund: ৳${creditAmount.toFixed(2)}</span>`);
+                    $('#netAmountHidden').val(net.toFixed(2));
+                    
+                    // In refund case, paidInput is usually 0
+                    const paid = parseFloat($('#paidInput').val()) || 0;
+                    if (paid > 0) {
+                         // If user still enters paid amount in refund case, it's weird but show change
+                         const change = creditAmount + paid;
+                         $('#changeAmountDisplay').text('৳' + change.toFixed(2));
+                         $changeSection.show();
+                    } else {
+                        $changeSection.hide();
+                    }
+
+                    $badge.removeClass('bg-primary bg-danger').addClass('bg-success').text('Customer receives change');
                 } else {
-                    // Customer needs to pay
-                    $('#netAmount').html(`${net.toFixed(2)}`);
-                    $('#paidInput').val(net.toFixed(2));
-                     $('#paymentStatusText').text('Customer pays difference');
+                    // Customer needs to pay (Difference)
+                    $('#netAmountDisplay').html(`৳${net.toFixed(2)}`);
+                    $('#netAmountHidden').val(net.toFixed(2));
+                    
+                    const paid = parseFloat($('#paidInput').val()) || 0;
+                    if (paid > net) {
+                        const change = paid - net;
+                        $('#changeAmountDisplay').text('৳' + change.toFixed(2));
+                        $changeSection.slideDown();
+                        $badge.removeClass('bg-success bg-danger').addClass('bg-primary').text('Overpaid');
+                    } else if (paid < net) {
+                        $changeSection.slideUp();
+                        $badge.removeClass('bg-success bg-primary').addClass('bg-danger').text('Due Amount');
+                    } else {
+                        $changeSection.slideUp();
+                        $badge.removeClass('bg-success bg-danger').addClass('bg-primary').text('Paid in Full');
+                    }
                 }
             }
 

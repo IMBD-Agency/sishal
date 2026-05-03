@@ -82,9 +82,10 @@
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted">Payment Method *</label>
                                 <select name="account_type" class="form-select" id="accountTypeSelect">
-                                    <option value="">Select (Cash/Bank)</option>
+                                    <option value="">Select (Cash/Bank/Wallet)</option>
                                     <option value="Cash">Cash</option>
                                     <option value="Bank">Bank</option>
+                                    <option value="Mobile Wallet">Mobile Wallet</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -295,13 +296,44 @@
                 }
             });
 
-            // Payment Method helper
+            // Robust Select2 Filtering Logic
+            const $accountSelect = $('select[name="account_id"]');
+            const allAccountOptions = $accountSelect.find('option').clone(); // Backup all options
+
             $('#accountTypeSelect').on('change', function() {
-                // Just a helper for the user, no strict hiding to avoid blocking
-                const type = $(this).val();
-                if(type) {
-                   console.log("Selected Method: " + type);
-                }
+                const method = $(this).val();
+                
+                // Clear the current select
+                $accountSelect.empty();
+                
+                // Add the placeholder back
+                $accountSelect.append('<option value="">Select Source Account</option>');
+
+                allAccountOptions.each(function() {
+                    const $opt = $(this);
+                    const text = $opt.text().toLowerCase();
+                    const value = $opt.val();
+
+                    if (!value) return; // Skip original placeholder
+
+                    let shouldShow = false;
+                    if (!method) {
+                        shouldShow = true;
+                    } else if (method === 'Cash') {
+                        if (text.includes('cash')) shouldShow = true;
+                    } else if (method === 'Bank') {
+                        if (text.includes('bank')) shouldShow = true;
+                    } else if (method === 'Mobile Wallet') {
+                        if (text.includes('wallet') || text.includes('bkash') || text.includes('nagad')) shouldShow = true;
+                    }
+
+                    if (shouldShow) {
+                        $accountSelect.append($opt.clone());
+                    }
+                });
+
+                // Refresh Select2 to show new options
+                $accountSelect.val('').trigger('change.select2');
             });
 
             // AJAX Account Creation

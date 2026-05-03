@@ -108,11 +108,17 @@ class VoucherController extends Controller
 
     // Fallback: If still empty, try more aggressive names
     if($paymentAccounts->isEmpty()) {
-        $paymentAccounts = ChartOfAccount::where('name', 'like', '%Cash%')
-            ->orWhere('name', 'like', '%Bank%')
-            ->orWhere('name', 'like', '%Wallet%')
-            ->get();
+        $paymentAccounts = ChartOfAccount::where(function($q) {
+            $q->where('name', 'like', '%Cash%')
+              ->orWhere('name', 'like', '%Bank%')
+              ->orWhere('name', 'like', '%Wallet%');
+        })->get();
     }
+
+    // Exclude Inter-branch accounts as per user requirement
+    $paymentAccounts = $paymentAccounts->filter(function($acc) {
+        return stripos($acc->name, 'Inter-branch') === false;
+    });
 
         $expenseTypeId = ChartOfAccountType::where('name', 'Expense')->first()->id ?? 15;
 

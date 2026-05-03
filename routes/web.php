@@ -341,6 +341,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/exchange/export-pdf', [\App\Http\Controllers\Erp\ExchangeController::class, 'exportPdf'])->name('exchange.export.pdf');
     Route::get('/exchange', [\App\Http\Controllers\Erp\ExchangeController::class, 'index'])->name('exchange.list');
     Route::get('/exchange/create', [\App\Http\Controllers\Erp\ExchangeController::class, 'create'])->name('exchange.create');
+    Route::get('/exchange/latest-invoices', [\App\Http\Controllers\Erp\ExchangeController::class, 'latestInvoices'])->name('exchange.latest.invoices');
     Route::get('/exchange/search-invoice', [\App\Http\Controllers\Erp\ExchangeController::class, 'searchInvoice'])->name('exchange.search.invoice');
     Route::post('/exchange/store', [\App\Http\Controllers\Erp\ExchangeController::class, 'store'])->name('exchange.store');
 
