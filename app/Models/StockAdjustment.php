@@ -19,6 +19,10 @@ class StockAdjustment extends Model
         'updated_by'
     ];
 
+    protected $casts = [
+        'date' => 'date',
+    ];
+
     public function items()
     {
         return $this->hasMany(StockAdjustmentItem::class);

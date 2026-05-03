@@ -16,14 +16,15 @@
                 <th>Style #</th>
                 <th>Color</th>
                 <th>Size</th>
+                <th class="text-end">Unit Price</th>
                 <th class="text-center bg-soft-primary">Sales Qty</th>
                 <th class="text-end bg-soft-primary">Sales Amt</th>
+                <th class="text-end">Discount</th>
                 <th class="text-center bg-soft-danger">Ret Qty</th>
                 <th class="text-end bg-soft-danger">Ret Amt</th>
                 <th class="text-center bg-soft-success">Act Qty</th>
                 <th class="text-end bg-soft-success">Act Amt</th>
                 <th class="text-end">Delivery</th>
-                <th class="text-end">Discount</th>
                 <th class="text-end">Exchange</th>
                 <th class="text-end fw-bold">Grand Total</th>
                 <th class="text-end text-success fw-bold">Paid</th>
@@ -84,8 +85,12 @@
                     <td>{{ $color }}</td>
                     <td>{{ $size }}</td>
                     
+                    <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                     <td class="text-center bg-light">{{ $item->quantity }}</td>
                     <td class="text-end bg-light">{{ number_format($item->total_price, 2) }}</td>
+                    <td class="text-end text-danger">
+                        @if($isFirst) {{ number_format($sale->discount, 2) }} @endif
+                    </td>
                     
                     <td class="text-center text-danger">{{ $retQty ?: '-' }}</td>
                     <td class="text-end text-danger">{{ $retQty ? number_format($retAmt, 2) : '-' }}</td>
@@ -95,9 +100,6 @@
                     
                     <td class="text-end">
                         @if($isFirst) {{ number_format($sale->delivery, 2) }} @endif
-                    </td>
-                    <td class="text-end">
-                        @if($isFirst) {{ number_format($sale->discount, 2) }} @endif
                     </td>
                     <td class="text-end">
                         @if($isFirst) {{ number_format($sale->exchange_amount ?? 0, 2) }} @endif
@@ -132,18 +134,19 @@
         </tbody>
         <tfoot class="bg-light fw-bold">
             <tr class="text-muted small border-top">
-                <td colspan="14" class="text-end">Page Subtotal</td>
+                <td colspan="15" class="text-end">Page Subtotal</td>
                 <td class="text-center">{{ $items->sum('quantity') }}</td>
                 <td class="text-end">{{ number_format($items->sum('total_price'), 2) }}</td>
+                <td class="text-end text-danger">{{ number_format($sale->discount ?? 0, 2) }}</td>
                 <td colspan="11"></td>
             </tr>
             <tr class="bg-soft-primary border-top-2">
-                <td colspan="14" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
+                <td colspan="15" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
                 <td class="text-center py-3">{{ $reportTotals['sell_qty'] }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['sell_amt'], 2) }}</td>
+                <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>
                 <td colspan="4" class="bg-light"></td>
                 <td class="text-end py-3">{{ number_format($reportTotals['delivery'], 2) }}</td>
-                <td class="text-end py-3">{{ number_format($reportTotals['discount'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['exchange'], 2) }}</td>
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>

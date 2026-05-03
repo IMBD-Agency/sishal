@@ -1,78 +1,81 @@
-<div class="table-responsive">
-    <table class="table premium-table compact reporting-table table-hover align-middle mb-0">
-        <thead>
-            <tr>
-                <th class="ps-3">Serial No</th>
-                <th>Invoice</th>
-                <th>Date</th>
-                <th>Image</th>
-                <th>Category</th>
-                <th>Brand</th>
-                <th>Season</th>
-                <th>Gender</th>
-                <th>Product Name</th>
-                <th>Style Number</th>
-                <th class="text-center">Quantity</th>
-                <th>Adjusted By</th>
-                <th class="pe-3 text-center">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php $currentInvoice = null; @endphp
-            @forelse($adjustments as $index => $item)
+<div class="premium-card shadow-sm">
+    <div class="table-responsive">
+        <table class="table mb-0" id="adjustmentTable">
+            <thead>
                 <tr>
-                    <td class="ps-3">{{ $adjustments->firstItem() + $index }}</td>
-                    <td class="fw-bold">{{ $item->adjustment->adjustment_number }}</td>
-                    <td>{{ \Carbon\Carbon::parse($item->adjustment->date)->format('m/d/Y') }}</td>
-                    <td>
-                        @if($item->product && $item->product->image)
-                            <img src="{{ asset($item->product->image) }}" class="rounded shadow-sm" style="width: 32px; height: 32px; object-fit: cover;">
-                        @else
-                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                <i class="fas fa-image text-muted" style="font-size: 10px;"></i>
+                    <th>#SN</th>
+                    <th>Adjustment No</th>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Style #</th>
+                    <th>Branch</th>
+                    <th class="text-center">Old Qty</th>
+                    <th class="text-center">New Qty</th>
+                    <th class="text-center">Diff</th>
+                    <th>Created By</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($adjustments as $index => $item)
+                    <tr>
+                        <td>{{ $adjustments->firstItem() + $index }}</td>
+                        <td>
+                            <span class="fw-bold text-primary">{{ $item->adjustment->adjustment_number }}</span>
+                        </td>
+                        <td class="text-nowrap">{{ $item->adjustment->date->format('d-M-Y') }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark">{{ $item->product->name }}</div>
+                                    <div class="small text-muted">{{ $item->product->category->name ?? 'Uncategorized' }}</div>
+                                </div>
                             </div>
-                        @endif
-                    </td>
-                    <td>{{ optional($item->product)->category->name ?? '-' }}</td>
-                    <td>{{ optional($item->product)->brand->name ?? '-' }}</td>
-                    <td>{{ optional($item->product)->season->name ?? '-' }}</td>
-                    <td>{{ optional($item->product)->gender->name ?? '-' }}</td>
-                    <td class="fw-bold">{{ $item->product->name ?? 'Deleted Product' }}</td>
-                    <td class="font-monospace text-info">{{ $item->product->style_number ?? ($item->product->sku ?? '-') }}</td>
-                    <td class="text-center">
-                        <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.85rem;">{{ $item->new_quantity }}</span>
-                        @php $diff = $item->new_quantity - $item->old_quantity; @endphp
-                        <div class="small {{ $diff >= 0 ? 'text-success' : 'text-danger' }} fw-bold" style="font-size: 0.7rem;">
-                            {{ $diff >= 0 ? '+' : '' }}{{ $diff }}
-                        </div>
-                    </td>
-                    <td>{{ $item->adjustment->creator->name ?? 'Admin' }}</td>
-                    <td class="text-center">
-                        {{-- Action buttons if needed, keeping it clean for now --}}
-                        <button type="button" class="btn btn-sm btn-light border" title="Quick View" onclick="alert('Adjustment Note: {{ $item->adjustment->notes ?? 'No notes' }}')">
-                            <i class="fas fa-sticky-note text-warning"></i>
-                        </button>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="13" class="text-center py-5 text-muted">
-                        <div class="py-4">
-                            <i class="fas fa-box-open fa-3x mb-3 text-light"></i>
-                            <p class="mb-0">No adjustments found matching your filters</p>
-                        </div>
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
-</div>
-
-<div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-    <div>
-        <span class="text-muted small">Showing {{ $adjustments->firstItem() ?? 0 }} to {{ $adjustments->lastItem() ?? 0 }} of {{ $adjustments->total() }} entries</span>
+                        </td>
+                        <td>
+                            <div>{{ $item->product->style_number ?: $item->product->sku }}</div>
+                            @if($item->variation)
+                                <div class="small text-muted" style="font-size: 0.7rem;">
+                                    {{ $item->variation->attributeValues->pluck('value')->implode(', ') }}
+                                </div>
+                            @endif
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ $item->adjustment->branch->name }}</span>
+                        </td>
+                        <td class="text-center fw-bold">{{ $item->old_quantity }}</td>
+                        <td class="text-center fw-bold text-success">{{ $item->new_quantity }}</td>
+                        <td class="text-center">
+                            @php $diff = $item->new_quantity - $item->old_quantity; @endphp
+                            @if($diff > 0)
+                                <span class="text-success fw-bold">+{{ $diff }}</span>
+                            @elseif($diff < 0)
+                                <span class="text-danger fw-bold">{{ $diff }}</span>
+                            @else
+                                <span class="text-muted">0</span>
+                            @endif
+                        </td>
+                        <td>
+                            <div class="small fw-bold">{{ $item->adjustment->creator->name ?? 'Admin' }}</div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="10" class="text-center py-5 text-muted">No adjustments found matching your filters.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
-    <div class="pagination-ajax">
-        {{ $adjustments->links() }}
-    </div>
+    @if($adjustments->hasPages())
+        <div class="card-footer bg-white border-top p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="small text-muted">
+                    Showing {{ $adjustments->firstItem() }} to {{ $adjustments->lastItem() }} of {{ $adjustments->total() }} entries
+                </div>
+                <div class="pagination-premium">
+                    {{ $adjustments->links() }}
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

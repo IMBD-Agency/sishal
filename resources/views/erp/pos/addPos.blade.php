@@ -155,7 +155,7 @@
                             </div>
                             <div class="d-flex justify-content-between border-top pt-1 mt-1">
                                 <span class="terminal-section-title m-0 text-primary opacity-75">Payable</span>
-                                <span class="h4 mb-0 fw-bold text-primary" id="finalTotalDisplay">0.00</span>
+                                <span class="h4 mb-0 fw-bold text-primary" id="finalTotalDisplay">0</span>
                             </div>
                         </div>
 
@@ -186,18 +186,15 @@
                         </div>
                         
                         <!-- Cash Received & Change -->
-                         <div class="summary-card mb-3">
+                         <div class="summary-card mb-3 p-2 bg-light rounded border">
                              <div class="d-flex justify-content-between align-items-center mb-1">
                                  <label class="terminal-section-title h-auto m-0">Paid (৳)</label>
                                  <button class="btn btn-link btn-sm p-0 text-success text-decoration-none extra-small fw-bold" type="button" onclick="setExactAmount()">EXACT</button>
                              </div>
-                             <div class="paid-input-group d-flex align-items-center mb-1">
-                                <span class="text-muted small fw-bold">৳</span>
-                                <input type="number" class="form-control form-control-sm" id="paidAmountInput" name="paid_amount" placeholder="0.00">
-                             </div>
-                             <div class="change-return-box d-flex justify-content-between align-items-center border-top pt-1">
-                                <span class="terminal-section-title m-0" id="changeReturnLabel">Change</span>
-                                <span class="h6 mb-0 fw-bold text-success" id="changeReturnDisplay">0.00</span>
+                             <input type="number" class="form-control form-control-sm text-end fw-bold" id="paidAmountInput" name="paid_amount" value="0">
+                             <div class="d-flex justify-content-between border-top pt-1 mt-1" id="changeRow">
+                                <span class="terminal-section-title m-0" id="changeLabel" style="font-size: 0.7rem;">Change</span>
+                                <span class="fw-bold text-success" id="changeDisplay" style="font-size: 0.9rem;">0.00</span>
                             </div>
                          </div>
 
@@ -563,24 +560,26 @@ $(document).ready(function() {
             let itemTotal = item.price * item.qty;
 
             tbody.append(`
-                <tr class="align-middle">
-                    <td class="ps-2 py-2">
-                        <div class="text-truncate fw-bold mb-0" style="max-width: 160px;">${item.name}</div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="text-muted extra-small">${item.price.toFixed(2)}</span>
-                            <span class="badge bg-light text-secondary border-0 fw-normal small">Stock: ${item.maxStock}</span>
+                <tr class="align-middle border-bottom">
+                    <td class="ps-2 py-3">
+                        <div class="fw-bold text-dark mb-0">${item.name}</div>
+                        <div class="d-flex align-items-center gap-2 mt-1">
+                            <span class="badge bg-success bg-opacity-10 text-success border-0 extra-small">${item.price.toFixed(2)}৳</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.maxStock}</span>
                         </div>
                     </td>
                     <td class="text-center px-0">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <button type="button" class="qty-control" onclick="updateQty('${item.cartId}', -1)"><i class="fas fa-minus"></i></button>
-                            <span class="qty-value">${item.qty}</span>
-                            <button type="button" class="qty-control" onclick="updateQty('${item.cartId}', 1)"><i class="fas fa-plus"></i></button>
+                        <div class="d-flex align-items-center justify-content-center bg-light rounded-pill p-1" style="width: fit-content; margin: 0 auto;">
+                            <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', -1)"><i class="fas fa-minus"></i></button>
+                            <span class="qty-value mx-2 fw-bold" style="min-width: 25px;">${item.qty}</span>
+                            <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', 1)"><i class="fas fa-plus"></i></button>
                         </div>
                     </td>
-                    <td class="text-end fw-bold text-dark pe-3" style="font-size: 0.85rem;">${itemTotal.toFixed(2)}</td>
-                    <td class="text-center ps-0 pe-2">
-                        <button class="btn-remove-item" onclick="removeFromCart('${item.cartId}')" title="Remove"><i class="fas fa-times"></i></button>
+                    <td class="text-end fw-bold text-dark pe-3 h6 mb-0">${itemTotal.toFixed(2)}</td>
+                    <td class="text-center pe-2">
+                        <button type="button" class="btn-remove-item text-danger border-0 bg-transparent p-2" onclick="removeFromCart('${item.cartId}')" title="Remove Item">
+                            <i class="fas fa-times-circle fa-lg"></i>
+                        </button>
                     </td>
                 </tr>
             `);
@@ -636,61 +635,55 @@ $(document).ready(function() {
     }
 
     function calculateTotals() {
-        let subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        let discountInput = $('#discountInput').val().toString() || '0';
-        let discount = 0;
+        let sub = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+        let discInp = $('#discountInput').val().toString() || '0';
+        let disc = 0;
 
-        if (discountInput.includes('%')) {
-            let percent = parseFloat(discountInput.replace('%', '')) || 0;
-            discount = (subtotal * percent) / 100;
+        if (discInp.includes('%')) {
+            let percent = parseFloat(discInp.replace('%', '')) || 0;
+            disc = (sub * percent) / 100;
         } else {
-            discount = parseFloat(discountInput) || 0;
+            disc = parseFloat(discInp) || 0;
         }
 
-        let delivery = parseFloat($('#deliveryInput').val()) || 0;
-        
-        let finalTotal = (subtotal + delivery) - discount;
-        if(finalTotal < 0) finalTotal = 0;
+        let del = parseFloat($('#deliveryInput').val()) || 0;
+        let final = Math.round((sub + del) - disc);
 
-        $('#subtotalDisplay').text(subtotal.toFixed(2) + '৳');
+        $('#subtotalDisplay').text(sub.toFixed(2) + '৳');
         
-        if(discount > 0) {
+        if(disc > 0) {
             $('#discountRow').attr('style', 'display: flex !important;');
-            $('#discountAmountDisplay').text(discount.toFixed(2));
+            $('#discountAmountDisplay').text(disc.toFixed(2));
         } else {
             $('#discountRow').attr('style', 'display: none !important;');
         }
 
-        $('#finalTotalDisplay').text(finalTotal.toFixed(2));
+        $('#finalTotalDisplay').text(final);
         
         // Auto update change
         let paid = parseFloat($('#paidAmountInput').val()) || 0;
-        let change = paid - finalTotal;
+        let change = paid - final;
         
         if (change >= 0) {
-            $('#changeReturnLabel').text('Change');
-            $('#changeReturnDisplay').text(change.toFixed(2)).removeClass('text-danger').addClass('text-success');
+            $('#changeLabel').text('Change').removeClass('text-danger').addClass('text-success');
+            $('#changeDisplay').text(change.toFixed(2) + '৳').removeClass('text-danger').addClass('text-success');
         } else {
-            $('#changeReturnLabel').text('Due Amount');
-            $('#changeReturnDisplay').text(Math.abs(change).toFixed(2)).removeClass('text-success').addClass('text-danger');
+            $('#changeLabel').text('Due Amount').addClass('text-danger');
+            $('#changeDisplay').text('Due: ' + Math.abs(change).toFixed(2) + '৳').removeClass('text-success').addClass('text-danger');
         }
 
         // Validation for button
-        if(cart.length > 0 && paid >= finalTotal) {
+        if(cart.length > 0 && paid >= final) {
              $('#paidAmountInput').removeClass('is-invalid').addClass('is-valid');
              $('#completeOrderBtn').prop('disabled', false);
         } else {
              $('#paidAmountInput').removeClass('is-valid');
-             // We keep button disabled if not enough payment, unless they allow partial? 
-             // Usually POS requires full payment or custom logic. 
-             // For now let's keep it enabled if they want to submit, but maybe user wants it disabled?
-             // Actually, usually POS is "Total Payable" based.
         }
     }
 
     window.setExactAmount = function() {
-        let text = $('#finalTotalDisplay').text();
-        $('#paidAmountInput').val(text).trigger('input');
+        let val = $('#finalTotalDisplay').text();
+        $('#paidAmountInput').val(val).trigger('input');
     };
 
     function getPrice(p, parentProduct = null) {

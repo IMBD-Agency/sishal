@@ -718,9 +718,10 @@ class PosController extends Controller
         $categories = ProductServiceCategory::all();
         $branches = Branch::all();
         $customers = Customer::all();
-        $bankAccounts = collect(); // Empty collection since FinancialAccount model was removed
+        $bankAccounts = FinancialAccount::all();
+        $shippingMethods = ShippingMethod::orderBy('sort_order')->get();
         
-        return view('erp.pos.edit', compact('pos', 'categories', 'branches', 'customers', 'bankAccounts'));
+        return view('erp.pos.edit', compact('pos', 'categories', 'branches', 'customers', 'bankAccounts', 'shippingMethods'));
     }
 
     public function update(Request $request, $id)
@@ -747,6 +748,7 @@ class PosController extends Controller
             'total_amount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
+            'courier_id' => 'nullable|exists:shipping_methods,id',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
@@ -779,6 +781,7 @@ class PosController extends Controller
             $pos->estimated_delivery_date = $request->estimated_delivery_date;
             $pos->estimated_delivery_time = $request->estimated_delivery_time;
             $pos->notes = $request->notes;
+            $pos->courier_id = $request->courier_id;
             $pos->save();
 
             // Delete old items
@@ -820,12 +823,32 @@ class PosController extends Controller
                 $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
                 $tax = round($pos->sub_total * $taxRate, 2);
 
-                $invoice = $pos->invoice;
-                $invoice->subtotal = $pos->sub_total;
-                $invoice->discount_apply = $pos->discount;
-                $invoice->tax = $tax;
-                $invoice->total_amount = $pos->total_amount;
-                $invoice->due_amount = max(0, $invoice->total_amount - ($invoice->paid_amount ?? 0));
+                // Handle financial transaction for payment increase
+                $oldPaidAmount = $invoice->getOriginal('paid_amount') ?? 0;
+                $newPaidAmount = $request->paid_amount ?? $oldPaidAmount;
+                $paymentDifference = $newPaidAmount - $oldPaidAmount;
+
+                if ($paymentDifference > 0 && $request->account_id) {
+                    $account = BankAccount::find($request->account_id);
+                    if ($account) {
+                        $account->balance += $paymentDifference;
+                        $account->save();
+
+                        // Create Account Transaction
+                        $transaction = new \App\Models\AccountTransaction();
+                        $transaction->bank_account_id = $account->id;
+                        $transaction->type = 'credit';
+                        $transaction->amount = $paymentDifference;
+                        $transaction->description = "Payment update for POS Sale #{$pos->sale_number}";
+                        $transaction->transaction_date = now();
+                        $transaction->created_by = auth()->id();
+                        $transaction->invoice_id = $invoice->id;
+                        $transaction->save();
+                    }
+                }
+
+                $invoice->paid_amount = $newPaidAmount;
+                $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
                 
                 // Update invoice status based on payment
                 if ($invoice->paid_amount >= $invoice->total_amount) {
@@ -1371,9 +1394,9 @@ class PosController extends Controller
         
         $headers = [
             'Serial No', 'Invoice', 'Date', 'Customer', 'Created', 'Category', 'Brand', 'Season', 'Gender',
-            'Product Name', 'Style Number', 'Color', 'Size', 'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
-            'SR-Qty', 'Total SR-Qty', 'SR-Amount', 'Total SR-Amount', 'AS-Qty', 'Total AS-Qty',
-            'Delivery Charge', 'Discount Amount', 'Exchange Amount', 'Actual Sales Amount', 'Final Total', 'Received Amount', 'Due Amount'
+            'Product Name', 'Style Number', 'Color', 'Size', 'Unit Price', 'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
+            'Discount Amount', 'SR-Qty', 'Total SR-Qty', 'SR-Amount', 'Total SR-Amount', 'AS-Qty', 'Total AS-Qty',
+            'Delivery Charge', 'Exchange Amount', 'Actual Sales Amount', 'Final Total', 'Received Amount', 'Due Amount'
         ];
         
         $sheet->fromArray([$headers], NULL, 'A1');
@@ -1415,10 +1438,12 @@ class PosController extends Controller
                 $product->style_number ?? '-',
                 $color,
                 $size,
+                $item->unit_price,
                 $item->quantity,
                 $item->quantity, // Total S-Qty
                 $item->total_price,
                 $item->total_price, // Total Sales Amount
+                $isFirst ? $sale->discount : '-',
                 $retQty,
                 $retQty, // Total SR-Qty
                 $retAmt,
@@ -1426,7 +1451,6 @@ class PosController extends Controller
                 $actualQty,
                 $actualQty, // Total AS-Qty
                 $isFirst ? $sale->delivery : '-',
-                $isFirst ? $sale->discount : '-',
                 $isFirst ? ($sale->exchange_amount ?? 0) : '-',
                 $actualAmt,
                 $isFirst ? $sale->total_amount : '-',
@@ -1632,10 +1656,12 @@ class PosController extends Controller
         $challanNo = str_replace('INV', 'CHA', $invoiceNo);
         $saleNo = $this->generateSaleNumber();
 
+        $bankAccounts = FinancialAccount::all();
+
         return view('erp.pos.manualSale.create', compact(
             'customers', 'branches', 'products', 'brands', 'seasons', 
             'genders', 'categories', 'shippingMethods', 'invoiceNo', 
-            'challanNo', 'saleNo'
+            'challanNo', 'saleNo', 'bankAccounts'
         ));
     }
 
@@ -1718,8 +1744,6 @@ class PosController extends Controller
             $pos->delivery = $request->delivery_charge ?? 0;
             $pos->total_amount = $request->total_amount;
             $pos->status = 'delivered'; 
-            $pos->account_type = $request->account_type;
-            $pos->account_number = $request->account_no;
             $pos->remarks = $request->remarks;
             $pos->notes = $request->note;
             $pos->courier_id = $request->courier_id;
@@ -1745,7 +1769,7 @@ class PosController extends Controller
             $invoice->total_amount = $pos->total_amount;
             $invoice->discount_apply = $pos->discount;
             $invoice->paid_amount = $request->paid_amount;
-            $invoice->due_amount = $pos->total_amount - $request->paid_amount;
+            $invoice->due_amount = max(0, $pos->total_amount - $request->paid_amount);
             $invoice->status = $invoice->due_amount <= 0 ? 'paid' : ($invoice->paid_amount > 0 ? 'partial' : 'unpaid');
             $invoice->note = $pos->notes;
             $invoice->created_by = auth()->id();
@@ -1754,9 +1778,56 @@ class PosController extends Controller
             $pos->invoice_id = $invoice->id;
             $pos->save();
 
+            // Handle Financials
+            if ($request->paid_amount > 0 && $request->account_id) {
+                $account = BankAccount::find($request->account_id);
+                if ($account) {
+                    $account->balance += $request->paid_amount;
+                    $account->save();
+
+                    // Create Payment Record
+                    Payment::create([
+                        'payment_for' => 'pos',
+                        'pos_id' => $pos->id,
+                        'invoice_id' => $invoice->id,
+                        'payment_date' => $pos->sale_date,
+                        'amount' => $request->paid_amount,
+                        'account_id' => $account->id,
+                        'payment_method' => $account->type ?? 'cash',
+                        'note' => "Manual Sale Payment",
+                    ]);
+
+                    // Create Account Transaction
+                    $transaction = new \App\Models\AccountTransaction();
+                    $transaction->bank_account_id = $account->id;
+                    $transaction->type = 'credit';
+                    $transaction->amount = $request->paid_amount;
+                    $transaction->description = "Manual Sale Receipt #{$pos->sale_number}";
+                    $transaction->transaction_date = $pos->sale_date;
+                    $transaction->created_by = auth()->id();
+                    $transaction->invoice_id = $invoice->id;
+                    $transaction->save();
+                }
+            }
+
+            // Customer Balance Update
+            if ($pos->customer_id) {
+                \App\Models\Balance::create([
+                    'source_type' => 'customer',
+                    'source_id' => $pos->customer_id,
+                    'balance' => $pos->total_amount - $request->paid_amount,
+                    'description' => 'Manual Sale',
+                    'reference' => $pos->sale_number,
+                ]);
+            }
+
+            // --- Proportional Discount Logic ---
+            $totalInvoiceDiscount = floatval($pos->discount ?? 0);
+            $invoiceSubtotal = floatval($pos->sub_total ?? 0);
+            $discountRatio = ($invoiceSubtotal > 0) ? ($totalInvoiceDiscount / $invoiceSubtotal) : 0;
+
             // 3. STAGE 3: PROCESS ITEMS AND DEDUCT STOCK
             foreach ($request->items as $item) {
-                // This call now strictly handles deduction because we already validated
                 $result = $this->deductStock(
                     $item['product_id'],
                     $item['variation_id'] ?? null,
@@ -1768,169 +1839,103 @@ class PosController extends Controller
                     throw new \Exception($result['message']);
                 }
 
+                // Calculate Net Total for Item
+                $itemOriginalTotal = floatval($item['quantity'] * $item['unit_price']);
+                $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
+                $itemNetTotal = $itemOriginalTotal - $allocatedDiscount;
+
                 // Save POS Item
+                $product = Product::find($item['product_id']);
                 PosItem::create([
                     'pos_sale_id' => $pos->id,
                     'product_id' => $item['product_id'],
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'total_price' => $item['quantity'] * $item['unit_price'],
+                    'unit_cost' => $product->cost ?? 0,
+                    'total_price' => $itemNetTotal,
                     'current_position_type' => 'branch',
                     'current_position_id' => $request->branch_id
                 ]);
 
-                // Save Invoice Item
+                // Create Invoice Item
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'total_price' => $item['quantity'] * $item['unit_price'],
+                    'discount'   => $allocatedDiscount,
+                    'total_price' => $itemNetTotal,
                 ]);
             }
 
-            // Payment Recording
-            if ($request->paid_amount > 0) {
-                $accountType = strtolower($request->account_type) ?: 'cash';
-                // Map specific mobile types to 'mobile'
-                $searchType = $accountType;
-                if (in_array($accountType, ['bkash', 'nagad', 'rocket'])) {
-                    $searchType = 'mobile';
-                }
-
-                $financialAccount = FinancialAccount::where('type', $searchType)
-                    ->where(function($q) use ($request) {
-                        if ($request->filled('account_no')) {
-                            $q->where('account_number', $request->account_no)
-                              ->orWhere('mobile_number', $request->account_no);
-                        }
-                    })->first();
-                
-                if (!$financialAccount) {
-                    $financialAccount = FinancialAccount::where('type', $searchType)->first();
-                }
-
-                Payment::create([
-                    'customer_id' => $pos->customer_id,
-                    'payment_for' => 'pos',
-                    'pos_id' => $pos->id,
-                    'invoice_id' => $invoice->id,
-                    'payment_date' => $pos->sale_date,
-                    'amount' => $request->paid_amount,
-                    'account_id' => $financialAccount ? $financialAccount->id : null,
-                    'payment_method' => strtolower($request->account_type) ?: 'cash',
-                    'note' => $pos->notes,
-                ]);
-            }
-
-            // Customer Balance Update
-            if ($pos->customer_id) {
-                Balance::create([
-                    'source_type' => 'customer',
-                    'source_id' => $pos->customer_id,
-                    'balance' => $pos->total_amount - $request->paid_amount,
-                    'description' => 'Manual Sale Entry',
-                    'reference' => $pos->sale_number,
-                ]);
-            }
-
-            // =====================================================
-            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
-            // =====================================================
+            // --- DOUBLE ENTRY ACCOUNTING ---
             $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
-            if (!$salesAccount) {
-                $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first();
-                $salesAccount = ChartOfAccount::create([
-                    'name' => 'Product Sales',
-                    'type_id' => $revenueType ? $revenueType->id : 4,
-                    'code' => '40001',
-                    'status' => 'active'
+            if ($salesAccount) {
+                $voucherNo = 'SAL-M-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $pos->sale_date,
+                    'type'           => 'Receipt',
+                    'description'    => 'Manual Sale #' . $pos->sale_number,
+                    'customer_id'    => $pos->customer_id,
+                    'branch_id'      => $pos->branch_id,
+                    'voucher_amount' => $pos->total_amount,
+                    'paid_amount'    => $request->paid_amount,
+                    'reference'      => $pos->sale_number,
+                    'created_by'     => auth()->id(),
+                    'updated_by'     => auth()->id(),
                 ]);
-            }
 
-            $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
-            while (Journal::where('voucher_no', $voucherNo)->exists()) {
-                $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
-            }
-
-            $journal = Journal::create([
-                'voucher_no'     => $voucherNo,
-                'entry_date'     => $pos->sale_date,
-                'type'           => 'Receipt',
-                'description'    => 'Manual Sale #' . $pos->sale_number,
-                'customer_id'    => $pos->customer_id,
-                'branch_id'      => $pos->branch_id,
-                'voucher_amount' => $pos->total_amount,
-                'paid_amount'    => $request->paid_amount,
-                'reference'      => $pos->sale_number,
-                'created_by'     => auth()->id(),
-                'updated_by'     => auth()->id(),
-            ]);
-
-            // CREDIT Sales (Total Amount)
-            JournalEntry::create([
-                'journal_id'           => $journal->id,
-                'chart_of_account_id'  => $salesAccount->id,
-                'debit'                => 0,
-                'credit'               => $pos->total_amount,
-                'memo'                 => 'Revenue from Manual Sale',
-                'created_by'           => auth()->id(),
-            ]);
-
-            // DEBIT Cash/Bank (Paid Amount)
-            if ($request->paid_amount > 0) {
-                // Ensure we have the financial account identified earlier
-                if (!isset($financialAccount) || !$financialAccount) {
-                    $accountType = strtolower($request->account_type) ?: 'cash';
-                    $searchType = $accountType;
-                    if (in_array($accountType, ['bkash', 'nagad', 'rocket'])) {
-                        $searchType = 'mobile';
-                    }
-                    $financialAccount = FinancialAccount::where('type', $searchType)->first();
-                }
-
-                if ($financialAccount && $financialAccount->account_id) {
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $financialAccount->account_id,
-                        'financial_account_id' => $financialAccount->id,
-                        'debit'                => $request->paid_amount,
-                        'credit'               => 0,
-                        'memo'                 => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
-                        'created_by'           => auth()->id(),
-                        'updated_by'           => auth()->id(),
-                    ]);
-                }
-            }
-
-            // DEBIT Accounts Receivable (Due Amount)
-            $dueAmount = $pos->total_amount - $request->paid_amount;
-            if ($dueAmount > 0) {
-                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
-                if (!$arAccount) {
-                    $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first();
-                    $arAccount = ChartOfAccount::create([
-                        'name' => 'Accounts Receivable',
-                        'type_id' => $assetType ? $assetType->id : 8,
-                        'code' => '10002',
-                        'status' => 'active'
-                    ]);
-                }
+                // Credit Sales
                 JournalEntry::create([
                     'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $arAccount->id,
-                    'debit'                => $dueAmount,
-                    'credit'               => 0,
-                    'memo'                 => 'Due amount from customer (Manual Sale)',
+                    'chart_of_account_id'  => $salesAccount->id,
+                    'debit'                => 0,
+                    'credit'               => $pos->total_amount,
+                    'memo'                 => 'Revenue from Manual Sale',
                     'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
                 ]);
+
+                // Debit Bank/Cash
+                if ($request->paid_amount > 0 && $request->account_id) {
+                    $finAcc = FinancialAccount::find($request->account_id);
+                    if ($finAcc && $finAcc->account_id) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $finAcc->account_id,
+                            'financial_account_id' => $finAcc->id,
+                            'debit'                => $request->paid_amount,
+                            'credit'               => 0,
+                            'memo'                 => 'Payment received for Manual Sale',
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
+                    }
+                }
+
+                // Debit Accounts Receivable
+                $dueAmt = $pos->total_amount - $request->paid_amount;
+                if ($dueAmt > 0) {
+                    $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                    if ($arAccount) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $arAccount->id,
+                            'debit'                => $dueAmt,
+                            'credit'               => 0,
+                            'memo'                 => 'Due amount from Manual Sale',
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
+                    }
+                }
             }
-            // =====================================================
 
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'Sale recorded successfully.', 'redirect' => route('pos.show', $pos->id)]);
+            return response()->json(['success' => true, 'message' => 'Sale created successfully.', 'sale_id' => $pos->id]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);

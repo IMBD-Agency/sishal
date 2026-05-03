@@ -144,6 +144,10 @@ class StockController extends Controller
                     });
                 }
                 $q->with(['branch:id,name', 'warehouse:id,name']);
+            },
+            'purchaseItems' => function($q) {
+                $q->whereYear('created_at', date('Y'))
+                  ->select('id', 'product_id', 'variation_id', 'quantity');
             }
         ]);
         
@@ -698,7 +702,7 @@ class StockController extends Controller
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);
 
         // Reports Filter logic (applied to parent adjustment)
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('n'));
             $year = $request->get('year', date('Y'));
@@ -740,12 +744,21 @@ class StockController extends Controller
         }
 
         // Item/Product Filters
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('product', function($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('style_number', 'like', "%$search%")
+                  ->orWhere('sku', 'like', "%$search%");
+            });
+        }
         if ($request->filled('product_id')) {
             $query->where('product_id', $request->product_id);
         }
         if ($request->filled('style_number')) {
             $query->whereHas('product', function($q) use ($request) {
-                $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                $q->where('style_number', 'like', '%' . $request->style_number . '%')
+                  ->orWhere('sku', 'like', '%' . $request->style_number . '%');
             });
         }
         if ($request->filled('category_id')) {
@@ -769,7 +782,8 @@ class StockController extends Controller
             });
         }
 
-        $adjustments = $query->latest()->paginate(20)->appends($request->except('page'));
+        $perPage = (int) $request->get('per_page', 50);
+        $adjustments = $query->latest()->paginate($perPage)->appends($request->except('page'));
 
         if ($request->ajax()) {
             return view('erp.productStock.components.adjustmentTable', compact('adjustments'))->render();

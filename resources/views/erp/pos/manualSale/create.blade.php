@@ -1,618 +1,367 @@
 @extends('erp.master')
+@section('title', 'Manual Sale Create')
 
-@section('title', 'Manual Sale Creation')
+@push('css')
+<style>
+    .manual-sale-wrapper { padding: 1.5rem; background: #f8fafc; min-height: calc(100vh - 70px); }
+    .premium-card { border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); background: #fff; margin-bottom: 1.5rem; }
+    .checkout-sidebar { position: sticky; top: 90px; }
+    .form-label-premium { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 0.5rem; display: block; }
+    .summary-box { background: #f1f5f9; border-radius: 12px; padding: 1.5rem; }
+    .grand-total-display { font-size: 1.75rem; font-weight: 800; color: var(--primary-color); }
+    .item-table thead th { background: #f8fafc; text-transform: uppercase; font-size: 0.7rem; color: #64748b; padding: 12px; border: none; letter-spacing: 0.5px; }
+    .item-table tbody td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    
+    .qty-control { display: flex; align-items: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: 110px; margin: 0 auto; }
+    .qty-btn { width: 32px; height: 32px; border: none; background: #f8fafc; color: #475569; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 0.8rem; }
+    .qty-btn:hover { background: #e2e8f0; color: var(--primary-color); }
+    .qty-val { flex: 1; text-align: center; border: none; font-weight: 800; font-size: 0.9rem; background: var(--primary-color); color: #fff; height: 32px; width: 40px; }
+    
+    .variation-select-inline { font-size: 0.8rem; font-weight: 600; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; width: 100%; cursor: pointer; }
+</style>
+@endpush
 
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
-
-        <div class="glass-header">
-            <div class="row align-items-center">
-                <div class="col-md-7">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ route('pos.list') }}" class="text-decoration-none text-muted">Sales</a></li>
-                            <li class="breadcrumb-item active text-primary fw-600">Manual Sale Creation</li>
-                        </ol>
-                    </nav>
-                    <h4 class="fw-bold mb-0 text-dark">Traditional Manual Sale Entry</h4>
-                </div>
-                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <a href="{{ route('pos.list') }}" class="btn btn-light fw-bold shadow-sm">
-                        <i class="fas fa-arrow-left me-2"></i>Back to List
-                    </a>
-                </div>
+        
+        <div class="manual-sale-wrapper">
+            <div class="mb-4">
+                <h4 class="fw-bold text-dark mb-1">Manual Sale Terminal</h4>
+                <span class="text-muted small">Instant search & multi-variation auto-fill</span>
             </div>
-        </div>
 
-        <div class="container-fluid px-4 py-4">
             <form id="manualSaleForm">
                 @csrf
-                <div class="row g-4">
-                    <!-- Section 1: Sale Information -->
-                    <div class="col-xl-8">
-                        <div class="premium-card mb-4">
-                            <div class="card-header bg-white px-4 py-3 border-bottom">
-                                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-file-invoice me-2 text-primary"></i>Sale Information</h6>
-                            </div>
-                            <div class="card-body p-4 p-xl-5">
-                                <div class="row g-4">
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Invoice No</label>
-                                        <input type="text" name="invoice_no" class="form-control" value="{{ $invoiceNo }}" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Challan No</label>
-                                        <input type="text" name="challan_no" class="form-control" value="{{ $challanNo }}" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sale Date</label>
-                                        <input type="date" name="sale_date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Customer</label>
-                                        <div class="d-flex gap-1">
-                                            <div class="flex-grow-1">
-                                                <select name="customer_id" id="customerSelect" class="form-select" required>
-                                                    <option value="">Search Customer</option>
-                                                    @foreach($customers as $customer)
-                                                        <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id || (isset($sale) && $sale->customer_id == $customer->id) ? 'selected' : '' }}>{{ $customer->name }} ({{ $customer->phone }})</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                            <button type="button" class="btn btn-outline-primary shadow-sm" style="padding: 0 12px; height: 38px;" data-bs-toggle="modal" data-bs-target="#addCustomerModal" title="Add New Customer">
-                                                <i class="fas fa-plus"></i>
-                                            </button>
-                                        </div>
-                                    </div>
+                <input type="hidden" name="sub_total" id="subtotalInput">
+                <input type="hidden" name="total_amount" id="totalAmountInput">
 
-                                    <!-- Item Selection Area -->
-                                    <div class="col-12 mt-5 pt-5 border-top">
-                                        <div class="row g-4 align-items-end">
-                                            <div class="col-md-4">
-                                                <label class="form-label small fw-bold text-primary text-uppercase mb-2">Select Product (Name/Style/SKU)</label>
-                                                <select id="styleNumberSelect" class="form-select">
-                                                    <option value="">Search by Name, Style or SKU...</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Variation / Size-Color</label>
-                                                <select id="variationSelect" class="form-select" disabled>
-                                                    <option value="">Select Variation</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Price</label>
-                                                <input type="number" id="itemPrice" class="form-control" placeholder="0.00" step="0.01">
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Quantity</label>
-                                                <input type="number" id="itemQty" class="form-control" value="1" min="1" step="1">
-                                            </div>
-                                            <div class="col-12 text-end pt-3">
-                                                <button type="button" id="addItemBtn" class="btn btn-create-premium px-5 py-2">
-                                                    <i class="fas fa-plus me-2"></i>ADD TO LIST
-                                                </button>
-                                            </div>
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="card premium-card p-4">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label-premium">Invoice No</label>
+                                    <input type="text" name="invoice_no" class="form-control bg-light fw-bold" value="{{ $invoiceNo }}" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label-premium">Challan No</label>
+                                    <input type="text" name="challan_no" class="form-control bg-light fw-bold" value="{{ $challanNo }}" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label-premium">Date</label>
+                                    <input type="date" name="sale_date" class="form-control" value="{{ date('Y-m-d') }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label-premium">Customer</label>
+                                    <div class="d-flex gap-1">
+                                        <div class="flex-grow-1">
+                                            <select name="customer_id" id="customerSelect" class="form-select select2-setup">
+                                                <option value="">Select Customer</option>
+                                                @foreach($customers as $customer)
+                                                    <option value="{{ $customer->id }}">{{ $customer->name ?: 'Unnamed' }} ({{ $customer->phone ?: 'No Phone' }})</option>
+                                                @endforeach
+                                            </select>
                                         </div>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#quickCustomerModal" style="height: 38px;"><i class="fas fa-plus"></i></button>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Cart Table -->
-                        <div class="premium-card">
-                            <div class="card-header bg-white px-4 py-3 border-bottom">
-                                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-shopping-cart me-2 text-primary"></i>Selected Items</h6>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table premium-table mb-0" id="cartTable">
-                                        <thead>
-                                            <tr>
-                                                <th class="ps-4">SL</th>
-                                                <th>Style No</th>
-                                                <th>Internal Ref</th>
-                                                <th>Variation</th>
-                                                <th>Rate</th>
-                                                <th class="text-center">Quantity</th>
-                                                <th class="text-end pe-4">Total</th>
-                                                <th class="text-center">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr id="emptyRow">
-                                                <td colspan="8" class="text-center py-5 text-muted">No items added yet.</td>
-                                            </tr>
-                                        </tbody>
-                                        <tfoot class="bg-light fw-bold text-dark">
-                                            <tr>
-                                                <td colspan="6" class="text-end ps-4 py-3">Sub Total</td>
-                                                <td class="text-end pe-4 py-3" id="subtotalLabel">0.00৳</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
+                        <div class="card premium-card p-4">
+                            <label class="form-label-premium">Search Product</label>
+                            <select id="styleNumberSelect" class="form-select"></select>
+                        </div>
+
+                        <div class="card premium-card overflow-hidden">
+                            <div class="table-responsive">
+                                <table class="table item-table mb-0" id="cartTable">
+                                    <thead>
+                                        <tr>
+                                            <th width="40">#</th>
+                                            <th>Product Details</th>
+                                            <th width="180">Variation</th>
+                                            <th class="text-end" width="100">Price</th>
+                                            <th class="text-center" width="140">Quantity</th>
+                                            <th class="text-end" width="110">Total</th>
+                                            <th class="text-center" width="100">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr id="emptyRow"><td colspan="7" class="text-center py-5 text-muted">Scan or search product to start...</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 2: Summary & Status -->
-                    <div class="col-xl-4">
-                        <div class="premium-card mb-4">
-                            <div class="card-header bg-white px-4 py-3 border-bottom">
-                                <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-cog me-2 text-primary"></i>Sale Settings</h6>
-                            </div>
-                            <div class="card-body p-4 p-xl-5">
-                                <div class="row g-4">
-                                    <div class="col-12">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Select Branch</label>
-                                        <select name="branch_id" class="form-select" required>
-                                            @foreach($branches as $branch)
-                                                <option value="{{ $branch->id }}" {{ (isset($sale) && $sale->branch_id == $branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sale Type</label>
-                                        <select name="sale_type" class="form-select" required>
+                    <div class="col-lg-4">
+                        <div class="checkout-sidebar">
+                            <div class="card premium-card p-4">
+                                <h6 class="fw-bold mb-3 border-bottom pb-2">SETTINGS</h6>
+                                <div class="mb-3">
+                                    <label class="form-label-premium">Branch</label>
+                                    <select name="branch_id" id="branchSelect" class="form-select">
+                                        @foreach($branches as $branch)
+                                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label-premium">Type</label>
+                                        <select name="sale_type" id="saleType" class="form-select">
                                             <option value="MRP">MRP</option>
                                             <option value="Wholesale">Wholesale</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sale Number</label>
-                                        <input type="text" name="sale_no" class="form-control bg-light" value="{{ $saleNo }}" readonly title="Auto-generated Number">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Account Type</label>
-                                        <select name="account_type" class="form-select" id="accountType">
-                                            <option value="Cash">Cash</option>
-                                            <option value="Bank">Bank</option>
-                                            <option value="bKash">bKash</option>
-                                            <option value="Nagad">Nagad</option>
-                                            <option value="Rocket">Rocket</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Account No</label>
-                                        <input type="text" name="account_no" class="form-control" placeholder="Account no/details">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Select Courier</label>
-                                        <select name="courier_id" class="form-select">
-                                            <option value="">Select Courier</option>
-                                            @foreach($shippingMethods as $method)
-                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                    <div class="col-6">
+                                        <label class="form-label-premium">Bank</label>
+                                        <select name="account_id" class="form-select">
+                                            @foreach($bankAccounts as $acc)
+                                                <option value="{{ $acc->id }}">{{ $acc->provider_name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Remarks</label>
-                                        <textarea name="remarks" class="form-control" rows="2" placeholder="Internal remarks..."></textarea>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Note for Customer</label>
-                                        <textarea name="note" class="form-control" rows="2" placeholder="Will appear on invoice..."></textarea>
-                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Summary Calculator -->
-                        <div class="premium-card overflow-hidden">
-                            <div class="card-header bg-dark text-white px-4 py-3 border-0">
-                                <h6 class="fw-bold mb-0 text-uppercase small"><i class="fas fa-calculator me-2"></i>Summary Dashboard</h6>
-                            </div>
-                            <div class="card-body bg-light p-4 p-xl-5">
-                                <div class="d-flex justify-content-between mb-4 align-items-center">
-                                    <span class="text-muted small fw-bold text-uppercase">Sub Total</span>
-                                    <span class="fw-bold text-dark h5 mb-0" id="subtotalDisplay">0.00৳</span>
+                            <div class="card premium-card p-4">
+                                <h6 class="fw-bold mb-3 border-bottom pb-2">ORDER SUMMARY</h6>
+                                <div class="d-flex justify-content-between mb-2"><span class="text-muted">Subtotal</span><span class="fw-bold" id="subtotalDisplay">0.00৳</span></div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <span class="text-muted">Discount</span>
+                                        <span class="badge bg-info-subtle text-info ms-1 d-none" id="discountAmountBadge" style="font-size: 0.65rem;"></span>
+                                    </div>
+                                    <input type="text" id="discountInput" class="form-control form-control-sm text-end fw-bold w-25" value="0">
                                 </div>
-                                <div class="row g-2 mb-3 align-items-center">
-                                    <div class="col-6">
-                                        <span class="text-muted small fw-bold text-uppercase">Discount</span>
-                                    </div>
-                                    <div class="col-6">
-                                        <input type="number" name="discount" id="discountInput" class="form-control form-control-sm text-end fw-bold" value="0" step="0.01">
-                                    </div>
+                                <div class="d-flex justify-content-between align-items-center mb-4"><span class="text-muted">Delivery</span><input type="number" id="deliveryInput" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label-premium text-success mb-0">Paid Amount</label><button type="button" onclick="setExactManual()" class="btn btn-link btn-sm text-success p-0 text-decoration-none fw-bold" style="font-size: 0.7rem;">EXACT</button></div>
+                                    <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg text-end fw-bold text-success border-success" value="0">
                                 </div>
-                                <div class="row g-2 mb-3 align-items-center">
-                                    <div class="col-6">
-                                        <span class="text-muted small fw-bold text-uppercase">Delivery Charge</span>
+                                <div class="d-flex justify-content-between mb-3"><span class="fw-bold small" id="manualDueLabel">DUE BALANCE</span><span class="fw-bold" id="dueDisplay">0.00৳</span></div>
+                                
+                                <div class="summary-visual-box p-3 border rounded-3 mb-4 bg-white shadow-sm">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="fw-bold text-dark">Subtotal</span>
+                                        <span class="fw-bold text-dark" id="visualSubtotal">0.00৳</span>
                                     </div>
-                                    <div class="col-6">
-                                        <input type="number" name="delivery_charge" id="deliveryInput" class="form-control form-control-sm text-end fw-bold" value="0" step="0.01">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="fw-bold text-danger">Discount</span>
+                                        <span class="fw-bold text-danger" id="visualDiscount">0.00৳</span>
                                     </div>
-                                </div>
-                                <div class="border-top border-2 border-white my-3"></div>
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="fw-bold text-primary text-uppercase">Grand Total</span>
-                                    <span class="fw-bold h4 mb-0 text-primary" id="totalDisplay">0.00৳</span>
-                                </div>
-                                <div class="row g-2 mb-3 align-items-center">
-                                    <div class="col-6">
-                                        <span class="fw-bold text-success text-uppercase small">Paid Amount</span>
-                                    </div>
-                                    <div class="col-6">
-                                        <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-sm text-end fw-bold text-success border-success" value="0" step="0.01">
+                                    <hr class="my-2 opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold text-primary text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">PAYABLE</span>
+                                        <span class="fw-bold text-primary" style="font-size: 1.85rem;" id="visualTotal">0</span>
                                     </div>
                                 </div>
-                                <div class="d-flex justify-content-between text-danger fw-bold border-top pt-3 align-items-center">
-                                    <span class="small text-uppercase">Due Balance</span>
-                                    <span class="h5 mb-0" id="dueDisplay">0.00৳</span>
-                                </div>
-                            </div>
-                            <div class="card-footer p-4 bg-white border-0">
-                                <button type="submit" class="btn btn-create-premium py-3 w-100" id="submitBtn">
-                                    <i class="fas fa-check-double me-2"></i>COMPLETE SALE TRANSACTION
-                                </button>
+
+                                <button type="submit" class="btn btn-primary w-100 py-3 fw-bold" id="submitBtn">COMPLETE SALE</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </form>
         </div>
-        </div>
     </div>
 
-    <!-- Hidden Fields for logic -->
-    <input type="hidden" id="subtotalInput" name="sub_total" value="0">
-    <input type="hidden" id="totalAmountInput" name="total_amount" value="0">
-
-    <!-- Add Customer Modal -->
-    <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="quickCustomerModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-primary text-white border-0 py-3">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-user-plus me-2"></i>Create New Customer</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content border-0 premium-card">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Add New Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <form id="quickCustomerForm">
                         @csrf
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label small fw-bold text-muted text-uppercase">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" name="name" class="form-control" placeholder="Enter customer name" required>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label small fw-bold text-muted text-uppercase">Phone Number <span class="text-danger">*</span></label>
-                                <input type="text" name="phone" class="form-control" placeholder="e.g. 01700000000" required>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label small fw-bold text-muted text-uppercase">Email Address (Optional)</label>
-                                <input type="email" name="email" class="form-control" placeholder="customer@example.com">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label small fw-bold text-muted text-uppercase">Address (Optional)</label>
-                                <textarea name="address_1" class="form-control" rows="2" placeholder="Street address, city..."></textarea>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label-premium">Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="Enter Name (Optional if Phone exists)">
                         </div>
-                        <div class="mt-4 d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">CANCEL</button>
-                            <button type="submit" class="btn btn-primary fw-bold px-4" id="saveCustomerBtn">SAVE CUSTOMER</button>
+                        <div class="mb-3">
+                            <label class="form-label-premium">Phone</label>
+                            <input type="text" name="phone" class="form-control" placeholder="Enter Phone (Optional if Name exists)">
                         </div>
+                        <div id="customerModalError" class="text-danger small mb-2 d-none"></div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-2" id="saveCustomerBtn">SAVE CUSTOMER</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
-
 @endsection
 
 @push('scripts')
-    <script>
-        $(document).ready(function() {
-            // Handle Quick Customer Creation
-            $('#quickCustomerForm').on('submit', function(e) {
-                e.preventDefault();
-                const $btn = $('#saveCustomerBtn');
-                const $form = $(this);
-                
-                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>SAVING...');
-                
-                $.ajax({
-                    url: "{{ route('customers.store') }}",
-                    method: 'POST',
-                    data: $form.serialize(),
-                    success: function(response) {
-                        if (response.success) {
-                            const customer = response.customer;
-                            
-                            // Dynamically add and select the new customer in Select2
-                            const newOption = new Option(`${customer.name} (${customer.phone})`, customer.id, true, true);
-                            $('#customerSelect').append(newOption).trigger('change');
-                            
-                            alert('Customer created and selected successfully!');
-                            $('#addCustomerModal').modal('hide');
-                            $form[0].reset();
-                        } else {
-                            alert('Error: ' + response.message);
-                        }
-                    },
-                    error: function(xhr) {
-                        const errors = xhr.responseJSON?.errors;
-                        let msg = 'Something went wrong.';
-                        if (errors) {
-                            msg = Object.values(errors).flat().join('\n');
-                        }
-                        alert('Error: ' + msg);
-                    },
-                    complete: function() {
-                        $btn.prop('disabled', false).html('SAVE CUSTOMER');
-                    }
-                });
-            });
+<script>
+$(document).ready(function() {
+    let cartItems = [];
+    $('.select2-setup').select2({ theme: 'bootstrap-5', width: '100%' });
 
-            // Select2 initialization
-            $('#customerSelect').select2({ theme: 'classic', width: '100%', placeholder: 'Select Customer' });
-            
-            $('#styleNumberSelect').select2({
-                theme: 'classic',
-                width: '100%',
-                placeholder: 'Search by Name, Style or SKU...',
-                ajax: {
-                    url: "{{ route('products.search.style') }}",
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return { q: params.term };
-                    },
-                    processResults: function(data) {
-                        return { results: data.results };
-                    },
-                    cache: true
-                },
-                minimumInputLength: 0
-            });
+    $('#styleNumberSelect').select2({
+        theme: 'bootstrap-5', width: '100%', placeholder: 'Search Product...',
+        ajax: {
+            url: "{{ route('products.search.style') }}", dataType: 'json', delay: 250,
+            data: p => ({ q: p.term, branch_id: $('#branchSelect').val() }),
+            processResults: data => ({ results: data.results.map(p => ({ id: p.id, text: p.text, product: p })) }),
+            cache: true
+        }
+    }).on('select2:select', function(e) {
+        const prod = e.params.data.product;
+        const type = $('#saleType').val();
+        if (prod.has_variations) {
+            prod.variations.forEach(v => { if (v.stock > 0) addToCart(prod, v, type); });
+        } else {
+            if (prod.stock > 0) addToCart(prod, null, type);
+            else alert('Out of stock!');
+        }
+        $(this).val(null).trigger('change');
+        renderCart();
+    });
 
-            // Auto-focus search field when Select2 is opened
-            $(document).on('select2:open', function(e) {
-                window.setTimeout(function () {
-                    document.querySelector('.select2-search__field').focus();
-                }, 0);
-            });
-
-            let cartItems = [];
-            let selectedProduct = null;
-
-            // When Style Number is selected
-            $('#styleNumberSelect').on('select2:select', function(e) {
-                const styleNumber = e.params.data.id;
-                $.get(`/erp/products/find-by-style/${styleNumber}`, function(response) {
-                    if (response.success && response.products.length > 0) {
-                        selectedProduct = response.products[0];
-                        renderVariations(selectedProduct);
-                        updateItemPrice();
-                    }
-                });
-            });
-
-            function renderVariations(product) {
-                const $select = $('#variationSelect');
-                $select.empty().append('<option value="">Select Variation</option>');
-                
-                if (product.has_variations) {
-                    $select.prop('disabled', false);
-                    product.variations.forEach(v => {
-                        $select.append(`<option value="${v.id}" data-price="${v.price}" data-wholesale="${v.wholesale_price}" data-sku="${v.sku}">${v.name}</option>`);
-                    });
-                } else {
-                    $select.prop('disabled', true);
-                    $select.append(`<option value="" selected>No Variation</option>`);
-                }
+    function addToCart(prod, variation, type) {
+        const vid = variation ? variation.id : null;
+        const existing = cartItems.find(item => item.product_id === prod.id && item.variation_id === vid);
+        if (existing) {
+            if (existing.quantity < existing.max_stock) {
+                existing.quantity++;
+                existing.total = existing.unit_price * existing.quantity;
             }
+            return;
+        }
 
-            function updateItemPrice() {
-                if (!selectedProduct) return;
-                
-                const saleType = $('select[name="sale_type"]').val();
-                const $variation = $('#variationSelect option:selected');
-                const variationId = $('#variationSelect').val();
-                const hasVariation = variationId !== "" && variationId !== null;
-                
-                let price = 0;
-                if (hasVariation) {
-                    price = (saleType === 'Wholesale') ? $variation.data('wholesale') : $variation.data('price');
-                } else {
-                    price = (saleType === 'Wholesale') ? selectedProduct.wholesale_price : selectedProduct.price;
-                }
-                
-                // Safety check: if price is still null/undefined/string "null", fallback to 0
-                let numericPrice = parseFloat(price);
-                if (isNaN(numericPrice)) numericPrice = 0;
-                
-                $('#itemPrice').val(numericPrice.toFixed(2));
-            }
+        const mrp = parseFloat(variation ? (variation.price || prod.price || prod.discount) : (prod.price || prod.discount)) || 0;
+        const wholesale = parseFloat(variation ? (variation.wholesale_price || prod.wholesale_price || mrp) : (prod.wholesale_price || mrp)) || 0;
+        const currentPrice = (type === 'Wholesale') ? wholesale : mrp;
 
-            $('#variationSelect').on('change', function() {
-                updateItemPrice();
-            });
-
-            $('select[name="sale_type"]').on('change', function() {
-                updateItemPrice();
-                updateCartPrices();
-            });
-
-            function updateCartPrices() {
-                const saleType = $('select[name="sale_type"]').val();
-                cartItems = cartItems.map(item => {
-                    const wholesalePrice = parseFloat(item.wholesale_price) || 0;
-                    const mrpPrice = parseFloat(item.mrp_price) || 0;
-                    const newPrice = (saleType === 'Wholesale') ? wholesalePrice : mrpPrice;
-                    item.unit_price = newPrice;
-                    item.total = newPrice * item.quantity;
-                    return item;
-                });
-                updateCartTable();
-            }
-
-            // Add Item to Cart
-            $('#addItemBtn').on('click', function() {
-                if (!selectedProduct) {
-                    alert('Please select a product first.');
-                    return;
-                }
-
-                const varId = $('#variationSelect').val();
-                const $varOption = $('#variationSelect option:selected');
-                const varName = $varOption.text();
-                const currentPrice = parseFloat($('#itemPrice').val());
-                const qty = parseFloat($('#itemQty').val());
-
-                if (isNaN(currentPrice) || currentPrice < 0 || isNaN(qty) || qty <= 0) {
-                    alert('Please enter valid price and quantity.');
-                    return;
-                }
-
-                if (selectedProduct.has_variations && !varId) {
-                    alert('Please select a variation.');
-                    return;
-                }
-
-                // Capture both prices for future switching
-                const mrpPrice = selectedProduct.has_variations ? $varOption.data('price') : selectedProduct.price;
-                const wholesalePrice = selectedProduct.has_variations ? $varOption.data('wholesale') : selectedProduct.wholesale_price;
-
-                const item = {
-                    product_id: selectedProduct.id,
-                    style_no: selectedProduct.has_variations ? $varOption.data('sku') : selectedProduct.sku,
-                    internal_ref: selectedProduct.style_number || '-',
-                    variation_id: varId || null,
-                    variation_name: selectedProduct.has_variations ? varName : 'Standard',
-                    unit_price: currentPrice,
-                    mrp_price: mrpPrice,
-                    wholesale_price: wholesalePrice,
-                    quantity: qty,
-                    total: currentPrice * qty
-                };
-
-                cartItems.push(item);
-                updateCartTable();
-                resetItemFields();
-            });
-
-            function updateCartTable() {
-                const $tbody = $('#cartTable tbody');
-                $tbody.empty();
-
-                if (cartItems.length === 0) {
-                    $tbody.append('<tr id="emptyRow"><td colspan="8" class="text-center py-5 text-muted">No items added yet.</td></tr>');
-                    updateCalculations();
-                    return;
-                }
-
-                let subtotal = 0;
-                cartItems.forEach((item, index) => {
-                    subtotal += item.total;
-                    $tbody.append(`
-                        <tr>
-                            <td class="px-4 font-monospace small">${index + 1}</td>
-                            <td class="fw-semibold">${item.style_no}</td>
-                            <td class="text-muted small">${item.internal_ref}</td>
-                            <td><span class="badge bg-light text-dark border">${item.variation_name}</span></td>
-                            <td class="text-primary fw-bold">${parseFloat(item.unit_price).toFixed(2)}৳</td>
-                            <td class="text-center">${item.quantity}</td>
-                            <td class="text-end fw-bold">${parseFloat(item.total).toFixed(2)}৳</td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-link text-danger p-0 delete-item" data-index="${index}">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `);
-                });
-
-                updateCalculations(subtotal);
-            }
-
-            $(document).on('click', '.delete-item', function() {
-                const index = $(this).data('index');
-                cartItems.splice(index, 1);
-                updateCartTable();
-            });
-
-            function updateCalculations(subtotal = null) {
-                if (subtotal === null) {
-                    subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
-                }
-
-                const discount = parseFloat($('#discountInput').val()) || 0;
-                const delivery = parseFloat($('#deliveryInput').val()) || 0;
-                const total = subtotal - discount + delivery;
-                const paid = parseFloat($('#paidInput').val()) || 0;
-                const due = total - paid;
-
-                const displaySubtotal = isNaN(subtotal) ? 0 : subtotal;
-                const displayTotal = isNaN(total) ? 0 : total;
-                const displayDue = isNaN(due) ? 0 : due;
-
-                $('#subtotalLabel, #subtotalDisplay').text(displaySubtotal.toFixed(2) + '৳');
-                $('#totalDisplay').text(displayTotal.toFixed(2) + '৳');
-                $('#dueDisplay').text(displayDue.toFixed(2) + '৳');
-                
-                $('#subtotalInput').val(subtotal.toFixed(2));
-                $('#totalAmountInput').val(total.toFixed(2));
-            }
-
-            $('#discountInput, #deliveryInput, #paidInput').on('input', function() {
-                updateCalculations();
-            });
-
-            function resetItemFields() {
-                $('#styleNumberSelect').val(null).trigger('change');
-                $('#variationSelect').empty().append('<option value="">Select Variation</option>').prop('disabled', true);
-                $('#itemPrice').val('');
-                $('#itemQty').val(1);
-                selectedProduct = null;
-            }
-
-            // Form Submit
-            $('#manualSaleForm').on('submit', function(e) {
-                e.preventDefault();
-
-                if (cartItems.length === 0) {
-                    alert('Please add at least one item to the cart.');
-                    return;
-                }
-
-                const formData = new FormData(this);
-                cartItems.forEach((item, index) => {
-                    formData.append(`items[${index}][product_id]`, item.product_id);
-                    formData.append(`items[${index}][variation_id]`, item.variation_id || '');
-                    formData.append(`items[${index}][quantity]`, item.quantity);
-                    formData.append(`items[${index}][unit_price]`, item.unit_price);
-                });
-
-                formData.append('sub_total', $('#subtotalInput').val());
-                formData.append('total_amount', $('#totalAmountInput').val());
-
-                $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Processing...');
-
-                $.ajax({
-                    url: "{{ route('pos.manual.store') }}",
-                    method: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        if (response.success) {
-                            window.location.href = response.redirect;
-                        } else {
-                            alert('Error: ' + response.message);
-                            $('#submitBtn').prop('disabled', false).html('<i class="fas fa-check-double me-2"></i>Complete Sale');
-                        }
-                    },
-                    error: function(xhr) {
-                        alert('Error: ' + (xhr.responseJSON?.message || 'Something went wrong.'));
-                        $('#submitBtn').prop('disabled', false).html('<i class="fas fa-check-double me-2"></i>Complete Sale');
-                    }
-                });
-            });
+        cartItems.push({
+            product_id: prod.id, 
+            product_name: prod.name || prod.text.split(' [')[0], 
+            style_no: variation ? variation.sku : prod.sku, 
+            variation_id: vid,
+            unit_price: currentPrice, 
+            mrp_price: mrp,
+            wholesale_price: wholesale,
+            quantity: 1, 
+            max_stock: variation ? (variation.stock || 0) : (prod.stock || 0), 
+            total: currentPrice, 
+            raw_product: prod
         });
-    </script>
+    }
+
+    function renderCart() {
+        const $tbody = $('#cartTable tbody').empty();
+        if (!cartItems.length) { $tbody.append('<tr id="emptyRow"><td colspan="7" class="text-center py-5 text-muted">Scan or search product to start...</td></tr>'); updateTotals(0); return; }
+        let sub = 0;
+        cartItems.forEach((it, idx) => {
+            sub += it.total;
+            let varHtml = `<span class="badge bg-light text-dark border p-2">Standard</span>`;
+            if (it.raw_product.has_variations) {
+                varHtml = `<select class="variation-select-inline" onchange="changeVariation(${idx}, this.value)">`;
+                it.raw_product.variations.forEach(v => { varHtml += `<option value="${v.id}" ${v.id == it.variation_id ? 'selected' : ''} ${v.stock <= 0 && v.id != it.variation_id ? 'disabled' : ''}>${v.name} (${v.stock})</option>`; });
+                varHtml += `</select>`;
+            }
+            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end fw-bold text-primary">${it.unit_price.toFixed(2)}</td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="text" class="qty-val" value="${it.quantity}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
+        });
+        updateTotals(sub);
+    }
+
+    window.changeVariation = (idx, newVid) => {
+        const item = cartItems[idx];
+        const v = item.raw_product.variations.find(v => v.id == newVid);
+        if (v) {
+            item.variation_id = v.id; item.style_no = v.sku; item.max_stock = v.stock; if (item.quantity > v.stock) item.quantity = v.stock;
+            const type = $('#saleType').val();
+            item.unit_price = (type === 'Wholesale') ? (v.wholesale_price || item.raw_product.wholesale_price) : (v.price || item.raw_product.price);
+            item.total = item.unit_price * item.quantity;
+            renderCart();
+        }
+    };
+    window.duplicateItem = idx => { cartItems.push(JSON.parse(JSON.stringify(cartItems[idx]))); renderCart(); };
+    window.updateItemQty = (idx, d) => { const it = cartItems[idx]; const n = it.quantity + d; if (n > 0 && n <= it.max_stock) { it.quantity = n; it.total = it.unit_price * n; renderCart(); } };
+    window.removeItem = idx => { cartItems.splice(idx, 1); renderCart(); };
+
+    function updateTotals(sub = null) {
+        if (sub === null) sub = cartItems.reduce((a, i) => a + i.total, 0);
+        const discStr = $('#discountInput').val() || '0';
+        let disc = 0;
+        if (discStr.toString().includes('%')) {
+            disc = (sub * parseFloat(discStr)/100);
+            $('#discountAmountBadge').text(`-${disc.toFixed(2)}৳`).removeClass('d-none');
+        } else {
+            disc = parseFloat(discStr) || 0;
+            $('#discountAmountBadge').addClass('d-none');
+        }
+        const del = parseFloat($('#deliveryInput').val()) || 0;
+        const total = Math.round(sub - disc + del);
+        const paid = Math.round(parseFloat($('#paidInput').val()) || 0);
+        const due = total - paid;
+
+        // Update Visual Summary Box
+        $('#visualSubtotal').text(sub.toFixed(2) + '৳');
+        $('#visualDiscount').text(`- ${disc.toFixed(2)}৳`);
+        $('#visualTotal').text(total);
+
+        $('#subtotalDisplay').text(sub.toFixed(2) + '৳'); 
+        $('#subtotalInput').val(sub.toFixed(2)); $('#totalAmountInput').val(total);
+        if (due <= 0) { $('#manualDueLabel').text('CHANGE').removeClass('text-danger').addClass('text-success'); $('#dueDisplay').text(Math.abs(due).toFixed(2) + '৳').removeClass('text-danger').addClass('text-success'); }
+        else { $('#manualDueLabel').text('DUE BALANCE').removeClass('text-success').addClass('text-danger'); $('#dueDisplay').text(due.toFixed(2) + '৳').removeClass('text-success').addClass('text-danger'); }
+    }
+    $('#discountInput, #deliveryInput, #paidInput').on('input', () => updateTotals());
+    window.setExactManual = () => $('#paidInput').val($('#totalAmountInput').val()).trigger('input');
+
+    $('#manualSaleForm').on('submit', function(e) {
+        e.preventDefault();
+        if (!$('#customerSelect').val()) return alert('Please select a customer first.');
+        if (!cartItems.length) return alert('Add items first.');
+        const fd = new FormData(this);
+        cartItems.forEach((it, i) => { fd.append(`items[${i}][product_id]`, it.product_id); fd.append(`items[${i}][variation_id]`, it.variation_id || ''); fd.append(`items[${i}][quantity]`, it.quantity); fd.append(`items[${i}][unit_price]`, it.unit_price); });
+        const $btn = $('#submitBtn').prop('disabled', true).text('PROCESSING...');
+        $.ajax({
+            url: "{{ route('pos.manual.store') }}", method: 'POST', data: fd, processData: false, contentType: false,
+            success: res => res.success ? window.location.href = "{{ route('pos.list') }}" : alert(res.message),
+            error: xhr => alert(xhr.responseJSON ? xhr.responseJSON.message : 'Error'),
+            complete: () => $btn.prop('disabled', false).text('COMPLETE SALE')
+        });
+    });
+
+    $('#quickCustomerForm').on('submit', function(e) {
+        e.preventDefault();
+        const $btn = $('#saveCustomerBtn').prop('disabled', true).text('SAVING...');
+        const $err = $('#customerModalError').addClass('d-none');
+        
+        $.ajax({
+            url: "{{ route('customers.store') }}",
+            method: 'POST',
+            data: $(this).serialize(),
+            success: res => {
+                if (res.success && res.customer) {
+                    const c = res.customer;
+                    const label = (c.name || 'Unnamed') + ' (' + (c.phone || 'No Phone') + ')';
+                    $('#customerSelect').append(new Option(label, c.id, true, true)).trigger('change');
+                    $('#quickCustomerModal').modal('hide');
+                    $('#quickCustomerForm')[0].reset();
+                } else {
+                    $err.text(res.message || 'Unknown error').removeClass('d-none');
+                }
+            },
+            error: xhr => {
+                let msg = 'Validation Error';
+                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    msg = Object.values(xhr.responseJSON.errors).flat().join(', ');
+                } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                $err.text(msg).removeClass('d-none');
+            },
+            complete: () => $btn.prop('disabled', false).text('SAVE CUSTOMER')
+        });
+    });
+});
+</script>
 @endpush

@@ -59,9 +59,10 @@
                         <th>Style / SKU</th>
                         <th>Category</th>
                         <th>Size Breakdown</th>
+                        <th class="text-center">Total Purchase (YTD)</th>
                         <th class="text-end">Pur. Price</th>
                         <th class="text-end">MRP</th>
-                        <th class="text-center">Total Stock</th>
+                        <th class="text-center">Current Stock</th>
                         <th class="text-end">Stock Value</th>
                         <th class="text-center">Locations</th>
                         <th class="text-center pe-3">ACTION</th>
@@ -110,6 +111,26 @@
                                     if ($s->quantity < 0) $hasNegativeStock = true;
                                 }
                             }
+
+                            $totalPurchase = 0;
+                            $purchaseSumData = [];
+
+                            if ($stock->relationLoaded('purchaseItems')) {
+                                foreach ($stock->purchaseItems as $pi) {
+                                    $totalPurchase += $pi->quantity;
+                                    
+                                    if ($pi->variation_id && $stock->has_variations) {
+                                        $sizeName = 'Unknown';
+                                        $var = collect($stock->variations)->firstWhere('id', $pi->variation_id);
+                                        if ($var) {
+                                            $sizeName = collect($var->attributeValues)->pluck('value')->implode(', ') ?: 'Default';
+                                        }
+                                        $purchaseSumData[$sizeName] = ($purchaseSumData[$sizeName] ?? 0) + $pi->quantity;
+                                    } else {
+                                        $purchaseSumData['N/A'] = ($purchaseSumData['N/A'] ?? 0) + $pi->quantity;
+                                    }
+                                }
+                            }
                         @endphp
                         <tr class="{{ $totalStock <= 5 ? 'bg-danger bg-opacity-10' : '' }}">
                             <td class="ps-3 text-muted">{{ $productStocks->firstItem() + $index }}</td>
@@ -138,17 +159,21 @@
                                 @if($stock->has_variations)
                                     <div class="d-flex flex-wrap gap-1">
                                         @foreach($sizeSumData as $size => $qty)
-                                            @if($qty > 0)
-                                                <span class="badge bg-light text-dark border small fw-normal">
-                                                    <span class="text-muted">{{ $size }}:</span> <strong class="{{ $qty <= 5 ? 'text-danger' : 'text-primary' }}">{{ $qty }}</strong>
-                                                </span>
-                                            @endif
+                                            @php
+                                                $purQty = $purchaseSumData[$size] ?? 0;
+                                            @endphp
+                                            <span class="badge bg-light text-dark border small fw-normal" title="Current Stock: {{ $qty }} | Purchased YTD: {{ $purQty }}">
+                                                <span class="text-muted">{{ $size }}:</span> 
+                                                <strong class="{{ $qty <= 5 ? 'text-danger' : 'text-primary' }}">{{ $qty }}</strong>
+                                                <small class="text-success ms-1"><i class="fas fa-arrow-down" style="font-size: 0.6rem;"></i>{{ $purQty }}</small>
+                                            </span>
                                         @endforeach
                                     </div>
                                 @else
                                     <span class="text-muted small italic">No variations</span>
                                 @endif
                             </td>
+                            <td class="text-center fw-bold text-success">{{ $totalPurchase }}</td>
                             <td class="text-end fw-bold">{{ number_format($stock->cost, 2) }}</td>
                             <td class="text-end fw-bold">{{ number_format($stock->price, 2) }}</td>
                             <td class="text-center">
@@ -182,6 +207,7 @@
                 <tfoot class="bg-light fw-bold border-top-0">
                     <tr>
                         <td colspan="7" class="text-end ps-3 py-3">GRAND TOTAL (Filtered)</td>
+                        <td class="text-center py-3 text-success">-</td>
                         <td class="text-center py-3">
                             <span class="badge bg-dark fs-6 px-3">{{ number_format($totalStockQty) }}</span>
                         </td>

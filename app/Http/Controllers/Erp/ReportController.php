@@ -369,7 +369,7 @@ class ReportController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         
         // Headers
-        $headers = ['Order ID', 'Date', 'Customer', 'Product', 'Style #', 'Variation', 'Price', 'Qty', 'Discount', 'Total', 'Source'];
+        $headers = ['Order ID', 'Date', 'Customer', 'Product', 'Style #', 'Variation', 'Unit Price', 'Qty', 'Total', 'Discount', 'Source'];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col . '1', $header);
@@ -389,8 +389,8 @@ class ReportController extends Controller
             $sheet->setCellValue('F' . $row, $variation);
             $sheet->setCellValue('G' . $row, $item->unit_price);
             $sheet->setCellValue('H' . $row, $item->quantity);
-            $sheet->setCellValue('I' . $row, $item->discount);
-            $sheet->setCellValue('J' . $row, $item->total_price);
+            $sheet->setCellValue('I' . $row, $item->total_price);
+            $sheet->setCellValue('J' . $row, $item->discount);
             $sheet->setCellValue('K' . $row, $item->source);
             $row++;
         }

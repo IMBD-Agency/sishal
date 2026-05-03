@@ -136,6 +136,11 @@ class Product extends Model
         return $this->hasMany(PosItem::class, 'product_id');
     }
 
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class, 'product_id');
+    }
+
     public function reviews()
     {
         return $this->hasMany(Review::class);
@@ -475,3 +480,7 @@ class Product extends Model
     }
 
 }
+
+
+
+

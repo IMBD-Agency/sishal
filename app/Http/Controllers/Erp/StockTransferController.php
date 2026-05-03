@@ -40,7 +40,6 @@ class StockTransferController extends Controller
             $query->where('type', '!=', 'return');
         }
 
-        // Global totals for summary bar (after view_mode filter)
         $totalQuantity = (clone $query)->sum('quantity');
         $totalValue    = (clone $query)->sum('total_price');
 
@@ -59,6 +58,16 @@ class StockTransferController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(100);
 
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('erp.stockTransfer.partials.table', compact('transfers'))->render(),
+                'transferCount' => $transferCount,
+                'returnCount' => $returnCount,
+                'totalQuantity' => number_format($totalQuantity, 0),
+                'totalValue' => number_format($totalValue, 2) . '৳'
+            ]);
+        }
+
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branches   = Branch::all();
         $warehouses = Warehouse::all();
@@ -69,22 +78,23 @@ class StockTransferController extends Controller
         $seasons      = \App\Models\Season::all();
         $genders      = \App\Models\Gender::all();
         $styleNumbers = \App\Models\Product::whereNotNull('style_number')->distinct()->pluck('style_number');
+        $products     = \App\Models\Product::orderBy('name')->get();
         $filters      = $request->only([
             'search', 'from_branch_id', 'from_warehouse_id', 'to_branch_id',
             'to_warehouse_id', 'status', 'date_from', 'date_to',
-            'variation_id', 'quick_filter', 'view_mode',
+            'variation_id', 'product_id', 'quick_filter', 'view_mode',
         ]);
 
         return view('erp.stockTransfer.stockTransfer', compact(
             'transfers', 'branches', 'warehouses', 'statuses', 'filters',
-            'categories', 'brands', 'seasons', 'genders', 'styleNumbers',
+            'categories', 'brands', 'seasons', 'genders', 'styleNumbers', 'products',
             'totalQuantity', 'totalValue', 'transferCount', 'returnCount'
         ));
     }
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('create transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
             abort(403, 'Unauthorized action.');
         }
         
@@ -94,8 +104,7 @@ class StockTransferController extends Controller
         $branches = Branch::all();
         $warehouses = Warehouse::all();
         
-        $financialAccounts = \App\Models\FinancialAccount::orderBy('provider_name')->get();
-        return view('erp.stockTransfer.create', compact('branches', 'warehouses', 'financialAccounts', 'restrictedBranchId'));
+        return view('erp.stockTransfer.create', compact('branches', 'warehouses', 'restrictedBranchId'));
     }
 
     private function applyFilters(Request $request)
@@ -162,10 +171,13 @@ class StockTransferController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->whereHas('product', function($pq) use ($search) {
-                    $pq->where('name', 'like', "%$search%");
+                    $pq->where('name', 'like', "%$search%")
+                      ->orWhere('style_number', 'like', "%$search%");
                 })->orWhereHas('variation', function($vq) use ($search) {
-                    $vq->where('name', 'like', "%$search%");
-                })->orWhere('id', 'like', "%$search%");
+                    $vq->where('name', 'like', "%$search%")
+                      ->orWhere('sku', 'like', "%$search%");
+                })->orWhere('invoice_number', 'like', "%$search%")
+                  ->orWhere('id', 'like', "%$search%");
             });
         }
 
@@ -258,8 +270,17 @@ class StockTransferController extends Controller
         if (!auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        $query = StockTransfer::select(
+
+        $viewMode = $request->input('view_mode', 'all');
+        $query = $this->applyFilters($request);
+
+        if ($viewMode === 'returns') {
+            $query->where('type', 'return');
+        } elseif ($viewMode === 'transfers') {
+            $query->where('type', '!=', 'return');
+        }
+
+        $query->select(
                 \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
                 \DB::raw('MAX(id) as id'),
                 \DB::raw('COUNT(*) as item_count'),
@@ -268,16 +289,6 @@ class StockTransferController extends Controller
                 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at',
                 'sender_account_id', 'receiver_account_id', 'invoice_number'
             )
-            ->with(['fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson', 'senderAccount', 'receiverAccount'])
-            ->where(function($q) use ($restrictedBranchId) {
-                if ($restrictedBranchId) {
-                    $q->where(function($q2) use ($restrictedBranchId) {
-                        $q2->where('from_type', 'branch')->where('from_id', $restrictedBranchId);
-                    })->orWhere(function($q2) use ($restrictedBranchId) {
-                        $q2->where('to_type', 'branch')->where('to_id', $restrictedBranchId);
-                    });
-                }
-            })
             ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'sender_account_id', 'receiver_account_id', 'invoice_number')
             ->orderBy('requested_at', 'desc');
 
@@ -337,8 +348,17 @@ class StockTransferController extends Controller
         if (!auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        $query = StockTransfer::select(
+
+        $viewMode = $request->input('view_mode', 'all');
+        $query = $this->applyFilters($request);
+
+        if ($viewMode === 'returns') {
+            $query->where('type', 'return');
+        } elseif ($viewMode === 'transfers') {
+            $query->where('type', '!=', 'return');
+        }
+
+        $query->select(
                 \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
                 \DB::raw('MAX(id) as id'),
                 \DB::raw('COUNT(*) as item_count'),
@@ -346,16 +366,6 @@ class StockTransferController extends Controller
                 \DB::raw('SUM(quantity) as total_qty'),
                 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'invoice_number'
             )
-            ->with(['fromBranch', 'fromWarehouse', 'toBranch', 'toWarehouse', 'requestedPerson'])
-            ->where(function($q) use ($restrictedBranchId) {
-                if ($restrictedBranchId) {
-                    $q->where(function($q2) use ($restrictedBranchId) {
-                        $q2->where('from_type', 'branch')->where('from_id', $restrictedBranchId);
-                    })->orWhere(function($q2) use ($restrictedBranchId) {
-                        $q2->where('to_type', 'branch')->where('to_id', $restrictedBranchId);
-                    });
-                }
-            })
             ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'invoice_number')
             ->orderBy('requested_at', 'desc');
 
@@ -369,6 +379,85 @@ class StockTransferController extends Controller
 
         $pdf->setPaper('A4', 'landscape');
         return $pdf->download($filename);
+    }
+
+    public function destroy($id)
+    {
+        if (!auth()->user()->hasPermissionTo('delete transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $transfer = StockTransfer::findOrFail($id);
+
+        // Prevent deleting delivered transfers for non-superadmins.
+        // Super Admins can override this for historical cleanup purposes.
+        if ($transfer->status === 'delivered' && !$this->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'Delivered transfers can only be deleted by a Super Admin for cleanup purposes. Use "Return" for mistakes.');
+        }
+
+        // For other statuses (Approved/Pending/Rejected), non-superadmins can only delete pending/rejected
+        if (!in_array($transfer->status, ['pending', 'rejected']) && !$this->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'Only pending or rejected transfers can be deleted.');
+        }
+
+        // If part of an invoice, delete the entire batch
+        if ($transfer->invoice_number) {
+            StockTransfer::where('invoice_number', $transfer->invoice_number)->delete();
+        } else {
+            $transfer->delete();
+        }
+
+        return redirect()->route('stocktransfer.list')->with('success', 'Transfer record deleted successfully.');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('delete transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.']);
+        }
+
+        $selected = $request->selected;
+        if (empty($selected)) {
+            return response()->json(['success' => false, 'message' => 'No items selected.']);
+        }
+
+        $deletedCount = 0;
+        foreach ($selected as $item) {
+            $val = $item['val'];
+            $type = $item['type'];
+
+            if ($type === 'invoice') {
+                $query = StockTransfer::where('invoice_number', $val);
+                
+                // Block deletion if ANY item is delivered AND user is NOT superadmin
+                if (!$this->isSuperAdmin() && StockTransfer::where('invoice_number', $val)->where('status', 'delivered')->exists()) {
+                    continue; 
+                }
+
+                if (!$this->isSuperAdmin()) {
+                    $query->whereIn('status', ['pending', 'rejected']);
+                }
+                $deletedCount += $query->delete();
+            } else {
+                $transfer = StockTransfer::find($val);
+                if ($transfer) {
+                    if ($this->isSuperAdmin() || in_array($transfer->status, ['pending', 'rejected'])) {
+                        $transfer->delete();
+                        $deletedCount++;
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => "Successfully deleted {$deletedCount} record(s)."
+        ]);
+    }
+
+    private function isSuperAdmin()
+    {
+        return auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18;
     }
 
     public function show($id)
@@ -429,6 +518,13 @@ class StockTransferController extends Controller
         return redirect()->back()->with('error', 'Invalid sender outlet selected.');
     }    
 
+    // Restrict to Warehouse -> Branch only (for new transfers)
+    if (!$request->return_of_id) {
+        if ($fromType !== 'warehouse' || $toType !== 'branch') {
+            return redirect()->back()->with('error', 'Transfers are only allowed from Warehouse to Branch.');
+        }
+    }
+
         // Process each item and validate stock
         $transfersCreated = 0;
         $errors = [];
@@ -448,12 +544,11 @@ class StockTransferController extends Controller
         
         $invoiceNumber = $prefix . '-' . $today . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
-        // Calculate total dispatch value first for pro-rating (Calculate ONCE for performance)
+        // Calculate total dispatch value first
         $totalDispatchValue = 0;
         foreach ($request->items as $i) {
             $totalDispatchValue += floatval($i['quantity'] ?? 0) * floatval($i['unit_price'] ?? 0);
         }
-        $globalPaid = floatval($request->paid_amount ?? 0);
 
         foreach ($request->items as $key => $item) {
             // Skip if no quantity
@@ -467,9 +562,8 @@ class StockTransferController extends Controller
             $unitPrice = floatval($item['unit_price'] ?? 0);
             $totalPrice = $quantity * $unitPrice;
             
-            // Pro-rate the global paid amount across items based on total value
-            $itemPaid = $totalDispatchValue > 0 ? ($totalPrice / $totalDispatchValue) * $globalPaid : 0;
-            $itemDue = $totalPrice - $itemPaid;
+            $itemPaid = 0;
+            $itemDue = $totalPrice;
 
             // Validate stock availability based on Source Location (existing logic)
             if ($variationId) {
@@ -506,14 +600,14 @@ class StockTransferController extends Controller
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
-                    'paid_amount' => $itemPaid,
-                    'due_amount' => $itemDue,
-                    'sender_account_id' => $request->sender_account_id,
-                    'receiver_account_id' => $request->receiver_account_id,
-                    'sender_account_type' => $request->sender_account_type,
-                    'sender_account_number' => $request->sender_account_number,
-                    'receiver_account_type' => $request->receiver_account_type,
-                    'receiver_account_number' => $request->receiver_account_number,
+                    'paid_amount' => 0,
+                    'due_amount' => $totalPrice,
+                    'sender_account_id' => null,
+                    'receiver_account_id' => null,
+                    'sender_account_type' => null,
+                    'sender_account_number' => null,
+                    'receiver_account_type' => null,
+                    'receiver_account_number' => null,
                     'type' => $request->return_of_id ? 'return' : 'transfer',
                     'status' => $status,
                     'requested_by' => auth()->id(),
@@ -542,10 +636,7 @@ class StockTransferController extends Controller
         }
 
         if ($transfersCreated > 0) {
-            if ($request->is_direct) {
-                $batch = StockTransfer::where('invoice_number', $invoiceNumber)->get();
-                $this->processAccounting($batch);
-            }
+                // Financial accounting skipped for stock transfers as per request
             $message = "Successfully created {$transfersCreated} transfer(s).";
             if (count($errors) > 0) {
                 $message .= " Errors: " . implode(', ', $errors);
@@ -558,7 +649,7 @@ class StockTransferController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('approve transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
             abort(403, 'Unauthorized action.');
         }
         $primaryTransfer = StockTransfer::findOrFail($id);
@@ -630,17 +721,12 @@ class StockTransferController extends Controller
 
                     // Deduct Stock
                     $this->deductStock($transfer);
-                }elseif($request->status == 'shipped' && $transfer->status == 'approved'){
-                    $transfer->status = $request->status;
-                    $transfer->shipped_by = auth()->id();
-                    $transfer->shipped_at = now();
-                    $transfer->save();
-                }elseif($request->status == 'delivered' && in_array($transfer->status, ['shipped', 'approved'])){
+                }elseif($request->status == 'delivered' && $transfer->status == 'approved'){
                     $transfer->status = $request->status;
                     $transfer->delivered_by = auth()->id();
                     $transfer->delivered_at = now();
                     $transfer->save();
-
+ 
                     // Add Stock to Destination
                     $this->addStock($transfer);
                 }elseif($request->status == 'rejected' && $transfer->status != 'delivered'){
@@ -648,14 +734,12 @@ class StockTransferController extends Controller
                     $transfer->status = $request->status;
                     $transfer->approved_by = null; 
                     $transfer->approved_at = null;
-                    $transfer->shipped_by = null; 
-                    $transfer->shipped_at = null;
                     $transfer->delivered_by = null; 
                     $transfer->delivered_at = null;
                     $transfer->save();
         
-                    // Restore stock IF it was previously deducted (i.e. if it was approved/shipped)
-                    if (in_array($oldStatus, ['approved', 'shipped'])) {
+                    // Restore stock IF it was previously deducted (i.e. if it was approved)
+                    if ($oldStatus == 'approved') {
                         if ($transfer->variation_id) {
                             if($transfer->from_type == 'branch'){
                                 $vStock = ProductVariationStock::where('variation_id', $transfer->variation_id)
@@ -857,9 +941,16 @@ class StockTransferController extends Controller
 
     public function processAccounting($transfers)
     {
+        $firstTransfer  = $transfers->first();
+        if (!$firstTransfer) return;
+
+        // Skip accounting if the transfer involves a warehouse
+        if ($firstTransfer->from_type === 'warehouse' || $firstTransfer->to_type === 'warehouse') {
+            return;
+        }
+
         $totalBatchPaid = $transfers->sum('paid_amount');
         $totalBatchDue  = $transfers->sum('due_amount');
-        $firstTransfer  = $transfers->first();
 
         // 1. Process Paid Amount (Cash/Bank Movement)
         if ($totalBatchPaid > 0) {

@@ -26,9 +26,9 @@
                     </h4>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button onclick="window.print()" class="btn btn-light fw-bold shadow-sm">
+                    <!-- <button onclick="window.print()" class="btn btn-light fw-bold shadow-sm">
                         <i class="fas fa-print me-2"></i>Print Invoice
-                    </button>
+                    </button> -->
                     <a href="{{ route('stocktransfer.list') }}" class="btn btn-create-premium">
                         <i class="fas fa-list me-2"></i>Back to History
                     </a>
@@ -177,37 +177,7 @@
                             </table>
                         </div>
                         
-                        <!-- Financial Details -->
-                        @if($transfers->sum('paid_amount') > 0)
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <h6 class="fw-bold text-uppercase small text-muted mb-2">Sender Financials</h6>
-                                <div class="border rounded p-3 bg-light-success">
-                                    <p class="mb-1 small">Account: <strong>{{ $transfer->senderAccount->provider_name ?? ($transfer->sender_account_type ?? 'N/A') }}</strong></p>
-                                    <p class="mb-0 small">Number: <strong>{{ $transfer->senderAccount->account_number ?? ($transfer->sender_account_number ?? '-') }}</strong></p>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="fw-bold text-uppercase small text-muted mb-2">Receiver Financials</h6>
-                                <div class="border rounded p-3 bg-light-danger">
-                                    <p class="mb-1 small">Account: <strong>{{ $transfer->receiverAccount->provider_name ?? ($transfer->receiver_account_type ?? 'N/A') }}</strong></p>
-                                    <p class="mb-0 small">Number: <strong>{{ $transfer->receiverAccount->account_number ?? ($transfer->receiver_account_number ?? '-') }}</strong></p>
-                                </div>
-                            </div>
-                            <div class="col-12 mt-3">
-                                <div class="alert alert-{{ $transfer->status === 'delivered' ? 'success' : 'info' }} border-0 py-2 d-flex align-items-center mb-0">
-                                    <i class="fas fa-{{ $transfer->status === 'delivered' ? 'check-double' : 'clock' }} me-2"></i>
-                                    <span class="small fw-bold">
-                                        @if($transfer->status === 'delivered')
-                                            Financial Settlement Complete: {{ number_format($transfers->sum('paid_amount'), 2) }} ৳ transferred from Receiver to Sender.
-                                        @else
-                                            Financial Settlement Pending Arrival: {{ number_format($transfers->sum('paid_amount'), 2) }} ৳ will be moved upon delivery.
-                                        @endif
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
+
 
                         <!-- Notes Section -->
                         @if($transfer->notes)
@@ -311,23 +281,8 @@
                                     </div>
                                 @endif
 
-                                {{-- MARK AS SHIPPED: Sender or Admin only --}}
-                                @if($transfer->status == 'approved' && $canManageSending)
-                                    <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
-                                        @csrf @method('PATCH')
-                                        <input type="hidden" name="status" value="shipped">
-                                        <button type="submit" class="btn btn-info px-5 fw-bold text-white" onclick="return confirm('Mark this invoice as Shipped?')">
-                                            <i class="fas fa-shipping-fast me-2"></i>MARK AS SHIPPED
-                                        </button>
-                                    </form>
-                                @elseif($transfer->status == 'approved' && !$canManageSending)
-                                    <div class="alert alert-info border-0 py-2 px-4 mb-0 small">
-                                        <i class="fas fa-truck me-2"></i>Approved — waiting for <strong>sender to dispatch</strong>.
-                                    </div>
-                                @endif
-
                                 {{-- CONFIRM DELIVERY: Receiver or Admin only --}}
-                                @if($transfer->status == 'shipped' && $canConfirmDelivery)
+                                @if($transfer->status == 'approved' && $canConfirmDelivery)
                                     <form action="{{ route('stocktransfer.status', $transfer->id) }}" method="POST" class="d-inline">
                                         @csrf @method('PATCH')
                                         <input type="hidden" name="status" value="delivered">
@@ -335,9 +290,9 @@
                                             <i class="fas fa-box-open me-2"></i>CONFIRM RECEIPT
                                         </button>
                                     </form>
-                                @elseif($transfer->status == 'shipped' && !$canConfirmDelivery)
-                                    <div class="alert alert-secondary border-0 py-2 px-4 mb-0 small">
-                                        <i class="fas fa-clock me-2"></i>Shipped — waiting for <strong>destination branch to confirm receipt</strong>.
+                                @elseif($transfer->status == 'approved' && !$canConfirmDelivery)
+                                    <div class="alert alert-info border-0 py-2 px-4 mb-0 small">
+                                        <i class="fas fa-clock me-2"></i>Approved — waiting for <strong>destination branch to confirm receipt</strong>.
                                     </div>
                                 @endif
 
@@ -351,7 +306,7 @@
 
                                 {{-- VOID TRANSFER: Sender or Admin only --}}
                                 @if(in_array($transfer->status, ['pending', 'rejected']) && $canManageSending)
-                                    <form action="{{ route('stocktransfer.delete', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
+                                    <form action="{{ route('stocktransfer.destroy', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger px-4 fw-bold">

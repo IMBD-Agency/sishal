@@ -121,6 +121,7 @@
                                                 <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                             @endforeach
                                         </optgroup>
+                                        @if(isset($originalTransfer))
                                         <optgroup label="Branches">
                                             @foreach($branches as $branch)
                                                 <option value="branch_{{ $branch->id }}"
@@ -129,6 +130,7 @@
                                                 </option>
                                             @endforeach
                                         </optgroup>
+                                        @endif
                                     </select>
                                     {{-- Mirror disabled select as hidden input so it submits --}}
                                     @if(isset($originalTransfer))
@@ -149,11 +151,13 @@
                                             <option value="branch_{{ $branch->id }}" {{ (isset($toOutlet) && $toOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
                                         @endforeach
                                     </optgroup>
+                                    @if(isset($originalTransfer))
                                     <optgroup label="Warehouses">
                                         @foreach($warehouses as $warehouse)
                                             <option value="warehouse_{{ $warehouse->id }}" {{ (isset($toOutlet) && $toOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                         @endforeach
                                     </optgroup>
+                                    @endif
                                 </select>
                                 @if(isset($originalTransfer))
                                     <input type="hidden" name="to_outlet" value="{{ $toOutlet ?? '' }}">
@@ -163,8 +167,8 @@
                             @if(!isset($originalTransfer))
                             <div class="col-md-4">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Scan/Select Style Number <span class="text-danger">*</span></label>
-                                <select name="style_number" id="style_number" class="form-select shadow-none">
-                                    <option value="">Searching Style Number...</option>
+                                <select name="style_number" id="style_number" class="form-select shadow-none" disabled>
+                                    <option value="">Select Source First...</option>
                                 </select>
                             </div>
                             @endif
@@ -343,64 +347,7 @@
                 <!-- Financial & Logistics Card -->
                 <div class="premium-card mb-5">
                     <div class="card-header bg-white border-bottom p-4">
-                        <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Financials & Logistics</h6>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="row g-4">
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Paid Amount (Optional)</label>
-                                <input type="number" step="0.01" name="paid_amount" id="paid_amount" class="form-control mb-2 shadow-none" value="0">
-                                <div class="d-flex justify-content-between px-1">
-                                    <span class="extra-small fw-bold text-muted">Remaining Due:</span>
-                                    <span class="extra-small fw-bold text-danger" id="display_due">0.00৳</span>
-                                </div>
-                                <input type="hidden" id="due_amount" value="0">
-                            </div>
-
-                            <div class="col-md-9 border-start ps-md-4">
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Sender Acc. <span class="text-danger">*</span></label>
-                                        <select name="sender_account_id" id="sender_account_id" class="form-select shadow-none" required>
-                                            <option value="">Select Account</option>
-                                            @foreach($financialAccounts as $acc)
-                                                <option value="{{ $acc->id }}" 
-                                                        data-branch-id="{{ $acc->branch_id }}"
-                                                        data-type="{{ $acc->type }}" 
-                                                        data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
-                                                    {{ $acc->provider_name }} ({{ $acc->account_number ?? $acc->mobile_number }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <input type="hidden" name="sender_account_type" id="sender_account_type">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Sender Acc #</label>
-                                        <input type="text" name="sender_account_number" id="sender_account_number" class="form-control shadow-none bg-light" readonly placeholder="Auto-filled">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-2">Receiver Acc. <span class="text-danger">*</span></label>
-                                        <select name="receiver_account_id" id="receiver_account_id" class="form-select shadow-none" required>
-                                            <option value="">Select Account</option>
-                                            @foreach($financialAccounts as $acc)
-                                                <option value="{{ $acc->id }}" 
-                                                        data-branch-id="{{ $acc->branch_id }}"
-                                                        data-type="{{ $acc->type }}" 
-                                                        data-number="{{ $acc->account_number ?? $acc->mobile_number }}">
-                                                    {{ $acc->provider_name }} ({{ $acc->account_number ?? $acc->mobile_number }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <input type="hidden" name="receiver_account_type" id="receiver_account_type">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Receiver Acc #</label>
-                                        <input type="text" name="receiver_account_number" id="receiver_account_number" class="form-control shadow-none bg-light" readonly placeholder="Auto-filled">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-12 mt-4 pt-3 border-top">
+                            <div class="col-12">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Consignment Note / Instructions</label>
                                 <textarea name="note" class="form-control shadow-none" rows="3" placeholder="{{ isset($originalTransfer) ? 'Return of items from '.($originalTransfer->invoice_number ?? 'transfer') : 'Enter any specific shipping or handling instructions...' }}"></textarea>
                             </div>
@@ -451,19 +398,36 @@
                     processResults: function(data) {
                         return {
                             results: data.map(function(item) {
-                                return { id: item.id, text: (item.style_number ? item.style_number + ' - ' : '') + item.name, product: item };
+                                return { 
+                                    id: item.id, 
+                                    text: item.style_number ? (item.style_number + ' - ' + item.name) : item.name, 
+                                    product: item,
+                                    style_number: item.style_number,
+                                    name: item.name
+                                };
                             })
                         };
                     },
                     cache: true
+                },
+                templateResult: function(data) {
+                    if (!data.id) return data.text;
+                    var styleNum = data.style_number ? `<span class="badge bg-primary me-2">${data.style_number}</span>` : '';
+                    return $(`<div>${styleNum}<strong>${data.name}</strong></div>`);
+                },
+                templateSelection: function(data) {
+                    return data.text;
                 }
             });
 
-            $('#style_number').on('change', function() {
-                const selectedData = $(this).select2('data')[0];
+            $('#style_number').on('select2:select', function(e) {
+                const selectedData = e.params.data;
                 if (selectedData && selectedData.product) {
                     $('.empty-placeholder').hide();
                     loadProductVariations(selectedData.product);
+                    
+                    // Reset the selection for the next scan
+                    $(this).val(null).trigger('change');
                 }
             });
 
@@ -515,7 +479,7 @@
             }
 
             function addProductRow(product, variation) {
-                const rowId = variation ? `var_${variation.id}` : `prod_${product.id}`;
+                const rowId = (variation && variation.id) ? `var_${variation.id}` : `prod_${product.id}`;
                 if ($(`#${rowId}`).length > 0) return;
 
                 const stock = variation ? (variation.stock || 0) : (product.stock || 0);
@@ -532,7 +496,7 @@
                             <div class="fw-bold text-dark">${product.name}</div>
                             <div class="extra-small text-muted text-uppercase">${product.category?.name || 'General'}</div>
                         </td>
-                        <td class="text-pink fw-bold">${product.style_number || '-'}</td>
+                        <td class="text-pink fw-bold">${product.style_number || product.sku || '-'}</td>
                         <td>
                             <span class="badge bg-light text-dark border me-1">${variation && variation.size ? variation.size : '-'}</span>
                             <span class="badge bg-light text-dark border">${variation && variation.color ? variation.color : '-'}</span>
@@ -591,12 +555,6 @@
                 updateTotals();
             });
 
-            let autoSyncPaid = true;
-            $('#paid_amount').on('input', function() {
-                autoSyncPaid = false;
-                updateTotals();
-            });
-
             function updateTotals() {
                 let totalAmount = 0;
                 let totalQty = 0;
@@ -610,18 +568,9 @@
                     totalQty += parseFloat($(this).val()) || 0;
                 });
                 
-                if (autoSyncPaid) {
-                    $('#paid_amount').val(totalAmount > 0 ? totalAmount.toFixed(2) : 0);
-                }
-                
-                const paidAmount = parseFloat($('#paid_amount').val()) || 0;
-                const dueAmount = totalAmount - paidAmount;
-                
                 $('#total_amount').val(totalAmount);
                 $('#display_total').text(totalAmount.toFixed(2) + '৳');
                 $('#display_qty').text(totalQty);
-                $('#due_amount').val(dueAmount);
-                $('#display_due').text(dueAmount.toFixed(2) + '৳');
             }
 
             $('#transferForm').on('submit', function(e) {
@@ -630,59 +579,19 @@
                 }
             });
 
-            // Handle Financial Account Selection
-            $('#sender_account_id').on('change', function() {
-                const selected = $(this).find(':selected');
-                $('#sender_account_type').val(selected.data('type') || '');
-                $('#sender_account_number').val(selected.data('number') || '');
-            });
-
-            $('#receiver_account_id').on('change', function() {
-                const selected = $(this).find(':selected');
-                $('#receiver_account_type').val(selected.data('type') || '');
-                $('#receiver_account_number').val(selected.data('number') || '');
-            });
-
-            // Account Filtering Logic
-            function filterAccounts(outletSelector, accountSelector) {
-                const outletVal = $(outletSelector).val();
-                let branchId = '';
-                
-                if (outletVal && outletVal.startsWith('branch_')) {
-                    branchId = outletVal.replace('branch_', '');
-                }
-
-                const $accSelect = $(accountSelector);
-                
-                $accSelect.find('option').each(function() {
-                    const accBranchId = $(this).data('branch-id');
-                    // Skip placeholder
-                    if (!$(this).val()) return;
-
-                    // Show if: No outlet selected, OR Account is global (no branch_id), OR Branch matches
-                    if (!outletVal || !accBranchId || accBranchId == branchId) {
-                        $(this).prop('disabled', false).show();
-                    } else {
-                        $(this).prop('disabled', true).hide();
-                        if ($(this).is(':selected')) $accSelect.val('');
-                    }
-                });
-            }
-
-            $('#to_outlet').on('change', function() {
-                filterAccounts('#to_outlet', '#receiver_account_id');
-                
-                // Prevent same-location transfer
-                const fromVal = $('#from_outlet').val();
-                const toVal = $(this).val();
-                if (fromVal && toVal && fromVal === toVal) {
-                    alert('Source and Destination cannot be the same location.');
-                    $(this).val('').trigger('change');
-                }
-            });
-
             $('#from_outlet').on('change', function() {
-                filterAccounts('#from_outlet', '#sender_account_id');
+                const val = $(this).val();
+                
+                // Always clear items when source changes to prevent stock mismatches
+                $('#productTableBody').empty().append('<tr class="empty-placeholder"><td colspan="20" class="text-center py-5 text-muted">Select an outlet and add products to start...</td></tr>');
+                updateTotals();
+
+                if (val) {
+                    $('#style_number').prop('disabled', false);
+                    $('#style_number').next('.select2-container').find('.select2-selection').css('background-color', '');
+                } else {
+                    $('#style_number').prop('disabled', true);
+                }
 
                 // Prevent same-location transfer
                 const fromVal = $(this).val();
@@ -693,9 +602,20 @@
                 }
             });
 
+            $('#to_outlet').on('change', function() {
+                // Prevent same-location transfer
+                const fromVal = $('#from_outlet').val();
+                const toVal = $(this).val();
+                if (fromVal && toVal && fromVal === toVal) {
+                    alert('Source and Destination cannot be the same location.');
+                    $(this).val('').trigger('change');
+                }
+            });
+
             // Run once on load
-            filterAccounts('#from_outlet', '#sender_account_id');
-            filterAccounts('#to_outlet', '#receiver_account_id');
+            if ($('#from_outlet').val()) {
+                $('#style_number').prop('disabled', false);
+            }
 
             // Initialize totals on page load (important for pre-filled return rows)
             updateTotals();

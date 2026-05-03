@@ -86,9 +86,9 @@
                 </div>
             </div>
             <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                 <button class="btn btn-light fw-bold shadow-sm" onclick="window.print()">
+                 <!-- <button class="btn btn-light fw-bold shadow-sm" onclick="window.print()">
                     <i class="fas fa-print me-2"></i>Print Report
-                </button>
+                </button> -->
                 <a href="{{ route('pos.manual.create') }}" class="btn btn-create-premium text-nowrap">
                     <i class="fas fa-file-invoice me-2"></i>New Sale
                 </a>

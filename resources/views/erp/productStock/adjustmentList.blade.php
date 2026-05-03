@@ -1,161 +1,161 @@
 @extends('erp.master')
-
 @section('title', 'Product Adjustment List')
 
 @section('body')
 @include('erp.components.sidebar')
-<div class="main-content bg-light min-vh-100" id="mainContent">
+
+<div class="main-content" id="mainContent">
     @include('erp.components.header')
 
+    <style>
+        .premium-card { border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); background: #fff; margin-bottom: 1.5rem; overflow: hidden; border: 1px solid #edf2f7; }
+        .glass-header { position: relative !important; top: 0 !important; box-shadow: none !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important; margin-bottom: 1rem !important; }
+        .table-responsive { max-height: 80vh; overflow: auto !important; position: relative; background: #fff; }
+        #adjustmentTable { border-collapse: separate; border-spacing: 0; width: 100%; }
+        #adjustmentTable thead th { position: sticky !important; top: 0 !important; z-index: 100 !important; background-color: #f8fafc !important; color: #64748b !important; text-transform: uppercase; font-size: 0.75rem; font-weight: 700; padding: 16px 20px !important; border: none !important; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        #adjustmentTable tbody td { padding: 16px 20px !important; border-bottom: 1px solid #f1f5f9 !important; vertical-align: middle !important; background: #fff !important; font-size: 0.85rem; }
+        .main-inventory-container { padding: 0 2rem; }
+    </style>
 
-
-    <!-- Top Header -->
-    <div class="glass-header">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <h4 class="fw-bold mb-0 text-dark">Product Adjustment List</h4>
-            </div>
-            <div class="col-md-6 text-md-end">
-                <a href="{{ route('stock.adjustment.create') }}" class="btn btn-primary fw-bold shadow-sm">
-                    <i class="fas fa-plus me-2"></i>New Adjustment
-                </a>
+    <div class="main-inventory-container">
+        <!-- Top Header -->
+        <div class="glass-header px-5 py-3 bg-white border-bottom mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h4 class="fw-bold mb-0 text-dark">Product Adjustment History</h4>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="{{ route('stock.adjustment.create') }}" class="btn btn-create-premium">
+                        <i class="fas fa-plus me-2"></i>New Adjustment
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="container-fluid px-4 py-4">
-        <!-- Advanced Filters -->
-        <div class="premium-card mb-3 shadow-sm">
-            <div class="card-body p-3">
-                <form action="{{ route('stock.adjustment.list') }}" method="GET" id="filterForm" autocomplete="off">
-                    <div class="d-flex gap-4 mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input filter-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+        <div class="container-fluid px-0 py-4">
+            <!-- Advanced Filters -->
+            <div class="premium-card mb-4">
+                <div class="card-body p-4">
+                    <form action="{{ route('stock.adjustment.list') }}" method="GET" id="filterForm" autocomplete="off">
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input filter-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input filter-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
-                        </div>
-                    </div>
 
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm filter-input" value="{{ request('start_date') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm filter-input" value="{{ request('end_date') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Adjustment ID</label>
-                            <input type="text" name="adjustment_number" class="form-control form-control-sm filter-input" placeholder="INV-XXXX" value="{{ request('adjustment_number') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
-                            <select name="product_id" class="form-select form-select-sm select2-simple filter-select" data-placeholder="All Product">
-                                <option value="">All Product</option>
-                                @foreach($products as $product)
-                                    <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style Number</label>
-                            <input type="text" name="style_number" class="form-control form-control-sm filter-input" placeholder="Style SKU" value="{{ request('style_number') }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Category</label>
-                            <select name="category_id" class="form-select form-select-sm filter-select" data-placeholder="All Category">
-                                <option value="">All Category</option>
-                                @foreach($categories as $category)
-                                    <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
+                        <div class="row g-3">
+                            <div class="col-md-2 date-range-field">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                            </div>
+                            <div class="col-md-2 date-range-field">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                            </div>
 
-                    <div class="row g-2 align-items-end mt-1">
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Brand</label>
-                            <select name="brand_id" class="form-select form-select-sm filter-select" data-placeholder="All Brand">
-                                <option value="">All Brand</option>
-                                @foreach($brands as $brand)
-                                    <option value="{{ $brand->id }}" {{ request('brand_id') == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
-                                <select name="season_id" class="form-select form-select-sm filter-select select2-simple" data-placeholder="All Season">
-                                <option value="">All Season</option>
-                                @foreach($seasons as $season)
-                                    <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
-                            <select name="gender_id" class="form-select form-select-sm filter-select" data-placeholder="All Gender">
-                                <option value="">All Gender</option>
-                                @foreach($genders as $gender)
-                                    <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex gap-2" style="margin-top: 25px;">
-                                <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
-                                    <i class="fas fa-search me-1"></i>Search
-                                </button>
-                                <a href="{{ route('stock.adjustment.list') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm">
-                                    <i class="fas fa-undo me-1"></i>Reset
-                                </a>
+                            <div class="col-md-2 month-field" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Month</label>
+                                <select name="month" class="form-select select2-simple">
+                                    @foreach(range(1, 12) as $m)
+                                        <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2 year-field" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
+                                <select name="year" class="form-select select2-simple">
+                                    @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
+                                        <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Adjustment ID</label>
+                                <input type="text" name="adjustment_number" class="form-control" placeholder="ADJ-XXXX" value="{{ request('adjustment_number') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Global Search</label>
+                                <input type="text" name="search" class="form-control" placeholder="Name, SKU, Style..." value="{{ request('search') }}">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Product</label>
+                                <select name="product_id" class="form-select select2-simple" data-placeholder="All Products">
+                                    <option value="">All Products</option>
+                                    @foreach($products as $p)
+                                        <option value="{{ $p->id }}" {{ request('product_id') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Category</label>
+                                <select name="category_id" class="form-select select2-simple" data-placeholder="All Categories">
+                                    <option value="">All Categories</option>
+                                    @foreach($categories as $cat)
+                                        <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Branch</label>
+                                <select name="branch_id" class="form-select select2-simple" data-placeholder="All Branches">
+                                    <option value="">All Branches</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-1">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Per Page</label>
+                                <select name="per_page" class="form-select">
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                    <option value="500">500</option>
+                                </select>
                             </div>
                         </div>
                     </div>
-                <div class="card-footer bg-light border-top p-3 mt-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" id="btn-excel-export">
-                                <i class="fas fa-file-excel me-2"></i>Excel
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" id="btn-pdf-export">
-                                <i class="fas fa-file-pdf me-2"></i>PDF
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="window.print()">
-                                <i class="fas fa-print me-2"></i>Print
-                            </button>
-                        </div>
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="small text-muted fw-bold">Audit Sync: <span class="text-success">{{ now()->format('H:i') }}</span></span>
+                    <div class="card-footer bg-light border-top p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3" id="btn-excel-export">
+                                    <i class="fas fa-file-excel me-2"></i>Excel
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" id="btn-pdf-export">
+                                    <i class="fas fa-file-pdf me-2"></i>PDF
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" id="resetBtn" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px;">
+                                    <i class="fas fa-undo me-2"></i>Reset
+                                </button>
+                                <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
+                                    <i class="fas fa-search me-2"></i>Apply Filters
+                                </button>
+                            </div>
                         </div>
                     </div>
+                    </form>
                 </div>
-                </form>
             </div>
-        </div>
 
-        <!-- Table Search Wrapper -->
-        <div class="d-flex justify-content-end align-items-center mb-3">
-            
-            <div class="d-flex align-items-center gap-2">
-                <label class="small fw-bold text-muted mb-0">Quick Search:</label>
-                <input type="text" id="customSearch" class="form-control form-control-sm" placeholder="Filter current results..." style="width: 220px;">
-            </div>
-        </div>
-
-        <!-- Table Container -->
-        <div class="premium-card shadow-sm table-card-relative">
-            <div id="loading-overlay" style="z-index: 10;">
-                <div class="spinner-border text-primary" role="status"></div>
-            </div>
-            <div id="table-container" class="card-body p-0">
+            <!-- Table Container -->
+            <div id="table-data-container">
                 @include('erp.productStock.components.adjustmentTable')
             </div>
         </div>
@@ -163,44 +163,54 @@
 </div>
 
 @push('scripts')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
-        $('.select2-simple').select2({ width: '100%' });
+        function toggleReportFields() {
+            const reportType = $('.report-type-radio:checked').val();
+            $('.date-range-field, .month-field, .year-field').hide();
+            if (reportType === 'daily') $('.date-range-field').show();
+            else if (reportType === 'monthly') { $('.month-field').show(); $('.year-field').show(); }
+            else if (reportType === 'yearly') $('.year-field').show();
+        }
 
-        function fetchAdjustments(url = null) {
-            $('#loading-overlay').css('display', 'flex');
-            let fetchUrl = url || $('#filterForm').attr('action');
-            let data = $('#filterForm').serialize();
+        toggleReportFields();
+        $('.report-type-radio').on('change', toggleReportFields);
 
+        function refreshAdjustments(url = null) {
+            const form = $('#filterForm');
+            const targetUrl = url || form.attr('action');
+            const container = $('#table-data-container');
+            container.css('opacity', '0.5');
+            
             $.ajax({
-                url: fetchUrl,
-                type: 'GET',
-                data: data,
+                url: targetUrl,
+                method: 'GET',
+                data: form.serialize(),
                 success: function(response) {
-                    $('#table-container').html(response);
-                    $('#loading-overlay').hide();
+                    container.html(response);
+                    container.css('opacity', '1');
                 },
-                error: function() {
-                    $('#loading-overlay').hide();
-                    alert('Error loading data');
-                }
+                error: function() { container.css('opacity', '1'); alert('Error loading data'); }
             });
         }
 
-        $('.filter-radio').on('change', function() { fetchAdjustments(); });
-        $('.filter-select').on('change', function() { fetchAdjustments(); });
-        $('.filter-input').on('change', function() { fetchAdjustments(); });
-
-        $('#filterForm').on('submit', function(e) {
-            e.preventDefault();
-            fetchAdjustments();
+        $('#filterForm').on('submit', function(e) { e.preventDefault(); refreshAdjustments(); });
+        
+        $('select').on('change', function() {
+            refreshAdjustments();
+        });
+        
+        $('#resetBtn').on('click', function() {
+            $('#filterForm')[0].reset();
+            $('.select2-simple').val('').trigger('change');
+            toggleReportFields();
+            refreshAdjustments("{{ route('stock.adjustment.list') }}");
         });
 
         $(document).on('click', '.pagination a', function(e) {
             e.preventDefault();
-            fetchAdjustments($(this).attr('href'));
+            refreshAdjustments($(this).attr('href'));
+            window.scrollTo(0, 0);
         });
 
         $('#btn-excel-export').on('click', function() {
@@ -211,18 +221,6 @@
         $('#btn-pdf-export').on('click', function() {
             let data = $('#filterForm').serialize();
             window.location.href = "{{ route('stock.adjustment.pdf') }}?" + data;
-        });
-
-        $('#btn-csv-export').on('click', function() {
-            let data = $('#filterForm').serialize();
-            window.location.href = "{{ route('stock.adjustment.excel') }}?" + data; // Reusing excel logic for simple demo
-        });
-
-        $('#customSearch').on('keyup', function() {
-            let value = $(this).val().toLowerCase();
-            $("#table-container tbody tr").filter(function() {
-                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-            });
         });
     });
 </script>

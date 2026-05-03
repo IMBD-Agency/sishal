@@ -48,6 +48,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'view stock', 'category' => 'Inventory Management'],
             ['name' => 'adjust stock', 'category' => 'Inventory Management'],
             ['name' => 'view transfers', 'category' => 'Inventory Management'],
+            ['name' => 'create transfers', 'category' => 'Inventory Management'],
+            ['name' => 'approve transfers', 'category' => 'Inventory Management'],
+            ['name' => 'delete transfers', 'category' => 'Inventory Management'],
             ['name' => 'manage transfers', 'category' => 'Inventory Management'],
             
             // Purchases

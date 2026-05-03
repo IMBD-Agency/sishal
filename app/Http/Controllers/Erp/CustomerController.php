@@ -52,9 +52,9 @@ class CustomerController extends Controller
         }
         $rules = [
             'user_id' => 'nullable|exists:users,id',
-            'name' => 'required|string|max:255',
+            'name' => 'required_without:phone|nullable|string|max:255',
             'email' => 'nullable|email|max:255',
-            'phone' => 'required|string|max:50',
+            'phone' => 'required_without:name|nullable|string|max:50',
             'tax_number' => 'nullable|string|max:100',
             'address_1' => 'nullable|string|max:255',
             'address_2' => 'nullable|string|max:255',

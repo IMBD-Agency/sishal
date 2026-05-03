@@ -261,7 +261,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         if (auth()->user()->hasPermissionTo('view products')) {
-            $reportType = $request->get('report_type', 'daily');
+            $reportType = $request->get('report_type', 'yearly');
             $restrictedBranchId = $this->getRestrictedBranchId();
             $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
             $selectedWarehouseId = $request->warehouse_id;
@@ -281,8 +281,9 @@ class ProductController extends Controller
             }
 
             $query = $this->buildProductQuery($request);
+            $perPage = (int) $request->get('per_page', 50);
 
-            $products = $query->latest()->paginate(15)->withQueryString();
+            $products = $query->latest()->paginate($perPage)->withQueryString();
 
             // Fetch lists for filters
             $categories = ProductServiceCategory::where('status', 'active')->get()->sortBy('full_path_name');
@@ -293,6 +294,10 @@ class ProductController extends Controller
             $warehouses = \App\Models\Warehouse::where('status', 'active')->orderBy('name')->get();
             $allProducts = Product::orderBy('name')->get(['id', 'name']);
             $allStyleNumbers = Product::whereNotNull('style_number')->orderBy('style_number')->distinct()->pluck('style_number');
+
+            if ($request->ajax()) {
+                return view('erp.products.partials.table', compact('products'))->render();
+            }
 
             return view('erp.products.productlist', compact('products', 'categories', 'brands', 'seasons', 'genders', 'branches', 'warehouses', 'allProducts', 'allStyleNumbers', 'reportType', 'startDate', 'endDate', 'selectedBranchId', 'selectedWarehouseId'));
         }
@@ -1240,6 +1245,7 @@ class ProductController extends Controller
                 'id' => $product->id,
                 'name' => $product->name,
                 'sku' => $product->sku,
+                'style_number' => $product->style_number,
                 'type' => $product->type,
                 'price' => $product->price,
                 'cost' => $product->cost,
@@ -1266,6 +1272,7 @@ class ProductController extends Controller
                 'id' => $product->id,
                 'name' => $product->name,
                 'sku' => $product->sku,
+                'style_number' => $product->style_number,
                 'type' => $product->type,
                 'price' => $product->price,
                 'cost' => $product->cost,
@@ -1471,6 +1478,8 @@ class ProductController extends Controller
     public function searchStyleNumber(Request $request)
     {
         $q = $request->q;
+        $branchId = $request->branch_id;
+        
         $query = Product::query();
         
         if ($q) {
@@ -1481,14 +1490,42 @@ class ProductController extends Controller
             });
         }
         
-        // Removed strict style_number filters to allow all products to be found
-        $products = $query->limit(20)->get(['id', 'name', 'style_number', 'sku']);
+        $products = $query->with(['variations.stocks' => function($s) use ($branchId) {
+            if ($branchId) { $s->where('branch_id', $branchId); }
+        }])
+        ->with(['branchStock' => function($s) use ($branchId) {
+            if ($branchId) { $s->where('branch_id', $branchId); }
+        }])
+        ->limit(20)->get();
             
         $results = $products->map(function($product) {
             $desc = $product->style_number ?: ($product->sku ?: 'No Style/SKU');
+            
+            // Calculate simple product stock
+            $stock = (float)($product->branchStock->sum('quantity') ?? 0);
+
             return [
                 'id' => $product->id, 
-                'text' => $product->name . " [" . $desc . "]"
+                'name' => $product->name,
+                'text' => $product->name . " [" . $desc . "]" . ($product->has_variations ? "" : " (Stock: $stock)"),
+                'stock' => $stock,
+                'price' => (float)$product->price,
+                'wholesale_price' => (float)$product->wholesale_price,
+                'discount' => (float)$product->discount,
+                'has_variations' => (bool)$product->has_variations,
+                'sku' => $product->sku,
+                'style_number' => $product->style_number,
+                'variations' => $product->variations->map(function($v) {
+                    $vStock = (float)($v->stocks->sum('quantity') ?? 0);
+                    return [
+                        'id' => $v->id,
+                        'name' => $v->name,
+                        'sku' => $v->sku,
+                        'stock' => $vStock,
+                        'price' => (float)($v->price ?: 0),
+                        'wholesale_price' => (float)($v->wholesale_price ?: 0)
+                    ];
+                })
             ];
         });
         

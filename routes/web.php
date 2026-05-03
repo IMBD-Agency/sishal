@@ -57,7 +57,7 @@ Route::get('/invoice/print/{invoice_number}', [InvoiceController::class, 'print'
 Route::get('/search', [PageController::class, 'search'])->name('search');
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    return redirect()->route('erp.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Test routes for role and permission system
@@ -318,7 +318,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/stock-transfer', [\App\Http\Controllers\Erp\StockTransferController::class, 'store'])->name('stocktransfer.store');
     Route::patch('/stock-transfer/{id}/status', [\App\Http\Controllers\Erp\StockTransferController::class, 'updateStatus'])->name('stocktransfer.status');
     Route::get('/stock-transfer/{id}/return', [\App\Http\Controllers\Erp\StockTransferController::class, 'return'])->name('stocktransfer.return');
-    Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.delete');
+    Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.destroy');
+    Route::post('/stock-transfer/bulk-delete', [\App\Http\Controllers\Erp\StockTransferController::class, 'bulkDelete'])->name('stocktransfer.bulk.delete');
 
 
 

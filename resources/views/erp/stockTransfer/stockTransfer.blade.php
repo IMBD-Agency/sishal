@@ -25,9 +25,9 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <a href="{{ route('stocktransfer.list') }}?view_mode=returns" class="btn btn-outline-warning fw-bold shadow-sm">
+                    <!-- <a href="{{ route('stocktransfer.list') }}?view_mode=returns" class="btn btn-outline-warning fw-bold shadow-sm">
                         <i class="fas fa-undo-alt me-2"></i>View Returns
-                    </a>
+                    </a> -->
                     <a href="{{ route('stocktransfer.create') }}" class="btn btn-create-premium">
                         <i class="fas fa-plus-circle me-2"></i>New Transfer
                     </a>
@@ -49,22 +49,22 @@
 
             {{-- View Mode Tabs --}}
             @php $viewMode = request('view_mode', 'all'); @endphp
-            <div class="d-flex gap-2 mb-4">
-                <a href="{{ route('stocktransfer.list') }}?{{ http_build_query(array_merge(request()->except('view_mode'), [])) }}"
-                   class="btn btn-sm fw-bold px-4 {{ $viewMode === 'all' ? 'btn-dark' : 'btn-outline-secondary' }}">
+            <div class="d-flex gap-2 mb-4 view-mode-tabs">
+                <button data-url="{{ route('stocktransfer.list') }}" data-view-mode="all"
+                   class="btn btn-sm fw-bold px-4 ajax-tab {{ $viewMode === 'all' ? 'btn-dark' : 'btn-outline-secondary' }}">
                     <i class="fas fa-list me-2"></i>All Records
-                    <span class="badge {{ $viewMode === 'all' ? 'bg-light text-dark' : 'bg-secondary text-white' }} ms-1">{{ $transferCount + $returnCount }}</span>
-                </a>
-                <a href="{{ route('stocktransfer.list') }}?{{ http_build_query(array_merge(request()->except('view_mode'), ['view_mode' => 'transfers'])) }}"
-                   class="btn btn-sm fw-bold px-4 {{ $viewMode === 'transfers' ? 'btn-primary' : 'btn-outline-primary' }}">
+                    <span class="badge {{ $viewMode === 'all' ? 'bg-light text-dark' : 'bg-secondary text-white' }} ms-1 tab-count-all">{{ $transferCount + $returnCount }}</span>
+                </button>
+                <button data-url="{{ route('stocktransfer.list') }}?view_mode=transfers" data-view-mode="transfers"
+                   class="btn btn-sm fw-bold px-4 ajax-tab {{ $viewMode === 'transfers' ? 'btn-primary' : 'btn-outline-primary' }}">
                     <i class="fas fa-truck me-2"></i>Transfers Only
-                    <span class="badge {{ $viewMode === 'transfers' ? 'bg-light text-dark' : 'bg-primary text-white' }} ms-1">{{ $transferCount }}</span>
-                </a>
-                <a href="{{ route('stocktransfer.list') }}?{{ http_build_query(array_merge(request()->except('view_mode'), ['view_mode' => 'returns'])) }}"
-                   class="btn btn-sm fw-bold px-4 {{ $viewMode === 'returns' ? 'btn-warning text-dark' : 'btn-outline-warning' }}">
+                    <span class="badge {{ $viewMode === 'transfers' ? 'bg-light text-dark' : 'bg-primary text-white' }} ms-1 tab-count-transfers">{{ $transferCount }}</span>
+                </button>
+                <button data-url="{{ route('stocktransfer.list') }}?view_mode=returns" data-view-mode="returns"
+                   class="btn btn-sm fw-bold px-4 ajax-tab {{ $viewMode === 'returns' ? 'btn-warning text-dark' : 'btn-outline-warning' }}">
                     <i class="fas fa-undo-alt me-2"></i>Returns Only
-                    <span class="badge {{ $viewMode === 'returns' ? 'bg-dark text-white' : 'bg-warning text-dark' }} ms-1">{{ $returnCount }}</span>
-                </a>
+                    <span class="badge {{ $viewMode === 'returns' ? 'bg-dark text-white' : 'bg-warning text-dark' }} ms-1 tab-count-returns">{{ $returnCount }}</span>
+                </button>
             </div>
 
             <!-- Advanced Filters -->
@@ -161,17 +161,14 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Product</label>
-                                <select name="product_id" class="form-select shadow-none">
+                                <select name="product_id" class="form-select shadow-none select2-filter">
                                     <option value="">All Products</option>
-                                    @foreach($transfers->pluck('product')->unique('id') as $product)
-                                        @if($product)
-                                            <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
-                                        @endif
+                                    @foreach($products as $product)
+                                        <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
-                            <!-- Additional Product Filters -->
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Style Number</label>
                                 <select name="style_number" class="form-select shadow-none">
@@ -202,27 +199,13 @@
                                 </select>
                             </div>
                             
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Season</label>
-                                <select name="season_id" class="form-select shadow-none">
-                                    <option value="">All Seasons</option>
-                                    @foreach($seasons as $season)
-                                        <option value="{{ $season->id }}" {{ request('season_id') == $season->id ? 'selected' : '' }}>{{ $season->name }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Global Search</label>
+                                <div class="search-wrapper-premium">
+                                    <input type="text" name="search" id="globalSearchInput" class="form-control shadow-none" placeholder="Search Invoice, Style, Product..." value="{{ request('search') }}">
+                                    <i class="fas fa-search search-icon-premium" style="right: 15px; left: auto;"></i>
+                                </div>
                             </div>
-                            
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Gender</label>
-                                <select name="gender_id" class="form-select shadow-none">
-                                    <option value="">All Genders</option>
-                                    @foreach($genders as $gender)
-                                        <option value="{{ $gender->id }}" {{ request('gender_id') == $gender->id ? 'selected' : '' }}>{{ $gender->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-
                         </div>
 
                         <div class="card-footer bg-light border-top p-3 mt-4 mx-n4 mb-n4">
@@ -236,9 +219,9 @@
                                     </a>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('stocktransfer.list') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                    <button type="button" id="resetFilters" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
                                         <i class="fas fa-undo me-2"></i>Reset
-                                    </a>
+                                    </button>
                                     <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
                                         <i class="fas fa-search me-2"></i>Filter Transfers
                                     </button>
@@ -249,7 +232,6 @@
                 </div>
             </div>
 
-            <!-- Table Section Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="fw-bold mb-0 text-uppercase text-muted small">
                     @if($viewMode === 'returns')
@@ -260,117 +242,17 @@
                         <i class="fas fa-list me-2 text-primary"></i>All Transfer Data
                     @endif
                 </h6>
-                <div class="search-wrapper-premium" style="width: 300px;">
-                    <input type="text" id="tableSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
-                    <i class="fas fa-search search-icon-premium"></i>
+                <div id="bulkActions" class="d-none animate__animated animate__fadeIn">
+                    <button type="button" id="bulkDeleteBtn" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm">
+                        <i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)
+                    </button>
                 </div>
             </div>
 
             <!-- Main Listing Table -->
             <div class="premium-card">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table reporting-table compact table-hover align-middle mb-0" id="transferTable">
-                            <thead>
-                                    <tr>
-                                        <th class="ps-3">SL</th>
-                                        <th>Invoice No</th>
-                                        <th>Date</th>
-                                        <th>Source</th>
-                                        <th>Destination</th>
-                                        <th>Requested By</th>
-                                        <th class="text-center">Total Items</th>
-                                        <th class="text-end">Total Amount</th>
-                                        <th class="text-center">Type</th>
-                                        <th class="text-center">Status</th>
-                                        <th class="text-center pe-3">Action</th>
-                                    </tr>
-</thead>
-                            <tbody>
-                                @forelse ($transfers as $index => $transfer)
-                                    @php
-                                        $isReturn = str_starts_with($transfer->invoice_number ?? '', 'RET-');
-                                    @endphp
-                                    <tr class="{{ $isReturn ? 'table-warning' : '' }}">
-                                        <td class="ps-3 text-muted">{{ $transfers->firstItem() + $index }}</td>
-                                        <td class="fw-bold text-dark">
-                                            @if($transfer->invoice_number)
-                                                {{ $transfer->invoice_number }}
-                                                @if($isReturn)
-                                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i class="fas fa-undo-alt me-1"></i>RETURN</span>
-                                                @endif
-                                            @else
-                                                <span class="text-muted small">N/A (ID: {{ $transfer->id }})</span>
-                                            @endif
-                                        </td>
-                                        <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}</td>
-                                        <td>{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}</td>
-                                        <td>{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-xs bg-light rounded-circle text-primary me-2 d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:10px;">
-                                                    <i class="fas fa-user"></i>
-                                                </div>
-                                                {{ $transfer->requestedPerson->name ?? 'System' }}
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-light text-dark border">{{ number_format($transfer->grouped_quantity, 0) }} Qty</span>
-                                        </td>
-                                        <td class="text-end fw-bold">{{ number_format($transfer->grouped_total_price, 2) }}৳</td>
-                                        <td class="text-center">
-                                            @if($isReturn)
-                                                <span class="badge bg-warning text-dark"><i class="fas fa-undo-alt me-1"></i>Return</span>
-                                            @else
-                                                <span class="badge bg-light text-dark border"><i class="fas fa-truck me-1"></i>Transfer</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-center">
-                                            @php
-                                                $statusClass = match($transfer->status) {
-                                                    'approved' => 'success',
-                                                    'rejected' => 'danger',
-                                                    'shipped' => 'info',
-                                                    'delivered' => 'primary',
-                                                    default => 'warning'
-                                                };
-                                            @endphp
-                                            <span class="badge bg-{{ $statusClass }}">{{ ucfirst($transfer->status) }}</span>
-                                        </td>
-                                        <td class="pe-3 text-center">
-                                            <div class="d-flex gap-2 justify-content-center">
-                                                <a href="{{ route('stocktransfer.show', $transfer->id) }}" class="action-circle" title="View Details">
-                                                    <i class="fas fa-eye text-primary"></i>
-                                                </a>
-                                                @if($transfer->status === 'delivered' && !$isReturn)
-                                                    <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="action-circle" title="Return Items"
-                                                       onclick="return confirm('Initiate a return of these items?')">
-                                                        <i class="fas fa-undo-alt text-warning"></i>
-                                                    </a>
-                                                @endif
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="20" class="text-center py-5">
-                                            <div class="text-muted opacity-50">
-                                                <i class="fas fa-inbox fa-3x mb-3"></i>
-                                                <p class="fw-bold">No transfer records found.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    @if($transfers->hasPages())
-                    <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
-                        <small class="text-muted fw-500">Showing {{ $transfers->firstItem() }} to {{ $transfers->lastItem() }}</small>
-                        {{ $transfers->links('vendor.pagination.bootstrap-5') }}
-                    </div>
-                    @endif
+                <div class="card-body p-0" id="tableContainer">
+                    @include('erp.stockTransfer.partials.table')
                 </div>
             </div>
 
@@ -379,12 +261,12 @@
                 <div class="d-inline-flex align-items-center gap-4 bg-white border premium-card px-4 py-3 shadow-sm">
                     <div class="d-flex align-items-center gap-2">
                         <span class="fw-bold text-muted text-uppercase small">Consolidated Total Qty:</span>
-                        <span class="h5 fw-bold text-info mb-0">{{ number_format($totalQuantity, 0) }}</span>
+                        <span class="h5 fw-bold text-info mb-0" id="summaryQty">{{ number_format($totalQuantity, 0) }}</span>
                     </div>
                     <div class="vr"></div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="fw-bold text-muted text-uppercase small">Total Dispatch Value:</span>
-                        <span class="h5 fw-bold text-success mb-0">{{ number_format($totalValue, 2) }}৳</span>
+                        <span class="h5 fw-bold text-success mb-0" id="summaryValue">{{ number_format($totalValue, 2) }}৳</span>
                     </div>
                 </div>
             </div>
@@ -407,7 +289,6 @@
                             <select class="form-select shadow-none" name="status" id="modalStatusSelect">
                                 <option value="pending">Pending Review</option>
                                 <option value="approved">Approved</option>
-                                <option value="shipped">In Transit (Shipped)</option>
                                 <option value="delivered">Fulfilled (Delivered)</option>
                                 <option value="rejected">Declined</option>
                             </select>
@@ -426,17 +307,206 @@
     </div>
 
 @push('css')
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         .breadcrumb-premium { font-size: 0.8rem; }
         .search-wrapper-premium { position: relative; }
-        .search-input-premium { padding-left: 35px; border: 1px solid #e0e0e0; font-size: 0.85rem; }
-        .search-icon-premium { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9e9e9e; font-size: 0.8rem; }
+        .search-icon-premium { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #9e9e9e; font-size: 0.8rem; }
+        
+        /* Select2 Premium Styling */
+        .select2-container--default .select2-selection--single {
+            height: 40px !important;
+            border: 1px solid #dee2e6 !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            padding-left: 10px !important;
+            background-color: #fff !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 40px !important;
+            color: #333 !important;
+            padding-left: 0 !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 38px !important;
+            right: 10px !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__clear {
+            position: absolute !important;
+            right: 35px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            margin-right: 0 !important;
+            color: #ff4d4f !important;
+            font-weight: bold !important;
+        }
+        .select2-dropdown {
+            border: 1px solid #eee !important;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important;
+            border-radius: 12px !important;
+            z-index: 9999 !important;
+        }
+        .select2-search__field {
+            border: 1px solid #eee !important;
+            border-radius: 8px !important;
+            padding: 10px !important;
+            margin-bottom: 5px !important;
+        }
+        .select2-results__option--highlighted[aria-selected] {
+            background-color: #f0f7ff !important;
+            color: #007bff !important;
+        }
     </style>
 @endpush
 
 @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
+            // Initialize Select2
+            $('.select2-filter').select2({
+                placeholder: 'Search...',
+                allowClear: true,
+                width: '100%'
+            });
+            function loadTransfers(url, formData = null) {
+                $('#tableContainer').css('opacity', '0.5');
+                $.ajax({
+                    url: url,
+                    data: formData,
+                    success: function(res) {
+                        $('#tableContainer').html(res.html).css('opacity', '1');
+                        
+                        // Update counts
+                        $('.tab-count-all').text(parseInt(res.transferCount) + parseInt(res.returnCount));
+                        $('.tab-count-transfers').text(res.transferCount);
+                        $('.tab-count-returns').text(res.returnCount);
+                        
+                        // Update summary
+                        $('#summaryQty').text(res.totalQuantity);
+                        $('#summaryValue').text(res.totalValue);
+                        
+                        // Update export links with current filters
+                        updateExportLinks(formData);
+                        
+                        // Sync window URL without reload
+                        const newUrl = url + (url.includes('?') ? '&' : '?') + (formData ? formData : '');
+                        window.history.pushState({}, '', newUrl);
+                    }
+                });
+            }
+
+            function updateExportLinks(queryString) {
+                const excelUrl = "{{ route('stocktransfer.export.excel') }}" + (queryString ? '?' + queryString : '');
+                const pdfUrl = "{{ route('stocktransfer.export.pdf') }}" + (queryString ? '?' + queryString : '');
+                $('.btn-outline-success').attr('href', excelUrl);
+                $('.btn-outline-danger').attr('href', pdfUrl);
+            }
+
+            // AJAX Filtering
+            $('#filterForm').on('submit', function(e) {
+                e.preventDefault();
+                const formData = $(this).serialize();
+                loadTransfers("{{ route('stocktransfer.list') }}", formData);
+            });
+
+            // AJAX Reset
+            $('#resetFilters').on('click', function() {
+                $('#filterForm')[0].reset();
+                $('input[name="view_mode"]').val('');
+                $('.report-type-radio[value="daily"]').prop('checked', true).trigger('change');
+                updateExportLinks("");
+                loadTransfers("{{ route('stocktransfer.list') }}");
+            });
+
+            // View Mode Tabs AJAX
+            $('.ajax-tab').on('click', function() {
+                const mode = $(this).data('view-mode');
+                $('input[name="view_mode"]').val(mode === 'all' ? '' : mode);
+                
+                $('.ajax-tab').removeClass('btn-dark btn-primary btn-warning text-white text-dark').addClass('btn-outline-secondary btn-outline-primary btn-outline-warning');
+                if(mode === 'all') $(this).removeClass('btn-outline-secondary').addClass('btn-dark');
+                if(mode === 'transfers') $(this).removeClass('btn-outline-primary').addClass('btn-primary text-white');
+                if(mode === 'returns') $(this).removeClass('btn-outline-warning').addClass('btn-warning text-dark');
+                
+                $('#filterForm').submit();
+            });
+
+            // AJAX Pagination
+            $(document).on('click', '.ajax-pagination a', function(e) {
+                e.preventDefault();
+                loadTransfers($(this).attr('href'), $('#filterForm').serialize());
+            });
+
+            // Bulk Actions Logic
+            $(document).on('change', '#masterCheckbox', function() {
+                $('.row-checkbox').prop('checked', this.checked);
+                toggleBulkActions();
+            });
+
+            $(document).on('change', '.row-checkbox', function() {
+                if($('.row-checkbox:checked').length == $('.row-checkbox').length) {
+                    $('#masterCheckbox').prop('checked', true);
+                } else {
+                    $('#masterCheckbox').prop('checked', false);
+                }
+                toggleBulkActions();
+            });
+
+            function toggleBulkActions() {
+                const checkedCount = $('.row-checkbox:checked').length;
+                if(checkedCount > 0) {
+                    $('#bulkActions').removeClass('d-none').addClass('d-block');
+                    $('#selectedCount').text(checkedCount);
+                } else {
+                    $('#bulkActions').removeClass('d-block').addClass('d-none');
+                }
+            }
+
+            $('#bulkDeleteBtn').on('click', function() {
+                const selected = [];
+                $('.row-checkbox:checked').each(function() {
+                    selected.push({
+                        val: $(this).val(),
+                        type: $(this).data('type')
+                    });
+                });
+
+                if(selected.length === 0) return;
+
+                if(confirm(`Are you sure you want to delete ${selected.length} selected record(s)/batch(es)? This action is permanent.`)) {
+                    $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
+                    
+                    $.ajax({
+                        url: "{{ route('stocktransfer.bulk.delete') }}",
+                        method: "POST",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            selected: selected
+                        },
+                        success: function(res) {
+                            if(res.success) {
+                                toastr.success(res.message);
+                                $('#filterForm').submit();
+                                $('#masterCheckbox').prop('checked', false);
+                            } else {
+                                toastr.error(res.message);
+                                $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
+                            }
+                        },
+                        error: function(err) {
+                            toastr.error('Internal server error while deleting.');
+                            $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
+                        },
+                        complete: function() {
+                            $('#bulkDeleteBtn').prop('disabled', false);
+                            toggleBulkActions();
+                        }
+                    });
+                }
+            });
+
             // Report type toggles
             $('.report-type-radio').on('change', function() {
                 const val = $(this).val();
@@ -450,14 +520,6 @@
                     $('.year-field').removeClass('d-none').show();
                     $('.date-range-field, .month-field').addClass('d-none').hide();
                 }
-            });
-
-            // Table search
-            $('#tableSearch').on('keyup', function() {
-                var value = $(this).val().toLowerCase();
-                $('#transferTable tbody tr').filter(function() {
-                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-                });
             });
 
             // Status Modal logic
@@ -474,8 +536,6 @@
                     $('#modalStatusSelect option[value="delivered"]').prop('disabled', false);
                 } else if (currentStatus === 'approved') {
                     $('#modalStatusSelect option[value="pending"]').prop('disabled', true);
-                } else if (currentStatus === 'shipped') {
-                    $('#modalStatusSelect option[value="pending"], #modalStatusSelect option[value="approved"]').prop('disabled', true);
                 }
 
                 var actionUrl = "{{ route('stocktransfer.status', ['id' => 'TRANSFER_ID']) }}".replace('TRANSFER_ID', transferId);
