@@ -168,9 +168,7 @@
                             <a href="{{ route('purchaseReturn.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
                                 <i class="fas fa-file-pdf me-2"></i>PDF
                             </a>
-                            <button class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="window.print()">
-                                <i class="fas fa-print me-2"></i>Print Registry
-                            </button>
+                           
                         </div>
                         <div class="d-flex gap-2">
                             <a href="{{ route('purchaseReturn.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
