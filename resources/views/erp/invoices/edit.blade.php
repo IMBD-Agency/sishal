@@ -177,9 +177,16 @@
                                                     @foreach($invoice->items as $i => $item)
                                                     <tr>
                                                         <td>
-                                                            <select name="items[{{ $i }}][product_id]" class="form-select product-select" required style="width:100%">
-                                                                <option value="{{ $item->product_id }}" selected>{{ $item->product->name ?? '' }}</option>
+                                                            <select name="items[{{ $i }}][product_id]" class="form-select product-select {{ !$item->product ? 'border-danger' : '' }}" required style="width:100%">
+                                                                @if(!$item->product)
+                                                                    <option value="{{ $item->product_id }}" selected class="text-danger">⚠ Deleted Product (ID: {{ $item->product_id }}) — Please replace</option>
+                                                                @else
+                                                                    <option value="{{ $item->product_id }}" selected>{{ $item->product->name }}</option>
+                                                                @endif
                                                             </select>
+                                                            @if(!$item->product)
+                                                                <small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>This product was deleted. Please select a replacement.</small>
+                                                            @endif
                                                         </td>
                                                         <td>
                                                             <select name="items[{{ $i }}][variation_id]" class="form-select variation-select" style="width:100%" data-selected="{{ $item->variation_id }}">

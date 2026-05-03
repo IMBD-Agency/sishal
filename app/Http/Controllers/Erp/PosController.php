@@ -819,6 +819,7 @@ class PosController extends Controller
 
             // Update invoice if exists
             if ($pos->invoice) {
+                $invoice = $pos->invoice; // assign the related invoice model
                 $generalSettings = GeneralSetting::first();
                 $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
                 $tax = round($pos->sub_total * $taxRate, 2);
