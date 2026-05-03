@@ -250,16 +250,23 @@ $(document).ready(function() {
                 $stock = $bStock ? $bStock->quantity : 0;
             }
 
+            $productName = $item->product->name ?? ('Deleted Product #' . $item->product_id);
+            $variationName = $item->variation ? (' - ' . ($item->variation->name ?? '')) : '';
+
             return [
-                'cartId' => $item->variation_id ? ($item->product_id.'-'.$item->variation_id) : $item->product_id,
-                'productId' => $item->product_id,
-                'variation_id' => $item->variation_id,
-                'name' => $item->product->name . ($item->variation ? ' - '.$item->variation->name : ''),
-                'price' => (float)$item->unit_price,
-                'mrp_price' => (float)($item->variation_id ? ($item->variation->discount ?? $item->variation->price) : ($item->product->discount ?? $item->product->price)),
-                'wholesale_price' => (float)($item->variation_id ? ($item->variation->wholesale_price ?? $item->product->wholesale_price) : $item->product->wholesale_price),
-                'qty' => (float)$item->quantity,
-                'maxStock' => (float)$stock + (float)$item->quantity
+                'cartId'          => $item->variation_id ? ($item->product_id.'-'.$item->variation_id) : $item->product_id,
+                'productId'       => $item->product_id,
+                'variation_id'    => $item->variation_id,
+                'name'            => $productName . $variationName,
+                'price'           => (float)$item->unit_price,
+                'mrp_price'       => (float)($item->variation_id
+                    ? ($item->variation->discount ?? $item->variation->price ?? $item->unit_price)
+                    : ($item->product->discount ?? $item->product->price ?? $item->unit_price)),
+                'wholesale_price' => (float)($item->variation_id
+                    ? ($item->variation->wholesale_price ?? $item->product->wholesale_price ?? $item->unit_price)
+                    : ($item->product->wholesale_price ?? $item->unit_price)),
+                'qty'             => (float)$item->quantity,
+                'maxStock'        => (float)$stock + (float)$item->quantity
             ];
         });
     @endphp
