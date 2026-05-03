@@ -40,7 +40,7 @@
                                                 <label class="form-label">Customer <span class="text-danger">*</span></label>
                                                 <select name="customer_id" id="customerSelect" class="form-select" required style="width:100%">
                                                     <option value="">Search and select customer...</option>
-                                                    <option value="{{ $invoice->customer->id ?? '' }}" selected>{{ $invoice->customer->name ?? '' }}</option>
+                                                    <option value="{{ optional($invoice->customer)->id ?? '' }}" selected>{{ optional($invoice->customer)->name ?? 'Unknown Customer' }}</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -185,7 +185,7 @@
                                                             <select name="items[{{ $i }}][variation_id]" class="form-select variation-select" style="width:100%" data-selected="{{ $item->variation_id }}">
                                                                 <option value="">No Variation</option>
                                                                 @if($item->variation)
-                                                                    <option value="{{ $item->variation_id }}" selected>{{ $item->variation->name ?? $item->variation->sku }}</option>
+                                                                    <option value="{{ $item->variation_id }}" selected>{{ optional($item->variation)->name ?? optional($item->variation)->sku ?? 'Variation #'.$item->variation_id }}</option>
                                                                 @endif
                                                             </select>
                                                         </td>
@@ -402,44 +402,6 @@
             });
 
 
-            $('#addItemBtn').on('click', function () {
-                const row = $('#itemsTable tbody tr:first').clone();
-                
-                // Remove select2 initialization from cloned row
-                row.find('.select2-container').remove();
-                row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').show();
-                
-                row.find('select, input').each(function () {
-                    const name = $(this).attr('name');
-                    if (name) {
-                        const newName = name.replace(/\d+/, itemIndex);
-                        $(this).attr('name', newName);
-                    }
-                    if ($(this).is('select')) {
-                        $(this).val('');
-                        if ($(this).hasClass('variation-select')) {
-                            $(this).prop('disabled', true).html('<option value="">No Variation</option>');
-                        }
-                    }
-                    else {
-                        if ($(this).hasClass('item-discount')) {
-                            $(this).val('0');
-                        } else {
-                            $(this).val('');
-                        }
-                    }
-                });
-                row.find('.remove-item').prop('disabled', false);
-                $('#itemsTable tbody').append(row);
-                
-                // Re-initialize Select2 for the new product-select
-                const productSelect = row.find('.product-select');
-                productSelect.empty().append('<option value="">Search and select product...</option>');
-                initProductSelect2(productSelect);
-                
-                itemIndex++;
-                updateTotals();
-            });
         });
 
         let itemIndex = {{ count($invoice->items) }};
