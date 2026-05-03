@@ -81,11 +81,11 @@
                             <img src="{{ $product && $product->image ? asset($product->image) : asset('static/default-product.jpg') }}" alt="">
                         </div>
                     </td>
-                    <td class="fw-bold">{{ $purchase->supplier->name ?? '-' }}</td>
-                    <td>{{ $product->category->name ?? '-' }}</td>
-                    <td>{{ $product->brand->name ?? '-' }}</td>
-                    <td>{{ $product->season->name ?? '-' }}</td>
-                    <td>{{ $product->gender->name ?? '-' }}</td>
+                    <td class="fw-bold">{{ optional($purchase->supplier)->name ?? '-' }}</td>
+                    <td>{{ optional(optional($product)->category)->name ?? '-' }}</td>
+                    <td>{{ optional(optional($product)->brand)->name ?? '-' }}</td>
+                    <td>{{ optional(optional($product)->season)->name ?? '-' }}</td>
+                    <td>{{ optional(optional($product)->gender)->name ?? '-' }}</td>
                     <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
                     <td><code class="text-primary bg-light px-2 py-1 rounded">{{ $product->sku ?? $product->style_number ?? '-' }}</code></td>
                     <td class="text-uppercase fw-bold">{{ $color }}</td>
@@ -111,13 +111,13 @@
                     </td>
                     
                     <td class="text-end text-warning fw-bold">
-                        @if($showInvoiceTotals) {{ number_format($bill->discount_amount ?? 0, 2) }}৳ @else - @endif
+                        @if($showInvoiceTotals) {{ number_format(optional($bill)->discount_amount ?? 0, 2) }}৳ @else - @endif
                     </td>
                     <td class="text-end text-primary fw-bold">
-                        @if($showInvoiceTotals) {{ number_format($bill->paid_amount ?? 0, 2) }}৳ @else - @endif
+                        @if($showInvoiceTotals) {{ number_format(optional($bill)->paid_amount ?? 0, 2) }}৳ @else - @endif
                     </td>
                     <td class="text-end text-danger fw-bold">
-                        @if($showInvoiceTotals) {{ number_format($bill->due_amount ?? 0, 2) }}৳ @else - @endif
+                        @if($showInvoiceTotals) {{ number_format(optional($bill)->due_amount ?? 0, 2) }}৳ @else - @endif
                     </td>
                     <td class="text-center">
                         @php
