@@ -126,7 +126,9 @@ class StockController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $products = $this->getStockQuery($request)->get();
+        $perPage = (int) $request->get('per_page', 20);
+        $page = (int) $request->get('page', 1);
+        $products = $this->getStockQuery($request)->paginate($perPage, ['*'], 'page', $page)->items();
         $startDate = $request->start_date;
         $endDate = $request->end_date;
 
@@ -344,7 +346,9 @@ class StockController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $products = $this->getStockQuery($request)->get();
+        $perPage = (int) $request->get('per_page', 20);
+        $page = (int) $request->get('page', 1);
+        $products = $this->getStockQuery($request)->paginate($perPage, ['*'], 'page', $page)->items();
         $startDate = $request->start_date;
         $endDate = $request->end_date;
         

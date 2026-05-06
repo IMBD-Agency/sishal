@@ -41,6 +41,7 @@
         <div class="premium-card mb-3 shadow-sm">
             <div class="card-body p-3">
                 <form method="GET" action="{{ route('productstock.list') }}" id="filterForm" autocomplete="off">
+                    <input type="hidden" name="page" id="currentPage" value="{{ $productStocks->currentPage() }}">
                     <!-- Row 1: Search & Settings -->
                     <div class="row g-3 align-items-end mb-4">
                         <div class="col-md-6">
@@ -286,6 +287,11 @@ $(document).ready(function() {
         e.preventDefault();
         const url = $(this).attr('href');
         if (url) {
+            // Update the hidden page input from the URL
+            const urlParams = new URLSearchParams(url.split('?')[1]);
+            const pageValue = urlParams.get('page') || 1;
+            $('#currentPage').val(pageValue);
+
             fetchStockData(url);
             $('html, body').animate({
                 scrollTop: $("#stock-container").offset().top - 100
