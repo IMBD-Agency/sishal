@@ -28,6 +28,71 @@
             });
         }
 
+        // PRE-AGGREGATE MOVEMENTS FOR O(1) LOOKUP PERFORMANCE
+        $agg = [ 'p' => [], 'pr' => [], 's' => [], 'sr' => [], 'adj' => [], 'et' => [], 'ef' => [], 'tf' => [], 'tt' => [], 'rev' => [] ];
+        
+        foreach($product->purchaseItems as $m) {
+            if($m->purchase) {
+                $k = ($m->variation_id ?: 0) . '_' . $m->purchase->ship_location_type . '_' . $m->purchase->location_id;
+                $agg['p'][$k] = ($agg['p'][$k] ?? 0) + $m->quantity;
+            }
+        }
+        foreach($product->purchaseReturnItems as $m) {
+            $k = ($m->variation_id ?: 0) . '_' . $m->return_from_type . '_' . $m->return_from_id;
+            $agg['pr'][$k] = ($agg['pr'][$k] ?? 0) + $m->returned_qty;
+        }
+        foreach($product->saleItems as $m) {
+            if($m->pos) {
+                $k = ($m->variation_id ?: 0) . '_branch_' . $m->pos->branch_id;
+                if ($m->pos->sale_type != 'exchange') $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+                else $agg['et'][$k] = ($agg['et'][$k] ?? 0) + $m->quantity;
+                $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+            }
+        }
+        foreach($product->invoiceItems as $m) {
+            $k = ($m->variation_id ?: 0) . '_warehouse_0';
+            $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+            $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+        }
+        foreach($product->orderItems as $m) {
+            if($m->order) {
+                $k = ($m->variation_id ?: 0) . '_branch_' . $m->order->branch_id;
+                $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+                $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+            }
+        }
+        foreach($product->saleReturnItems as $m) {
+            if($m->saleReturn) {
+                $k = ($m->variation_id ?: 0) . '_' . $m->saleReturn->return_to_type . '_' . $m->saleReturn->return_to_id;
+                if ($m->saleReturn->refund_type != 'exchange') $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
+                else $agg['ef'][$k] = ($agg['ef'][$k] ?? 0) + $m->returned_qty;
+                $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) - $m->total_price;
+            }
+        }
+        foreach($product->orderReturnItems as $m) {
+            if($m->orderReturn) {
+                $k = ($m->variation_id ?: 0) . '_' . $m->orderReturn->return_to_type . '_' . $m->orderReturn->return_to_id;
+                $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
+                $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) - $m->total_price;
+            }
+        }
+        foreach($product->stockAdjustmentItems as $m) {
+            if($m->adjustment) {
+                $ltype = $m->adjustment->branch_id ? 'branch' : 'warehouse';
+                $lid = $m->adjustment->branch_id ?: $m->adjustment->warehouse_id;
+                $k = ($m->variation_id ?: 0) . '_' . $ltype . '_' . $lid;
+                $agg['adj'][$k] = ($agg['adj'][$k] ?? 0) + ($m->new_quantity - $m->old_quantity);
+            }
+        }
+        foreach($product->stockTransfers as $m) {
+            if($m->status == 'delivered') {
+                $k_from = ($m->variation_id ?: 0) . '_' . $m->from_type . '_' . $m->from_id;
+                $k_to = ($m->variation_id ?: 0) . '_' . $m->to_type . '_' . $m->to_id;
+                $agg['tf'][$k_from] = ($agg['tf'][$k_from] ?? 0) + $m->quantity;
+                $agg['tt'][$k_to] = ($agg['tt'][$k_to] ?? 0) + $m->quantity;
+            }
+        }
+
         foreach ($productLocations as $locKey => $location) {
             if ($product->has_variations) {
                 foreach ($product->variations as $variation) {
@@ -42,6 +107,7 @@
                         'product' => $product,
                         'variation' => $variation,
                         'location' => $location,
+                        'agg' => $agg
                     ];
                 }
             } else {
@@ -49,6 +115,7 @@
                     'product' => $product,
                     'variation' => null,
                     'location' => $location,
+                    'agg' => $agg
                 ];
             }
         }
@@ -114,63 +181,22 @@
                             $locationId = $loc['id'];
                             $locationType = $loc['type'];
 
-                            // Helper for matching movements to this specific row (Prod + Var + Loc)
-                            $matchMove = function($movement) use ($prod, $variationId) {
-                                if ($movement->product_id != $prod->id) return false;
-                                if ($prod->has_variations && $movement->variation_id != $variationId) return false;
-                                return true; 
-                            };
+                            $vid = $variationId ?: 0;
+                            $key = $vid . '_' . $locationType . '_' . $locationId;
+                            $wh_key = $vid . '_warehouse_0';
 
-                            // Movements logic
-                            $p_qnt = $prod->purchaseItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->purchase && $m->purchase->location_id == $locationId && $m->purchase->ship_location_type == $locationType;
-                            })->sum('quantity');
+                            $p_qnt = $item['agg']['p'][$key] ?? 0;
+                            $pr_qnt = $item['agg']['pr'][$key] ?? 0;
+                            
+                            $s_qnt = $item['agg']['s'][$key] ?? 0;
+                            if ($locationType == 'warehouse') $s_qnt += $item['agg']['s'][$wh_key] ?? 0;
 
-                            $pr_qnt = $prod->purchaseReturnItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->return_from_id == $locationId && $m->return_from_type == $locationType;
-                            })->sum('returned_qty');
-
-                            $s_qnt = 0;
-                            $s_qnt += $prod->saleItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->pos && $m->pos->branch_id == $locationId && $locationType == 'branch' && $m->pos->sale_type != 'exchange';
-                            })->sum('quantity');
-                            $s_qnt += $prod->invoiceItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $locationType == 'warehouse'; 
-                            })->sum('quantity');
-                            $s_qnt += $prod->orderItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->order && $m->order->branch_id == $locationId && $locationType == 'branch';
-                            })->sum('quantity');
-
-                            $sr_qnt = 0;
-                            $sr_qnt += $prod->saleReturnItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->saleReturn && $m->saleReturn->return_to_id == $locationId && $m->saleReturn->return_to_type == $locationType && $m->saleReturn->refund_type != 'exchange';
-                            })->sum('returned_qty');
-                            $sr_qnt += $prod->orderReturnItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->orderReturn && $m->orderReturn->return_to_id == $locationId && $m->orderReturn->return_to_type == $locationType;
-                            })->sum('returned_qty');
-
-                            $adjust = $prod->stockAdjustmentItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                if (!$matchMove($m) || !$m->adjustment) return false;
-                                if ($locationType == 'branch' && $m->adjustment->branch_id == $locationId) return true;
-                                if ($locationType == 'warehouse' && $m->adjustment->warehouse_id == $locationId) return true;
-                                return false;
-                            })->sum(function($m) { return $m->new_quantity - $m->old_quantity; });
-
-                            $exc_to = $prod->saleItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->pos && $m->pos->branch_id == $locationId && $locationType == 'branch' && $m->pos->sale_type == 'exchange';
-                            })->sum('quantity');
-
-                            $exc_from = $prod->saleReturnItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->saleReturn && $m->saleReturn->return_to_id == $locationId && $m->saleReturn->return_to_type == $locationType && $m->saleReturn->refund_type == 'exchange';
-                            })->sum('returned_qty');
-
-                            $tr_from = $prod->stockTransfers->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->from_id == $locationId && $m->from_type == $locationType && $m->status == 'delivered';
-                            })->sum('quantity');
-
-                            $tr_to = $prod->stockTransfers->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->to_id == $locationId && $m->to_type == $locationType && $m->status == 'delivered';
-                            })->sum('quantity');
+                            $sr_qnt = $item['agg']['sr'][$key] ?? 0;
+                            $adjust = $item['agg']['adj'][$key] ?? 0;
+                            $exc_to = $item['agg']['et'][$key] ?? 0;
+                            $exc_from = $item['agg']['ef'][$key] ?? 0;
+                            $tr_from = $item['agg']['tf'][$key] ?? 0;
+                            $tr_to = $item['agg']['tt'][$key] ?? 0;
 
                             $stock_qty = 0;
                             if ($prod->has_variations) {
@@ -197,30 +223,9 @@
                             
                             $row_cost_val = $stock_qty * $cost;
                             $row_sale_val = $stock_qty * $price;
-                            $row_rev = 0;
-                            // Add sales revenue (Standard sales + Exchanges)
-                            $row_rev += $prod->saleItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->pos && $m->pos->branch_id == $locationId && $locationType == 'branch';
-                            })->sum('total_price');
-
-                            // Add Warehouse sales (Invoices)
-                            $row_rev += $prod->invoiceItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $locationType == 'warehouse'; 
-                            })->sum('total_price');
-
-                            // Add Order sales
-                            $row_rev += $prod->orderItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->order && $m->order->branch_id == $locationId && $locationType == 'branch';
-                            })->sum('total_price');
-
-                            // Subtract Returns revenue
-                            $row_rev -= $prod->saleReturnItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->saleReturn && $m->saleReturn->return_to_id == $locationId && $m->saleReturn->return_to_type == $locationType;
-                            })->sum('total_price');
-
-                            $row_rev -= $prod->orderReturnItems->filter(function($m) use ($matchMove, $locationId, $locationType) {
-                                return $matchMove($m) && $m->orderReturn && $m->orderReturn->return_to_id == $locationId && $m->orderReturn->return_to_type == $locationType;
-                            })->sum('total_price');
+                            
+                            $row_rev = $item['agg']['rev'][$key] ?? 0;
+                            if ($locationType == 'warehouse') $row_rev += $item['agg']['rev'][$wh_key] ?? 0;
 
                             // Accumulate Totals
                             $total_opening += $opening_stock;

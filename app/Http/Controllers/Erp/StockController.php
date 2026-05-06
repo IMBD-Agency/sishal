@@ -249,8 +249,11 @@ class StockController extends Controller
             $sheet->getStyle($col . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF111827');
             $sheet->getStyle($col . '1')->getFont()->getColor()->setARGB('FFFFFFFF');
         }
-        
         $row = 2;
+        $t_op = 0; $t_p = 0; $t_pr = 0; $t_np = 0; $t_s = 0; $t_sr = 0; $t_ns = 0;
+        $t_adj = 0; $t_et = 0; $t_ef = 0; $t_tf = 0; $t_tt = 0;
+        $t_stk = 0; $t_cost = 0; $t_sale = 0; $t_rev = 0;
+
         foreach ($products as $prod) {
             $productLocations = [];
             foreach($prod->branchStock as $bs) { $productLocations['branch_' . $bs->branch_id] = ['type' => 'branch', 'id' => $bs->branch_id, 'name' => $bs->branch->name ?? 'Unknown']; }
@@ -262,67 +265,95 @@ class StockController extends Controller
                 }
             }
 
+            // PRE-AGGREGATE MOVEMENTS FOR O(1) LOOKUP PERFORMANCE
+            if (!isset($prod->agg)) {
+                $agg = [ 'p' => [], 'pr' => [], 's' => [], 'sr' => [], 'adj' => [], 'et' => [], 'ef' => [], 'tf' => [], 'tt' => [], 'rev' => [] ];
+                
+                foreach($prod->purchaseItems as $m) {
+                    if($m->purchase) {
+                        $k = ($m->variation_id ?: 0) . '_' . $m->purchase->ship_location_type . '_' . $m->purchase->location_id;
+                        $agg['p'][$k] = ($agg['p'][$k] ?? 0) + $m->quantity;
+                    }
+                }
+                foreach($prod->purchaseReturnItems as $m) {
+                    $k = ($m->variation_id ?: 0) . '_' . $m->return_from_type . '_' . $m->return_from_id;
+                        $agg['pr'][$k] = ($agg['pr'][$k] ?? 0) + $m->returned_qty;
+                }
+                foreach($prod->saleItems as $m) {
+                    if($m->pos) {
+                        $k = ($m->variation_id ?: 0) . '_branch_' . $m->pos->branch_id;
+                        if ($m->pos->sale_type != 'exchange') $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+                        else $agg['et'][$k] = ($agg['et'][$k] ?? 0) + $m->quantity;
+                        $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+                    }
+                }
+                foreach($prod->invoiceItems as $m) {
+                    $k = ($m->variation_id ?: 0) . '_warehouse_0';
+                    $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+                    $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+                }
+                foreach($prod->orderItems as $m) {
+                    if($m->order) {
+                        $k = ($m->variation_id ?: 0) . '_branch_' . $m->order->branch_id;
+                        $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+                        $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+                    }
+                }
+                foreach($prod->saleReturnItems as $m) {
+                    if($m->saleReturn) {
+                        $k = ($m->variation_id ?: 0) . '_' . $m->saleReturn->return_to_type . '_' . $m->saleReturn->return_to_id;
+                        if ($m->saleReturn->refund_type != 'exchange') $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
+                        else $agg['ef'][$k] = ($agg['ef'][$k] ?? 0) + $m->returned_qty;
+                        $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) - $m->total_price;
+                    }
+                }
+                foreach($prod->orderReturnItems as $m) {
+                    if($m->orderReturn) {
+                        $k = ($m->variation_id ?: 0) . '_' . $m->orderReturn->return_to_type . '_' . $m->orderReturn->return_to_id;
+                        $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
+                        $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) - $m->total_price;
+                    }
+                }
+                foreach($prod->stockAdjustmentItems as $m) {
+                    if($m->adjustment) {
+                        $ltype_adj = $m->adjustment->branch_id ? 'branch' : 'warehouse';
+                        $lid_adj = $m->adjustment->branch_id ?: $m->adjustment->warehouse_id;
+                        $k = ($m->variation_id ?: 0) . '_' . $ltype_adj . '_' . $lid_adj;
+                        $agg['adj'][$k] = ($agg['adj'][$k] ?? 0) + ($m->new_quantity - $m->old_quantity);
+                    }
+                }
+                foreach($prod->stockTransfers as $m) {
+                    if($m->status == 'delivered') {
+                        $k_from = ($m->variation_id ?: 0) . '_' . $m->from_type . '_' . $m->from_id;
+                        $k_to = ($m->variation_id ?: 0) . '_' . $m->to_type . '_' . $m->to_id;
+                        $agg['tf'][$k_from] = ($agg['tf'][$k_from] ?? 0) + $m->quantity;
+                        $agg['tt'][$k_to] = ($agg['tt'][$k_to] ?? 0) + $m->quantity;
+                    }
+                }
+                $prod->agg = $agg;
+            }
+
             foreach ($productLocations as $loc) {
                 $lid = $loc['id']; $ltype = $loc['type'];
                 $vars = $prod->has_variations ? $prod->variations : [null];
 
                 foreach ($vars as $var) {
-                    $vid = $var ? $var->id : null;
-                    $matchMove = function($m) use ($prod, $vid) { 
-                        if ($m->product_id != $prod->id) return false;
-                        if ($prod->has_variations && $m->variation_id != $vid) return false;
-                        return true; 
-                    };
+                    $vid = $var ? $var->id : 0;
+                    $key = $vid . '_' . $ltype . '_' . $lid;
+                    $wh_key = $vid . '_warehouse_0';
 
-                    $p_qnt = $prod->purchaseItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->purchase && $m->purchase->location_id == $lid && $m->purchase->ship_location_type == $ltype;
-                    })->sum('quantity');
+                    $p_qnt = $prod->agg['p'][$key] ?? 0;
+                    $pr_qnt = $prod->agg['pr'][$key] ?? 0;
+                    
+                    $s_qnt = $prod->agg['s'][$key] ?? 0;
+                    if ($ltype == 'warehouse') $s_qnt += $prod->agg['s'][$wh_key] ?? 0;
 
-                    $pr_qnt = $prod->purchaseReturnItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->return_from_id == $lid && $m->return_from_type == $ltype;
-                    })->sum('returned_qty');
-
-                    $s_qnt = 0;
-                    $s_qnt += $prod->saleItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->pos && $m->pos->branch_id == $lid && $ltype == 'branch' && $m->pos->sale_type != 'exchange';
-                    })->sum('quantity');
-                    $s_qnt += $prod->invoiceItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $ltype == 'warehouse'; 
-                    })->sum('quantity');
-                    $s_qnt += $prod->orderItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->order && $m->order->branch_id == $lid && $ltype == 'branch';
-                    })->sum('quantity');
-
-                    $sr_qnt = 0;
-                    $sr_qnt += $prod->saleReturnItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->saleReturn && $m->saleReturn->return_to_id == $lid && $m->saleReturn->return_to_type == $ltype && $m->saleReturn->refund_type != 'exchange';
-                    })->sum('returned_qty');
-                    $sr_qnt += $prod->orderReturnItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->orderReturn && $m->orderReturn->return_to_id == $lid && $m->orderReturn->return_to_type == $ltype;
-                    })->sum('returned_qty');
-
-                    $adjust = $prod->stockAdjustmentItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        if (!$matchMove($m) || !$m->adjustment) return false;
-                        if ($ltype == 'branch' && $m->adjustment->branch_id == $lid) return true;
-                        if ($ltype == 'warehouse' && $m->adjustment->warehouse_id == $lid) return true;
-                        return false;
-                    })->sum(function($m) { return $m->new_quantity - $m->old_quantity; });
-
-                    $exc_to = $prod->saleItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->pos && $m->pos->branch_id == $lid && $ltype == 'branch' && $m->pos->sale_type == 'exchange';
-                    })->sum('quantity');
-
-                    $exc_from = $prod->saleReturnItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->saleReturn && $m->saleReturn->return_to_id == $lid && $m->saleReturn->return_to_type == $ltype && $m->saleReturn->refund_type == 'exchange';
-                    })->sum('returned_qty');
-
-                    $tr_from = $prod->stockTransfers->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->from_id == $lid && $m->from_type == $ltype && $m->status == 'delivered';
-                    })->sum('quantity');
-
-                    $tr_to = $prod->stockTransfers->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->to_id == $lid && $m->to_type == $ltype && $m->status == 'delivered';
-                    })->sum('quantity');
+                    $sr_qnt = $prod->agg['sr'][$key] ?? 0;
+                    $adjust = $prod->agg['adj'][$key] ?? 0;
+                    $exc_to = $prod->agg['et'][$key] ?? 0;
+                    $exc_from = $prod->agg['ef'][$key] ?? 0;
+                    $tr_from = $prod->agg['tf'][$key] ?? 0;
+                    $tr_to = $prod->agg['tt'][$key] ?? 0;
 
                     $stock_qty = 0;
                     if ($prod->has_variations) {
@@ -346,22 +377,8 @@ class StockController extends Controller
                     $cost = $var ? ($var->cost ?: $prod->cost) : $prod->cost;
                     $price = $var ? ($var->price ?: $prod->price) : $prod->price;
 
-                    $actual_revenue = 0;
-                    $actual_revenue += $prod->saleItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->pos && $m->pos->branch_id == $lid && $ltype == 'branch';
-                    })->sum('total_price');
-                    $actual_revenue += $prod->invoiceItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $ltype == 'warehouse'; 
-                    })->sum('total_price');
-                    $actual_revenue += $prod->orderItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->order && $m->order->branch_id == $lid && $ltype == 'branch';
-                    })->sum('total_price');
-                    $actual_revenue -= $prod->saleReturnItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->saleReturn && $m->saleReturn->return_to_id == $lid && $m->saleReturn->return_to_type == $ltype;
-                    })->sum('total_price');
-                    $actual_revenue -= $prod->orderReturnItems->filter(function($m) use ($matchMove, $lid, $ltype) {
-                        return $matchMove($m) && $m->orderReturn && $m->orderReturn->return_to_id == $lid && $m->orderReturn->return_to_type == $ltype;
-                    })->sum('total_price');
+                    $actual_revenue = $prod->agg['rev'][$key] ?? 0;
+                    if ($ltype == 'warehouse') $actual_revenue += $prod->agg['rev'][$wh_key] ?? 0;
 
                     $sheet->setCellValue('A' . $row, $prod->name);
                     $sheet->setCellValue('B' . $row, $prod->style_number ?? $prod->sku);
@@ -384,11 +401,37 @@ class StockController extends Controller
                     $sheet->setCellValue('S' . $row, $stock_qty * $cost);
                     $sheet->setCellValue('T' . $row, $stock_qty * $price);
                     $sheet->setCellValue('U' . $row, $actual_revenue);
+                    $t_op += $opening_stock; $t_p += $p_qnt; $t_pr += $pr_qnt; $t_np += ($p_qnt - $pr_qnt);
+                    $t_s += $s_qnt; $t_sr += $sr_qnt; $t_ns += ($s_qnt - $sr_qnt);
+                    $t_adj += $adjust; $t_et += $exc_to; $t_ef += $exc_from; $t_tf += $tr_from; $t_tt += $tr_to;
+                    $t_stk += $stock_qty; $t_cost += ($stock_qty * $cost); $t_sale += ($stock_qty * $price); $t_rev += $actual_revenue;
+
                     $row++;
                 }
             }
         }
         
+        // Total Row
+        $sheet->setCellValue('A' . $row, 'TOTALS');
+        $sheet->mergeCells('A'.$row.':E'.$row);
+        $sheet->setCellValue('F' . $row, $t_op);
+        $sheet->setCellValue('G' . $row, $t_p);
+        $sheet->setCellValue('H' . $row, $t_pr);
+        $sheet->setCellValue('I' . $row, $t_np);
+        $sheet->setCellValue('J' . $row, $t_s);
+        $sheet->setCellValue('K' . $row, $t_sr);
+        $sheet->setCellValue('L' . $row, $t_ns);
+        $sheet->setCellValue('M' . $row, $t_adj);
+        $sheet->setCellValue('N' . $row, $t_et);
+        $sheet->setCellValue('O' . $row, $t_ef);
+        $sheet->setCellValue('P' . $row, $t_tf);
+        $sheet->setCellValue('Q' . $row, $t_tt);
+        $sheet->setCellValue('R' . $row, $t_stk);
+        $sheet->setCellValue('S' . $row, $t_cost);
+        $sheet->setCellValue('T' . $row, $t_sale);
+        $sheet->setCellValue('U' . $row, $t_rev);
+        $sheet->getStyle('A'.$row.':U'.$row)->getFont()->setBold(true);
+        $sheet->getStyle('A'.$row.':U'.$row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF3F4F6');
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filename = 'detailed_inventory_report_' . date('Y-m-d') . '.xlsx';
         $path = storage_path('app/public/' . $filename);

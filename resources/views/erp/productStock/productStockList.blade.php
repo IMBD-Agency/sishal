@@ -61,10 +61,9 @@
                         <div class="col-md-3">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-2"><i class="fas fa-list-ol me-1"></i> Per Page</label>
                             <select class="form-select shadow-sm" name="per_page">
+                                <option value="20" {{ request('per_page') == 20 ? 'selected' : '' }}>20 Records</option>
                                 <option value="50" {{ request('per_page', 50) == 50 ? 'selected' : '' }}>50 Records</option>
                                 <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100 Records</option>
-                                <option value="200" {{ request('per_page') == 200 ? 'selected' : '' }}>200 Records</option>
-                                <option value="500" {{ request('per_page') == 500 ? 'selected' : '' }}>500 Records</option>
                             </select>
                         </div>
                     </div>
