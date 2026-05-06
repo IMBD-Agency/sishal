@@ -35,6 +35,8 @@
             <form id="manualSaleForm">
                 @csrf
                 <input type="hidden" name="sub_total" id="subtotalInput">
+                <input type="hidden" name="vat_rate" id="vatRateInput">
+                <input type="hidden" name="vat_amount" id="vatAmountInput">
                 <input type="hidden" name="total_amount" id="totalAmountInput">
 
                 <div class="row g-4">
@@ -148,7 +150,9 @@
                                     </div>
                                     <input type="text" id="discountInput" name="discount" class="form-control form-control-sm text-end fw-bold w-25" value="0">
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center mb-4"><span class="text-muted">Delivery</span><input type="number" id="deliveryInput" name="delivery" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
+                                <div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted">Delivery</span><input type="number" id="deliveryInput" name="delivery" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
+                                <div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted">VAT (%)</span><input type="number" id="vatRateDisplay" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
+                                <div class="d-flex justify-content-between mb-4"><span class="text-muted">VAT Amount</span><span class="fw-bold" id="vatAmountDisplay">0.00৳</span></div>
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label-premium text-success mb-0">Paid Amount</label><button type="button" onclick="setExactManual()" class="btn btn-link btn-sm text-success p-0 text-decoration-none fw-bold" style="font-size: 0.7rem;">EXACT</button></div>
                                     <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg text-end fw-bold text-success border-success" value="0">
@@ -163,6 +167,10 @@
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="fw-bold text-danger">Discount</span>
                                         <span class="fw-bold text-danger" id="visualDiscount">0.00৳</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="fw-bold text-info">VAT</span>
+                                        <span class="fw-bold text-info" id="visualVat">0.00৳</span>
                                     </div>
                                     <hr class="my-2 opacity-10">
                                     <div class="d-flex justify-content-between align-items-center">
@@ -338,7 +346,10 @@ $(document).ready(function() {
             $('#discountAmountBadge').addClass('d-none');
         }
         const del = parseFloat($('#deliveryInput').val()) || 0;
-        const total = Math.round(sub - disc + del);
+        const vatRate = parseFloat($('#vatRateDisplay').val()) || 0;
+        const vatAmt = Math.round((sub - disc) * (vatRate / 100));
+        
+        const total = Math.round(sub - disc + del + vatAmt);
         const paid = Math.round(parseFloat($('#paidInput').val()) || 0);
         const due = total - paid;
 
@@ -351,14 +362,19 @@ $(document).ready(function() {
         // Update Visual Summary Box
         $('#visualSubtotal').text(sub.toFixed(2) + '৳');
         $('#visualDiscount').text(`- ${disc.toFixed(2)}৳`);
+        $('#visualVat').text(`+ ${vatAmt.toFixed(2)}৳`);
         $('#visualTotal').text(total);
 
         $('#subtotalDisplay').text(sub.toFixed(2) + '৳'); 
-        $('#subtotalInput').val(sub.toFixed(2)); $('#totalAmountInput').val(total);
+        $('#vatAmountDisplay').text(vatAmt.toFixed(2) + '৳');
+        $('#subtotalInput').val(sub.toFixed(2)); 
+        $('#vatRateInput').val(vatRate);
+        $('#vatAmountInput').val(vatAmt);
+        $('#totalAmountInput').val(total);
         if (due <= 0) { $('#manualDueLabel').text('CHANGE').removeClass('text-danger').addClass('text-success'); $('#dueDisplay').text(Math.abs(due).toFixed(2) + '৳').removeClass('text-danger').addClass('text-success'); }
         else { $('#manualDueLabel').text('DUE BALANCE').removeClass('text-success').addClass('text-danger'); $('#dueDisplay').text(due.toFixed(2) + '৳').removeClass('text-success').addClass('text-danger'); }
     }
-    $('#discountInput, #deliveryInput, #paidInput').on('input', () => updateTotals());
+    $('#discountInput, #deliveryInput, #paidInput, #vatRateDisplay').on('input', () => updateTotals());
     window.setExactManual = () => $('#paidInput').val($('#totalAmountInput').val()).trigger('input');
 
     $('#manualSaleForm').on('submit', function(e) {

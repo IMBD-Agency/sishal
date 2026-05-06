@@ -258,7 +258,12 @@
             </tr>
             @endif
 
-            @if(($pos->invoice->tax ?? 0) > 0)
+            @if($pos->vat_amount > 0)
+            <tr>
+                <td class="summary-label">VAT (+) @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
+                <td class="summary-value">{{ number_format($pos->vat_amount, 2) }}</td>
+            </tr>
+            @elseif(($pos->invoice->tax ?? 0) > 0)
             <tr>
                 <td class="summary-label">VAT & Tax (+)</td>
                 <td class="summary-value">{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>

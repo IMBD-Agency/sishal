@@ -7,6 +7,7 @@
                 <th>Date</th>
                 <th class="text-center">Image</th>
                 <th>Supplier</th>
+                <th>Warehouse</th>
                 <th>Category</th>
                 <th>Brand</th>
                 <th>Season</th>
@@ -82,7 +83,8 @@
                         </div>
                     </td>
                     <td class="fw-bold">{{ optional($purchase->supplier)->name ?? '-' }}</td>
-                    <td>{{ optional(optional($product)->category)->name ?? '-' }}</td>
+                    <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ $purchase->warehouse->name ?? '-' }}</span></td>
+                    <td class="text-center">{{ optional(optional($product)->category)->name ?? '-' }}</td>
                     <td>{{ optional(optional($product)->brand)->name ?? '-' }}</td>
                     <td>{{ optional(optional($product)->season)->name ?? '-' }}</td>
                     <td>{{ optional(optional($product)->gender)->name ?? '-' }}</td>
@@ -121,6 +123,12 @@
                     </td>
                     <td class="text-center">
                         @php
+                            $headers = [
+                                'SL', 'Invoice #', 'Date', 'Supplier', 'Warehouse', 'Category', 'Brand', 'Season', 'Gender', 
+                                'Product', 'Style Ref', 'Color', 'Size', 
+                                'Pur. Qty', 'Pur. Value', 'Ret. Qty', 'Ret. Value', 
+                                'Act. Qty', 'Act. Value', 'Discount', 'Paid A/C', 'Due A/C', 'Status'
+                            ];
                             $statusDot = [
                                 'pending' => 'bg-warning',
                                 'received' => 'bg-success',
@@ -170,19 +178,19 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="31" class="text-center py-5 text-muted">No procurement records found.</td></tr>
+                <tr><td colspan="32" class="text-center py-5 text-muted">No procurement records found.</td></tr>
             @endforelse
         </tbody>
         <tfoot class="bg-light fw-bold">
             <tr class="text-muted small border-top">
-                <td colspan="13" class="text-end">Page Subtotal</td>
+                <td colspan="14" class="text-end">Page Subtotal</td>
                 <td class="text-center">{{ number_format($items->sum('quantity'), 2) }}</td>
                 <td class="bg-white"></td>
                 <td class="text-end">{{ number_format($items->sum('total_price'), 2) }}৳</td>
                 <td colspan="15"></td>
             </tr>
             <tr class="bg-soft-primary border-top-2">
-                <td colspan="13" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
+                <td colspan="14" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
                 <td class="text-center py-3">{{ number_format($reportTotals['pur_qty'], 2) }}</td>
                 <td class="bg-light"></td>
                 <td class="text-end py-3">{{ number_format($reportTotals['pur_amt'], 2) }}৳</td>

@@ -127,14 +127,21 @@
                         <input type="hidden" name="sale_type" id="hiddenSaleType" value="MRP">
 
                         <div class="row g-2 mb-2">
-                            <div class="col-6">
+                            <div class="col-4">
                                 <label class="terminal-section-title d-block mb-1">Discount</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-tag"></i></span>
                                     <input type="text" class="form-control border-start-0 text-end fw-bold" id="discountInput" name="discount" value="0" placeholder="0 or 10%">
                                 </div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-4">
+                                <label class="terminal-section-title d-block mb-1">VAT (%)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-percent"></i></span>
+                                    <input type="number" class="form-control border-start-0 text-end fw-bold" id="vatInput" name="vat_rate" value="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-4">
                                 <label class="terminal-section-title d-block mb-1">Shipping</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-shipping-fast"></i></span>
@@ -153,6 +160,11 @@
                                 <span class="fw-bold small">Discount <span id="discountPercentTag" class="text-muted extra-small"></span></span>
                                 <span class="fw-bold">- <span id="discountAmountDisplay">0.00</span>৳</span>
                             </div>
+                            <div class="d-flex justify-content-between mb-1 text-primary" id="vatRow" style="display: none !important;">
+                                <span class="fw-bold small">VAT <span id="vatPercentTag" class="text-muted extra-small"></span></span>
+                                <span class="fw-bold">+ <span id="vatAmountDisplay">0.00</span>৳</span>
+                            </div>
+                            <input type="hidden" name="vat_amount" id="hiddenVatAmount" value="0">
                             <div class="d-flex justify-content-between border-top pt-1 mt-1">
                                 <span class="terminal-section-title m-0 text-primary opacity-75">Payable</span>
                                 <span class="h4 mb-0 fw-bold text-primary" id="finalTotalDisplay">0</span>
@@ -649,7 +661,9 @@ $(document).ready(function() {
         }
 
         let del = parseFloat($('#deliveryInput').val()) || 0;
-        let final = Math.round((sub + del) - disc);
+        let vatRate = parseFloat($('#vatInput').val()) || 0;
+        let vatAmount = (sub - disc) * (vatRate / 100);
+        let final = Math.round((sub + del + vatAmount) - disc);
 
         $('#subtotalDisplay').text(sub.toFixed(2) + '৳');
         
@@ -666,6 +680,17 @@ $(document).ready(function() {
         } else {
             $('#discountRow').attr('style', 'display: none !important;');
             $('#discountPercentTag').text('');
+        }
+
+        if(vatAmount > 0) {
+            $('#vatRow').attr('style', 'display: flex !important;');
+            $('#vatAmountDisplay').text(vatAmount.toFixed(2));
+            $('#vatPercentTag').text('(' + vatRate + '%)');
+            $('#hiddenVatAmount').val(vatAmount.toFixed(2));
+        } else {
+            $('#vatRow').attr('style', 'display: none !important;');
+            $('#vatPercentTag').text('');
+            $('#hiddenVatAmount').val(0);
         }
 
         $('#finalTotalDisplay').text(final);
@@ -771,7 +796,7 @@ $(document).ready(function() {
         loadProducts(); // Reload grid visuals
         // Update cart prices requires logic, skipping for brevity, assume new adds use new price
     });
-    $('#discountInput, #deliveryInput, #paidAmountInput').on('input', calculateTotals);
+    $('#discountInput, #deliveryInput, #vatInput, #paidAmountInput').on('input', calculateTotals);
     
     // Payment Method Change -> Filter Accounts
     $('input[name="payment_method"]').change(function() {

@@ -31,10 +31,10 @@
             <!-- Filters -->
             <div class="card border shadow-sm mb-4">
                 <div class="card-body p-3">
-                    <form method="GET" action="{{ route('reports.customer.ledger') }}" class="row g-2 align-items-end">
+                    <form method="GET" action="{{ route('reports.customer.ledger') }}" id="ledgerFilterForm" class="row g-2 align-items-end">
                         <div class="col-md-3">
-                            <label class="form-label small fw-bold">Select Customer</label>
-                            <select name="customer_id" class="form-select form-select-sm select2" onchange="this.form.submit()">
+                            <label class="form-label small fw-bold mb-1">Customer</label>
+                            <select name="customer_id" class="form-select form-select-sm select2">
                                 <option value="">Choose Customer...</option>
                                 @foreach($customers as $c)
                                     <option value="{{ $c->id }}" {{ (isset($customer) && $customer->id == $c->id) ? 'selected' : '' }}>
@@ -44,8 +44,17 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small fw-bold">Report Type</label>
-                            <select name="report_type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <label class="form-label small fw-bold mb-1">Outlet</label>
+                            <select name="branch_id" class="form-select form-select-sm">
+                                <option value="">All Outlets</option>
+                                @foreach($branches as $b)
+                                    <option value="{{ $b->id }}" {{ $branchId == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold mb-1">Report Type</label>
+                            <select name="report_type" class="form-select form-select-sm">
                                 <option value="all" {{ $reportType == 'all' ? 'selected' : '' }}>All Transactions</option>
                                 <option value="daily" {{ $reportType == 'daily' ? 'selected' : '' }}>Daily</option>
                                 <option value="monthly" {{ $reportType == 'monthly' ? 'selected' : '' }}>Monthly</option>
@@ -53,15 +62,20 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small fw-bold">Start Date</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+                            <label class="form-label small fw-bold mb-1">Start Date</label>
+                            <input type="date" name="start_date" class="form-control form-control-sm px-2" value="{{ request('start_date') }}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small fw-bold">End Date</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                            <label class="form-label small fw-bold mb-1">End Date</label>
+                            <input type="date" name="end_date" class="form-control form-control-sm px-2" value="{{ request('end_date') }}">
                         </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary btn-sm w-100">Synchronize</button>
+                        <div class="col-md-1 d-flex gap-1">
+                            <button type="submit" class="btn btn-primary btn-sm flex-grow-1" title="Filter">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.location.href='{{ route('reports.customer.ledger') }}'" title="Reset">
+                                <i class="fas fa-undo"></i>
+                            </button>
                         </div>
                     </form>
                 </div>

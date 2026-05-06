@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Stock Transfer Summary Report</title>
+    <title>Detailed Stock Transfer Report</title>
     <style>
         body { font-family: sans-serif; font-size: 11px; color: #333; margin: 0; padding: 20px; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
@@ -20,16 +20,15 @@
 </head>
 <body>
     <div class="header">
-        <h1>Stock Transfer Summary</h1>
+        <h1>Detailed Stock Transfer Report</h1>
         <p>Report Period: {{ date('d M Y') }} | Generated: {{ date('h:i A') }}</p>
     </div>
 
     <div class="summary-box">
         <table style="border: none; margin-bottom: 0;">
             <tr style="border: none;">
-                <td style="border: none;">Total Invoices: <strong>{{ $transfers->count() }}</strong></td>
-                <td style="border: none;" class="text-right">Total Transferred Qty: <strong>{{ number_format($transfers->sum('total_qty'), 0) }}</strong></td>
-                <td style="border: none;" class="text-right">Total Dispatch Value: <strong>{{ number_format($transfers->sum('grouped_total_amount'), 2) }} ৳</strong></td>
+                <td style="border: none;">Total Records: <strong>{{ $transfers->count() }}</strong></td>
+                <td style="border: none;" class="text-right">Total Transferred Qty: <strong>{{ number_format($transfers->sum('quantity'), 0) }}</strong></td>
             </tr>
         </table>
     </div>
@@ -37,31 +36,52 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 10%;">Invoice No</th>
-                <th style="width: 10%;">Date</th>
-                <th style="width: 15%;">Source</th>
-                <th style="width: 15%;">Destination</th>
-                <th style="width: 8%;" class="text-center">Items</th>
-                <th style="width: 8%;" class="text-center">Qty</th>
-                <th style="width: 12%;" class="text-right">Value (৳)</th>
-                <th style="width: 12%;">Status</th>
-                <th style="width: 10%;">By</th>
+                <th style="width: 8%;">Invoice No</th>
+                <th style="width: 7%;">Date</th>
+                <th style="width: 8%;">Source</th>
+                <th style="width: 8%;">Destination</th>
+                <th style="width: 8%;">Branch</th>
+                <th style="width: 8%;">Category</th>
+                <th style="width: 8%;">Brand</th>
+                <th style="width: 12%;">Product Name</th>
+                <th style="width: 8%;">Style #</th>
+                <th style="width: 6%;">Color</th>
+                <th style="width: 5%;">Size</th>
+                <th style="width: 4%;" class="text-center">Qty</th>
+                <th style="width: 7%;" class="text-center">Status</th>
             </tr>
         </thead>
         <tbody>
             @foreach($transfers as $transfer)
+                @php
+                    $product = $transfer->product;
+                    $variation = $transfer->variation;
+                    
+                    $color = '-'; $size = '-';
+                    if ($variation && $variation->attributeValues) {
+                        foreach($variation->attributeValues as $val) {
+                            $attrName = strtolower($val->attribute->name ?? '');
+                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
+                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                        }
+                    }
+                @endphp
                 <tr>
                     <td class="fw-bold">{{ $transfer->invoice_number ?? 'N/A' }}</td>
                     <td class="text-center">{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-' }}</td>
                     <td>{{ $transfer->from_type == 'branch' ? ($transfer->fromBranch->name ?? '-') : ($transfer->fromWarehouse->name ?? '-') }}</td>
                     <td>{{ $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-') }}</td>
-                    <td class="text-center">{{ $transfer->item_count }}</td>
-                    <td class="text-center">{{ number_format($transfer->total_qty, 0) }}</td>
-                    <td class="text-right fw-bold">{{ number_format($transfer->grouped_total_amount, 2) }}</td>
+                    <td>{{ $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-') }}</td>
+                    <td>{{ $product->category->name ?? '-' }}</td>
+                    <td>{{ $product->brand->name ?? '-' }}</td>
+                    <td>{{ $product->name ?? '-' }}</td>
+                    <td>{{ $product->style_number ?? $product->sku ?? '-' }}</td>
+                    <td class="text-center">{{ $color }}</td>
+                    <td class="text-center">{{ $size }}</td>
+                    <td class="text-center fw-bold">{{ number_format($transfer->quantity, 0) }}</td>
                     <td class="text-center">
                         <span class="status-badge">{{ strtoupper($transfer->status) }}</span>
                     </td>
-                    <td>{{ $transfer->requestedPerson->name ?? 'System' }}</td>
                 </tr>
             @endforeach
         </tbody>

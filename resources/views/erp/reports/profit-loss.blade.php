@@ -94,24 +94,18 @@
                                     <td class="p-0 align-top">
                                         <table class="table table-sm table-borderless mb-0">
                                             <tr>
-                                                <td class="ps-3 py-2 text-secondary">Sales Revenue</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($salesAmount, 2) }}</td>
+                                                <td class="ps-3 py-2 text-secondary fw-semibold">Net Operating Revenue</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($operatingRevenue, 2) }}</td>
                                             </tr>
                                             @foreach($creditVoucherDetails as $detail)
                                             <tr>
-                                                <td class="ps-3 py-2 text-secondary">{{ $detail->name }}</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($detail->amount, 2) }}</td>
+                                                <td class="ps-3 py-1 text-secondary" style="padding-left:2rem !important; font-size:0.85em">↳ {{ $detail->name }}</td>
+                                                <td class="pe-3 py-1 text-end text-muted" style="font-size:0.85em">Tk. {{ number_format($detail->amount, 2) }}</td>
                                             </tr>
                                             @endforeach
-                                            @if($creditVoucherDetails->isEmpty() && $creditVoucher > 0)
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Credit Vouchers (General)</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($creditVoucher, 2) }}</td>
-                                            </tr>
-                                            @endif
                                             <tr>
                                                 <td class="ps-3 py-2 text-secondary">Money Receipts</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($moneyReceipt, 2) }}</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($moneyReceiptAmount, 2) }}</td>
                                             </tr>
                                             <tr>
                                                 <td class="ps-3 py-2 text-secondary">Purchase Returns</td>

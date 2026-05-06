@@ -128,9 +128,16 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Receiver Outlet</label>
                                 <select name="to_branch_id" class="form-select shadow-none">
                                     <option value="">All Outlets</option>
-                                    @foreach ($branches as $branch)
-                                        <option value="branch_{{ $branch->id }}" {{ request('to_branch_id') == 'branch_'.$branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                    @endforeach
+                                    <optgroup label="Branches">
+                                        @foreach ($branches as $branch)
+                                            <option value="branch_{{ $branch->id }}" {{ request('to_branch_id') == 'branch_'.$branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Warehouses">
+                                        @foreach ($warehouses as $warehouse)
+                                            <option value="warehouse_{{ $warehouse->id }}" {{ request('to_branch_id') == 'warehouse_'.$warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 </select>
                             </div>
 
@@ -153,9 +160,16 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Source Location</label>
                                 <select name="from_branch_id" class="form-select shadow-none">
                                     <option value="">All Sources</option>
-                                    @foreach ($branches as $branch)
-                                        <option value="branch_{{ $branch->id }}" {{ request('from_branch_id') == 'branch_'.$branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                    @endforeach
+                                    <optgroup label="Warehouses">
+                                        @foreach ($warehouses as $warehouse)
+                                            <option value="warehouse_{{ $warehouse->id }}" {{ request('from_branch_id') == 'warehouse_'.$warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Branches">
+                                        @foreach ($branches as $branch)
+                                            <option value="branch_{{ $branch->id }}" {{ request('from_branch_id') == 'branch_'.$branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 </select>
                             </div>
 

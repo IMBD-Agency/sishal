@@ -165,7 +165,7 @@ class PurchaseController extends Controller
         $items = $query->orderBy('created_at', 'desc')->get();
 
         $headers = [
-            'SL', 'Invoice #', 'Date', 'Supplier', 'Category', 'Brand', 'Season', 'Gender', 
+            'SL', 'Invoice #', 'Date', 'Supplier', 'Warehouse', 'Category', 'Brand', 'Season', 'Gender', 
             'Product', 'Style Ref', 'Color', 'Size', 
             'Pur. Qty', 'Pur. Value', 'Ret. Qty', 'Ret. Value', 
             'Act. Qty', 'Act. Value', 'Discount', 'Paid A/C', 'Due A/C', 'Status'
@@ -202,6 +202,7 @@ class PurchaseController extends Controller
                 $bill->bill_number ?? 'P-'.$purchase->id,
                 $purchase->purchase_date,
                 $purchase->supplier->name ?? 'N/A',
+                $purchase->branch->name ?? ($purchase->warehouse->name ?? '-'),
                 $product->category->name ?? 'N/A',
                 $product->brand->name ?? 'N/A',
                 $product->season->name ?? 'N/A',

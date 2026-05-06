@@ -91,6 +91,8 @@ class PosController extends Controller
             'customer_country' => 'nullable|string',
             'sale_type' => 'nullable|string',
             'courier_id' => 'nullable|exists:shipping_methods,id',
+            'vat_rate' => 'nullable|numeric|min:0',
+            'vat_amount' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -114,6 +116,8 @@ class PosController extends Controller
             $pos->notes = $request->notes;
             $pos->sale_type = $request->sale_type ?? 'MRP';
             $pos->courier_id = $request->courier_id;
+            $pos->vat_rate = $request->vat_rate ?? 0;
+            $pos->vat_amount = $request->vat_amount ?? 0;
             $pos->save();
 
             if($request->customer_type == 'new-customer') {
@@ -137,10 +141,13 @@ class PosController extends Controller
 
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
             
-            // Calculate tax
-            $generalSettings = GeneralSetting::first();
-            $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
-            $tax = round($pos->sub_total * $taxRate, 2);
+            // Use submitted tax if provided, otherwise fallback to global setting
+            $tax = $pos->vat_amount ?? 0;
+            if ($tax <= 0) {
+                $generalSettings = GeneralSetting::first();
+                $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
+                $tax = round($pos->sub_total * $taxRate, 2);
+            }
             
             $invoice = new Invoice();
             $invoice->invoice_number = $this->generateInvoiceNumber();
@@ -361,16 +368,58 @@ class PosController extends Controller
                 'updated_by'     => auth()->id(),
             ]);
 
-            // CREDIT Sales (Total Amount - Revenue increases)
+            // CREDIT Sales (Net Amount - Revenue increases)
+            $netSalesAmount = $pos->total_amount - $pos->vat_amount;
             JournalEntry::create([
                 'journal_id'           => $journal->id,
                 'chart_of_account_id'  => $salesAccount->id,
                 'debit'                => 0,
-                'credit'               => $pos->total_amount,
-                'memo'                 => 'Revenue from POS Sale',
+                'credit'               => $netSalesAmount,
+                'memo'                 => 'Revenue from POS Sale (Net of Tax)',
                 'created_by'           => auth()->id(),
                 'updated_by'           => auth()->id(),
             ]);
+
+            // CREDIT VAT Payable (Tax Amount - Liability increases)
+            if ($pos->vat_amount > 0) {
+                $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')->orWhere('name', 'like', '%Tax Payable%')->first();
+                if (!$vatAccount) {
+                    $liabType = \App\Models\ChartOfAccountType::where('name', 'Liability')->first() ?? \App\Models\ChartOfAccountType::find(2);
+                    $liabSubType = \App\Models\ChartOfAccountSubType::where('type_id', $liabType->id)->first();
+                    if (!$liabSubType) {
+                        $liabSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Liabilities', 'type_id' => $liabType->id]);
+                    }
+                    $liabParent = \App\Models\ChartOfAccountParent::where('type_id', $liabType->id)->first();
+                    if (!$liabParent) {
+                        $liabParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Tax Liabilities',
+                            'type_id' => $liabType->id,
+                            'sub_type_id' => $liabSubType->id,
+                            'code' => '2000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                    $vatAccount = ChartOfAccount::create([
+                        'name' => 'VAT Payable',
+                        'type_id' => $liabType->id,
+                        'sub_type_id' => $liabSubType->id,
+                        'parent_id' => $liabParent->id,
+                        'code' => '20001',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $vatAccount->id,
+                    'debit'                => 0,
+                    'credit'               => $pos->vat_amount,
+                    'memo'                 => 'VAT collected from POS Sale',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+            }
 
             // DEBIT Cash/Bank (Paid Amount - Asset increases)
             if ($request->paid_amount > 0) {
@@ -481,11 +530,13 @@ class PosController extends Controller
         // Optimized query with specific columns
         $query = \App\Models\PosItem::select('id', 'pos_sale_id', 'product_id', 'variation_id', 'quantity', 'unit_price', 'total_price')
             ->with([
-                'pos:id,sale_number,customer_id,branch_id,sold_by,sale_date,delivery,discount,total_amount,exchange_amount,invoice_id,status',
+                'pos:id,sale_number,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,invoice_id,status',
                 'pos.customer:id,name',
                 'pos.invoice:id,paid_amount,due_amount',
                 'pos.branch:id,name',
                 'pos.soldBy:id,first_name,last_name',
+                'pos.items:id,pos_sale_id,quantity,unit_price,total_price',
+                'pos.items.returnItems:id,sale_item_id,returned_qty,total_price',
                 'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image',
                 'product.category:id,name',
                 'product.brand:id,name',
@@ -517,6 +568,7 @@ class PosController extends Controller
             ->selectRaw("
                 SUM(pos.delivery) as total_delivery,
                 SUM(pos.discount) as total_discount,
+                SUM(pos.vat_amount) as total_vat,
                 SUM(pos.exchange_amount) as total_exchange,
                 SUM(pos.total_amount) as final_total,
                 SUM(invoices.paid_amount) as total_paid,
@@ -534,6 +586,7 @@ class PosController extends Controller
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
             'discount' => $saleTotals->total_discount ?? 0,
+            'vat_amt' => $saleTotals->total_vat ?? 0,
             'exchange' => $saleTotals->total_exchange ?? 0,
             'final_total' => $saleTotals->final_total ?? 0,
             'paid' => $saleTotals->total_paid ?? 0,
@@ -1468,14 +1521,17 @@ class PosController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         
         $headers = [
-            'Serial No', 'Invoice', 'Date', 'Customer', 'Created', 'Category', 'Brand', 'Season', 'Gender',
-            'Product Name', 'Style Number', 'Color', 'Size', 'Unit Price', 'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
-            'Discount Amount', 'SR-Qty', 'Total SR-Qty', 'SR-Amount', 'Total SR-Amount', 'AS-Qty', 'Total AS-Qty',
-            'Delivery Charge', 'Exchange Amount', 'Actual Sales Amount', 'Final Total', 'Received Amount', 'Due Amount'
+            'Serial No', 'Invoice', 'Date', 'Customer', 'Branch', 'Created By', 'Category', 'Brand', 'Season', 'Gender',
+            'Product Name', 'Style #', 'Color', 'Size', 'Unit Price', 
+            'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
+            'Sales Return Qty', 'Total SR-Qty', 'Sales Return Amount', 'Total SR-Amount', 
+            'Actual Sales Qty', 'Total AS-Qty',
+            'Delivery Charge', 'VAT Amount', 'Discount Amount', 'Exchange Amount', 
+            'Actual Sales Amount', 'Total', 'Received Amount', 'Due Amount'
         ];
         
         $sheet->fromArray([$headers], NULL, 'A1');
-        $sheet->getStyle('A1:AC1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:AG1')->getFont()->setBold(true);
 
         $rowNum = 2;
         foreach ($items as $index => $item) {
@@ -1493,17 +1549,46 @@ class PosController extends Controller
                 }
             }
 
+            $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
+            
+            // Item Level
+            $grossAmt = $item->quantity * $item->unit_price;
             $retQty = $item->returnItems->sum('returned_qty');
             $retAmt = $item->returnItems->sum('total_price');
             $actualQty = $item->quantity - $retQty;
-            $actualAmt = $item->total_price - $retAmt;
-            $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
+            
+            // Invoice Level (Calculate once per sale)
+            $invTotalQty = ''; $invTotalSalesAmt = ''; $invRetQty = ''; $invRetAmt = ''; 
+            $invActualQty = ''; $invTotal = ''; $invActualAmt = '';
+            
+            if ($isFirst) {
+                $invItems = $sale->items;
+                $i_TotalQty = $invItems->sum('quantity');
+                $i_GrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
+                $i_RetQty = $invItems->sum(fn($i) => $i->returnItems->sum('returned_qty'));
+                $i_RetAmt = $invItems->sum(fn($i) => $i->returnItems->sum('total_price'));
+                $i_ActualQty = $i_TotalQty - $i_RetQty;
+                
+                $i_TotalSalesAmt = $i_GrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
+                $i_NetTotal = $i_TotalSalesAmt - $sale->discount;
+                $i_ActualAmt = $i_NetTotal - $i_RetAmt;
+
+                // Set strings for Excel
+                $invTotalQty = $i_TotalQty;
+                $invTotalSalesAmt = $i_TotalSalesAmt;
+                $invRetQty = $i_RetQty;
+                $invRetAmt = $i_RetAmt;
+                $invActualQty = $i_ActualQty;
+                $invTotal = $i_NetTotal;
+                $invActualAmt = $i_ActualAmt;
+            }
 
             $data = [
                 $index + 1,
                 $sale->sale_number ?? '-',
                 $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-',
                 $sale->customer->name ?? 'Walk-in',
+                $sale->branch->name ?? '-',
                 $sale->soldBy->name ?? '-',
                 $product->category->name ?? '-',
                 $product->brand->name ?? '-',
@@ -1515,22 +1600,23 @@ class PosController extends Controller
                 $size,
                 $item->unit_price,
                 $item->quantity,
-                $item->quantity, // Total S-Qty
-                $item->total_price,
-                $item->total_price, // Total Sales Amount
-                $isFirst ? $sale->discount : '-',
+                $invTotalQty,
+                $grossAmt,
+                $invTotalSalesAmt,
                 $retQty,
-                $retQty, // Total SR-Qty
+                $invRetQty,
                 $retAmt,
-                $retAmt, // Total SR-Amt
+                $invRetAmt,
                 $actualQty,
-                $actualQty, // Total AS-Qty
-                $isFirst ? $sale->delivery : '-',
-                $isFirst ? ($sale->exchange_amount ?? 0) : '-',
-                $actualAmt,
-                $isFirst ? $sale->total_amount : '-',
-                $isFirst ? ($invoice->paid_amount ?? 0) : '-',
-                $isFirst ? ($invoice->due_amount ?? 0) : '-'
+                $invActualQty,
+                $isFirst ? ($sale->delivery ?? 0) : '',
+                $isFirst ? ($sale->vat_amount ?? 0) : '',
+                $isFirst ? ($sale->discount ?? 0) : '',
+                $isFirst ? ($sale->exchange_amount ?? 0) : '',
+                $invActualAmt,
+                $invTotal,
+                $isFirst ? ($invoice->paid_amount ?? 0) : '',
+                $isFirst ? ($invoice->due_amount ?? 0) : ''
             ];
             $sheet->fromArray([$data], NULL, 'A' . $rowNum);
             $rowNum++;
@@ -1768,6 +1854,8 @@ class PosController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric',
             'paid_amount' => 'required|numeric',
+            'vat_rate' => 'nullable|numeric|min:0',
+            'vat_amount' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -1832,6 +1920,8 @@ class PosController extends Controller
             $pos->remarks = $request->remarks;
             $pos->notes = $request->note;
             $pos->courier_id = $request->courier_id;
+            $pos->vat_rate = $request->vat_rate ?? 0;
+            $pos->vat_amount = $request->vat_amount ?? 0;
             $pos->save();
 
             // Create Invoice
@@ -1850,7 +1940,7 @@ class PosController extends Controller
             $invoice->issue_date = $pos->sale_date;
             $invoice->due_date = $pos->sale_date;
             $invoice->subtotal = $pos->sub_total;
-            $invoice->tax = 0; 
+            $invoice->tax = $pos->vat_amount ?? 0; 
             $invoice->total_amount = $pos->total_amount;
             $invoice->discount_apply = $pos->discount;
             $invoice->paid_amount = $request->paid_amount;
@@ -1962,16 +2052,33 @@ class PosController extends Controller
                     'updated_by'     => auth()->id(),
                 ]);
 
-                // Credit Sales
+                // Credit Sales (Net of Tax)
+                $netManualSales = $pos->total_amount - $pos->vat_amount;
                 JournalEntry::create([
                     'journal_id'           => $journal->id,
                     'chart_of_account_id'  => $salesAccount->id,
                     'debit'                => 0,
-                    'credit'               => $pos->total_amount,
-                    'memo'                 => 'Revenue from Manual Sale',
+                    'credit'               => $netManualSales,
+                    'memo'                 => 'Revenue from Manual Sale (Net of Tax)',
                     'created_by'           => auth()->id(),
                     'updated_by'           => auth()->id(),
                 ]);
+
+                // Credit VAT Payable
+                if ($pos->vat_amount > 0) {
+                    $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')->orWhere('name', 'like', '%Tax Payable%')->first();
+                    if ($vatAccount) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $vatAccount->id,
+                            'debit'                => 0,
+                            'credit'               => $pos->vat_amount,
+                            'memo'                 => 'VAT collected from Manual Sale',
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
+                    }
+                }
 
                 // Debit Bank/Cash
                 if ($request->paid_amount > 0 && $request->account_id) {

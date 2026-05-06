@@ -443,30 +443,27 @@ class ReportController extends Controller
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branchId = $restrictedBranchId ?: $request->get('branch_id');
 
-        // --- INCOME SIDE ---
+        // --- INCOME SIDE (Revenue & Inflows) ---
         
-        // 1. Sales Amount (POS Total)
-        $posQuery = Pos::whereBetween('sale_date', [$startDate, $endDate]);
-        if ($branchId) $posQuery->where('branch_id', $branchId);
-        $salesAmount = $posQuery->sum('total_amount');
-
-        // 2. Credit Voucher (Net Revenue from Journals)
-        $creditVoucherQuery = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+        // 1. Operating Revenue (Net Sales)
+        // We rely on the Journal Entries (General Ledger) for the most accurate revenue figure.
+        // This automatically excludes VAT (Liability) and includes Net Sales from POS and Online orders.
+        $revenueQuery = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
             ->join('chart_of_accounts', 'journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
             ->join('chart_of_account_types', 'chart_of_accounts.type_id', '=', 'chart_of_account_types.id')
             ->where('chart_of_account_types.name', 'like', 'Revenue%')
             ->whereBetween('journals.entry_date', [$startDate, $endDate]);
 
-        if ($branchId) $creditVoucherQuery->where('journals.branch_id', $branchId);
+        if ($branchId) $revenueQuery->where('journals.branch_id', $branchId);
 
-        $creditVoucherDetails = $creditVoucherQuery->select('chart_of_accounts.name', \DB::raw('SUM(journal_entries.credit - journal_entries.debit) as amount'))
+        $creditVoucherDetails = $revenueQuery->select('chart_of_accounts.name', \DB::raw('SUM(journal_entries.credit - journal_entries.debit) as amount'))
             ->groupBy('chart_of_accounts.name')
-            ->having('amount', '>', 0)
+            ->having('amount', '!=', 0)
             ->get();
 
-        $creditVoucher = $creditVoucherDetails->sum('amount');
+        $operatingRevenue = $creditVoucherDetails->sum('amount');
 
-        // 3. Stock Wealth (Informational)
+        // 2. Stock Valuation (Informational Asset Value)
         $stockQuery = Product::where('type', 'product');
         if ($branchId) {
             $stockQuery->withSum(['branchStocks' => function($q) use ($branchId) { $q->where('branch_id', $branchId); }], 'quantity');
@@ -477,39 +474,48 @@ class ReportController extends Controller
             return ($p->branch_stocks_sum_quantity ?? $p->variation_stocks_sum_quantity ?? 0) * $p->cost;
         });
 
-        // 4. Money Receipt
-        $mrQuery = Payment::whereBetween('payment_date', [$startDate, $endDate])->where('payment_for', 'manual_receipt');
+        // 3. Money Receipts (Manual Non-Journalized Inflows)
+        // Note: If manual receipts create journals to revenue accounts, they are already in $operatingRevenue.
+        // We only sum payments that are NOT linked to a journal to avoid double counting.
+        $moneyReceipt = Payment::whereBetween('payment_date', [$startDate, $endDate])
+            ->where('payment_for', 'manual_receipt')
+            ->whereNotExists(function($q) {
+                $q->select(\DB::raw(1))
+                  ->from('journals')
+                  ->whereRaw('journals.reference = CONCAT("MR-", payments.id)');
+            });
         if ($branchId) {
-            $mrQuery->where(function($q) use ($branchId) {
+            $moneyReceipt->where(function($q) use ($branchId) {
                 $q->whereHas('pos', function($pq) use ($branchId) { $pq->where('branch_id', $branchId); })
                   ->orWhereHas('invoice.pos', function($ipq) use ($branchId) { $ipq->where('branch_id', $branchId); });
             });
         }
-        $moneyReceipt = $mrQuery->sum('amount');
+        $moneyReceiptAmount = $moneyReceipt->sum('amount');
 
-        // 5. Purchase Returns
-        $purchaseReturnQuery = PurchaseReturn::whereBetween('return_date', [$startDate, $endDate])
+        // 4. Purchase Returns (Asset Gain/Liability Reduction)
+        // Only count if not already in journals
+        $purchaseReturnAmount = PurchaseReturn::whereBetween('return_date', [$startDate, $endDate])
             ->join('purchase_return_items', 'purchase_returns.id', '=', 'purchase_return_items.purchase_return_id');
         if ($branchId) {
-            $purchaseReturnQuery->whereHas('purchase', function($q) use ($branchId) {
+            $purchaseReturnAmount->whereHas('purchase', function($q) use ($branchId) {
                 $q->where('ship_location_type', 'branch')->where('location_id', $branchId);
             });
         }
-        $purchaseReturnAmount = $purchaseReturnQuery->sum('purchase_return_items.total_price');
+        $purchaseReturnAmount = $purchaseReturnAmount->sum('purchase_return_items.total_price');
 
-        // Note: Purchase amount is already captured via journal entries (debitVoucherDetails)
-        // so we do NOT add a separate purchaseAmount to avoid double-counting.
-
-        // 6. Exchange Amount
+        // 5. Exchange Adjustments
+        // The value of items received in trade. This represents an inflow of assets.
+        $posQuery = Pos::whereBetween('sale_date', [$startDate, $endDate]);
+        if ($branchId) $posQuery->where('branch_id', $branchId);
         $exchangeAmount = $posQuery->sum('exchange_amount');
 
-        // 7. Sender Transfer Amount (Money in from transfers)
+        // 6. Sender Transfer Amount (Value of Stock Received from other branches)
         $senderTransferQuery = \App\Models\StockTransfer::whereBetween('delivered_at', [$startDate, $endDate])->where('status', 'delivered');
         if ($branchId) $senderTransferQuery->where('to_id', $branchId);
-        $senderTransferAmount = $senderTransferQuery->sum('paid_amount');
+        $senderTransferAmount = $senderTransferQuery->sum('total_price');
 
         // TOTAL INCOME
-        $totalIncome = $salesAmount + $creditVoucher + $moneyReceipt + $purchaseReturnAmount + $exchangeAmount + $senderTransferAmount;
+        $totalIncome = $operatingRevenue + $moneyReceiptAmount + $purchaseReturnAmount + $exchangeAmount + $senderTransferAmount;
 
 
         // --- EXPENSE SIDE ---
@@ -558,43 +564,37 @@ class ReportController extends Controller
         $supplierPay = 0; 
 
         // 5. Sales Returns
-        $salesReturnQuery = SaleReturn::whereBetween('return_date', [$startDate, $endDate])
-            ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id');
-        if ($branchId) {
-            $salesReturnQuery->whereHas('posSale', function($q) use ($branchId) { $q->where('branch_id', $branchId); });
-        }
-        $salesReturnAmount = $salesReturnQuery->sum('sale_return_items.total_price');
+        // Note: Sales returns are now handled as a reduction in 'Operating Revenue' 
+        // via the Journal Entry debiting the Sales Return account. 
+        // We set this to 0 here to avoid double counting in the Expense section.
+        $salesReturnAmount = 0;
 
-        // 7. Receiver Transfer Amount
+        // 7. Receiver Transfer Amount (Stock Value out from transfers)
         $receiverTransferQuery = \App\Models\StockTransfer::whereBetween('delivered_at', [$startDate, $endDate])->where('status', 'delivered');
         if ($branchId) $receiverTransferQuery->where('from_id', $branchId);
-        $receiverTransferAmount = $receiverTransferQuery->sum('paid_amount');
+        $receiverTransferAmount = $receiverTransferQuery->sum('total_price');
 
         $totalExpense = $cogsAmount + $debitVoucher + $salesReturnAmount + $receiverTransferAmount;
         
         $netProfit = $totalIncome - $totalExpense;
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
 
+        $viewData = compact(
+            'startDate', 'endDate', 'branches', 'branchId', 'reportType',
+            'operatingRevenue', 'creditVoucherDetails', 'stockAmount', 'moneyReceiptAmount', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
+            'cogsAmount', 'debitVoucher', 'debitVoucherDetails', 'employeePayment', 'supplierPay', 'salesReturnAmount', 'receiverTransferAmount', 'totalExpense',
+            'netProfit'
+        );
+
         if ($request->filled('export')) {
-            $data = compact(
-                'startDate', 'endDate', 'branches', 'branchId',
-                'salesAmount', 'creditVoucher', 'creditVoucherDetails', 'stockAmount', 'moneyReceipt', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
-                'cogsAmount', 'debitVoucher', 'debitVoucherDetails', 'employeePayment', 'supplierPay', 'salesReturnAmount', 'receiverTransferAmount', 'totalExpense',
-                'netProfit'
-            );
             if ($request->export == 'excel') {
-                return $this->exportProfitLossExcel($data);
+                return $this->exportProfitLossExcel($viewData);
             } elseif ($request->export == 'pdf') {
-                return $this->exportProfitLossPdf($data);
+                return $this->exportProfitLossPdf($viewData);
             }
         }
 
-        return view('erp.reports.profit-loss', compact(
-            'startDate', 'endDate', 'branches', 'branchId', 'reportType',
-            'salesAmount', 'creditVoucher', 'creditVoucherDetails', 'stockAmount', 'moneyReceipt', 'purchaseReturnAmount', 'exchangeAmount', 'senderTransferAmount', 'totalIncome',
-            'cogsAmount', 'debitVoucher', 'debitVoucherDetails', 'employeePayment', 'supplierPay', 'salesReturnAmount', 'receiverTransferAmount', 'totalExpense',
-            'netProfit'
-        ));
+        return view('erp.reports.profit-loss', $viewData);
     }
 
     public function cashBookReport(Request $request)
@@ -845,34 +845,54 @@ class ReportController extends Controller
 
     public function customerReport(Request $request)
     {
-        $reportType = $request->get('report_type', 'daily');
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $reportType = $request->get('report_type', 'yearly');
+        $now = Carbon::now();
         
-        if ($reportType == 'monthly') {
-            $month = $request->get('month', Carbon::now()->month);
-            $year = $request->get('year', Carbon::now()->year);
+        if ($reportType == 'daily') {
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : $now->copy()->startOfDay();
+            $endDate = $startDate->copy()->endOfDay();
+        } elseif ($reportType == 'monthly') {
+            $month = $request->get('month', $now->month);
+            $year = $request->get('year', $now->year);
             $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
             $endDate = $startDate->copy()->endOfMonth();
         } elseif ($reportType == 'yearly') {
-            $year = $request->get('year', Carbon::now()->year);
+            $year = $request->get('year', $now->year);
             $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
-        } else {
-            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
-            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        } else { // Custom
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : $now->copy()->startOfMonth();
+            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : $now->copy()->endOfDay();
         }
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branchId = $restrictedBranchId ?: $request->get('branch_id');
 
-        // Optimized Approach: separate aggregate queries keyed by customer_id
+        // Initial Customer Query with Filters
+        $customerQuery = Customer::query();
+        if ($request->filled('name')) {
+            $customerQuery->where('name', 'like', '%' . $request->name . '%');
+        }
+        if ($request->filled('phone')) {
+            $customerQuery->where('mobile', 'like', '%' . $request->phone . '%');
+        }
+
+        // Handle Export
+        $isExport = $request->get('export') == 'excel';
         
-        // Paginate Customers First
-        $customers = Customer::paginate(50);
+        if ($isExport) {
+            $customers = $customerQuery->get();
+        } else {
+            $customers = $customerQuery->paginate(50)->appends($request->all());
+        }
+
         $customerIds = $customers->pluck('id')->toArray();
 
-        // Optimized Approach: separate aggregate queries keyed by customer_id, filtered by paginated IDs
-        
-        // 1. Sales
+        // 1. Sales & Exchange (from Pos table)
         $salesQuery = Pos::selectRaw('customer_id, 
             SUM(CASE WHEN sale_date < ? THEN total_amount ELSE 0 END) as opening_sales,
             SUM(CASE WHEN sale_date < ? THEN discount ELSE 0 END) as opening_discount,
@@ -900,7 +920,7 @@ class ReportController extends Controller
         $paymentStats = $paymentQuery->selectRaw('customer_id,
             SUM(CASE WHEN payment_date < ? THEN amount ELSE 0 END) as opening_paid,
             SUM(CASE WHEN payment_date BETWEEN ? AND ? AND payment_for = "manual_receipt" THEN amount ELSE 0 END) as period_manual,
-            SUM(CASE WHEN payment_date BETWEEN ? AND ? AND payment_for != "manual_receipt" THEN amount ELSE 0 END) as period_paid
+            SUM(CASE WHEN payment_date BETWEEN ? AND ? AND (payment_for IS NULL OR payment_for != "manual_receipt") THEN amount ELSE 0 END) as period_paid
         ', [$startDate, $startDate, $endDate, $startDate, $endDate])
         ->whereIn('customer_id', $customerIds)
         ->whereNotNull('customer_id')
@@ -923,21 +943,34 @@ class ReportController extends Controller
         ->get()
         ->keyBy('customer_id');
 
-        // Merge Data into Paginated Collection
-        // We need to transform the collection inside the paginator, preserving the paginator structure.
-        $customers->getCollection()->transform(function($customer) use ($salesStats, $paymentStats, $returnStats, $branchId) {
+        // 4. Initial Balances (from Balance table)
+        $initialBalances = Balance::where('source_type', 'customer')
+            ->whereIn('source_id', $customerIds)
+            ->selectRaw('source_id as customer_id, 
+                SUM(CASE WHEN created_at < ? THEN balance ELSE 0 END) as opening_bal
+            ', [$startDate])
+            ->groupBy('source_id')
+            ->get()
+            ->keyBy('customer_id');
+
+        // Merge Data
+        $customerCollection = $isExport ? $customers : $customers->getCollection();
+        
+        $customerCollection->transform(function($customer) use ($salesStats, $paymentStats, $returnStats, $initialBalances, $branchId) {
             $sid = $customer->id;
             
             $s = $salesStats[$sid] ?? null;
             $p = $paymentStats[$sid] ?? null;
             $r = $returnStats[$sid] ?? null;
+            $b = $initialBalances[$sid] ?? null;
 
             $op_sales = $s->opening_sales ?? 0;
             $op_paid = $p->opening_paid ?? 0; 
             $op_return = $r->opening_return ?? 0;
             $op_exchange = $s->opening_exchange ?? 0;
+            $op_init = $b->opening_bal ?? 0;
 
-            $opening = $op_sales - ($op_paid + $op_return + $op_exchange);
+            $opening = $op_init + $op_sales - ($op_paid + $op_return + $op_exchange);
 
             $period_sales = $s->period_sales ?? 0;
             $period_manual = $p->period_manual ?? 0;
@@ -948,7 +981,6 @@ class ReportController extends Controller
 
             $due = $opening + $period_sales - ($period_paid + $period_manual + $period_return + $period_exchange);
             
-            // Assign calculated properties to the customer object directly
             $customer->outlet = $branchId ? (\App\Models\Branch::find($branchId)->name ?? 'Main') : 'All';
             $customer->opening = $opening;
             $customer->sales = $period_sales;
@@ -959,16 +991,37 @@ class ReportController extends Controller
             $customer->exchange = $period_exchange;
             $customer->due = $due;
 
+            // Mark for removal if all values are zero
+            $customer->is_empty = ($opening == 0 && $period_sales == 0 && $period_paid == 0 && $period_manual == 0 && $period_return == 0 && $period_exchange == 0 && $due == 0);
+
             return $customer;
         });
 
+        if ($isExport) {
+            return $this->exportCustomerReportExcelFile($customers, $startDate, $endDate);
+        }
+
+        // Filter out empty customers if desired (to avoid 2027 showing data for everyone)
+        if ($request->filled('hide_empty') || $reportType != 'custom') {
+             // Optional: You could filter here, but pagination might get weird. 
+             // However, for "2027", we definitely want to see only those with standing balances or new activity.
+        }
+
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+
+        if ($request->ajax()) {
+            return view('erp.reports.partials.customer-report-table', compact('customers'))->render();
+        }
 
         return view('erp.reports.customer-report', compact('customers', 'startDate', 'endDate', 'reportType', 'branches', 'branchId'));
     }
 
     public function customerLedger(Request $request, $id = null)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $customerId = $id ?: $request->get('customer_id');
         $customers = Customer::orderBy('name')->get();
         $reportType = $request->get('report_type', 'all');
@@ -984,7 +1037,6 @@ class ReportController extends Controller
         }
 
         $customer = Customer::findOrFail($customerId);
-        $reportType = $request->get('report_type', 'all');
         $now = Carbon::now();
 
         if ($reportType == 'daily') {
@@ -1001,13 +1053,38 @@ class ReportController extends Controller
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
         }
 
-        // Opening Balance calculation
+        // Opening Balance calculation (Consolidated)
         $openingBalance = 0;
         if ($startDate) {
-            $openingBalance = Balance::where('source_type', 'customer')
+            // 1. Initial Balance (No branch filtering usually, but we check if it exists before startDate)
+            $op_init = Balance::where('source_type', 'customer')
                 ->where('source_id', $customerId)
                 ->where('created_at', '<', $startDate)
                 ->sum('balance');
+
+            // 2. Previous Sales
+            $salesQ = Pos::where('customer_id', $customerId)->where('sale_date', '<', $startDate->toDateString());
+            if ($branchId) $salesQ->where('branch_id', $branchId);
+            $op_sales = $salesQ->sum('total_amount') - $salesQ->sum('exchange_amount');
+
+            // 3. Previous Payments
+            $payQ = Payment::where('customer_id', $customerId)->where('payment_date', '<', $startDate->toDateString());
+            if ($branchId) {
+                $payQ->where(function($q) use ($branchId) {
+                    $q->whereHas('pos', fn($pq) => $pq->where('branch_id', $branchId))
+                      ->orWhereHas('invoice.pos', fn($ipq) => $ipq->where('branch_id', $branchId))
+                      ->orWhere('payment_for', 'manual_receipt');
+                });
+            }
+            $op_paid = $payQ->sum('amount');
+
+            // 4. Previous Returns
+            $retQ = SaleReturn::where('customer_id', $customerId)->where('return_date', '<', $startDate->toDateString());
+            if ($branchId) $retQ->where('return_to_id', $branchId)->where('return_to_type', 'branch');
+            $op_return = $retQ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
+                               ->sum('sale_return_items.total_price');
+
+            $openingBalance = $op_init + $op_sales - ($op_paid + $op_return);
         }
 
         // Transactions Fetching
@@ -1020,9 +1097,9 @@ class ReportController extends Controller
             'date' => $p->sale_date,
             'type' => 'POS Sale',
             'reference' => $p->invoice_number,
-            'debit' => $p->total_amount,
+            'debit' => $p->total_amount - $p->exchange_amount,
             'credit' => 0,
-            'note' => 'POS Transaction'
+            'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Debit)" : "POS Transaction"
         ]);
 
         // 2. Payments (Credit)
@@ -1030,7 +1107,8 @@ class ReportController extends Controller
         if ($branchId) {
             $payQuery->where(function($q) use ($branchId) {
                 $q->whereHas('pos', fn($pq) => $pq->where('branch_id', $branchId))
-                  ->orWhereHas('invoice.pos', fn($ipq) => $ipq->where('branch_id', $branchId));
+                  ->orWhereHas('invoice.pos', fn($ipq) => $ipq->where('branch_id', $branchId))
+                  ->orWhere('payment_for', 'manual_receipt');
             });
         }
         if ($startDate) $payQuery->where('payment_date', '>=', $startDate->toDateString());
@@ -1135,6 +1213,10 @@ class ReportController extends Controller
 
     public function supplierReport(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $reportType = $request->get('report_type', 'daily');
         $now = Carbon::now();
 
@@ -1147,62 +1229,72 @@ class ReportController extends Controller
             $year = $request->get('year', $now->year);
             $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
-        } else {
+        } elseif ($reportType == 'custom') {
             $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : $now->copy()->startOfMonth();
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : $now->copy()->endOfDay();
+        } else {
+            $startDate = Carbon::now()->startOfDay();
+            $endDate = Carbon::now()->endOfDay();
         }
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branchId = $restrictedBranchId ?: $request->get('branch_id');
 
-        $suppliers = Supplier::all()->map(function($s) use ($startDate, $endDate, $branchId) {
-            // Purchases Query
-            $purchaseQuery = PurchaseBill::where('supplier_id', $s->id);
+        $suppliers = Supplier::orderBy('name')->get()->map(function($s) use ($startDate, $endDate, $branchId) {
+            $sid = $s->id;
+
+            // 1. Purchase Bills
+            $billQuery = PurchaseBill::where('supplier_id', $sid);
             if ($branchId) {
-                $purchaseQuery->whereHas('purchase', function($q) use ($branchId) {
-                    $q->where('location_id', $branchId)->where('ship_location_type', 'branch');
-                });
+                $billQuery->whereHas('purchase', fn($q) => $q->where('location_id', $branchId)->where('ship_location_type', 'branch'));
+            }
+            
+            $op_purchase = (clone $billQuery)->where('bill_date', '<', $startDate->toDateString())->sum('total_amount');
+            $period_purchase = (clone $billQuery)->whereBetween('bill_date', [$startDate->toDateString(), $endDate->toDateString()])->sum('total_amount');
+
+            // 2. Payments (Granular)
+            $payQuery = SupplierPayment::where('supplier_id', $sid);
+            if ($branchId) {
+                $payQuery->whereHas('bill.purchase', fn($q) => $q->where('location_id', $branchId)->where('ship_location_type', 'branch'));
             }
 
-            // Payments Query
-            $paymentQuery = SupplierPayment::where('supplier_id', $s->id);
+            $op_paid = (clone $payQuery)->where('payment_date', '<', $startDate->toDateString())->sum('amount');
+            
+            // Period Paid (Regular bill payments)
+            $period_paid = (clone $payQuery)->whereBetween('payment_date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->whereNotNull('purchase_bill_id')
+                ->sum('amount');
+            
+            // Period Payment (Advance or manual)
+            $period_manual = (clone $payQuery)->whereBetween('payment_date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->whereNull('purchase_bill_id')
+                ->sum('amount');
+
+            // 3. Returns
+            $returnQuery = PurchaseReturn::where('supplier_id', $sid);
             if ($branchId) {
-                $paymentQuery->whereHas('bill.purchase', function($q) use ($branchId) {
-                    $q->where('location_id', $branchId)->where('ship_location_type', 'branch');
-                });
+                $returnQuery->whereHas('items', fn($q) => $q->where('return_from_type', 'branch')->where('return_from_id', $branchId));
             }
 
-            // Returns Query
-            $returnQuery = PurchaseReturn::where('supplier_id', $s->id);
-            if ($branchId) {
-                $returnQuery->whereHas('items', function($q) use ($branchId) {
-                    $q->where('return_from_type', 'branch')->where('return_from_id', $branchId);
-                });
-            }
+            $op_return = (clone $returnQuery)->where('return_date', '<', $startDate->toDateString())->get()->sum('total_amount');
+            $period_return = (clone $returnQuery)->whereBetween('return_date', [$startDate->toDateString(), $endDate->toDateString()])->get()->sum('total_amount');
 
-            // Calculations
-            $openingPurchase = (clone $purchaseQuery)->where('bill_date', '<', $startDate->toDateString())->sum('total_amount');
-            $openingPaid = (clone $paymentQuery)->where('payment_date', '<', $startDate->toDateString())->sum('amount');
-            $openingReturn = (clone $returnQuery)->where('return_date', '<', $startDate->toDateString())->with('items')->get()->sum('total_amount');
-            $opening = $openingPurchase - ($openingPaid + $openingReturn);
-
-            $periodPurchase = (clone $purchaseQuery)->whereBetween('bill_date', [$startDate->toDateString(), $endDate->toDateString()])->sum('total_amount');
-            $periodPaid = (clone $paymentQuery)->whereBetween('payment_date', [$startDate->toDateString(), $endDate->toDateString()])->sum('amount');
-            $periodReturn = (clone $returnQuery)->whereBetween('return_date', [$startDate->toDateString(), $endDate->toDateString()])->with('items')->get()->sum('total_amount');
-
-            $due = $opening + $periodPurchase - ($periodPaid + $periodReturn);
+            $opening = $op_purchase - ($op_paid + $op_return);
+            $due = $opening + $period_purchase - ($period_paid + $period_manual + $period_return);
 
             return (object)[
-                'id' => $s->id,
+                'id' => $sid,
                 'name' => $s->name,
                 'mobile' => $s->phone,
-                'supplier_id' => $s->supplier_id ?? 'SUP-'.$s->id,
+                'supplier_id' => $s->supplier_id ?? 'SUP-'.$sid,
                 'opening' => $opening,
-                'purchase' => $periodPurchase,
-                'paid' => $periodPaid,
-                'return' => $periodReturn,
+                'purchase' => $period_purchase,
+                'paid' => $period_paid,
+                'payment' => $period_manual,
+                'return' => $period_return,
                 'due' => $due,
-                'outlet' => $branchId ? (\App\Models\Branch::find($branchId)->name ?? 'Branch') : 'All Outlets'
+                'outlet' => $branchId ? (\App\Models\Branch::find($branchId)->name ?? 'Branch') : 'All Outlets',
+                'is_empty' => ($opening == 0 && $period_purchase == 0 && $period_paid == 0 && $period_manual == 0 && $period_return == 0 && $due == 0)
             ];
         });
 
@@ -1210,11 +1302,80 @@ class ReportController extends Controller
             'opening' => $suppliers->sum('opening'),
             'purchase' => $suppliers->sum('purchase'),
             'paid' => $suppliers->sum('paid'),
+            'payment' => $suppliers->sum('payment'),
             'return' => $suppliers->sum('return'),
             'due' => $suppliers->sum('due')
         ];
 
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+
+        if ($request->get('export') == 'excel') {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            $sheet->setCellValue('A1', 'Supplier Summary Report');
+            $sheet->mergeCells('A1:K1');
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+            $sheet->setCellValue('A2', "Period: " . $startDate->format('d M, Y') . " - " . $endDate->format('d M, Y'));
+            $sheet->setCellValue('A3', "Outlet: " . ($branchId ? (\App\Models\Branch::find($branchId)->name ?? 'All') : 'All Outlets'));
+
+            $headers = ['#SN', 'Supplier Name', 'Supplier ID', 'Mobile', 'Outlet', 'Opening', 'Total', 'Paid', 'Payment', 'Return', 'Due'];
+            foreach ($headers as $i => $h) {
+                $col = chr(65 + $i);
+                $sheet->setCellValue($col . '5', $h);
+                $sheet->getStyle($col . '5')->getFont()->setBold(true);
+                $sheet->getStyle($col . '5')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF1B4D3E');
+                $sheet->getStyle($col . '5')->getFont()->getColor()->setARGB('FFFFFFFF');
+            }
+
+            $row = 6;
+            $sl = 1;
+            foreach ($suppliers as $s) {
+                if ($s->is_empty) continue;
+                $sheet->setCellValue('A' . $row, $sl++);
+                $sheet->setCellValue('B' . $row, $s->name);
+                $sheet->setCellValue('C' . $row, $s->supplier_id);
+                $sheet->setCellValue('D' . $row, $s->mobile);
+                $sheet->setCellValue('E' . $row, $s->outlet);
+                $sheet->setCellValue('F' . $row, $s->opening);
+                $sheet->setCellValue('G' . $row, $s->purchase);
+                $sheet->setCellValue('H' . $row, $s->paid);
+                $sheet->setCellValue('I' . $row, $s->payment);
+                $sheet->setCellValue('J' . $row, $s->return);
+                $sheet->setCellValue('K' . $row, $s->due);
+                $sheet->getStyle('F' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0.00');
+                $row++;
+            }
+
+            // Total Row
+            $sheet->setCellValue('A' . $row, 'GRAND TOTAL');
+            $sheet->mergeCells('A' . $row . ':E' . $row);
+            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->setCellValue('F' . $row, $totals['opening']);
+            $sheet->setCellValue('G' . $row, $totals['purchase']);
+            $sheet->setCellValue('H' . $row, $totals['paid']);
+            $sheet->setCellValue('I' . $row, $totals['payment']);
+            $sheet->setCellValue('J' . $row, $totals['return']);
+            $sheet->setCellValue('K' . $row, $totals['due']);
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('F' . $row . ':K' . $row)->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0F0F0');
+
+            foreach (range('A', 'K') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+
+            $filename = "Supplier_Summary_" . date('Ymd_His') . ".xlsx";
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+            exit;
+        }
+
+        if ($request->ajax()) {
+            return view('erp.reports.partials.supplier-report-table', compact('suppliers', 'totals'))->render();
+        }
+
         return view('erp.reports.supplier-report', compact('suppliers', 'branches', 'branchId', 'reportType', 'startDate', 'endDate', 'totals'));
     }
 
@@ -1924,5 +2085,82 @@ class ReportController extends Controller
     {
         $pdf = Pdf::loadView('erp.reports.pdf.expense', $data)->setPaper('a4', 'portrait');
         return $pdf->download('Expense_Report_' . date('Y-m-d') . '.pdf');
+    }
+
+    private function exportCustomerReportExcelFile($customers, $startDate, $endDate)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', 'Customer Summary Report');
+        $sheet->setCellValue('A2', 'Period: ' . $startDate->format('d M, Y') . ' - ' . $endDate->format('d M, Y'));
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        
+        $headers = ['SL', 'Customer Name', 'Phone', 'Outlet', 'Opening', 'Sales', 'Paid', 'Payment', 'Discount', 'Return', 'Exchange', 'Closing Due'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '4', $header);
+            $sheet->getStyle($col . '4')->getFont()->setBold(true);
+            $sheet->getStyle($col . '4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCACACA');
+            $col++;
+        }
+        
+        $row = 5;
+        $sl = 1;
+        $tOpening = 0; $tSales = 0; $tPaid = 0; $tPayment = 0; $tDiscount = 0; $tReturn = 0; $tExchange = 0; $tDue = 0;
+
+        foreach ($customers as $c) {
+            if ($c->is_empty) continue;
+            
+            $sheet->setCellValue('A' . $row, $sl++);
+            $sheet->setCellValue('B' . $row, $c->name);
+            $sheet->setCellValue('C' . $row, $c->mobile ?? 'N/A');
+            $sheet->setCellValue('D' . $row, $c->outlet);
+            $sheet->setCellValue('E' . $row, $c->opening);
+            $sheet->setCellValue('F' . $row, $c->sales);
+            $sheet->setCellValue('G' . $row, $c->paid);
+            $sheet->setCellValue('H' . $row, $c->payment);
+            $sheet->setCellValue('I' . $row, $c->discount);
+            $sheet->setCellValue('J' . $row, $c->return);
+            $sheet->setCellValue('K' . $row, $c->exchange);
+            $sheet->setCellValue('L' . $row, $c->due);
+            
+            $tOpening += $c->opening; $tSales += $c->sales; $tPaid += $c->paid; 
+            $tPayment += $c->payment; $tDiscount += $c->discount;
+            $tReturn += $c->return; $tExchange += $c->exchange; $tDue += $c->due;
+
+            // Format numbers
+            $sheet->getStyle('E'.$row.':L'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
+            $row++;
+        }
+
+        // Add Grand Total Row
+        $sheet->setCellValue('A' . $row, 'TOTAL');
+        $sheet->mergeCells('A' . $row . ':D' . $row);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        
+        $sheet->setCellValue('E' . $row, $tOpening);
+        $sheet->setCellValue('F' . $row, $tSales);
+        $sheet->setCellValue('G' . $row, $tPaid);
+        $sheet->setCellValue('H' . $row, $tPayment);
+        $sheet->setCellValue('I' . $row, $tDiscount);
+        $sheet->setCellValue('J' . $row, $tReturn);
+        $sheet->setCellValue('K' . $row, $tExchange);
+        $sheet->setCellValue('L' . $row, $tDue);
+
+        $sheet->getStyle('A' . $row . ':L' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('E' . $row . ':L' . $row)->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet->getStyle('A' . $row . ':L' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0F0F0');
+        
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        
+        $filename = 'Customer_Summary_Report_' . date('Ymd_His') . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
     }
 }

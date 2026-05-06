@@ -140,7 +140,12 @@
                                         <span>{{ number_format($pos->delivery, 2) }}৳</span>
                                     </div>
                                 @endif
-                                @if($pos->invoice && $pos->invoice->tax)
+                                @if($pos->vat_amount > 0)
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="text-muted small">VAT ({{ $pos->vat_rate }}%)</span>
+                                        <span>{{ number_format($pos->vat_amount, 2) }}৳</span>
+                                    </div>
+                                @elseif($pos->invoice && $pos->invoice->tax > 0)
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span class="text-muted small">Tax</span>
                                         <span>{{ number_format($pos->invoice->tax, 2) }}৳</span>

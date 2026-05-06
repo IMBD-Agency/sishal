@@ -46,16 +46,9 @@
                         @php
                             $salesReports = [
                                 [
-                                    'title' => 'Sales Analytics',
-                                    'desc' => 'Comprehensive sales analysis and profit margins.',
-                                    'route' => 'simple-accounting.sales-summary',
-                                    'icon' => 'fa-chart-pie',
-                                    'color' => 'primary'
-                                ],
-                                [
                                     'title' => 'Daily Sales Report',
                                     'desc' => 'Detailed daily sales transactions and breakdowns.',
-                                    'route' => 'reports.sale',
+                                    'route' => 'pos.list',
                                     'icon' => 'fa-receipt',
                                     'color' => 'success'
                                 ],

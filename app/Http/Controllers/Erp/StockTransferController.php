@@ -43,18 +43,8 @@ class StockTransferController extends Controller
         $totalQuantity = (clone $query)->sum('quantity');
         $totalValue    = (clone $query)->sum('total_price');
 
-        // Grouped listing by invoice
-        $transfers = $query->select(
-                \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
-                \DB::raw('MAX(id) as id'),
-                \DB::raw('MAX(invoice_number) as invoice_number'),
-                \DB::raw('COUNT(*) as item_count'),
-                \DB::raw('SUM(quantity) as grouped_quantity'),
-                \DB::raw('SUM(total_price) as grouped_total_price'),
-                'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at'
-            )
-            ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at')
-            ->orderBy('requested_at', 'desc')
+        // Itemized listing (ungrouped) to show product details
+        $transfers = $query->orderBy('requested_at', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(100);
 
@@ -280,35 +270,40 @@ class StockTransferController extends Controller
             $query->where('type', '!=', 'return');
         }
 
-        $query->select(
-                \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
-                \DB::raw('MAX(id) as id'),
-                \DB::raw('COUNT(*) as item_count'),
-                \DB::raw('SUM(total_price) as grouped_total_amount'),
-                \DB::raw('SUM(quantity) as total_qty'),
-                'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at',
-                'sender_account_id', 'receiver_account_id', 'invoice_number'
-            )
-            ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'sender_account_id', 'receiver_account_id', 'invoice_number')
-            ->orderBy('requested_at', 'desc');
-
-        $transfers = $query->get();
-        $headers = ['Invoice No', 'Date', 'Source', 'Destination', 'Items', 'Total Qty', 'Total Amount', 'Sender Account', 'Receiver Account', 'Status', 'Requested By'];
+        $transfers = $query->orderBy('requested_at', 'desc')->get();
+        $headers = ['Invoice No', 'Date', 'Source', 'Destination', 'Branch', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style #', 'Color', 'Size', 'Qty', 'Requested By', 'Status'];
         
         $exportData = [];
         foreach ($transfers as $transfer) {
+            $product = $transfer->product;
+            $variation = $transfer->variation;
+            
+            $color = '-'; $size = '-';
+            if ($variation && $variation->attributeValues) {
+                foreach($variation->attributeValues as $val) {
+                    $attrName = strtolower($val->attribute->name ?? '');
+                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
+                    elseif (str_contains($attrName, 'size')) $size = $val->value;
+                }
+            }
+
             $exportData[] = [
                 $transfer->invoice_number ?? 'N/A',
                 $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-',
                 $transfer->from_type == 'branch' ? ($transfer->fromBranch->name ?? '-') : ($transfer->fromWarehouse->name ?? '-'),
                 $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-'),
-                $transfer->item_count,
-                number_format($transfer->total_qty, 0),
-                number_format($transfer->grouped_total_amount, 2),
-                $transfer->senderAccount->provider_name ?? '-',
-                $transfer->receiverAccount->provider_name ?? '-',
-                ucfirst($transfer->status),
-                $transfer->requestedPerson->name ?? '-'
+                $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-'),
+                $product->category->name ?? '-',
+                $product->brand->name ?? '-',
+                $product->season->name ?? '-',
+                $product->gender->name ?? '-',
+                $product->name ?? '-',
+                $product->style_number ?? $product->sku ?? '-',
+                $color,
+                $size,
+                $transfer->quantity,
+                $transfer->requestedPerson->name ?? '-',
+                ucfirst($transfer->status)
             ];
         }
 
@@ -358,19 +353,8 @@ class StockTransferController extends Controller
             $query->where('type', '!=', 'return');
         }
 
-        $query->select(
-                \DB::raw('COALESCE(invoice_number, CONCAT("INDIV-", id)) as invoice_group'),
-                \DB::raw('MAX(id) as id'),
-                \DB::raw('COUNT(*) as item_count'),
-                \DB::raw('SUM(total_price) as grouped_total_amount'),
-                \DB::raw('SUM(quantity) as total_qty'),
-                'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'invoice_number'
-            )
-            ->groupBy('invoice_group', 'from_type', 'from_id', 'to_type', 'to_id', 'requested_by', 'status', 'requested_at', 'invoice_number')
-            ->orderBy('requested_at', 'desc');
-
-        $transfers = $query->get();
-        $filename = 'stock_transfer_summary_' . date('Y-m-d_H-i-s') . '.pdf';
+        $transfers = $query->orderBy('requested_at', 'desc')->get();
+        $filename = 'stock_transfer_detailed_' . date('Y-m-d_H-i-s') . '.pdf';
         
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.stockTransfer.report-pdf', [
             'transfers' => $transfers,

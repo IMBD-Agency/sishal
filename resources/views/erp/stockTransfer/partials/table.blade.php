@@ -12,9 +12,18 @@
                 <th>Date</th>
                 <th>Source</th>
                 <th>Destination</th>
+                <th>Branch</th>
                 <th>Requested By</th>
-                <th class="text-center">Total Items</th>
-                <th class="text-end">Total Amount</th>
+                <th class="text-center">Img</th>
+                <th>Category</th>
+                <th>Brand</th>
+                <th>Season</th>
+                <th>Gender</th>
+                <th style="min-width: 150px;">Product Name</th>
+                <th>Style #</th>
+                <th>Color</th>
+                <th>Size</th>
+                <th class="text-center">Qty</th>
                 <th class="text-center">Type</th>
                 <th class="text-center">Status</th>
                 <th class="text-center pe-3">Action</th>
@@ -24,6 +33,17 @@
             @forelse ($transfers as $index => $transfer)
                 @php
                     $isReturn = str_starts_with($transfer->invoice_number ?? '', 'RET-');
+                    $product = $transfer->product;
+                    $variation = $transfer->variation;
+                    
+                    $color = '-'; $size = '-';
+                    if ($variation && $variation->attributeValues) {
+                        foreach($variation->attributeValues as $val) {
+                            $attrName = strtolower($val->attribute->name ?? '');
+                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
+                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                        }
+                    }
                 @endphp
                 <tr class="{{ $isReturn ? 'table-warning' : '' }}">
                     <td class="ps-3">
@@ -45,6 +65,7 @@
                     <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}</td>
                     <td>{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}</td>
                     <td>{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}</td>
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? '-') }}</span></td>
                     <td>
                         <div class="d-flex align-items-center">
                             <div class="avatar-xs bg-light rounded-circle text-primary me-2 d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:10px;">
@@ -54,9 +75,25 @@
                         </div>
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-light text-dark border">{{ number_format($transfer->grouped_quantity, 0) }} Qty</span>
+                        <div class="thumbnail-box" style="width: 30px; height: 30px; margin: 0 auto;">
+                             @if($product && $product->image)
+                                <img src="{{ asset($product->image) }}" alt="" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">
+                             @else
+                                <i class="fas fa-cube text-muted opacity-50 small"></i>
+                             @endif
+                        </div>
                     </td>
-                    <td class="text-end fw-bold">{{ number_format($transfer->grouped_total_price, 2) }}৳</td>
+                    <td>{{ $product->category->name ?? '-' }}</td>
+                    <td>{{ $product->brand->name ?? '-' }}</td>
+                    <td>{{ $product->season->name ?? '-' }}</td>
+                    <td>{{ $product->gender->name ?? '-' }}</td>
+                    <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
+                    <td>{{ $product->style_number ?? $product->sku ?? '-' }}</td>
+                    <td>{{ $color }}</td>
+                    <td>{{ $size }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark border">{{ number_format($transfer->quantity, 0) }}</span>
+                    </td>
                     <td class="text-center">
                         @if($isReturn)
                             <span class="badge bg-warning text-dark"><i class="fas fa-undo-alt me-1"></i>Return</span>
@@ -101,7 +138,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="20" class="text-center py-5">
+                    <td colspan="31" class="text-center py-5">
                         <div class="text-muted opacity-50">
                             <i class="fas fa-inbox fa-3x mb-3"></i>
                             <p class="fw-bold">No transfer records found.</p>

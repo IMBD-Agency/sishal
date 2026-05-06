@@ -11,30 +11,41 @@
                 <th style="min-width: 100px;">Invoice</th>
                 <th style="min-width: 90px;">Date</th>
                 <th style="min-width: 120px;">Customer</th>
+                <th style="min-width: 100px;">Branch</th>
                 <th style="min-width: 100px;">Created By</th>
                 <th class="text-center">Img</th>
                 <th>Category</th>
                 <th>Brand</th>
                 <th>Season</th>
                 <th>Gender</th>
-                <th style="min-width: 150px;">Product Name</th>
+                <th class="text-center" style="min-width: 150px;">Product Name</th>
                 <th>Style #</th>
                 <th>Color</th>
                 <th>Size</th>
                 <th class="text-end">Unit Price</th>
+                
+                <!-- Granular Financial Columns -->
                 <th class="text-center bg-soft-primary">Sales Qty</th>
-                <th class="text-end bg-soft-primary">Sales Amt</th>
-                <th class="text-end">Discount</th>
-                <th class="text-center bg-soft-danger">Ret Qty</th>
-                <th class="text-end bg-soft-danger">Ret Amt</th>
-                <th class="text-center bg-soft-success">Act Qty</th>
-                <th class="text-end bg-soft-success">Act Amt</th>
-                <th class="text-end">Delivery</th>
-                <th class="text-end">Exchange</th>
-                <th class="text-end fw-bold">Grand Total</th>
-                <th class="text-end text-success fw-bold">Paid</th>
-                <th class="text-end text-danger fw-bold">Due</th>
-                <th class="text-center">Action</th>
+                <th class="text-center bg-soft-primary">Total S-Qty</th>
+                <th class="text-end bg-soft-primary">Sales Amount</th>
+                <th class="text-end bg-soft-primary">Total Sales Amount</th>
+                
+                <th class="text-center bg-soft-danger">Sales Return Qty</th>
+                <th class="text-center bg-soft-danger">Total SR-Qty</th>
+                <th class="text-end bg-soft-danger">Sales Return Amount</th>
+                <th class="text-end bg-soft-danger">Total Sales Return Amount</th>
+                
+                <th class="text-center bg-soft-success">Actual Sales Qty</th>
+                <th class="text-center bg-soft-success">Total AS-Qty</th>
+                
+                <th class="text-end">Delivery Charge Amount</th>
+                <th class="text-end">Discount Amount</th>
+                <th class="text-end">Exchange Amount</th>
+                <th class="text-end fw-bold">Actual Sales Amount</th>
+                <th class="text-end fw-bold">Total</th>
+                <th class="text-end text-success fw-bold">Total Received Amount</th>
+                <th class="text-end text-danger fw-bold">Total Due Amount</th>
+                <th class="text-center">Option</th>
             </tr>
         </thead>
         <tbody>
@@ -61,6 +72,22 @@
                     $itemDiscount = $grossAmt - $item->total_price;
                     $actualQty = $item->quantity - $retQty;
                     $actualAmt = $item->total_price - $retAmt;
+
+                    // Invoice level (calculated once per invoice change for efficiency)
+                    $invItems = $sale->items;
+                    $invTotalQty = $invItems->sum('quantity');
+                    $invGrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
+                    $invRetQty = $invItems->sum(fn($i) => $i->returnItems->sum('returned_qty'));
+                    $invRetAmt = $invItems->sum(fn($i) => $i->returnItems->sum('total_price'));
+                    $invActualQty = $invTotalQty - $invRetQty;
+                    
+                    // Aligned with snippet logic:
+                    // Total Sales Amount = Gross + VAT + Delivery + Exchange (Total before discount)
+                    $invTotalSalesAmt = $invGrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
+                    // Total = Total Sales Amount - Discount (Net Invoice Total)
+                    $invTotal = $invTotalSalesAmt - $sale->discount;
+                    // Actual Sales Amount = Total - Returns
+                    $invActualAmt = $invTotal - $invRetAmt;
                 @endphp
                 <tr>
                     @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
@@ -80,6 +107,7 @@
                     </td>
                     <td>{{ $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-' }}</td>
                     <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ $sale->branch->name ?? '-' }}</span></td>
                     <td>{{ $sale->soldBy ? trim($sale->soldBy->first_name . ' ' . $sale->soldBy->last_name) : '-' }}</td>
                     <td class="text-center">
                         <div class="thumbnail-box" style="width: 30px; height: 30px; margin: 0 auto;">
@@ -100,25 +128,48 @@
                     <td>{{ $size }}</td>
                     
                     <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
+                    
+                    <!-- Sales Qty & Total S-Qty -->
                     <td class="text-center bg-light">{{ $item->quantity }}</td>
-                    <td class="text-end bg-light">{{ number_format($grossAmt, 2) }}</td>
-                    <td class="text-end text-danger">
-                        {{ number_format($itemDiscount, 2) }}
+                    <td class="text-center bg-light">
+                        @if($isFirst) <span class="fw-bold">{{ $invTotalQty }}</span> @endif
                     </td>
                     
-                    <td class="text-center text-danger">{{ $retQty ?: '-' }}</td>
-                    <td class="text-end text-danger">{{ $retQty ? number_format($retAmt, 2) : '-' }}</td>
+                    <!-- Sales Amount & Total Sales Amount -->
+                    <td class="text-end bg-light">{{ number_format($grossAmt, 2) }}</td>
+                    <td class="text-end bg-light">
+                        @if($isFirst) <span class="fw-bold">{{ number_format($invTotalSalesAmt, 2) }}</span> @endif
+                    </td>
                     
+                    <!-- Returns -->
+                    <td class="text-center text-danger">{{ $retQty ?: '-' }}</td>
+                    <td class="text-center text-danger">
+                        @if($isFirst) <span class="fw-bold">{{ $invRetQty ?: '-' }}</span> @endif
+                    </td>
+                    <td class="text-end text-danger">{{ $retQty ? number_format($retAmt, 2) : '-' }}</td>
+                    <td class="text-end text-danger">
+                        @if($isFirst) <span class="fw-bold">{{ $invRetAmt ? number_format($invRetAmt, 2) : '-' }}</span> @endif
+                    </td>
+                    
+                    <!-- Actual Qty -->
                     <td class="text-center text-success fw-bold">{{ $actualQty }}</td>
-                    <td class="text-end text-success fw-bold">{{ number_format($actualAmt, 2) }}</td>
+                    <td class="text-center text-success fw-bold">
+                        @if($isFirst) <span>{{ $invActualQty }}</span> @endif
+                    </td>
                     
                     <td class="text-end">
                         @if($isFirst) {{ number_format($sale->delivery, 2) }} @endif
+                    </td>
+                    <td class="text-end text-danger">
+                        @if($isFirst) {{ number_format($sale->discount, 2) }} @endif
                     </td>
                     <td class="text-end">
                         @if($isFirst) {{ number_format($sale->exchange_amount ?? 0, 2) }} @endif
                     </td>
                     
+                    <td class="text-end fw-bold text-success">
+                         @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
+                    </td>
                     <td class="text-end fw-bold">
                          @if($isFirst) {{ number_format($sale->total_amount, 2) }} @endif
                     </td>
@@ -126,13 +177,7 @@
                          @if($isFirst) {{ number_format($invoice->paid_amount ?? 0, 2) }} @endif
                     </td>
                     <td class="text-end text-danger fw-bold">
-                         @if($isFirst) 
-                            @if(($invoice->due_amount ?? 0) > 0)
-                                {{ number_format($invoice->due_amount, 2) }}
-                            @else
-                                <span class="badge bg-success bg-opacity-10 text-success ms-1" style="font-size: 0.65rem;">Paid</span>
-                            @endif
-                         @endif
+                         @if($isFirst) {{ number_format($invoice->due_amount ?? 0, 2) }} @endif
                     </td>
                     <td class="text-center">
                         @if($isFirst)
@@ -152,12 +197,12 @@
                                     <i class="fas fa-money-bill-wave"></i>
                                 </a>
                                 @endif
-
+                                
                                 @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
                                 <form action="{{ route('pos.delete', $sale->id) }}" method="POST" class="d-inline"
-                                    onsubmit="return confirm('Delete Sale {{ $sale->sale_number }}? This will also delete its invoice and payments. Cannot be undone.')">
+                                    onsubmit="return confirm('Delete Sale {{ $sale->sale_number }}? This will also delete its invoice and payments.')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Sale" style="padding: 4px 8px; font-size: 0.75rem;">
+                                    <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 0.75rem;">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
@@ -167,29 +212,36 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '28' : '27' }}" class="text-center py-5 text-muted">No sales records found.</td></tr>
+                <tr><td colspan="40" class="text-center py-5 text-muted">No sales records found.</td></tr>
             @endforelse
         </tbody>
         <tfoot class="bg-light fw-bold">
-            <tr class="text-muted small border-top">
-                <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '16' : '15' }}" class="text-end">Page Subtotal</td>
-                <td class="text-center">{{ $items->sum('quantity') }}</td>
-                <td class="text-end">{{ number_format($items->sum(function($i){ return $i->quantity * $i->unit_price; }), 2) }}</td>
-                <td class="text-end text-danger">{{ number_format($items->where('pos_sale_id', '!=', null)->unique('pos_sale_id')->sum('pos.discount'), 2) }}</td>
-                <td colspan="11"></td>
-            </tr>
             <tr class="bg-soft-primary border-top-2">
-                <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '16' : '15' }}" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
+                @php
+                    $colBeforeQty = (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? 17 : 16;
+                @endphp
+                <td colspan="{{ $colBeforeQty }}" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
+                
                 <td class="text-center py-3">{{ $reportTotals['sell_qty'] }}</td>
+                <td></td> <!-- Total S-Qty footer empty -->
+                
                 <td class="text-end py-3">{{ number_format($reportTotals['gross_amt'], 2) }}</td>
-                <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>
-                <td colspan="4" class="bg-light"></td>
+                <td></td> <!-- Total Sales Amount footer empty -->
+                
+                <td colspan="4" class="bg-light"></td> <!-- Returns space -->
+                
+                <td colspan="2" class="bg-light"></td> <!-- Actual Qty space -->
+                
                 <td class="text-end py-3">{{ number_format($reportTotals['delivery'], 2) }}</td>
+                <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['exchange'], 2) }}</td>
+                
+                <td colspan="1" class="bg-light"></td> <!-- Actual Sales Amount space -->
+                
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>
                 <td class="text-end text-danger py-3">{{ number_format($reportTotals['due'], 2) }}</td>
-                <td></td>
+                <td colspan="1"></td> <!-- Option -->
             </tr>
         </tfoot>
     </table>

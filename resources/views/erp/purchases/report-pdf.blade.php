@@ -51,6 +51,7 @@
                 <th width="2.5%">SL</th>
                 <th width="7.5%">Inv #</th>
                 <th width="10%">Supplier</th>
+                <th width="8%">Warehouse</th>
                 <th width="5%">Cat.</th>
                 <th width="5%">Brand</th>
                 <th width="15%">Product</th>
@@ -101,6 +102,7 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="fw-bold text-primary">{{ $bill->bill_number ?? 'PUR-'.$purchase->id }}</td>
                     <td>{{ $purchase->supplier->name ?? 'N/A' }}</td>
+                    <td>{{ $purchase->warehouse->name ?? '-' }}</td>
                     <td class="text-center">{{ $product->category->name ?? '-' }}</td>
                     <td class="text-center">{{ $product->brand->name ?? '-' }}</td>
                     <td class="fw-bold">{{ $item->product->name ?? 'N/A' }}</td>

@@ -144,24 +144,29 @@ body {
     color: var(--primary-color);
 }
 
-/* Parent Menu Active (Subtle) */
+/* Active Sidebar Link — Green Pill Highlight */
 .nav-link.active {
-    color: var(--primary-color);
+    background: var(--primary-color);
+    color: #ffffff !important;
     font-weight: 700;
-    background: transparent;
-    /* Remove background for parents */
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.35);
 }
 
-/* Child Link Active (Solid) */
+.nav-link.active:hover {
+    background: var(--secondary-color);
+    color: #ffffff !important;
+}
+
+/* Child Link Active (same solid style) */
 .collapse .nav-link.active {
-    background: #ecfdf5;
-    color: #065f46;
+    background: var(--primary-color);
+    color: #ffffff !important;
     font-weight: 700;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.35);
 }
 
 .nav-link.active .nav-icon {
-    color: var(--primary-color);
+    color: #ffffff !important;
 }
 
 .nav-icon {
