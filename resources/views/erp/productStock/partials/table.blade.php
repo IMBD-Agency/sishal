@@ -322,7 +322,7 @@
     <!-- Pagination -->
     <div class="card-footer bg-white border-top-0 py-3 px-4">
         <div class="d-flex justify-content-between align-items-center">
-            <p class="text-muted small mb-0">Displaying {{ $productStocks->firstItem() }} to {{ $productStocks->lastItem() }} of {{ $productStocks->total() }} items</p>
+            <p class="text-muted small mb-0">Displaying {{ $productStocks->firstItem() }} to {{ $productStocks->lastItem() }} of {{ $productStocks->total() }} Products</p>
             {{ $productStocks->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
         </div>
     </div>

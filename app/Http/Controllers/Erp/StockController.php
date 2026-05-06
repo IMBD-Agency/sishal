@@ -95,7 +95,7 @@ class StockController extends Controller
               ->orWhereHas('variationStocks');
         });
 
-        $productStocks = $query->paginate((int) $request->get('per_page', 100))->appends($request->except('page'));
+        $productStocks = $query->paginate((int) $request->get('per_page', 20))->appends($request->except('page'));
 
         // Load all movement relations for the paginated items
         $productStocks->load([
