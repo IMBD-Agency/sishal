@@ -32,69 +32,17 @@ class StockController extends Controller
         $selectedWarehouseId = $request->warehouse_id;
         $selectedVariationValueId = $request->variation_value_id;
 
-        // Apply Date Filters
-        $startDate = $request->filled('start_date') ? $request->start_date : null;
-        $endDate = $request->filled('end_date') ? $request->end_date : null;
-
-        if ($request->filled('filter_year')) {
-            $year = $request->filter_year;
-            $month = $request->filled('filter_month') ? str_pad($request->filter_month, 2, '0', STR_PAD_LEFT) : null;
-            if ($month) {
-                $startDate = "$year-$month-01";
-                $endDate = date("Y-m-t", strtotime($startDate));
-            } else {
-                $startDate = "$year-01-01";
-                $endDate = "$year-12-31";
-            }
-        } elseif (!$startDate && !$endDate) {
-            $year = date('Y');
-            $startDate = "$year-01-01";
-            $endDate = "$year-12-31";
-        }
+        $query = $this->getStockQuery($request);
+        $productStocks = $query->paginate((int) $request->get('per_page', 20))->appends($request->except('page'));
+        
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
 
         // We build the query based on Variations if it exists, otherwise the Product itself
         // But the user wants a row for EACH variation + location.
         // This means we should iterate over ProductVariationStock and handle simple products separately.
         
-        $query = Product::select('id', 'name', 'sku', 'style_number', 'price', 'cost', 'category_id', 'brand_id', 'season_id', 'gender_id', 'image', 'has_variations')
-            ->with([
-                'category:id,name', 
-                'brand:id,name',
-                'season:id,name',
-                'gender:id,name',
-                'variations.attributeValues'
-            ]);
-
-        // Filter by global search
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhere('sku', 'like', "%$search%")
-                  ->orWhere('style_number', 'like', "%$search%");
-            });
-        }
-
-        // Attribute Filters
-        if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
-        if ($request->filled('brand_id')) { $query->where('brand_id', $request->brand_id); }
-        if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
-        if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
-
-        if ($selectedVariationValueId) {
-            $query->whereHas('variations.attributeValues', function($q) use ($selectedVariationValueId) {
-                $q->where('variation_attribute_values.id', $selectedVariationValueId);
-            });
-        }
-
-        // Fetch products that have stock or history
-        $query->where(function($q) {
-            $q->whereHas('purchaseItems')
-              ->orWhereHas('branchStock')
-              ->orWhereHas('warehouseStock')
-              ->orWhereHas('variationStocks');
-        });
-
+        $query = $this->getStockQuery($request);
         $productStocks = $query->paginate((int) $request->get('per_page', 20))->appends($request->except('page'));
 
         // Load all movement relations for the paginated items
@@ -179,59 +127,10 @@ class StockController extends Controller
         }
 
         $products = $this->getStockQuery($request)->get();
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
 
-        // Load all movement relations
-        $products->load([
-            'purchaseItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('purchase');
-            },
-            'purchaseReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('purchaseReturn');
-            },
-            'saleItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('pos');
-            },
-            'invoiceItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-            },
-            'orderItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('order');
-            },
-            'saleReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('saleReturn');
-            },
-            'orderReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('orderReturn');
-            },
-            'stockAdjustmentItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('adjustment');
-            },
-            'stockTransfers' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-            },
-            'branchStock.branch',
-            'warehouseStock.warehouse',
-            'variationStocks.branch',
-            'variationStocks.warehouse'
-        ]);
+
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -445,60 +344,11 @@ class StockController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
-
         $products = $this->getStockQuery($request)->get();
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
         
-        $products->load([
-            'purchaseItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('purchase');
-            },
-            'purchaseReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('purchaseReturn');
-            },
-            'saleItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('pos');
-            },
-            'invoiceItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-            },
-            'orderItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('order');
-            },
-            'saleReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('saleReturn');
-            },
-            'orderReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('orderReturn');
-            },
-            'stockAdjustmentItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-                $q->with('adjustment');
-            },
-            'stockTransfers' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
-            },
-            'branchStock.branch',
-            'warehouseStock.warehouse',
-            'variationStocks.branch',
-            'variationStocks.warehouse'
-        ]);
+
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.productStock.stock-report-pdf', compact('products'));
         $pdf->setPaper('A4', 'landscape');
@@ -512,16 +362,27 @@ class StockController extends Controller
         $selectedWarehouseId = $request->warehouse_id;
         $selectedVariationValueId = $request->variation_value_id;
 
-        // Apply Month/Year merging logic to the request object if present
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
         if ($request->filled('filter_year')) {
             $year = $request->filter_year;
             $month = $request->filled('filter_month') ? str_pad($request->filter_month, 2, '0', STR_PAD_LEFT) : null;
             if ($month) {
-                $request->merge(['start_date' => "$year-$month-01", 'end_date' => date("Y-m-t", strtotime("$year-$month-01"))]);
+                $startDate = "$year-$month-01";
+                $endDate = date("Y-m-t", strtotime($startDate));
             } else {
-                $request->merge(['start_date' => "$year-01-01", 'end_date' => "$year-12-31"]);
+                $startDate = "$year-01-01";
+                $endDate = "$year-12-31";
             }
+        } elseif (!$startDate && !$endDate) {
+            $year = date('Y');
+            $startDate = "$year-01-01";
+            $endDate = "$year-12-31";
         }
+
+        // Merge back into request so relations can use them
+        $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
 
         $query = Product::with([
             'category:id,name', 
@@ -635,9 +496,6 @@ class StockController extends Controller
         if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
         if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
         
-        if ($request->filled('start_date')) { $query->whereDate('created_at', '>=', $request->start_date); }
-        if ($request->filled('end_date')) { $query->whereDate('created_at', '<=', $request->end_date); }
-
         return $query;
     }
 
