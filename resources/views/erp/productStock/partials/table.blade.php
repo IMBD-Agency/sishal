@@ -1,6 +1,7 @@
 @php
     $items = [];
-    $sl = $productStocks->firstItem();
+    $product_sl = $productStocks->firstItem();
+    $last_product_id = null;
 
     foreach ($productStocks as $product) {
         $productLocations = [];
@@ -245,8 +246,13 @@
                             $total_sale_val += $row_sale_val;
                             $total_rev += $row_rev;
                         @endphp
+                        @php
+                            $is_new_product = ($last_product_id !== $prod->id);
+                            $last_product_id = $prod->id;
+                            $display_sl = $is_new_product ? $product_sl++ : '';
+                        @endphp
                         <tr style="border-bottom: 1px solid #f0f0f0;">
-                            <td class="text-center text-muted small">{{ $sl++ }}</td>
+                            <td class="text-center text-muted small fw-bold">{{ $display_sl }}</td>
                             <td class="fw-bold text-dark py-3">
                                 {{ $prod->name }}
                                 @if($var) <br><small class="text-muted fw-normal">#{{ $var->sku }}</small> @endif
