@@ -184,7 +184,7 @@
                         <tr>
                             <td>{{ $sl++ }}</td>
                             <td class="text-left fw-bold">{{ $product->name }}</td>
-                            <td>{{ $product->style_number ?: '-' }}</td>
+                            <td>{{ $product->style_number ?: ($product->sku ?: '-') }}</td>
                             <td>{{ $color }}</td>
                             <td>{{ $size }}</td>
                             <td>{{ $location['name'] }}</td>

@@ -46,6 +46,10 @@ class StockController extends Controller
                 $startDate = "$year-01-01";
                 $endDate = "$year-12-31";
             }
+        } elseif (!$startDate && !$endDate) {
+            $year = date('Y');
+            $startDate = "$year-01-01";
+            $endDate = "$year-12-31";
         }
 
         // We build the query based on Variations if it exists, otherwise the Product itself

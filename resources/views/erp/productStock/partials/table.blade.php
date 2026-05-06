@@ -246,7 +246,7 @@
                                 {{ $prod->name }}
                                 @if($var) <br><small class="text-muted fw-normal">#{{ $var->sku }}</small> @endif
                             </td>
-                            <td class="text-center"><code>{{ $prod->style_number ?: '-' }}</code></td>
+                            <td class="text-center"><code>{{ $prod->style_number ?: ($prod->sku ?: '-') }}</code></td>
                             <td class="text-center"><span class="badge bg-light text-dark border fw-normal">{{ $color }}</span></td>
                             <td class="text-center"><span class="badge bg-light text-dark border fw-normal">{{ $size }}</span></td>
                             <td class="text-center">
