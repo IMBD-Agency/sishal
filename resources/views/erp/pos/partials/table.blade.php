@@ -57,6 +57,8 @@
 
                     $retQty = $item->returnItems->sum('returned_qty');
                     $retAmt = $item->returnItems->sum('total_price');
+                    $grossAmt = $item->quantity * $item->unit_price;
+                    $itemDiscount = $grossAmt - $item->total_price;
                     $actualQty = $item->quantity - $retQty;
                     $actualAmt = $item->total_price - $retAmt;
                 @endphp
@@ -99,9 +101,9 @@
                     
                     <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                     <td class="text-center bg-light">{{ $item->quantity }}</td>
-                    <td class="text-end bg-light">{{ number_format($item->total_price, 2) }}</td>
+                    <td class="text-end bg-light">{{ number_format($grossAmt, 2) }}</td>
                     <td class="text-end text-danger">
-                        @if($isFirst) {{ number_format($sale->discount, 2) }} @endif
+                        {{ number_format($itemDiscount, 2) }}
                     </td>
                     
                     <td class="text-center text-danger">{{ $retQty ?: '-' }}</td>
@@ -172,14 +174,14 @@
             <tr class="text-muted small border-top">
                 <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '16' : '15' }}" class="text-end">Page Subtotal</td>
                 <td class="text-center">{{ $items->sum('quantity') }}</td>
-                <td class="text-end">{{ number_format($items->sum('total_price'), 2) }}</td>
-                <td class="text-end text-danger">{{ number_format($sale->discount ?? 0, 2) }}</td>
+                <td class="text-end">{{ number_format($items->sum(function($i){ return $i->quantity * $i->unit_price; }), 2) }}</td>
+                <td class="text-end text-danger">{{ number_format($items->where('pos_sale_id', '!=', null)->unique('pos_sale_id')->sum('pos.discount'), 2) }}</td>
                 <td colspan="11"></td>
             </tr>
             <tr class="bg-soft-primary border-top-2">
                 <td colspan="{{ (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')) ? '16' : '15' }}" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
                 <td class="text-center py-3">{{ $reportTotals['sell_qty'] }}</td>
-                <td class="text-end py-3">{{ number_format($reportTotals['sell_amt'], 2) }}</td>
+                <td class="text-end py-3">{{ number_format($reportTotals['gross_amt'], 2) }}</td>
                 <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>
                 <td colspan="4" class="bg-light"></td>
                 <td class="text-end py-3">{{ number_format($reportTotals['delivery'], 2) }}</td>

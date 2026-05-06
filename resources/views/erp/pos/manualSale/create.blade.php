@@ -146,9 +146,9 @@
                                         <span class="text-muted">Discount</span>
                                         <span class="badge bg-info-subtle text-info ms-1 d-none" id="discountAmountBadge" style="font-size: 0.65rem;"></span>
                                     </div>
-                                    <input type="text" id="discountInput" class="form-control form-control-sm text-end fw-bold w-25" value="0">
+                                    <input type="text" id="discountInput" name="discount" class="form-control form-control-sm text-end fw-bold w-25" value="0">
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center mb-4"><span class="text-muted">Delivery</span><input type="number" id="deliveryInput" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
+                                <div class="d-flex justify-content-between align-items-center mb-4"><span class="text-muted">Delivery</span><input type="number" id="deliveryInput" name="delivery" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label-premium text-success mb-0">Paid Amount</label><button type="button" onclick="setExactManual()" class="btn btn-link btn-sm text-success p-0 text-decoration-none fw-bold" style="font-size: 0.7rem;">EXACT</button></div>
                                     <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg text-end fw-bold text-success border-success" value="0">
@@ -366,7 +366,28 @@ $(document).ready(function() {
         if (!$('#customerSelect').val()) return alert('Please select a customer first.');
         if (!cartItems.length) return alert('Add items first.');
         const fd = new FormData(this);
-        cartItems.forEach((it, i) => { fd.append(`items[${i}][product_id]`, it.product_id); fd.append(`items[${i}][variation_id]`, it.variation_id || ''); fd.append(`items[${i}][quantity]`, it.quantity); fd.append(`items[${i}][unit_price]`, it.unit_price); });
+        
+        // Calculate absolute discount for the backend
+        let sub = cartItems.reduce((a, i) => a + i.total, 0);
+        let discStr = $('#discountInput').val() || '0';
+        let discAmt = 0;
+        if (discStr.toString().includes('%')) {
+            discAmt = (sub * parseFloat(discStr)/100);
+        } else {
+            discAmt = parseFloat(discStr) || 0;
+        }
+        
+        fd.set('discount', discAmt);
+        fd.set('delivery_charge', $('#deliveryInput').val() || 0);
+        
+        cartItems.forEach((it, i) => { 
+            fd.append(`items[${i}][product_id]`, it.product_id); 
+            fd.append(`items[${i}][variation_id]`, it.variation_id || ''); 
+            fd.append(`items[${i}][quantity]`, it.quantity); 
+            fd.append(`items[${i}][unit_price]`, it.unit_price); 
+            fd.append(`items[${i}][total_price]`, it.total); 
+        });
+        
         const $btn = $('#submitBtn').prop('disabled', true).text('PROCESSING...');
         $.ajax({
             url: "{{ route('pos.manual.store') }}", method: 'POST', data: fd, processData: false, contentType: false,

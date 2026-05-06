@@ -35,7 +35,7 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row align-items-end g-3">
-                            <div class="position-relative" style="z-index: 1060;">
+                            <div class="position-relative">
                                 <label class="form-label small fw-bold text-muted text-uppercase">Sales Invoice No. *</label>
                                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
                                     <span class="input-group-text bg-white border-end-0 text-primary"><i class="fas fa-file-invoice"></i></span>
@@ -45,7 +45,7 @@
                                     </button>
                                 </div>
                                 <!-- Latest Invoices Dropdown -->
-                                <div id="latestInvoicesDropdown" class="position-absolute w-100 bg-white shadow-lg rounded-3 border mt-1 d-none" style="z-index: 9999; max-height: 350px; overflow-y: auto;">
+                                <div id="latestInvoicesDropdown" class="position-absolute w-100 bg-white shadow-lg rounded-3 border mt-1 d-none" style="z-index: 1000; max-height: 350px; overflow-y: auto;">
                                     <div class="p-2 border-bottom bg-light sticky-top">
                                         <small class="fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Recent 10 Sales</small>
                                     </div>
@@ -126,6 +126,7 @@
                                                 <th class="py-3 ps-3">Product</th>
                                                 <th class="text-center py-3" style="width: 120px;">Qty</th>
                                                 <th class="text-end py-3" style="width: 140px;">Price</th>
+                                                <th class="text-end py-3" style="width: 100px;">Disc</th>
                                                 <th class="text-end py-3">Total</th>
                                                 <th style="width: 50px;"></th>
                                             </tr>
@@ -283,6 +284,22 @@
         </div>
     </div>
 
+    <style>
+        /* Remove arrows from number inputs for a cleaner look in the table */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        .premium-table .form-control-sm {
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            border-color: #e2e8f0;
+        }
+    </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -403,7 +420,7 @@
                             <td class="ps-3">
                                 <strong>${item.product_name}</strong><br>
                                 <small class="text-muted"><i class="fas fa-tag me-1"></i>${item.style_number} | ${item.color} | ${item.size}</small>
-                                <div class="small text-muted mt-1">Sold Price: ${item.unit_price}</div>
+                                <div class="small text-muted mt-1">Unit Price: ${item.unit_price}</div>
                                 <input type="hidden" name="return_items[${index}][pos_item_id]" value="${item.id}">
                                 <input type="hidden" name="return_items[${index}][product_id]" value="${item.product_id}">
                                 <input type="hidden" name="return_items[${index}][variation_id]" value="${item.variation_id || ''}">
@@ -683,11 +700,14 @@
                             <input type="hidden" name="new_items[${index}][variation_id]" value="${variationId || ''}">
                         </td>
                         <td class="align-middle text-center py-3">
-                            <input type="number" name="new_items[${index}][qty]" class="form-control text-center new-qty" value="1" min="1" step="1" ${maxAttr} ${stockData} style="max-width: 100px; margin: 0 auto;">
+                            <input type="number" name="new_items[${index}][qty]" class="form-control form-control-sm text-center new-qty" value="1" min="1" step="1" ${maxAttr} ${stockData} style="width: 60px; margin: 0 auto;">
                             ${stockInfo}
                         </td>
                         <td class="align-middle text-end py-3">
-                            <input type="number" name="new_items[${index}][unit_price]" class="form-control text-end new-price" value="${price}" style="max-width: 120px; margin-left: auto;">
+                            <input type="number" name="new_items[${index}][unit_price]" class="form-control form-control-sm text-end new-price" value="${price}" style="width: 100px; margin-left: auto;">
+                        </td>
+                        <td class="align-middle text-end py-3">
+                            <input type="text" name="new_items[${index}][discount]" class="form-control form-control-sm text-end new-item-discount" value="0" style="width: 80px; margin-left: auto;">
                         </td>
                         <td class="text-end fw-bold align-middle py-3 row-new-total">${price}</td>
                         <td class="align-middle py-3 text-center"><button type="button" class="btn btn-sm btn-link text-danger remove-item p-0"><i class="fas fa-times"></i></button></td>
@@ -697,7 +717,7 @@
                 calculateAll();
             }
 
-            $(document).on('input', '.new-qty, .new-price, #discountInput, #deliveryInput, #paidInput', calculateAll);
+            $(document).on('input', '.new-qty, .new-price, .new-item-discount, #discountInput, #deliveryInput, #paidInput', calculateAll);
             $(document).on('change', 'input[name="discount_type"]', calculateAll);
 
             $(document).on('click', '.remove-item', function() {
@@ -714,8 +734,22 @@
                 });
                 
                 let totalPurchase = 0;
-                $('.row-new-total').each(function() {
-                    totalPurchase += parseFloat($(this).text()) || 0;
+                $('#newItemsTable tbody tr').each(function() {
+                    const $row = $(this);
+                    const qty = parseFloat($row.find('.new-qty').val()) || 0;
+                    const price = parseFloat($row.find('.new-price').val()) || 0;
+                    const itemDiscStr = $row.find('.new-item-discount').val() || '0';
+                    
+                    let itemDiscAmount = 0;
+                    if (itemDiscStr.toString().includes('%')) {
+                        itemDiscAmount = (qty * price * parseFloat(itemDiscStr)) / 100;
+                    } else {
+                        itemDiscAmount = parseFloat(itemDiscStr) || 0;
+                    }
+                    
+                    const rowTotal = (qty * price) - itemDiscAmount;
+                    $row.find('.row-new-total').text(rowTotal.toFixed(2));
+                    totalPurchase += rowTotal;
                 });
 
                 let discountVal = parseFloat($('#discountInput').val()) || 0;

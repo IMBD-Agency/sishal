@@ -251,7 +251,15 @@ class ExchangeController extends Controller
             
             $subTotal = 0;
             foreach ($request->new_items as $item) {
-                $subTotal += $item['qty'] * $item['unit_price'];
+                $itemGross = $item['qty'] * $item['unit_price'];
+                $itemDiscStr = $item['discount'] ?? 0;
+                $itemDisc = 0;
+                if (strpos($itemDiscStr, '%') !== false) {
+                    $itemDisc = ($itemGross * floatval($itemDiscStr)) / 100;
+                } else {
+                    $itemDisc = floatval($itemDiscStr);
+                }
+                $subTotal += ($itemGross - $itemDisc);
             }
             
             $netPurchase = ($subTotal + $newPos->delivery) - ($request->discount ?? 0);
@@ -380,14 +388,36 @@ class ExchangeController extends Controller
             foreach ($request->new_items as $item) {
                 $variationId = ($item['variation_id'] == 'null' || $item['variation_id'] == '') ? null : $item['variation_id'];
                 
+                $itemGross = $item['qty'] * $item['unit_price'];
+                $itemDiscStr = $item['discount'] ?? 0;
+                $itemDisc = 0;
+                if (strpos($itemDiscStr, '%') !== false) {
+                    $itemDisc = ($itemGross * floatval($itemDiscStr)) / 100;
+                } else {
+                    $itemDisc = floatval($itemDiscStr);
+                }
+                $itemNetTotal = $itemGross - $itemDisc;
+
                 PosItem::create([
                     'pos_sale_id' => $newPos->id,
                     'product_id' => $item['product_id'],
                     'variation_id' => $variationId,
                     'quantity' => $item['qty'],
                     'unit_price' => $item['unit_price'],
-                    'total_price' => $item['qty'] * $item['unit_price'],
+                    'total_price' => $itemNetTotal,
                 ]);
+
+                // Create Invoice Item
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'product_id' => $item['product_id'],
+                    'variation_id' => $variationId,
+                    'quantity' => $item['qty'],
+                    'unit_price' => $item['unit_price'],
+                    'discount'   => $itemDisc,
+                    'total_price' => $itemNetTotal,
+                ]);
+
                 // Deduct Stock
                 $this->deductStock($item['product_id'], $variationId, $item['qty'], $newPos->branch_id);
             }

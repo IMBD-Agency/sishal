@@ -503,6 +503,7 @@ class PosController extends Controller
             ->mergeBindings($query->getQuery())
             ->selectRaw("
                 SUM(quantity) as total_qty, 
+                SUM(quantity * unit_price) as gross_amount,
                 SUM(total_price) as total_amount
             ")
             ->first();
@@ -529,6 +530,7 @@ class PosController extends Controller
         // Pass all totals to the view
         $reportTotals = [
             'sell_qty' => $totalQty,
+            'gross_amt' => $itemTotals->gross_amount ?? 0,
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
             'discount' => $saleTotals->total_discount ?? 0,
