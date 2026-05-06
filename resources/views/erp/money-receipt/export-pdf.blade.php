@@ -49,7 +49,7 @@
                     <td>{{ $receipt->invoice->invoice_number ?? '-' }}</td>
                     <td class="text-end">{{ number_format($receipt->invoice->due_amount ?? 0, 2) }}</td>
                     <td class="text-end fw-bold">{{ number_format($receipt->amount, 2) }}</td>
-                    <td>{{ $receipt->payment_method }}</td>
+                    <td>{{ $receipt->account ? $receipt->account->provider_name : (ucfirst($receipt->payment_method) ?: 'Cash') }}</td>
                     <td>{{ $receipt->creator->name ?? '-' }}</td>
                 </tr>
             @endforeach

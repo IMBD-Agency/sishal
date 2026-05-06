@@ -15,6 +15,7 @@ use App\Models\PurchaseBill;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\ProductServiceCategory;
+use App\Models\ProductVariation;
 use App\Models\Brand;
 use App\Models\Season;
 use App\Models\Gender;
@@ -1825,6 +1826,98 @@ class ReportController extends Controller
         $writer = new Xlsx($spreadsheet);
         $writer->save('php://output');
         exit;
+    }
+
+    public function performanceReport(Request $request, \App\Services\PerformanceReportService $service)
+    {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfMonth();
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        $branchId = $request->get('branch_id');
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) $branchId = $restrictedBranchId;
+
+        if ($request->ajax() || $request->filled('export')) {
+            $finalData = $service->getPerformanceData(
+                $startDate, 
+                $endDate, 
+                $branchId, 
+                $request->get('product_id'), 
+                $request->get('category_id')
+            );
+
+            if ($request->filled('export')) {
+                if ($request->export == 'excel') return $this->exportPerformanceExcel($finalData, $startDate, $endDate);
+                if ($request->export == 'pdf') return $this->exportPerformancePdf($finalData, $startDate, $endDate);
+            }
+
+            return response()->json([
+                'data' => $finalData,
+                'summary' => [
+                    'total_net_sale' => $finalData->sum('net_sale_amount'),
+                    'total_net_cost' => $finalData->sum('net_purchase_cost'),
+                    'total_profit' => $finalData->sum('gross_profit'),
+                ]
+            ]);
+        }
+
+        $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+        $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
+
+        return view('erp.reports.performance', compact('startDate', 'endDate', 'branches', 'branchId', 'categories'));
+    }
+
+    private function exportPerformanceExcel($data, $startDate, $endDate)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $sheet->setCellValue('A1', 'Sales vs Purchase Performance Report');
+        $sheet->setCellValue('A2', 'Period: ' . $startDate->format('d/m/Y') . ' to ' . $endDate->format('d/m/Y'));
+        
+        $headers = ['Product', 'Style #', 'Variation', 'Sold Qty', 'Ret Qty', 'Net Qty', 'Net Sale', 'Net Cost', 'Profit', 'Margin %'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '4', $header);
+            $sheet->getStyle($col . '4')->getFont()->setBold(true);
+            $col++;
+        }
+
+        $row = 5;
+        foreach ($data as $item) {
+            $sheet->setCellValue('A' . $row, $item->product_name);
+            $sheet->setCellValue('B' . $row, $item->style_number);
+            $sheet->setCellValue('C' . $row, $item->variation_name);
+            $sheet->setCellValue('D' . $row, $item->sold_qty);
+            $sheet->setCellValue('E' . $row, $item->returned_qty);
+            $sheet->setCellValue('F' . $row, $item->net_qty);
+            $sheet->setCellValue('G' . $row, $item->net_sale_amount);
+            $sheet->setCellValue('H' . $row, $item->net_purchase_cost);
+            $sheet->setCellValue('I' . $row, $item->gross_profit);
+            $sheet->setCellValue('J' . $row, number_format($item->profit_margin, 2) . '%');
+            $row++;
+        }
+
+        $filename = "Performance_Report_" . date('Ymd_His') . ".xlsx";
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    private function exportPerformancePdf($data, $startDate, $endDate)
+    {
+        $summary = [
+            'total_sale' => $data->sum('net_sale_amount'),
+            'total_cost' => $data->sum('net_purchase_cost'),
+            'total_profit' => $data->sum('gross_profit'),
+        ];
+        $pdf = Pdf::loadView('erp.reports.pdf.performance', compact('data', 'startDate', 'endDate', 'summary'))->setPaper('a4', 'landscape');
+        return $pdf->download('Performance_Report_' . date('Y-m-d') . '.pdf');
     }
 
     private function exportExpensePdf($data)

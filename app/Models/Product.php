@@ -146,6 +146,36 @@ class Product extends Model
         return $this->hasMany(InvoiceItem::class, 'product_id');
     }
 
+    public function purchaseReturnItems()
+    {
+        return $this->hasMany(PurchaseReturnItem::class, 'product_id');
+    }
+
+    public function saleReturnItems()
+    {
+        return $this->hasMany(SaleReturnItem::class, 'product_id');
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class, 'product_id');
+    }
+
+    public function orderReturnItems()
+    {
+        return $this->hasMany(OrderReturnItem::class, 'product_id');
+    }
+
+    public function stockAdjustmentItems()
+    {
+        return $this->hasMany(StockAdjustmentItem::class, 'product_id');
+    }
+
+    public function stockTransfers()
+    {
+        return $this->hasMany(StockTransfer::class, 'product_id');
+    }
+
     public function reviews()
     {
         return $this->hasMany(Review::class);

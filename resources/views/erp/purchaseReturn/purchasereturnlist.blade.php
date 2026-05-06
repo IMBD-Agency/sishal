@@ -159,8 +159,10 @@
                                 @endforeach
                             </select>
                         </div>
-                <div class="card-footer bg-light border-top p-3 mt-3">
-                    <div class="d-flex justify-content-between align-items-center">
+                    </div>
+
+                    <!-- Filter Actions -->
+                    <div class="d-flex align-items-center justify-content-between border-top pt-3 mt-3">
                         <div class="d-flex gap-2">
                             <a href="{{ route('purchaseReturn.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
                                 <i class="fas fa-file-excel me-2"></i>Excel
@@ -168,7 +170,6 @@
                             <a href="{{ route('purchaseReturn.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
                                 <i class="fas fa-file-pdf me-2"></i>PDF
                             </a>
-                           
                         </div>
                         <div class="d-flex gap-2">
                             <a href="{{ route('purchaseReturn.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
@@ -179,10 +180,22 @@
                             </button>
                         </div>
                     </div>
-                </div>
                 </form>
             </div>
         </div>
+
+        @if(session('success') || session('error'))
+            <div class="row mb-3">
+                <div class="col-12">
+                    @if(session('success'))
+                        <script>window.addEventListener('DOMContentLoaded', () => erpNotify.success("{{ session('success') }}"));</script>
+                    @endif
+                    @if(session('error'))
+                        <script>window.addEventListener('DOMContentLoaded', () => erpNotify.error("{{ session('error') }}"));</script>
+                    @endif
+                </div>
+            </div>
+        @endif
 
             <!-- Script for Date Toggling -->
             <script>
@@ -257,18 +270,25 @@
                                         
                                         $purchase = $return->purchase;
                                         $product = $item->product;
-                                        $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
+                                        $variation = $item->variation;
                                         
                                         $color = '-'; $size = '-';
-                                        if ($variation && $variation->attributeValues) {
-                                            foreach($variation->attributeValues as $val) {
-                                                $attrName = strtolower($val->attribute->name ?? '');
-                                                if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
-                                                    $color = $val->value;
-                                                } elseif (str_contains($attrName, 'size')) {
-                                                    $size = $val->value;
+                                        if ($variation) {
+                                            if ($variation->attributeValues && $variation->attributeValues->count() > 0) {
+                                                foreach($variation->attributeValues as $val) {
+                                                    $attr = $val->attribute;
+                                                    if (!$attr) continue;
+                                                    
+                                                    $attrName = strtolower($attr->name);
+                                                    if (str_contains($attrName, 'color') || $attr->is_color) {
+                                                        $color = $val->value;
+                                                    } elseif (str_contains($attrName, 'size') || str_contains($attrName, 'fit')) {
+                                                        $size = $val->value;
+                                                    }
                                                 }
                                             }
+                                            
+                                            // No fallback here to prevent wrong data in color/size columns
                                         }
 
                                         $amount = $item->returned_qty * $item->unit_price;
@@ -310,7 +330,12 @@
                                         <td>{{ $product->brand->name ?? '-' }}</td>
                                         <td>{{ $product->season->name ?? '-' }}</td>
                                         <td>{{ $product->gender->name ?? '-' }}</td>
-                                        <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
+                                        <td class="fw-bold text-dark">
+                                            {{ $product->name ?? '-' }}
+                                            @if($variation && $variation->name && $variation->name !== $product->name)
+                                                <span class="text-muted small d-block">({{ $variation->name }})</span>
+                                            @endif
+                                        </td>
                                         <td><code class="text-primary bg-light px-2 py-1 rounded">{{ $product->sku ?? ($product->style_number ?? '-') }}</code></td>
                                         <td class="text-uppercase fw-bold">{{ $color }}</td>
                                         <td class="fw-bold">{{ $size }}</td>
@@ -318,10 +343,40 @@
                                         <td class="text-end fw-bold">{{ number_format($amount, 2) }}৳</td>
                                         <td class="pe-3">
                                             <div class="d-flex gap-2 justify-content-center">
-                                                <a href="{{ route('purchaseReturn.show', $return->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
-                                                    <i class="fas fa-eye text-primary"></i>
-                                                </a>
+                                                @if(auth()->user()->hasPermissionTo('view purchase returns'))
+                                                    <a href="{{ route('purchaseReturn.show', $return->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
+                                                        <i class="fas fa-eye text-primary"></i>
+                                                    </a>
+                                                @endif
+
+                                                @if($return->status === 'pending')
+                                                    @if(auth()->user()->hasPermissionTo('edit purchase returns'))
+                                                        <a href="{{ route('purchaseReturn.edit', $return->id) }}" class="action-circle bg-light border-0" title="Edit Return">
+                                                            <i class="fas fa-edit text-warning"></i>
+                                                        </a>
+                                                    @endif
+                                                    
+                                                    <button type="button" class="action-circle bg-light border-0 approve-return" 
+                                                        data-url="{{ route('purchaseReturn.updateStatus', $return->id) }}" 
+                                                        title="Approve & Complete">
+                                                        <i class="fas fa-check-circle text-success"></i>
+                                                    </button>
+                                                @endif
+
+                                                @if(auth()->user()->hasPermissionTo('delete purchase returns'))
+                                                    <button type="button" class="action-circle bg-light border-0 delete-return" 
+                                                        data-url="{{ route('purchaseReturn.delete', $return->id) }}"
+                                                        title="Delete Return">
+                                                        <i class="fas fa-trash text-danger"></i>
+                                                    </button>
+                                                @endif
                                             </div>
+                                            
+                                            <!-- Hidden Form for Approval -->
+                                            <form id="approve-form-{{ $return->id }}" action="{{ route('purchaseReturn.updateStatus', $return->id) }}" method="POST" style="display: none;">
+                                                @csrf
+                                                <input type="hidden" name="status" value="processed">
+                                            </form>
                                         </td>
                                     </tr>
                                 @empty
@@ -365,7 +420,14 @@
         </div>
     </div>
 
+    <!-- Global Delete Form -->
+    <form id="global-delete-form" method="POST" style="display: none;">
+        @csrf
+        @method('DELETE')
+    </form>
+
     <!-- Select2 Configuration -->
+    @push('scripts')
     <script>
         $(document).ready(function() {
 
@@ -381,6 +443,76 @@
                     });
                 }, 300);
             });
+
+            // Delete Confirmation (Standard ERP Pattern)
+            $(document).on('click', '.delete-return', function() {
+                const url = $(this).data('url');
+                
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "This return record will be deleted and stock/accounts will be reversed!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'No, cancel',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0',
+                        confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                        cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const form = $('#global-delete-form');
+                        form.attr('action', url);
+                        form.submit();
+                    }
+                });
+            });
+
+            // Quick Approval Action
+            $(document).on('click', '.approve-return', function() {
+                const url = $(this).data('url');
+                Swal.fire({
+                    title: 'Approve Return?',
+                    text: "This will mark the return as processed and finalize the transaction.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#198754',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, Approve',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0',
+                        confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                        cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: url,
+                            method: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                status: 'processed'
+                            },
+                            success: function(response) {
+                                if (response.success) {
+                                    Swal.fire('Success!', response.message, 'success').then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire('Error!', response.message, 'error');
+                                }
+                            },
+                            error: function(xhr) {
+                                Swal.fire('Error!', 'An error occurred during approval.', 'error');
+                            }
+                        });
+                    }
+                });
+            });
         });
     </script>
+    @endpush
 @endsection

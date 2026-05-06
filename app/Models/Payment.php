@@ -41,4 +41,9 @@ class Payment extends Model
     {
         return $this->belongsTo(\App\Models\Customer::class, 'customer_id');
     }
+
+    public function account()
+    {
+        return $this->belongsTo(\App\Models\FinancialAccount::class, 'account_id');
+    }
 }

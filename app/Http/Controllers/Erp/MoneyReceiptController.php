@@ -25,12 +25,13 @@ class MoneyReceiptController extends Controller
         if (!auth()->user()->hasPermissionTo('view money receipts')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos'])
+        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos', 'account'])
             ->whereNotNull('customer_id');
 
         $query = $this->applyFilters($query, $request);
 
-        $receipts = $query->latest('id')->paginate(20)->appends($request->all());
+        $perPage = $request->input('per_page', 20);
+        $receipts = $query->latest('id')->paginate($perPage)->appends($request->all());
         $totalAmount = $query->sum('amount');
 
         if ($request->ajax()) {
@@ -42,13 +43,16 @@ class MoneyReceiptController extends Controller
         }
 
         $customers = Customer::orderBy('name')->get();
+        $recentReceipts = Payment::whereNotNull('payment_reference')->latest()->take(50)->get();
+        $recentInvoices = Invoice::latest()->take(50)->get();
+
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = \App\Models\Branch::where('id', $restrictedBranchId)->get();
         } else {
             $branches = \App\Models\Branch::all();
         }
-        return view('erp.money-receipt.index', compact('receipts', 'totalAmount', 'customers', 'branches'));
+        return view('erp.money-receipt.index', compact('receipts', 'totalAmount', 'customers', 'branches', 'recentReceipts', 'recentInvoices'));
     }
 
     public function create()
@@ -60,7 +64,35 @@ class MoneyReceiptController extends Controller
         // Generate Receipt No: MR-YYYYMMDD-SEQU
         $receiptNo = $this->generateReceiptNumber();
 
-        return view('erp.money-receipt.create', compact('customers', 'receiptNo'));
+        $user = auth()->user();
+        $bankAccounts = FinancialAccount::all();
+        if ($user && $user->employee && $user->employee->branch_id) {
+            $bankAccounts = $bankAccounts->where('branch_id', $user->employee->branch_id);
+        } else {
+            $bankAccounts = $bankAccounts->whereNull('branch_id');
+        }
+
+        return view('erp.money-receipt.create', compact('customers', 'receiptNo', 'bankAccounts'));
+    }
+
+    public function show($id)
+    {
+        if (!auth()->user()->hasPermissionTo('view money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $receipt = Payment::with(['customer', 'invoice', 'creator.employee', 'pos.branch'])->findOrFail($id);
+        
+        // If they want PDF/Print
+        if (request('action') === 'print') {
+            $general_settings = \App\Models\GeneralSetting::first();
+            $pdf = Pdf::loadView('erp.money-receipt.show', compact('receipt', 'general_settings'));
+            // Use thermal paper size (approx 80mm width) or A4? 
+            // Let's use A4 portrait for manual receipts to be safe, or just return view.
+            return $pdf->stream('receipt-'.$receipt->payment_reference.'.pdf');
+        }
+
+        return view('erp.money-receipt.show', compact('receipt'));
     }
 
     public function getDueInvoices($customerId)
@@ -100,7 +132,7 @@ class MoneyReceiptController extends Controller
             $payment->invoice_id = $request->invoice_id; // Can be null (Advance/account payment)
             $payment->payment_date = $request->payment_date;
             $payment->amount = $request->amount;
-            $payment->payment_method = $request->payment_method ?? 'Cash';
+            $payment->payment_method = $request->payment_method ?? 'cash';
             $payment->payment_reference = $receiptNo;
             $payment->note = $request->note;
             $payment->payment_for = 'manual_receipt';
@@ -159,6 +191,10 @@ class MoneyReceiptController extends Controller
             }
 
             if ($financialAccount && $financialAccount->account_id) {
+                // Update the real balance to maintain the Cash/Bank Book
+                $financialAccount->balance += $payment->amount;
+                $financialAccount->save();
+
                 $voucherNo = 'REC-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
                 while (Journal::where('voucher_no', $voucherNo)->exists()) {
                     $voucherNo = 'REC-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
@@ -219,6 +255,177 @@ class MoneyReceiptController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error creating receipt: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function edit($id)
+    {
+        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $receipt = Payment::findOrFail($id);
+        $customers = Customer::orderBy('name')->get();
+        $bankAccounts = FinancialAccount::all();
+        
+        // Load invoices for the selected customer
+        $invoices = Invoice::where('customer_id', $receipt->customer_id)
+            ->where(function($q) use ($receipt) {
+                $q->where('status', '!=', 'paid')
+                  ->orWhere('id', $receipt->invoice_id);
+            })
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return view('erp.money-receipt.edit', compact('receipt', 'customers', 'bankAccounts', 'invoices'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'payment_date' => 'required|date',
+            'customer_id' => 'required|exists:customers,id',
+            'invoice_id' => 'nullable|exists:invoices,id',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'nullable|string',
+            'note' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $payment = Payment::findOrFail($id);
+            $oldAmount = $payment->amount;
+            $oldCustomerId = $payment->customer_id;
+            $oldInvoiceId = $payment->invoice_id;
+            $oldAccountId = $payment->account_id;
+
+            // 1. Revert Old Balance/Invoice/Account
+            if ($oldCustomerId) {
+                $balance = \App\Models\Balance::where('source_type', 'customer')->where('source_id', $oldCustomerId)->first();
+                if ($balance) {
+                    $balance->balance += $oldAmount;
+                    $balance->save();
+                }
+            }
+
+            if ($oldInvoiceId) {
+                $oldInvoice = Invoice::find($oldInvoiceId);
+                if ($oldInvoice) {
+                    $oldInvoice->paid_amount -= $oldAmount;
+                    $oldInvoice->due_amount += $oldAmount;
+                    if ($oldInvoice->paid_amount <= 0) $oldInvoice->status = 'unpaid';
+                    elseif ($oldInvoice->paid_amount < $oldInvoice->total_amount) $oldInvoice->status = 'partial';
+                    $oldInvoice->save();
+                }
+            }
+
+            if ($oldAccountId) {
+                $oldAccount = FinancialAccount::find($oldAccountId);
+                if ($oldAccount) {
+                    $oldAccount->balance -= $oldAmount;
+                    $oldAccount->save();
+                }
+            }
+
+            // Delete old Journal/JournalEntries
+            Journal::where('reference', $payment->payment_reference)->delete();
+
+            // 2. Apply New Changes
+            $payment->customer_id = $request->customer_id;
+            $payment->invoice_id = $request->invoice_id;
+            $payment->payment_date = $request->payment_date;
+            $payment->amount = $request->amount;
+            $payment->payment_method = $request->payment_method;
+            $payment->note = $request->note;
+            $payment->account_id = $request->account_id;
+            $payment->save();
+
+            // Update New Balance
+            if ($request->customer_id) {
+                $balance = \App\Models\Balance::where('source_type', 'customer')->where('source_id', $request->customer_id)->first();
+                if ($balance) {
+                    $balance->balance -= $request->amount;
+                    $balance->save();
+                } else {
+                    \App\Models\Balance::create([
+                        'source_type' => 'customer',
+                        'source_id' => $request->customer_id,
+                        'balance' => -$request->amount,
+                        'description' => 'Manual Receipt (Updated) - ' . $payment->payment_reference,
+                    ]);
+                }
+            }
+
+            // Update New Invoice
+            if ($request->invoice_id) {
+                $invoice = Invoice::find($request->invoice_id);
+                if ($invoice) {
+                    $invoice->paid_amount += $request->amount;
+                    $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                    if ($invoice->paid_amount >= $invoice->total_amount) $invoice->status = 'paid';
+                    else $invoice->status = 'partial';
+                    $invoice->save();
+                }
+            }
+
+            // Update New Account
+            $financialAccount = FinancialAccount::find($request->account_id);
+            if (!$financialAccount) {
+                $financialAccount = FinancialAccount::where('type', $request->payment_method)->first();
+            }
+
+            if ($financialAccount) {
+                $financialAccount->balance += $request->amount;
+                $financialAccount->save();
+
+                // Recreate Journal Entry
+                $voucherNo = 'REC-UPD-' . $payment->id;
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $payment->payment_date,
+                    'type'           => 'Receipt',
+                    'description'    => 'Updated Receipt #' . $payment->payment_reference,
+                    'customer_id'    => $payment->customer_id,
+                    'voucher_amount' => $payment->amount,
+                    'paid_amount'    => $payment->amount,
+                    'reference'      => $payment->payment_reference,
+                    'created_by'     => auth()->id(),
+                    'updated_by'     => auth()->id(),
+                ]);
+
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $financialAccount->account_id,
+                    'financial_account_id' => $financialAccount->id,
+                    'debit' => $payment->amount,
+                    'credit' => 0,
+                    'memo' => 'Collection (Updated)',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+
+                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $arAccount->id,
+                    'debit' => 0,
+                    'credit' => $payment->amount,
+                    'memo' => 'Manual Receipt (Updated)',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('money-receipt.index')->with('success', "Money Receipt updated successfully.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error updating receipt: ' . $e->getMessage());
         }
     }
 
@@ -357,6 +564,16 @@ class MoneyReceiptController extends Controller
             $query->where('payment_method', $request->payment_method);
         }
 
+        if ($request->filled('receipt_no')) {
+            $query->where('payment_reference', 'like', "%{$request->receipt_no}%");
+        }
+
+        if ($request->filled('invoice_no')) {
+            $query->whereHas('invoice', function($q) use ($request) {
+                $q->where('invoice_number', 'like', "%{$request->invoice_no}%");
+            });
+        }
+
         if ($request->filled('branch_id')) {
             $branchId = $request->branch_id;
             $query->where(function($q) use ($branchId) {
@@ -385,12 +602,12 @@ class MoneyReceiptController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         
         $headers = [
-            'Serial No', 'Receipt No', 'Receipt Date', 'Invoice Date', 'Customer', 'Mobile', 
+            'Serial No', 'Receipt No', 'Receipt Date', 'Invoice Date', 'Customer', 
             'Outlet', 'Sales Invoice', 'Due Amount', 'Paid Amount', 'Account', 'Collector'
         ];
         
         $sheet->fromArray([$headers], NULL, 'A1');
-        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:K1')->getFont()->setBold(true);
 
         $rowNum = 2;
         foreach ($receipts as $index => $receipt) {
@@ -400,12 +617,11 @@ class MoneyReceiptController extends Controller
                 Carbon::parse($receipt->payment_date)->format('d/m/Y'),
                 $receipt->invoice ? Carbon::parse($receipt->invoice->issue_date)->format('d/m/Y') : '-',
                 $receipt->customer->name ?? 'Walk-in',
-                $receipt->customer->phone ?? '-',
                 $receipt->pos->branch->name ?? $receipt->invoice->pos->branch->name ?? '-',
                 $receipt->invoice->invoice_number ?? '-',
                 $receipt->invoice->due_amount ?? 0,
                 $receipt->amount,
-                $receipt->payment_method,
+                $receipt->account ? $receipt->account->provider_name : (ucfirst($receipt->payment_method) ?: 'Cash'),
                 $receipt->creator->name ?? '-'
             ];
             $sheet->fromArray([$data], NULL, 'A' . $rowNum);
@@ -426,7 +642,7 @@ class MoneyReceiptController extends Controller
         if (!auth()->user()->hasPermissionTo('view money receipts')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos'])
+        $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos', 'account'])
             ->whereNotNull('customer_id');
         $query = $this->applyFilters($query, $request);
         $receipts = $query->latest('id')->get();

@@ -133,9 +133,39 @@
                     </td>
                     <td class="pe-3">
                         <div class="d-flex gap-2 justify-content-center">
-                            <a href="{{ route('purchase.show', $purchase->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
-                                <i class="fas fa-eye text-primary"></i>
-                            </a>
+                            @if(auth()->user()->hasPermissionTo('view purchases'))
+                                <a href="{{ route('purchase.show', $purchase->id) }}" class="action-circle bg-light border-0" title="View Audit Detail">
+                                    <i class="fas fa-eye text-primary"></i>
+                                </a>
+                            @endif
+
+                            @if(auth()->user()->hasPermissionTo('edit purchases'))
+                                <a href="{{ route('purchase.edit', $purchase->id) }}" class="action-circle bg-light border-0" title="Edit Purchase">
+                                    <i class="fas fa-edit text-warning"></i>
+                                </a>
+                            @endif
+
+                            @if(auth()->user()->hasPermissionTo('manage products'))
+                                <a href="{{ route('barcodes.index', ['style_no' => optional($product)->sku ?? optional($product)->style_number ?? '']) }}" class="action-circle bg-light border-0" title="Generate Barcodes">
+                                    <i class="fas fa-barcode text-info"></i>
+                                </a>
+                            @endif
+
+                            @if(auth()->user()->hasPermissionTo('manage payments'))
+                                <a href="{{ route('supplier-payments.create', ['supplier_id' => $purchase->supplier_id, 'bill_id' => $bill->id ?? '']) }}" class="action-circle bg-light border-0" title="Record Payment">
+                                    <i class="fas fa-money-bill-wave text-success"></i>
+                                </a>
+                            @endif
+
+                            @if(auth()->user()->hasPermissionTo('delete purchases'))
+                                <button type="button" class="action-circle bg-light border-0 delete-purchase" data-id="{{ $purchase->id }}" title="Delete Purchase">
+                                    <i class="fas fa-trash text-danger"></i>
+                                </button>
+                                <form id="delete-form-{{ $purchase->id }}" action="{{ route('purchase.delete', $purchase->id) }}" method="POST" style="display: none;">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
+                            @endif
                         </div>
                     </td>
                 </tr>

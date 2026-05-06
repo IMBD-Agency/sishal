@@ -88,14 +88,25 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                // Pre-fetch purchase items for initial load to avoid "No results found"
+                                $initialPurchaseItems = \App\Models\PurchaseItem::where('purchase_id', $purchaseReturn->purchase_id)->with(['product', 'variation'])->get();
+                            @endphp
                             @foreach($purchaseReturn->items as $index => $item)
                             <tr>
                                 <td>
                                     <select name="items[{{ $index }}][product_id]" class="form-select product-select" required>
                                         <option value="">Select Product</option>
-                                        <!-- Will be populated by JS based on purchase selection -->
+                                        @foreach($initialPurchaseItems as $pItem)
+                                            <option value="{{ $pItem->product_id }}" 
+                                                data-variation-id="{{ $pItem->variation_id }}"
+                                                {{ ($item->product_id == $pItem->product_id && $item->variation_id == $pItem->variation_id) ? 'selected' : '' }}>
+                                                {{ $pItem->product->name }} {{ $pItem->variation ? '('.$pItem->variation->name.')' : '' }}
+                                            </option>
+                                        @endforeach
                                     </select>
                                     <input type="hidden" name="items[{{ $index }}][purchase_item_id]" class="purchase-item-id" value="{{ $item->purchase_item_id }}">
+                                    <input type="hidden" name="items[{{ $index }}][variation_id]" class="variation-id" value="{{ $item->variation_id }}">
                                 </td>
                                 <td>
                                     <div class="d-flex gap-2 align-items-center">
@@ -143,7 +154,7 @@
             }
 
             $.ajax({
-                url: `/erp/purchase-products/search/${purchaseId}`,
+                url: `/erp/purchase-return/purchase/${purchaseId}/items`,
                 method: 'GET',
                 success: function(response) {
                     purchaseItems = response.results;
@@ -170,7 +181,7 @@
                         select.append('<option value="">Select Product</option>');
                         purchaseItems.forEach(item => {
                             select.append(
-                                `<option value="${item.product_id}">${item.product_name}</option>`
+                                `<option value="${item.product_id}" data-variation-id="${item.variation_id || ''}">${item.product_name}</option>`
                                 );
                         });
                         // Reinitialize Select2 for this dropdown
@@ -275,9 +286,12 @@
             // When product is selected, auto-fill unit price
             $(document).on('change', '.product-select', function() {
                 const productId = $(this).val();
+                const variationId = $(this).find('option:selected').data('variation-id');
                 const row = $(this).closest('tr');
-                // Find the purchase item in your purchaseItems array
-                const purchaseItem = purchaseItems.find(item => item.product_id == productId);
+                
+                row.find('.variation-id').val(variationId);
+
+                const purchaseItem = purchaseItems.find(item => item.product_id == productId && (item.variation_id == variationId || (!item.variation_id && !variationId)));
                 if (purchaseItem) {
                     row.find('.purchase-item-id').val(purchaseItem.id);
                     row.find('.unit_price').val(purchaseItem.unit_price);
@@ -302,9 +316,10 @@
                     <td>
                         <select name="items[${itemIndex}][product_id]" class="form-select product-select" required>
                             <option value="">Select Product</option>
-                            ${purchaseItems.map(item => `<option value="${item.product_id}">${item.product_name}</option>`).join('')}
+                            ${purchaseItems.map(item => `<option value="${item.product_id}" data-variation-id="${item.variation_id || ''}">${item.product_name}</option>`).join('')}
                         </select>
                         <input type="hidden" name="items[${itemIndex}][purchase_item_id]" class="purchase-item-id">
+                        <input type="hidden" name="items[${itemIndex}][variation_id]" class="variation-id">
                     </td>
                     <td>
                         <div class="d-flex gap-2 align-items-center">

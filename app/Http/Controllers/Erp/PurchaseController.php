@@ -383,7 +383,7 @@ class PurchaseController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+        if (!auth()->user()->hasPermissionTo('create purchases')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -435,7 +435,7 @@ class PurchaseController extends Controller
                 'ship_location_type'  => $locationType,
                 'location_id'         => $locationId,
                 'purchase_date'       => $request->purchase_date,
-                'status'              => 'received',
+                'status'              => 'pending',
                 'created_by'          => auth()->id(),
                 'notes'               => $request->notes,
             ]);
@@ -457,8 +457,9 @@ class PurchaseController extends Controller
             }
             PurchaseItem::insert($itemsToInsert);
 
-            // Update stock immediately for direct purchase
-            $this->increaseStock($purchase);
+            // NOTE: Stock is NOT increased on creation.
+            // An authorized user must manually approve the purchase (set status to 'received')
+            // via the Purchase show page before stock is updated.
     
             // Create Bill (only if supplier is provided)
             if ($request->supplier_id) {
@@ -661,7 +662,7 @@ class PurchaseController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+        if (!auth()->user()->hasPermissionTo('edit purchases')) {
             abort(403, 'Unauthorized action.');
         }
         $purchase = Purchase::with('items')->findOrFail($id);
@@ -679,7 +680,7 @@ class PurchaseController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+        if (!auth()->user()->hasPermissionTo('edit purchases')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -769,7 +770,7 @@ class PurchaseController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+        if (!auth()->user()->hasPermissionTo('edit purchases')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -789,7 +790,7 @@ class PurchaseController extends Controller
 
     public function delete($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+        if (!auth()->user()->hasPermissionTo('delete purchases')) {
             abort(403, 'Unauthorized action.');
         }
         DB::beginTransaction();

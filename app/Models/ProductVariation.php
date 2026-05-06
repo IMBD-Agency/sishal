@@ -75,6 +75,51 @@ class ProductVariation extends Model
         return $this->hasMany(ProductVariationStock::class, 'variation_id');
     }
 
+    public function purchaseItems(): HasMany
+    {
+        return $this->hasMany(PurchaseItem::class, 'variation_id');
+    }
+
+    public function purchaseReturnItems(): HasMany
+    {
+        return $this->hasMany(PurchaseReturnItem::class, 'variation_id');
+    }
+
+    public function saleItems(): HasMany
+    {
+        return $this->hasMany(PosItem::class, 'variation_id');
+    }
+
+    public function saleReturnItems(): HasMany
+    {
+        return $this->hasMany(SaleReturnItem::class, 'variation_id');
+    }
+
+    public function invoiceItems(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class, 'variation_id');
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class, 'variation_id');
+    }
+
+    public function orderReturnItems(): HasMany
+    {
+        return $this->hasMany(OrderReturnItem::class, 'variation_id');
+    }
+
+    public function stockAdjustmentItems(): HasMany
+    {
+        return $this->hasMany(StockAdjustmentItem::class, 'variation_id');
+    }
+
+    public function stockTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class, 'variation_id');
+    }
+
     /**
      * Get the variation galleries.
      */

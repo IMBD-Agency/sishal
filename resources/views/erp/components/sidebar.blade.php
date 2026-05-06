@@ -159,6 +159,12 @@
                 <span>Stock Transfer</span>
             </a>
         </div>
+        <div class="nav-item">
+            <a href="{{ route('requisition.index') }}" class="nav-link {{ request()->is('erp/requisition*') ? ' active' : '' }}">
+                <i class="fas fa-file-invoice nav-icon text-info"></i>
+                <span>Requisition</span>
+            </a>
+        </div>
         @endcan
 
         @can('view vouchers')

@@ -32,7 +32,7 @@ class PurchaseReturnController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'daily');
@@ -59,7 +59,7 @@ class PurchaseReturnController extends Controller
             'product.brand', 
             'product.season', 
             'product.gender',
-            'purchaseItem.variation',
+            'variation.attributeValues.attribute',
             'branch',
             'warehouse'
         ]);
@@ -91,7 +91,7 @@ class PurchaseReturnController extends Controller
 
     public function exportExcel(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'daily');
@@ -206,7 +206,7 @@ class PurchaseReturnController extends Controller
 
     public function exportPdf(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'daily');
@@ -321,7 +321,7 @@ class PurchaseReturnController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('create purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -502,7 +502,7 @@ class PurchaseReturnController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('create purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -576,12 +576,10 @@ class PurchaseReturnController extends Controller
                 'supplier_id' => $supplierId,
                 'return_date' => $request->return_date,
                 'return_type' => $request->return_type,
-                'status'      => 'processed', 
+                'status'      => 'pending', 
                 'reason'      => $request->reason,
                 'notes'       => $request->notes,
                 'created_by'  => Auth::id(),
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
             ]);
 
             $totalReturnAmount = 0;
@@ -605,111 +603,23 @@ class PurchaseReturnController extends Controller
                     'return_from_type'   => !empty($item['return_from']) ? $item['return_from'] : 'warehouse',
                     'return_from_id'     => !empty($item['from_id']) ? $item['from_id'] : 1, // Fallback to main
                 ]);
-
-                $this->adjustStockForReturnItem($returnItem);
             }
 
-            // =====================================================
-            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
-            // =====================================================
-            if ($totalReturnAmount > 0) {
-                // Find or Create Purchase Return Account (Contra-Expense / Income)
-                $purchaseReturnAcc = ChartOfAccount::where('name', 'like', '%Purchase Return%')->first();
-                if (!$purchaseReturnAcc) {
-                    $revenueType = ChartOfAccountType::where('name', 'Revenue')->first() ?? ChartOfAccountType::find(4);
-                    
-                    // Satisfaction of hierarchical constraints
-                    $revenueSubType = ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
-                    if (!$revenueSubType) {
-                        $revenueSubType = ChartOfAccountSubType::create(['name' => 'Sales/Purchase Revenue', 'type_id' => $revenueType->id]);
-                    }
-                    
-                    $revenueParent = ChartOfAccountParent::where('type_id', $revenueType->id)->first();
-                    if (!$revenueParent) {
-                        $revenueParent = ChartOfAccountParent::create([
-                            'name' => 'Operating Revenue',
-                            'type_id' => $revenueType->id,
-                            'sub_type_id' => $revenueSubType->id,
-                            'code' => '4000',
-                            'created_by' => auth()->id()
-                        ]);
-                    }
-
-                    $purchaseReturnAcc = ChartOfAccount::create([
-                        'name' => 'Purchase Returns',
-                        'type_id' => $revenueType->id,
-                        'sub_type_id' => $revenueSubType->id,
-                        'parent_id' => $revenueParent->id,
-                        'code' => '40003',
-                        'status' => 'active',
-                        'created_by' => auth()->id()
-                    ]);
+            // 4. Handle Stock and Accounting ONLY if status is processed
+            if ($purchaseReturn->status === 'processed') {
+                foreach ($purchaseReturn->items as $item) {
+                    $this->adjustStockForReturnItem($item);
                 }
-
-                $voucherNo = 'PRT-' . str_pad($purchaseReturn->id, 6, '0', STR_PAD_LEFT);
-                while (Journal::where('voucher_no', $voucherNo)->exists()) {
-                    $voucherNo = 'PRT-' . str_pad($purchaseReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
-                }
-
-                $journal = Journal::create([
-                    'voucher_no'     => $voucherNo,
-                    'entry_date'     => $purchaseReturn->return_date,
-                    'type'           => 'Receipt',
-                    'description'    => 'Purchase Return #' . $purchaseReturn->id . ($purchaseReturn->purchase_id ? ' against Inv #' . $purchaseReturn->purchase_id : ' (Global)'),
-                    'supplier_id'    => $purchaseReturn->supplier_id,
-                    'voucher_amount' => $totalReturnAmount,
-                    'paid_amount'    => ($request->return_type == 'refund') ? $totalReturnAmount : 0,
-                    'reference'      => 'PR-' . $purchaseReturn->id,
-                    'created_by'     => auth()->id(),
-                    'updated_by'     => auth()->id(),
-                ]);
-
-                // 1. DEBIT side (What we get back)
-                if ($request->return_type == 'refund') {
-                    // Money back to Bank/Cash
-                    $finAcc = FinancialAccount::find($request->account_id);
-                    if ($finAcc) {
-                        JournalEntry::create([
-                            'journal_id'           => $journal->id,
-                            'chart_of_account_id'  => $finAcc->account_id,
-                            'financial_account_id' => $finAcc->id,
-                            'debit'                => $totalReturnAmount,
-                            'credit'               => 0,
-                            'memo'                 => 'Refund from Supplier',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
-                        ]);
-                    }
-                } else if ($request->return_type == 'adjust_to_due') {
-                    // Reduce what we owe (Accounts Payable)
-                    $apAccount = ChartOfAccount::where('name', 'like', '%Payable%')->first();
-                    if ($apAccount) {
-                        JournalEntry::create([
-                            'journal_id'           => $journal->id,
-                            'chart_of_account_id'  => $apAccount->id,
-                            'debit'                => $totalReturnAmount,
-                            'credit'               => 0,
-                            'memo'                 => 'Return adjusted against supplier balance',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
-                        ]);
-                    }
-                }
-
-                // 2. CREDIT side (Inventory reduction / Purchase Return)
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $purchaseReturnAcc->id,
-                    'debit'                => 0,
-                    'credit'               => $totalReturnAmount,
-                    'memo'                 => 'Inventory returned to supplier',
-                    'created_by'           => auth()->id(),
-                    'updated_by'           => auth()->id(),
-                ]);
+                $this->createJournalForReturn($purchaseReturn, $request->return_type, $request->account_id);
             }
 
             DB::commit();
-            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return created and accounting entries generated successfully.');
+            
+            $msg = $purchaseReturn->status === 'processed' 
+                ? 'Purchase return created and processed successfully.' 
+                : 'Purchase return created and awaiting approval.';
+                
+            return redirect()->route('purchaseReturn.list')->with('success', $msg);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Purchase Return Store Error: ' . $e->getMessage());
@@ -717,9 +627,96 @@ class PurchaseReturnController extends Controller
         }
     }
 
+    /**
+     * Create Journal Entry for a Purchase Return
+     */
+    private function createJournalForReturn($purchaseReturn, $returnType, $accountId = null)
+    {
+        $totalReturnAmount = $purchaseReturn->items->sum('total_price');
+        if ($totalReturnAmount <= 0) return;
+
+        // Find or Create Purchase Return Account
+        $purchaseReturnAcc = ChartOfAccount::where('name', 'like', '%Purchase Return%')->first();
+        if (!$purchaseReturnAcc) {
+            $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+            $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+            $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+
+            $purchaseReturnAcc = ChartOfAccount::create([
+                'name' => 'Purchase Returns',
+                'type_id' => $revenueType->id,
+                'sub_type_id' => $revenueSubType->id ?? null,
+                'parent_id' => $revenueParent->id ?? null,
+                'code' => '40003',
+                'status' => 'active',
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id()
+            ]);
+        }
+
+        $voucherNo = 'PRT-' . str_pad($purchaseReturn->id, 6, '0', STR_PAD_LEFT);
+        while (Journal::where('voucher_no', $voucherNo)->exists()) {
+            $voucherNo = 'PRT-' . str_pad($purchaseReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+        }
+
+        $journal = Journal::create([
+            'voucher_no'     => $voucherNo,
+            'entry_date'     => $purchaseReturn->return_date,
+            'type'           => 'Receipt',
+            'description'    => 'Purchase Return #' . $purchaseReturn->id . ($purchaseReturn->purchase_id ? ' against Inv #' . $purchaseReturn->purchase_id : ''),
+            'supplier_id'    => $purchaseReturn->supplier_id,
+            'voucher_amount' => $totalReturnAmount,
+            'paid_amount'    => ($returnType == 'refund') ? $totalReturnAmount : 0,
+            'reference'      => 'PR-' . $purchaseReturn->id,
+            'created_by'     => auth()->id(),
+            'updated_by'     => auth()->id(),
+        ]);
+
+        // 1. DEBIT side
+        if ($returnType == 'refund' && $accountId) {
+            $finAcc = FinancialAccount::find($accountId);
+            if ($finAcc) {
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $finAcc->account_id,
+                    'financial_account_id' => $finAcc->id,
+                    'debit'                => $totalReturnAmount,
+                    'credit'               => 0,
+                    'memo'                 => 'Refund from Supplier',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+            }
+        } else if ($returnType == 'adjust_to_due') {
+            $apAccount = ChartOfAccount::where('name', 'like', '%Payable%')->first();
+            if ($apAccount) {
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $apAccount->id,
+                    'debit'                => $totalReturnAmount,
+                    'credit'               => 0,
+                    'memo'                 => 'Adjusted against supplier balance',
+                    'created_by'           => auth()->id(),
+                    'updated_by'           => auth()->id(),
+                ]);
+            }
+        }
+
+        // 2. CREDIT side
+        JournalEntry::create([
+            'journal_id'           => $journal->id,
+            'chart_of_account_id'  => $purchaseReturnAcc->id,
+            'debit'                => 0,
+            'credit'               => $totalReturnAmount,
+            'memo'                 => 'Inventory returned',
+            'created_by'           => auth()->id(),
+            'updated_by'           => auth()->id(),
+        ]);
+    }
+
     public function show($id)
     {
-        if (!auth()->user()->hasPermissionTo('view returns')) {
+        if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $purchaseReturn = PurchaseReturn::with([
@@ -738,7 +735,7 @@ class PurchaseReturnController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('edit purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $purchaseReturn = PurchaseReturn::with([
@@ -751,10 +748,10 @@ class PurchaseReturnController extends Controller
             'items.employee'
         ])->findOrFail($id);
 
-        // Check if return can be edited (only pending returns can be edited)
+        // Security check: only pending returns can be edited
         if ($purchaseReturn->status !== 'pending') {
             return redirect()->route('purchaseReturn.show', $id)
-                ->with('error', 'Only pending purchase returns can be edited.');
+                ->with('error', 'Only pending purchase returns can be edited for safety.');
         }
 
         $branches = Branch::all();
@@ -765,7 +762,7 @@ class PurchaseReturnController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('edit purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $purchaseReturn = PurchaseReturn::findOrFail($id);
@@ -821,7 +818,22 @@ class PurchaseReturnController extends Controller
 
         DB::beginTransaction();
         try {
-            // Update purchase return
+            $oldStatus = $purchaseReturn->status;
+
+            // 1. REVERSE old stock and accounting if it was processed
+            if ($oldStatus === 'processed') {
+                foreach ($purchaseReturn->items as $item) {
+                    $this->reverseStockForReturnItem($item);
+                }
+                
+                $journal = Journal::where('reference', 'PR-' . $purchaseReturn->id)->first();
+                if ($journal) {
+                    $journal->entries()->delete();
+                    $journal->delete();
+                }
+            }
+
+            // 2. Update parent and recreate items
             $purchaseReturn->update([
                 'purchase_id' => $request->purchase_id,
                 'supplier_id' => $request->supplier_id ?? null,
@@ -829,31 +841,33 @@ class PurchaseReturnController extends Controller
                 'return_type' => $request->return_type,
                 'reason' => $request->reason,
                 'notes' => $request->notes,
+                'status' => 'pending' // Set to pending initially
             ]);
 
-            // Delete existing items
             $purchaseReturn->items()->delete();
 
-            // Create new items
             foreach ($request->items as $item) {
                 PurchaseReturnItem::create([
                     'purchase_return_id' => $purchaseReturn->id,
                     'purchase_item_id' => $item['purchase_item_id'] ?? null,
                     'product_id' => $item['product_id'],
+                    'variation_id' => (!empty($item['variation_id']) && $item['variation_id'] !== 'null') ? $item['variation_id'] : null,
                     'returned_qty' => $item['returned_qty'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['returned_qty'] * $item['unit_price'],
                     'reason' => $item['reason'] ?? null,
-                    'return_from_type' => $item['return_from'] ?? null,
-                    'return_from_id' => $item['from_id'] ?? null,
+                    'return_from_type' => $item['return_from'] ?? 'warehouse',
+                    'return_from_id' => $item['from_id'] ?? 1,
                 ]);
             }
 
             DB::commit();
-            return redirect()->route('purchaseReturn.show', $id)->with('success', 'Purchase return updated successfully.');
+            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return updated successfully. Please approve it to finalize stock and accounting.');
+
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Something went wrong.', 'details' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Update failed: ' . $e->getMessage()]);
         }
     }
 
@@ -899,11 +913,14 @@ class PurchaseReturnController extends Controller
 
             $purchaseReturn->update($updateData);
 
-            // If status is being processed, adjust stock
+            // If status is being processed, adjust stock AND accounting
             if ($newStatus === 'processed') {
                 foreach ($purchaseReturn->items as $item) {
                     $this->adjustStockForReturnItem($item);
                 }
+                
+                // Create accounting journal entries
+                $this->createJournalForReturn($purchaseReturn, $purchaseReturn->return_type, $purchaseReturn->account_id);
             }
 
             DB::commit();
@@ -1036,6 +1053,89 @@ class PurchaseReturnController extends Controller
         }
     }
 
+    public function delete($id)
+    {
+        if (!auth()->user()->hasPermissionTo('delete purchase returns')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $purchaseReturn = PurchaseReturn::with(['items'])->findOrFail($id);
+
+            // 1. Reverse Stock Adjustments
+            foreach ($purchaseReturn->items as $item) {
+                $this->reverseStockForReturnItem($item);
+            }
+
+            // 2. Delete Associated Journal & Entries
+            $journal = Journal::where('reference', 'PR-' . $purchaseReturn->id)->first();
+            if ($journal) {
+                $journal->entries()->delete();
+                $journal->delete();
+            }
+
+            // 3. Delete Return Items & Return Record
+            $purchaseReturn->items()->delete();
+            $purchaseReturn->delete();
+
+            DB::commit();
+            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return deleted and stock/accounting reversed successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Deletion failed: ' . $e->getMessage()]);
+        }
+    }
+
+    private function reverseStockForReturnItem(PurchaseReturnItem $item)
+    {
+        $returnedQty = $item->returned_qty;
+        $productId = $item->product_id;
+        $variationId = $item->variation_id;
+        $returnFromType = $item->return_from_type;
+        $returnFromId = $item->return_from_id;
+
+        // When reversing a return, we ADD back the stock that was removed
+        switch ($returnFromType) {
+            case 'branch':
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('branch_id', $returnFromId)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    if ($stock) $stock->increment('quantity', $returnedQty);
+                } else {
+                    $stock = BranchProductStock::where('branch_id', $returnFromId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    if ($stock) $stock->increment('quantity', $returnedQty);
+                }
+                break;
+
+            case 'warehouse':
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('warehouse_id', $returnFromId)
+                        ->whereNull('branch_id')
+                        ->first();
+                    if ($stock) $stock->increment('quantity', $returnedQty);
+                } else {
+                    $stock = WarehouseProductStock::where('warehouse_id', $returnFromId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    if ($stock) $stock->increment('quantity', $returnedQty);
+                }
+                break;
+
+            case 'employee':
+                $stock = EmployeeProductStock::where('employee_id', $returnFromId)
+                    ->where('product_id', $productId)
+                    ->first();
+                if ($stock) $stock->increment('quantity', $returnedQty);
+                break;
+        }
+    }
+
     public function getStockByType(Request $request, $productId, $fromId)
     {
         if (!auth()->user()->hasPermissionTo('view stock')) {
@@ -1063,5 +1163,26 @@ class PurchaseReturnController extends Controller
         }
 
         return response()->json(['quantity' => $stockValue]);
+    }
+    public function getPurchaseItems($purchaseId)
+    {
+        try {
+            $purchase = Purchase::with(['items.product', 'items.variation'])->findOrFail($purchaseId);
+            
+            $results = $purchase->items->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'variation_id' => $item->variation_id,
+                    'product_name' => $item->product->name . ($item->variation ? " ({$item->variation->name})" : ""),
+                    'unit_price' => $item->unit_price,
+                    'text' => $item->product->name . ($item->variation ? " ({$item->variation->name})" : "") . " - Price: " . number_format($item->unit_price, 2)
+                ];
+            });
+
+            return response()->json(['results' => $results]);
+        } catch (\Exception $e) {
+            return response()->json(['results' => [], 'error' => $e->getMessage()], 500);
+        }
     }
 }

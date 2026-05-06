@@ -320,6 +320,26 @@
 
             // Trigger once on load
             $('#payment_method').trigger('change');
+
+            // Handle query parameters for pre-selection
+            const urlParams = new URLSearchParams(window.location.search);
+            const preSupplierId = urlParams.get('supplier_id');
+            const preBillId = urlParams.get('bill_id');
+
+            if (preSupplierId) {
+                $('#supplier_id').val(preSupplierId).trigger('change');
+                
+                // Set a one-time handler for the next AJAX success to select the bill
+                $(document).one('ajaxSuccess', function(event, xhr, settings) {
+                    if (settings.url.includes('/erp/supplier-payments/get-bills/') && preBillId) {
+                        setTimeout(() => {
+                            if ($('#purchase_bill_id option[value="' + preBillId + '"]').length > 0) {
+                                $('#purchase_bill_id').val(preBillId).trigger('change');
+                            }
+                        }, 100);
+                    }
+                });
+            }
         });
     </script>
     @endpush

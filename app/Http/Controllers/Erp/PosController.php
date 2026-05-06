@@ -51,6 +51,10 @@ class PosController extends Controller
         }
 
         $bankAccounts = FinancialAccount::all();
+        if ($user && $user->employee && $user->employee->branch_id) {
+            $bankAccounts = $bankAccounts->where('branch_id', $user->employee->branch_id);
+        }
+
         $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
         $customers = Customer::orderBy('name')->get();
         return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts', 'shippingMethods', 'customers'));
@@ -243,6 +247,11 @@ class PosController extends Controller
                 } else {
                     $type = $request->payment_method ?? 'cash';
                     $finAcc = FinancialAccount::where('type', $type)->first();
+                }
+
+                if ($finAcc) {
+                    $finAcc->balance += $request->paid_amount;
+                    $finAcc->save();
                 }
 
                 Payment::create([
@@ -609,6 +618,17 @@ class PosController extends Controller
                 $q->where('status', $request->status);
             });
         }
+
+        if ($request->filled('payment_status')) {
+            $status = $request->payment_status;
+            $query->whereHas('pos.invoice', function($q) use ($status) {
+                if ($status == 'due') {
+                    $q->whereIn('status', ['partial', 'unpaid']);
+                } else {
+                    $q->where('status', $status);
+                }
+            });
+        }
         
         // Filter by Product/Style/Category/Brand/Season/Gender
         if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
@@ -627,6 +647,7 @@ class PosController extends Controller
 
         return $query;
     }
+    
     public function show($id)
     {
         if (!auth()->user()->hasPermissionTo('view sales')) {
@@ -705,7 +726,7 @@ class PosController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales')) {
+        if (!auth()->user()->hasPermissionTo('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -788,7 +809,7 @@ class PosController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales')) {
+        if (!auth()->user()->hasPermissionTo('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::with(['items', 'invoice'])->findOrFail($id);
@@ -892,21 +913,10 @@ class PosController extends Controller
                 $paymentDifference = $newPaidAmount - $oldPaidAmount;
 
                 if ($paymentDifference > 0 && $request->account_id) {
-                    $account = BankAccount::find($request->account_id);
+                    $account = FinancialAccount::find($request->account_id);
                     if ($account) {
                         $account->balance += $paymentDifference;
                         $account->save();
-
-                        // Create Account Transaction
-                        $transaction = new \App\Models\AccountTransaction();
-                        $transaction->bank_account_id = $account->id;
-                        $transaction->type = 'credit';
-                        $transaction->amount = $paymentDifference;
-                        $transaction->description = "Payment update for POS Sale #{$pos->sale_number}";
-                        $transaction->transaction_date = now();
-                        $transaction->created_by = auth()->id();
-                        $transaction->invoice_id = $invoice->id;
-                        $transaction->save();
                     }
                 }
 
@@ -1065,7 +1075,7 @@ class PosController extends Controller
 
     public function updateNote($saleId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales')) {
+        if (!auth()->user()->hasPermissionTo('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::find($saleId);
@@ -1079,7 +1089,7 @@ class PosController extends Controller
 
     public function addPayment($saleId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales')) {
+        if (!auth()->user()->hasPermissionTo('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::with('invoice')->find($saleId);
@@ -1175,7 +1185,7 @@ class PosController extends Controller
 
     public function updateStatus($saleId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales')) {
+        if (!auth()->user()->hasPermissionTo('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::findOrFail($saleId);
@@ -1221,7 +1231,7 @@ class PosController extends Controller
 
     public function addAddress(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales')) {
+        if (!auth()->user()->hasPermissionTo('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $existingInvoiceAddress = InvoiceAddress::where('invoice_id', $id)->first();
@@ -1706,7 +1716,14 @@ class PosController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $customers = Customer::orderBy('name')->get();
-        $branches = Branch::all();
+        $branches = Branch::where('status', 'active')->get();
+        
+        // Branch Isolation
+        $user = auth()->user();
+        if ($user && $user->employee && $user->employee->branch_id) {
+            $branches = $branches->where('id', $user->employee->branch_id);
+        }
+
         $products = Product::where('status', 'active')->where('type', 'product')->get();
         $brands = \App\Models\Brand::all();
         $seasons = \App\Models\Season::all();
@@ -1720,6 +1737,9 @@ class PosController extends Controller
         $saleNo = $this->generateSaleNumber();
 
         $bankAccounts = FinancialAccount::all();
+        if ($user && $user->employee && $user->employee->branch_id) {
+            $bankAccounts = $bankAccounts->where('branch_id', $user->employee->branch_id);
+        }
 
         return view('erp.pos.manualSale.create', compact(
             'customers', 'branches', 'products', 'brands', 'seasons', 
@@ -1843,7 +1863,7 @@ class PosController extends Controller
 
             // Handle Financials
             if ($request->paid_amount > 0 && $request->account_id) {
-                $account = BankAccount::find($request->account_id);
+                $account = FinancialAccount::find($request->account_id);
                 if ($account) {
                     $account->balance += $request->paid_amount;
                     $account->save();
@@ -1859,17 +1879,6 @@ class PosController extends Controller
                         'payment_method' => $account->type ?? 'cash',
                         'note' => "Manual Sale Payment",
                     ]);
-
-                    // Create Account Transaction
-                    $transaction = new \App\Models\AccountTransaction();
-                    $transaction->bank_account_id = $account->id;
-                    $transaction->type = 'credit';
-                    $transaction->amount = $request->paid_amount;
-                    $transaction->description = "Manual Sale Receipt #{$pos->sale_number}";
-                    $transaction->transaction_date = $pos->sale_date;
-                    $transaction->created_by = auth()->id();
-                    $transaction->invoice_id = $invoice->id;
-                    $transaction->save();
                 }
             }
 

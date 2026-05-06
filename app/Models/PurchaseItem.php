@@ -15,6 +15,7 @@ class PurchaseItem extends Model
         'discount',
         'total_price',
         'description',
+        'requisition_item_id',
     ];
 
     public function product()

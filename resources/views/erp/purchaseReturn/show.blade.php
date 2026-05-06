@@ -151,6 +151,13 @@
                                                     </div>
                                                     <div>
                                                         <h6 class="mb-0 fw-bold text-dark small">{{ $item->product->name ?? 'N/A' }}</h6>
+                                                        @if($item->variation)
+                                                            <div class="text-muted extra-small">
+                                                                @foreach($item->variation->attributeValues as $val)
+                                                                    <span class="badge bg-light text-dark border-0 p-0 me-2">{{ $val->attribute->name ?? '' }}: {{ $val->value }}</span>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
                                                         <code class="text-primary extra-small">{{ $item->product->sku ?? 'N/A' }}</code>
                                                     </div>
                                                 </div>
@@ -318,7 +325,8 @@
             });
 
             // Handle status update form submission
-            $('#updateStatusBtn').on('click', function() {
+            $('#updateStatusBtn').on('click', function(e) {
+                e.preventDefault();
                 const returnId = $('#returnId').val();
                 const newStatus = $('#newStatus').val();
                 const notes = $('#statusNotes').val();

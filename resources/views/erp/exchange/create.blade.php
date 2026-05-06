@@ -205,6 +205,16 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="mb-3" id="paymentAccountSection">
+                                                    <label class="form-label small fw-bold text-muted text-uppercase">Payment Account</label>
+                                                    <select name="account_id" id="account_id" class="form-select shadow-sm">
+                                                        <option value="">Select Account</option>
+                                                        @foreach(\App\Models\FinancialAccount::all() as $acc)
+                                                            <option value="{{ $acc->id }}">{{ $acc->provider_name }} ({{ ucfirst($acc->type) }})</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+
                                                 <div id="changeAmountSection" class="bg-warning bg-opacity-10 p-3 rounded-4 mb-4 border border-warning border-opacity-25" style="display: none;">
                                                     <div class="d-flex justify-content-between align-items-center">
                                                         <span class="fw-bold text-warning-emphasis"><i class="fas fa-hand-holding-usd me-2"></i>Change:</span>

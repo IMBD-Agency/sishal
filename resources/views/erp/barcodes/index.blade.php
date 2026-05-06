@@ -233,9 +233,9 @@
                         </div>
 
                         <div id="variationWrapper" class="mb-4" style="${res.product.has_variations ? '' : 'display: none;'}">
-                            <label class="form-label fw-bold text-muted small text-uppercase">Select Variation</label>
+                            <label class="form-label fw-bold text-muted small text-uppercase">Select Variation (Optional)</label>
                             <select class="form-select select2-simple" id="variationSelect">
-                                <option value="">Choose Size/Color...</option>
+                                <option value="">No Variation (Main Product Barcode)</option>
                                 ${res.product.variations.map(v => `<option value="${v.id}">${v.display_name} - ৳${v.price}</option>`).join('')}
                             </select>
                         </div>
@@ -281,11 +281,6 @@
 
             const variationId = $('#variationSelect').val();
             const qty = $('#labelQty').val() || 1;
-
-            if(currentProduct.has_variations && !variationId) {
-                alert('Please select a variation first');
-                return;
-            }
 
             $(this).html('<i class="fas fa-spinner fa-spin me-2"></i>Generating...');
             

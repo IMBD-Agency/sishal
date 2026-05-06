@@ -197,6 +197,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
 
     // Advanced Reporting
+    Route::get('/money-receipt/export-excel', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportExcel'])->name('money-receipt.export.excel');
+    Route::get('/money-receipt/export-pdf', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportPdf'])->name('money-receipt.export.pdf');
     Route::resource('money-receipt', \App\Http\Controllers\Erp\MoneyReceiptController::class);
     Route::get('/money-receipt/get-due-invoices/{customerId}', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'getDueInvoices'])->name('money-receipt.get-due-invoices');
 
@@ -213,6 +215,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/reports/supplier-ledger/{id?}', [\App\Http\Controllers\Erp\ReportController::class, 'supplierLedger'])->name('reports.supplier.ledger');
     Route::get('/reports/stock', [\App\Http\Controllers\Erp\ReportController::class, 'stockReport'])->name('reports.stock');
     Route::get('/reports/executive', [\App\Http\Controllers\Erp\ReportController::class, 'executiveReport'])->name('reports.executive');
+    Route::get('/reports/performance', [\App\Http\Controllers\Erp\ReportController::class, 'performanceReport'])->name('reports.performance');
     Route::get('/reports/expenses', [\App\Http\Controllers\Erp\ReportController::class, 'expenseReport'])->name('reports.expenses');
 
 
@@ -321,6 +324,16 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.destroy');
     Route::post('/stock-transfer/bulk-delete', [\App\Http\Controllers\Erp\StockTransferController::class, 'bulkDelete'])->name('stocktransfer.bulk.delete');
 
+    // Requisitions
+    Route::get('/requisition', [\App\Http\Controllers\Erp\RequisitionController::class, 'index'])->name('requisition.index');
+    Route::get('/requisition/create', [\App\Http\Controllers\Erp\RequisitionController::class, 'create'])->name('requisition.create');
+    Route::post('/requisition', [\App\Http\Controllers\Erp\RequisitionController::class, 'store'])->name('requisition.store');
+    Route::get('/requisition/{id}/edit', [\App\Http\Controllers\Erp\RequisitionController::class, 'edit'])->name('requisition.edit');
+    Route::put('/requisition/{id}', [\App\Http\Controllers\Erp\RequisitionController::class, 'update'])->name('requisition.update');
+    Route::get('/requisition/{id}', [\App\Http\Controllers\Erp\RequisitionController::class, 'show'])->name('requisition.show');
+    Route::post('/requisition/{id}/fulfill', [\App\Http\Controllers\Erp\RequisitionController::class, 'fulfill'])->name('requisition.fulfill');
+    Route::delete('/requisition/{id}', [\App\Http\Controllers\Erp\RequisitionController::class, 'destroy'])->name('requisition.destroy');
+
 
 
     // Sale Return
@@ -374,6 +387,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/purchase-return/{id}/edit', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'edit'])->name('purchaseReturn.edit');
     Route::put('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'update'])->name('purchaseReturn.update');
     Route::post('/purchase-return/{id}/update-status', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'updateReturnStatus'])->name('purchaseReturn.updateStatus');
+    Route::delete('/purchase-return/{id}', [\App\Http\Controllers\Erp\PurchaseReturnController::class, 'delete'])->name('purchaseReturn.delete');
 
     // Customer
     // Customers

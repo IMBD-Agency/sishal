@@ -270,6 +270,13 @@
                                     'icon' => 'fa-user-tie',
                                     'color' => 'primary'
                                 ],
+                                [
+                                    'title' => 'Performance Analysis',
+                                    'desc' => 'Actual sales vs. purchase costs (Net COGS).',
+                                    'route' => 'reports.performance',
+                                    'icon' => 'fa-tachometer-alt',
+                                    'color' => 'success'
+                                ],
                             ];
                         @endphp
 

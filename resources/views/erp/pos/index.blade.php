@@ -214,7 +214,18 @@
                             <input type="text" name="style_number" class="form-control" placeholder="Style Number" value="{{ request('style_number') }}">
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Payment Status</label>
+                            <select name="payment_status" class="form-select select2-simple">
+                                <option value="">All Status</option>
+                                <option value="paid" {{ request('payment_status') == 'paid' ? 'selected' : '' }}>Paid</option>
+                                <option value="partial" {{ request('payment_status') == 'partial' ? 'selected' : '' }}>Partial</option>
+                                <option value="unpaid" {{ request('payment_status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                                <option value="due" {{ request('payment_status') == 'due' ? 'selected' : '' }}>Due Only</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Search</label>
                             <input type="text" class="form-control border-primary" placeholder="Sale #, Product Name, SKU..." name="search" value="{{ request('search') }}">
                         </div>

@@ -72,7 +72,6 @@
 
                         <!-- Filter Fields Row -->
                         <div class="row g-3">
-                            <!-- Date Groups -->
                             <div class="col-md-2 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">From Date</label>
                                 <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
@@ -81,7 +80,6 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">To Date</label>
                                 <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
-                            
                             <div class="col-md-2 report-field monthly-group d-none">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
                                 <select name="month" class="form-select select2-setup">
@@ -99,41 +97,56 @@
                                 </select>
                             </div>
 
+                          
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
                                 <select name="customer_id" class="form-select select2-setup" data-placeholder="All Customers">
                                     <option value=""></option>
                                     @foreach($customers as $customer)
-                                        <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
+                                        <option value="{{ $customer->id }}">{{ $customer->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Outlet</label>
-                                <select name="branch_id" class="form-select select2-setup" data-placeholder="All Outlets">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Receipt No.</label>
+                                <select name="receipt_no" class="form-select select2-setup" data-placeholder="Select Receipt">
                                     <option value=""></option>
-                                    @foreach($branches as $branch)
-                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    @foreach($recentReceipts as $rr)
+                                        <option value="{{ $rr->payment_reference }}">{{ $rr->payment_reference }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Method</label>
-                                <select name="payment_method" class="form-select select2-setup" data-placeholder="All Methods">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Invoice No.</label>
+                                <select name="invoice_no" class="form-select select2-setup" data-placeholder="Select Invoice">
                                     <option value=""></option>
-                                    <option value="Cash" {{ request('payment_method') == 'Cash' ? 'selected' : '' }}>Cash</option>
-                                    <option value="Bank" {{ request('payment_method') == 'Bank' ? 'selected' : '' }}>Bank</option>
-                                    <option value="Mobile Money" {{ request('payment_method') == 'Mobile Money' ? 'selected' : '' }}>MFS</option>
+                                    @foreach($recentInvoices as $ri)
+                                        <option value="{{ $ri->invoice_number }}">{{ $ri->invoice_number }}</option>
+                                    @endforeach
                                 </select>
                             </div>
+                            <div class="col-md-1">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Per Page</label>
+                                <select name="per_page" class="form-select">
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+
                             <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
+                                <input type="text" name="search" id="searchInput" class="form-control" placeholder="Name, Invoice, Phone...">
+                            </div>
+
+                            <div class="col-md-1">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Action</label>
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('money-receipt.index') }}" class="btn btn-light border flex-fill" title="Reset Filters" style="height: 42px; display: flex; align-items: center; justify-content: center;">
+                                <div class="d-flex gap-1">
+                                    <button type="submit" class="btn btn-create-premium flex-fill" title="Filter">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
+                                    <button type="button" id="resetFilters" class="btn btn-light border" title="Reset">
                                         <i class="fas fa-undo"></i>
-                                    </a>
-                                    <button type="submit" class="btn btn-create-premium flex-fill" style="height: 42px;">
-                                        <i class="fas fa-search me-2"></i>Apply
                                     </button>
                                 </div>
                             </div>
@@ -149,10 +162,6 @@
                             <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="exportData('pdf')">
                                 <i class="fas fa-file-pdf me-2"></i>PDF
                             </button>
-                        </div>
-                        <div class="search-wrapper-premium" style="width: 300px;">
-                            <input type="text" name="search" id="searchInput" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
-                            <i class="fas fa-search search-icon-premium"></i>
                         </div>
                     </div>
                 </div>
@@ -207,6 +216,7 @@
     @push('scripts')
     <script>
         function exportData(format) {
+            if (typeof isDownloadNavigation !== 'undefined') isDownloadNavigation = true;
             const form = document.getElementById('filterForm');
             const data = new FormData(form);
             const params = new URLSearchParams();
@@ -219,17 +229,21 @@
         }
 
         $(document).ready(function() {
-            $('.select2-simple').each(function() {
+            $('.select2-setup').each(function() {
+                let tags = false;
+                if($(this).attr('name') === 'receipt_no' || $(this).attr('name') === 'invoice_no') {
+                    tags = true;
+                }
                 $(this).select2({
                     width: '100%',
                     placeholder: $(this).data('placeholder'),
-                    allowClear: true
+                    allowClear: true,
+                    tags: tags
                 });
             });
 
             function toggleDateGroups() {
                 const type = $('.report-type-radio:checked').val() || 'daily';
-                console.log('Money Receipt Toggle - Type:', type);
                 
                 $('.report-field').addClass('d-none');
                 
@@ -244,26 +258,29 @@
 
             $('.report-type-radio').on('change', function() {
                 toggleDateGroups();
+            });
+
+            // AJAX Reset Functionality
+            $('#resetFilters').on('click', function(e) {
+                e.preventDefault();
+                const form = $('#filterForm')[0];
+                form.reset();
+                
+                // Reset Select2s
+                $('.select2-setup').val('').trigger('change.select2');
+                
+                // Set default report type
+                $('#report_daily').prop('checked', true);
+                toggleDateGroups();
+                
+                // Reset Global Search
+                $('#searchInput').val('');
+                
                 fetchData();
             });
 
             // Initial toggle
             toggleDateGroups();
-            setTimeout(toggleDateGroups, 100);
-
-            // Quick Client-side Search
-            let searchTimeout;
-            $('#searchInput').on('input', function() {
-                const value = $(this).val().toLowerCase();
-                clearTimeout(searchTimeout);
-                
-                searchTimeout = setTimeout(function() {
-                    $('#tableBody tr').each(function() {
-                        const text = $(this).text().toLowerCase();
-                        $(this).toggle(text.indexOf(value) > -1);
-                    });
-                }, 250);
-            });
         });
 
         function fetchData(page = 1) {

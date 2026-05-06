@@ -130,6 +130,16 @@
 
                             <div class="card premium-card p-4">
                                 <h6 class="fw-bold mb-3 border-bottom pb-2">ORDER SUMMARY</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-2 py-2 px-3 rounded-3" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fas fa-boxes text-success" style="font-size: 0.85rem;"></i>
+                                        <span class="fw-bold text-success" style="font-size: 0.78rem; letter-spacing: 0.4px; text-transform: uppercase;">Total Qty</span>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="fw-black text-success" id="totalQtyDisplay" style="font-size: 1.3rem; line-height: 1;">0</span>
+                                        <div class="text-muted" id="totalLinesDisplay" style="font-size: 0.68rem;">0 line(s)</div>
+                                    </div>
+                                </div>
                                 <div class="d-flex justify-content-between mb-2"><span class="text-muted">Subtotal</span><span class="fw-bold" id="subtotalDisplay">0.00৳</span></div>
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div>
@@ -214,11 +224,41 @@ $(document).ready(function() {
     }).on('select2:select', function(e) {
         const prod = e.params.data.product;
         const type = $('#saleType').val();
+        
+        console.log('Selected Product:', prod); // For debugging on live server
+
         if (prod.has_variations) {
-            prod.variations.forEach(v => { if (v.stock > 0) addToCart(prod, v, type); });
+            let added = false;
+            if (prod.variations && prod.variations.length > 0) {
+                prod.variations.forEach(v => {
+                    const vStock = parseFloat(v.stock) || 0;
+                    if (vStock > 0) {
+                        addToCart(prod, v, type);
+                        added = true;
+                    }
+                });
+            }
+            
+            if (!added) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Out of Stock',
+                    text: 'All variations of this product are currently out of stock.',
+                    confirmButtonColor: 'var(--primary-color)'
+                });
+            }
         } else {
-            if (prod.stock > 0) addToCart(prod, null, type);
-            else alert('Out of stock!');
+            const pStock = parseFloat(prod.stock) || 0;
+            if (pStock > 0) {
+                addToCart(prod, null, type);
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Out of Stock',
+                    text: 'This product is currently out of stock.',
+                    confirmButtonColor: 'var(--primary-color)'
+                });
+            }
         }
         $(this).val(null).trigger('change');
         renderCart();
@@ -301,6 +341,12 @@ $(document).ready(function() {
         const total = Math.round(sub - disc + del);
         const paid = Math.round(parseFloat($('#paidInput').val()) || 0);
         const due = total - paid;
+
+        // Total Qty counter
+        const totalQty   = cartItems.reduce((a, i) => a + i.quantity, 0);
+        const totalLines = cartItems.length;
+        $('#totalQtyDisplay').text(totalQty);
+        $('#totalLinesDisplay').text(totalLines + ' line(s)');
 
         // Update Visual Summary Box
         $('#visualSubtotal').text(sub.toFixed(2) + '৳');

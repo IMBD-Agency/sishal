@@ -534,6 +534,7 @@ $(document).ready(function() {
                 productId: product.id,
                 variationId: variation ? variation.id : null,
                 name: product.name + (variation ? ` - ${variation.name}` : ''),
+                styleNo: variation ? (variation.sku || product.style_number) : (product.style_number || product.sku),
                 price: parseFloat(price),
                 qty: 1,
                 maxStock: maxStock // Store max stock for this item
@@ -563,9 +564,10 @@ $(document).ready(function() {
                 <tr class="align-middle border-bottom">
                     <td class="ps-2 py-3">
                         <div class="fw-bold text-dark mb-0">${item.name}</div>
-                        <div class="d-flex align-items-center gap-2 mt-1">
+                        <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
                             <span class="badge bg-success bg-opacity-10 text-success border-0 extra-small">${item.price.toFixed(2)}৳</span>
                             <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.maxStock}</span>
+                            ${item.styleNo ? `<span class="badge bg-info bg-opacity-10 text-info border-0 extra-small">Style: ${item.styleNo}</span>` : ''}
                         </div>
                     </td>
                     <td class="text-center px-0">

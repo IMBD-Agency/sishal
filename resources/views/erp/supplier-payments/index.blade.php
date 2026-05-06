@@ -92,16 +92,16 @@
                     <form method="GET" action="{{ route('supplier-payments.index') }}" id="filterForm">
                         <input type="hidden" name="report_type" id="report_type_hidden" value="{{ $reportType }}">
                         
-                        <div class="d-flex gap-4 mb-3">
-                            <div class="form-check">
+                        <div class="d-flex gap-4 mb-3 align-items-center">
+                            <div class="form-check mb-0">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Reports</label>
                             </div>
-                            <div class="form-check">
+                            <div class="form-check mb-0">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly Reports</label>
                             </div>
-                            <div class="form-check">
+                            <div class="form-check mb-0">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type_active" id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly Reports</label>
                             </div>
@@ -119,7 +119,6 @@
                                 <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                             </div>
 
-                            <!-- Monthly Fields -->
                             <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Month</label>
                                 <select name="month" class="form-select select2-setup">
@@ -129,7 +128,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-2 month-field year-field {{ $reportType == 'daily' ? 'd-none' : '' }}">
+                            <div class="col-md-2 year-field {{ $reportType == 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
                                 <select name="year" class="form-select select2-setup">
                                     @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
@@ -160,6 +159,36 @@
                                 </select>
                             </div>
 
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">
+                                    <i class="fas fa-hashtag me-1 text-primary"></i>Voucher Info
+                                </label>
+                                <select name="payment_no" class="form-select select2-setup">
+                                    <option value="all">All Vouchers</option>
+                                    @foreach($allPayments as $p)
+                                        <option value="{{ $p->id }}" {{ request('payment_no') == $p->id ? 'selected' : '' }}>
+                                            SP-{{ str_pad($p->id, 6, '0', STR_PAD_LEFT) }}
+                                            @if($p->reference) — {{ $p->reference }}@endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">
+                                    <i class="fas fa-file-invoice me-1 text-warning"></i>Bill Reference
+                                </label>
+                                <select name="challan_no" class="form-select select2-setup">
+                                    <option value="all">All Bills</option>
+                                    <option value="0" {{ request('challan_no') == '0' ? 'selected' : '' }}>Advance (No Bill)</option>
+                                    @foreach($allBills as $bill)
+                                        <option value="{{ $bill->id }}" {{ request('challan_no') == $bill->id ? 'selected' : '' }}>
+                                            {{ $bill->bill_number }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                         </div>
                         <div class="card-footer bg-light border-top p-3 mt-4">
                             <div class="d-flex justify-content-between align-items-center">
@@ -172,9 +201,9 @@
                                     </a>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('supplier-payments.index') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                    <button type="button" id="resetBtn" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
                                         <i class="fas fa-undo me-2"></i>Reset
-                                    </a>
+                                    </button>
                                     <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
                                         <i class="fas fa-search me-2"></i>Apply Filters
                                     </button>
@@ -194,98 +223,21 @@
             </div>
 
             <!-- Table Card -->
-            <div class="premium-card shadow-sm border-0">
+            <div class="premium-card shadow-sm border-0 position-relative">
                 <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-money-bill-wave me-2 text-success"></i>Disbursement Registry</h6>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table compact reporting-table table-hover align-middle mb-0" id="paymentTable">
-                            <thead>
-                                <tr>
-                                    <th class="ps-3">Voucher Info</th>
-                                    <th>Supplier Name</th>
-                                    <th>Bill Reference</th>
-                                    <th class="text-end">Disbursed Amount</th>
-                                    <th>Payment Method</th>
-                                    <th class="text-center pe-3">Actions</th>
-                                </tr>
-                            </thead>
-                        <tbody>
-                            @forelse($payments as $payment)
-                            <tr>
-                                <td class="ps-3">
-                                    <div class="fw-bold text-primary mb-0">SP-{{ str_pad($payment->id, 6, '0', STR_PAD_LEFT) }}</div>
-                                    <div class="extra-small text-muted fw-bold">{{ $payment->payment_date->format('d M, Y') }}</div>
-                                </td>
-                                <td>
-                                    <div class="fw-bold text-dark">{{ $payment->supplier->name }}</div>
-                                    <div class="extra-small text-muted">{{ $payment->creator->name ?? 'System' }}</div>
-                                </td>
-                                <td>
-                                    @if($payment->bill)
-                                        <span class="badge bg-soft-primary text-primary fw-bold">{{ $payment->bill->bill_number }}</span>
-                                    @else
-                                        <span class="badge bg-soft-warning text-warning fw-bold">ADVANCE</span>
-                                    @endif
-                                </td>
-                                <td class="text-end fw-bold text-dark">{{ number_format($payment->amount, 2) }}৳</td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        @if($payment->financialAccount)
-                                            <i class="fas {{ $payment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($payment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }}"></i>
-                                            <span class="fw-bold text-uppercase" style="font-size: 11px;">{{ $payment->financialAccount->provider_name }}</span>
-                                        @else
-                                            @if($payment->payment_method == 'cash')
-                                                <i class="fas fa-wallet text-success"></i>
-                                            @elseif($payment->payment_method == 'bank_transfer')
-                                                <i class="fas fa-university text-primary"></i>
-                                            @else
-                                                <i class="fas fa-money-check text-warning"></i>
-                                            @endif
-                                            <span class="fw-bold text-uppercase" style="font-size: 11px;">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="text-center pe-3">
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport">
-                                            <i class="fas fa-ellipsis-v text-muted"></i>
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg premium-dropdown">
-                                            <li><a class="dropdown-item" href="{{ route('supplier-payments.show', $payment->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Voucher</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-print me-2 text-dark"></i>Print Receipt</a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                <form action="{{ route('supplier-payments.destroy', $payment->id) }}" method="POST" onsubmit="return confirm('Void this payment?')">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt me-2"></i>Void Payment</button>
-                                                </form>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <div class="text-muted opacity-50">
-                                        <i class="fas fa-receipt fa-4x mb-3"></i>
-                                        <p class="fw-bold mb-0">No payment history found for this period.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                
+                <!-- Soft Loader Overlay -->
+                <div id="tableLoader" class="position-absolute w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-content-center" style="z-index: 10; top: 0; left: 0;">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
                 </div>
 
-                @if($payments->hasPages())
-                <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <div class="small text-muted fw-bold">Records found: {{ $payments->total() }}</div>
-                    {{ $payments->links('vendor.pagination.bootstrap-5') }}
+                <div class="card-body p-0" id="tableContainer">
+                    @include('erp.supplier-payments.partials.table')
                 </div>
-                @endif
             </div>
         </div>
     </div>
@@ -296,6 +248,24 @@
         /* Dropdown Priority */
         .premium-dropdown {
             z-index: 1060 !important;
+        }
+
+        /* Select2 Fix for truncated dropdowns */
+        .select2-container--default .select2-selection--single {
+            height: 42px !important;
+            padding: 8px 12px !important;
+            border: 1px solid #dee2e6 !important;
+            border-radius: 8px !important;
+            width: 100% !important;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
+        .select2-dropdown {
+            border: 0 !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+            border-radius: 8px !important;
+            z-index: 1050 !important;
         }
 
         /* Filter Pills Theme Fix */
@@ -335,6 +305,12 @@
 @push('scripts')
     <script>
         $(document).ready(function() {
+            // Initialize Select2 with full width
+            $('.select2-setup').select2({
+                width: '100%',
+                placeholder: "Select Option"
+            });
+
             // Report type toggles
             $('.report-type-radio').on('change', function() {
                 const val = $(this).val();
@@ -353,9 +329,79 @@
                 }
             });
 
+            // AJAX Filtering Logic
+            $('#filterForm').on('submit', function(e) {
+                e.preventDefault();
+                updateTable();
+            });
+
+            // AJAX Reset Logic
+            $('#resetBtn').on('click', function() {
+                const form = $('#filterForm');
+                
+                // Reset standard fields
+                form[0].reset();
+                
+                // Reset Select2 fields specifically
+                $('.select2-setup').val('all').trigger('change');
+                
+                // Special case for specific radio default
+                $('#yearlyReport').prop('checked', true).trigger('change');
+                $('#report_type_hidden').val('yearly');
+
+                // Trigger update
+                updateTable();
+            });
+
+            function updateTable() {
+                const form = $('#filterForm');
+                const url = form.attr('action');
+                const formData = form.serialize();
+
+                $('#tableLoader').removeClass('d-none').addClass('d-flex');
+
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    data: formData,
+                    success: function(response) {
+                        $('#tableContainer').html(response);
+                        $('#tableLoader').removeClass('d-flex').addClass('d-none');
+                        
+                        // Update export links
+                        $('.no-loader').each(function() {
+                            const link = $(this);
+                            const baseUrl = link.attr('href').split('?')[0];
+                            link.attr('href', baseUrl + '?' + formData);
+                        });
+                    },
+                    error: function() {
+                        $('#tableLoader').removeClass('d-flex').addClass('d-none');
+                        alert('Error loading data.');
+                    }
+                });
+            }
+
+            // AJAX Pagination
+            $(document).on('click', '.pagination a', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                $('#tableLoader').removeClass('d-none').addClass('d-flex');
+
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    success: function(response) {
+                        $('#tableContainer').html(response);
+                        $('#tableLoader').removeClass('d-flex').addClass('d-none');
+                        window.scrollTo(0, $('#tableContainer').offset().top - 100);
+                    }
+                });
+            });
+
             // Table search functionality with Debounce
             let searchTimeout;
-            $('#tableSearch').on('input', function() {
+            $(document).on('input', '#tableSearch', function() {
                 const value = $(this).val().toLowerCase();
                 clearTimeout(searchTimeout);
                 

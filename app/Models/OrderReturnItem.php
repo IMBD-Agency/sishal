@@ -26,4 +26,9 @@ class OrderReturnItem extends Model
     {
         return $this->belongsTo(\App\Models\ProductVariation::class, 'variation_id');
     }
+
+    public function orderReturn()
+    {
+        return $this->belongsTo(OrderReturn::class, 'order_return_id');
+    }
 }

@@ -22,7 +22,7 @@ class SupplierPaymentController extends Controller
         if (!auth()->user()->hasPermissionTo('view payments')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -93,6 +93,10 @@ class SupplierPaymentController extends Controller
         
         $allPayments = $paymentQuery->get();
         $allBills = $billQuery->get();
+
+        if ($request->ajax()) {
+            return view('erp.supplier-payments.partials.table', compact('payments'))->render();
+        }
 
         return view('erp.supplier-payments.index', compact(
             'payments', 'suppliers', 'allPayments', 'allBills', 

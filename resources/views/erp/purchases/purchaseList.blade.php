@@ -227,6 +227,16 @@
                             </div>
 
                             <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Purchase Status</label>
+                                <select name="status" class="form-select shadow-none">
+                                    <option value="">All Statuses</option>
+                                    <option value="pending"   {{ request('status') == 'pending'   ? 'selected' : '' }}>⏳ Pending Approval</option>
+                                    <option value="received"  {{ request('status') == 'received'  ? 'selected' : '' }}>✅ Received</option>
+                                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>❌ Cancelled</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Account Registry</label>
                                 <select name="account" class="form-select select2-setup shadow-none" data-placeholder="Select A/C">
                                     <option value=""></option>
@@ -364,6 +374,25 @@
                             $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
                         });
                     }, 300);
+                });
+
+                // Delete Confirmation
+                $('.delete-purchase').off('click').on('click', function() {
+                    const id = $(this).data('id');
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: "This procurement record will be permanently deleted!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'No, cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $(`#delete-form-${id}`).submit();
+                        }
+                    });
                 });
             }
 

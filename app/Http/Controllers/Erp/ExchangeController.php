@@ -16,6 +16,10 @@ use App\Models\Payment;
 use App\Models\Balance;
 use App\Models\SaleReturn;
 use App\Models\SaleReturnItem;
+use App\Models\Journal;
+use App\Models\JournalEntry;
+use App\Models\ChartOfAccount;
+use App\Models\FinancialAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -299,6 +303,78 @@ class ExchangeController extends Controller
 
             $newPos->invoice_id = $invoice->id;
             $newPos->save();
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
+            
+            // 1. Ensure Sales Account exists
+            $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
+            if (!$salesAccount) {
+                // Fallback or create default sales account if missing
+                $salesAccount = ChartOfAccount::first(); 
+            }
+
+            $voucherNo = 'EXC-' . str_pad($newPos->id, 6, '0', STR_PAD_LEFT);
+            while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                $voucherNo = 'EXC-' . str_pad($newPos->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+            }
+
+            $journal = Journal::create([
+                'voucher_no'     => $voucherNo,
+                'entry_date'     => $newPos->sale_date,
+                'type'           => 'Receipt',
+                'description'    => 'Exchange Transaction #' . $newPos->sale_number,
+                'customer_id'    => $newPos->customer_id,
+                'branch_id'      => $newPos->branch_id,
+                'voucher_amount' => $newPos->total_amount,
+                'paid_amount'    => $request->paid_amount ?? 0,
+                'reference'      => $newPos->sale_number,
+                'created_by'     => Auth::id(),
+                'updated_by'     => Auth::id(),
+            ]);
+
+            // CREDIT Sales (Subtotal)
+            JournalEntry::create([
+                'journal_id'           => $journal->id,
+                'chart_of_account_id'  => $salesAccount->id,
+                'debit'                => 0,
+                'credit'               => $subTotal,
+                'memo'                 => 'Revenue from Exchange (New Items)',
+                'created_by'           => Auth::id(),
+                'updated_by'           => Auth::id(),
+            ]);
+
+            // DEBIT Sales Return (For the credit value being used)
+            $returnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
+            if ($totalReturnAmount > 0) {
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $returnAccount ? $returnAccount->id : $salesAccount->id,
+                    'debit'                => $totalReturnAmount,
+                    'credit'               => 0,
+                    'memo'                 => 'Sales Return Adjustment during Exchange',
+                    'created_by'           => Auth::id(),
+                    'updated_by'           => Auth::id(),
+                ]);
+            }
+
+            // DEBIT Cash/Bank (Paid Amount)
+            if (($request->paid_amount ?? 0) > 0) {
+                $financialAccount = FinancialAccount::find($request->account_id);
+                if ($financialAccount && $financialAccount->account_id) {
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $financialAccount->account_id,
+                        'financial_account_id' => $financialAccount->id,
+                        'debit'                => $request->paid_amount,
+                        'credit'               => 0,
+                        'memo'                 => 'Exchange payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
+                        'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
+                    ]);
+                }
+            }
 
             // Save Items
             foreach ($request->new_items as $item) {

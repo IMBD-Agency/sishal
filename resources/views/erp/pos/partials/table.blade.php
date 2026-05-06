@@ -61,11 +61,13 @@
                     $actualAmt = $item->total_price - $retAmt;
                 @endphp
                 <tr>
+                    @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
                     <td class="text-center">
-                        @if($isFirst && (auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales')))
+                        @if($isFirst)
                             <input class="form-check-input row-checkbox" type="checkbox" value="{{ $sale->id }}">
                         @endif
                     </td>
+                    @endif
                     <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
                     <td>
                         @if($isFirst)
@@ -133,14 +135,27 @@
                     <td class="text-center">
                         @if($isFirst)
                             <div class="d-flex gap-1 justify-content-center">
-                                <a href="{{ route('pos.show', $sale->id) }}" class="btn btn-action btn-sm" title="View Details">
+                                <a href="{{ route('pos.show', $sale->id) }}" class="btn btn-action btn-sm" title="View Details" style="background: #e2e8f0; color: #475569;">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                
+                                @if(auth()->user()->hasPermissionTo('edit sales') && $sale->status !== 'cancelled')
+                                <a href="{{ route('pos.edit', $sale->id) }}" class="btn btn-action btn-sm" title="Edit Sale" style="background: #fef3c7; color: #92400e;">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                @endif
+
+                                @if(($invoice->due_amount ?? 0) > 0 && auth()->user()->hasPermissionTo('manage money receipts'))
+                                <a href="{{ route('money-receipt.create', ['customer_id' => $sale->customer_id, 'invoice_id' => $invoice->id]) }}" class="btn btn-action btn-sm" title="Receive Payment" style="background: #dcfce7; color: #166534;">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </a>
+                                @endif
+
                                 @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
-                                <form action="{{ route('pos.delete', $sale->id) }}" method="POST"
+                                <form action="{{ route('pos.delete', $sale->id) }}" method="POST" class="d-inline"
                                     onsubmit="return confirm('Delete Sale {{ $sale->sale_number }}? This will also delete its invoice and payments. Cannot be undone.')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Sale" style="padding: 2px 7px;">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Sale" style="padding: 4px 8px; font-size: 0.75rem;">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
