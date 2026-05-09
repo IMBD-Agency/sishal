@@ -108,6 +108,12 @@ class PermissionSeeder extends Seeder
             ['name' => 'view salary', 'category' => 'Accounting'],
             ['name' => 'manage salary', 'category' => 'Accounting'],
             
+            // Sales Targets & Salary Increments
+            ['name' => 'view sales targets', 'category' => 'Accounting'],
+            ['name' => 'manage sales targets', 'category' => 'Accounting'],
+            ['name' => 'view salary increments', 'category' => 'Accounting'],
+            ['name' => 'manage salary increments', 'category' => 'Accounting'],
+            
             // Marketing
             ['name' => 'view coupons', 'category' => 'Marketing'],
             ['name' => 'manage coupons', 'category' => 'Marketing'],

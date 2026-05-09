@@ -103,8 +103,9 @@
                                         <input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Total Pay (৳)</label>
-                                        <input type="number" step="0.01" name="amount" id="total_amount" class="form-control fw-bold text-primary bg-light" placeholder="0.00" required readonly>
+                                        <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Total Pay (৳) <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.01" name="amount" id="total_amount" class="form-control fw-bold text-primary bg-light" placeholder="0.00" required>
+                                        <div class="form-text small text-muted">Enter amount for advance or bill payment</div>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label extra-small fw-bold text-muted text-uppercase mb-2">Account Type <span class="text-danger">*</span></label>
@@ -289,19 +290,41 @@
                 updateTotalAmount();
             });
 
-            // Form submission - use the first selected challan
-            $('#paymentForm').on('submit', function(e) {
-                if (selectedChallans.length > 0) {
-                    // Set the purchase_bill_id to the first selected challan
-                    $('<input>').attr({
-                        type: 'hidden',
-                        name: 'purchase_bill_id',
-                        value: selectedChallans[0].id
-                    }).appendTo(this);
-                    
-                    // Set amount to the paid amount for that challan
-                    $('#total_amount').val(selectedChallans[0].paid);
+            // Sync manual amount input with challan paid amounts
+            $('#total_amount').on('input', function() {
+                const manualAmount = parseFloat($(this).val()) || 0;
+                if (selectedChallans.length === 1) {
+                    // If only one challan, update its paid amount
+                    selectedChallans[0].paid = manualAmount;
+                    updateChallanTable();
                 }
+            });
+
+            // Form submission - send all selected challans as array
+            $('#paymentForm').on('submit', function(e) {
+                const manualAmount = parseFloat($('#total_amount').val()) || 0;
+                
+                if (selectedChallans.length > 0) {
+                    // Send all selected challans as array
+                    selectedChallans.forEach((challan, index) => {
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: `bills[${index}][id]`,
+                            value: challan.id
+                        }).appendTo(this);
+                        
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: `bills[${index}][amount]`,
+                            value: challan.paid
+                        }).appendTo(this);
+                    });
+                    
+                    // Update total amount to sum of all challan payments
+                    const totalChallanAmount = selectedChallans.reduce((sum, c) => sum + parseFloat(c.paid), 0);
+                    $('#total_amount').val(totalChallanAmount.toFixed(2));
+                }
+                // If no challan selected but amount entered, it's an advance payment
             });
             // Filter Account Dropdown based on Type
             $('#payment_method').on('change', function() {

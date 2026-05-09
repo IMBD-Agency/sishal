@@ -4,6 +4,7 @@
             <tr>
                 <th class="ps-3">Voucher Info</th>
                 <th>Supplier Name</th>
+                <!-- <th>Branch</th> -->
                 <th>Bill Reference</th>
                 <th class="text-end">Disbursed Amount</th>
                 <th>Payment Method</th>

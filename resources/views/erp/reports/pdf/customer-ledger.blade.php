@@ -50,6 +50,30 @@
     </div>
 
     <div class="content">
+        @if(($viewType ?? 'debit_credit') == 'info_wise')
+        <!-- Info Wise Customer Info -->
+        <table class="customer-info text-dark" style="margin-bottom: 30px;">
+            <tr>
+                <td style="width: 25%; padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc;">
+                    <div style="font-size: 8px; font-weight: bold; color: #64748b; text-transform: uppercase;">CUSTOMER</div>
+                    <div style="font-size: 12px; font-weight: bold; margin-top: 3px;">{{ $customer->name }}</div>
+                </td>
+                <td style="width: 25%; padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc;">
+                    <div style="font-size: 8px; font-weight: bold; color: #64748b; text-transform: uppercase;">ADDRESS</div>
+                    <div style="font-size: 10px; margin-top: 3px;">{{ $customer->address_1 ?? '-' }} {{ $customer->address_2 ?? '' }}</div>
+                </td>
+                <td style="width: 25%; padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc;">
+                    <div style="font-size: 8px; font-weight: bold; color: #64748b; text-transform: uppercase;">MOBILE</div>
+                    <div style="font-size: 10px; margin-top: 3px;">{{ $customer->phone ?? '-' }}</div>
+                </td>
+                <td style="width: 25%; padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc;">
+                    <div style="font-size: 8px; font-weight: bold; color: #64748b; text-transform: uppercase;">OUTLET</div>
+                    <div style="font-size: 10px; margin-top: 3px;">{{ $branchId ? \App\Models\Branch::find($branchId)->name ?? '-' : 'All Outlets' }}</div>
+                </td>
+            </tr>
+        </table>
+        @else
+        <!-- Original Customer Info -->
         <table class="customer-info text-dark">
             <tr>
                 <td class="customer-details">
@@ -59,6 +83,7 @@
                 </td>
             </tr>
         </table>
+        @endif
 
         @php 
             $totalDebit = $transactions->sum('debit');
@@ -88,6 +113,107 @@
             </tr>
         </table>
 
+        @if(($viewType ?? 'debit_credit') == 'info_wise')
+        <!-- Info Wise Table -->
+        <table class="ledger-table">
+            <thead>
+                <tr style="background-color: #166534; color: white;">
+                    <th style="width: 5%; padding: 8px;">SN</th>
+                    <th style="width: 10%; padding: 8px;">Date</th>
+                    <th style="width: 11%; padding: 8px;">Invoice</th>
+                    <th style="width: 11%; padding: 8px;">Challan</th>
+                    <th style="width: 10%; padding: 8px;">Branch</th>
+                    <th style="width: 18%; padding: 8px;">Particulars</th>
+                    <th style="width: 10%; padding: 8px;" class="text-end">Total</th>
+                    <th style="width: 8%; padding: 8px;" class="text-end">Discount</th>
+                    <th style="width: 9%; padding: 8px;" class="text-end">Paid</th>
+                    <th style="width: 8%; padding: 8px;" class="text-end">Due</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $sn = 1; @endphp
+                @foreach($transactions as $txn)
+                    <tr>
+                        <td>{{ $sn++ }}</td>
+                        <td style="color: #64748b; font-size: 9px;">{{ \Carbon\Carbon::parse($txn['date'])->format('d M, Y') }}</td>
+                        <td style="font-family: monospace; color: #3b82f6; font-size: 9px;">{{ $txn['invoice'] ?? '-' }}</td>
+                        <td style="font-family: monospace; font-size: 9px;">{{ $txn['challan'] ?? '-' }}</td>
+                        <td style="font-size: 9px;">{{ $txn['branch'] ?? '-' }}</td>
+                        <td style="font-size: 9px;">{{ $txn['particulars'] ?? $txn['type'] }}</td>
+                        <td class="text-end">{{ $txn['total'] > 0 ? number_format($txn['total'], 2) : '-' }}</td>
+                        <td class="text-end">{{ $txn['discount'] > 0 ? number_format($txn['discount'], 2) : '-' }}</td>
+                        <td class="text-end text-success">{{ $txn['paid'] > 0 ? number_format($txn['paid'], 2) : '-' }}</td>
+                        <td class="text-end pe-3 py-1 fw-bold">
+                            @if($txn['due'] > 0)
+                                <span class="text-danger">Due: {{ number_format($txn['due'], 2) }}</span>
+                            @elseif($txn['due'] < 0)
+                                <span class="text-primary">Advance: {{ number_format(abs($txn['due']), 2) }}</span>
+                            @else
+                                <span>-</span>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+            <tfoot style="background: #f8fafc; font-weight: bold;">
+                <tr>
+                    <td colspan="5" style="padding: 15px; text-transform: uppercase; font-size: 10px;">TOTAL</td>
+                    <td class="text-end" style="padding: 15px;">Tk. {{ number_format($totalSales ?? 0, 2) }}</td>
+                    <td class="text-end" style="padding: 15px;">Tk. {{ number_format($totalDiscount ?? 0, 2) }}</td>
+                    <td class="text-end text-success" style="padding: 15px;">Tk. {{ number_format($totalPaid ?? 0, 2) }}</td>
+                    <td class="text-end" style="padding: 15px;">
+                        @if($totalDueAmount > 0)
+                            <span>Tk. Due: {{ number_format($totalDueAmount, 2) }}</span>
+                        @elseif($totalDueAmount < 0)
+                            <span>Tk. Advance: {{ number_format(abs($totalDueAmount), 2) }}</span>
+                        @else
+                            <span>Tk. 0.00</span>
+                        @endif
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Info Wise Summary -->
+        <table class="kpi-grid" style="margin-top: 30px;">
+            <tr>
+                <td class="kpi-box">
+                    <span class="kpi-label">Opening Balance</span>
+                    <span class="kpi-value">Tk. {{ number_format($openingBalance ?? 0, 2) }}</span>
+                </td>
+                <td style="width: 20px;"></td>
+                <td class="kpi-box">
+                    <span class="kpi-label">Total Sales</span>
+                    <span class="kpi-value">Tk. {{ number_format($totalSales ?? 0, 2) }}</span>
+                </td>
+                <td style="width: 20px;"></td>
+                <td class="kpi-box">
+                    <span class="kpi-label">Total Paid</span>
+                    <span class="kpi-value text-success">Tk. {{ number_format($totalPaid ?? 0, 2) }}</span>
+                </td>
+            </tr>
+            <tr style="height: 20px;"></tr>
+            <tr>
+                <td class="kpi-box">
+                    <span class="kpi-label">Total Return</span>
+                    <span class="kpi-value">Tk. {{ number_format($totalReturn ?? 0, 2) }}</span>
+                </td>
+                <td style="width: 20px;"></td>
+                <td class="kpi-box">
+                    <span class="kpi-label">Total Exchange</span>
+                    <span class="kpi-value">Tk. {{ number_format($totalExchange ?? 0, 2) }}</span>
+                </td>
+                <td style="width: 20px;"></td>
+                <td class="kpi-box" style="border-left: 4px solid {{ $totalDueAmount > 0 ? '#dc2626' : '#059669' }};">
+                    <span class="kpi-label">Due Amount</span>
+                    <span class="kpi-value {{ $totalDueAmount > 0 ? 'text-danger' : 'text-success' }}">
+                        Tk. {{ number_format(abs($totalDueAmount ?? 0), 2) }}
+                    </span>
+                </td>
+            </tr>
+        </table>
+        @else
+        <!-- Original Debit/Credit Table -->
         <table class="ledger-table">
             <thead>
                 <tr>
@@ -143,6 +269,7 @@
                 </tr>
             </tfoot>
         </table>
+        @endif
     </div>
 
     <div class="footer">

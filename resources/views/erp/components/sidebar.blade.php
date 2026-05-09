@@ -159,6 +159,15 @@
                 <span>Stock Transfer</span>
             </a>
         </div>
+        @endcan
+
+        @can('view transfers')
+        <div class="nav-item">
+            <a href="{{ route('transfers.index') }}" class="nav-link {{ request()->is('erp/fund-transfers*') ? ' active' : '' }}">
+                <i class="fas fa-money-bill-transfer nav-icon text-success"></i>
+                <span>Fund Transfer</span>
+            </a>
+        </div>
         <div class="nav-item">
             <a href="{{ route('requisition.index') }}" class="nav-link {{ request()->is('erp/requisition*') ? ' active' : '' }}">
                 <i class="fas fa-file-invoice nav-icon text-info"></i>

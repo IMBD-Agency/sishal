@@ -169,10 +169,35 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/salary/create', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'create'])->name('salary.create');
     Route::post('/salary/store', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'store'])->name('salary.store');
     Route::get('/salary/details', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'getSalaryDetails'])->name('salary.details');
+    Route::post('/salary/calculate-bonus', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'calculateBonus'])->name('salary.calculate.bonus');
+    Route::put('/salary/{id}/update-bonus', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'updateBonus'])->name('salary.update.bonus');
     Route::get('/salary/{id}', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'show'])->name('salary.show');
     Route::delete('/salary/{id}', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'destroy'])->name('salary.destroy');
     Route::get('/salary-export/excel', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'exportExcel'])->name('salary.export.excel');
     Route::get('/salary-export/pdf', [\App\Http\Controllers\Erp\SalaryPaymentController::class, 'exportPdf'])->name('salary.export.pdf');
+
+    // Sales Target Routes
+    Route::get('/sales-targets', [\App\Http\Controllers\Erp\SalesTargetController::class, 'index'])->name('sales-targets.index');
+    Route::get('/sales-targets/create', [\App\Http\Controllers\Erp\SalesTargetController::class, 'create'])->name('sales-targets.create');
+    Route::post('/sales-targets', [\App\Http\Controllers\Erp\SalesTargetController::class, 'store'])->name('sales-targets.store');
+    Route::get('/sales-targets/{id}', [\App\Http\Controllers\Erp\SalesTargetController::class, 'show'])->name('sales-targets.show');
+    Route::get('/sales-targets/{id}/edit', [\App\Http\Controllers\Erp\SalesTargetController::class, 'edit'])->name('sales-targets.edit');
+    Route::put('/sales-targets/{id}', [\App\Http\Controllers\Erp\SalesTargetController::class, 'update'])->name('sales-targets.update');
+    Route::post('/sales-targets/{id}/update-achievement', [\App\Http\Controllers\Erp\SalesTargetController::class, 'updateAchievement'])->name('sales-targets.update.achievement');
+    Route::delete('/sales-targets/{id}', [\App\Http\Controllers\Erp\SalesTargetController::class, 'destroy'])->name('sales-targets.destroy');
+    Route::get('/sales-targets/export/excel', [\App\Http\Controllers\Erp\SalesTargetController::class, 'exportExcel'])->name('sales-targets.export.excel');
+    Route::get('/sales-targets/export/pdf', [\App\Http\Controllers\Erp\SalesTargetController::class, 'exportPdf'])->name('sales-targets.export.pdf');
+
+    // Salary Increment Routes
+    Route::get('/salary-increments', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'index'])->name('salary-increments.index');
+    Route::get('/salary-increments/create', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'create'])->name('salary-increments.create');
+    Route::post('/salary-increments', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'store'])->name('salary-increments.store');
+    Route::get('/salary-increments/{id}', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'show'])->name('salary-increments.show');
+    Route::get('/salary-increments/{id}/edit', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'edit'])->name('salary-increments.edit');
+    Route::put('/salary-increments/{id}', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'update'])->name('salary-increments.update');
+    Route::get('/salary-increments/get-employee-salary-info/{employeeId}', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'getEmployeeSalaryInfo'])->name('salary-increments.get-employee-salary-info');
+    Route::get('/salary-increments/export/excel', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'exportExcel'])->name('salary-increments.export.excel');
+    Route::get('/salary-increments/export/pdf', [\App\Http\Controllers\Erp\SalaryIncrementController::class, 'exportPdf'])->name('salary-increments.export.pdf');
 
     Route::get('/employees/fetch', [\App\Http\Controllers\Erp\EmployeeController::class, 'fetchEmployees']);
     Route::get('/branches/{branch}/non-branch-employees', [\App\Http\Controllers\Erp\BranchController::class, 'getNonBranchEmployee'])->name('branches.non_branch_employees');
@@ -195,6 +220,14 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('supplier-payments/export-pdf', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'exportPdf'])->name('supplier-payments.export.pdf');
     Route::get('supplier-payments/get-bills/{supplierId}', [\App\Http\Controllers\Erp\SupplierPaymentController::class, 'getSupplierBills'])->name('supplier-payments.get-bills');
     Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
+
+    // Fund Transfers (Branch <-> Warehouse Cash/Bank Transfer)
+    Route::get('fund-transfers', [\App\Http\Controllers\Erp\TransferController::class, 'index'])->name('transfers.index');
+    Route::get('fund-transfers/create', [\App\Http\Controllers\Erp\TransferController::class, 'create'])->name('transfers.create');
+    Route::post('fund-transfers', [\App\Http\Controllers\Erp\TransferController::class, 'store'])->name('transfers.store');
+    Route::get('fund-transfers/{transfer}', [\App\Http\Controllers\Erp\TransferController::class, 'show'])->name('transfers.show');
+    Route::delete('fund-transfers/{transfer}', [\App\Http\Controllers\Erp\TransferController::class, 'destroy'])->name('transfers.destroy');
+    Route::get('fund-transfers/get-accounts-by-location', [\App\Http\Controllers\Erp\TransferController::class, 'getAccountsByLocation'])->name('transfers.get-accounts');
 
     // Advanced Reporting
     Route::get('/money-receipt/export-excel', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportExcel'])->name('money-receipt.export.excel');

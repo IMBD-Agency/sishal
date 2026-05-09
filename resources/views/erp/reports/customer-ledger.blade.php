@@ -18,10 +18,10 @@
                 </div>
                 <div class="d-flex gap-2">
                     @if(isset($customer))
-                        <a href="{{ route('reports.customer.ledger', ['id' => $customer->id, 'export' => 'excel']) }}" class="btn btn-outline-success btn-sm">
+                        <a href="{{ route('reports.customer.ledger', ['id' => $customer->id, 'export' => 'excel', 'view_type' => $viewType ?? 'debit_credit', 'report_type' => $reportType, 'branch_id' => $branchId, 'start_date' => request('start_date'), 'end_date' => request('end_date')]) }}" class="btn btn-outline-success btn-sm">
                             <i class="fas fa-file-excel me-1"></i> Excel
                         </a>
-                        <a href="{{ route('reports.customer.ledger', ['id' => $customer->id, 'export' => 'pdf']) }}" class="btn btn-outline-danger btn-sm">
+                        <a href="{{ route('reports.customer.ledger', ['id' => $customer->id, 'export' => 'pdf', 'view_type' => $viewType ?? 'debit_credit', 'report_type' => $reportType, 'branch_id' => $branchId, 'start_date' => request('start_date'), 'end_date' => request('end_date')]) }}" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-file-pdf me-1"></i> PDF
                         </a>
                     @endif
@@ -34,7 +34,7 @@
                     <form method="GET" action="{{ route('reports.customer.ledger') }}" id="ledgerFilterForm" class="row g-2 align-items-end">
                         <div class="col-md-3">
                             <label class="form-label small fw-bold mb-1">Customer</label>
-                            <select name="customer_id" class="form-select form-select-sm select2">
+                            <select name="customer_id" class="form-select form-select-sm select2" id="customerSelect">
                                 <option value="">Choose Customer...</option>
                                 @foreach($customers as $c)
                                     <option value="{{ $c->id }}" {{ (isset($customer) && $customer->id == $c->id) ? 'selected' : '' }}>
@@ -45,7 +45,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold mb-1">Outlet</label>
-                            <select name="branch_id" class="form-select form-select-sm">
+                            <select name="branch_id" class="form-select form-select-sm" id="branchSelect">
                                 <option value="">All Outlets</option>
                                 @foreach($branches as $b)
                                     <option value="{{ $b->id }}" {{ $branchId == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -54,7 +54,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold mb-1">Report Type</label>
-                            <select name="report_type" class="form-select form-select-sm">
+                            <select name="report_type" class="form-select form-select-sm" id="reportTypeSelect">
                                 <option value="all" {{ $reportType == 'all' ? 'selected' : '' }}>All Transactions</option>
                                 <option value="daily" {{ $reportType == 'daily' ? 'selected' : '' }}>Daily</option>
                                 <option value="monthly" {{ $reportType == 'monthly' ? 'selected' : '' }}>Monthly</option>
@@ -62,12 +62,19 @@
                             </select>
                         </div>
                         <div class="col-md-2">
+                            <label class="form-label small fw-bold mb-1">View Type</label>
+                            <select name="view_type" class="form-select form-select-sm" id="viewTypeSelect">
+                                <option value="debit_credit" {{ ($viewType ?? 'debit_credit') == 'debit_credit' ? 'selected' : '' }}>Debit/Credit Wise</option>
+                                <option value="info_wise" {{ ($viewType ?? 'debit_credit') == 'info_wise' ? 'selected' : '' }}>Info Wise</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold mb-1">Start Date</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm px-2" value="{{ request('start_date') }}">
+                            <input type="date" name="start_date" class="form-control form-control-sm px-2" id="startDateInput" value="{{ request('start_date') }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold mb-1">End Date</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm px-2" value="{{ request('end_date') }}">
+                            <input type="date" name="end_date" class="form-control form-control-sm px-2" id="endDateInput" value="{{ request('end_date') }}">
                         </div>
                         <div class="col-md-1 d-flex gap-1">
                             <button type="submit" class="btn btn-primary btn-sm flex-grow-1" title="Filter">
@@ -87,6 +94,40 @@
                     $totalCredit = $transactions->sum('credit');
                     $finalBalance = ($openingBalance ?? 0) + ($totalDebit - $totalCredit);
                 @endphp
+
+                <!-- Customer Info Section (Info Wise) -->
+                @if(($viewType ?? 'debit_credit') == 'info_wise')
+                <div class="card border shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-2">
+                                    <span class="text-muted small fw-bold">CUSTOMER</span>
+                                    <div class="fw-bold text-dark">{{ $customer->name }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-2">
+                                    <span class="text-muted small fw-bold">ADDRESS</span>
+                                    <div class="text-dark">{{ $customer->address_1 ?? '-' }} {{ $customer->address_2 ?? '' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-2">
+                                    <span class="text-muted small fw-bold">MOBILE</span>
+                                    <div class="text-dark">{{ $customer->phone ?? '-' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-2">
+                                    <span class="text-muted small fw-bold">OUTLET</span>
+                                    <div class="text-dark">{{ $branchId ? \App\Models\Branch::find($branchId)->name ?? '-' : 'All Outlets' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
 
                 <!-- Simple KPI Row -->
                 <div class="row g-3 mb-4 text-center">
@@ -116,6 +157,68 @@
                 <div class="card border shadow-sm">
                     <div class="card-body p-0">
                         <div class="table-responsive">
+                            @if(($viewType ?? 'debit_credit') == 'info_wise')
+                            <!-- Info Wise Table -->
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead style="background-color: #166534; color: white;">
+                                    <tr>
+                                        <th class="ps-3 py-3 small fw-bold" style="width: 5%;">SN</th>
+                                        <th class="py-3 small fw-bold" style="width: 10%;">Date</th>
+                                        <th class="py-3 small fw-bold" style="width: 11%;">Invoice</th>
+                                        <th class="py-3 small fw-bold" style="width: 11%;">Challan</th>
+                                        <th class="py-3 small fw-bold" style="width: 10%;">Branch</th>
+                                        <th class="py-3 small fw-bold" style="width: 13%;">Particulars</th>
+                                        <th class="text-end py-3 small fw-bold" style="width: 10%;">Total</th>
+                                        <th class="text-end py-3 small fw-bold" style="width: 8%;">Discount</th>
+                                        <th class="text-end py-3 small fw-bold" style="width: 9%;">Paid</th>
+                                        <th class="text-end pe-3 py-3 small fw-bold" style="width: 23%;">Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php $sn = 1; @endphp
+                                    @foreach($transactions as $txn)
+                                        <tr style="{{ $sn % 2 == 0 ? 'background-color: #f9fafb;' : '' }}">
+                                            <td class="ps-3 py-2 small">{{ $sn++ }}</td>
+                                            <td class="py-2 small">{{ \Carbon\Carbon::parse($txn['date'])->format('d M, Y') }}</td>
+                                            <td class="py-2 font-monospace extra-small">{{ $txn['invoice'] ?? '-' }}</td>
+                                            <td class="py-2 font-monospace extra-small">{{ $txn['challan'] ?? '-' }}</td>
+                                            <td class="py-2 extra-small">{{ $txn['branch'] ?? '-' }}</td>
+                                            <td class="py-2 small">{{ $txn['particulars'] ?? $txn['type'] }}</td>
+                                            <td class="text-end py-2">{{ $txn['total'] > 0 ? number_format($txn['total'], 2) : '-' }}</td>
+                                            <td class="text-end py-2">{{ $txn['discount'] > 0 ? number_format($txn['discount'], 2) : '-' }}</td>
+                                            <td class="text-end py-2 text-success">{{ $txn['paid'] > 0 ? number_format($txn['paid'], 2) : '-' }}</td>
+                                            <td class="text-end pe-3 py-2 fw-bold">
+                                                @if($txn['due'] > 0)
+                                                    <span class="text-danger">Due: {{ number_format($txn['due'], 2) }}</span>
+                                                @elseif($txn['due'] < 0)
+                                                    <span class="text-primary">Advance: {{ number_format(abs($txn['due']), 2) }}</span>
+                                                @else
+                                                    <span>-</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot style="background-color: #166534; color: white; font-weight: bold;">
+                                    <tr>
+                                        <td colspan="6" class="ps-3 py-3">Total</td>
+                                        <td class="text-end py-3">{{ number_format($totalSales ?? 0, 2) }}</td>
+                                        <td class="text-end py-3">{{ number_format($totalDiscount ?? 0, 2) }}</td>
+                                        <td class="text-end py-3">{{ number_format($totalPaid ?? 0, 2) }}</td>
+                                        <td class="text-end pe-3 py-3">
+                                            @if($totalDueAmount > 0)
+                                                <span>Due: {{ number_format($totalDueAmount, 2) }}</span>
+                                            @elseif($totalDueAmount < 0)
+                                                <span>Advance: {{ number_format(abs($totalDueAmount), 2) }}</span>
+                                            @else
+                                                <span>0.00</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            @else
+                            <!-- Debit/Credit Wise Table (Original) -->
                             <table class="table table-sm table-hover align-middle mb-0">
                                 <thead class="bg-light">
                                     <tr>
@@ -164,9 +267,38 @@
                                     </tr>
                                 </tfoot>
                             </table>
+                            @endif
                         </div>
                     </div>
                 </div>
+
+                <!-- Summary Section (Info Wise) -->
+                @if(($viewType ?? 'debit_credit') == 'info_wise')
+                <div class="card border shadow-sm mt-4">
+                    <div class="card-body p-4">
+                        <table class="table table-bordered mb-0">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 16.66%; padding: 12px; background-color: #f8fafc; font-weight: bold;">Opening Balance</td>
+                                    <td style="width: 16.66%; padding: 12px; text-align: right;">Tk. {{ number_format($openingBalance ?? 0, 2) }}</td>
+                                    <td style="width: 16.66%; padding: 12px; background-color: #f8fafc; font-weight: bold;">Total Sales</td>
+                                    <td style="width: 16.66%; padding: 12px; text-align: right;">Tk. {{ number_format($totalSales ?? 0, 2) }}</td>
+                                    <td style="width: 16.66%; padding: 12px; background-color: #f8fafc; font-weight: bold;">Total Paid</td>
+                                    <td style="width: 16.66%; padding: 12px; text-align: right; color: #059669;">Tk. {{ number_format($totalPaid ?? 0, 2) }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="width: 16.66%; padding: 12px; background-color: #f8fafc; font-weight: bold;">Total Return</td>
+                                    <td style="width: 16.66%; padding: 12px; text-align: right;">Tk. {{ number_format($totalReturn ?? 0, 2) }}</td>
+                                    <td style="width: 16.66%; padding: 12px; background-color: #f8fafc; font-weight: bold;">Total Exchange</td>
+                                    <td style="width: 16.66%; padding: 12px; text-align: right;">Tk. {{ number_format($totalExchange ?? 0, 2) }}</td>
+                                    <td style="width: 16.66%; padding: 12px; background-color: #f8fafc; font-weight: bold;">Due Amount</td>
+                                    <td style="width: 16.66%; padding: 12px; text-align: right; color: {{ $totalDueAmount > 0 ? '#dc2626' : '#059669' }}; font-weight: bold;">Tk. {{ number_format(abs($totalDueAmount ?? 0), 2) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
             @else
                 <div class="text-center py-5 border rounded bg-light">
                     <i class="fas fa-user-circle fa-2x text-muted mb-3"></i>

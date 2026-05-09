@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\Journal;
 use App\Models\JournalEntry;
 use App\Models\SalaryPayment;
+use App\Services\BonusCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -39,19 +40,23 @@ class SalaryPaymentController extends Controller
         if ($request->filled('account_id') && $request->account_id != 'all') {
             $query->where('account_id', $request->account_id);
         }
+        if ($request->filled('branch_id') && $request->branch_id != '') {
+            $query->where('branch_id', $request->branch_id);
+        }
 
         $payments = $query->orderBy('id', 'desc')->paginate(20)->appends($request->except('page'));
         
-        $restrictedBranchId = $this->getRestrictedBranchId();
+        $employeesQuery = Employee::with('user');
         if ($restrictedBranchId) {
-            $employees = Employee::with('user')->where('branch_id', $restrictedBranchId)->get();
-            $branches = Branch::where('id', $restrictedBranchId)->get();
-        } else {
-            $employees = Employee::with('user')->get();
-            $branches = Branch::all();
+            $employeesQuery->where('branch_id', $restrictedBranchId);
         }
-        
-        // Fetch Asset Accounts (Cash/Bank) for the filter
+        $employees = $employeesQuery->get();
+
+        $branches = [];
+        if (auth()->user()->hasRole('Super Admin')) {
+            $branches = Branch::orderBy('name')->get();
+        }
+
         $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
         $accounts = ChartOfAccount::whereIn('type_id', $assetTypeIds)
             ->orWhereHas('parent', function($q) use ($assetTypeIds) {
@@ -59,6 +64,20 @@ class SalaryPaymentController extends Controller
             })->get();
 
         return view('erp.salary.index', compact('payments', 'employees', 'branches', 'accounts'));
+    }
+
+    protected function getRestrictedBranchId()
+    {
+        $user = auth()->user();
+        if ($user->hasRole('Super Admin')) {
+            return null;
+        }
+        
+        if ($user->branch_id) {
+            return $user->branch_id;
+        }
+        
+        return null;
     }
 
     public function create()
@@ -108,6 +127,8 @@ class SalaryPaymentController extends Controller
             'year' => $request->year,
             'total_salary' => $request->total_salary ?? $employee->salary,
             'paid_amount' => $request->paid_amount,
+            'bonus_amount' => $request->bonus_amount ?? 0,
+            'is_bonus_editable' => $request->has('is_bonus_editable') ? $request->is_bonus_editable : true,
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
             'account_id' => $request->account_id,
@@ -115,6 +136,10 @@ class SalaryPaymentController extends Controller
             'note' => $request->note,
             'created_by' => auth()->id(),
         ]);
+
+        // Calculate and apply bonus if target exists
+        $bonusService = new BonusCalculationService();
+        $bonusService->applyBonusToSalaryPayment($salaryPayment->id, $request->bonus_amount, $request->has('is_bonus_editable'));
 
         // Create Journal Entry for Salary Payment
         try {
@@ -186,10 +211,72 @@ class SalaryPaymentController extends Controller
             ->where('year', $year)
             ->sum('paid_amount');
 
+        // Calculate bonus if target exists
+        $bonusService = new BonusCalculationService();
+        $achievementData = $bonusService->calculateAchievementForEmployee($employeeId, $month, $year);
+
         return response()->json([
             'salary' => $employee->salary,
             'previous_paid' => $previousPaid,
-            'due' => $employee->salary - $previousPaid
+            'due' => $employee->salary - $previousPaid,
+            'bonus_data' => $achievementData,
+            'has_bonus' => $achievementData['bonus_amount'] > 0,
+            'bonus_amount' => $achievementData['bonus_amount'],
+        ]);
+    }
+
+    public function calculateBonus(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('manage salary')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'month' => 'required',
+            'year' => 'required',
+        ]);
+
+        $bonusService = new BonusCalculationService();
+        $achievementData = $bonusService->calculateAchievementForEmployee(
+            $request->employee_id,
+            $request->month,
+            $request->year
+        );
+
+        return response()->json([
+            'success' => true,
+            'achievement_data' => $achievementData,
+        ]);
+    }
+
+    public function updateBonus(Request $request, $id)
+    {
+        if (!auth()->user()->hasPermissionTo('manage salary')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'bonus_amount' => 'required|numeric|min:0',
+        ]);
+
+        $salaryPayment = SalaryPayment::findOrFail($id);
+        if (!$salaryPayment->is_bonus_editable) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bonus is not editable for this payment.'
+            ], 403);
+        }
+
+        $salaryPayment->update([
+            'bonus_amount' => $request->bonus_amount,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bonus updated successfully.',
+            'new_bonus' => $request->bonus_amount,
+            'new_total' => $salaryPayment->total_payment,
         ]);
     }
 

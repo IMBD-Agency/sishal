@@ -72,7 +72,14 @@ class MoneyReceiptController extends Controller
             $bankAccounts = $bankAccounts->whereNull('branch_id');
         }
 
-        return view('erp.money-receipt.create', compact('customers', 'receiptNo', 'bankAccounts'));
+        // Get recent invoices for invoice-based selection
+        $recentInvoices = Invoice::with('customer')
+            ->where('due_amount', '>', 0)
+            ->orderBy('id', 'desc')
+            ->take(100)
+            ->get();
+
+        return view('erp.money-receipt.create', compact('customers', 'receiptNo', 'bankAccounts', 'recentInvoices'));
     }
 
     public function show($id)
@@ -111,15 +118,36 @@ class MoneyReceiptController extends Controller
         if (!auth()->user()->hasPermissionTo('manage money receipts')) {
             abort(403, 'Unauthorized action.');
         }
-        $request->validate([
-            'payment_date' => 'required|date',
-            // 'money_receipt_no' => 'nullable|string|max:50', // We will generate this backend side to be safe
-            'customer_id' => 'required|exists:customers,id',
-            'invoice_id' => 'nullable|exists:invoices,id',
-            'amount' => 'required|numeric|min:0.01',
-            'payment_method' => 'nullable|string',
-            'note' => 'nullable|string',
-        ]);
+        
+        // Get payment type and validate accordingly
+        $paymentType = $request->payment_type;
+        
+        if ($paymentType === 'customer') {
+            $request->validate([
+                'payment_date' => 'required|date',
+                'customer_id' => 'required|exists:customers,id',
+                'invoice_id' => 'nullable|exists:invoices,id',
+                'amount' => 'required|numeric|min:0.01',
+                'payment_method' => 'nullable|string',
+                'note' => 'nullable|string',
+            ]);
+            $customerId = $request->customer_id;
+        } else {
+            $request->validate([
+                'payment_date' => 'required|date',
+                'invoice_search_id' => 'required|exists:invoices,id',
+                'amount' => 'required|numeric|min:0.01',
+                'payment_method' => 'nullable|string',
+                'note' => 'nullable|string',
+            ]);
+            // Get customer from invoice
+            $invoice = Invoice::find($request->invoice_search_id);
+            if (!$invoice) {
+                return redirect()->back()->with('error', 'Invoice not found');
+            }
+            $customerId = $invoice->customer_id;
+            $request->merge(['customer_id' => $customerId, 'invoice_id' => $request->invoice_search_id]);
+        }
 
         DB::beginTransaction();
         try {

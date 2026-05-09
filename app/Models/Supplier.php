@@ -40,7 +40,19 @@ class Supplier extends Model
 
     public function getBalanceAttribute()
     {
-        return $this->ledgerEntries()->latest('id')->first()?->balance ?? 0;
+        // Calculate actual balance from purchase bills (more accurate)
+        $totalDue = $this->bills()->sum('due_amount');
+        return $totalDue;
+    }
+    
+    public function getTotalBilledAttribute()
+    {
+        return $this->bills()->sum('total_amount');
+    }
+    
+    public function getTotalPaidAttribute()
+    {
+        return $this->bills()->sum('paid_amount');
     }
 }
 

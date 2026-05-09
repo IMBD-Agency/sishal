@@ -138,7 +138,7 @@
                                 </td>
                                 <td class="text-end fw-bold">
                                     @php $balance = $supplier->balance; @endphp
-                                    <span class="{{ $balance > 0 ? 'text-danger' : ($balance < 0 ? 'text-success' : 'text-muted') }}">
+                                    <span class="{{ $balance > 0 ? 'text-danger' : ($balance < 0 ? 'text-primary' : 'text-muted') }}">
                                         {{ number_format(abs($balance), 2) }}
                                         <small class="ms-1 fw-normal opacity-75">{{ $balance > 0 ? 'DUE' : ($balance < 0 ? 'ADV' : '') }}</small>
                                     </span>

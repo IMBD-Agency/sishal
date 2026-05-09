@@ -75,6 +75,45 @@
                                 <div id="due_hint" class="small text-danger mt-1 fw-bold"></div>
                             </div>
 
+                            <!-- Bonus Section -->
+                            <div class="col-12 mt-3">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success bg-opacity-10 py-2">
+                                        <h6 class="mb-0 text-success fw-bold">
+                                            <i class="fas fa-gift me-2"></i>Bonus Details
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold small">Bonus Amount</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">৳</span>
+                                                    <input type="number" step="0.01" name="bonus_amount" id="bonus_amount" class="form-control" value="0" placeholder="0.00">
+                                                </div>
+                                                <div id="bonus_info" class="small text-info mt-1"></div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold small">Make Bonus Editable</label>
+                                                <div class="form-check mt-2">
+                                                    <input class="form-check-input" type="checkbox" name="is_bonus_editable" id="is_bonus_editable" checked>
+                                                    <label class="form-check-label" for="is_bonus_editable">
+                                                        Allow editing of bonus amount
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold small">Total Payment</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-success text-white">৳</span>
+                                                    <input type="text" id="total_payment" class="form-control bg-light" readonly placeholder="0.00">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="col-md-4">
                                 <label class="form-label fw-bold small">Account Type *</label>
                                 <select name="payment_method" class="form-select select2-premium-42" required>
@@ -135,11 +174,27 @@
                             $('#total_salary').val(res.salary);
                             $('#previous_paid').val(res.previous_paid);
                             $('#paid_amount').attr('max', res.due);
+                            
+                            // Handle bonus information
+                            if (res.has_bonus && res.bonus_amount > 0) {
+                                $('#bonus_amount').val(res.bonus_amount);
+                                $('#bonus_info').html('<i class="fas fa-info-circle"></i> Auto-calculated bonus from sales target');
+                                if (!$('#is_bonus_editable').is(':checked')) {
+                                    $('#bonus_amount').prop('readonly', true);
+                                }
+                            } else if (res.bonus_data && res.bonus_data.has_target) {
+                                $('#bonus_info').html('<i class="fas fa-exclamation-triangle"></i> Target not achieved yet');
+                            } else {
+                                $('#bonus_info').html('<i class="fas fa-info-circle"></i> No sales target for this period');
+                            }
+                            
                             if(res.due > 0) {
                                 $('#due_hint').text('Remaining Due: ' + res.due + '৳');
                             } else {
                                 $('#due_hint').text('Fully Paid for this month');
                             }
+                            
+                            calculateTotal();
                         }
                     });
                 }
@@ -147,12 +202,29 @@
 
             $('#employee_id, #month, #year').on('change', fetchSalaryDetails);
             
+            // Bonus calculation handlers
+            $('#bonus_amount, #paid_amount').on('input', calculateTotal);
+            $('#is_bonus_editable').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#bonus_amount').prop('readonly', false);
+                } else {
+                    $('#bonus_amount').prop('readonly', true);
+                }
+            });
+            
+            function calculateTotal() {
+                let paidAmount = parseFloat($('#paid_amount').val()) || 0;
+                let bonusAmount = parseFloat($('#bonus_amount').val()) || 0;
+                let total = paidAmount + bonusAmount;
+                $('#total_payment').val(total.toFixed(2));
+            }
+            
             $('#salaryForm').on('submit', function(e) {
                 let paid = parseFloat($('#paid_amount').val());
                 let due = parseFloat($('#total_salary').val()) - parseFloat($('#previous_paid').val());
                 
                 if(paid > due + 0.01) { // 0.01 buffer for float issues
-                    if(!confirm('Paid amount exceeds the current due. Do you want to continue?')) {
+                    if(!confirm('Paid amount exceeds current due. Do you want to continue?')) {
                         e.preventDefault();
                     }
                 }

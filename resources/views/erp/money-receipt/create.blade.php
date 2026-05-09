@@ -65,20 +65,67 @@
                                         <label class="form-label fw-bold small text-uppercase text-muted">Money Receipt No.</label>
                                         <input type="text" name="money_receipt_no" class="form-control bg-light border-0 fw-bold text-primary" value="{{ $receiptNo }}" readonly>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold small text-uppercase text-muted">Customer <span class="text-danger">*</span></label>
-                                        <select name="customer_id" id="customer_id" class="form-select select2-simple" required>
-                                            <option value="">Search Customer...</option>
-                                            @foreach($customers as $customer)
-                                                <option value="{{ $customer->id }}">{{ $customer->name }} ({{ $customer->phone }})</option>
-                                            @endforeach
-                                        </select>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-uppercase text-muted">Payment Type <span class="text-danger">*</span></label>
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" class="btn-check" name="payment_type" id="customerBased" value="customer" checked>
+                                            <label class="btn btn-outline-secondary" for="customerBased">
+                                                <i class="fas fa-user me-1"></i> Customer Based
+                                            </label>
+                                            <input type="radio" class="btn-check" name="payment_type" id="invoiceBased" value="invoice">
+                                            <label class="btn btn-outline-secondary" for="invoiceBased">
+                                                <i class="fas fa-file-invoice me-1"></i> Invoice Based
+                                            </label>
+                                        </div>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold small text-uppercase text-muted">Due Invoice</label>
+                                </div>
+                                
+                                <!-- Customer Based Section -->
+                                <div id="customerBasedSection" class="row g-3 mt-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-uppercase text-muted">Customer <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <select name="customer_id" id="customer_id" class="form-select select2-simple" required>
+                                                <option value="">Search Customer...</option>
+                                                @foreach($customers as $customer)
+                                                    <option value="{{ $customer->id }}">{{ $customer->name }} ({{ $customer->phone }})</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#newCustomerModal" title="Add New Customer">
+                                                <i class="fas fa-plus"></i> New
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-uppercase text-muted">Select Invoice (Optional)</label>
                                         <select name="invoice_id" id="invoice_id" class="form-select select2-simple">
                                             <option value="">Select Invoice...</option>
                                         </select>
+                                        <small class="text-muted">Leave blank for advance payment</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Invoice Based Section -->
+                                <div id="invoiceBasedSection" class="row g-3 mt-2" style="display: none;">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-uppercase text-muted">Search Invoice <span class="text-danger">*</span></label>
+                                        <select name="invoice_search_id" id="invoice_search_id" class="form-select select2-simple">
+                                            <option value="">Search Invoice...</option>
+                                            @if(isset($recentInvoices))
+                                                @foreach($recentInvoices as $invoice)
+                                                    @if($invoice->customer)
+                                                        <option value="{{ $invoice->id }}" data-customer="{{ $invoice->customer_id }}">
+                                                            {{ $invoice->invoice_number }} - {{ $invoice->customer->name }} (Due: {{ number_format($invoice->total_amount - $invoice->paid_amount, 2) }})
+                                                        </option>
+                                                    @endif
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-uppercase text-muted">Customer (Auto-filled)</label>
+                                        <input type="text" id="autoCustomerName" class="form-control bg-light" readonly placeholder="Customer will be auto-filled">
+                                        <input type="hidden" name="customer_id_hidden" id="customer_id_hidden">
                                     </div>
                                 </div>
                             </div>
@@ -185,6 +232,25 @@
                 }
             });
 
+            // Handle payment type toggle
+            $('input[name="payment_type"]').on('change', function() {
+                const paymentType = $(this).val();
+                
+                if (paymentType === 'customer') {
+                    $('#customerBasedSection').show();
+                    $('#invoiceBasedSection').hide();
+                    $('#customer_id').prop('required', true);
+                    $('#invoice_search_id').prop('required', false);
+                    resetTable();
+                } else {
+                    $('#customerBasedSection').hide();
+                    $('#invoiceBasedSection').show();
+                    $('#customer_id').prop('required', false);
+                    $('#invoice_search_id').prop('required', true);
+                    resetTable();
+                }
+            });
+
             // Handle customer change
             $('#customer_id').on('change', function(e, data) {
                 const customerId = this.value;
@@ -209,70 +275,214 @@
                         });
                         
                         // If we auto-selected an invoice, trigger its change event
-                        if (targetInvoiceId) {
-                            invoiceSelect.trigger('change');
+                        if(targetInvoiceId) {
+                            $('#invoice_id').val(targetInvoiceId).trigger('change');
                         }
                     })
-                    .catch(err => {
-                        console.error('Fetch error:', err);
-                        invoiceSelect.html('<option value="">Select Invoice...</option>');
+                    .catch(error => {
+                        console.error('Error fetching invoices:', error);
+                        invoiceSelect.html('<option value="">Error loading invoices</option>');
                     });
             });
 
-            // Initial check for request parameters
-            const preSelectedCustomer = "{{ request('customer_id') }}";
-            const preSelectedInvoice = "{{ request('invoice_id') }}";
-            
-            if (preSelectedCustomer) {
-                $('#customer_id').val(preSelectedCustomer).trigger('change', [{ targetInvoiceId: preSelectedInvoice }]);
-            }
-
+            // Handle invoice change (customer based)
             $('#invoice_id').on('change', function() {
-                 const selectedOption = $(this).find(':selected');
-                 if(selectedOption.val()) {
-                     $('#emptyRow').hide();
-                     $('#invoiceRow').show();
-                     $('#td_invoice_no').text(selectedOption.data('number'));
-                     $('#td_due_amount').text(parseFloat(selectedOption.data('due')).toFixed(2));
-                     $('#td_paid_amount').text(parseFloat(selectedOption.data('paid')).toFixed(2));
-                     $('#amount').val(selectedOption.data('due')); 
-                 } else {
-                     resetTable();
-                 }
+                const selectedOption = $(this).find('option:selected');
+                
+                if (!this.value) {
+                    resetTable();
+                    return;
+                }
+                
+                const invoiceNumber = selectedOption.data('number');
+                const dueAmount = parseFloat(selectedOption.data('due'));
+                const paidAmount = parseFloat(selectedOption.data('paid'));
+                
+                $('#td_invoice_no').text(invoiceNumber);
+                $('#td_due_amount').text(dueAmount.toFixed(2));
+                $('#td_paid_amount').text(paidAmount.toFixed(2));
+                
+                $('#emptyRow').hide();
+                $('#invoiceRow').show();
+                
+                // Auto-fill amount with due amount
+                $('#amount').val(dueAmount);
             });
 
-            $('#payment_method').on('change', function() {
-                let type = $(this).val().toLowerCase();
-                let found = false;
-                $('#accountSelect option').each(function() {
-                    let optType = $(this).data('type');
-                    if(optType === type) {
-                        $(this).show();
-                        if(!found) {
-                            $(this).prop('selected', true);
-                            found = true;
+            // Handle invoice search change (invoice based)
+            $('#invoice_search_id').on('change', function() {
+                const selectedOption = $(this).find('option:selected');
+                
+                if (!this.value) {
+                    $('#autoCustomerName').val('');
+                    $('#customer_id_hidden').val('');
+                    resetTable();
+                    return;
+                }
+                
+                const customerId = selectedOption.data('customer');
+                const optionText = selectedOption.text();
+                
+                // Parse the text: "INV-001 - Customer Name (Due: 1000.00)"
+                const textParts = optionText.split(' - ');
+                if (textParts.length >= 2) {
+                    const customerName = textParts[1].split(' (Due:')[0];
+                    $('#autoCustomerName').val(customerName.trim());
+                }
+                
+                $('#customer_id_hidden').val(customerId);
+                
+                // Extract due amount from text
+                const dueMatch = optionText.match(/Due: ([\d.,]+)/);
+                const dueAmount = dueMatch ? parseFloat(dueMatch[1].replace(',', '')) : 0;
+                
+                // Update invoice table
+                const invoiceNumber = textParts[0];
+                $('#td_invoice_no').text(invoiceNumber);
+                $('#td_due_amount').text(dueAmount.toFixed(2));
+                $('#td_paid_amount').text('0.00');
+                
+                $('#emptyRow').hide();
+                $('#invoiceRow').show();
+                
+                // Auto-fill amount with due amount
+                $('#amount').val(dueAmount);
+            });
+
+            // Reset table function
+            function resetTable() {
+                $('#emptyRow').show();
+                $('#invoiceRow').hide();
+                $('#amount').val('');
+            }
+
+            // Form validation
+            $('#receiptForm').on('submit', function(e) {
+                const paymentType = $('input[name="payment_type"]:checked').val();
+                
+                if (paymentType === 'customer' && !$('#customer_id').val()) {
+                    e.preventDefault();
+                    alert('Please select a customer');
+                    return false;
+                }
+                
+                if (paymentType === 'invoice' && !$('#invoice_search_id').val()) {
+                    e.preventDefault();
+                    alert('Please select an invoice');
+                    return false;
+                }
+                
+                if (!$('#amount').val() || $('#amount').val() <= 0) {
+                    e.preventDefault();
+                    alert('Please enter a valid amount');
+                    return false;
+                }
+                
+                // For invoice-based, ensure customer_id_hidden is set
+                if (paymentType === 'invoice' && !$('#customer_id_hidden').val()) {
+                    e.preventDefault();
+                    alert('Customer information missing. Please select invoice again.');
+                    return false;
+                }
+                
+                return true;
+            });
+
+            // Handle URL parameters for auto-selection from sale page
+            function handleUrlParameters() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const customerId = urlParams.get('customer_id');
+                const invoiceId = urlParams.get('invoice_id');
+                
+                if (customerId && invoiceId) {
+                    console.log('Auto-selecting customer:', customerId, 'invoice:', invoiceId);
+                    
+                    // Auto-select customer based payment type
+                    $('#customerBased').prop('checked', true).trigger('change');
+                    
+                    // Wait for customer to load, then select invoice
+                    setTimeout(() => {
+                        $('#customer_id').val(customerId).trigger('change', { targetInvoiceId: invoiceId });
+                    }, 300);
+                } else if (invoiceId) {
+                    console.log('Auto-selecting invoice only:', invoiceId);
+                    
+                    // If only invoice ID, use invoice-based selection
+                    $('#invoiceBased').prop('checked', true).trigger('change');
+                    
+                    setTimeout(() => {
+                        $('#invoice_search_id').val(invoiceId).trigger('change');
+                    }, 300);
+                }
+            }
+
+            // Initialize URL parameter handling after select2 is ready
+            setTimeout(() => {
+                handleUrlParameters();
+            }, 100);
+
+            // Handle new customer form submission
+            $('#newCustomerForm').on('submit', function(e) {
+                e.preventDefault();
+                const $btn = $('#saveCustomerBtn').prop('disabled', true).text('SAVING...');
+                const $err = $('#customerModalError').addClass('d-none');
+                
+                $.ajax({
+                    url: "{{ route('customers.store') }}",
+                    method: 'POST',
+                    data: $(this).serialize(),
+                    success: res => {
+                        if (res.success && res.customer) {
+                            const c = res.customer;
+                            const label = (c.name || 'Unnamed') + ' (' + (c.phone || 'No Phone') + ')';
+                            $('#customer_id').append(new Option(label, c.id, true, true)).trigger('change');
+                            $('#newCustomerModal').modal('hide');
+                            $('#newCustomerForm')[0].reset();
+                        } else {
+                            $err.text(res.message || 'Unknown error').removeClass('d-none');
                         }
-                    } else {
-                        $(this).hide();
+                    },
+                    error: xhr => {
+                        let msg = 'Validation Error';
+                        if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            msg = Object.values(xhr.responseJSON.errors).flat().join(', ');
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        $err.text(msg).removeClass('d-none');
+                    },
+                    complete: () => {
+                        $btn.prop('disabled', false).text('SAVE CUSTOMER');
                     }
                 });
             });
-            $('#payment_method').trigger('change');
         });
-
-        function resetTable() {
-            $('#invoiceRow').hide();
-            $('#emptyRow').show();
-            $('#td_invoice_no').text('-');
-            $('#td_due_amount').text('0.00');
-            $('#td_paid_amount').text('0.00');
-            $('#amount').val('');
-        }
     </script>
-    <style>
-        .bg-indigo-50 { background-color: #f8faff; border: 1px dashed #dee2ff !important; }
-        .fw-600 { font-weight: 600; }
-        .premium-table thead th { background-color: #2d5a4c !important; color: white !important; font-size: 0.8rem; height: 45px; vertical-align: middle; }
-    </style>
-    @endpush
 @endsection
+
+<!-- New Customer Modal -->
+<div class="modal fade" id="newCustomerModal" tabindex="-1" aria-labelledby="newCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 premium-card">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Add New Customer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newCustomerForm">
+                    @csrf
+                    <div class="mb-3">
+                        <label class="form-label-premium">Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="Enter Name (Optional if Phone exists)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label-premium">Phone</label>
+                        <input type="text" name="phone" class="form-control" placeholder="Enter Phone (Optional if Name exists)">
+                    </div>
+                    <div id="customerModalError" class="text-danger small mb-2 d-none"></div>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-2" id="saveCustomerBtn">SAVE CUSTOMER</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

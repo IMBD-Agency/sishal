@@ -50,4 +50,15 @@ class FinancialAccount extends Model
     {
         return $this->belongsTo(Branch::class, 'branch_id');
     }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+    }
+
+    public function getCurrentBalanceAttribute()
+    {
+        // If balance column exists, use it; otherwise return 0 or calculate from journals
+        return $this->balance ?? 0;
+    }
 }

@@ -25,9 +25,17 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
-                    <a href="{{ route('salary.create') }}" class="btn btn-create-premium shadow-sm">
-                        <i class="fas fa-plus me-2"></i>New Payment
-                    </a>
+                    <div class="d-flex gap-2 justify-content-md-end">
+                        <a href="{{ route('sales-targets.index') }}" class="btn btn-info shadow-sm">
+                            <i class="fas fa-bullseye me-2"></i>Sales Targets
+                        </a>
+                        <a href="{{ route('salary-increments.index') }}" class="btn btn-warning shadow-sm">
+                            <i class="fas fa-arrow-up me-2"></i>Increments
+                        </a>
+                        <a href="{{ route('salary.create') }}" class="btn btn-create-premium shadow-sm">
+                            <i class="fas fa-plus me-2"></i>New Payment
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -56,7 +64,20 @@
                         </div>
 
                         <div class="row g-3">
-                            <div class="col-md-2" id="monthCol">
+                            @if(auth()->user()->hasRole('Super Admin'))
+                            <div class="col-md-2">
+                                <label class="form-label-small">Select Branch</label>
+                                <select name="branch_id" class="form-select form-select-sm filter-select select2-premium-42">
+                                    <option value="">All Branches</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
+                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}" id="monthCol">
                                 <label class="form-label-small">Select Month *</label>
                                 <select name="month" class="form-select form-select-sm filter-select">
                                     <option>Select One</option>
@@ -65,7 +86,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
                                 <label class="form-label-small">Select Year *</label>
                                 <select name="year" class="form-select form-select-sm filter-select">
                                     <option>Select One</option>
@@ -74,7 +95,7 @@
                                     @endfor
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
                                 <label class="form-label-small">Select Employee *</label>
                                 <select name="employee_id" class="form-select form-select-sm filter-select select2-premium-42">
                                     <option value="all">All Employee</option>
@@ -85,7 +106,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
                                 <label class="form-label-small">Select Account *</label>
                                 <select name="account_id" class="form-select form-select-sm filter-select select2-premium-42">
                                     <option value="all">All Account</option>

@@ -1025,6 +1025,7 @@ class ReportController extends Controller
         $customerId = $id ?: $request->get('customer_id');
         $customers = Customer::orderBy('name')->get();
         $reportType = $request->get('report_type', 'all');
+        $viewType = $request->get('view_type', 'debit_credit'); // 'debit_credit' or 'info_wise'
         $startDate = null;
         $endDate = null;
         
@@ -1033,7 +1034,7 @@ class ReportController extends Controller
 
         if (!$customerId) {
             $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
-            return view('erp.reports.customer-ledger', compact('customers', 'branches', 'branchId', 'reportType', 'startDate', 'endDate'));
+            return view('erp.reports.customer-ledger', compact('customers', 'branches', 'branchId', 'reportType', 'startDate', 'endDate', 'viewType'));
         }
 
         $customer = Customer::findOrFail($customerId);
@@ -1093,13 +1094,22 @@ class ReportController extends Controller
         if ($branchId) $posQuery->where('branch_id', $branchId);
         if ($startDate) $posQuery->where('sale_date', '>=', $startDate->toDateString());
         if ($endDate) $posQuery->where('sale_date', '<=', $endDate->toDateString());
-        $posSales = $posQuery->get()->map(fn($p) => [
+        $posSales = $posQuery->with('branch')->get()->map(fn($p) => [
             'date' => $p->sale_date,
             'type' => 'POS Sale',
             'reference' => $p->invoice_number,
             'debit' => $p->total_amount - $p->exchange_amount,
             'credit' => 0,
-            'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Debit)" : "POS Transaction"
+            'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Debit)" : "POS Transaction",
+            // Info wise details
+            'invoice' => $p->invoice_number,
+            'challan' => $p->challan_number ?? '-',
+            'branch' => $p->branch->name ?? '-',
+            'total' => $p->total_amount,
+            'discount' => $p->discount_amount ?? 0,
+            'paid' => 0,
+            'due' => $p->total_amount - $p->discount_amount,
+            'particulars' => 'POS Sale - ' . ($p->exchange_amount > 0 ? 'With Exchange' : 'Regular')
         ]);
 
         // 2. Payments (Credit)
@@ -1113,13 +1123,22 @@ class ReportController extends Controller
         }
         if ($startDate) $payQuery->where('payment_date', '>=', $startDate->toDateString());
         if ($endDate) $payQuery->where('payment_date', '<=', $endDate->toDateString());
-        $payments = $payQuery->get()->map(fn($p) => [
+        $payments = $payQuery->with(['pos.branch', 'invoice.pos.branch'])->get()->map(fn($p) => [
             'date' => $p->payment_date,
             'type' => 'Payment (' . str_replace('_', ' ', $p->payment_for) . ')',
             'reference' => $p->payment_reference ?: ($p->transaction_id ?: 'PAY-'.$p->id),
             'debit' => 0,
             'credit' => $p->amount,
-            'note' => $p->note
+            'note' => $p->note,
+            // Info wise details
+            'invoice' => $p->pos->invoice_number ?? ($p->invoice->invoice_number ?? '-'),
+            'challan' => '-',
+            'branch' => $p->pos->branch->name ?? ($p->invoice->pos->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-')),
+            'total' => 0,
+            'discount' => 0,
+            'paid' => $p->amount,
+            'due' => 0,
+            'particulars' => 'Payment - ' . str_replace('_', ' ', $p->payment_for)
         ]);
 
         // 3. Returns (Credit)
@@ -1129,21 +1148,39 @@ class ReportController extends Controller
         }
         if ($startDate) $retQuery->where('return_date', '>=', $startDate->toDateString());
         if ($endDate) $retQuery->where('return_date', '<=', $endDate->toDateString());
-        $returns = $retQuery->with('items')->get()->map(fn($r) => [
+        $returns = $retQuery->with(['items', 'pos.branch'])->get()->map(fn($r) => [
             'date' => $r->return_date,
             'type' => 'Sale Return',
             'reference' => 'RET-'.$r->id,
             'debit' => 0,
             'credit' => $r->items->sum('total_price'),
-            'note' => $r->reason
+            'note' => $r->reason,
+            // Info wise details
+            'invoice' => $r->pos->invoice_number ?? '-',
+            'challan' => '-',
+            'branch' => $r->pos->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-'),
+            'total' => 0,
+            'discount' => 0,
+            'paid' => 0,
+            'due' => $r->items->sum('total_price'),
+            'particulars' => 'Return - ' . $r->reason
         ]);
 
         $transactions = $posSales->concat($payments)->concat($returns)->sortBy('date');
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
 
+        // Calculate summary data for info wise view
+        $totalSales = $posSales->sum('total');
+        $totalDiscount = $posSales->sum('discount');
+        $totalPaid = $payments->sum('paid');
+        $totalReturn = $returns->sum('due');
+        $totalExchange = $posSales->where('note', 'like', '%Exchange%')->sum('total');
+        $totalDueAmount = ($openingBalance ?? 0) + $totalSales - $totalPaid - $totalReturn;
+
         if ($request->get('export') == 'pdf') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.reports.pdf.customer-ledger', compact(
-                'customer', 'transactions', 'openingBalance', 'startDate', 'endDate', 'branches', 'branchId'
+                'customer', 'transactions', 'openingBalance', 'startDate', 'endDate', 'branches', 'branchId', 'viewType',
+                'totalSales', 'totalDiscount', 'totalPaid', 'totalReturn', 'totalExchange', 'totalDueAmount'
             ))->setPaper('a4', 'portrait');
             
             return $pdf->download("Customer_Ledger_{$customer->name}.pdf");
@@ -1160,46 +1197,125 @@ class ReportController extends Controller
             
             $sheet->setCellValue('A2', "Period: " . ($startDate ? $startDate->format('d M, Y') : 'Life-to-date') . " - " . ($endDate ? $endDate->format('d M, Y') : date('d M, Y')));
             
-            // Table Headers
-            $headers = ['Date', 'Transaction Detail', 'Reference', 'Debit', 'Credit', 'Balance'];
-            foreach ($headers as $index => $header) {
-                $sheet->setCellValue(chr(65 + $index) . '4', $header);
-                $sheet->getStyle(chr(65 + $index) . '4')->getFont()->setBold(true);
-                $sheet->getStyle(chr(65 + $index) . '4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCACACA');
-            }
-            
-            $row = 5;
-            $runningBalance = $openingBalance ?? 0;
-            
-            // Opening Balance
-            $sheet->setCellValue('A' . $row, '-');
-            $sheet->setCellValue('B' . $row, 'PREVIOUS OPENING BALANCE');
-            $sheet->setCellValue('C' . $row, '-');
-            $sheet->setCellValue('D' . $row, '-');
-            $sheet->setCellValue('E' . $row, '-');
-            $sheet->setCellValue('F' . $row, number_format($runningBalance, 2) . ($runningBalance > 0 ? ' DR' : ' CR'));
-            $sheet->getStyle('B' . $row)->getFont()->setItalic(true);
-            $row++;
-            
-            foreach ($transactions as $txn) {
-                $runningBalance += ($txn['debit'] - $txn['credit']);
-                $sheet->setCellValue('A' . $row, \Carbon\Carbon::parse($txn['date'])->format('d M, Y'));
-                $sheet->setCellValue('B' . $row, $txn['type'] . ($txn['note'] ? " ({$txn['note']})" : ""));
-                $sheet->setCellValue('C' . $row, $txn['reference']);
-                $sheet->setCellValue('D' . $row, $txn['debit']);
-                $sheet->setCellValue('E' . $row, $txn['credit']);
-                $sheet->setCellValue('F' . $row, number_format(abs($runningBalance), 2) . ($runningBalance > 0 ? ' DR' : ' CR'));
+            if ($viewType == 'info_wise') {
+                // Info Wise Excel Export
+                $headers = ['SN', 'Date', 'Invoice', 'Challan', 'Branch', 'Particulars', 'Total', 'Discount', 'Paid', 'Due'];
+                foreach ($headers as $index => $header) {
+                    $sheet->setCellValue(chr(65 + $index) . '4', $header);
+                    $sheet->getStyle(chr(65 + $index) . '4')->getFont()->setBold(true);
+                    $sheet->getStyle(chr(65 + $index) . '4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF166534');
+                    $sheet->getStyle(chr(65 + $index) . '4')->getFont()->getColor()->setARGB('FFFFFFFF');
+                }
+                
+                $row = 5;
+                $sn = 1;
+                
+                foreach ($transactions as $txn) {
+                    $sheet->setCellValue('A' . $row, $sn++);
+                    $sheet->setCellValue('B' . $row, \Carbon\Carbon::parse($txn['date'])->format('d M, Y'));
+                    $sheet->setCellValue('C' . $row, $txn['invoice'] ?? '-');
+                    $sheet->setCellValue('D' . $row, $txn['challan'] ?? '-');
+                    $sheet->setCellValue('E' . $row, $txn['branch'] ?? '-');
+                    $sheet->setCellValue('F' . $row, $txn['particulars'] ?? $txn['type']);
+                    $sheet->setCellValue('G' . $row, $txn['total'] > 0 ? number_format($txn['total'], 2) : '-');
+                    $sheet->setCellValue('H' . $row, $txn['discount'] > 0 ? number_format($txn['discount'], 2) : '-');
+                    $sheet->setCellValue('I' . $row, $txn['paid'] > 0 ? number_format($txn['paid'], 2) : '-');
+                    
+                    // Due column with advance/due distinction
+                    if ($txn['due'] > 0) {
+                        $sheet->setCellValue('J' . $row, 'Due: ' . number_format($txn['due'], 2));
+                        $sheet->getStyle('J' . $row)->getFont()->getColor()->setARGB('FFFF0000'); // Red text
+                    } elseif ($txn['due'] < 0) {
+                        $sheet->setCellValue('J' . $row, 'Advance: ' . number_format(abs($txn['due']), 2));
+                        $sheet->getStyle('J' . $row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue text
+                    } else {
+                        $sheet->setCellValue('J' . $row, '-');
+                    }
+                    $row++;
+                }
+                
+                // Summary Footer
+                $sheet->setCellValue('F' . $row, 'TOTAL');
+                $sheet->setCellValue('G' . $row, number_format($totalSales ?? 0, 2));
+                $sheet->setCellValue('H' . $row, number_format($totalDiscount ?? 0, 2));
+                $sheet->setCellValue('I' . $row, number_format($totalPaid ?? 0, 2));
+                
+                // Total due with advance/due distinction
+                if ($totalDueAmount > 0) {
+                    $sheet->setCellValue('J' . $row, 'Due: ' . number_format($totalDueAmount, 2));
+                    $sheet->getStyle('J' . $row)->getFont()->getColor()->setARGB('FFFF0000'); // Red text
+                } elseif ($totalDueAmount < 0) {
+                    $sheet->setCellValue('J' . $row, 'Advance: ' . number_format(abs($totalDueAmount), 2));
+                    $sheet->getStyle('J' . $row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue text
+                } else {
+                    $sheet->setCellValue('J' . $row, '0.00');
+                }
+                
+                $sheet->getStyle('F'.$row.':J'.$row)->getFont()->setBold(true);
+                $sheet->getStyle('F'.$row.':J'.$row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF166534');
+                $sheet->getStyle('F'.$row.':J'.$row)->getFont()->getColor()->setARGB('FFFFFFFF');
+                
+                // Set column widths and alignment
+                $sheet->getColumnDimension('A')->setWidth(8);  // SN
+                $sheet->getColumnDimension('B')->setWidth(15); // Date
+                $sheet->getColumnDimension('C')->setWidth(15); // Invoice
+                $sheet->getColumnDimension('D')->setWidth(15); // Challan
+                $sheet->getColumnDimension('E')->setWidth(12); // Branch
+                $sheet->getColumnDimension('F')->setWidth(25); // Particulars
+                $sheet->getColumnDimension('G')->setWidth(12); // Total
+                $sheet->getColumnDimension('H')->setWidth(12); // Discount
+                $sheet->getColumnDimension('I')->setWidth(12); // Paid
+                $sheet->getColumnDimension('J')->setWidth(18); // Due
+                
+                // Set alignment for numeric columns
+                foreach (['G', 'H', 'I', 'J'] as $col) {
+                    $sheet->getStyle($col . '5:' . $col . ($row-1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+                }
+                
+                // Set text wrapping for particulars column
+                $sheet->getStyle('F5:F' . ($row-1))->getAlignment()->setWrapText(true);
+            } else {
+                // Debit/Credit Wise Excel Export (Original)
+                $headers = ['Date', 'Transaction Detail', 'Reference', 'Debit', 'Credit', 'Balance'];
+                foreach ($headers as $index => $header) {
+                    $sheet->setCellValue(chr(65 + $index) . '4', $header);
+                    $sheet->getStyle(chr(65 + $index) . '4')->getFont()->setBold(true);
+                    $sheet->getStyle(chr(65 + $index) . '4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFCACACA');
+                }
+                
+                $row = 5;
+                $runningBalance = $openingBalance ?? 0;
+                
+                // Opening Balance
+                $sheet->setCellValue('A' . $row, '-');
+                $sheet->setCellValue('B' . $row, 'PREVIOUS OPENING BALANCE');
+                $sheet->setCellValue('C' . $row, '-');
+                $sheet->setCellValue('D' . $row, '-');
+                $sheet->setCellValue('E' . $row, '-');
+                $sheet->setCellValue('F' . $row, number_format($runningBalance, 2) . ($runningBalance > 0 ? ' DR' : ' CR'));
+                $sheet->getStyle('B' . $row)->getFont()->setItalic(true);
                 $row++;
+                
+                foreach ($transactions as $txn) {
+                    $runningBalance += ($txn['debit'] - $txn['credit']);
+                    $sheet->setCellValue('A' . $row, \Carbon\Carbon::parse($txn['date'])->format('d M, Y'));
+                    $sheet->setCellValue('B' . $row, $txn['type'] . ($txn['note'] ? " ({$txn['note']})" : ""));
+                    $sheet->setCellValue('C' . $row, $txn['reference']);
+                    $sheet->setCellValue('D' . $row, $txn['debit']);
+                    $sheet->setCellValue('E' . $row, $txn['credit']);
+                    $sheet->setCellValue('F' . $row, number_format(abs($runningBalance), 2) . ($runningBalance > 0 ? ' DR' : ' CR'));
+                    $row++;
+                }
+                
+                // Summary Footer
+                $sheet->setCellValue('C' . $row, 'TOTAL');
+                $sheet->setCellValue('D' . $row, $transactions->sum('debit'));
+                $sheet->setCellValue('E' . $row, $transactions->sum('credit'));
+                $sheet->setCellValue('F' . $row, number_format(abs($runningBalance), 2) . ($runningBalance > 0 ? ' FINAL DUE' : ' FINAL ADVANCE'));
+                $sheet->getStyle('C'.$row.':F'.$row)->getFont()->setBold(true);
+                
+                foreach (range('A', 'F') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
             }
-            
-            // Summary Footer
-            $sheet->setCellValue('C' . $row, 'TOTAL');
-            $sheet->setCellValue('D' . $row, $transactions->sum('debit'));
-            $sheet->setCellValue('E' . $row, $transactions->sum('credit'));
-            $sheet->setCellValue('F' . $row, number_format(abs($runningBalance), 2) . ($runningBalance > 0 ? ' FINAL DUE' : ' FINAL ADVANCE'));
-            $sheet->getStyle('C'.$row.':F'.$row)->getFont()->setBold(true);
-            
-            foreach (range('A', 'F') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
             
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $filePath = storage_path('app/public/' . $filename);
@@ -1208,7 +1324,7 @@ class ReportController extends Controller
             return response()->download($filePath, $filename)->deleteFileAfterSend();
         }
 
-        return view('erp.reports.customer-ledger', compact('customer', 'customers', 'transactions', 'openingBalance', 'startDate', 'endDate', 'reportType', 'branches', 'branchId'));
+        return view('erp.reports.customer-ledger', compact('customer', 'customers', 'transactions', 'openingBalance', 'startDate', 'endDate', 'reportType', 'branches', 'branchId', 'viewType', 'totalSales', 'totalDiscount', 'totalPaid', 'totalReturn', 'totalExchange', 'totalDueAmount'));
     }
 
     public function supplierReport(Request $request)
@@ -1400,11 +1516,14 @@ class ReportController extends Controller
             $startDate = $now->copy()->startOfDay();
             $endDate = $now->copy()->endOfDay();
         } elseif ($reportType == 'monthly') {
-            $startDate = $now->copy()->startOfMonth();
-            $endDate = $now->copy()->endOfMonth();
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
         } elseif ($reportType == 'yearly') {
-            $startDate = $now->copy()->startOfYear();
-            $endDate = $now->copy()->endOfYear();
+            $year = $request->get('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
         } else {
             $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : null;
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : $now->copy()->endOfDay();
@@ -1489,28 +1608,110 @@ class ReportController extends Controller
             $filename = "Supplier_Ledger_{$supplier->name}_" . date('Ymd_His') . ".xlsx";
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
+            
+            // Header matching Customer Ledger
             $sheet->setCellValue('A1', "Supplier Ledger Account: " . $supplier->name);
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
             $sheet->setCellValue('A2', "Period: " . ($startDate ? $startDate->format('d M, Y') : 'Life-to-date') . " - " . ($endDate ? $endDate->format('d M, Y') : date('d M, Y')));
-            $headers = ['Date', 'Transaction Detail', 'Reference', 'Debit (Payment)', 'Credit (Purchase)', 'Balance'];
+            
+            // Info Wise Headers matching Customer Ledger
+            $headers = ['SN', 'Date', 'Bill/Challan', 'Particulars', 'Total', 'Paid', 'Due'];
             foreach ($headers as $index => $header) {
                 $cell = chr(65 + $index) . '4';
                 $sheet->setCellValue($cell, $header);
                 $sheet->getStyle($cell)->getFont()->setBold(true);
+                $sheet->getStyle($cell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF166534');
+                $sheet->getStyle($cell)->getFont()->getColor()->setARGB('FFFFFFFF');
             }
-            $row = 5; $runningBalance = $openingBalance;
-            $sheet->setCellValue('B'.$row, 'OPENING BALANCE');
-            $sheet->setCellValue('F'.$row, number_format(abs($runningBalance), 2) . ($runningBalance > 0 ? ' CR' : ' DR'));
-            foreach ($transactions as $txn) {
+            
+            $row = 5; 
+            $sn = 1;
+            $runningBalance = $openingBalance;
+            
+            // Opening Balance Row
+            if ($runningBalance != 0) {
+                $sheet->setCellValue('A'.$row, '-');
+                $sheet->setCellValue('B'.$row, '-');
+                $sheet->setCellValue('C'.$row, '-');
+                $sheet->setCellValue('D'.$row, 'Opening Balance');
+                $sheet->setCellValue('E'.$row, '-');
+                $sheet->setCellValue('F'.$row, '-');
+                if ($runningBalance > 0) {
+                    $sheet->setCellValue('G'.$row, 'Due: ' . number_format($runningBalance, 2));
+                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000'); // Red
+                } else {
+                    $sheet->setCellValue('G'.$row, 'Advance: ' . number_format(abs($runningBalance), 2));
+                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue
+                }
                 $row++;
-                $runningBalance += ($txn['credit'] - $txn['debit']);
-                $sheet->setCellValue('A'.$row, Carbon::parse($txn['date'])->format('d M, Y'));
-                $sheet->setCellValue('B'.$row, $txn['type']);
-                $sheet->setCellValue('C'.$row, $txn['reference']);
-                $sheet->setCellValue('D'.$row, $txn['debit']);
-                $sheet->setCellValue('E'.$row, $txn['credit']);
-                $sheet->setCellValue('F'.$row, number_format(abs($runningBalance), 2) . ($runningBalance > 0 ? ' CR' : ' DR'));
             }
-            foreach (range('A', 'F') as $col) $sheet->getColumnDimension($col)->setAutoSize(true);
+            
+            foreach ($transactions as $txn) {
+                // Calculate values
+                if($txn['type'] == 'Purchase Bill') {
+                    $txnPaid = 0;
+                    $runningBalance += $txn['credit'];
+                } elseif($txn['type'] == 'Payment') {
+                    $txnPaid = $txn['debit'];
+                    $runningBalance -= $txn['debit'];
+                } elseif($txn['type'] == 'Purchase Return') {
+                    $txnPaid = $txn['debit'];
+                    $runningBalance -= $txn['debit'];
+                } else {
+                    $txnPaid = $txn['debit'];
+                    $runningBalance += ($txn['credit'] - $txn['debit']);
+                }
+                
+                $sheet->setCellValue('A'.$row, $sn++);
+                $sheet->setCellValue('B'.$row, Carbon::parse($txn['date'])->format('d M, Y'));
+                $sheet->setCellValue('C'.$row, $txn['reference'] ?? '-');
+                $sheet->setCellValue('D'.$row, $txn['type'] . ($txn['note'] ? ' - ' . $txn['note'] : ''));
+                $sheet->setCellValue('E'.$row, $txn['credit'] > 0 ? number_format($txn['credit'], 2) : '-');
+                $sheet->setCellValue('F'.$row, $txnPaid > 0 ? number_format($txnPaid, 2) : '-');
+                
+                // Due column with advance/due distinction
+                if ($runningBalance > 0) {
+                    $sheet->setCellValue('G'.$row, 'Due: ' . number_format($runningBalance, 2));
+                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000'); // Red text
+                } elseif ($runningBalance < 0) {
+                    $sheet->setCellValue('G'.$row, 'Advance: ' . number_format(abs($runningBalance), 2));
+                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue text
+                } else {
+                    $sheet->setCellValue('G'.$row, '-');
+                }
+                
+                $row++;
+            }
+            
+            // Total Footer
+            $finalBal = ($openingBalance ?? 0) + $transactions->sum('credit') - $transactions->sum('debit');
+            $sheet->setCellValue('D'.$row, 'TOTAL');
+            $sheet->getStyle('D'.$row)->getFont()->setBold(true);
+            $sheet->setCellValue('E'.$row, number_format($transactions->sum('credit'), 2));
+            $sheet->getStyle('E'.$row)->getFont()->setBold(true);
+            $sheet->setCellValue('F'.$row, number_format($transactions->sum('debit'), 2));
+            $sheet->getStyle('F'.$row)->getFont()->setBold(true);
+            
+            if ($finalBal > 0) {
+                $sheet->setCellValue('G'.$row, 'Due: ' . number_format($finalBal, 2));
+                $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000');
+            } elseif ($finalBal < 0) {
+                $sheet->setCellValue('G'.$row, 'Advance: ' . number_format(abs($finalBal), 2));
+                $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF');
+            } else {
+                $sheet->setCellValue('G'.$row, '0.00');
+            }
+            $sheet->getStyle('G'.$row)->getFont()->setBold(true);
+            
+            // Set column widths
+            $sheet->getColumnDimension('A')->setWidth(8);
+            $sheet->getColumnDimension('B')->setWidth(15);
+            $sheet->getColumnDimension('C')->setWidth(20);
+            $sheet->getColumnDimension('D')->setWidth(30);
+            $sheet->getColumnDimension('E')->setWidth(12);
+            $sheet->getColumnDimension('F')->setWidth(12);
+            $sheet->getColumnDimension('G')->setWidth(20);
+            
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $path = storage_path('app/public/'.$filename);
             $writer->save($path);
