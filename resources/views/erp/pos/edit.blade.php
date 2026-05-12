@@ -12,6 +12,10 @@
         .cart-table-container { flex-grow: 1; overflow-y: auto; background: #f8fafc; }
         .terminal-sidebar { width: 35%; display: flex; flex-direction: column; background: #fff; border-left: 1px solid #e2e8f0; }
         .products-panel { width: 65%; display: flex; flex-direction: column; }
+        input.qty-input::-webkit-outer-spin-button,
+        input.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input.qty-input[type=number] { -moz-appearance: textfield; }
+        .qty-input:focus { background: rgba(0,0,0,0.05) !important; border-radius: 4px; }
     </style>
 @endpush
 
@@ -133,14 +137,25 @@
                         <input type="hidden" name="sale_type" id="hiddenSaleType" value="{{ $pos->sale_type }}">
 
                         <div class="row g-2 mb-2">
-                            <div class="col-6">
+                            <div class="col-4">
                                 <label class="terminal-section-title d-block mb-1">Discount</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-tag"></i></span>
                                     <input type="text" class="form-control border-start-0 text-end fw-bold" id="discountInput" name="discount" value="{{ $pos->discount }}" placeholder="0 or 10%">
                                 </div>
                             </div>
-                            <div class="col-6">
+                            @if(($general_settings->pos_vat_status ?? 'on') == 'on')
+                            <div class="col-4">
+                                <label class="terminal-section-title d-block mb-1">VAT (%)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-percent"></i></span>
+                                    <input type="number" class="form-control border-start-0 text-end fw-bold" id="vatInput" name="vat_rate" value="{{ $pos->vat_rate }}" step="0.01">
+                                </div>
+                            </div>
+                            @else
+                                <input type="hidden" id="vatInput" name="vat_rate" value="{{ $pos->vat_rate }}">
+                            @endif
+                            <div class="col-4">
                                 <label class="terminal-section-title d-block mb-1">Shipping</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-shipping-fast"></i></span>
@@ -150,6 +165,22 @@
                         </div>
 
                         <!-- Summary -->
+                        <div class="mb-2 p-2 rounded bg-light border">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted fw-bold small">Subtotal</span>
+                                <span class="fw-bold" id="subtotalDisplay">0.00৳</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1 text-danger" id="discountRow" style="display: none;">
+                                <span class="fw-bold small">Discount</span>
+                                <span class="fw-bold">- <span id="discountAmountDisplay">0.00</span>৳</span>
+                            </div>
+                            @if(($general_settings->pos_vat_status ?? 'on') == 'on')
+                            <div class="d-flex justify-content-between mb-1 text-primary" id="vatRow" {!! ($pos->vat_amount > 0) ? '' : 'style="display: none !important;"' !!}>
+                                <span class="fw-bold small">VAT <span id="vatPercentTag" class="text-muted extra-small">{{ $pos->vat_rate }}%</span></span>
+                                <span class="fw-bold">+ <span id="vatAmountDisplay">{{ number_format($pos->vat_amount, 2) }}</span>৳</span>
+                            </div>
+                            @endif
+                            <input type="hidden" name="vat_amount" id="hiddenVatAmount" value="{{ $pos->vat_amount }}">
                             <div class="d-flex justify-content-between border-top pt-1 mt-1">
                                 <span class="terminal-section-title m-0 text-primary opacity-75">Payable</span>
                                 <span class="h4 mb-0 fw-bold text-primary" id="finalTotalDisplay">0.00</span>
@@ -176,14 +207,6 @@
                                          </option>
                                      @endforeach
                                  </select>
-                            </div>
-                            <div class="col-12">
-                                <select class="form-select form-select-sm" name="courier_id" id="courierSelect">
-                                    <option value="">No Courier / In-Store</option>
-                                    @foreach($shippingMethods as $method)
-                                        <option value="{{ $method->id }}" {{ $pos->courier_id == $method->id ? 'selected' : '' }}>{{ $method->name }}</option>
-                                    @endforeach
-                                </select>
                             </div>
                         </div>
                         
@@ -374,11 +397,15 @@ $(document).ready(function() {
                     <td class="text-center px-0">
                         <div class="d-flex align-items-center justify-content-center bg-light rounded-pill p-1" style="width: fit-content; margin: 0 auto;">
                             <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', -1)"><i class="fas fa-minus"></i></button>
-                            <span class="qty-value mx-2 fw-bold" style="min-width: 25px;">${item.qty}</span>
+                            <input type="number" class="qty-input mx-1 fw-bold text-center border-0 bg-transparent" 
+                                   value="${item.qty}" min="1" max="${item.maxStock}" 
+                                   style="width: 45px; outline: none;"
+                                   oninput="manualUpdateQty('${item.cartId}', this.value, this)"
+                                   onclick="this.select()" onfocus="this.select()">
                             <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', 1)"><i class="fas fa-plus"></i></button>
                         </div>
                     </td>
-                    <td class="text-end fw-bold text-dark pe-3 h6 mb-0">${(item.price * item.qty).toFixed(2)}</td>
+                    <td class="text-end fw-bold text-dark pe-3 h6 mb-0" id="item-total-${item.cartId}">${(item.price * item.qty).toFixed(2)}</td>
                     <td class="text-center pe-2">
                         <button type="button" class="btn-remove-item text-danger border-0 bg-transparent p-2" onclick="removeFromCart('${item.cartId}')" title="Remove Item">
                             <i class="fas fa-times-circle fa-lg"></i>
@@ -389,7 +416,6 @@ $(document).ready(function() {
         });
         calculateTotals();
     }
-
     window.updateQty = (id, d) => { 
         let i = cart.find(c => c.cartId === id); 
         if(i) { 
@@ -399,6 +425,28 @@ $(document).ready(function() {
             if(i.qty <= 0) removeFromCart(id); 
             else renderCart(); 
         } 
+    };
+    window.manualUpdateQty = (id, val, input) => {
+        let i = cart.find(c => c.cartId === id);
+        if(i) {
+            let newQty = parseFloat(val);
+            
+            if(newQty > i.maxStock) {
+                alert('Stock Limit Reached! Only ' + i.maxStock + ' available.');
+                newQty = i.maxStock;
+                if(input) input.value = newQty;
+            }
+            
+            if (isNaN(newQty) || newQty < 0) return;
+            
+            i.qty = newQty;
+            
+            // Update row total
+            $(`#item-total-${id}`).text((i.price * i.qty).toFixed(2));
+            
+            // Update totals
+            calculateTotals();
+        }
     };
     window.removeFromCart = (id) => { 
         if(confirm('Remove this item?')) {
@@ -412,11 +460,24 @@ $(document).ready(function() {
         let discStr = $('#discountInput').val() || '0';
         let disc = discStr.includes('%') ? (sub * parseFloat(discStr)/100) : parseFloat(discStr);
         let del = parseFloat($('#deliveryInput').val()) || 0;
-        let final = Math.round((sub + del) - disc);
+        let vatRate = parseFloat($('#vatInput').val()) || 0;
+        let vatAmount = (sub - disc) * (vatRate / 100);
+        let final = Math.round((sub + del + vatAmount) - disc);
 
         $('#subtotalDisplay').text(sub.toFixed(2) + '৳');
         $('#discountRow').toggle(disc > 0);
         $('#discountAmountDisplay').text(disc.toFixed(2));
+        
+        if(vatAmount > 0) {
+            $('#vatRow').show();
+            $('#vatAmountDisplay').text(vatAmount.toFixed(2));
+            $('#vatPercentTag').text('(' + vatRate + '%)');
+            $('#hiddenVatAmount').val(vatAmount.toFixed(2));
+        } else {
+            $('#vatRow').hide();
+            $('#hiddenVatAmount').val(0);
+        }
+
         $('#finalTotalDisplay').text(final);
         $('#cartCount').text(cart.length + ' Items');
 
@@ -453,7 +514,7 @@ $(document).ready(function() {
         loadProducts();
         renderCart();
     });
-    $('#discountInput, #deliveryInput, #paidAmountInput').on('input', calculateTotals);
+    $('#discountInput, #deliveryInput, #vatInput, #paidAmountInput').on('input', calculateTotals);
     $('input[name="payment_method"]').change(function() {
         let type = $(this).val();
         $('#accountSelect option').each(function() { $(this).toggle($(this).data('type') == type); });
@@ -481,7 +542,8 @@ $(document).ready(function() {
             paid_amount: parseFloat($('#paidAmountInput').val()) || 0,
             payment_method: $('input[name="payment_method"]:checked').val(),
             account_id: $('#accountSelect').val(),
-            courier_id: $('#courierSelect').val(),
+            vat_rate: parseFloat($('#vatInput').val()) || 0,
+            vat_amount: parseFloat($('#hiddenVatAmount').val()) || 0,
             items: cart.map(i => ({ product_id: i.productId, variation_id: i.variationId, quantity: i.qty, unit_price: i.price }))
         };
 

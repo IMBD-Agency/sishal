@@ -42,7 +42,12 @@ class MoneyReceiptController extends Controller
             ]);
         }
 
-        $customers = Customer::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
         $recentReceipts = Payment::whereNotNull('payment_reference')->latest()->take(50)->get();
         $recentInvoices = Invoice::latest()->take(50)->get();
 
@@ -55,12 +60,17 @@ class MoneyReceiptController extends Controller
         return view('erp.money-receipt.index', compact('receipts', 'totalAmount', 'customers', 'branches', 'recentReceipts', 'recentInvoices'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('manage money receipts')) {
             abort(403, 'Unauthorized action.');
         }
-        $customers = Customer::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
         // Generate Receipt No: MR-YYYYMMDD-SEQU
         $receiptNo = $this->generateReceiptNumber();
 
@@ -73,13 +83,24 @@ class MoneyReceiptController extends Controller
         }
 
         // Get recent invoices for invoice-based selection
-        $recentInvoices = Invoice::with('customer')
+        $recentInvoicesQuery = Invoice::with('customer')
             ->where('due_amount', '>', 0)
-            ->orderBy('id', 'desc')
-            ->take(100)
-            ->get();
+            ->orderBy('id', 'desc');
 
-        return view('erp.money-receipt.create', compact('customers', 'receiptNo', 'bankAccounts', 'recentInvoices'));
+        // If a specific invoice is requested, make sure it's included even if not in the top 100
+        $selectedInvoice = null;
+        if ($request->filled('invoice_id')) {
+            $selectedInvoice = Invoice::with('customer')->find($request->invoice_id);
+        }
+
+        $recentInvoices = $recentInvoicesQuery->take(100)->get();
+
+        // If we have a selected invoice that's not in the recent list, prepend it
+        if ($selectedInvoice && !$recentInvoices->contains('id', $selectedInvoice->id)) {
+            $recentInvoices->prepend($selectedInvoice);
+        }
+
+        return view('erp.money-receipt.create', compact('customers', 'receiptNo', 'bankAccounts', 'recentInvoices', 'selectedInvoice'));
     }
 
     public function show($id)
@@ -111,6 +132,30 @@ class MoneyReceiptController extends Controller
             ->get(['id', 'invoice_number', 'due_amount', 'total_amount', 'paid_amount', 'issue_date']);
 
         return response()->json($invoices);
+    }
+
+    /**
+     * Get single invoice details with customer info
+     * Used for auto-populating money receipt when coming from sales list
+     */
+    public function getInvoiceDetails($invoiceId)
+    {
+        $invoice = Invoice::with('customer')->find($invoiceId);
+
+        if (!$invoice) {
+            return response()->json(['error' => 'Invoice not found'], 404);
+        }
+
+        return response()->json([
+            'id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'due_amount' => $invoice->due_amount,
+            'total_amount' => $invoice->total_amount,
+            'paid_amount' => $invoice->paid_amount,
+            'customer_id' => $invoice->customer_id,
+            'customer_name' => $invoice->customer ? $invoice->customer->name : 'Walk-in',
+            'is_walk_in' => is_null($invoice->customer_id)
+        ]);
     }
 
     public function store(Request $request)
@@ -293,7 +338,12 @@ class MoneyReceiptController extends Controller
         }
 
         $receipt = Payment::findOrFail($id);
-        $customers = Customer::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
         $bankAccounts = FinancialAccount::all();
         
         // Load invoices for the selected customer

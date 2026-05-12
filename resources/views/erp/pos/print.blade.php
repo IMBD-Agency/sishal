@@ -204,6 +204,8 @@
                     <th class="text-left">Item Description</th>
                     <th>Qty</th>
                     <th>Price</th>
+                    <th>VAT</th>
+                    <th>Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -223,7 +225,14 @@
                         <span class="item-sku">SKU: {{ $item->product->sku }}</span>
                     </td>
                     <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
-                    <td>{{ number_format($item->total_price, 1) }}</td>
+                    <td>{{ number_format($item->unit_price, 1) }}</td>
+                    <td>
+                        @php
+                            $itemVat = $item->total_price * ($pos->vat_rate / 100);
+                        @endphp
+                        {{ number_format($itemVat, 1) }}
+                    </td>
+                    <td>{{ number_format($item->total_price + $itemVat, 1) }}</td>
                 </tr>
                 @endforeach
             </tbody>

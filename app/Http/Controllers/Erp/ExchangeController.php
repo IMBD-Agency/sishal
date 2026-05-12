@@ -85,7 +85,8 @@ class ExchangeController extends Controller
         if (!auth()->user()->hasPermissionTo('manage exchanges')) {
             abort(403, 'Unauthorized action.');
         }
-        return view('erp.exchange.create');
+        $branchId = $this->getRestrictedBranchId();
+        return view('erp.exchange.create', compact('branchId'));
     }
 
     public function latestInvoices(Request $request)

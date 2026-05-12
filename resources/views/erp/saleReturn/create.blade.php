@@ -196,6 +196,7 @@
 
                 $itemsTableBody.empty();
                 data.items.forEach((item, index) => {
+                    const remainingToReturn = item.quantity - item.already_returned;
                     const row = `
                         <tr>
                             <td class="text-center">${index + 1}</td>
@@ -207,17 +208,21 @@
                                     <span class="product-info-badge">Size: ${item.size}</span>
                                 </div>
                                 <input type="hidden" name="items[${index}][product_id]" value="${item.product_id}">
-                                <input type="hidden" name="items[${index}][variation_id]" value="${item.variation_id}">
+                                <input type="hidden" name="items[${index}][variation_id]" value="${item.variation_id || ''}">
+                                <input type="hidden" name="items[${index}][sale_item_id]" value="${item.id}">
                             </td>
-                            <td class="text-center text-muted">${item.quantity}</td>
+                            <td class="text-center">
+                                <span class="text-muted">${item.quantity}</span>
+                                ${item.already_returned > 0 ? `<div class="small text-danger" style="font-size: 0.7rem;">Returned: ${item.already_returned}</div>` : ''}
+                                <div class="small text-success fw-bold" style="font-size: 0.75rem;">Remaining: ${remainingToReturn}</div>
+                            </td>
                             <td class="text-center">
                                 <input type="number" name="items[${index}][returned_qty]" class="form-control form-control-sm mx-auto text-center return-qty" 
-                                    style="width: 80px;" min="0" max="${item.quantity}" step="1" value="0">
+                                    style="width: 80px;" min="0" max="${remainingToReturn}" step="1" value="0">
                             </td>
                             <td class="text-end">
                                 <input type="number" name="items[${index}][unit_price]" class="form-control form-control-sm text-end unit-price fw-bold text-primary" 
                                     style="width: 100px; display: inline-block;" step="0.01" value="${item.net_unit_price}">
-                                ${item.net_unit_price != item.unit_price ? `<div class="small text-muted mt-1" style="font-size: 0.75rem;">Orig: <del>${item.unit_price}</del></div>` : ''}
                             </td>
                             <td class="text-end fw-bold row-total">0.00</td>
                             <td>
@@ -233,6 +238,14 @@
             $(document).on('input', '.return-qty, .unit-price', function() {
                 const $row = $(this).closest('tr');
                 const qty = parseFloat($row.find('.return-qty').val()) || 0;
+                const maxQty = parseFloat($row.find('.return-qty').attr('max')) || 0;
+
+                if (qty > maxQty) {
+                    Swal.fire('Limit Exceeded', `You can only return up to ${maxQty} units for this item.`, 'warning');
+                    $row.find('.return-qty').val(maxQty);
+                    return;
+                }
+
                 const price = parseFloat($row.find('.unit-price').val()) || 0;
                 const total = qty * price;
                 $row.find('.row-total').text(total.toFixed(2));

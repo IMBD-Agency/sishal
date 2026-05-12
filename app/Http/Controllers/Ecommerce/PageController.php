@@ -250,6 +250,28 @@ class PageController extends Controller
         return view('ecommerce.productDetails', compact('product', 'relatedProducts', 'pageTitle'));
     }
 
+    public function comboDetails($slug)
+    {
+        $combo = Product::where('type', 'combo')
+            ->where('slug', $slug)
+            ->where('status', 'active')
+            ->with(['comboItems.product', 'comboItems.variation'])
+            ->firstOrFail();
+
+        $userId = Auth::id();
+        $combo->is_wishlisted = $userId ? Wishlist::where('user_id', $userId)->where('product_id', $combo->id)->exists() : false;
+
+        // Check if combo items are in stock
+        $combo->in_stock = true;
+        foreach ($combo->comboItems as $item) {
+            // Add stock check logic here based on your stock system
+            // if ($item->product->stock < $item->quantity) $combo->in_stock = false;
+        }
+
+        $pageTitle = $combo->name . ' - Combo Offer';
+        return view('ecommerce.combo-details', compact('combo', 'pageTitle'));
+    }
+
     public function filterProducts(Request $request)
     {
         return $this->products($request);

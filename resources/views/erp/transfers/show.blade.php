@@ -97,7 +97,7 @@
                                 <p class="small text-muted text-uppercase fw-bold mb-1">Journal Entry</p>
                                 <p class="mb-0">
                                     <i class="fas fa-book me-2"></i>
-                                    <a href="{{ route('journals.show', $transfer->journal->id) }}" class="fw-bold">
+                                    <a href="{{ route('journal.show', $transfer->journal->id) }}" class="fw-bold">
                                         {{ $transfer->journal->voucher_no }}
                                     </a>
                                 </p>

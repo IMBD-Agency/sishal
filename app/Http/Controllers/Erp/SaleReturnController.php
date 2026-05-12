@@ -71,7 +71,11 @@ class SaleReturnController extends Controller
         } else {
             $branches = Branch::all();
         }
-        $customers = Customer::orderBy('name')->get();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->get();
         $products = \App\Models\Product::orderBy('name')->get();
         $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
         $brands = \App\Models\Brand::orderBy('name')->get();
@@ -289,12 +293,21 @@ class SaleReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $customers = Customer::all();
-        $posSales = Pos::all();
-        $invoices = Invoice::all();
-        $products = \App\Models\Product::all();
-        $branches = \App\Models\Branch::all();
-        $warehouses = \App\Models\Warehouse::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(100)->get(); // Limit initial load
+
+        // We only load what is absolutely needed for the view to avoid memory issues
+        $branches = Branch::where('status', 'active')->get();
+        $warehouses = Warehouse::all();
+        
+        // PosSales, Invoices, and Products are fetched via AJAX when searching or not needed for initial load
+        $posSales = collect(); 
+        $invoices = collect();
+        $products = collect(); 
         
         // Handle pre-selected POS sale from query parameter
         $selectedPosSale = null;
@@ -350,6 +363,9 @@ class SaleReturnController extends Controller
                         'variation_id' => $item->variation_id,
                         'variation_name' => $item->variation->name ?? 'Standard',
                         'quantity' => $item->quantity,
+                        'already_returned' => \App\Models\SaleReturnItem::where('sale_item_id', $item->id)
+                            ->whereHas('saleReturn', function($q) { $q->where('status', '!=', 'rejected'); })
+                            ->sum('returned_qty'),
                         'unit_price' => $item->unit_price,
                         'net_unit_price' => $item->quantity > 0 ? round($item->total_price / $item->quantity, 2) : $item->unit_price,
                         'color' => $color,
@@ -382,6 +398,22 @@ class SaleReturnController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
 
+        // Validate return quantities against original sale
+        foreach ($request->items as $item) {
+            if (isset($item['sale_item_id'])) {
+                $saleItem = \App\Models\PosItem::find($item['sale_item_id']);
+                if ($saleItem) {
+                    $alreadyReturned = \App\Models\SaleReturnItem::where('sale_item_id', $saleItem->id)
+                        ->whereHas('saleReturn', function($q) { $q->where('status', '!=', 'rejected'); })
+                        ->sum('returned_qty');
+                    
+                    if (($alreadyReturned + $item['returned_qty']) > $saleItem->quantity) {
+                        return back()->withInput()->with('error', "Invalid quantity for {$saleItem->product->name}. Sold: {$saleItem->quantity}, Returned so far: {$alreadyReturned}, Attempting to return: {$item['returned_qty']}");
+                    }
+                }
+            }
+        }
+
         $data = $request->except(['items', 'status']);
         $data['status'] = 'pending';
         $saleReturn = SaleReturn::create($data);
@@ -394,7 +426,7 @@ class SaleReturnController extends Controller
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
                 'product_id' => $item['product_id'],
-                'variation_id' => $item['variation_id'] ?? null,
+                'variation_id' => ($item['variation_id'] === 'null' || !$item['variation_id']) ? null : $item['variation_id'],
                 'returned_qty' => $returnedQty,
                 'unit_price' => $item['unit_price'],
                 'total_price' => $returnedQty * $item['unit_price'],
@@ -432,12 +464,20 @@ class SaleReturnController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $saleReturn = SaleReturn::with(['items', 'employee.user'])->findOrFail($id);
-        $customers = Customer::all();
-        $posSales = Pos::all();
-        $invoices = Invoice::all();
-        $products = \App\Models\Product::all();
-        $branches = \App\Models\Branch::all();
-        $warehouses = \App\Models\Warehouse::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(100)->get();
+
+        $branches = Branch::where('status', 'active')->get();
+        $warehouses = Warehouse::all();
+
+        // These are not needed for the edit view if it uses AJAX search
+        $posSales = collect();
+        $invoices = collect();
+        $products = collect();
         return view('erp.saleReturn.edit', compact('saleReturn', 'customers', 'posSales', 'invoices', 'products', 'branches', 'warehouses'));
     }
 
@@ -446,6 +486,7 @@ class SaleReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
+        $saleReturn = \App\Models\SaleReturn::findOrFail($id);
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'pos_sale_id' => 'nullable|exists:pos,id',
@@ -465,7 +506,24 @@ class SaleReturnController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.reason' => 'nullable|string',
         ]);
-        $saleReturn = SaleReturn::findOrFail($id);
+        // Validate return quantities against original sale
+        
+        foreach ($request->items as $item) {
+            if (isset($item['sale_item_id'])) {
+                $saleItem = \App\Models\PosItem::find($item['sale_item_id']);
+                if ($saleItem) {
+                    $alreadyReturned = \App\Models\SaleReturnItem::where('sale_item_id', $saleItem->id)
+                        ->where('sale_return_id', '!=', $saleReturn->id)
+                        ->whereHas('saleReturn', function($q) { $q->where('status', '!=', 'rejected'); })
+                        ->sum('returned_qty');
+                    
+                    if (($alreadyReturned + $item['returned_qty']) > $saleItem->quantity) {
+                        return back()->withInput()->with('error', "Invalid quantity for {$saleItem->product->name}. Sold: {$saleItem->quantity}, Returned so far: {$alreadyReturned}, Attempting to return: {$item['returned_qty']}");
+                    }
+                }
+            }
+        }
+
         $saleReturn->update($request->except(['items', 'status']));
         // Remove old items
         $saleReturn->items()->delete();
@@ -475,7 +533,7 @@ class SaleReturnController extends Controller
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
                 'product_id' => $item['product_id'],
-                'variation_id' => $item['variation_id'] ?? null,
+                'variation_id' => ($item['variation_id'] === 'null' || !$item['variation_id']) ? null : $item['variation_id'],
                 'returned_qty' => $item['returned_qty'],
                 'unit_price' => $item['unit_price'],
                 'total_price' => $item['returned_qty'] * $item['unit_price'],
@@ -700,6 +758,22 @@ class SaleReturnController extends Controller
         $qty = $item->returned_qty;
         $productId = $item->product_id;
         $variationId = $item->variation_id ?? null;
+
+        // Handle Combo Products recursively (restore component stock)
+        $product = \App\Models\Product::find($productId);
+        if ($product && $product->type === 'combo') {
+            foreach ($product->comboItems as $comboItem) {
+                // Mock an item structure for recursion
+                $compItem = (object)[
+                    'product_id'   => $comboItem->product_id,
+                    'variation_id' => $comboItem->variation_id,
+                    'returned_qty' => $comboItem->quantity * $qty
+                ];
+                $this->addStockForReturnItem($saleReturn, $compItem);
+            }
+            return; // Stock is added to components, not the combo header itself
+        }
+
         $toType = $saleReturn->return_to_type;
         $toId = $saleReturn->return_to_id;
 

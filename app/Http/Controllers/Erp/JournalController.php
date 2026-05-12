@@ -48,7 +48,7 @@ class JournalController extends Controller
             $query->where('type', $request->type);
         }
 
-        $journals = $query->latest()->get();
+        $journals = $query->latest()->paginate(50)->appends($request->except('page'));
         $chartAccounts = ChartOfAccount::with('parent')->orderBy('name')->get();
         $financialAccounts = FinancialAccount::all();
 

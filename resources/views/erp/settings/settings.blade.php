@@ -101,6 +101,20 @@
                                                 <input type="number" name="cod_percentage" class="form-control" placeholder="0.00" step="0.01" min="0" max="100" value="{{ $settings->cod_percentage ?? '0.00' }}">
                                                 <small class="text-muted">Percentage reduction applied to Cash on Delivery orders (reduces order total and affects accounting)</small>
                                             </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-medium">
+                                                    <i class="fas fa-toggle-on me-2 text-primary"></i>POS VAT Field
+                                                </label>
+                                                <div class="form-check form-switch form-check-lg mt-2">
+                                                    <input type="hidden" name="pos_vat_status" value="off">
+                                                    <input class="form-check-input" type="checkbox" name="pos_vat_status" id="posVatStatus" value="on" {{ ($settings->pos_vat_status ?? 'on') == 'on' ? 'checked' : '' }}>
+                                                    <label class="form-check-label text-muted" for="posVatStatus">
+                                                        Show VAT field in POS & Manual Sale
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted d-block mt-1">If turned off, the VAT field will be hidden during sales.</small>
+                                            </div>
                                             <div class="col-md-6">
                                                 <label class="form-label fw-medium">
                                                     <i class="fas fa-globe me-2 text-info"></i>Website URL

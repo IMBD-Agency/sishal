@@ -85,11 +85,8 @@
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-uppercase text-muted">Customer <span class="text-danger">*</span></label>
                                         <div class="input-group">
-                                            <select name="customer_id" id="customer_id" class="form-select select2-simple" required>
+                                            <select name="customer_id" id="customer_id" class="form-select select2-customer-ajax" required>
                                                 <option value="">Search Customer...</option>
-                                                @foreach($customers as $customer)
-                                                    <option value="{{ $customer->id }}">{{ $customer->name }} ({{ $customer->phone }})</option>
-                                                @endforeach
                                             </select>
                                             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#newCustomerModal" title="Add New Customer">
                                                 <i class="fas fa-plus"></i> New
@@ -109,17 +106,8 @@
                                 <div id="invoiceBasedSection" class="row g-3 mt-2" style="display: none;">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-uppercase text-muted">Search Invoice <span class="text-danger">*</span></label>
-                                        <select name="invoice_search_id" id="invoice_search_id" class="form-select select2-simple">
+                                        <select name="invoice_search_id" id="invoice_search_id" class="form-select select2-invoice-ajax">
                                             <option value="">Search Invoice...</option>
-                                            @if(isset($recentInvoices))
-                                                @foreach($recentInvoices as $invoice)
-                                                    @if($invoice->customer)
-                                                        <option value="{{ $invoice->id }}" data-customer="{{ $invoice->customer_id }}">
-                                                            {{ $invoice->invoice_number }} - {{ $invoice->customer->name }} (Due: {{ number_format($invoice->total_amount - $invoice->paid_amount, 2) }})
-                                                        </option>
-                                                    @endif
-                                                @endforeach
-                                            @endif
                                         </select>
                                     </div>
                                     <div class="col-md-6">
@@ -218,10 +206,87 @@
     
     @push('scripts')
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        /* Fix Select2 + Button layout in input-group */
+        .input-group .select2-container {
+            flex: 1 1 auto;
+            width: auto !important;
+        }
+        .input-group .select2-container .select2-selection--single {
+            height: 38px;
+            border-radius: 0.25rem 0 0 0.25rem;
+            border-right: 0;
+        }
+    </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
+            // Customer Search Select2
+            $('.select2-customer-ajax').select2({
+                width: '100%',
+                ajax: {
+                    url: '{{ route("customers.search") }}',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return { q: params.term, page: params.page };
+                    },
+                    processResults: function (data, params) {
+                        params.page = params.page || 1;
+                        return {
+                            results: data.results.map(function(item) {
+                                return {
+                                    id: item.id,
+                                    text: item.name + ' (' + item.phone + ')'
+                                };
+                            }),
+                            pagination: {
+                                more: (params.page * 30) < data.total_count
+                            }
+                        };
+                    },
+                    cache: true
+                },
+                placeholder: 'Search Customer...',
+                minimumInputLength: 1
+            });
+
+            // Invoice Search Select2
+            $('.select2-invoice-ajax').select2({
+                width: '100%',
+                ajax: {
+                    url: '{{ route("invoices.search") }}',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return { q: params.term, page: params.page };
+                    },
+                    processResults: function (data, params) {
+                        params.page = params.page || 1;
+                        return {
+                            results: data.results.map(function(item) {
+                                let due = (parseFloat(item.total_amount) || 0) - (parseFloat(item.paid_amount) || 0);
+                                return {
+                                    id: item.id,
+                                    text: item.invoice_number + ' - ' + (item.customer ? item.customer.name : 'Walk-in') + ' (Due: ' + due.toFixed(2) + ')',
+                                    customer_id: item.customer_id,
+                                    customer_name: item.customer ? item.customer.name : 'Walk-in',
+                                    due_amount: due,
+                                    invoice_number: item.invoice_number
+                                };
+                            }),
+                            pagination: {
+                                more: (params.page * 30) < data.total_count
+                            }
+                        };
+                    },
+                    cache: true
+                },
+                placeholder: 'Search Invoice...',
+                minimumInputLength: 1
+            });
+
             $('.select2-simple').select2({ width: '100%' });
 
             // Global Focus for Select2
@@ -251,15 +316,17 @@
                 }
             });
 
-            // Handle customer change
-            $('#customer_id').on('change', function(e, data) {
+            // Module-level variable to hold auto-select invoice ID
+            let pendingInvoiceId = null;
+
+            // Handle customer change (Customer-Based mode)
+            $('#customer_id').on('change', function() {
                 const customerId = this.value;
                 const invoiceSelect = $('#invoice_id');
-                const targetInvoiceId = data ? data.targetInvoiceId : null;
 
                 invoiceSelect.html('<option value="">Loading...</option>');
                 
-                if(!customerId) {
+                if (!customerId) {
                     invoiceSelect.html('<option value="">Select Invoice...</option>');
                     resetTable();
                     return;
@@ -270,13 +337,13 @@
                     .then(data => {
                         invoiceSelect.html('<option value="">Select Invoice...</option>');
                         data.forEach(inv => {
-                            let selected = (targetInvoiceId == inv.id) ? 'selected' : '';
-                            invoiceSelect.append(`<option value="${inv.id}" ${selected} data-number="${inv.invoice_number}" data-due="${inv.due_amount}" data-paid="${inv.paid_amount}">${inv.invoice_number} (Due: ${inv.due_amount})</option>`);
+                            invoiceSelect.append(`<option value="${inv.id}" data-number="${inv.invoice_number}" data-due="${inv.due_amount}" data-paid="${inv.paid_amount}">${inv.invoice_number} (Due: ${inv.due_amount})</option>`);
                         });
                         
-                        // If we auto-selected an invoice, trigger its change event
-                        if(targetInvoiceId) {
-                            $('#invoice_id').val(targetInvoiceId).trigger('change');
+                        // If a specific invoice was requested via URL, auto-select it
+                        if (pendingInvoiceId) {
+                            $('#invoice_id').val(pendingInvoiceId).trigger('change');
+                            pendingInvoiceId = null;
                         }
                     })
                     .catch(error => {
@@ -310,34 +377,25 @@
             });
 
             // Handle invoice search change (invoice based)
-            $('#invoice_search_id').on('change', function() {
-                const selectedOption = $(this).find('option:selected');
+            $('#invoice_search_id').on('select2:select', function(e) {
+                const data = e.params.data;
                 
-                if (!this.value) {
+                if (!data.id) {
                     $('#autoCustomerName').val('');
                     $('#customer_id_hidden').val('');
                     resetTable();
                     return;
                 }
                 
-                const customerId = selectedOption.data('customer');
-                const optionText = selectedOption.text();
+                const customerId = data.customer_id;
+                const customerName = data.customer_name;
+                const dueAmount = data.due_amount;
+                const invoiceNumber = data.invoice_number;
                 
-                // Parse the text: "INV-001 - Customer Name (Due: 1000.00)"
-                const textParts = optionText.split(' - ');
-                if (textParts.length >= 2) {
-                    const customerName = textParts[1].split(' (Due:')[0];
-                    $('#autoCustomerName').val(customerName.trim());
-                }
-                
+                $('#autoCustomerName').val(customerName);
                 $('#customer_id_hidden').val(customerId);
                 
-                // Extract due amount from text
-                const dueMatch = optionText.match(/Due: ([\d.,]+)/);
-                const dueAmount = dueMatch ? parseFloat(dueMatch[1].replace(',', '')) : 0;
-                
                 // Update invoice table
-                const invoiceNumber = textParts[0];
                 $('#td_invoice_no').text(invoiceNumber);
                 $('#td_due_amount').text(dueAmount.toFixed(2));
                 $('#td_paid_amount').text('0.00');
@@ -372,54 +430,104 @@
                     return false;
                 }
                 
-                if (!$('#amount').val() || $('#amount').val() <= 0) {
+                if (!$('#amount').val() || parseFloat($('#amount').val()) <= 0) {
                     e.preventDefault();
                     alert('Please enter a valid amount');
                     return false;
                 }
                 
-                // For invoice-based, ensure customer_id_hidden is set
-                if (paymentType === 'invoice' && !$('#customer_id_hidden').val()) {
-                    e.preventDefault();
-                    alert('Customer information missing. Please select invoice again.');
-                    return false;
-                }
+                // Note: customer_id_hidden can be empty for walk-in (no customer) invoice payments
+                // The server resolves customer from the invoice itself
                 
                 return true;
             });
 
-            // Handle URL parameters for auto-selection from sale page
+            // Handle URL parameters for auto-selection (from sale page "Receive Payment" button)
             function handleUrlParameters() {
                 const urlParams = new URLSearchParams(window.location.search);
                 const customerId = urlParams.get('customer_id');
                 const invoiceId = urlParams.get('invoice_id');
-                
-                if (customerId && invoiceId) {
-                    console.log('Auto-selecting customer:', customerId, 'invoice:', invoiceId);
-                    
-                    // Auto-select customer based payment type
-                    $('#customerBased').prop('checked', true).trigger('change');
-                    
-                    // Wait for customer to load, then select invoice
-                    setTimeout(() => {
-                        $('#customer_id').val(customerId).trigger('change', { targetInvoiceId: invoiceId });
-                    }, 300);
+                const customerName = urlParams.get('customer_name');
+                const invoiceNumber = urlParams.get('invoice_number');
+                const dueAmount = urlParams.get('due_amount');
+
+                if (!customerId && !invoiceId) return;
+
+                if (customerId) {
+                    // Stay on Customer-Based mode (default)
+                    // Set pendingInvoiceId BEFORE triggering change so the handler picks it up
+                    if (invoiceId) {
+                        pendingInvoiceId = invoiceId;
+                    }
+
+                    // Build label and properly set Select2 with the selected customer
+                    const label = customerName ? customerName + ' (ID: ' + customerId + ')' : 'Customer #' + customerId;
+
+                    // Create the option and select it using Select2 API
+                    const newOption = new Option(label, customerId, true, true);
+                    $('#customer_id').append(newOption).val(customerId).trigger('change');
+
                 } else if (invoiceId) {
-                    console.log('Auto-selecting invoice only:', invoiceId);
-                    
-                    // If only invoice ID, use invoice-based selection
-                    $('#invoiceBased').prop('checked', true).trigger('change');
-                    
-                    setTimeout(() => {
-                        $('#invoice_search_id').val(invoiceId).trigger('change');
-                    }, 300);
+                    // Only invoice ID available (walk-in customer) — use Invoice-Based mode
+                    // Fetch full invoice details from server to properly populate all fields
+                    fetch(`{{ url('/erp/money-receipt/get-invoice') }}/${invoiceId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                console.error('Invoice not found:', data.error);
+                                return;
+                            }
+
+                            // Switch to Invoice-Based mode
+                            $('#invoiceBased').prop('checked', true).trigger('change');
+
+                            // Build the label for Select2
+                            const due = parseFloat(data.due_amount) || 0;
+                            const label = data.invoice_number + ' - ' + data.customer_name + ' (Due: ' + due.toFixed(2) + ')';
+
+                            // Create and append the Select2 option with all data attributes
+                            const newOption = new Option(label, data.id, true, true);
+                            $('#invoice_search_id').append(newOption).val(data.id).trigger('change');
+
+                            // Populate customer auto-fill field
+                            $('#autoCustomerName').val(data.customer_name);
+                            $('#customer_id_hidden').val(data.customer_id || '');
+
+                            // Populate the invoice table row
+                            $('#td_invoice_no').text(data.invoice_number);
+                            $('#td_due_amount').text(due.toFixed(2));
+                            $('#td_paid_amount').text(parseFloat(data.paid_amount || 0).toFixed(2));
+                            $('#emptyRow').hide();
+                            $('#invoiceRow').show();
+
+                            // Auto-fill amount with due amount
+                            if (due > 0) {
+                                $('#amount').val(due);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching invoice details:', error);
+                            // Fallback to URL parameters if fetch fails
+                            $('#invoiceBased').prop('checked', true).trigger('change');
+                            const due = parseFloat(dueAmount) || 0;
+                            const label = (invoiceNumber || 'Invoice #' + invoiceId) + ' (Due: ' + due.toFixed(2) + ')';
+                            const newOption = new Option(label, invoiceId, true, true);
+                            $('#invoice_search_id').append(newOption).trigger('change');
+                            $('#td_invoice_no').text(invoiceNumber || 'INV-' + invoiceId);
+                            $('#td_due_amount').text(due.toFixed(2));
+                            $('#td_paid_amount').text('0.00');
+                            $('#emptyRow').hide();
+                            $('#invoiceRow').show();
+                            if (due > 0) $('#amount').val(due);
+                        });
                 }
             }
 
-            // Initialize URL parameter handling after select2 is ready
+            // Run after Select2 is fully initialized
             setTimeout(() => {
                 handleUrlParameters();
-            }, 100);
+            }, 500);
+
 
             // Handle new customer form submission
             $('#newCustomerForm').on('submit', function(e) {

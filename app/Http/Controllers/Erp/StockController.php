@@ -393,13 +393,16 @@ class StockController extends Controller
             'brand:id,name',
             'season:id,name',
             'gender:id,name',
-            'branchStock' => function($q) use ($selectedBranchId, $restrictedBranchId) {
+            'branchStock' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch) $q->where('branch_id', $activeBranch);
+                elseif ($selectedWarehouseId) $q->whereRaw('1=0');
                 $q->with('branch:id,name');
             },
-            'warehouseStock' => function($q) use ($restrictedBranchId) {
+            'warehouseStock' => function($q) use ($selectedWarehouseId, $selectedBranchId, $restrictedBranchId) {
                 if ($restrictedBranchId) $q->whereRaw('1=0');
+                elseif ($selectedWarehouseId) $q->where('warehouse_id', $selectedWarehouseId);
+                elseif ($selectedBranchId) $q->whereRaw('1=0');
                 $q->with('warehouse:id,name');
             },
             'variations' => function($q) use ($selectedVariationValueId) {
@@ -410,16 +413,33 @@ class StockController extends Controller
                 }
                 $q->with('attributeValues');
             },
-            'variations.stocks' => function($q) use ($selectedBranchId, $restrictedBranchId) {
+            'variations.stocks' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
-                if ($activeBranch) {
-                    $q->where(function($sq) use ($activeBranch) {
-                        $sq->where('branch_id', $activeBranch)->orWhereNotNull('warehouse_id');
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                        if ($selectedWarehouseId) {
+                            if ($activeBranch) $sq->orWhere('warehouse_id', $selectedWarehouseId);
+                            else $sq->where('warehouse_id', $selectedWarehouseId);
+                        }
                     });
                 }
                 $q->with(['branch:id,name', 'warehouse:id,name']);
             },
-            'purchaseItems' => function($q) use ($selectedBranchId, $restrictedBranchId, $request, $selectedVariationValueId) {
+            'variationStocks' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                        if ($selectedWarehouseId) {
+                            if ($activeBranch) $sq->orWhere('warehouse_id', $selectedWarehouseId);
+                            else $sq->where('warehouse_id', $selectedWarehouseId);
+                        }
+                    });
+                }
+                $q->with(['branch:id,name', 'warehouse:id,name']);
+            },
+            'purchaseItems' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId, $request, $selectedVariationValueId) {
                 if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
                 if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
                 if (!$request->filled('start_date') && !$request->filled('end_date')) $q->whereYear('created_at', date('Y'));
@@ -431,13 +451,19 @@ class StockController extends Controller
                 }
 
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
-                if ($activeBranch) {
-                    $q->whereHas('purchase', function($sq) use ($activeBranch) {
-                        $sq->where('ship_location_type', 'branch')->where('location_id', $activeBranch);
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->whereHas('purchase', function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        $sq->where(function($ssq) use ($activeBranch, $selectedWarehouseId) {
+                            if ($activeBranch) $ssq->where('ship_location_type', 'branch')->where('location_id', $activeBranch);
+                            if ($selectedWarehouseId) {
+                                if ($activeBranch) $ssq->orWhere(function($sssq) use ($selectedWarehouseId) { $sssq->where('ship_location_type', 'warehouse')->where('location_id', $selectedWarehouseId); });
+                                else $ssq->where('ship_location_type', 'warehouse')->where('location_id', $selectedWarehouseId);
+                            }
+                        });
                     });
                 }
             },
-            'saleItems' => function($q) use ($selectedBranchId, $restrictedBranchId, $request, $selectedVariationValueId) {
+            'saleItems' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId, $request, $selectedVariationValueId) {
                 if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
                 if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
                 if (!$request->filled('start_date') && !$request->filled('end_date')) $q->whereYear('created_at', date('Y'));
@@ -453,23 +479,72 @@ class StockController extends Controller
                     $q->whereHas('pos', function($sq) use ($activeBranch) {
                         $sq->where('branch_id', $activeBranch);
                     });
+                } elseif ($selectedWarehouseId) {
+                    $q->whereRaw('1=0'); // POS sales are typically branch-only
                 }
             },
-            'purchaseReturnItems' => function($q) use ($request) {
+            'purchaseReturnItems' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
                 if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+                
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch) $sq->where('return_from_type', 'branch')->where('return_from_id', $activeBranch);
+                        if ($selectedWarehouseId) {
+                            if ($activeBranch) $sq->orWhere(function($ssq) use ($selectedWarehouseId) { $ssq->where('return_from_type', 'warehouse')->where('return_from_id', $selectedWarehouseId); });
+                            else $sq->where('return_from_type', 'warehouse')->where('return_from_id', $selectedWarehouseId);
+                        }
+                    });
+                }
             },
-            'saleReturnItems' => function($q) use ($request) {
+            'saleReturnItems' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
                 if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->whereHas('saleReturn', function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        $sq->where(function($ssq) use ($activeBranch, $selectedWarehouseId) {
+                            if ($activeBranch) $ssq->where('return_to_type', 'branch')->where('return_to_id', $activeBranch);
+                            if ($selectedWarehouseId) {
+                                if ($activeBranch) $ssq->orWhere(function($sssq) use ($selectedWarehouseId) { $sssq->where('return_to_type', 'warehouse')->where('return_to_id', $selectedWarehouseId); });
+                                else $ssq->where('return_to_type', 'warehouse')->where('return_to_id', $selectedWarehouseId);
+                            }
+                        });
+                    });
+                }
             },
-            'stockAdjustmentItems' => function($q) use ($request) {
+            'stockAdjustmentItems' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
                 if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->whereHas('adjustment', function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                        if ($selectedWarehouseId) {
+                            if ($activeBranch) $sq->orWhere('warehouse_id', $selectedWarehouseId);
+                            else $sq->where('warehouse_id', $selectedWarehouseId);
+                        }
+                    });
+                }
             },
-            'stockTransfers' => function($q) use ($request) {
+            'stockTransfers' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
                 if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch || $selectedWarehouseId) {
+                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch) $sq->where('from_id', $activeBranch)->where('from_type', 'branch')->orWhere('to_id', $activeBranch)->where('to_type', 'branch');
+                        if ($selectedWarehouseId) {
+                             $sq->orWhere(function($ssq) use ($selectedWarehouseId) {
+                                 $ssq->where('from_id', $selectedWarehouseId)->where('from_type', 'warehouse')->orWhere('to_id', $selectedWarehouseId)->where('to_type', 'warehouse');
+                             });
+                        }
+                    });
+                }
             }
         ]);
 
@@ -480,12 +555,32 @@ class StockController extends Controller
             });
         }
 
-        // Filter: Only show products that have been purchased at least once OR have current stock
-        $query->where(function($q) {
+        // Filter: Only show products that have been purchased at least once OR have current stock in selected locations
+        $query->where(function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+            $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+            
             $q->whereHas('purchaseItems')
-              ->orWhereHas('branchStock', function($sq) { $sq->where('quantity', '>', 0); })
-              ->orWhereHas('warehouseStock', function($sq) { $sq->where('quantity', '>', 0); })
-              ->orWhereHas('variationStocks', function($sq) { $sq->where('quantity', '>', 0); });
+              ->orWhereHas('branchStock', function($sq) use ($activeBranch) { 
+                  if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                  $sq->where('quantity', '>', 0); 
+              })
+              ->orWhereHas('warehouseStock', function($sq) use ($selectedWarehouseId, $restrictedBranchId) { 
+                  if ($restrictedBranchId) $sq->whereRaw('1=0');
+                  elseif ($selectedWarehouseId) $sq->where('warehouse_id', $selectedWarehouseId);
+                  $sq->where('quantity', '>', 0); 
+              })
+              ->orWhereHas('variationStocks', function($sq) use ($activeBranch, $selectedWarehouseId) { 
+                  $sq->where('quantity', '>', 0); 
+                  if ($activeBranch || $selectedWarehouseId) {
+                      $sq->where(function($ssq) use ($activeBranch, $selectedWarehouseId) {
+                          if ($activeBranch) $ssq->where('branch_id', $activeBranch);
+                          if ($selectedWarehouseId) {
+                              if ($activeBranch) $ssq->orWhere('warehouse_id', $selectedWarehouseId);
+                              else $ssq->where('warehouse_id', $selectedWarehouseId);
+                          }
+                      });
+                  }
+              });
         });
         
         if ($request->filled('search')) {
@@ -500,6 +595,14 @@ class StockController extends Controller
         if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
         if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
         
+        // Order by last purchase date or product creation date (new first)
+        $query->addSelect([
+            'last_purchase_date' => \App\Models\PurchaseItem::select('created_at')
+                ->whereColumn('product_id', 'products.id')
+                ->latest()
+                ->take(1)
+        ])->orderByRaw('COALESCE(last_purchase_date, products.created_at) DESC');
+
         return $query;
     }
 

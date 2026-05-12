@@ -39,6 +39,7 @@
                 <th class="text-center bg-soft-success">Total AS-Qty</th>
                 
                 <th class="text-end">Delivery Charge Amount</th>
+                <th class="text-end">VAT Amount</th>
                 <th class="text-end">Discount Amount</th>
                 <th class="text-end">Exchange Amount</th>
                 <th class="text-end fw-bold">Actual Sales Amount</th>
@@ -160,6 +161,9 @@
                     <td class="text-end">
                         @if($isFirst) {{ number_format($sale->delivery, 2) }} @endif
                     </td>
+                    <td class="text-end">
+                        @if($isFirst) {{ number_format($sale->vat_amount, 2) }} @endif
+                    </td>
                     <td class="text-end text-danger">
                         @if($isFirst) {{ number_format($sale->discount, 2) }} @endif
                     </td>
@@ -193,7 +197,22 @@
                                 @endif
 
                                 @if(($invoice->due_amount ?? 0) > 0 && auth()->user()->hasPermissionTo('manage money receipts'))
-                                <a href="{{ route('money-receipt.create', ['customer_id' => $sale->customer_id, 'invoice_id' => $invoice->id]) }}" class="btn btn-action btn-sm" title="Receive Payment" style="background: #dcfce7; color: #166534;">
+                                @php
+                                    // Walk-in: no customer_id, route to invoice-based mode
+                                    // Named customer: pass customer_id for customer-based mode
+                                    $mrParams = [
+                                        'invoice_id'     => $invoice->id,
+                                        'invoice_number' => $invoice->invoice_number,
+                                        'due_amount'     => $invoice->due_amount,
+                                    ];
+                                    if ($sale->customer_id) {
+                                        $mrParams['customer_id']   = $sale->customer_id;
+                                        $mrParams['customer_name'] = $sale->customer->name ?? '';
+                                    }
+                                @endphp
+                                <a href="{{ route('money-receipt.create', $mrParams) }}"
+                                   class="btn btn-action btn-sm" title="Receive Payment"
+                                   style="background: #dcfce7; color: #166534;">
                                     <i class="fas fa-money-bill-wave"></i>
                                 </a>
                                 @endif
@@ -233,6 +252,7 @@
                 <td colspan="2" class="bg-light"></td> <!-- Actual Qty space -->
                 
                 <td class="text-end py-3">{{ number_format($reportTotals['delivery'], 2) }}</td>
+                <td class="text-end py-3">{{ number_format($reportTotals['vat_amt'], 2) }}</td>
                 <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['exchange'], 2) }}</td>
                 

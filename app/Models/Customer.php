@@ -21,8 +21,14 @@ class Customer extends Model
         'is_active',
         'created_by',
         'is_premium',
-        'notes'
+        'notes',
+        'branch_id'
     ];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
 
     public function addedBy()
     {

@@ -60,10 +60,7 @@
                                     <div class="d-flex gap-1">
                                         <div class="flex-grow-1">
                                             <select name="customer_id" id="customerSelect" class="form-select select2-setup">
-                                                <option value="">Select Customer</option>
-                                                @foreach($customers as $customer)
-                                                    <option value="{{ $customer->id }}">{{ $customer->name ?: 'Unnamed' }} ({{ $customer->phone ?: 'No Phone' }})</option>
-                                                @endforeach
+                                                <option value="">Search Customer...</option>
                                             </select>
                                         </div>
                                         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#quickCustomerModal" style="height: 38px;"><i class="fas fa-plus"></i></button>
@@ -151,8 +148,13 @@
                                     <input type="text" id="discountInput" name="discount" class="form-control form-control-sm text-end fw-bold w-25" value="0">
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted">Delivery</span><input type="number" id="deliveryInput" name="delivery" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
+                                @if(($general_settings->pos_vat_status ?? 'on') == 'on')
                                 <div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted">VAT (%)</span><input type="number" id="vatRateDisplay" class="form-control form-control-sm text-end fw-bold w-25" value="0"></div>
                                 <div class="d-flex justify-content-between mb-4"><span class="text-muted">VAT Amount</span><span class="fw-bold" id="vatAmountDisplay">0.00৳</span></div>
+                                @else
+                                <input type="hidden" id="vatRateDisplay" value="0">
+                                <span class="d-none" id="vatAmountDisplay">0.00৳</span>
+                                @endif
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label-premium text-success mb-0">Paid Amount</label><button type="button" onclick="setExactManual()" class="btn btn-link btn-sm text-success p-0 text-decoration-none fw-bold" style="font-size: 0.7rem;">EXACT</button></div>
                                     <input type="number" name="paid_amount" id="paidInput" class="form-control form-control-lg text-end fw-bold text-success border-success" value="0">
@@ -168,10 +170,14 @@
                                         <span class="fw-bold text-danger">Discount</span>
                                         <span class="fw-bold text-danger" id="visualDiscount">0.00৳</span>
                                     </div>
+                                    @if(($general_settings->pos_vat_status ?? 'on') == 'on')
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="fw-bold text-info">VAT</span>
                                         <span class="fw-bold text-info" id="visualVat">0.00৳</span>
                                     </div>
+                                    @else
+                                    <span class="d-none" id="visualVat">0.00৳</span>
+                                    @endif
                                     <hr class="my-2 opacity-10">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="fw-bold text-primary text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">PAYABLE</span>
@@ -219,16 +225,49 @@
 <script>
 $(document).ready(function() {
     let cartItems = [];
-    $('.select2-setup').select2({ theme: 'bootstrap-5', width: '100%' });
+    
+    $('#customerSelect').select2({ 
+        theme: 'bootstrap-5', 
+        width: '100%',
+        ajax: {
+            url: '{{ route("customers.search") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term,
+                    page: params.page
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results.map(function(item) {
+                        return {
+                            id: item.id,
+                            text: (item.name || 'Unnamed') + ' (' + (item.phone || 'No Phone') + ')'
+                        };
+                    }),
+                    pagination: {
+                        more: (params.page * 30) < data.total_count
+                    }
+                };
+            },
+            cache: true
+        },
+        placeholder: 'Search Customer...',
+        minimumInputLength: 1,
+    });
 
     $('#styleNumberSelect').select2({
-        theme: 'bootstrap-5', width: '100%', placeholder: 'Search Product...',
+        theme: 'bootstrap-5', width: '100%', placeholder: 'Click to see products or type to search...',
         ajax: {
             url: "{{ route('products.search.style') }}", dataType: 'json', delay: 250,
-            data: p => ({ q: p.term, branch_id: $('#branchSelect').val() }),
+            data: p => ({ q: p.term || '', branch_id: $('#branchSelect').val() }),
             processResults: data => ({ results: data.results.map(p => ({ id: p.id, text: p.text, product: p })) }),
             cache: true
-        }
+        },
+        minimumInputLength: 0
     }).on('select2:select', function(e) {
         const prod = e.params.data.product;
         const type = $('#saleType').val();
@@ -314,7 +353,7 @@ $(document).ready(function() {
                 it.raw_product.variations.forEach(v => { varHtml += `<option value="${v.id}" ${v.id == it.variation_id ? 'selected' : ''} ${v.stock <= 0 && v.id != it.variation_id ? 'disabled' : ''}>${v.name} (${v.stock})</option>`; });
                 varHtml += `</select>`;
             }
-            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end fw-bold text-primary">${it.unit_price.toFixed(2)}</td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="text" class="qty-val" value="${it.quantity}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
+            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end fw-bold text-primary">${it.unit_price.toFixed(2)}</td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="number" class="qty-val" value="${it.quantity}" min="1" max="${it.max_stock}" data-idx="${idx}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
         });
         updateTotals(sub);
     }
@@ -333,6 +372,48 @@ $(document).ready(function() {
     window.duplicateItem = idx => { cartItems.push(JSON.parse(JSON.stringify(cartItems[idx]))); renderCart(); };
     window.updateItemQty = (idx, d) => { const it = cartItems[idx]; const n = it.quantity + d; if (n > 0 && n <= it.max_stock) { it.quantity = n; it.total = it.unit_price * n; renderCart(); } };
     window.removeItem = idx => { cartItems.splice(idx, 1); renderCart(); };
+
+    // Validate quantity only on blur (when user leaves field) to allow typing multi-digit numbers
+    $(document).on('blur', '.qty-val', function() {
+        const $input = $(this);
+        const idx = parseInt($input.data('idx'));
+        const it = cartItems[idx];
+        if (!it) return;
+
+        let val = parseInt($input.val()) || 0;
+        const max = it.max_stock;
+
+        if (val > max) {
+            val = max;
+            $input.val(val);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stock Limit Exceeded',
+                text: `Maximum available stock is ${max}`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else if (val < 1) {
+            val = 1;
+            $input.val(val);
+        }
+
+        it.quantity = val;
+        it.total = it.unit_price * val;
+        renderCart();
+    });
+
+    // Allow typing without interference - only prevent negative numbers
+    $(document).on('keydown', '.qty-val', function(e) {
+        // Allow: backspace, delete, tab, escape, enter, arrow keys
+        if ([8, 46, 9, 27, 13, 37, 38, 39, 40].includes(e.keyCode)) return;
+        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+        if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88].includes(e.keyCode)) return;
+        // Allow: numbers (both keypad and regular)
+        if ((e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105)) return;
+        // Prevent everything else
+        e.preventDefault();
+    });
 
     function updateTotals(sub = null) {
         if (sub === null) sub = cartItems.reduce((a, i) => a + i.total, 0);

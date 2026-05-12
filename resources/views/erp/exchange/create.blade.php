@@ -309,7 +309,9 @@
             const $exchangeForm = $('#exchangeForm');
             const $returnItemsBody = $('#returnItemsTable tbody');
             const $newItemsBody = $('#newItemsTable tbody');
-            
+            const currentBranch = {{ $branchId ?? 'null' }};
+let saleBranchId = null;
+
             // Focus invoice search on load
             $invoiceInput.focus();
 
@@ -410,6 +412,7 @@
             function populateExchange(data) {
                 $('#original_pos_id').val(data.id);
                 $('#customer_display').val(data.customer_name + ' (' + data.customer_phone + ')');
+                saleBranchId = data.branch_id; // Store the original sale's branch
                 $returnItemsBody.empty();
                 
                 originalDiscountRatio = data.sub_total > 0 ? (data.discount / data.sub_total) : 0;
@@ -452,16 +455,31 @@
             }
 
             $(document).on('input', '.return-qty', function() {
-                const $row = $(this).closest('tr');
-                const qty = parseFloat($(this).val()) || 0;
+                const $input = $(this);
+                const $row = $input.closest('tr');
+                const qty = parseFloat($input.val()) || 0;
+                const maxQty = parseFloat($input.attr('max')) || 0;
                 const unitPrice = parseFloat($row.find('input[name*="unit_price"]').val());
-                
+
+                // Live validation: prevent quantity exceeding available stock
+                if (qty > maxQty) {
+                    $input.val(maxQty);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Invalid Quantity',
+                        text: `Return quantity cannot exceed available quantity (${maxQty})`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    return;
+                }
+
                 const grossTotal = qty * unitPrice;
                 const discountDeduction = grossTotal * originalDiscountRatio;
                 const netCredit = grossTotal - discountDeduction;
 
                 $row.find('.row-return-total').text(netCredit.toFixed(2)).data('net', netCredit);
-                
+
                 if (discountDeduction > 0) {
                     $row.find('.row-return-discount').text('-' + discountDeduction.toFixed(2) + ' (Disc.)');
                 } else {
@@ -507,10 +525,11 @@
                 searchTimeout = setTimeout(() => {
                     $.get("{{ route('products.search') }}", { q: q }, function(res) {
                         let html = '';
-                        if(res.length === 0) {
+                        const products = Array.isArray(res) ? res : (res.data || res.results || []);
+                        if(products.length === 0) {
                             html = '<div class="text-center text-muted py-3">No products found</div>';
                         } else {
-                            res.forEach(p => {
+                            products.forEach(p => {
                                 // Check if has variations
                                 const hasVar = p.has_variations ? 1 : 0;
                                 const badge = hasVar ? '<span class="badge bg-primary bg-opacity-10 text-primary ms-2"><i class="fas fa-layer-group me-1"></i>Variants</span>' : '';
@@ -549,8 +568,8 @@
                     
                     // Fetch variations
                     $('#variationList').html('<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><div class="mt-2 text-muted">Loading variations...</div></div>');
-                    
-                    $.get(`/erp/products/${id}/variations-list`, function(variations) {
+
+                    $.get(`/erp/products/${id}/variations-list`, { branch_id: saleBranchId || currentBranch }, function(variations) {
                         if (variations.length === 0) {
                             // Fallback if no variations return but flag said true
                             addProductToTable(id, name, sku, null, '', null);

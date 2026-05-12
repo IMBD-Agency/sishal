@@ -11,8 +11,13 @@ class Product extends Model
 
     protected $sanitizable = ['name', 'short_desc', 'description', 'features', 'meta_title', 'meta_description'];
     protected $fillable = [
-        'name', 'slug', 'type', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'alert_quantity', 'free_delivery', 'show_in_ecommerce'
+        'name', 'slug', 'type', 'sku', 'style_number', 'short_desc', 'description', 'features', 'category_id', 'brand_id', 'season_id', 'gender_id', 'unit_id', 'price', 'wholesale_price', 'discount', 'cost', 'image', 'size_chart', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'has_variations', 'manage_stock', 'alert_quantity', 'free_delivery', 'show_in_ecommerce', 'branch_id'
     ];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     /**
      * Boot the model.
@@ -45,6 +50,13 @@ class Product extends Model
             foreach ($product->variations as $variation) {
                 $variation->delete(); // This calls ProductVariation's deleting event
             }
+
+            // Cascade delete combo items (foreign key alternative)
+            // If this is a combo product, delete its combo items
+            $product->comboItems()->delete();
+            
+            // If this product is used in other combos, remove it from those combos
+            \App\Models\ComboProduct::where('product_id', $product->id)->delete();
         });
     }
 
@@ -111,9 +123,10 @@ class Product extends Model
 
     public function branchStock()
     {
-        return $this->hasMany(BranchProductStock::class);
+        return $this->hasMany(BranchProductStock::class, 'product_id', 'id');
     }
-    
+
+
     // Alias for plural usage in reports
     public function branchStocks()
     {
@@ -512,6 +525,37 @@ class Product extends Model
     public function getInternalRefAttribute()
     {
         return $this->style_number;
+    }
+
+    /**
+     * Get combo items if this is a combo product
+     */
+    public function comboItems()
+    {
+        return $this->hasMany(ComboProduct::class, 'combo_product_id');
+    }
+
+    /**
+     * Check if this product is a combo
+     */
+    public function isCombo(): bool
+    {
+        return $this->type === 'combo';
+    }
+
+    /**
+     * Get total combo price (sum of individual items)
+     */
+    public function getComboOriginalPriceAttribute(): float
+    {
+        if (!$this->isCombo()) {
+            return $this->price;
+        }
+
+        return $this->comboItems->sum(function ($item) {
+            $price = $item->combo_price ?? $item->product->price;
+            return $price * $item->quantity;
+        });
     }
 
 }

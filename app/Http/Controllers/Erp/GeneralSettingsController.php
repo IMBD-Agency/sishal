@@ -57,6 +57,7 @@ class GeneralSettingsController extends Controller
             'smtp_from_address' => 'nullable|email|max:255',
             'smtp_from_name' => 'nullable|string|max:255',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
+            'pos_vat_status' => 'nullable|in:on,off',
             'cod_percentage' => 'nullable|numeric|min:0|max:100',
             'gtm_container_id' => 'nullable|string|max:20|regex:/^GTM-[A-Z0-9]+$/',
             'ecommerce_source_type' => 'nullable|in:branch,warehouse',

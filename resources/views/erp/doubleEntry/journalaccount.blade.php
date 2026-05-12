@@ -290,6 +290,13 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Pagination -->
+            @if(isset($journals) && $journals->hasPages())
+            <div class="d-flex justify-content-center mt-4">
+                {{ $journals->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
+            </div>
+            @endif
         </div>
     </div>
 

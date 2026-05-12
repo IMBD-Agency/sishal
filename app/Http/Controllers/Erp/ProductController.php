@@ -14,6 +14,27 @@ use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
+    public function productSearch(Request $request)
+    {
+        $search = $request->get('q');
+        $query = Product::query();
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%$search%")
+                  ->orWhere('sku', 'LIKE', "%$search%")
+                  ->orWhere('style_number', 'LIKE', "%$search%");
+            });
+        }
+
+        $perPage = 30;
+        $products = $query->latest()->paginate($perPage, ['id', 'name', 'sku', 'style_number', 'price', 'discount', 'cost', 'wholesale_price', 'has_variations']);
+
+        return response()->json([
+            'results' => $products->items(),
+            'total_count' => $products->total()
+        ]);
+    }
     /**
      * Display a listing of the resource.
      */
@@ -981,19 +1002,6 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Gallery image removed successfully!');
     }
 
-    public function productSearch(Request $request)
-    {
-        $q = $request->q;
-        $query = Product::query();
-        if ($q) {
-            $query->where('name', 'like', "%$q%")
-                  ->orWhere('sku', 'like', "%$q%")
-                  ;
-        }
-        $products = $query->orderBy('name')->limit(20)->get(['id', 'name', 'sku', 'style_number', 'has_variations']);
-        return response()->json($products);
-    }
-
     public function searchByStyle(Request $request)
     {
         $q = $request->q;
@@ -1089,16 +1097,17 @@ class ProductController extends Controller
         return response()->json($variations);
     }
 
-    public function getProductVariations($productId)
+    public function getProductVariations(Request $request, $productId)
     {
+        $branchId = $request->input('branch_id');
         $product = Product::with(['variations.combinations.attribute', 'variations.combinations.attributeValue'])
             ->findOrFail($productId);
-        
+
         if (!$product->has_variations) {
             return response()->json([]);
         }
-        
-        $variations = $product->variations()->where('status', 'active')->get()->map(function($variation) use ($product) {
+
+        $variations = $product->variations()->where('status', 'active')->get()->map(function($variation) use ($product, $branchId) {
             $attributes = $variation->combinations->map(function($combination) {
                 return $combination->attributeValue->value ?? '';
             })->filter()->implode(' - ');
@@ -1108,7 +1117,17 @@ class ProductController extends Controller
             $basePrice = ($variation->price && $variation->price > 0) ? (float) $variation->price : (float) $product->price;
             $effectivePrice = (float) $variation->effective_price;
             $hasDiscount = $effectivePrice < $basePrice;
-            $stock = (float) $variation->total_stock;
+
+            // Get branch-specific stock if branch_id is provided
+            if ($branchId) {
+                $branchStock = \App\Models\ProductVariationStock::where('variation_id', $variation->id)
+                    ->where('branch_id', $branchId)
+                    ->whereNull('warehouse_id')
+                    ->first();
+                $stock = $branchStock ? ($branchStock->available_quantity ?? ($branchStock->quantity - ($branchStock->reserved_quantity ?? 0))) : 0;
+            } else {
+                $stock = (float) $variation->total_stock;
+            }
             
             return [
                 'id' => $variation->id,
@@ -1146,14 +1165,15 @@ class ProductController extends Controller
         }])
         ->where('sku', $barcode)
         ->where('status', 'active')
-        ->where('type', 'product')
+        ->whereIn('type', ['product', 'combo'])
         ->where(function($q) use ($branchId) {
             $q->whereHas('branchStock', function($subQ) use ($branchId) {
                 $subQ->where('branch_id', $branchId);
             })
             ->orWhereHas('variations.stocks', function($subQ) use ($branchId) {
                 $subQ->where('branch_id', $branchId)->whereNull('warehouse_id');
-            });
+            })
+            ->orWhere('type', 'combo');
         })
         ->first();
 
@@ -1214,6 +1234,59 @@ class ProductController extends Controller
      */
     private function transformProductForPOS($product, $branchId)
     {
+        if ($product->type === 'combo') {
+            $comboStock = PHP_INT_MAX;
+            if (!$product->relationLoaded('comboItems')) {
+                $product->load('comboItems');
+            }
+            foreach ($product->comboItems as $comboItem) {
+                $itemStock = 0;
+                if ($comboItem->variation_id) {
+                    $vStock = \App\Models\ProductVariationStock::where('variation_id', $comboItem->variation_id)
+                        ->where('branch_id', $branchId)->whereNull('warehouse_id')->first();
+                    $itemStock = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                } else {
+                    $pStock = \App\Models\BranchProductStock::where('product_id', $comboItem->product_id)
+                        ->where('branch_id', $branchId)->first();
+                    $itemStock = $pStock ? $pStock->quantity : 0;
+                }
+                $possibleCombos = floor($itemStock / max(1, $comboItem->quantity));
+                if ($possibleCombos < $comboStock) {
+                    $comboStock = $possibleCombos;
+                }
+            }
+            if ($comboStock === PHP_INT_MAX) $comboStock = 0;
+            
+            $branch = \App\Models\Branch::find($branchId);
+            $branchName = $branch ? $branch->name : 'Unknown Branch';
+            
+            return [
+                'id' => $product->id,
+                'name' => $product->name . ' [COMBO]',
+                'sku' => $product->sku,
+                'style_number' => $product->style_number,
+                'type' => $product->type,
+                'price' => $product->price,
+                'cost' => $product->cost,
+                'discount' => $product->discount,
+                'status' => $product->status,
+                'image' => $product->image,
+                'description' => $product->description,
+                'has_variations' => false,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name
+                ] : null,
+                'branch_stock' => [
+                    'branch_id' => $branchId,
+                    'branch_name' => $branchName,
+                    'quantity' => $comboStock,
+                    'last_updated_at' => null
+                ],
+                'total_stock' => $comboStock
+            ];
+        }
+
         if ($product->has_variations) {
             // Load variations if not already loaded
             if (!$product->relationLoaded('variations')) {
@@ -1331,6 +1404,7 @@ class ProductController extends Controller
         return response()->json(['price' => $price, 'stock' => $stock]);
     }
 
+    
 
     public function searchProductWithFilters(Request $request, $branchId)
     {
@@ -1342,15 +1416,7 @@ class ProductController extends Controller
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
         ->where('status', 'active')
-        ->where('type', 'product')
-        ->where(function($q) use ($branchId) {
-            $q->whereHas('branchStock', function($sq) use ($branchId) {
-                $sq->where('branch_id', $branchId);
-            })
-            ->orWhereHas('variations.stocks', function($sq) use ($branchId) {
-                $sq->where('branch_id', $branchId)->whereNull('warehouse_id');
-            });
-        });
+        ->whereIn('type', ['product', 'combo']);
 
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -1373,6 +1439,57 @@ class ProductController extends Controller
         $branchName = $branch ? $branch->name : 'Unknown Branch';
 
         $products->getCollection()->transform(function($product) use ($branchId, $branchName) {
+            if ($product->type === 'combo') {
+                $comboStock = PHP_INT_MAX;
+                if (!$product->relationLoaded('comboItems')) {
+                    $product->load('comboItems');
+                }
+                foreach ($product->comboItems as $comboItem) {
+                    $itemStock = 0;
+                    if ($comboItem->variation_id) {
+                        $vStock = \App\Models\ProductVariationStock::where('variation_id', $comboItem->variation_id)
+                            ->where('branch_id', $branchId)->whereNull('warehouse_id')->first();
+                        $itemStock = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                    } else {
+                        $pStock = \App\Models\BranchProductStock::where('product_id', $comboItem->product_id)
+                            ->where('branch_id', $branchId)->first();
+                        $itemStock = $pStock ? $pStock->quantity : 0;
+                    }
+                    $possibleCombos = floor($itemStock / max(1, $comboItem->quantity));
+                    if ($possibleCombos < $comboStock) {
+                        $comboStock = $possibleCombos;
+                    }
+                }
+                if ($comboStock === PHP_INT_MAX) $comboStock = 0;
+                
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name . ' [COMBO]',
+                    'sku' => $product->sku,
+                    'type' => $product->type,
+                    'price' => $product->price,
+                    'wholesale_price' => $product->wholesale_price,
+                    'cost' => $product->cost,
+                    'discount' => $product->discount,
+                    'style_number' => $product->style_number,
+                    'status' => $product->status,
+                    'image' => $product->image,
+                    'description' => $product->description,
+                    'has_variations' => false,
+                    'category' => $product->category ? [
+                        'id' => $product->category->id,
+                        'name' => $product->category->name
+                    ] : null,
+                    'branch_stock' => [
+                        'branch_id' => $branchId,
+                        'branch_name' => $branchName,
+                        'quantity' => $comboStock,
+                        'last_updated_at' => null
+                    ],
+                    'total_stock' => $comboStock
+                ];
+            }
+
             // For products with variations, calculate total stock from variation stocks
             if ($product->has_variations) {
                 // Variations and stocks are already eager loaded via 'with' on the query
@@ -1480,7 +1597,12 @@ class ProductController extends Controller
         $q = $request->q;
         $branchId = $request->branch_id;
         
-        $query = Product::query();
+        $query = Product::where('status', 'active');
+        if ($request->exclude_combo) {
+            $query->where('type', 'product');
+        } else {
+            $query->whereIn('type', ['product', 'combo']);
+        }
         
         if ($q) {
             $query->where(function($sub) use ($q) {
@@ -1490,19 +1612,69 @@ class ProductController extends Controller
             });
         }
         
-        $products = $query->with(['variations.stocks' => function($s) use ($branchId) {
-            if ($branchId) { $s->where('branch_id', $branchId); }
+        $warehouseId = $request->warehouse_id;
+
+        $products = $query->with(['variations.stocks' => function($s) use ($branchId, $warehouseId) {
+            if ($branchId) { 
+                $s->where('branch_id', $branchId)->whereNull('warehouse_id'); 
+            } elseif ($warehouseId) {
+                $s->where('warehouse_id', $warehouseId)->whereNull('branch_id');
+            }
         }])
         ->with(['branchStock' => function($s) use ($branchId) {
             if ($branchId) { $s->where('branch_id', $branchId); }
-        }])
+        }, 'warehouseStocks' => function($s) use ($warehouseId) {
+            if ($warehouseId) { $s->where('warehouse_id', $warehouseId); }
+        }, 'comboItems'])
+        ->orderBy('id', 'desc')
         ->limit(20)->get();
             
-        $results = $products->map(function($product) {
+        $results = $products->map(function($product) use ($branchId, $warehouseId) {
             $desc = $product->style_number ?: ($product->sku ?: 'No Style/SKU');
             
-            // Calculate simple product stock
-            $stock = (float)($product->branchStock->sum('quantity') ?? 0);
+            $stock = 0;
+            if ($product->type === 'combo') {
+                $comboStock = PHP_INT_MAX;
+                foreach ($product->comboItems as $comboItem) {
+                    $itemStock = 0;
+                    if ($comboItem->variation_id) {
+                        $vStockQuery = \App\Models\ProductVariationStock::where('variation_id', $comboItem->variation_id);
+                        if ($branchId) {
+                            $vStockQuery->where('branch_id', $branchId)->whereNull('warehouse_id');
+                        } elseif ($warehouseId) {
+                            $vStockQuery->where('warehouse_id', $warehouseId)->whereNull('branch_id');
+                        }
+                        $vStock = $vStockQuery->first();
+                        $itemStock = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                    } else {
+                        if ($branchId) {
+                            $pStock = \App\Models\BranchProductStock::where('product_id', $comboItem->product_id)
+                                ->where('branch_id', $branchId)->first();
+                            $itemStock = $pStock ? $pStock->quantity : 0;
+                        } elseif ($warehouseId) {
+                            $pStock = \App\Models\WarehouseProductStock::where('product_id', $comboItem->product_id)
+                                ->where('warehouse_id', $warehouseId)->first();
+                            $itemStock = $pStock ? $pStock->quantity : 0;
+                        } else {
+                            $itemStock = \App\Models\BranchProductStock::where('product_id', $comboItem->product_id)->sum('quantity') + 
+                                         \App\Models\WarehouseProductStock::where('product_id', $comboItem->product_id)->sum('quantity');
+                        }
+                    }
+                    $possibleCombos = floor($itemStock / max(1, $comboItem->quantity));
+                    if ($possibleCombos < $comboStock) {
+                        $comboStock = $possibleCombos;
+                    }
+                }
+                $stock = ($comboStock === PHP_INT_MAX) ? 0 : $comboStock;
+            } else {
+                if ($branchId) {
+                    $stock = (float)($product->branchStock->sum('quantity') ?? 0);
+                } elseif ($warehouseId) {
+                    $stock = (float)($product->warehouseStocks->sum('quantity') ?? 0);
+                } else {
+                    $stock = (float)($product->branchStock->sum('quantity') ?? 0) + (float)($product->warehouseStocks->sum('quantity') ?? 0);
+                }
+            }
 
             return [
                 'id' => $product->id, 

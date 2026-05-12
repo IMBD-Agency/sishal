@@ -71,6 +71,13 @@ class CustomerController extends Controller
         $validated = $request->validate($rules);
         $validated['created_by'] = Auth::id() ?? 1;
         $validated['is_active'] = $request->has('is_active') ? $request->is_active : 1;
+        
+        // Assign branch_id from current user if they belong to a branch
+        if (Auth::user()->employee && Auth::user()->employee->branch_id) {
+            $validated['branch_id'] = Auth::user()->employee->branch_id;
+        } elseif ($request->filled('branch_id')) {
+            $validated['branch_id'] = $request->branch_id;
+        }
 
         // Handle user registration if requested
         if ($request->register_as_user) {
@@ -332,6 +339,13 @@ class CustomerController extends Controller
         }
         $q = $request->input('q');
         $query = Customer::query();
+
+        // Branch Isolation
+        $branchId = $this->getRestrictedBranchId();
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
         if ($q) {
             $query->where(function($sub) use ($q) {
                 $sub->where('name', 'like', "%$q%")
@@ -340,8 +354,14 @@ class CustomerController extends Controller
                     ->orWhere('id', $q);
             });
         }
-        $customers = $query->orderBy('name')->limit(20)->get(['id', 'name', 'email', 'phone']);
-        return response()->json($customers);
+        
+        $perPage = 30;
+        $customers = $query->orderBy('name')->paginate($perPage, ['id', 'name', 'email', 'phone']);
+        
+        return response()->json([
+            'results' => $customers->items(),
+            'total_count' => $customers->total()
+        ]);
     }
 
     public function address($id)
@@ -367,6 +387,13 @@ class CustomerController extends Controller
     {
         $query = Customer::with('addedBy');
 
+        // Branch Isolation: Restrict to user's branch if they are restricted
+        $user = Auth::user();
+        if ($user && $user->isBranchRestricted()) {
+            $branchId = $user->employee->branch_id;
+            $query->where('branch_id', $branchId);
+        }
+
         // General Search (Enhanced)
         if ($search = $request->input('search')) {
             $query->where(function($q) use ($search) {
@@ -381,8 +408,11 @@ class CustomerController extends Controller
         // Branch Filter
         if ($request->filled('branch_id')) {
             $branchId = $request->branch_id;
-            $query->whereHas('posSales', function($q) use ($branchId) {
-                $q->where('branch_id', '=', $branchId, 'and');
+            $query->where(function($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhereHas('posSales', function($pq) use ($branchId) {
+                      $pq->where('branch_id', $branchId);
+                  });
             });
         }
 

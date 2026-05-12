@@ -10,8 +10,8 @@
         <div class="container-fluid px-4 py-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h3 class="fw-bold text-dark mb-0">Executive Business Performance</h3>
-                    <p class="text-muted small mb-0">Full business overview and profitability analysis</p>
+                    <h3 class="fw-bold text-dark mb-0">Financial Liquidity Dashboard</h3>
+                    <p class="text-muted small mb-0">Real-time balances of Cash, Bank, and Mobile Wallets</p>
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-outline-danger btn-sm px-3 rounded-pill border-2 fw-bold">
@@ -89,9 +89,9 @@
                                     <button type="submit" class="btn btn-primary btn-sm flex-fill text-white fw-bold shadow-sm filter-btn">
                                         <i class="fas fa-sync-alt me-1"></i>Update
                                     </button>
-                                    <a href="{{ route('reports.executive') }}" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
+                                    <button type="button" id="resetBtn" class="btn btn-light border btn-sm flex-fill fw-bold shadow-sm filter-btn">
                                         <i class="fas fa-undo me-1"></i>Reset
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -142,7 +142,7 @@
                     const queryParams = form.serialize();
                     $('.gap-2 a').each(function() {
                         const baseUrl = $(this).attr('href').split('?')[0];
-                        const exportType = $(this).text().toLowerCase().includes('pdf') ? 'pdf' : 'excel';
+                        const exportType = $(this).attr('href').includes('export=pdf') ? 'pdf' : 'excel';
                         $(this).attr('href', baseUrl + '?' + queryParams + '&export=' + exportType);
                     });
                 },
@@ -175,6 +175,31 @@
             e.preventDefault();
             refreshReport();
         });
+
+        $('#resetBtn').on('click', function(e) {
+            e.preventDefault();
+            const form = $('#filterForm');
+            
+            // Reset form fields to default
+            form[0].reset();
+            
+            // Explicitly handle Select2 if you're using it
+            $('.select2-simple').val('').trigger('change');
+            
+            // Set radio back to daily
+            $('#dailyReport').prop('checked', true);
+            
+            // Reset dates to today
+            const today = new Date().toISOString().split('T')[0];
+            $('#start_date').val(today);
+            $('#end_date').val(today);
+            
+            toggleReportFields();
+            refreshReport();
+        });
+        
+        // Initial refresh to update export links on page load
+        refreshReport();
     });
 </script>
 @endpush

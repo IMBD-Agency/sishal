@@ -103,26 +103,6 @@
                                                 <td class="pe-3 py-1 text-end text-muted" style="font-size:0.85em">Tk. {{ number_format($detail->amount, 2) }}</td>
                                             </tr>
                                             @endforeach
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Money Receipts</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($moneyReceiptAmount, 2) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Purchase Returns</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($purchaseReturnAmount, 2) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Exchange Adjustments</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($exchangeAmount, 2) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Transfers In</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($senderTransferAmount, 2) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary border-top">Stock Valuation (Asset)</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-muted border-top">Tk. {{ number_format($stockAmount, 2) }}</td>
-                                            </tr>
                                         </table>
                                     </td>
                                     <td class="p-0 align-top border-start">
@@ -149,16 +129,8 @@
                                                 <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($employeePayment, 2) }}</td>
                                             </tr>
                                             <tr>
-                                                <td class="ps-3 py-2 text-secondary">Supplier Payments</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($supplierPay, 2) }}</td>
-                                            </tr>
-                                            <tr>
                                                 <td class="ps-3 py-2 text-secondary">Sales Returns</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($salesReturnAmount, 2) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Transfers Out</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($receiverTransferAmount, 2) }}</td>
                                             </tr>
                                         </table>
                                     </td>

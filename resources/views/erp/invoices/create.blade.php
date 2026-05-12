@@ -366,14 +366,18 @@
                     data: function (params) {
                         return { q: params.term };
                     },
-                    processResults: function (data) {
+                    processResults: function (data, params) {
+                        params.page = params.page || 1;
                         return {
-                            results: data.map(function (customer) {
+                            results: data.results.map(function (customer) {
                                 return {
                                     id: customer.id,
                                     text: customer.name + (customer.email ? ' (' + customer.email + ')' : '') + (customer.phone ? ' [' + customer.phone + ']' : '')
                                 };
-                            })
+                            }),
+                            pagination: {
+                                more: (params.page * 30) < data.total_count
+                            }
                         };
                     },
                     cache: true
@@ -415,14 +419,18 @@
                         data: function (params) {
                             return { q: params.term };
                         },
-                        processResults: function (data) {
+                        processResults: function (data, params) {
+                            params.page = params.page || 1;
                             return {
-                                results: data.map(function (product) {
+                                results: data.results.map(function (product) {
                                     return {
                                         id: product.id,
                                         text: product.name + ' [' + (product.style_number ? product.style_number : product.sku) + ']'
                                     };
-                                })
+                                }),
+                                pagination: {
+                                    more: (params.page * 30) < data.total_count
+                                }
                             };
                         },
                         cache: true

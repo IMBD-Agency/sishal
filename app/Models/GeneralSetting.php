@@ -33,6 +33,7 @@ class GeneralSetting extends Model
         'smtp_from_address',
         'smtp_from_name',
         'tax_rate',
+        'pos_vat_status',
         'cod_percentage',
         'gtm_container_id',
         'ecommerce_source_type',

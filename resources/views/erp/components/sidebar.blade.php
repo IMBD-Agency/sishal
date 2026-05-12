@@ -53,9 +53,15 @@
 
         @can('view products')
         <div class="nav-item">
-            <a href="{{ route('product.list') }}" class="nav-link {{ request()->is('erp/products*') ? ' active' : '' }}">
+            <a href="{{ route('product.list') }}" class="nav-link {{ request()->is('erp/products') ? ' active' : '' }}">
                 <i class="fas fa-box-open nav-icon text-primary"></i>
                 <span>Products</span>
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('erp.combo-products.index') }}" class="nav-link {{ request()->is('erp/products/*/combo') ? ' active' : '' }}">
+                <i class="fas fa-gift nav-icon text-warning"></i>
+                <span>Manage Combos</span>
             </a>
         </div>
         @endcan
@@ -241,12 +247,7 @@
         @can('view financial reports')
 
 
-        <div class="nav-item">
-            <a href="{{ route('profitLoss.index') }}" class="nav-link {{ request()->is('erp/double-entry/profit-loss*') ? ' active' : '' }}">
-                <i class="fas fa-file-contract nav-icon text-success"></i>
-                <span>Profit & Loss</span>
-            </a>
-        </div>
+
         @endcan
 
         @can('view executive reports')

@@ -269,6 +269,7 @@
                                             <th class="border-0 fw-bold">Variation / Style No</th>
                                             <th class="border-0 fw-bold text-center">Qty</th>
                                             <th class="border-0 fw-bold text-end">Unit Price</th>
+                                            <th class="border-0 fw-bold text-end">VAT ({{ $pos->vat_rate }}%)</th>
                                             <th class="border-0 fw-bold text-end">Total</th>
                                             <th class="border-0 fw-bold text-end">Currently At</th>
                                         </tr>
@@ -305,6 +306,12 @@
                                                     <span class="badge bg-primary">{{ $item->quantity }}</span>
                                                 </td>
                                                 <td class="border-0 py-3 text-end">{{ number_format($item->unit_price, 2) }}৳
+                                                </td>
+                                                <td class="border-0 py-3 text-end">
+                                                    @php
+                                                        $itemVat = $item->total_price * ($pos->vat_rate / 100);
+                                                    @endphp
+                                                    {{ number_format($itemVat, 2) }}৳
                                                 </td>
                                                 <td class="border-0 py-3 text-end fw-bold">
                                                     {{ number_format($item->total_price, 2) }}৳</td>
@@ -371,7 +378,29 @@
                                             </span>
                                         </div>
                                         <div class="bg-light rounded-3 p-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted small">Subtotal</span>
+                                                <span class="fw-medium">{{ number_format($pos->sub_total ?? 0, 2) }}৳</span>
+                                            </div>
+                                            @if($pos->vat_amount > 0)
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted small">VAT ({{ $pos->vat_rate }}%)</span>
+                                                <span class="fw-medium">{{ number_format($pos->vat_amount, 2) }}৳</span>
+                                            </div>
+                                            @endif
+                                            @if($pos->discount > 0)
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted small">Discount</span>
+                                                <span class="text-danger">-{{ number_format($pos->discount, 2) }}৳</span>
+                                            </div>
+                                            @endif
+                                            @if($pos->delivery > 0)
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted small">Delivery</span>
+                                                <span class="fw-medium">{{ number_format($pos->delivery, 2) }}৳</span>
+                                            </div>
+                                            @endif
+                                            <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top">
                                                 <span class="text-muted">Total Amount</span>
                                                 <span
                                                     class="fw-bold h6 mb-0">{{ number_format($invoiceTotal, 2) }}৳</span>

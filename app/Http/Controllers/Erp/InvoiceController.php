@@ -15,6 +15,47 @@ use Barryvdh\DomPDF\Facade\Pdf; // Add this at the top
 
 class InvoiceController extends Controller
 {
+    public function invoiceSearch(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $q = $request->input('q');
+        $query = Invoice::query()->with('customer');
+
+        // Branch Isolation
+        $branchId = $this->getRestrictedBranchId();
+        if ($branchId) {
+            $query->whereHas('pos', function($pq) use ($branchId) {
+                $pq->where('branch_id', $branchId);
+            });
+        }
+
+        if ($q) {
+            $query->where(function($sub) use ($q) {
+                // Always search by invoice number (works for walk-in too)
+                $sub->where('invoice_number', 'like', "%$q%");
+
+                // Also search by customer name/phone if a customer exists
+                $sub->orWhere(function($cs) use ($q) {
+                    $cs->whereNotNull('customer_id')
+                       ->whereHas('customer', function($cq) use ($q) {
+                           $cq->where('name', 'like', "%$q%")
+                              ->orWhere('phone', 'like', "%$q%");
+                       });
+                });
+            });
+        }
+
+        $perPage = 30;
+        $invoices = $query->latest()->paginate($perPage);
+
+        return response()->json([
+            'results'     => $invoices->items(),
+            'total_count' => $invoices->total()
+        ]);
+    }
     public function templateList(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
@@ -94,7 +135,12 @@ class InvoiceController extends Controller
             ->appends($request->all());
         $statuses = ['unpaid', 'partial', 'paid'];
         $filters = $request->only(['search', 'status', 'issue_date', 'due_date', 'customer_id']);
-        $customers = \App\Models\Customer::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = \App\Models\Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
         return view('erp.invoices.invoicelist', compact('invoices', 'statuses', 'filters', 'customers'));
     }
 
@@ -103,8 +149,13 @@ class InvoiceController extends Controller
         if (!auth()->user()->hasPermissionTo('manage invoices')) {
             abort(403, 'Unauthorized action.');
         }
-        $customers = \App\Models\Customer::orderBy('name')->get();
-        $products = \App\Models\Product::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = \App\Models\Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
+        $products = \App\Models\Product::orderBy('name')->take(100)->get();
         $templates = \App\Models\InvoiceTemplate::orderBy('name')->get();
         $generalSettings = \App\Models\GeneralSetting::first();
         $tax_rate = $generalSettings ? $generalSettings->tax_rate : 0;

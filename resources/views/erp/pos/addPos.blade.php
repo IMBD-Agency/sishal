@@ -7,6 +7,12 @@
 
 @push('css')
     <link href="{{ asset('pos-premium.css') }}?v={{ time() }}" rel="stylesheet">
+    <style>
+        input.qty-input::-webkit-outer-spin-button,
+        input.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input.qty-input[type=number] { -moz-appearance: textfield; }
+        .qty-input:focus { background: rgba(0,0,0,0.05) !important; border-radius: 4px; }
+    </style>
 @endpush
 
 <div class="main-content" id="mainContent">
@@ -86,9 +92,6 @@
                      <div class="input-group input-group-sm">
                         <select class="form-select select2-customer" id="customerSelect">
                             <option value="walk-in">Generic Walk-in Customer</option>
-                             @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}">{{ $customer->name }} ({{ $customer->phone }})</option>
-                            @endforeach
                         </select>
                         <button class="btn btn-success px-3" type="button" title="Add New Customer" data-bs-toggle="modal" data-bs-target="#quickAddCustomerModal">
                             <i class="fas fa-user-plus"></i>
@@ -134,6 +137,7 @@
                                     <input type="text" class="form-control border-start-0 text-end fw-bold" id="discountInput" name="discount" value="0" placeholder="0 or 10%">
                                 </div>
                             </div>
+                            @if(($general_settings->pos_vat_status ?? 'on') == 'on')
                             <div class="col-4">
                                 <label class="terminal-section-title d-block mb-1">VAT (%)</label>
                                 <div class="input-group input-group-sm">
@@ -141,6 +145,9 @@
                                     <input type="number" class="form-control border-start-0 text-end fw-bold" id="vatInput" name="vat_rate" value="0" step="0.01">
                                 </div>
                             </div>
+                            @else
+                                <input type="hidden" id="vatInput" name="vat_rate" value="0">
+                            @endif
                             <div class="col-4">
                                 <label class="terminal-section-title d-block mb-1">Shipping</label>
                                 <div class="input-group input-group-sm">
@@ -160,10 +167,12 @@
                                 <span class="fw-bold small">Discount <span id="discountPercentTag" class="text-muted extra-small"></span></span>
                                 <span class="fw-bold">- <span id="discountAmountDisplay">0.00</span>৳</span>
                             </div>
+                            @if(($general_settings->pos_vat_status ?? 'on') == 'on')
                             <div class="d-flex justify-content-between mb-1 text-primary" id="vatRow" style="display: none !important;">
                                 <span class="fw-bold small">VAT <span id="vatPercentTag" class="text-muted extra-small"></span></span>
                                 <span class="fw-bold">+ <span id="vatAmountDisplay">0.00</span>৳</span>
                             </div>
+                            @endif
                             <input type="hidden" name="vat_amount" id="hiddenVatAmount" value="0">
                             <div class="d-flex justify-content-between border-top pt-1 mt-1">
                                 <span class="terminal-section-title m-0 text-primary opacity-75">Payable</span>
@@ -308,7 +317,40 @@
 <script>
 $(document).ready(function() {
     // 1. Init Select2 for Customer & Category
-    $('#customerSelect, #categoryFilter').select2({ width: '100%', dropdownParent: $('#mainContent') }); 
+    $('#customerSelect').select2({ 
+        width: '100%', 
+        dropdownParent: $('#mainContent'),
+        ajax: {
+            url: '{{ route("customers.search") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term, // search term
+                    page: params.page
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+                return {
+                    results: data.results.map(function(item) {
+                        return {
+                            id: item.id,
+                            text: item.name + ' (' + item.phone + ')'
+                        };
+                    }),
+                    pagination: {
+                        more: (params.page * 30) < data.total_count
+                    }
+                };
+            },
+            cache: true
+        },
+        placeholder: 'Search for a customer',
+        minimumInputLength: 1,
+    });
+
+    $('#categoryFilter').select2({ width: '100%', dropdownParent: $('#mainContent') }); 
     
     // Simple Select2 Init for non-container specific if needed
     $('.select2-simple').each(function() {
@@ -330,7 +372,7 @@ $(document).ready(function() {
 
     // Re-focus barcode scanner when clicking outside or after actions
     $(document).on('click', function(e) {
-        if ($(e.target).closest('.form-control, button, select, .modal, .select2-container').length === 0) {
+        if ($(e.target).closest('.form-control, .qty-input, button, select, .modal, .select2-container').length === 0) {
             $('#barcodeInput').focus();
         }
     });
@@ -585,11 +627,15 @@ $(document).ready(function() {
                     <td class="text-center px-0">
                         <div class="d-flex align-items-center justify-content-center bg-light rounded-pill p-1" style="width: fit-content; margin: 0 auto;">
                             <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', -1)"><i class="fas fa-minus"></i></button>
-                            <span class="qty-value mx-2 fw-bold" style="min-width: 25px;">${item.qty}</span>
+                            <input type="number" class="qty-input mx-1 fw-bold text-center border-0 bg-transparent" 
+                                   value="${item.qty}" min="1" max="${item.maxStock}" 
+                                   style="width: 45px; outline: none;"
+                                   oninput="manualUpdateQty('${item.cartId}', this.value, this)"
+                                   onclick="this.select()" onfocus="this.select()">
                             <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', 1)"><i class="fas fa-plus"></i></button>
                         </div>
                     </td>
-                    <td class="text-end fw-bold text-dark pe-3 h6 mb-0">${itemTotal.toFixed(2)}</td>
+                    <td class="text-end fw-bold text-dark pe-3 h6 mb-0" id="item-total-${item.cartId}">${itemTotal.toFixed(2)}</td>
                     <td class="text-center pe-2">
                         <button type="button" class="btn-remove-item text-danger border-0 bg-transparent p-2" onclick="removeFromCart('${item.cartId}')" title="Remove Item">
                             <i class="fas fa-times-circle fa-lg"></i>
@@ -616,6 +662,30 @@ $(document).ready(function() {
             item.qty = newQty;
             if(item.qty <= 0) removeFromCart(cartId);
             else renderCart();
+        }
+    };
+    
+    window.manualUpdateQty = function(cartId, val, input) {
+        let item = cart.find(c => c.cartId === cartId);
+        if(item) {
+            let newQty = parseFloat(val);
+            
+            // Validation
+            if (newQty > item.maxStock) {
+                showError(`Stock Limit Reached! Only ${item.maxStock} available.`);
+                newQty = item.maxStock;
+                if(input) input.value = newQty;
+            }
+            
+            if (isNaN(newQty) || newQty < 0) return; // Allow empty or partial typing
+            
+            item.qty = newQty;
+            
+            // Update row total without re-rendering entire cart
+            $(`#item-total-${cartId}`).text((item.price * item.qty).toFixed(2));
+            
+            // Update totals summary
+            calculateTotals();
         }
     };
 
@@ -854,7 +924,9 @@ $(document).ready(function() {
         }
 
         let delivery = parseFloat($('#deliveryInput').val()) || 0;
-        let totalAmount = (subtotal + delivery) - discount;
+        let vatRate = parseFloat($('#vatInput').val()) || 0;
+        let vatAmount = parseFloat($('#hiddenVatAmount').val()) || 0;
+        let totalAmount = (subtotal + delivery + vatAmount) - discount;
         let customerId = $('#customerSelect').val();
 
         let formData = {
@@ -870,7 +942,9 @@ $(document).ready(function() {
             payment_method: $('input[name="payment_method"]:checked').val(),
             account_id: $('#accountSelect').val(),
             items: itemsData,
-            sale_type: $('input[name="saleType"]:checked').val()
+            sale_type: $('input[name="saleType"]:checked').val(),
+            vat_rate: vatRate,
+            vat_amount: vatAmount
         };
 
         $.ajax({

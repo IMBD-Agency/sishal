@@ -28,6 +28,7 @@ Route::post('/contact', [PageController::class, 'submitContact'])->name('contact
 Route::get('/products', [PageController::class, 'products'])->name('product.archive');
 Route::match(['get', 'post'], '/products/filter', [PageController::class, 'filterProducts'])->name('products.filter');
 Route::get('/product/{slug}', [PageController::class, 'productDetails'])->name('product.details');
+Route::get('/combo/{slug}', [PageController::class, 'comboDetails'])->name('combo.details');
 
 // Review API Routes
 Route::get('/api/products/{productId}/reviews', [\App\Http\Controllers\Ecommerce\ReviewController::class, 'getProductReviews'])->name('api.reviews.product');
@@ -232,8 +233,10 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     // Advanced Reporting
     Route::get('/money-receipt/export-excel', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportExcel'])->name('money-receipt.export.excel');
     Route::get('/money-receipt/export-pdf', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'exportPdf'])->name('money-receipt.export.pdf');
+    Route::get('/invoices/search', [\App\Http\Controllers\Erp\InvoiceController::class, 'invoiceSearch'])->name('invoices.search');
     Route::resource('money-receipt', \App\Http\Controllers\Erp\MoneyReceiptController::class);
     Route::get('/money-receipt/get-due-invoices/{customerId}', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'getDueInvoices'])->name('money-receipt.get-due-invoices');
+    Route::get('/money-receipt/get-invoice/{invoiceId}', [\App\Http\Controllers\Erp\MoneyReceiptController::class, 'getInvoiceDetails'])->name('money-receipt.get-invoice');
 
     Route::get('/reports', [\App\Http\Controllers\Erp\ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/purchases', [\App\Http\Controllers\Erp\ReportController::class, 'purchaseReport'])->name('reports.purchase');
@@ -330,6 +333,15 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
 
     // AJAX routes for variation attributes
     Route::get('/variation-attributes/{attributeId}/values', [ProductVariationController::class, 'getAttributeValues'])->name('erp.variation-attributes.values');
+
+    // Combo Products Management
+    Route::get('/combos', [\App\Http\Controllers\Erp\ComboProductController::class, 'list'])->name('erp.combo-products.index');
+    Route::get('/combos/create', [\App\Http\Controllers\Erp\ComboProductController::class, 'create'])->name('erp.combo-products.create');
+    Route::post('/combos', [\App\Http\Controllers\Erp\ComboProductController::class, 'store'])->name('erp.combo-products.store');
+    Route::get('/products/{product}/combo', [\App\Http\Controllers\Erp\ComboProductController::class, 'index'])->name('erp.combo-products.manage');
+    Route::post('/products/{product}/combo', [\App\Http\Controllers\Erp\ComboProductController::class, 'addItem'])->name('erp.combo-products.add-item');
+    Route::delete('/combo-products/{comboProduct}', [\App\Http\Controllers\Erp\ComboProductController::class, 'destroy'])->name('erp.combo-products.destroy');
+    Route::delete('/combos/{product}', [\App\Http\Controllers\Erp\ComboProductController::class, 'destroyCombo'])->name('erp.combo-products.delete');
 
     // Stock
     Route::get('/product-stock', [\App\Http\Controllers\Erp\StockController::class, 'stocklist'])->name('productstock.list');

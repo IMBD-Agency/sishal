@@ -56,7 +56,12 @@ class PosController extends Controller
         }
 
         $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
-        $customers = Customer::orderBy('name')->get();
+        
+        $customersQuery = Customer::query();
+        if ($user && $user->isBranchRestricted()) {
+            $customersQuery->where('branch_id', $user->employee->branch_id);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
         return view('erp.pos.addPos', compact('categories', 'branches', 'bankAccounts', 'shippingMethods', 'customers'));
     }
 
@@ -131,6 +136,7 @@ class PosController extends Controller
                     'zip_code' => $request->customer_zip_code,
                     'country' => $request->customer_country,
                     'created_by' => $pos->sold_by,
+                    'branch_id' => $request->branch_id,
                 ]);
 
                 $pos->customer_id = $customer->id;
@@ -211,7 +217,7 @@ class PosController extends Controller
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'unit_cost' => $product->cost ?? 0,
+                    'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
                     'total_price' => $itemNetTotal, // Save the Net Price after discount
                     'current_position_type' => 'branch',
                     'current_position_id' => $request->branch_id
@@ -598,12 +604,29 @@ class PosController extends Controller
         // Big Data Dropdown Optimization: Only load top 100 for initial view
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
-        $customers = Customer::orderBy('name')->limit(100)->get();
+        
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->limit(100)->get();
         $categories = \App\Models\ProductServiceCategory::whereNull('parent_id')->orderBy('name')->get();
         $brands = \App\Models\Brand::orderBy('name')->get();
         $seasons = \App\Models\Season::orderBy('name')->get();
         $genders = \App\Models\Gender::orderBy('name')->get();
-        $products = \App\Models\Product::where('type', 'product')->orderBy('name')->limit(100)->get();
+        $products = \App\Models\Product::whereIn('type', ['product', 'combo'])
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->limit(100)
+            ->get();
+
+        // Mark combo products
+        foreach ($products as $product) {
+            if ($product->type === 'combo') {
+                $product->is_combo = true;
+                $product->combo_items_count = $product->comboItems->count();
+            }
+        }
 
         if ($request->ajax()) {
             return view('erp.pos.partials.table', compact('items', 'reportTotals'));
@@ -884,9 +907,10 @@ class PosController extends Controller
             'discount' => 'nullable|numeric|min:0',
             'delivery' => 'nullable|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'courier_id' => 'nullable|exists:shipping_methods,id',
+            'vat_rate' => 'nullable|numeric|min:0',
+            'vat_amount' => 'nullable|numeric|min:0',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
@@ -920,6 +944,8 @@ class PosController extends Controller
             $pos->estimated_delivery_time = $request->estimated_delivery_time;
             $pos->notes = $request->notes;
             $pos->courier_id = $request->courier_id;
+            $pos->vat_rate = $request->vat_rate ?? 0;
+            $pos->vat_amount = $request->vat_amount ?? 0;
             $pos->save();
 
             // Delete old items
@@ -948,7 +974,7 @@ class PosController extends Controller
                 $posItem->variation_id = $item['variation_id'] ?? null;
                 $posItem->quantity = $item['quantity'];
                 $posItem->unit_price = $item['unit_price'];
-                $posItem->unit_cost = $product->cost ?? 0;
+                $posItem->unit_cost = $this->calculateItemCost($product, $item['variation_id'] ?? null);
                 $posItem->total_price = $item['quantity'] * $item['unit_price'];
                 $posItem->current_position_type = 'branch';
                 $posItem->current_position_id = $request->branch_id;
@@ -958,9 +984,7 @@ class PosController extends Controller
             // Update invoice if exists
             if ($pos->invoice) {
                 $invoice = $pos->invoice; // assign the related invoice model
-                $generalSettings = GeneralSetting::first();
-                $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
-                $tax = round($pos->sub_total * $taxRate, 2);
+                $tax = $pos->vat_amount;
 
                 // Handle financial transaction for payment increase
                 $oldPaidAmount = $invoice->getOriginal('paid_amount') ?? 0;
@@ -974,6 +998,11 @@ class PosController extends Controller
                         $account->save();
                     }
                 }
+
+                $invoice->tax = $tax;
+                $invoice->subtotal = $pos->sub_total;
+                $invoice->discount_apply = $pos->discount;
+                $invoice->total_amount = $pos->total_amount;
 
                 $invoice->paid_amount = $newPaidAmount;
                 $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
@@ -1691,6 +1720,19 @@ class PosController extends Controller
      */
     private function deductStock($productId, $variationId, $quantity, $branchId)
     {
+        $product = Product::find($productId);
+        if ($product && $product->type === 'combo') {
+            foreach ($product->comboItems as $comboItem) {
+                $itemVariationId = $comboItem->variation_id;
+                $itemQuantity = $comboItem->quantity * $quantity;
+                $result = $this->deductStock($comboItem->product_id, $itemVariationId, $itemQuantity, $branchId);
+                if (!$result['success']) {
+                    return $result;
+                }
+            }
+            return ['success' => true];
+        }
+
         if ($variationId) {
             // Handle variation stock
             $vStock = ProductVariationStock::where('variation_id', $variationId)
@@ -1753,6 +1795,16 @@ class PosController extends Controller
      */
     private function restoreStock($productId, $variationId, $quantity, $branchId)
     {
+        $product = Product::find($productId);
+        if ($product && $product->type === 'combo') {
+            foreach ($product->comboItems as $comboItem) {
+                $itemVariationId = $comboItem->variation_id;
+                $itemQuantity = $comboItem->quantity * $quantity;
+                $this->restoreStock($comboItem->product_id, $itemVariationId, $itemQuantity, $branchId);
+            }
+            return;
+        }
+
         if ($variationId) {
             // Handle variation stock restoration
             $vStock = ProductVariationStock::where('variation_id', $variationId)
@@ -1803,16 +1855,33 @@ class PosController extends Controller
         if (!auth()->user()->hasPermissionTo('use pos')) {
             abort(403, 'Unauthorized action.');
         }
-        $customers = Customer::orderBy('name')->get();
+        $user = auth()->user();
+        
+        $customersQuery = Customer::query();
+        if ($user && $user->isBranchRestricted()) {
+            $customersQuery->where('branch_id', $user->employee->branch_id);
+        }
+        $customers = $customersQuery->orderBy('name')->take(200)->get();
+
         $branches = Branch::where('status', 'active')->get();
         
         // Branch Isolation
-        $user = auth()->user();
         if ($user && $user->employee && $user->employee->branch_id) {
             $branches = $branches->where('id', $user->employee->branch_id);
         }
 
-        $products = Product::where('status', 'active')->where('type', 'product')->get();
+        $products = Product::where('status', 'active')
+            ->whereIn('type', ['product', 'combo'])
+            ->get();
+        
+        // Mark combo products
+        foreach ($products as $product) {
+            if ($product->type === 'combo') {
+                $product->is_combo = true;
+                $product->combo_items_count = $product->comboItems->count();
+            }
+        }
+        
         $brands = \App\Models\Brand::all();
         $seasons = \App\Models\Season::all();
         $genders = \App\Models\Gender::all();
@@ -1868,26 +1937,53 @@ class PosController extends Controller
                 $quantity = $item['quantity'];
                 $branchId = $request->branch_id;
 
-                if ($variationId) {
-                    $vStock = ProductVariationStock::where('variation_id', $variationId)
-                        ->where('branch_id', $branchId)
-                        ->whereNull('warehouse_id')
-                        ->first();
-                    $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
-                } else {
-                    $branchStock = BranchProductStock::where('branch_id', $branchId)
-                        ->where('product_id', $productId)
-                        ->first();
-                    $availableQty = $branchStock ? $branchStock->quantity : 0;
-                }
+                $product = Product::with('comboItems')->find($productId);
 
-                if ($availableQty < $quantity) {
-                    $product = Product::find($productId);
-                    $productName = $product ? $product->name : 'Product';
-                    return response()->json([
-                        'success' => false, 
-                        'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
-                    ], 400); // Return error before any DB records are created
+                if ($product && $product->type === 'combo') {
+                    foreach ($product->comboItems as $comboItem) {
+                        $itemQuantity = $quantity * $comboItem->quantity;
+                        if ($comboItem->variation_id) {
+                            $vStock = ProductVariationStock::where('variation_id', $comboItem->variation_id)
+                                ->where('branch_id', $branchId)
+                                ->whereNull('warehouse_id')
+                                ->first();
+                            $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                        } else {
+                            $branchStock = BranchProductStock::where('branch_id', $branchId)
+                                ->where('product_id', $comboItem->product_id)
+                                ->first();
+                            $availableQty = $branchStock ? $branchStock->quantity : 0;
+                        }
+                        
+                        if ($availableQty < $itemQuantity) {
+                            $productName = $comboItem->product ? $comboItem->product->name : 'Combo Item';
+                            return response()->json([
+                                'success' => false, 
+                                'message' => "Insufficient stock for combo item ({$productName}). Available: {$availableQty}, Requested: {$itemQuantity}"
+                            ], 400); // Return error before any DB records are created
+                        }
+                    }
+                } else {
+                    if ($variationId) {
+                        $vStock = ProductVariationStock::where('variation_id', $variationId)
+                            ->where('branch_id', $branchId)
+                            ->whereNull('warehouse_id')
+                            ->first();
+                        $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                    } else {
+                        $branchStock = BranchProductStock::where('branch_id', $branchId)
+                            ->where('product_id', $productId)
+                            ->first();
+                        $availableQty = $branchStock ? $branchStock->quantity : 0;
+                    }
+
+                    if ($availableQty < $quantity) {
+                        $productName = $product ? $product->name : 'Product';
+                        return response()->json([
+                            'success' => false, 
+                            'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
+                        ], 400); // Return error before any DB records are created
+                    }
                 }
             }
 
@@ -2016,7 +2112,7 @@ class PosController extends Controller
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'unit_cost' => $product->cost ?? 0,
+                    'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
                     'total_price' => $itemNetTotal,
                     'current_position_type' => 'branch',
                     'current_position_id' => $request->branch_id
@@ -2123,5 +2219,29 @@ class PosController extends Controller
         }
     }
 
+    private function calculateItemCost($product, $variationId = null)
+    {
+        if ($variationId) {
+            $variation = \App\Models\ProductVariation::find($variationId);
+            if ($variation && $variation->cost > 0) {
+                return (float)$variation->cost;
+            }
+        }
+
+        if ($product->type === 'combo') {
+            $comboCost = 0;
+            foreach ($product->comboItems as $item) {
+                $itemProduct = $item->product;
+                $itemVariationId = $item->variation_id;
+                $comboCost += $this->calculateItemCost($itemProduct, $itemVariationId) * $item->quantity;
+            }
+            return (float)$comboCost;
+        }
+
+        return (float)($product->cost ?? 0);
+    }
 }
+
+
+
 

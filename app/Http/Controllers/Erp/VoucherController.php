@@ -98,15 +98,15 @@ class VoucherController extends Controller
             $q->whereIn('type_id', $expenseTypeIds);
         })->get();
     
-    // Fetch Asset Accounts (Cash/Bank)
+    // Fetch Asset Accounts (Cash/Bank) - Only from "Cash & Bank" parent group
     $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
-    
+
     $paymentAccounts = ChartOfAccount::whereIn('type_id', $assetTypeIds)
-        ->orWhereHas('parent', function($q) use ($assetTypeIds) {
-            $q->whereIn('type_id', $assetTypeIds);
+        ->whereHas('parent', function($q) {
+            $q->where('name', 'Cash & Bank');
         })->get();
 
-    // Fallback: If still empty, try more aggressive names
+    // Fallback: If still empty, try name-based
     if($paymentAccounts->isEmpty()) {
         $paymentAccounts = ChartOfAccount::where(function($q) {
             $q->where('name', 'like', '%Cash%')

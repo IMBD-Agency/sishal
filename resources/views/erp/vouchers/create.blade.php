@@ -90,21 +90,14 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted">Payment Account (Wallet) *</label>
-                                <div class="d-flex gap-2">
-                                    <div class="flex-grow-1">
-                                        <select name="account_id" class="form-select select2" required>
-                                            <option value="">Select Source Account</option>
-                                            @foreach($paymentAccounts as $pacc)
-                                                <option value="{{ $pacc->id }}">{{ $pacc->name }} - {{ $pacc->code }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal" title="Add New Wallet">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </div>
+                                <select name="account_id" class="form-select select2" required>
+                                    <option value="">Select Source Account</option>
+                                    @foreach($paymentAccounts as $pacc)
+                                        <option value="{{ $pacc->id }}">{{ $pacc->name }} - {{ $pacc->code }}</option>
+                                    @endforeach
+                                </select>
                                 <div class="form-text small">
-                                    Source/Dest account. <a href="{{ route('chart-of-account.index') }}" target="_blank" class="text-decoration-none">Manage Wallets</a>
+                                    Source/Dest account. <a href="{{ route('financial-accounts.index') }}" target="_blank" class="text-decoration-none">Manage Wallets</a>
                                 </div>
                             </div>
                             <div class="col-md-6">

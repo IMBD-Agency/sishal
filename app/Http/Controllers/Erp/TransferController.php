@@ -121,15 +121,20 @@ class TransferController extends Controller
 
         $fromAccounts = $fromAccountsQuery->get();
 
-        // TO ACCOUNTS: Main/Central accounts (not branch accounts) - destination for branch transfers
-        // These are accounts where branch_id is NULL (admin-controlled central accounts)
+        // TO ACCOUNTS: Main/Central accounts AND Warehouse accounts - destination for branch transfers
+        // These include accounts where branch_id is NULL (admin-controlled central accounts)
+        // AND accounts where warehouse_id is set (warehouse accounts)
         $toAccountsQuery = FinancialAccount::with(['branch', 'warehouse'])
-            ->whereNull('branch_id') // Only main/central accounts (not tied to any branch)
+            ->where(function($q) {
+                $q->whereNull('branch_id') // Main/central accounts
+                  ->orWhereNotNull('warehouse_id'); // OR warehouse accounts
+            })
             ->orderBy('type')
             ->orderBy('provider_name');
 
-        // Super admin sees all central accounts, branch users see all central accounts too
-        // because all branches send money to the same central warehouse accounts
+        // Super admin sees all central and warehouse accounts
+        // Branch users see all central and warehouse accounts too
+        // because branches can send money to warehouse accounts
 
         $toAccounts = $toAccountsQuery->get();
 
@@ -169,13 +174,13 @@ class TransferController extends Controller
         $toAccount = FinancialAccount::find($request->to_financial_account_id);
 
         // Verify accounts are of correct type
-        // FROM must be a branch account
+        // FROM must be a branch account (since branches send money to warehouse/center)
         if (!$fromAccount->branch_id) {
             abort(403, 'Source account must be a branch account.');
         }
-        // TO must be a main/central account (not a branch account)
-        if ($toAccount->branch_id) {
-            abort(403, 'Destination account must be a main/central account (not a branch account).');
+        // TO must be a main/central account OR a warehouse account (not another branch account)
+        if ($toAccount->branch_id && !$toAccount->warehouse_id) {
+            abort(403, 'Destination account must be a main/central account or warehouse account (not another branch account).');
         }
 
         if ($restrictedBranchId) {
