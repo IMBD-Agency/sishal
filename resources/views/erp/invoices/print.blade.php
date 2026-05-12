@@ -264,15 +264,29 @@
             </tbody>
         </table>
 
+        @php
+            $totalInvoiceDiscount = ($invoice->discount_apply ?? 0) + $invoice->items->sum(function($i) {
+                return ($i->quantity * $i->unit_price) - $i->total_price;
+            });
+            $pos = $invoice->pos;
+        @endphp
         <table class="summary-table">
             <tr><td>SUB TOTAL :</td><td>{{ number_format($invoice->subtotal ?? 0, 2) }} Tk</td></tr>
-            <tr><td>DIS. AMOUNT :</td><td>{{ number_format($invoice->discount_apply ?? 0, 2) }} Tk</td></tr>
+            @if($totalInvoiceDiscount > 0)
+                <tr><td>DIS. AMOUNT :</td><td>{{ number_format($totalInvoiceDiscount, 2) }} Tk</td></tr>
+            @endif
             <tr><td>VAT :</td><td>{{ number_format($invoice->tax ?? 0, 2) }} Tk</td></tr>
-            @php $onlineDelivery = isset($order) ? ($order->delivery ?? 0) : 0; @endphp
             @if(($onlineDelivery ?? 0) > 0)
                 <tr><td>DELIVERY :</td><td>{{ number_format($onlineDelivery, 2) }} Tk</td></tr>
-            @elseif(optional($invoice->pos)->delivery && optional($invoice->pos)->delivery > 0)
-                <tr><td>DELIVERY :</td><td>{{ number_format($invoice->pos->delivery, 2) }} Tk</td></tr>
+            @elseif(optional($pos)->delivery && optional($pos)->delivery > 0)
+                <tr><td>DELIVERY :</td><td>{{ number_format($pos->delivery, 2) }} Tk</td></tr>
+            @endif
+            
+            @if(optional($pos)->exchange_amount > 0)
+                <tr><td>EXCHANGE CREDIT :</td><td>{{ number_format($pos->exchange_amount, 2) }} Tk</td></tr>
+            @endif
+            @if(optional($pos)->refund_amount > 0)
+                <tr><td>REFUNDED :</td><td>{{ number_format($pos->refund_amount, 2) }} Tk</td></tr>
             @endif
             <tr><td>NET BILL :</td><td>{{ number_format($invoice->total_amount ?? 0, 2) }} Tk</td></tr>
             <tr><td>ADVANCE :</td><td>{{ number_format($invoice->paid_amount ?? 0, 2) }} Tk</td></tr>
@@ -286,7 +300,7 @@
         <p style="margin-top: 10px;"><b>- Payment Method :</b> {{ @$invoice->payments->first()->payment_method ?? 'Not specified' }}</p>
 
         <div class="footer">
-            {!! $invoice->footer_text ?? $template->footer_note !!}
+            {!! $invoice->footer_text ?? ($template ? $template->footer_note : '') !!}
         </div>
 
         <div class="sign-row">

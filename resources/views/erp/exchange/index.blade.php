@@ -197,6 +197,7 @@
                                     <th>Size</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-end">Exchange</th>
+                                    <th class="text-end">Refund</th>
                                     <th class="text-end">Discount</th>
                                     <th class="text-end">Paid</th>
                                     <th class="text-end">Due</th>
@@ -205,7 +206,7 @@
                             </thead>
                             <tbody>
                                 @php 
-                                    $tExchange = 0; $tDiscount = 0; $tPaid = 0; $tDue = 0;
+                                    $tExchange = 0; $tRefund = 0; $tDiscount = 0; $tPaid = 0; $tDue = 0;
                                 @endphp
                                 @forelse($items as $index => $item)
                                     @php
@@ -225,8 +226,12 @@
 
                                         $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
                                         if($isFirst) {
+                                            $totalSaleDiscount = $sale->discount + $sale->items->sum(function($i) {
+                                                return ($i->quantity * $i->unit_price) - $i->total_price;
+                                            });
                                             $tExchange += $sale->exchange_amount;
-                                            $tDiscount += $sale->discount;
+                                            $tRefund += ($sale->refund_amount ?? 0);
+                                            $tDiscount += $totalSaleDiscount;
                                             $tPaid += ($invoice->paid_amount ?? 0);
                                             $tDue += ($invoice->due_amount ?? 0);
                                         }
@@ -252,7 +257,8 @@
                                         <td>{{ $size }}</td>
                                         <td class="text-center bg-light">{{ $item->quantity }}</td>
                                         <td class="text-end">{{ $isFirst ? number_format($sale->exchange_amount, 2) : '' }}</td>
-                                        <td class="text-end">{{ $isFirst ? number_format($sale->discount, 2) : '' }}</td>
+                                        <td class="text-end text-danger">{{ $isFirst ? number_format($sale->refund_amount ?? 0, 2) : '' }}</td>
+                                        <td class="text-end">{{ $isFirst ? number_format($totalSaleDiscount, 2) : '' }}</td>
                                         <td class="text-end text-success fw-bold">{{ $isFirst ? number_format($invoice->paid_amount ?? 0, 2) : '' }}</td>
                                         <td class="text-end text-danger fw-bold">{{ $isFirst ? number_format($invoice->due_amount ?? 0, 2) : '' }}</td>
                                         <td class="text-center">
@@ -269,6 +275,7 @@
                                 <tr>
                                     <td colspan="15" class="text-end text-uppercase">Grand Totals</td>
                                     <td class="text-end">{{ number_format($tExchange, 2) }}</td>
+                                    <td class="text-end text-danger">{{ number_format($tRefund, 2) }}</td>
                                     <td class="text-end">{{ number_format($tDiscount, 2) }}</td>
                                     <td class="text-end text-success">{{ number_format($tPaid, 2) }}</td>
                                     <td class="text-end text-danger">{{ number_format($tDue, 2) }}</td>

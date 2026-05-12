@@ -42,7 +42,8 @@
                 <th class="text-end">VAT Amount</th>
                 <th class="text-end">Discount Amount</th>
                 <th class="text-end">Exchange Amount</th>
-                <th class="text-end fw-bold">Actual Sales Amount</th>
+                <th class="text-end">Refund</th>
+                <th class="text-end text-success">Actual Amt</th>
                 <th class="text-end fw-bold">Total</th>
                 <th class="text-end text-success fw-bold">Total Received Amount</th>
                 <th class="text-end text-danger fw-bold">Total Due Amount</th>
@@ -104,6 +105,12 @@
                             <a href="{{ route('pos.show', $sale->id) }}" class="text-decoration-none fw-bold text-primary hover-opacity-75">
                                 {{ $sale->sale_number ?? '-' }}
                             </a>
+                            @if($sale->original_pos_id)
+                                <div class="mt-1" style="font-size: 10px; line-height: 1.2;">
+                                    <span class="text-muted">Exch. from:</span>
+                                    <span class="badge bg-info bg-opacity-10 text-info fw-normal border-0 p-0">{{ $sale->originalPos->sale_number ?? '-' }}</span>
+                                </div>
+                            @endif
                         @endif
                     </td>
                     <td>{{ $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-' }}</td>
@@ -165,10 +172,20 @@
                         @if($isFirst) {{ number_format($sale->vat_amount, 2) }} @endif
                     </td>
                     <td class="text-end text-danger">
-                        @if($isFirst) {{ number_format($sale->discount, 2) }} @endif
+                        @if($isFirst) 
+                            @php
+                                $totalSaleDiscount = $sale->discount + $sale->items->sum(function($i) {
+                                    return ($i->quantity * $i->unit_price) - $i->total_price;
+                                });
+                            @endphp
+                            {{ number_format($totalSaleDiscount, 2) }} 
+                        @endif
                     </td>
                     <td class="text-end">
                         @if($isFirst) {{ number_format($sale->exchange_amount ?? 0, 2) }} @endif
+                    </td>
+                    <td class="text-end text-danger">
+                        @if($isFirst) {{ number_format($sale->refund_amount ?? 0, 2) }} @endif
                     </td>
                     
                     <td class="text-end fw-bold text-success">
@@ -254,9 +271,10 @@
                 <td class="text-end py-3">{{ number_format($reportTotals['delivery'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['vat_amt'], 2) }}</td>
                 <td class="text-end py-3 text-danger">{{ number_format($reportTotals['discount'], 2) }}</td>
-                <td class="text-end py-3">{{ number_format($reportTotals['exchange'], 2) }}</td>
+                <td class="text-end fw-bold">{{ number_format($reportTotals['exchange'], 2) }}</td>
+                <td class="text-end fw-bold text-danger">{{ number_format($reportTotals['refund'], 2) }}</td>
                 
-                <td colspan="1" class="bg-light"></td> <!-- Actual Sales Amount space -->
+                <td class="text-end fw-bold text-success">{{ number_format($reportTotals['gross_amt'] - $reportTotals['discount'] - $reportTotals['exchange'] + $reportTotals['vat_amt'], 2) }}</td>
                 
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>

@@ -268,17 +268,21 @@ class ExchangeController extends Controller
             // Real-world logic: exchange_amount is the amount of return credit actually USED for this purchase
             $exchangeCreditUsed = min($netPurchase, $totalReturnAmount);
             $finalPayable = max(0, $netPurchase - $totalReturnAmount);
+            $refundAmount = max(0, $totalReturnAmount - $netPurchase);
 
             $newPos->sub_total = $subTotal;
             $newPos->discount = $request->discount ?? 0;
             $newPos->delivery = $request->delivery ?? 0;
             $newPos->exchange_amount = $exchangeCreditUsed;
+            $newPos->refund_amount = $refundAmount; // New Column
             $newPos->total_amount = $finalPayable;
             $newPos->status = 'delivered';
             $newPos->save();
 
             // Create Invoice
             $invoice = new Invoice();
+            $defaultTemplate = \App\Models\InvoiceTemplate::orderBy('id', 'asc')->first();
+            $invoice->template_id = $defaultTemplate ? $defaultTemplate->id : 1;
             $invoice->invoice_number = $this->generateInvoiceNumber();
             $invoice->customer_id = $newPos->customer_id;
             $invoice->issue_date = $newPos->sale_date;
@@ -317,11 +321,15 @@ class ExchangeController extends Controller
             // AUTO JOURNAL ENTRY (Double-Entry Accounting)
             // =====================================================
             
-            // 1. Ensure Sales Account exists
             $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
-            if (!$salesAccount) {
-                // Fallback or create default sales account if missing
-                $salesAccount = ChartOfAccount::first(); 
+            $returnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
+            $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first() ?? ChartOfAccount::where('name', 'like', '%Debtors%')->first();
+            
+            // Fallbacks
+            if (!$salesAccount) $salesAccount = ChartOfAccount::first();
+            if (!$arAccount) {
+                 // Try to find any asset account as fallback or use ID 1
+                 $arAccount = ChartOfAccount::whereHas('type', function($q){ $q->where('name', 'Asset'); })->first() ?? ChartOfAccount::find(1);
             }
 
             $voucherNo = 'EXC-' . str_pad($newPos->id, 6, '0', STR_PAD_LEFT);
@@ -343,7 +351,7 @@ class ExchangeController extends Controller
                 'updated_by'     => Auth::id(),
             ]);
 
-            // CREDIT Sales (Subtotal)
+            // 1. CREDIT Sales Revenue (Gross Items)
             JournalEntry::create([
                 'journal_id'           => $journal->id,
                 'chart_of_account_id'  => $salesAccount->id,
@@ -354,8 +362,21 @@ class ExchangeController extends Controller
                 'updated_by'           => Auth::id(),
             ]);
 
-            // DEBIT Sales Return (For the credit value being used)
-            $returnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
+            // 2. CREDIT Delivery Revenue (if any)
+            if ($newPos->delivery > 0) {
+                $deliveryAccount = ChartOfAccount::where('name', 'like', '%Delivery%')->orWhere('name', 'like', '%Shipping%')->first() ?? $salesAccount;
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $deliveryAccount->id,
+                    'debit'                => 0,
+                    'credit'               => $newPos->delivery,
+                    'memo'                 => 'Delivery revenue from Exchange',
+                    'created_by'           => Auth::id(),
+                    'updated_by'           => Auth::id(),
+                ]);
+            }
+
+            // 3. DEBIT Sales Return (Returned Items value)
             if ($totalReturnAmount > 0) {
                 JournalEntry::create([
                     'journal_id'           => $journal->id,
@@ -368,21 +389,55 @@ class ExchangeController extends Controller
                 ]);
             }
 
-            // DEBIT Cash/Bank (Paid Amount)
-            if (($request->paid_amount ?? 0) > 0) {
+            // 4. DEBIT Global Discount (if any)
+            if ($newPos->discount > 0) {
+                $discountAccount = ChartOfAccount::where('name', 'like', '%Discount%')->first() ?? $salesAccount;
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $discountAccount->id,
+                    'debit'                => $newPos->discount,
+                    'credit'               => 0,
+                    'memo'                 => 'Global discount applied in Exchange',
+                    'created_by'           => Auth::id(),
+                    'updated_by'           => Auth::id(),
+                ]);
+            }
+
+            // 5. DEBIT Cash/Bank (Paid Amount)
+            $paidAmt = $request->paid_amount ?? 0;
+            if ($paidAmt > 0) {
                 $financialAccount = FinancialAccount::find($request->account_id);
                 if ($financialAccount && $financialAccount->account_id) {
                     JournalEntry::create([
                         'journal_id'           => $journal->id,
                         'chart_of_account_id'  => $financialAccount->account_id,
                         'financial_account_id' => $financialAccount->id,
-                        'debit'                => $request->paid_amount,
+                        'debit'                => $paidAmt,
                         'credit'               => 0,
                         'memo'                 => 'Exchange payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
                         'created_by'           => Auth::id(),
                         'updated_by'           => Auth::id(),
                     ]);
                 }
+            }
+
+            // 6. BALANCE WITH ACCOUNTS RECEIVABLE (Customer Ledger)
+            // Credits: Sales + Delivery
+            // Debits: Return + Discount + Paid
+            $totalCredits = $subTotal + $newPos->delivery;
+            $totalDebits = $totalReturnAmount + $newPos->discount + $paidAmt;
+            $arDiff = $totalCredits - $totalDebits;
+
+            if (abs($arDiff) > 0.01) {
+                JournalEntry::create([
+                    'journal_id'           => $journal->id,
+                    'chart_of_account_id'  => $arAccount->id,
+                    'debit'                => $arDiff > 0 ? $arDiff : 0,
+                    'credit'               => $arDiff < 0 ? abs($arDiff) : 0,
+                    'memo'                 => $arDiff > 0 ? 'Accounts Receivable: Due from Customer' : 'Accounts Receivable: Excess Credit/Refund',
+                    'created_by'           => Auth::id(),
+                    'updated_by'           => Auth::id(),
+                ]);
             }
 
             // Save Items
@@ -596,11 +651,11 @@ class ExchangeController extends Controller
         $headers = [
             'Serial No', 'Exchange Invoice', 'Sale Invoice', 'Date', 'Customer', 'Category', 
             'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Color', 'Size', 
-            'Quantity', 'Exchange Amt', 'Discount', 'Paid', 'Due'
+            'Quantity', 'Exchange Amt', 'Refund', 'Discount', 'Paid', 'Due'
         ];
         
         $sheet->fromArray([$headers], NULL, 'A1');
-        $sheet->getStyle('A1:R1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:S1')->getFont()->setBold(true);
 
         $rowNum = 2;
         foreach ($items as $index => $item) {
@@ -619,6 +674,12 @@ class ExchangeController extends Controller
             }
 
             $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
+            $totalDiscount = 0;
+            if ($isFirst) {
+                $totalDiscount = ($sale->discount ?? 0) + $sale->items->sum(function($i) {
+                    return ($i->quantity * $i->unit_price) - $i->total_price;
+                });
+            }
 
             $data = [
                 $index + 1,
@@ -636,7 +697,8 @@ class ExchangeController extends Controller
                 $size,
                 $item->quantity,
                 $isFirst ? $sale->exchange_amount : '',
-                $isFirst ? $sale->discount : '',
+                $isFirst ? ($sale->refund_amount ?? 0) : '',
+                $isFirst ? $totalDiscount : '',
                 $isFirst ? ($invoice->paid_amount ?? 0) : '',
                 $isFirst ? ($invoice->due_amount ?? 0) : ''
             ];

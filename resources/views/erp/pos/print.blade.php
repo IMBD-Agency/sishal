@@ -160,6 +160,12 @@
             <span class="invoice-title">IN POS SALE INVOICE COPY</span>
         </div>
 
+        @php
+            $totalPosDiscount = ($pos->discount ?? 0) + $pos->items->sum(function($i) {
+                return ($i->quantity * $i->unit_price) - $i->total_price;
+            });
+        @endphp
+
         <!-- Sale Details -->
         <div class="sale-info">
             <table class="info-table">
@@ -245,9 +251,9 @@
                 <td class="summary-value">{{ number_format($pos->sub_total ?? 0, 2) }}</td>
             </tr>
 
-            @if($pos->discount > 0)
+            @if($totalPosDiscount > 0)
             @php
-                $effectivePercent = ($pos->sub_total > 0) ? round(($pos->discount / $pos->sub_total) * 100, 1) : 0;
+                $effectivePercent = ($pos->sub_total > 0) ? round(($totalPosDiscount / $pos->sub_total) * 100, 1) : 0;
             @endphp
             <tr>
                 <td class="summary-label">
@@ -256,7 +262,7 @@
                         <small>({{ $effectivePercent }}%)</small>
                     @endif
                 </td>
-                <td class="summary-value">{{ number_format($pos->discount ?? 0, 2) }}</td>
+                <td class="summary-value">{{ number_format($totalPosDiscount ?? 0, 2) }}</td>
             </tr>
             @endif
 
@@ -276,6 +282,20 @@
             <tr>
                 <td class="summary-label">VAT & Tax (+)</td>
                 <td class="summary-value">{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
+            </tr>
+            @endif
+
+            @if(($pos->exchange_amount ?? 0) > 0)
+            <tr>
+                <td class="summary-label">Exchange Credit (-)</td>
+                <td class="summary-value">{{ number_format($pos->exchange_amount, 2) }}</td>
+            </tr>
+            @endif
+
+            @if(($pos->refund_amount ?? 0) > 0)
+            <tr>
+                <td class="summary-label">Refunded (-)</td>
+                <td class="summary-value">{{ number_format($pos->refund_amount, 2) }}</td>
             </tr>
             @endif
 

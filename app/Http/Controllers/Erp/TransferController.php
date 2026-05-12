@@ -252,6 +252,7 @@ class TransferController extends Controller
         $journal = Journal::create([
             'voucher_no' => $voucherNo,
             'entry_date' => $transfer->transfer_date,
+            'branch_id' => $fromAccount->branch_id,
             'type' => 'Transfer',
             'description' => 'Fund Transfer: ' . $fromAccount->provider_name . ' to ' . $toAccount->provider_name,
             'voucher_amount' => $transfer->amount,

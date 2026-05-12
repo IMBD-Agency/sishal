@@ -253,6 +253,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/reports/executive', [\App\Http\Controllers\Erp\ReportController::class, 'executiveReport'])->name('reports.executive');
     Route::get('/reports/performance', [\App\Http\Controllers\Erp\ReportController::class, 'performanceReport'])->name('reports.performance');
     Route::get('/reports/expenses', [\App\Http\Controllers\Erp\ReportController::class, 'expenseReport'])->name('reports.expenses');
+    Route::get('/reports/snapshot', [\App\Http\Controllers\Erp\ReportController::class, 'businessSnapshot'])->name('reports.snapshot');
 
 
     // Categories

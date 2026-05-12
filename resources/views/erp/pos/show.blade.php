@@ -6,6 +6,12 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-gray-50 min-vh-100" id="mainContent">
         @include('erp.components.header')
+        
+        @php
+            $totalSaleDiscount = ($pos->discount ?? 0) + $pos->items->sum(function($i) {
+                return ($i->quantity * $i->unit_price) - $i->total_price;
+            });
+        @endphp
 
         <!-- Header Section -->
         <div class="container-fluid px-4 py-4 position-relative">
@@ -128,10 +134,16 @@
                                     <span class="text-muted small">Subtotal</span>
                                     <span>{{ number_format($pos->sub_total ?? 0, 2) }}৳</span>
                                 </div>
-                                @if($pos->discount)
+                                @if($totalSaleDiscount > 0)
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span class="text-muted small">Discount</span>
-                                        <span class="text-danger">-{{ number_format($pos->discount, 2) }}৳</span>
+                                        <span class="text-danger">-{{ number_format($totalSaleDiscount, 2) }}৳</span>
+                                    </div>
+                                @endif
+                                @if($pos->refund_amount > 0)
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="text-muted small">Refunded to Customer</span>
+                                        <span class="text-info">{{ number_format($pos->refund_amount, 2) }}৳</span>
                                     </div>
                                 @endif
                                 @if($pos->delivery)
@@ -388,10 +400,16 @@
                                                 <span class="fw-medium">{{ number_format($pos->vat_amount, 2) }}৳</span>
                                             </div>
                                             @endif
-                                            @if($pos->discount > 0)
+                                            @if($totalSaleDiscount > 0)
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span class="text-muted small">Discount</span>
-                                                <span class="text-danger">-{{ number_format($pos->discount, 2) }}৳</span>
+                                                <span class="text-danger">-{{ number_format($totalSaleDiscount, 2) }}৳</span>
+                                            </div>
+                                            @endif
+                                            @if($pos->refund_amount > 0)
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted small">Refunded</span>
+                                                <span class="text-info">{{ number_format($pos->refund_amount, 2) }}৳</span>
                                             </div>
                                             @endif
                                             @if($pos->delivery > 0)

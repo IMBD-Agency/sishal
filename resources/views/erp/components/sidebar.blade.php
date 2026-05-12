@@ -236,6 +236,13 @@
         </div>
 
         <div class="nav-item">
+            <a href="{{ route('reports.snapshot') }}" class="nav-link {{ request()->is('erp/reports/snapshot') ? ' active' : '' }}">
+                <i class="fas fa-camera nav-icon text-primary"></i>
+                <span>Business Snapshot</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
             <a href="{{ route('productstock.list') }}" class="nav-link {{ request()->is('erp/product-stock*') ? ' active' : '' }}">
                 <i class="fas fa-layer-group nav-icon text-success"></i>
                 <span>Stock Report</span>
@@ -245,7 +252,6 @@
 @endcan
 
         @can('view financial reports')
-
 
 
         @endcan

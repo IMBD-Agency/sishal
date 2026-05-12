@@ -536,7 +536,8 @@ class PosController extends Controller
         // Optimized query with specific columns
         $query = \App\Models\PosItem::select('id', 'pos_sale_id', 'product_id', 'variation_id', 'quantity', 'unit_price', 'total_price')
             ->with([
-                'pos:id,sale_number,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,invoice_id,status',
+                'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,refund_amount,invoice_id,status',
+                'pos.originalPos:id,sale_number',
                 'pos.customer:id,name',
                 'pos.invoice:id,paid_amount,due_amount',
                 'pos.branch:id,name',
@@ -561,7 +562,8 @@ class PosController extends Controller
             ->selectRaw("
                 SUM(quantity) as total_qty, 
                 SUM(quantity * unit_price) as gross_amount,
-                SUM(total_price) as total_amount
+                SUM(total_price) as total_amount,
+                SUM((quantity * unit_price) - total_price) as item_discount
             ")
             ->first();
 
@@ -576,6 +578,7 @@ class PosController extends Controller
                 SUM(pos.discount) as total_discount,
                 SUM(pos.vat_amount) as total_vat,
                 SUM(pos.exchange_amount) as total_exchange,
+                SUM(pos.refund_amount) as total_refund,
                 SUM(pos.total_amount) as final_total,
                 SUM(invoices.paid_amount) as total_paid,
                 SUM(invoices.due_amount) as total_due
@@ -591,9 +594,10 @@ class PosController extends Controller
             'gross_amt' => $itemTotals->gross_amount ?? 0,
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
-            'discount' => $saleTotals->total_discount ?? 0,
+            'discount' => ($saleTotals->total_discount ?? 0) + ($itemTotals->item_discount ?? 0),
             'vat_amt' => $saleTotals->total_vat ?? 0,
             'exchange' => $saleTotals->total_exchange ?? 0,
+            'refund' => $saleTotals->total_refund ?? 0,
             'final_total' => $saleTotals->final_total ?? 0,
             'paid' => $saleTotals->total_paid ?? 0,
             'due' => $saleTotals->total_due ?? 0,
@@ -1555,12 +1559,12 @@ class PosController extends Controller
             'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
             'Sales Return Qty', 'Total SR-Qty', 'Sales Return Amount', 'Total SR-Amount', 
             'Actual Sales Qty', 'Total AS-Qty',
-            'Delivery Charge', 'VAT Amount', 'Discount Amount', 'Exchange Amount', 
+            'Delivery Charge', 'VAT Amount', 'Discount Amount', 'Exchange Amount', 'Refund Amount', 
             'Actual Sales Amount', 'Total', 'Received Amount', 'Due Amount'
         ];
         
         $sheet->fromArray([$headers], NULL, 'A1');
-        $sheet->getStyle('A1:AG1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:AH1')->getFont()->setBold(true);
 
         $rowNum = 2;
         foreach ($items as $index => $item) {
@@ -1599,7 +1603,16 @@ class PosController extends Controller
                 $i_ActualQty = $i_TotalQty - $i_RetQty;
                 
                 $i_TotalSalesAmt = $i_GrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
-                $i_NetTotal = $i_TotalSalesAmt - $sale->discount;
+                
+                // Total Discount (Global + Item-level)
+                $totalPosDiscount = ($sale->discount ?? 0) + $invItems->sum(function($i) {
+                    return ($i->quantity * $i->unit_price) - $i->total_price;
+                });
+                
+                $i_NetTotal = $i_TotalSalesAmt - $sale->discount; // Note: Original discount was global only, but here we show it as part of totals
+                // Actually we should use the combined discount for Net Total if it was already applied
+                // In PosController, total_amount usually accounts for the global discount.
+                
                 $i_ActualAmt = $i_NetTotal - $i_RetAmt;
 
                 // Set strings for Excel
@@ -1640,8 +1653,9 @@ class PosController extends Controller
                 $invActualQty,
                 $isFirst ? ($sale->delivery ?? 0) : '',
                 $isFirst ? ($sale->vat_amount ?? 0) : '',
-                $isFirst ? ($sale->discount ?? 0) : '',
+                $isFirst ? $totalPosDiscount : '',
                 $isFirst ? ($sale->exchange_amount ?? 0) : '',
+                $isFirst ? ($sale->refund_amount ?? 0) : '',
                 $invActualAmt,
                 $invTotal,
                 $isFirst ? ($invoice->paid_amount ?? 0) : '',

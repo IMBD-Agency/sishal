@@ -141,13 +141,20 @@ class CustomerController extends Controller
             ->limit(10)
             ->get();
         
-        // Calculate financial summary
-        $totalRevenue = $invoices->where('status', 'paid')->sum('total_amount');
-        $outstandingAmount = $invoices->where('status', 'unpaid')->sum('due_amount');
-        $paidAmount = $invoices->where('status', 'paid')->sum('paid_amount');
-        $overdueAmount = $invoices->where('status', 'unpaid')
-            ->where('due_date', '<', now())
+        // Calculate lifetime financial summary
+        $lifetimeInvoices = Invoice::where('customer_id', $customer->id)->get();
+        $totalRevenue = $lifetimeInvoices->sum('total_amount');
+        $paidAmount = $lifetimeInvoices->sum('paid_amount');
+        $outstandingAmount = $lifetimeInvoices->sum('due_amount');
+        $overdueAmount = $lifetimeInvoices->where('status', '!=', 'paid')
+            ->where('due_date', '<', now()->toDateString())
             ->sum('due_amount');
+        
+        // Exchange & Return Summary
+        $totalExchange = Pos::where('customer_id', $customer->id)->sum('exchange_amount');
+        $totalReturn = SaleReturn::where('customer_id', $customer->id)
+            ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
+            ->sum('sale_return_items.total_price');
         
         // Get recent activity
         $recentActivity = collect();
@@ -202,6 +209,8 @@ class CustomerController extends Controller
             'outstandingAmount',
             'paidAmount',
             'overdueAmount',
+            'totalExchange',
+            'totalReturn',
             'recentActivity'
         ));
     }

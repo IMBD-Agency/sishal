@@ -334,6 +334,7 @@ class ReportController extends Controller
             $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
+            $item->item_discount = ($item->quantity * $item->unit_price) - $item->total_price;
             return $item;
         });
 
@@ -346,6 +347,7 @@ class ReportController extends Controller
             $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
+            $item->item_discount = ($item->quantity * $item->unit_price) - $item->total_price;
             return $item;
         });
 
@@ -404,7 +406,7 @@ class ReportController extends Controller
             $sheet->setCellValue('G' . $row, $item->unit_price);
             $sheet->setCellValue('H' . $row, $item->quantity);
             $sheet->setCellValue('I' . $row, $item->total_price);
-            $sheet->setCellValue('J' . $row, $item->discount);
+            $sheet->setCellValue('J' . $row, $item->item_discount);
             $sheet->setCellValue('K' . $row, $item->source);
             $row++;
         }
@@ -426,7 +428,7 @@ class ReportController extends Controller
             'summary' => [
                 'total_qty' => $items->sum('quantity'),
                 'total_amount' => $items->sum('total_price'),
-                'total_discount' => $items->sum('discount'),
+                'total_discount' => $items->sum('item_discount'),
             ]
         ])->setPaper('a4', 'landscape');
         
@@ -663,6 +665,9 @@ class ReportController extends Controller
         $branchId = $restrictedBranchId ?: $request->get('branch_id');
 
         $query = FinancialAccount::where('type', $type);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
         
         $accounts = $query->get()->map(function($account) use ($startDate, $endDate, $branchId) {
             // Current total balance for consolidated view reference
@@ -672,9 +677,8 @@ class ReportController extends Controller
                 // BRANCH SPECIFIC LOGIC
                 // 1. Calculate balance before the period (Opening)
                 $openingMovement = JournalEntry::where('financial_account_id', $account->id)
-                    ->whereHas('journal', function($q) use ($startDate, $branchId) {
+                    ->whereHas('journal', function($q) use ($startDate) {
                         $q->where('entry_date', '<', $startDate->toDateString());
-                        $q->where('branch_id', $branchId);
                     })
                     ->selectRaw('SUM(debit) as d, SUM(credit) as c')
                     ->first();
@@ -683,9 +687,8 @@ class ReportController extends Controller
 
                 // 2. Calculate balance during the period (Movements)
                 $periodMovement = JournalEntry::where('financial_account_id', $account->id)
-                    ->whereHas('journal', function($q) use ($startDate, $endDate, $branchId) {
+                    ->whereHas('journal', function($q) use ($startDate, $endDate) {
                         $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
-                        $q->where('branch_id', $branchId);
                     })
                     ->selectRaw('SUM(debit) as d, SUM(credit) as c')
                     ->first();
@@ -1086,7 +1089,7 @@ class ReportController extends Controller
             // 2. Previous Sales
             $salesQ = Pos::where('customer_id', $customerId)->where('sale_date', '<', $startDate->toDateString());
             if ($branchId) $salesQ->where('branch_id', $branchId);
-            $op_sales = $salesQ->sum('total_amount') - $salesQ->sum('exchange_amount');
+            $op_sales = $salesQ->sum('total_amount') + $salesQ->sum('exchange_amount');
 
             // 3. Previous Payments
             $payQ = Payment::where('customer_id', $customerId)->where('payment_date', '<', $startDate->toDateString());
@@ -1118,7 +1121,7 @@ class ReportController extends Controller
             'date' => $p->sale_date,
             'type' => 'POS Sale',
             'reference' => $p->invoice_number,
-            'debit' => $p->total_amount - $p->exchange_amount,
+            'debit' => $p->total_amount + $p->exchange_amount,
             'credit' => 0,
             'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Debit)" : "POS Transaction",
             // Info wise details
@@ -1194,7 +1197,7 @@ class ReportController extends Controller
         $totalDiscount = $posSales->sum('discount');
         $totalPaid = $payments->sum('paid');
         $totalReturn = $returns->sum('due');
-        $totalExchange = $posSales->where('note', 'like', '%Exchange%')->sum('total');
+        $totalExchange = $posSales->sum('exchange_amount');
         $totalDueAmount = ($openingBalance ?? 0) + $totalSales - $totalPaid - $totalReturn;
 
         if ($request->get('export') == 'pdf') {
@@ -1825,11 +1828,15 @@ class ReportController extends Controller
         // Helper function for calculation
         $getBalance = function($accId, $to) use ($branchId) {
             $query = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+                ->leftJoin('financial_accounts', 'journal_entries.financial_account_id', '=', 'financial_accounts.id')
                 ->where('journal_entries.chart_of_account_id', $accId)
                 ->where('journals.entry_date', '<=', $to->toDateString());
             
             if ($branchId) {
-                $query->where('journals.branch_id', $branchId);
+                $query->where(function($q) use ($branchId) {
+                    $q->where('journals.branch_id', $branchId)
+                      ->orWhere('financial_accounts.branch_id', $branchId);
+                });
             }
 
             $stats = $query->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')->first();
@@ -1851,14 +1858,18 @@ class ReportController extends Controller
         // Transactions in Period
         $getInflowOutflow = function($accId, $from, $to) use ($branchId) {
             $query = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+                ->leftJoin('financial_accounts', 'journal_entries.financial_account_id', '=', 'financial_accounts.id')
                 ->where('journal_entries.chart_of_account_id', $accId)
                 ->whereBetween('journals.entry_date', [$from->toDateString(), $to->toDateString()]);
             
             if ($branchId) {
-                $query->where('journals.branch_id', $branchId);
+                $query->where(function($q) use ($branchId) {
+                    $q->where('journals.branch_id', $branchId)
+                      ->orWhere('financial_accounts.branch_id', $branchId);
+                });
             }
 
-            return $query->selectRaw('SUM(debit) as inflow, SUM(credit) as outflow')->first();
+            return $query->selectRaw('SUM(journal_entries.debit) as inflow, SUM(journal_entries.credit) as outflow')->first();
         };
 
         $cashStats = $getInflowOutflow($cashAccId, $startDate, $endDate);
@@ -2283,5 +2294,127 @@ class ReportController extends Controller
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
         exit;
+    }
+
+    public function businessSnapshot(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view reports')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfDay();
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        $branchId = $request->get('branch_id');
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) $branchId = $restrictedBranchId;
+
+        // INFLOWS (Left Side)
+        // 1. Total Sales (POS + Online)
+        $posSalesQuery = \App\Models\Pos::whereBetween('sale_date', [$startDate, $endDate]);
+        if ($branchId) $posSalesQuery->where('branch_id', $branchId);
+        $posSales = $posSalesQuery->sum('total_amount');
+
+        $onlineSalesQuery = \App\Models\Order::whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
+        // Online sales might not have branch_id directly, but let's assume they belong to online branch if applicable.
+        $onlineSales = $branchId ? 0 : $onlineSalesQuery->sum('total'); // Only show online sales if no branch or specific online branch is selected (assuming branch filtering for orders is handled differently, keeping it simple for now)
+        $totalSales = $posSales + $onlineSales;
+
+        // 2. Money Receipts
+        $moneyReceiptsQuery = \App\Models\Payment::whereBetween('payment_date', [$startDate, $endDate])
+            ->where('payment_for', 'manual_receipt');
+        if ($branchId) {
+             $moneyReceiptsQuery->whereHas('pos', function($q) use ($branchId) { $q->where('branch_id', $branchId); })
+                  ->orWhereHas('invoice.pos', function($q) use ($branchId) { $q->where('branch_id', $branchId); });
+        }
+        $moneyReceipts = $moneyReceiptsQuery->sum('amount');
+
+        // 3. Purchase Returns
+        $purchaseReturnsQuery = \App\Models\PurchaseReturn::whereBetween('return_date', [$startDate, $endDate]);
+        if ($branchId) {
+             $purchaseReturnsQuery->whereHas('purchase', function($q) use ($branchId) { $q->where('location_id', $branchId)->where('ship_location_type', 'branch'); });
+        }
+        $purchaseReturnIds = $purchaseReturnsQuery->pluck('id');
+        $purchaseReturns = \DB::table('purchase_return_items')->whereIn('purchase_return_id', $purchaseReturnIds)->sum('total_price');
+
+        // OUTFLOWS (Right Side)
+        // 1. Total Purchases (Bills)
+        $purchasesQuery = \App\Models\PurchaseBill::whereBetween('bill_date', [$startDate, $endDate]);
+        if ($branchId) {
+            $purchasesQuery->whereHas('purchase', function($q) use ($branchId) {
+                $q->where('location_id', $branchId)->where('ship_location_type', 'branch');
+            });
+        }
+        $totalPurchases = $purchasesQuery->sum('total_amount');
+
+        // 2. Supplier Payments
+        $supplierPaymentsQuery = \App\Models\SupplierPayment::whereBetween('payment_date', [$startDate, $endDate]);
+        $supplierPayments = $supplierPaymentsQuery->sum('amount');
+
+        // 3. Sales Returns
+        $salesReturnsQuery = \App\Models\SaleReturn::whereBetween('return_date', [$startDate, $endDate]);
+        if ($branchId) $salesReturnsQuery->where('return_to_id', $branchId)->where('return_to_type', 'branch');
+        $saleReturnIds = $salesReturnsQuery->pluck('id');
+        $salesReturns = \DB::table('sale_return_items')->whereIn('sale_return_id', $saleReturnIds)->sum('total_price');
+
+        // 4. Expenses
+        $expenseAccountIds = \App\Models\ChartOfAccount::whereHas('type', function($q) {
+                $q->where('name', 'like', 'Expense%');
+            })->pluck('id')->toArray();
+
+        $expensesQuery = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+            ->whereIn('journal_entries.chart_of_account_id', $expenseAccountIds)
+            ->whereBetween('journals.entry_date', [$startDate, $endDate])
+            ->where('journal_entries.debit', '>', 0);
+        if ($branchId) $expensesQuery->where('journals.branch_id', $branchId);
+        $totalExpenses = $expensesQuery->sum('journal_entries.debit');
+
+
+        // SUMMARIES
+        // Stock Value
+        $stockQuery = Product::where('type', 'product');
+        if ($branchId) {
+            $stockQuery->withSum(['branchStocks' => function($q) use ($branchId) { $q->where('branch_id', $branchId); }], 'quantity');
+        } else {
+            $stockQuery->withSum('variationStocks', 'quantity');
+        }
+        $stockValue = $stockQuery->get()->sum(function($p) {
+            return ($p->branch_stocks_sum_quantity ?? $p->variation_stocks_sum_quantity ?? 0) * $p->cost;
+        });
+
+        // Cash & Bank Balances
+        $cashAccounts = \App\Models\FinancialAccount::where('type', 'cash')->pluck('id');
+        $bankAccounts = \App\Models\FinancialAccount::whereIn('type', ['bank', 'mobile'])->pluck('id');
+        
+        $cashBalance = 0;
+        $bankBalance = 0;
+        // Simplified liquidity for snapshot: just get current balance of accounts
+        $cashBalance = \App\Models\FinancialAccount::where('type', 'cash')->sum('balance');
+        $bankBalance = \App\Models\FinancialAccount::whereIn('type', ['bank', 'mobile'])->sum('balance');
+
+        $data = [
+            'totalSales' => $totalSales,
+            'moneyReceipts' => $moneyReceipts,
+            'purchaseReturns' => $purchaseReturns,
+            'totalInflow' => $totalSales + $moneyReceipts + $purchaseReturns,
+            
+            'totalPurchases' => $totalPurchases,
+            'supplierPayments' => $supplierPayments,
+            'salesReturns' => $salesReturns,
+            'totalExpenses' => $totalExpenses,
+            'totalOutflow' => $totalPurchases + $supplierPayments + $salesReturns + $totalExpenses,
+
+            'stockValue' => $stockValue,
+            'cashBalance' => $cashBalance,
+            'bankBalance' => $bankBalance,
+            'totalLiquidity' => $cashBalance + $bankBalance
+        ];
+
+        if ($request->ajax()) {
+            return view('erp.reports.snapshot-partial', compact('data'))->render();
+        }
+
+        $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+
+        return view('erp.reports.snapshot', compact('startDate', 'endDate', 'branches', 'branchId', 'data', 'restrictedBranchId'));
     }
 }

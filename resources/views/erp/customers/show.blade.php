@@ -121,32 +121,32 @@
                         </div>
                         <div class="card-body">
                             <div class="mb-4 p-3 bg-primary bg-opacity-10 rounded text-center">
-                                <h4 class="mb-1 fw-bold text-primary">৳{{ number_format($totalRevenue, 2) }}</h4>
-                                <small class="text-muted">Total Revenue</small>
+                                <h4 class="mb-1 fw-bold text-primary">৳{{ number_format($totalRevenue + $totalExchange, 2) }}</h4>
+                                <small class="text-muted">Lifetime Gross Sales</small>
                             </div>
                             <div class="row g-3">
                                 <div class="col-6">
-                                    <div class="text-center">
+                                    <div class="p-2 border rounded text-center">
                                         <div class="h6 mb-1 text-warning">৳{{ number_format($outstandingAmount, 2) }}</div>
-                                        <small class="text-muted">Outstanding</small>
+                                        <small class="text-muted d-block small">Outstanding</small>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <div class="text-center">
+                                    <div class="p-2 border rounded text-center">
                                         <div class="h6 mb-1 text-success">৳{{ number_format($paidAmount, 2) }}</div>
-                                        <small class="text-muted">Paid</small>
+                                        <small class="text-muted d-block small">Paid</small>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <div class="text-center">
-                                        <div class="h6 mb-1 text-info">৳{{ number_format($posSales->sum('total_amount'), 2) }}</div>
-                                        <small class="text-muted">POS Sales</small>
+                                    <div class="p-2 border rounded text-center">
+                                        <div class="h6 mb-1 text-danger">৳{{ number_format($totalReturn, 2) }}</div>
+                                        <small class="text-muted d-block small">Returns</small>
                                     </div>
                                 </div>
                                 <div class="col-6">
-                                    <div class="text-center">
-                                        <div class="h6 mb-1 text-danger">৳{{ number_format($overdueAmount, 2) }}</div>
-                                        <small class="text-muted">Overdue</small>
+                                    <div class="p-2 border rounded text-center">
+                                        <div class="h6 mb-1 text-info">৳{{ number_format($totalExchange, 2) }}</div>
+                                        <small class="text-muted d-block small">Exchanges</small>
                                     </div>
                                 </div>
                             </div>

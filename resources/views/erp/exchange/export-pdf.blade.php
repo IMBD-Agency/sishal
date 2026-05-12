@@ -35,11 +35,12 @@
                 <th>Size</th>
                 <th class="text-center">Qty</th>
                 <th class="text-end">Exchange</th>
+                <th class="text-end">Refund</th>
                 <th class="text-end">Discount</th>
                 <th class="text-end">Paid</th>
                 <th class="text-end">Due</th>
             </tr>
-        </thead>
+</thead>
         <tbody>
             @php 
                 $tEx = 0; $tDisc = 0; $tPaid = 0; $tDue = 0;
@@ -61,13 +62,18 @@
                     }
 
                     $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
+                    $totalDiscount = 0; $tRef = $tRef ?? 0;
                     if($isFirst) {
+                        $totalDiscount = ($sale->discount ?? 0) + $sale->items->sum(function($i) {
+                            return ($i->quantity * $i->unit_price) - $i->total_price;
+                        });
                         $tEx += $sale->exchange_amount;
-                        $tDisc += $sale->discount;
+                        $tRef += ($sale->refund_amount ?? 0);
+                        $tDisc += $totalDiscount;
                         $tPaid += ($invoice->paid_amount ?? 0);
                         $tDue += ($invoice->due_amount ?? 0);
                     }
-                @endphp
+@endphp
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="fw-bold">{{ $sale->sale_number }}</td>
@@ -80,7 +86,8 @@
                     <td>{{ $size }}</td>
                     <td class="text-center">{{ $item->quantity }}</td>
                     <td class="text-end">{{ $isFirst ? number_format($sale->exchange_amount, 2) : '' }}</td>
-                    <td class="text-end">{{ $isFirst ? number_format($sale->discount, 2) : '' }}</td>
+                    <td class="text-end">{{ $isFirst ? number_format($sale->refund_amount ?? 0, 2) : '' }}</td>
+                    <td class="text-end">{{ $isFirst ? number_format($totalDiscount, 2) : '' }}</td>
                     <td class="text-end">{{ $isFirst ? number_format($invoice->paid_amount ?? 0, 2) : '' }}</td>
                     <td class="text-end">{{ $isFirst ? number_format($invoice->due_amount ?? 0, 2) : '' }}</td>
                 </tr>
@@ -90,6 +97,7 @@
             <tr class="fw-bold">
                 <td colspan="10" class="text-end">Grand Total</td>
                 <td class="text-end">{{ number_format($tEx, 2) }}</td>
+                <td class="text-end">{{ number_format($tRef, 2) }}</td>
                 <td class="text-end">{{ number_format($tDisc, 2) }}</td>
                 <td class="text-end">{{ number_format($tPaid, 2) }}</td>
                 <td class="text-end">{{ number_format($tDue, 2) }}</td>
