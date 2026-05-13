@@ -64,7 +64,7 @@
                         </div>
 
                         <div class="row g-3">
-                            @if(auth()->user()->hasRole('Super Admin'))
+                            @if(count($branches) > 0)
                             <div class="col-md-2">
                                 <label class="form-label-small">Select Branch</label>
                                 <select name="branch_id" class="form-select form-select-sm filter-select select2-premium-42">
@@ -77,7 +77,7 @@
                                 </select>
                             </div>
                             @endif
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}" id="monthCol">
+                            <div class="col-md-{{ count($branches) > 0 ? '2' : '3' }}" id="monthCol">
                                 <label class="form-label-small">Select Month *</label>
                                 <select name="month" class="form-select form-select-sm filter-select">
                                     <option>Select One</option>
@@ -86,7 +86,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
+                            <div class="col-md-{{ count($branches) > 0 ? '2' : '3' }}">
                                 <label class="form-label-small">Select Year *</label>
                                 <select name="year" class="form-select form-select-sm filter-select">
                                     <option>Select One</option>
@@ -95,7 +95,7 @@
                                     @endfor
                                 </select>
                             </div>
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
+                            <div class="col-md-{{ count($branches) > 0 ? '2' : '3' }}">
                                 <label class="form-label-small">Select Employee *</label>
                                 <select name="employee_id" class="form-select form-select-sm filter-select select2-premium-42">
                                     <option value="all">All Employee</option>
@@ -106,7 +106,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
+                            <div class="col-md-{{ count($branches) > 0 ? '2' : '3' }}">
                                 <label class="form-label-small">Select Account *</label>
                                 <select name="account_id" class="form-select form-select-sm filter-select select2-premium-42">
                                     <option value="all">All Account</option>

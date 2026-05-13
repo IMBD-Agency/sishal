@@ -52,10 +52,9 @@ class SalaryPaymentController extends Controller
         }
         $employees = $employeesQuery->get();
 
-        $branches = [];
-        if (auth()->user()->hasRole('Super Admin')) {
-            $branches = Branch::orderBy('name')->get();
-        }
+        // Both Super Admin AND global users (employee with null branch_id) can see all branches
+        $isGlobalUser = !$restrictedBranchId;
+        $branches = $isGlobalUser ? Branch::orderBy('name')->get() : [];
 
         $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
         $accounts = ChartOfAccount::whereIn('type_id', $assetTypeIds)
@@ -69,14 +68,19 @@ class SalaryPaymentController extends Controller
     protected function getRestrictedBranchId()
     {
         $user = auth()->user();
+
+        // Super Admin sees everything
         if ($user->hasRole('Super Admin')) {
             return null;
         }
-        
-        if ($user->branch_id) {
-            return $user->branch_id;
+
+        // Branch_id lives on the Employee record, NOT on the User model.
+        // If employee->branch_id is NULL → "global" user → sees everything.
+        // If employee->branch_id is set  → restricted to that branch only.
+        if ($user->employee && $user->employee->branch_id) {
+            return $user->employee->branch_id;
         }
-        
+
         return null;
     }
 
@@ -426,3 +430,8 @@ class SalaryPaymentController extends Controller
         return $pdf->download('salary_payments_' . date('Y-m-d_His') . '.pdf');
     }
 }
+
+
+
+
+
