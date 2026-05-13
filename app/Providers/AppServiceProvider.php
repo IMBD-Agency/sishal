@@ -48,13 +48,23 @@ class AppServiceProvider extends ServiceProvider
         }
         
         Schema::defaultStringLength(191);
-        $generalSettings = GeneralSetting::first() ?? new GeneralSetting([
-            'site_title' => 'Your Store',
-            'site_description' => 'Welcome to our online store. Find the best products at great prices.',
-            'site_keywords' => 'online store',
-            'site_logo' => null,
-            'site_favicon' => null
-        ]);
+        try {
+            $generalSettings = GeneralSetting::first() ?? new GeneralSetting([
+                'site_title' => 'Your Store',
+                'site_description' => 'Welcome to our online store. Find the best products at great prices.',
+                'site_keywords' => 'online store',
+                'site_logo' => null,
+                'site_favicon' => null
+            ]);
+        } catch (\Exception $e) {
+            $generalSettings = new GeneralSetting([
+                'site_title' => 'Your Store',
+                'site_description' => '',
+                'site_keywords' => '',
+                'site_logo' => null,
+                'site_favicon' => null
+            ]);
+        }
 
         $additionalPages = AdditionalPage::where('is_active', 1)->select('id', 'title', 'slug', 'positioned_at')->get();
         
