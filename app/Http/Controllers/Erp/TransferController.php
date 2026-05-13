@@ -250,7 +250,7 @@ class TransferController extends Controller
         if ($restrictedBranchId) {
             // Only show user's branch accounts
             $fromAccountsQuery->where('branch_id', $restrictedBranchId);
-        } elseif (!$user->hasRole('SuperAdmin')) {
+        } elseif (!$user->hasRole('Super Admin')) {
             // Non-super admin without branch restriction - show all branch accounts
             // or could restrict further based on requirements
         }
