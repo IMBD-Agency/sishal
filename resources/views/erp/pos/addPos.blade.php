@@ -81,6 +81,12 @@
                             <p class="mt-2 text-muted">Loading products...</p>
                         </div>
                     </div>
+                    <!-- Pagination Container -->
+                    <div id="paginationContainer" class="text-center mt-4 mb-2" style="display: none;">
+                        <button id="loadMoreBtn" class="btn btn-outline-primary px-4 shadow-sm">
+                            <i class="fas fa-plus-circle me-1"></i> Load More Products
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -389,6 +395,8 @@ $(document).ready(function() {
     // 2. State Variables
     let cart = [];
     let products = [];
+    let currentPage = 1;
+    let lastPage = 1;
     let currentBranch = $('#branchFilter').val();
 
     // 3. Load Products Initial
@@ -458,8 +466,14 @@ $(document).ready(function() {
     });
 
     // --- Product Loading Logic ---
-    function loadProducts() {
-        $('#productsGrid').html('<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>');
+    function loadProducts(page = 1, append = false) {
+        if (!append) {
+            $('#productsGrid').html('<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>');
+            currentPage = 1;
+            $('#paginationContainer').hide();
+        } else {
+            $('#loadMoreBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Loading...');
+        }
         
         // Build filters
         const search = $('#searchInput').val();
@@ -467,23 +481,47 @@ $(document).ready(function() {
 
         $.ajax({
             url: `/erp/products/search-with-filters/${currentBranch}`,
-            data: { search: search, category_id: cat },
+            data: { 
+                search: search, 
+                category_id: cat,
+                page: page
+            },
             success: function(res) {
                 let items = res.data ? res.data : res;
-                renderProductGrid(items);
+                lastPage = res.last_page || 1;
+                currentPage = res.current_page || page;
+
+                renderProductGrid(items, append);
+
+                if (currentPage < lastPage) {
+                    $('#paginationContainer').show();
+                } else {
+                    $('#paginationContainer').hide();
+                }
             },
             error: function(err) {
-                $('#productsGrid').html('<div class="col-12 text-center text-danger py-5">Failed to load products.</div>');
+                if (append) {
+                    showError('Failed to load more products.');
+                } else {
+                    $('#productsGrid').html('<div class="col-12 text-center text-danger py-5">Failed to load products.</div>');
+                }
+            },
+            complete: function() {
+                $('#loadMoreBtn').prop('disabled', false).html('<i class="fas fa-plus-circle me-1"></i> Load More Products');
             }
         });
     }
 
-    function renderProductGrid(items) {
+    function renderProductGrid(items, append = false) {
         const grid = $('#productsGrid');
-        grid.empty();
-        products = items; // Store for quick access
+        if (!append) {
+            grid.empty();
+            products = items; // Store for quick access
+        } else {
+            products = products.concat(items);
+        }
 
-        if(items.length === 0) {
+        if(items.length === 0 && !append) {
             grid.html('<div class="col-12 text-center py-5 text-muted">No products found.</div>');
             return;
         }
@@ -855,10 +893,17 @@ $(document).ready(function() {
     });
 
     // Inputs Listeners
-    $('#searchInput').on('input', function() { loadProducts(); });
+    $('#searchInput').on('input', function() { loadProducts(1, false); });
     $('#categoryFilter, #branchFilter').change(function() { 
         if(this.id === 'branchFilter') currentBranch = $(this).val();
-        loadProducts(); 
+        loadProducts(1, false); 
+    });
+
+    // Load More Listener
+    $('#loadMoreBtn').click(function() {
+        if (currentPage < lastPage) {
+            loadProducts(currentPage + 1, true);
+        }
     });
     $('input[name="saleType"]').change(function() {
         // Recalculate cart prices? Or just clear cart? 

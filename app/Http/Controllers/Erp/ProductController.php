@@ -1416,7 +1416,16 @@ class ProductController extends Controller
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
         ->where('status', 'active')
-        ->whereIn('type', ['product', 'combo']);
+        ->whereIn('type', ['product', 'combo'])
+        ->where(function($q) use ($branchId) {
+            $q->whereHas('branchStock', function($sq) use ($branchId) {
+                $sq->where('branch_id', $branchId)->where('quantity', '>', 0);
+            })
+            ->orWhereHas('variations.stocks', function($sq) use ($branchId) {
+                $sq->where('branch_id', $branchId)->whereNull('warehouse_id')->where('quantity', '>', 0);
+            })
+            ->orWhere('type', 'combo');
+        });
 
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -1432,7 +1441,7 @@ class ProductController extends Controller
         }
 
         // Always paginate for testing (per page = 1)
-        $products = $query->paginate(12); // 1 per page for testing
+        $products = $query->paginate(24); 
 
         // Get branch name once for all products in this request
         $branch = \App\Models\Branch::find($branchId);
