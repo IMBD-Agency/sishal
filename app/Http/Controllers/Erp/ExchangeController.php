@@ -54,7 +54,7 @@ class ExchangeController extends Controller
             'pos.customer', 'pos.originalPos', 'pos.branch', 'product.category', 'product.brand', 'product.season', 'product.gender',
             'variation.attributeValues.attribute'
         ])->whereHas('pos', function($q) {
-            $q->whereNotNull('original_pos_id', 'and');
+            $q->whereNotNull('original_pos_id');
         });
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
@@ -63,13 +63,13 @@ class ExchangeController extends Controller
         
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $branches = Branch::where('id', '=', $restrictedBranchId, 'and')->get();
+            $branches = Branch::where('id', $restrictedBranchId)->get();
         } else {
-            $branches = Branch::all(['*']);
+            $branches = Branch::all();
         }
         $customers = Customer::orderBy('name', 'asc')->get();
-        $products = Product::where('type', '=', 'product', 'and')->orderBy('name', 'asc')->get();
-        $categories = ProductServiceCategory::whereNull('parent_id', 'and', false)->orderBy('name', 'asc')->get();
+        $products = Product::where('type', 'product')->orderBy('name', 'asc')->get();
+        $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name', 'asc')->get();
         $brands = \App\Models\Brand::orderBy('name', 'asc')->get();
         $seasons = \App\Models\Season::orderBy('name', 'asc')->get();
         $genders = \App\Models\Gender::orderBy('name', 'asc')->get();

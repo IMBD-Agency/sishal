@@ -239,22 +239,22 @@
                                     @endphp
                                     <tr>
                                         <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
-                                        <td class="fw-bold text-dark">{{ $sale->sale_number }}</td>
-                                        <td class="text-primary">{{ $sale->originalPos->sale_number ?? '-' }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') }}</td>
-                                        <td>{{ $sale->branch->name ?? '-' }}</td>
-                                        <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
+                                        <td class="fw-bold text-dark">{{ $sale?->sale_number ?? 'N/A' }}</td>
+                                        <td class="text-primary">{{ $sale?->originalPos?->sale_number ?? '-' }}</td>
+                                        <td>{{ $sale?->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-' }}</td>
+                                        <td>{{ $sale?->branch?->name ?? '-' }}</td>
+                                        <td>{{ $sale?->customer?->name ?? 'Walk-in' }}</td>
                                         <td class="text-center">
-                                            @if($product->image)
+                                            @if($product && $product->image)
                                                 <img src="{{ asset($product->image) }}" width="30" height="30" class="rounded shadow-sm" alt="">
                                             @endif
                                         </td>
-                                        <td>{{ $product->category->name ?? '-' }}</td>
-                                        <td>{{ $product->brand->name ?? '-' }}</td>
-                                        <td>{{ $product->season->name ?? '-' }}</td>
-                                        <td>{{ $product->gender->name ?? '-' }}</td>
-                                        <td class="fw-bold text-dark">{{ $product->name }}</td>
-                                        <td>{{ $product->style_number }}</td>
+                                        <td>{{ $product?->category?->name ?? '-' }}</td>
+                                        <td>{{ $product?->brand?->name ?? '-' }}</td>
+                                        <td>{{ $product?->season?->name ?? '-' }}</td>
+                                        <td>{{ $product?->gender?->name ?? '-' }}</td>
+                                        <td class="fw-bold text-dark">{{ $product?->name ?? 'Unknown' }}</td>
+                                        <td>{{ $product?->style_number ?? '-' }}</td>
                                         <td>{{ $color }}</td>
                                         <td>{{ $size }}</td>
                                         <td class="text-center bg-light">{{ $item->quantity }}</td>
