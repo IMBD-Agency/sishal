@@ -118,8 +118,8 @@ class SaleReturnController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         
         $headers = [
-            'Serial No', 'Date', 'R-Inv. No.', 'S-Inv. No.', 'Customer', 'Mobile', 'Outlet', 
-            'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Color', 'Size', 
+            'Serial No', 'Date', 'R-Inv. No.', 'S-Inv. No.', 'Customer', 'Mobile', 'Branch',
+            'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Color', 'Size',
             'Qty', 'Total Amount'
         ];
         

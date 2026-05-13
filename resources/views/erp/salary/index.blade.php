@@ -166,7 +166,9 @@
                                 <th>Outlet</th>
                                 <th>Year</th>
                                 <th>Month</th>
-                                <th class="text-end">Paid Amount</th>
+                                <th class="text-end">Base Salary</th>
+                                <th class="text-end">Bonus</th>
+                                <th class="text-end">Total Paid</th>
                                 <th>Account Type</th>
                                 <th>Note</th>
                                 <th class="text-center">Option</th>
@@ -180,7 +182,9 @@
                                     <td class="small text-muted">{{ $payment->branch->name ?? '-' }}</td>
                                     <td>{{ $payment->year }}</td>
                                     <td>{{ $payment->month }}</td>
-                                    <td class="text-end fw-bold">{{ number_format($payment->paid_amount, 2) }}৳</td>
+                                    <td class="text-end fw-semibold">{{ number_format($payment->paid_amount, 2) }}৳</td>
+                                    <td class="text-end text-success">{{ number_format($payment->bonus_amount, 2) }}৳</td>
+                                    <td class="text-end fw-bold text-primary">{{ number_format($payment->total_payment, 2) }}৳</td>
                                     <td>
                                         <span class="badge bg-light text-dark border">{{ $payment->payment_method }}</span>
                                         @if($payment->chartOfAccount)
@@ -201,7 +205,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-5 text-muted">
+                                    <td colspan="11" class="text-center py-5 text-muted">
                                         <div class="py-3">
                                             <i class="fas fa-receipt fa-3x mb-3 opacity-25"></i>
                                             <p>No data available in table</p>
@@ -213,8 +217,10 @@
                         @if($payments->count() > 0)
                             <tfoot class="bg-light fw-bold">
                                 <tr>
-                                    <td colspan="5" class="text-end">Total Amount</td>
-                                    <td class="text-end text-primary">{{ number_format($payments->sum('paid_amount'), 2) }}৳</td>
+                                    <td colspan="5" class="text-end">Grand Totals</td>
+                                    <td class="text-end">{{ number_format($payments->sum('paid_amount'), 2) }}৳</td>
+                                    <td class="text-end text-success">{{ number_format($payments->sum('bonus_amount'), 2) }}৳</td>
+                                    <td class="text-end text-primary">{{ number_format($payments->sum('paid_amount') + $payments->sum('bonus_amount'), 2) }}৳</td>
                                     <td colspan="3"></td>
                                 </tr>
                             </tfoot>

@@ -128,7 +128,7 @@ class SalaryPaymentController extends Controller
             'total_salary' => $request->total_salary ?? $employee->salary,
             'paid_amount' => $request->paid_amount,
             'bonus_amount' => $request->bonus_amount ?? 0,
-            'is_bonus_editable' => $request->has('is_bonus_editable') ? $request->is_bonus_editable : true,
+            'is_bonus_editable' => $request->boolean('is_bonus_editable', true),
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
             'account_id' => $request->account_id,
@@ -139,7 +139,7 @@ class SalaryPaymentController extends Controller
 
         // Calculate and apply bonus if target exists
         $bonusService = new BonusCalculationService();
-        $bonusService->applyBonusToSalaryPayment($salaryPayment->id, $request->bonus_amount, $request->has('is_bonus_editable'));
+        $bonusService->applyBonusToSalaryPayment($salaryPayment->id, $request->bonus_amount, $request->boolean('is_bonus_editable', true));
 
         // Create Journal Entry for Salary Payment
         try {
@@ -151,6 +151,9 @@ class SalaryPaymentController extends Controller
             if (!$salaryAccount) {
                 \Log::warning('Salary account not found in Chart of Accounts. Journal entry not created for salary payment ID: ' . $salaryPayment->id);
             } else {
+                // Calculate Total for Journal
+                $totalPaymentAmount = $salaryPayment->paid_amount + $salaryPayment->bonus_amount;
+
                 // Create Journal Header
                 $journal = Journal::create([
                     'voucher_no' => 'SAL-' . date('Ymd', strtotime($request->payment_date)) . '-' . str_pad($salaryPayment->id, 4, '0', STR_PAD_LEFT),
@@ -166,7 +169,7 @@ class SalaryPaymentController extends Controller
                 JournalEntry::create([
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $salaryAccount->id,
-                    'debit' => $request->paid_amount,
+                    'debit' => $totalPaymentAmount,
                     'credit' => 0,
                     'memo' => 'Salary expense - ' . $employee->user->first_name,
                     'created_by' => auth()->id(),
@@ -178,7 +181,7 @@ class SalaryPaymentController extends Controller
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $request->account_id, // The payment account (Cash/Bank)
                     'debit' => 0,
-                    'credit' => $request->paid_amount,
+                    'credit' => $totalPaymentAmount,
                     'memo' => 'Payment from ' . ChartOfAccount::find($request->account_id)->name,
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),
@@ -355,9 +358,9 @@ class SalaryPaymentController extends Controller
         ];
 
         // Headers
-        $headers = ['ID', 'Employee', 'Branch', 'Month', 'Year', 'Total Salary', 'Paid Amount', 'Payment Date', 'Payment Method', 'Account', 'Note'];
+        $headers = ['ID', 'Employee', 'Branch', 'Month', 'Year', 'Base Salary', 'Bonus', 'Total Payment', 'Payment Date', 'Payment Method', 'Account', 'Note'];
         $sheet->fromArray($headers, null, 'A1');
-        $sheet->getStyle('A1:K1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
 
         // Data
         $row = 2;
@@ -367,17 +370,18 @@ class SalaryPaymentController extends Controller
             $sheet->setCellValue('C' . $row, $payment->branch->name ?? 'N/A');
             $sheet->setCellValue('D' . $row, $payment->month);
             $sheet->setCellValue('E' . $row, $payment->year);
-            $sheet->setCellValue('F' . $row, number_format($payment->total_salary, 2));
-            $sheet->setCellValue('G' . $row, number_format($payment->paid_amount, 2));
-            $sheet->setCellValue('H' . $row, date('d M Y', strtotime($payment->payment_date)));
-            $sheet->setCellValue('I' . $row, $payment->payment_method ?? 'N/A');
-            $sheet->setCellValue('J' . $row, $payment->chartOfAccount->name ?? 'N/A');
-            $sheet->setCellValue('K' . $row, $payment->note ?? '');
+            $sheet->setCellValue('F' . $row, number_format($payment->paid_amount, 2));
+            $sheet->setCellValue('G' . $row, number_format($payment->bonus_amount, 2));
+            $sheet->setCellValue('H' . $row, number_format($payment->total_payment, 2));
+            $sheet->setCellValue('I' . $row, date('d M Y', strtotime($payment->payment_date)));
+            $sheet->setCellValue('J' . $row, $payment->payment_method ?? 'N/A');
+            $sheet->setCellValue('K' . $row, $payment->chartOfAccount->name ?? 'N/A');
+            $sheet->setCellValue('L' . $row, $payment->note ?? '');
             $row++;
         }
 
         // Auto-size columns
-        foreach (range('A', 'K') as $col) {
+        foreach (range('A', 'L') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 

@@ -28,6 +28,7 @@
                 <th>Ex. Invoice</th>
                 <th>Sale Invoice</th>
                 <th>Date</th>
+                <th>Branch</th>
                 <th>Customer</th>
                 <th>Product Name</th>
                 <th>Style #</th>
@@ -79,6 +80,7 @@
                     <td class="fw-bold">{{ $sale->sale_number }}</td>
                     <td>{{ $sale->originalPos->sale_number ?? '-' }}</td>
                     <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') }}</td>
+                    <td>{{ $sale->branch->name ?? '-' }}</td>
                     <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
                     <td>{{ $product->name }}</td>
                     <td>{{ $product->style_number }}</td>
@@ -95,7 +97,7 @@
         </tbody>
         <tfoot class="bg-light">
             <tr class="fw-bold">
-                <td colspan="10" class="text-end">Grand Total</td>
+                <td colspan="11" class="text-end">Grand Total</td>
                 <td class="text-end">{{ number_format($tEx, 2) }}</td>
                 <td class="text-end">{{ number_format($tRef, 2) }}</td>
                 <td class="text-end">{{ number_format($tDisc, 2) }}</td>

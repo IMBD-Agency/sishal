@@ -32,7 +32,7 @@
                 <th style="width: 45px;">R-Inv.</th>
                 <th style="width: 45px;">S-Inv.</th>
                 <th style="width: 60px;">Customer</th>
-                <th style="width: 50px;">Outlet</th>
+                <th style="width: 50px;">Branch</th>
                 <th style="width: 40px;">Cat.</th>
                 <th style="width: 40px;">Brand</th>
                 <th style="width: 70px;">Product Name</th>

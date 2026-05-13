@@ -23,7 +23,16 @@
                         <h4 class="fw-bold mb-0 text-dark">Fund Transfer History</h4>
                     </div>
                 </div>
-                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-success dropdown-toggle shadow-sm border-0 bg-white" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="exportData('excel')"><i class="fas fa-file-excel me-2 text-success"></i>Excel Report</a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="exportData('pdf')"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF Report</a></li>
+                        </ul>
+                    </div>
                     <a href="{{ route('transfers.create') }}" class="btn btn-create-premium">
                         <i class="fas fa-plus-circle me-2"></i>New Transfer
                     </a>
@@ -72,18 +81,29 @@
             <!-- Filters -->
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-body p-4">
-                    <form method="GET" action="{{ route('transfers.index') }}" class="row g-3">
-                        <div class="col-md-3">
+                    <form method="GET" action="{{ route('transfers.index') }}" class="row g-3" id="filterForm">
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase">From Date</label>
                             <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted text-uppercase">To Date</label>
                             <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">From Account</label>
-                            <select name="from_account_id" class="form-select">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Branch</label>
+                            <select name="branch_id" class="form-select select2-simple">
+                                <option value="">All Branches</option>
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                                        {{ $branch->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Account</label>
+                            <select name="from_account_id" class="form-select select2-simple">
                                 <option value="">All Accounts</option>
                                 @foreach($accounts as $account)
                                     <option value="{{ $account->id }}" {{ request('from_account_id') == $account->id ? 'selected' : '' }}>
@@ -92,7 +112,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
+                        <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="fas fa-filter me-2"></i>Filter
                             </button>
@@ -191,3 +211,26 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+    function exportData(format) {
+        const form = document.getElementById('filterForm');
+        const formData = new FormData(form);
+        const params = new URLSearchParams(formData).toString();
+        
+        let url = '';
+        if (format === 'excel') {
+            url = "{{ route('transfers.export.excel') }}";
+        } else {
+            url = "{{ route('transfers.export.pdf') }}";
+        }
+        
+        window.isDownloadNavigation = true;
+        window.location.href = url + '?' + params;
+        
+        // Reset flag after a delay
+        setTimeout(() => { window.isDownloadNavigation = false; }, 2000);
+    }
+</script>
+@endpush

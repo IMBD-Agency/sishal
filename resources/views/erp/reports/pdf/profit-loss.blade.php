@@ -133,30 +133,38 @@
                             </td>
                         </tr>
                         @endif
+                        @if($employeePayment > 0)
                         <tr>
                             <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">
                                 <div class="section-label">Employee Salaries</div>
                                 <div class="amount text-danger">৳{{ number_format($employeePayment, 2) }}</div>
                             </td>
                         </tr>
+                        @endif
+                        @if($supplierPay > 0)
                         <tr>
                             <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">
                                 <div class="section-label">Supplier Payments</div>
                                 <div class="amount text-danger">৳{{ number_format($supplierPay, 2) }}</div>
                             </td>
                         </tr>
+                        @endif
+                        @if($salesReturnAmount > 0)
                         <tr>
                             <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">
                                 <div class="section-label">Sales Returns</div>
                                 <div class="amount text-danger">৳{{ number_format($salesReturnAmount, 2) }}</div>
                             </td>
                         </tr>
+                        @endif
+                        @if($receiverTransferAmount > 0)
                         <tr>
                             <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">
                                 <div class="section-label">Transfers Out</div>
                                 <div class="amount text-danger">৳{{ number_format($receiverTransferAmount, 2) }}</div>
                             </td>
                         </tr>
+                        @endif
                         <tr class="total-row">
                             <td style="padding: 12px; background: #fef2f2;">
                                 <span style="font-size: 8px; color: #991b1b; font-weight: bold;">TOTAL EXPENSE</span>

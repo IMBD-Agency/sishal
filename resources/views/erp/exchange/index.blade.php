@@ -185,6 +185,7 @@
                                     <th style="min-width: 120px;">Exchange Invoice</th>
                                     <th style="min-width: 120px;">Sale Invoice</th>
                                     <th style="min-width: 90px;">Date</th>
+                                    <th style="min-width: 100px;">Branch</th>
                                     <th style="min-width: 120px;">Customer</th>
                                     <th class="text-center">Img</th>
                                     <th>Category</th>
@@ -241,6 +242,7 @@
                                         <td class="fw-bold text-dark">{{ $sale->sale_number }}</td>
                                         <td class="text-primary">{{ $sale->originalPos->sale_number ?? '-' }}</td>
                                         <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') }}</td>
+                                        <td>{{ $sale->branch->name ?? '-' }}</td>
                                         <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
                                         <td class="text-center">
                                             @if($product->image)
@@ -273,7 +275,7 @@
                             </tbody>
                             <tfoot class="bg-light fw-bold">
                                 <tr>
-                                    <td colspan="15" class="text-end text-uppercase">Grand Totals</td>
+                                    <td colspan="16" class="text-end text-uppercase">Grand Totals</td>
                                     <td class="text-end">{{ number_format($tExchange, 2) }}</td>
                                     <td class="text-end text-danger">{{ number_format($tRefund, 2) }}</td>
                                     <td class="text-end">{{ number_format($tDiscount, 2) }}</td>
@@ -311,7 +313,10 @@
             url = "{{ route('exchange.export.pdf') }}";
         }
         
+        window.isDownloadNavigation = true;
         window.location.href = url + '?' + params;
+        // Reset the flag shortly after to allow normal navigation later
+        setTimeout(() => { window.isDownloadNavigation = false; }, 1000);
     }
 
     $(document).ready(function() {

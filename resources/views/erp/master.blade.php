@@ -98,7 +98,7 @@
         document.addEventListener('DOMContentLoaded', initializePageFunctions);
 
         // Track if a download link was clicked to prevent sticking progress bar
-        let isDownloadNavigation = false;
+        window.isDownloadNavigation = false;
         document.addEventListener('click', (e) => {
             const link = e.target.closest('a');
             if (link && (
@@ -108,15 +108,15 @@
                 link.href.includes('excel') ||
                 link.hasAttribute('download')
             )) {
-                isDownloadNavigation = true;
+                window.isDownloadNavigation = true;
                 // Reset after a short delay in case of cancellation
-                setTimeout(() => isDownloadNavigation = false, 2000);
+                setTimeout(() => window.isDownloadNavigation = false, 2000);
             }
         });
 
         // Pure Browser-Based Fast Navigation Feedack
         window.addEventListener('beforeunload', () => {
-            if (isDownloadNavigation) return;
+            if (window.isDownloadNavigation) return;
             const bar = document.getElementById('top-progress-bar');
             if (bar) bar.style.width = '70%'; // Immediate visual start
         });

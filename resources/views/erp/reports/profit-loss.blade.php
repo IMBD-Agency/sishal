@@ -124,14 +124,18 @@
                                                 <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($debitVoucher, 2) }}</td>
                                             </tr>
                                             @endif
+                                            @if($employeePayment > 0)
                                             <tr>
                                                 <td class="ps-3 py-2 text-secondary">Employee Salaries</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($employeePayment, 2) }}</td>
                                             </tr>
+                                            @endif
+                                            @if($salesReturnAmount > 0)
                                             <tr>
                                                 <td class="ps-3 py-2 text-secondary">Sales Returns</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-danger">Tk. {{ number_format($salesReturnAmount, 2) }}</td>
                                             </tr>
+                                            @endif
                                         </table>
                                     </td>
                                 </tr>

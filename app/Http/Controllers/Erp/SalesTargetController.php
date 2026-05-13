@@ -46,6 +46,16 @@ class SalesTargetController extends Controller
                          ->paginate(15)
                          ->withQueryString();
 
+        // Recalculate achievement for the current page targets to ensure fresh data
+        $bonusService = new \App\Services\BonusCalculationService();
+        foreach ($targets as $target) {
+            $bonusService->calculateAchievementForEmployee(
+                $target->employee_id,
+                $target->period_month,
+                $target->period_year
+            );
+        }
+
         // Get employees for filter (based on user's access)
         $employeesQuery = Employee::where('status', 'active')->with('user');
         if ($restrictedBranchId) {

@@ -223,6 +223,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('supplier-payments', \App\Http\Controllers\Erp\SupplierPaymentController::class);
 
     // Fund Transfers (Branch <-> Warehouse Cash/Bank Transfer)
+    Route::get('fund-transfers/export-excel', [\App\Http\Controllers\Erp\TransferController::class, 'exportExcel'])->name('transfers.export.excel');
+    Route::get('fund-transfers/export-pdf', [\App\Http\Controllers\Erp\TransferController::class, 'exportPdf'])->name('transfers.export.pdf');
     Route::get('fund-transfers', [\App\Http\Controllers\Erp\TransferController::class, 'index'])->name('transfers.index');
     Route::get('fund-transfers/create', [\App\Http\Controllers\Erp\TransferController::class, 'create'])->name('transfers.create');
     Route::post('fund-transfers', [\App\Http\Controllers\Erp\TransferController::class, 'store'])->name('transfers.store');

@@ -15,7 +15,7 @@ class BonusCalculationService
         $target = SalesTarget::where('employee_id', $employeeId)
                            ->where('period_month', $month)
                            ->where('period_year', $year)
-                           ->where('status', 'active')
+                           ->whereIn('status', ['active', 'achieved'])
                            ->first();
 
         if (!$target) {
@@ -49,27 +49,24 @@ class BonusCalculationService
 
     public function calculateEmployeeSales($employeeId, $month, $year)
     {
-        $totalSales = 0;
+        $employee = Employee::find($employeeId);
+        if (!$employee || !$employee->user_id) {
+            return 0;
+        }
 
-        // Get sales from POS system
+        $userId = $employee->user_id;
+        $monthNum = date('m', strtotime($month));
+
+        // Get sales from POS system (which includes manual sales via sale_type)
+        // We use 'sold_by' which stores the user_id of the person who made the sale
+        // We use 'sale_date' for the period filtering
         $posSales = DB::table('pos')
-            ->where('created_by', $employeeId)
-            ->whereMonth('created_at', '=', date('m', strtotime($month)))
-            ->whereYear('created_at', '=', $year)
+            ->where('sold_by', $userId)
+            ->whereMonth('sale_date', '=', $monthNum)
+            ->whereYear('sale_date', '=', $year)
             ->sum('total_amount');
 
-        $totalSales += $posSales;
-
-        // Get sales from manual sales
-        $manualSales = DB::table('manual_sales')
-            ->where('created_by', $employeeId)
-            ->whereMonth('created_at', '=', date('m', strtotime($month)))
-            ->whereYear('created_at', '=', $year)
-            ->sum('total_amount');
-
-        $totalSales += $manualSales;
-
-        return $totalSales;
+        return $posSales;
     }
 
     public function applyBonusToSalaryPayment($salaryPaymentId, $bonusAmount = null, $isEditable = true)

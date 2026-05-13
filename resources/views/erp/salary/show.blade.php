@@ -74,20 +74,20 @@
 
                             <div class="row g-4">
                                 <div class="col-sm-6 col-md-3">
-                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Total Salary</label>
-                                    <h5 class="fw-bold">{{ number_format($payment->total_salary, 2) }}৳</h5>
+                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Base Salary</label>
+                                    <h5 class="fw-bold">{{ number_format($payment->paid_amount, 2) }}৳</h5>
                                 </div>
                                 <div class="col-sm-6 col-md-3">
-                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Paid Amount</label>
-                                    <h5 class="fw-bold text-success">{{ number_format($payment->paid_amount, 2) }}৳</h5>
+                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Bonus Amount</label>
+                                    <h5 class="fw-bold text-success">+ {{ number_format($payment->bonus_amount, 2) }}৳</h5>
+                                </div>
+                                <div class="col-sm-6 col-md-3">
+                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Total Payment</label>
+                                    <h5 class="fw-bold text-primary">{{ number_format($payment->total_payment, 2) }}৳</h5>
                                 </div>
                                 <div class="col-sm-6 col-md-3">
                                     <label class="small text-muted text-uppercase fw-bold d-block mb-1">Payment Date</label>
                                     <h6 class="mb-0">{{ date('d M Y', strtotime($payment->payment_date)) }}</h6>
-                                </div>
-                                <div class="col-sm-6 col-md-3">
-                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Status</label>
-                                    <h6 class="mb-0"><span class="text-success fw-bold">Paid</span></h6>
                                 </div>
                             </div>
 

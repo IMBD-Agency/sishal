@@ -199,7 +199,7 @@
                                     <th>S-Inv No</th>
                                     <th>Customer</th>
                                     <th>Mobile</th>
-                                    <th>Outlet</th>
+                                    <th>Branch</th>
                                     <th>Category</th>
                                     <th>Brand</th>
                                     <th>Season</th>

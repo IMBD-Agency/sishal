@@ -37,35 +37,43 @@
             <tr>
                 <th>SN</th>
                 <th>Staff Name</th>
-                <th>Outlet</th>
                 <th>Period</th>
-                <th class="text-end">Paid Amount</th>
+                <th class="text-end">Base Salary</th>
+                <th class="text-end">Bonus</th>
+                <th class="text-end">Total Paid</th>
                 <th>Method</th>
-                <th>Account</th>
                 <th>Date</th>
             </tr>
         </thead>
         <tbody>
-            @php $total = 0; @endphp
+            @php 
+                $totalSalary = 0; 
+                $totalBonus = 0;
+            @endphp
             @foreach($payments as $index => $payment)
-                @php $total += $payment->paid_amount; @endphp
+                @php 
+                    $totalSalary += $payment->paid_amount; 
+                    $totalBonus += $payment->bonus_amount;
+                @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td class="fw-bold">{{ $payment->employee->user->first_name }} {{ $payment->employee->user->last_name }}</td>
-                    <td>{{ $payment->branch->name ?? 'N/A' }}</td>
                     <td>{{ $payment->month }} {{ $payment->year }}</td>
-                    <td class="text-end fw-bold">{{ number_format($payment->paid_amount, 2) }}</td>
+                    <td class="text-end">{{ number_format($payment->paid_amount, 2) }}</td>
+                    <td class="text-end">{{ number_format($payment->bonus_amount, 2) }}</td>
+                    <td class="text-end fw-bold">{{ number_format($payment->total_payment, 2) }}</td>
                     <td>{{ $payment->payment_method }}</td>
-                    <td>{{ $payment->chartOfAccount->name ?? 'N/A' }}</td>
                     <td>{{ date('d-m-Y', strtotime($payment->payment_date)) }}</td>
                 </tr>
             @endforeach
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="4" class="text-end">GRAND TOTAL:</td>
-                <td class="text-end">{{ number_format($total, 2) }}</td>
-                <td colspan="3"></td>
+                <td colspan="3" class="text-end">GRAND TOTALS:</td>
+                <td class="text-end">{{ number_format($totalSalary, 2) }}</td>
+                <td class="text-end">{{ number_format($totalBonus, 2) }}</td>
+                <td class="text-end">{{ number_format($totalSalary + $totalBonus, 2) }}</td>
+                <td colspan="2"></td>
             </tr>
         </tfoot>
     </table>

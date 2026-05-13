@@ -649,15 +649,16 @@ class ExchangeController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         
         $headers = [
-            'Serial No', 'Exchange Invoice', 'Sale Invoice', 'Date', 'Customer', 'Category', 
+            'Serial No', 'Exchange Invoice', 'Sale Invoice', 'Date', 'Branch', 'Customer', 'Category', 
             'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Color', 'Size', 
             'Quantity', 'Exchange Amt', 'Refund', 'Discount', 'Paid', 'Due'
         ];
         
         $sheet->fromArray([$headers], NULL, 'A1');
-        $sheet->getStyle('A1:S1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:T1')->getFont()->setBold(true);
 
         $rowNum = 2;
+        $tEx = 0; $tRef = 0; $tDisc = 0; $tPaid = 0; $tDue = 0;
         foreach ($items as $index => $item) {
             $sale = $item->pos;
             $product = $item->product;
@@ -679,6 +680,11 @@ class ExchangeController extends Controller
                 $totalDiscount = ($sale->discount ?? 0) + $sale->items->sum(function($i) {
                     return ($i->quantity * $i->unit_price) - $i->total_price;
                 });
+                $tEx += $sale->exchange_amount;
+                $tRef += ($sale->refund_amount ?? 0);
+                $tDisc += $totalDiscount;
+                $tPaid += ($invoice->paid_amount ?? 0);
+                $tDue += ($invoice->due_amount ?? 0);
             }
 
             $data = [
@@ -686,6 +692,7 @@ class ExchangeController extends Controller
                 $sale->sale_number,
                 $sale->originalPos->sale_number ?? '-',
                 \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y'),
+                $sale->branch->name ?? '-',
                 $sale->customer->name ?? 'Walk-in',
                 $product->category->name ?? '-',
                 $product->brand->name ?? '-',
@@ -705,6 +712,19 @@ class ExchangeController extends Controller
             $sheet->fromArray([$data], NULL, 'A' . $rowNum);
             $rowNum++;
         }
+
+        // Add Totals Row
+        $totalRow = [
+            'GRAND TOTAL', '', '', '', '', '', '', '', '', '', '', '', '', '', 
+            '', // Qty (Optional, but user usually wants financial totals)
+            $tEx, 
+            $tRef, 
+            $tDisc, 
+            $tPaid, 
+            $tDue
+        ];
+        $sheet->fromArray([$totalRow], NULL, 'A' . $rowNum);
+        $sheet->getStyle('A' . $rowNum . ':T' . $rowNum)->getFont()->setBold(true);
 
         $writer = new Xlsx($spreadsheet);
         $filename = 'exchange_report_' . date('Ymd_His') . '.xlsx';

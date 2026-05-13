@@ -13,6 +13,9 @@ use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TransferController extends Controller
 {
@@ -72,6 +75,18 @@ class TransferController extends Controller
             $query->where('to_financial_account_id', $request->to_account_id);
         }
 
+        // Branch filter
+        if ($request->filled('branch_id')) {
+            $branchId = $request->branch_id;
+            $query->where(function($q) use ($branchId) {
+                $q->whereHas('fromAccount', function($fq) use ($branchId) {
+                    $fq->where('branch_id', $branchId);
+                })->orWhereHas('toAccount', function($tq) use ($branchId) {
+                    $tq->where('branch_id', $branchId);
+                });
+            });
+        }
+
         $transfers = $query->latest('transfer_date')->latest('id')->paginate(20)->appends($request->all());
 
         // Get accounts for filter dropdown - filtered by branch
@@ -90,10 +105,131 @@ class TransferController extends Controller
         }
         $accounts = $accountsQuery->get();
         
-        // Calculate totals
+        // Get branches for filter
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
+            $branches = Branch::orderBy('name')->get();
+        }
+
         $totalTransfers = $transfers->sum('amount');
 
-        return view('erp.transfers.index', compact('transfers', 'accounts', 'totalTransfers'));
+        return view('erp.transfers.index', compact('transfers', 'accounts', 'totalTransfers', 'branches'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $query = Transfer::with(['fromAccount.branch', 'fromAccount.warehouse', 'toAccount.branch', 'toAccount.warehouse', 'creator']);
+
+        // Apply same filtering as index
+        if ($restrictedBranchId) {
+            $query->where(function($q) use ($restrictedBranchId) {
+                $q->whereHas('fromAccount', function($fq) use ($restrictedBranchId) {
+                    $fq->where('branch_id', $restrictedBranchId);
+                })->orWhereHas('toAccount', function($tq) use ($restrictedBranchId) {
+                    $tq->where('branch_id', $restrictedBranchId);
+                });
+            });
+        }
+
+        if ($request->filled('start_date')) $query->whereDate('transfer_date', '>=', $request->start_date);
+        if ($request->filled('end_date')) $query->whereDate('transfer_date', '<=', $request->end_date);
+        if ($request->filled('from_account_id')) $query->where('from_financial_account_id', $request->from_account_id);
+        if ($request->filled('to_account_id')) $query->where('to_financial_account_id', $request->to_account_id);
+        if ($request->filled('branch_id')) {
+            $branchId = $request->branch_id;
+            $query->where(function($q) use ($branchId) {
+                $q->whereHas('fromAccount', function($fq) use ($branchId) { $fq->where('branch_id', $branchId); })
+                  ->orWhereHas('toAccount', function($tq) use ($branchId) { $tq->where('branch_id', $branchId); });
+            });
+        }
+
+        $items = $query->latest('transfer_date')->latest('id')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $headers = ['Date', 'From Account', 'From Location', 'To Account', 'To Location', 'Amount', 'Reference', 'Memo', 'Created By'];
+        $sheet->fromArray([$headers], NULL, 'A1');
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+
+        $rowNum = 2;
+        $totalAmount = 0;
+        foreach ($items as $item) {
+            $data = [
+                $item->transfer_date->format('d/m/Y'),
+                $item->fromAccount->provider_name ?? 'N/A',
+                $item->from_location,
+                $item->toAccount->provider_name ?? 'N/A',
+                $item->to_location,
+                $item->amount,
+                $item->reference ?: '-',
+                $item->memo ?: '-',
+                $item->creator->name ?? 'N/A'
+            ];
+            $sheet->fromArray([$data], NULL, 'A' . $rowNum);
+            $totalAmount += $item->amount;
+            $rowNum++;
+        }
+
+        $totalRow = ['GRAND TOTAL', '', '', '', '', $totalAmount, '', '', ''];
+        $sheet->fromArray([$totalRow], NULL, 'A' . $rowNum);
+        $sheet->getStyle('A' . $rowNum . ':I' . $rowNum)->getFont()->setBold(true);
+
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'fund_transfers_' . date('Ymd_His') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $writer->save('php://output');
+        exit;
+    }
+
+    public function exportPdf(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view transfers')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $query = Transfer::with(['fromAccount.branch', 'fromAccount.warehouse', 'toAccount.branch', 'toAccount.warehouse', 'creator']);
+
+        // Apply same filtering
+        if ($restrictedBranchId) {
+            $query->where(function($q) use ($restrictedBranchId) {
+                $q->whereHas('fromAccount', function($fq) use ($restrictedBranchId) {
+                    $fq->where('branch_id', $restrictedBranchId);
+                })->orWhereHas('toAccount', function($tq) use ($restrictedBranchId) {
+                    $tq->where('branch_id', $restrictedBranchId);
+                });
+            });
+        }
+
+        if ($request->filled('start_date')) $query->whereDate('transfer_date', '>=', $request->start_date);
+        if ($request->filled('end_date')) $query->whereDate('transfer_date', '<=', $request->end_date);
+        if ($request->filled('from_account_id')) $query->where('from_financial_account_id', $request->from_account_id);
+        if ($request->filled('to_account_id')) $query->where('to_financial_account_id', $request->to_account_id);
+        if ($request->filled('branch_id')) {
+            $branchId = $request->branch_id;
+            $query->where(function($q) use ($branchId) {
+                $q->whereHas('fromAccount', function($fq) use ($branchId) { $fq->where('branch_id', $branchId); })
+                  ->orWhereHas('toAccount', function($tq) use ($branchId) { $tq->where('branch_id', $branchId); });
+            });
+        }
+
+        $items = $query->latest('transfer_date')->latest('id')->get();
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
+
+        $pdf = Pdf::loadView('erp.transfers.export-pdf', compact('items', 'startDate', 'endDate'));
+        $pdf->setPaper('A4', 'landscape');
+        
+        return $pdf->download('fund_transfers_' . date('Ymd_His') . '.pdf');
     }
 
     public function create()
