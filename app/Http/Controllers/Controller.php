@@ -13,7 +13,7 @@ abstract class Controller
         if (!$user) return null;
 
         // SuperAdmins see everything
-        if ($user->hasRole('SuperAdmin')) {
+        if ($user->hasRole('Super Admin')) {
             return null;
         }
 
