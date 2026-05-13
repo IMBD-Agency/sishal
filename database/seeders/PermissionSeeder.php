@@ -144,7 +144,7 @@ class PermissionSeeder extends Seeder
             // Dashboard
             ['name' => 'view dashboard', 'category' => 'Dashboard'],
         ];
-
+  
         // Create/Update permissions
         $permissionNames = array_column($permissions, 'name');
         

@@ -179,30 +179,12 @@ class PosController extends Controller
 
             // --- End Invoice ---
 
-            // Validate stock availability and deduct stock immediately
-            foreach ($request->items as $item) {
-                $result = $this->deductStock(
-                    $item['product_id'],
-                    $item['variation_id'] ?? null,
-                    $item['quantity'],
-                    $request->branch_id
-                );
-                
-                if (!$result['success']) {
-                    DB::rollBack();
-                    return response()->json([
-                        'success' => false,
-                        'message' => $result['message']
-                    ], 400);
-                }
-            }
-
             // --- Proportional Discount Distribution Logic ---
             $totalInvoiceDiscount = floatval($pos->discount ?? 0);
             $invoiceSubtotal = floatval($pos->sub_total ?? 0);
             $discountRatio = ($invoiceSubtotal > 0) ? ($totalInvoiceDiscount / $invoiceSubtotal) : 0;
 
-            // Save POS items
+            // Save POS items with combo handling
             foreach ($request->items as $item) {
                 $product = Product::find($item['product_id']);
                 
@@ -211,27 +193,107 @@ class PosController extends Controller
                 $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
                 $itemNetTotal = $itemOriginalTotal - $allocatedDiscount;
 
-                $createdItem = PosItem::create([
-                    'pos_sale_id' => $pos->id,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
-                    'total_price' => $itemNetTotal, // Save the Net Price after discount
-                    'current_position_type' => 'branch',
-                    'current_position_id' => $request->branch_id
-                ]);
+                // Check if this is a combo product
+                if ($product && $product->isCombo()) {
+                    // Create parent row for combo
+                    $parentItem = PosItem::create([
+                        'pos_sale_id' => $pos->id,
+                        'product_id' => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
+                        'total_price' => $itemNetTotal,
+                        'current_position_type' => 'branch',
+                        'current_position_id' => $request->branch_id
+                    ]);
 
-                $invoiceItem = InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'discount'   => $allocatedDiscount, // Save the distributed discount
-                    'total_price' => $itemNetTotal, // Save the Net Price after discount
-                ]);
+                    // Create invoice item for parent combo
+                    $invoiceItem = InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'product_id' => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'discount'   => $allocatedDiscount,
+                        'total_price' => $itemNetTotal,
+                    ]);
+
+                    // Get combo items and create child rows
+                    $comboItems = $product->comboItems()->with(['product', 'variation'])->get();
+                    if ($comboItems->isNotEmpty()) {
+                        foreach ($comboItems as $comboItem) {
+                            // Validate and deduct stock for each combo item
+                            $result = $this->deductStock(
+                                $comboItem->product_id,
+                                $comboItem->variation_id,
+                                $comboItem->quantity * $item['quantity'],
+                                $request->branch_id
+                            );
+                            
+                            if (!$result['success']) {
+                                DB::rollBack();
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => $result['message']
+                                ], 400);
+                            }
+
+                            // Create child item with 0 price
+                            PosItem::create([
+                                'parent_item_id' => $parentItem->id,
+                                'pos_sale_id' => $pos->id,
+                                'product_id' => $comboItem->product_id,
+                                'variation_id' => $comboItem->variation_id,
+                                'quantity' => $comboItem->quantity * $item['quantity'],
+                                'unit_price' => 0,
+                                'unit_cost' => $this->calculateItemCost($comboItem->product, $comboItem->variation_id),
+                                'total_price' => 0,
+                                'current_position_type' => 'branch',
+                                'current_position_id' => $request->branch_id
+                            ]);
+                        }
+                    }
+                } else {
+                    // Regular product - validate and deduct stock
+                    $result = $this->deductStock(
+                        $item['product_id'],
+                        $item['variation_id'] ?? null,
+                        $item['quantity'],
+                        $request->branch_id
+                    );
+                    
+                    if (!$result['success']) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => $result['message']
+                        ], 400);
+                    }
+
+                    // Create regular item
+                    $createdItem = PosItem::create([
+                        'pos_sale_id' => $pos->id,
+                        'product_id' => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
+                        'total_price' => $itemNetTotal,
+                        'current_position_type' => 'branch',
+                        'current_position_id' => $request->branch_id
+                    ]);
+
+                    $invoiceItem = InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'product_id' => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'discount'   => $allocatedDiscount,
+                        'total_price' => $itemNetTotal,
+                    ]);
+                }
             }
 
             if($request->customer_address) {

@@ -214,6 +214,7 @@
                             <thead class="bg-success text-white small text-uppercase fw-bold">
                                 <tr>
                                     <th class="ps-3 py-3">SN</th>
+                                    <th>Type</th>
                                     <th>Invoice</th>
                                     <th>Date</th>
                                     <th>Customer</th>
@@ -240,8 +241,15 @@
                             </thead>
                             <tbody>
                                 @forelse($allItems as $index => $item)
-                                <tr>
+                                @php
+                                    $isCombo = $item->product && $item->product->type === 'combo';
+                                    $rowClass = $isCombo ? 'bg-light' : '';
+                                    $indent = '';
+                                    $typeLabel = $isCombo ? 'Combo' : 'Item';
+                                @endphp
+                                <tr class="{{ $rowClass }}">
                                     <td class="ps-3 small text-muted">{{ $index + 1 }}</td>
+                                    <td class="small fw-bold {{ $isCombo ? 'text-primary' : 'text-muted' }}">{{ $typeLabel }}</td>
                                     <td class="fw-bold text-dark small">{{ $item->invoice }}</td>
                                     <td class="small">{{ Carbon\Carbon::parse($item->date)->format('d/m/y') }}</td>
                                     <td class="small">{{ $item->customer_name }}</td>
@@ -275,9 +283,47 @@
                                         tk {{ number_format($item->profit, 2) }}
                                     </td>
                                 </tr>
+                                @if($isCombo && $item->childItems && $item->childItems->count() > 0)
+                                    @foreach($item->childItems as $childItem)
+                                    <tr class="bg-white border-start border-4 border-primary">
+                                        <td class="ps-3 small text-muted"></td>
+                                        <td class="small text-muted">Item</td>
+                                        <td class="fw-bold text-dark small">{{ $item->invoice }}</td>
+                                        <td class="small">{{ Carbon\Carbon::parse($item->date)->format('d/m/y') }}</td>
+                                        <td class="small">{{ $item->customer_name }}</td>
+                                        <td class="small">{{ $item->created_by_name }}</td>
+                                        <td>
+                                            <img src="{{ ($childItem->product && $childItem->product->image) ? asset($childItem->product->image) : asset('static/default-product.png') }}" class="rounded shadow-sm" width="30" height="30" style="object-fit:cover;">
+                                        </td>
+                                        <td class="small">{{ $childItem->product->category->name ?? '-' }}</td>
+                                        <td class="small">{{ $childItem->product->brand->name ?? '-' }}</td>
+                                        <td class="small">{{ $childItem->product->season->name ?? '-' }}</td>
+                                        <td class="small">{{ $childItem->product->gender->name ?? '-' }}</td>
+                                        <td class="small fw-bold text-muted" title="{{ $childItem->product->name ?? 'Deleted' }}">↳ {{ Str::limit($childItem->product->name ?? 'Deleted', 12) }}</td>
+                                        <td class="small">{{ $childItem->product->style_number ?? '-' }}</td>
+                                        <td>
+                                            @php $childColor = $childItem->variation ? $childItem->variation->attributeValues->where('attribute.name', 'Color')->first() : null; @endphp
+                                            <span class="small">{{ $childColor ? $childColor->value : '-' }}</span>
+                                        </td>
+                                        <td>
+                                            @php $childSize = $childItem->variation ? $childItem->variation->attributeValues->where('attribute.name', 'Size')->first() : null; @endphp
+                                            <span class="small">{{ $childSize ? $childSize->value : '-' }}</span>
+                                        </td>
+                                        <td class="text-center fw-bold">{{ $childItem->quantity }}</td>
+                                        <td class="text-center small text-muted">0.00</td>
+                                        <td class="text-center small text-muted">0</td>
+                                        <td class="text-center small text-muted">0.00</td>
+                                        <td class="text-center fw-bold">{{ $childItem->quantity }}</td>
+                                        <td class="text-center small">-</td>
+                                        <td class="text-center small text-muted">0.00</td>
+                                        <td class="fw-bold text-muted">tk 0.00</td>
+                                        <td class="pe-3 text-end fw-bold text-muted">tk 0.00</td>
+                                    </tr>
+                                    @endforeach
+                                @endif
                                 @empty
                                 <tr>
-                                    <td colspan="22" class="text-center py-5 text-muted">No sales data available for the selected period.</td>
+                                    <td colspan="23" class="text-center py-5 text-muted">No sales data available for the selected period.</td>
                                 </tr>
                                 @endforelse
                             </tbody>

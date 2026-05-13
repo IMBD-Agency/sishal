@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PosItem extends Model
 {
     protected $fillable = [
+        'parent_item_id',
         'pos_sale_id',
         'product_id',
         'variation_id',
@@ -45,6 +46,16 @@ class PosItem extends Model
     public function returnItems()
     {
         return $this->hasMany(\App\Models\SaleReturnItem::class, 'sale_item_id');
+    }
+
+    public function childItems()
+    {
+        return $this->hasMany(\App\Models\PosItem::class, 'parent_item_id');
+    }
+
+    public function parentItem()
+    {
+        return $this->belongsTo(\App\Models\PosItem::class, 'parent_item_id');
     }
 
     public function invoice()

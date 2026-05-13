@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class OrderItem extends Model
 {
     protected $fillable = [
+        'parent_item_id',
         'order_id',
         'product_id',
         'variation_id',
@@ -45,5 +46,15 @@ class OrderItem extends Model
     public function technician()
     {
         return $this->belongsTo(\App\Models\Employee::class, 'current_position_id');
+    }
+
+    public function childItems()
+    {
+        return $this->hasMany(\App\Models\OrderItem::class, 'parent_item_id');
+    }
+
+    public function parentItem()
+    {
+        return $this->belongsTo(\App\Models\OrderItem::class, 'parent_item_id');
     }
 }

@@ -9,8 +9,8 @@ use App\Models\Product;
 class ComboOrderService
 {
     /**
-     * Expand combo product into individual order items
-     * 
+     * Add combo product to order with parent-child structure
+     *
      * @param Order $order
      * @param Product $product
      * @param int $quantity
@@ -40,19 +40,33 @@ class ComboOrderService
             return;
         }
 
-        // Add individual combo items as order items
+        // Create parent row for combo
+        $unitPrice = $product->price;
+        $totalPrice = $unitPrice * $quantity;
+
+        $parentItem = OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'variation_id' => null,
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'total_price' => $totalPrice,
+            'current_position_type' => $positionType,
+            'current_position_id' => $positionId,
+        ]);
+
+        // Add child items for each product in combo with 0 price
         foreach ($comboItems as $comboItem) {
-            $unitPrice = $comboItem->combo_price ?? $comboItem->product->price;
             $itemQuantity = $comboItem->quantity * $quantity;
-            $totalPrice = $unitPrice * $itemQuantity;
 
             OrderItem::create([
+                'parent_item_id' => $parentItem->id,
                 'order_id' => $order->id,
                 'product_id' => $comboItem->product_id,
                 'variation_id' => $comboItem->variation_id,
                 'quantity' => $itemQuantity,
-                'unit_price' => $unitPrice,
-                'total_price' => $totalPrice,
+                'unit_price' => 0,
+                'total_price' => 0,
                 'current_position_type' => $positionType,
                 'current_position_id' => $positionId,
             ]);

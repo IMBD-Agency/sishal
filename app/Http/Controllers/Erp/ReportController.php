@@ -259,8 +259,9 @@ class ReportController extends Controller
             $branchId = $restrictedBranchId;
         }
 
-        // POS Items Query
-        $posQuery = PosItem::with(['pos.customer', 'pos.employee.user', 'pos.soldBy', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues'])
+        // POS Items Query - Only parent items (where parent_item_id is null)
+        $posQuery = PosItem::with(['pos.customer', 'pos.employee.user', 'pos.soldBy', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues', 'childItems.product', 'childItems.variation.attributeValues'])
+            ->whereNull('parent_item_id')
             ->whereHas('pos', function($q) use ($startDate, $endDate, $customerId, $employeeId, $invoiceNo, $branchId) {
                 $q->whereBetween('sale_date', [$startDate, $endDate]);
                 if ($customerId) $q->where('customer_id', $customerId);
@@ -269,8 +270,9 @@ class ReportController extends Controller
                 if ($branchId) $q->where('branch_id', $branchId);
             });
 
-        // Online Order Items Query
-        $orderQuery = OrderItem::with(['order.customer', 'order.employee.user', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues'])
+        // Online Order Items Query - Only parent items (where parent_item_id is null)
+        $orderQuery = OrderItem::with(['order.customer', 'order.employee.user', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation.attributeValues', 'childItems.product', 'childItems.variation.attributeValues'])
+            ->whereNull('parent_item_id')
             ->whereHas('order', function($q) use ($startDate, $endDate, $customerId, $invoiceNo, $branchId) {
                 $q->whereBetween('created_at', [$startDate, $endDate])
                   ->where('status', '!=', 'cancelled');
@@ -298,14 +300,16 @@ class ReportController extends Controller
             }
         }
 
-        // Summary Statistics - Calculated in DB for performance
+        // Summary Statistics - Calculated in DB for performance (only parent items to avoid double-counting)
         $posSummary = (clone $posQuery)
+            ->whereNull('pos_items.parent_item_id')
             ->join('products as p_pos', 'pos_items.product_id', '=', 'p_pos.id')
             ->leftJoin('product_variations as pv_pos', 'pos_items.variation_id', '=', 'pv_pos.id')
             ->selectRaw('SUM(pos_items.quantity) as total_qty, SUM(pos_items.total_price) as total_amount, SUM(pos_items.quantity * COALESCE(pos_items.unit_cost, pv_pos.cost, p_pos.cost, 0)) as total_cost')
             ->first();
-            
+
         $orderSummary = (clone $orderQuery)
+            ->whereNull('order_items.parent_item_id')
             ->join('products as p_ord', 'order_items.product_id', '=', 'p_ord.id')
             ->leftJoin('product_variations as pv_ord', 'order_items.variation_id', '=', 'pv_ord.id')
             ->selectRaw('SUM(order_items.quantity) as total_qty, SUM(order_items.total_price) as total_amount, SUM(order_items.quantity * COALESCE(order_items.unit_cost, pv_ord.cost, p_ord.cost, 0)) as total_cost')
