@@ -1838,8 +1838,11 @@ class ReportController extends Controller
             
             if ($branchId) {
                 $query->where(function($q) use ($branchId) {
-                    $q->where('journals.branch_id', $branchId)
-                      ->orWhere('financial_accounts.branch_id', $branchId);
+                    $q->where('financial_accounts.branch_id', $branchId)
+                      ->orWhere(function($sq) use ($branchId) {
+                          $sq->whereNull('journal_entries.financial_account_id')
+                             ->where('journals.branch_id', $branchId);
+                      });
                 });
             }
 
@@ -1868,8 +1871,11 @@ class ReportController extends Controller
             
             if ($branchId) {
                 $query->where(function($q) use ($branchId) {
-                    $q->where('journals.branch_id', $branchId)
-                      ->orWhere('financial_accounts.branch_id', $branchId);
+                    $q->where('financial_accounts.branch_id', $branchId)
+                      ->orWhere(function($sq) use ($branchId) {
+                          $sq->whereNull('journal_entries.financial_account_id')
+                             ->where('journals.branch_id', $branchId);
+                      });
                 });
             }
 
