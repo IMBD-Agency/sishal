@@ -2312,55 +2312,88 @@ class ReportController extends Controller
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) $branchId = $restrictedBranchId;
 
-        // INFLOWS (Left Side)
-        // 1. Total Sales (POS + Online)
+        // --- INFLOWS (Money In & Activities) ---
+        
+        // 1. Total Sales Value (Revenue Generated)
         $posSalesQuery = \App\Models\Pos::whereBetween('sale_date', [$startDate, $endDate]);
         if ($branchId) $posSalesQuery->where('branch_id', $branchId);
-        $posSales = $posSalesQuery->sum('total_amount');
+        $totalSalesValue = $posSalesQuery->sum('total_amount');
 
         $onlineSalesQuery = \App\Models\Order::whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
-        // Online sales might not have branch_id directly, but let's assume they belong to online branch if applicable.
-        $onlineSales = $branchId ? 0 : $onlineSalesQuery->sum('total'); // Only show online sales if no branch or specific online branch is selected (assuming branch filtering for orders is handled differently, keeping it simple for now)
-        $totalSales = $posSales + $onlineSales;
+        $onlineSalesValue = $branchId ? 0 : $onlineSalesQuery->sum('total');
+        $totalRevenue = $totalSalesValue + $onlineSalesValue;
 
-        // 2. Money Receipts
+        // 2. Actual Sales Collections (Payments received for today's or any sales via POS/Order payment type)
+        // Note: This includes the 'paid_amount' at time of sale.
+        $salesCollectionsQuery = \App\Models\Payment::whereBetween('payment_date', [$startDate, $endDate])
+            ->whereIn('payment_for', ['pos', 'order']);
+        if ($branchId) {
+             $salesCollectionsQuery->where(function($q) use ($branchId) {
+                 $q->whereHas('pos', function($sq) use ($branchId) { $sq->where('branch_id', $branchId); })
+                   ->orWhereHas('invoice.pos', function($sq) use ($branchId) { $sq->where('branch_id', $branchId); });
+             });
+        }
+        $salesCollections = $salesCollectionsQuery->sum('amount');
+
+        // 3. Money Receipts (Collections from past dues / manual receipts)
         $moneyReceiptsQuery = \App\Models\Payment::whereBetween('payment_date', [$startDate, $endDate])
             ->where('payment_for', 'manual_receipt');
         if ($branchId) {
-             $moneyReceiptsQuery->whereHas('pos', function($q) use ($branchId) { $q->where('branch_id', $branchId); })
-                  ->orWhereHas('invoice.pos', function($q) use ($branchId) { $q->where('branch_id', $branchId); });
+             $moneyReceiptsQuery->where(function($q) use ($branchId) {
+                 $q->whereHas('pos', function($sq) use ($branchId) { $sq->where('branch_id', $branchId); })
+                   ->orWhereHas('invoice.pos', function($sq) use ($branchId) { $sq->where('branch_id', $branchId); });
+             });
         }
         $moneyReceipts = $moneyReceiptsQuery->sum('amount');
 
-        // 3. Purchase Returns
+        // 4. Purchase Returns (Money/Value back from suppliers)
         $purchaseReturnsQuery = \App\Models\PurchaseReturn::whereBetween('return_date', [$startDate, $endDate]);
         if ($branchId) {
-             $purchaseReturnsQuery->whereHas('purchase', function($q) use ($branchId) { $q->where('location_id', $branchId)->where('ship_location_type', 'branch'); });
+             $purchaseReturnsQuery->whereHas('purchase', function($q) use ($branchId) { 
+                 $q->where('location_id', $branchId)->where('ship_location_type', 'branch'); 
+             });
         }
         $purchaseReturnIds = $purchaseReturnsQuery->pluck('id');
-        $purchaseReturns = \DB::table('purchase_return_items')->whereIn('purchase_return_id', $purchaseReturnIds)->sum('total_price');
+        $purchaseReturnsValue = \DB::table('purchase_return_items')->whereIn('purchase_return_id', $purchaseReturnIds)->sum('total_price');
 
-        // OUTFLOWS (Right Side)
-        // 1. Total Purchases (Bills)
+
+        // --- OUTFLOWS (Money Out & Costs) ---
+        
+        // 1. Total Purchases Value (Bills Generated)
         $purchasesQuery = \App\Models\PurchaseBill::whereBetween('bill_date', [$startDate, $endDate]);
         if ($branchId) {
             $purchasesQuery->whereHas('purchase', function($q) use ($branchId) {
                 $q->where('location_id', $branchId)->where('ship_location_type', 'branch');
             });
         }
-        $totalPurchases = $purchasesQuery->sum('total_amount');
+        $totalPurchasesValue = $purchasesQuery->sum('total_amount');
 
-        // 2. Supplier Payments
+        // 2. Supplier Payments (Actual cash paid to suppliers)
         $supplierPaymentsQuery = \App\Models\SupplierPayment::whereBetween('payment_date', [$startDate, $endDate]);
+        // Filter by branch if possible (supplier payments might be global or branch-linked via bill)
+        if ($branchId) {
+            $supplierPaymentsQuery->whereHas('bill.purchase', function($q) use ($branchId) {
+                $q->where('location_id', $branchId)->where('ship_location_type', 'branch');
+            });
+        }
         $supplierPayments = $supplierPaymentsQuery->sum('amount');
 
-        // 3. Sales Returns
-        $salesReturnsQuery = \App\Models\SaleReturn::whereBetween('return_date', [$startDate, $endDate]);
+        // 3. Sales Returns (Money refunded to customers)
+        $salesReturnsQuery = \App\Models\SaleReturn::whereBetween('return_date', [$startDate, $endDate])
+            ->where('status', 'processed'); // Only count processed returns
         if ($branchId) $salesReturnsQuery->where('return_to_id', $branchId)->where('return_to_type', 'branch');
-        $saleReturnIds = $salesReturnsQuery->pluck('id');
-        $salesReturns = \DB::table('sale_return_items')->whereIn('sale_return_id', $saleReturnIds)->sum('total_price');
+        
+        // Total Return Value (Informational)
+        $totalSalesReturnsValue = $salesReturnsQuery->get()->sum(function($r) {
+            return $r->items->sum('total_price');
+        });
 
-        // 4. Expenses
+        // Actual Cash Refunds (Money Out)
+        $actualCashRefunds = $salesReturnsQuery->whereIn('refund_type', ['cash', 'bank'])->get()->sum(function($r) {
+            return $r->items->sum('total_price');
+        });
+
+        // 4. Expense Payments
         $expenseAccountIds = \App\Models\ChartOfAccount::whereHas('type', function($q) {
                 $q->where('name', 'like', 'Expense%');
             })->pluck('id')->toArray();
@@ -2373,8 +2406,9 @@ class ReportController extends Controller
         $totalExpenses = $expensesQuery->sum('journal_entries.debit');
 
 
-        // SUMMARIES
-        // Stock Value
+        // --- ASSET SUMMARIES (Live Balances) ---
+        
+        // Stock Value (Cost basis)
         $stockQuery = Product::where('type', 'product');
         if ($branchId) {
             $stockQuery->withSum(['branchStocks' => function($q) use ($branchId) { $q->where('branch_id', $branchId); }], 'quantity');
@@ -2382,30 +2416,35 @@ class ReportController extends Controller
             $stockQuery->withSum('variationStocks', 'quantity');
         }
         $stockValue = $stockQuery->get()->sum(function($p) {
-            return ($p->branch_stocks_sum_quantity ?? $p->variation_stocks_sum_quantity ?? 0) * $p->cost;
+            $qty = $p->branch_stocks_sum_quantity ?? $p->variation_stocks_sum_quantity ?? 0;
+            return $qty * $p->cost;
         });
 
         // Cash & Bank Balances
-        $cashAccounts = \App\Models\FinancialAccount::where('type', 'cash')->pluck('id');
-        $bankAccounts = \App\Models\FinancialAccount::whereIn('type', ['bank', 'mobile'])->pluck('id');
-        
-        $cashBalance = 0;
-        $bankBalance = 0;
-        // Simplified liquidity for snapshot: just get current balance of accounts
-        $cashBalance = \App\Models\FinancialAccount::where('type', 'cash')->sum('balance');
-        $bankBalance = \App\Models\FinancialAccount::whereIn('type', ['bank', 'mobile'])->sum('balance');
+        $cashBalance = \App\Models\FinancialAccount::where('type', 'cash');
+        if ($branchId) $cashBalance->where('branch_id', $branchId);
+        $cashBalance = $cashBalance->sum('balance');
 
+        $bankBalance = \App\Models\FinancialAccount::whereIn('type', ['bank', 'mobile']);
+        if ($branchId) $bankBalance->where('branch_id', $branchId);
+        $bankBalance = $bankBalance->sum('balance');
+
+
+        // --- CONSTRUCT DATA ARRAY ---
+        // We use "Actual Collections" for the Total Inflow sum to avoid double counting dues.
         $data = [
-            'totalSales' => $totalSales,
+            'totalRevenue' => $totalRevenue,
+            'salesCollections' => $salesCollections,
             'moneyReceipts' => $moneyReceipts,
-            'purchaseReturns' => $purchaseReturns,
-            'totalInflow' => $totalSales + $moneyReceipts + $purchaseReturns,
+            'purchaseReturns' => $purchaseReturnsValue,
+            'totalInflow' => $salesCollections + $moneyReceipts + $purchaseReturnsValue,
             
-            'totalPurchases' => $totalPurchases,
+            'totalPurchasesValue' => $totalPurchasesValue,
             'supplierPayments' => $supplierPayments,
-            'salesReturns' => $salesReturns,
+            'totalSalesReturnsValue' => $totalSalesReturnsValue,
+            'actualCashRefunds' => $actualCashRefunds,
             'totalExpenses' => $totalExpenses,
-            'totalOutflow' => $totalPurchases + $supplierPayments + $salesReturns + $totalExpenses,
+            'totalOutflow' => $supplierPayments + $actualCashRefunds + $totalExpenses,
 
             'stockValue' => $stockValue,
             'cashBalance' => $cashBalance,

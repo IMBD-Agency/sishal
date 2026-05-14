@@ -12,17 +12,33 @@
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-success bg-opacity-10 text-success rounded p-2 me-3">
-                                            <i class="fas fa-shopping-cart fa-fw"></i>
+                                        <div class="bg-primary bg-opacity-10 text-primary rounded p-2 me-3">
+                                            <i class="fas fa-chart-line fa-fw"></i>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0 fw-bold">Total Sales</h6>
-                                            <small class="text-muted">POS and Online</small>
+                                            <h6 class="mb-0 fw-bold">Total Revenue</h6>
+                                            <small class="text-muted">Total Invoiced Value (Today)</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold text-primary fs-5">
+                                    {{ number_format($data['totalRevenue'], 2) }}
+                                </td>
+                            </tr>
+                            <tr class="bg-success bg-opacity-10">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-success bg-opacity-25 text-success rounded p-2 me-3">
+                                            <i class="fas fa-cash-register fa-fw"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Sales Collections</h6>
+                                            <small class="text-muted">Actual money from today's sales</small>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="text-end fw-bold text-success fs-5">
-                                    {{ number_format($data['totalSales'], 2) }}
+                                    {{ number_format($data['salesCollections'], 2) }}
                                 </td>
                             </tr>
                             <tr>
@@ -33,7 +49,7 @@
                                         </div>
                                         <div>
                                             <h6 class="mb-0 fw-bold">Money Receipts</h6>
-                                            <small class="text-muted">Collections from Customers</small>
+                                            <small class="text-muted">Due collections for past sales</small>
                                         </div>
                                     </div>
                                 </td>
@@ -60,7 +76,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="bg-light">
-                                <td class="fw-bold text-end">Total Inflow Activity:</td>
+                                <td class="fw-bold text-end">Total Cash Inflow:</td>
                                 <td class="text-end fw-bold text-success fs-4">{{ number_format($data['totalInflow'], 2) }}</td>
                             </tr>
                         </tfoot>
@@ -83,28 +99,28 @@
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-danger bg-opacity-10 text-danger rounded p-2 me-3">
-                                            <i class="fas fa-truck-loading fa-fw"></i>
+                                        <div class="bg-primary bg-opacity-10 text-primary rounded p-2 me-3">
+                                            <i class="fas fa-file-invoice fa-fw"></i>
                                         </div>
                                         <div>
                                             <h6 class="mb-0 fw-bold">Total Purchases</h6>
-                                            <small class="text-muted">Bills generated for stock</small>
+                                            <small class="text-muted">Total Supplier Bills (Today)</small>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="text-end fw-bold text-danger fs-5">
-                                    {{ number_format($data['totalPurchases'], 2) }}
+                                <td class="text-end fw-bold text-primary fs-5">
+                                    {{ number_format($data['totalPurchasesValue'], 2) }}
                                 </td>
                             </tr>
-                            <tr>
+                            <tr class="bg-danger bg-opacity-10">
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-danger bg-opacity-10 text-danger rounded p-2 me-3">
+                                        <div class="bg-danger bg-opacity-25 text-danger rounded p-2 me-3">
                                             <i class="fas fa-hand-holding-usd fa-fw"></i>
                                         </div>
                                         <div>
                                             <h6 class="mb-0 fw-bold">Supplier Payments</h6>
-                                            <small class="text-muted">Cash paid to suppliers</small>
+                                            <small class="text-muted">Actual cash paid to suppliers</small>
                                         </div>
                                     </div>
                                 </td>
@@ -120,7 +136,7 @@
                                         </div>
                                         <div>
                                             <h6 class="mb-0 fw-bold">Expense Payments</h6>
-                                            <small class="text-muted">Operating expenses</small>
+                                            <small class="text-muted">Operating expenses paid</small>
                                         </div>
                                     </div>
                                 </td>
@@ -131,23 +147,39 @@
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-danger bg-opacity-10 text-danger rounded p-2 me-3">
-                                            <i class="fas fa-reply fa-fw"></i>
+                                        <div class="bg-primary bg-opacity-10 text-primary rounded p-2 me-3">
+                                            <i class="fas fa-undo fa-fw"></i>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0 fw-bold">Sales Returns</h6>
-                                            <small class="text-muted">Refunds to customers</small>
+                                            <h6 class="mb-0 fw-bold">Total Sales Returns</h6>
+                                            <small class="text-muted">Total value of returned items</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold text-primary fs-5">
+                                    {{ number_format($data['totalSalesReturnsValue'], 2) }}
+                                </td>
+                            </tr>
+                            <tr class="bg-danger bg-opacity-10">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-danger bg-opacity-25 text-danger rounded p-2 me-3">
+                                            <i class="fas fa-coins fa-fw"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Cash Refunds</h6>
+                                            <small class="text-muted">Actual money paid back</small>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="text-end fw-bold text-danger fs-5">
-                                    {{ number_format($data['salesReturns'], 2) }}
+                                    {{ number_format($data['actualCashRefunds'], 2) }}
                                 </td>
                             </tr>
                         </tbody>
                         <tfoot>
                             <tr class="bg-light">
-                                <td class="fw-bold text-end">Total Outflow Activity:</td>
+                                <td class="fw-bold text-end">Total Cash Outflow:</td>
                                 <td class="text-end fw-bold text-danger fs-4">{{ number_format($data['totalOutflow'], 2) }}</td>
                             </tr>
                         </tfoot>
