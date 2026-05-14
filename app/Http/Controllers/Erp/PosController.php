@@ -596,7 +596,9 @@ class PosController extends Controller
         }
 
         // Optimized query with specific columns
-        $query = \App\Models\PosItem::select('id', 'pos_sale_id', 'product_id', 'variation_id', 'quantity', 'unit_price', 'total_price')
+        $query = \App\Models\PosItem::select('pos_items.id', 'pos_items.pos_sale_id', 'pos_items.product_id', 'pos_items.variation_id', 'pos_items.quantity', 'pos_items.unit_price', 'pos_items.total_price', 'pos_items.parent_item_id')
+            ->join('products', 'pos_items.product_id', '=', 'products.id')
+            ->addSelect('products.type as product_type')
             ->with([
                 'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,refund_amount,invoice_id,status',
                 'pos.originalPos:id,sale_number',
@@ -604,9 +606,10 @@ class PosController extends Controller
                 'pos.invoice:id,paid_amount,due_amount',
                 'pos.branch:id,name',
                 'pos.soldBy:id,first_name,last_name',
-                'pos.items:id,pos_sale_id,quantity,unit_price,total_price',
+                'pos.items:id,pos_sale_id,product_id,quantity,unit_price,total_price,parent_item_id',
+                'pos.items.product:id,type',
                 'pos.items.returnItems:id,sale_item_id,returned_qty,total_price',
-                'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image',
+                'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image,type',
                 'product.category:id,name',
                 'product.brand:id,name',
                 'product.season:id,name',
@@ -618,11 +621,10 @@ class PosController extends Controller
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
         // Comprehensive Big Data Optimization for ALL Totals
-        // 1. Item-level totals (Sales Qty, Sales Amt, Returns)
         $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
             ->mergeBindings($query->getQuery())
             ->selectRaw("
-                SUM(quantity) as total_qty, 
+                SUM(CASE WHEN product_type = 'combo' THEN 0 ELSE quantity END) as total_qty, 
                 SUM(quantity * unit_price) as gross_amount,
                 SUM(total_price) as total_amount,
                 SUM((quantity * unit_price) - total_price) as item_discount
@@ -665,7 +667,7 @@ class PosController extends Controller
             'due' => $saleTotals->total_due ?? 0,
         ];
 
-        $items = $query->latest()->paginate(100)->appends($request->all());
+        $items = $query->latest('pos_items.created_at')->paginate(100)->appends($request->all());
         
         // Big Data Dropdown Optimization: Only load top 100 for initial view
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -775,7 +777,7 @@ class PosController extends Controller
         }
         
         // Filter by Product/Style/Category/Brand/Season/Gender
-        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
+        if ($request->filled('product_id')) $query->where('pos_items.product_id', $request->product_id);
 
         if ($request->filled('style_number') || $request->filled('category_id') || 
             $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {

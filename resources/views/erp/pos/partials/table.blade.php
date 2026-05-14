@@ -77,7 +77,7 @@
 
                     // Invoice level (calculated once per invoice change for efficiency)
                     $invItems = $sale->items;
-                    $invTotalQty = $invItems->sum('quantity');
+                    $invTotalQty = $invItems->sum(fn($i) => ($i->product?->type === 'combo') ? 0 : $i->quantity);
                     $invGrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
                     $invRetQty = $invItems->sum(fn($i) => $i->returnItems->sum('returned_qty'));
                     $invRetAmt = $invItems->sum(fn($i) => $i->returnItems->sum('total_price'));
@@ -130,7 +130,12 @@
                     <td>{{ $product->brand->name ?? '-' }}</td>
                     <td>{{ $product->season->name ?? '-' }}</td>
                     <td>{{ $product->gender->name ?? '-' }}</td>
-                    <td class="fw-bold text-dark">{{ $product->name ?? '-' }}</td>
+                    <td class="fw-bold text-dark">
+                        {{ $product->name ?? '-' }}
+                        @if($product?->type === 'combo')
+                            <span class="badge bg-info bg-opacity-10 text-info border-0 ms-1" style="font-size: 0.6rem;">COMBO</span>
+                        @endif
+                    </td>
                     <td>{{ $product->style_number ?? $product->sku ?? '-' }}</td>
                     <td>{{ $color }}</td>
                     <td>{{ $size }}</td>
@@ -138,7 +143,13 @@
                     <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                     
                     <!-- Sales Qty & Total S-Qty -->
-                    <td class="text-center bg-light">{{ $item->quantity }}</td>
+                    <td class="text-center bg-light">
+                        @if($product?->type === 'combo')
+                            <span class="text-muted" title="Combo units are counted by items">{{ $item->quantity }}</span>
+                        @else
+                            {{ $item->quantity }}
+                        @endif
+                    </td>
                     <td class="text-center bg-light">
                         @if($isFirst) <span class="fw-bold">{{ $invTotalQty }}</span> @endif
                     </td>
