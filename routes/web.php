@@ -373,6 +373,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/stock-transfer/bulk-delete', [\App\Http\Controllers\Erp\StockTransferController::class, 'bulkDelete'])->name('stocktransfer.bulk.delete');
 
     // Requisitions
+    Route::get('/requisition/export-excel', [\App\Http\Controllers\Erp\RequisitionController::class, 'exportExcel'])->name('requisition.export.excel');
+    Route::get('/requisition/export-pdf', [\App\Http\Controllers\Erp\RequisitionController::class, 'exportPdf'])->name('requisition.export.pdf');
     Route::get('/requisition', [\App\Http\Controllers\Erp\RequisitionController::class, 'index'])->name('requisition.index');
     Route::get('/requisition/create', [\App\Http\Controllers\Erp\RequisitionController::class, 'create'])->name('requisition.create');
     Route::post('/requisition', [\App\Http\Controllers\Erp\RequisitionController::class, 'store'])->name('requisition.store');

@@ -216,6 +216,13 @@
                                     'icon' => 'fa-wallet',
                                     'color' => 'secondary'
                                 ],
+                                [
+                                    'title' => 'Fund Transfer',
+                                    'desc' => 'History of inter-branch and account transfers.',
+                                    'route' => 'transfers.index',
+                                    'icon' => 'fa-exchange-alt',
+                                    'color' => 'primary'
+                                ],
                             ];
                         @endphp
 

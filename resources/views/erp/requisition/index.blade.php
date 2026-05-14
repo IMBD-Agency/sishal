@@ -41,94 +41,146 @@
                 </div>
             @endif
 
+            <!-- Advanced Filter Card -->
+            <div class="premium-card mb-4">
+                <div class="card-body p-4">
+                    <form id="filterForm" class="row g-3 align-items-end">
+                        @if(!$restrictedBranchId)
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">Branch</label>
+                            <select name="branch_id" class="form-select border-0 bg-light shadow-none">
+                                <option value="">All Branches</option>
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted">Status</label>
+                            <select name="status" class="form-select border-0 bg-light shadow-none">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="partially_fulfilled">Partially Fulfilled</option>
+                                <option value="fulfilled">Fulfilled</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted">From Date</label>
+                            <input type="date" name="start_date" class="form-control border-0 bg-light shadow-none">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted">To Date</label>
+                            <input type="date" name="end_date" class="form-control border-0 bg-light shadow-none">
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex gap-2">
+                                <button type="button" id="filterBtn" class="btn btn-primary flex-grow-1 shadow-sm fw-bold">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                                <button type="button" id="resetBtn" class="btn btn-light border">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button type="button" id="exportExcelBtn" class="btn btn-success border-0 shadow-sm" title="Export Excel">
+                                    <i class="fas fa-file-excel"></i>
+                                </button>
+                                <button type="button" id="exportPdfBtn" class="btn btn-danger border-0 shadow-sm" title="Export PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mt-3">
+                            <div class="input-group search-group shadow-sm rounded-3 overflow-hidden">
+                                <span class="input-group-text border-0 bg-light"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" name="search" class="form-control border-0 bg-light ps-0" placeholder="Search by Requisition # (Press Enter to Filter)...">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div class="premium-card">
                 <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold mb-0 text-uppercase text-muted small">
                         <i class="fas fa-list me-2 text-info"></i>Request History
                     </h6>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="ps-4">Req #</th>
-                                    <th>Branch</th>
-                                    <th>Target Warehouse</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Created By</th>
-                                    <th class="text-center pe-4">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($requisitions as $req)
-                                    <tr>
-                                        <td class="ps-4 fw-bold text-dark">{{ $req->requisition_number }}</td>
-                                        <td>
-                                            <div class="fw-bold">{{ $req->branch->name }}</div>
-                                            <div class="extra-small text-muted text-uppercase">{{ $req->branch->location }}</div>
-                                        </td>
-                                        <td>
-                                            <div class="badge bg-light text-dark border fw-bold px-3 py-2">
-                                                <i class="fas fa-warehouse me-1 text-info"></i>{{ $req->warehouse->name }}
-                                            </div>
-                                        </td>
-                                        <td>{{ \Carbon\Carbon::parse($req->requisition_date)->format('M d, Y') }}</td>
-                                        <td>
-                                            @php
-                                                $statusClass = [
-                                                    'pending' => 'bg-warning text-dark',
-                                                    'partially_fulfilled' => 'bg-info text-white',
-                                                    'fulfilled' => 'bg-success text-white',
-                                                    'rejected' => 'bg-danger text-white',
-                                                ][$req->status] ?? 'bg-secondary text-white';
-                                            @endphp
-                                            <span class="badge {{ $statusClass }} px-3 py-2 rounded-pill text-uppercase" style="font-size: 0.7rem;">
-                                                {{ str_replace('_', ' ', $req->status) }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="small fw-bold">{{ $req->creator->name }}</div>
-                                            <div class="extra-small text-muted">{{ $req->created_at->diffForHumans() }}</div>
-                                        </td>
-                                        <td class="text-center pe-4">
-                                            <div class="d-flex justify-content-center gap-2">
-                                                <a href="{{ route('requisition.show', $req->id) }}" class="btn btn-sm btn-light border action-circle shadow-none" title="View Details">
-                                                    <i class="fas fa-eye text-primary"></i>
-                                                </a>
-                                                @if($req->status === 'pending')
-                                                    @can('manage requisitions')
-                                                    <form action="{{ route('requisition.destroy', $req->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this request?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-sm btn-light border action-circle shadow-none" title="Delete">
-                                                            <i class="fas fa-trash text-danger"></i>
-                                                        </button>
-                                                    </form>
-                                                    @endcan
-                                                @endif
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="7" class="text-center py-5">
-                                            <div class="text-muted opacity-50">
-                                                <i class="fas fa-inbox fa-3x mb-3"></i>
-                                                <p class="fw-bold mb-0">No requisitions found.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white border-top p-4">
-                    {{ $requisitions->links() }}
+                <div class="card-body p-0" id="tableContainer">
+                    @include('erp.requisition.partials.table')
                 </div>
             </div>
         </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            /**
+             * AJAX Pagination Logic:
+             * When clicking pagination links, we prevent the default page reload and instead
+             * call this function with the link's URL. The serialize() method ensures that 
+             * all currently selected filters are sent along with the page number to the 
+             * server, keeping the filtered state consistent across pages.
+             */
+            function fetchRequisitions(url = "{{ route('requisition.index') }}") {
+                const formData = $('#filterForm').serialize();
+                $('#tableContainer').css('opacity', '0.5');
+                
+                $.ajax({
+                    url: url,
+                    data: formData,
+                    success: function(response) {
+                        $('#tableContainer').html(response).css('opacity', '1');
+                    }
+                });
+            }
+
+            // Trigger filter only on button click or Enter key
+            $('#filterBtn').on('click', function() {
+                fetchRequisitions();
+            });
+
+            $('#filterForm').on('submit', function(e) {
+                e.preventDefault();
+                fetchRequisitions();
+            });
+
+            $(document).on('click', '.pagination a', function(e) {
+                e.preventDefault();
+                fetchRequisitions($(this).attr('href'));
+            });
+
+            $('#resetBtn').on('click', function() {
+                $('#filterForm')[0].reset();
+                fetchRequisitions();
+            });
+
+            /**
+             * Export Logic & Progress Bar Fix:
+             * Browsers trigger a 'beforeunload' event when changing window.location.href, 
+             * which starts the top progress bar in master.blade.php. Since file downloads 
+             * don't actually unload the page, the bar gets "stuck". 
+             * We set isDownloadNavigation to true to tell the master template to ignore this transition.
+             */
+            function handleExport(route) {
+                const formData = $('#filterForm').serialize();
+                window.isDownloadNavigation = true; // Prevents stuck progress bar
+                window.location.href = route + "?" + formData;
+                
+                // Reset flag after a delay to allow normal navigation later
+                setTimeout(() => { window.isDownloadNavigation = false; }, 1000);
+            }
+
+            $('#exportExcelBtn').on('click', function() {
+                handleExport("{{ route('requisition.export.excel') }}");
+            });
+
+            $('#exportPdfBtn').on('click', function() {
+                handleExport("{{ route('requisition.export.pdf') }}");
+            });
+        });
+    </script>
+
     </div>
 @endsection

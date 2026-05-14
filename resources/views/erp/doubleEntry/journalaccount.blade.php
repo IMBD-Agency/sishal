@@ -24,9 +24,9 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <button type="button" class="btn btn-light border shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addJournalModal">
+                    {{-- <button type="button" class="btn btn-light border shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addJournalModal">
                         <i class="fas fa-plus me-2 text-primary"></i>New Journal
-                    </button>
+                    </button> --}}
                     <a href="{{ route('journal.export.excel', request()->all()) }}" class="btn btn-create-premium text-nowrap bg-success border-success text-white">
                         <i class="fas fa-file-excel me-2"></i>Excel
                     </a>

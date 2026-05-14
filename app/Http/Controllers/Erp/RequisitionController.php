@@ -19,16 +19,115 @@ class RequisitionController extends Controller
         if (!auth()->user()->hasPermissionTo('view requisitions')) {
             abort(403, 'Unauthorized action.');
         }
+
         $restrictedBranchId = $this->getRestrictedBranchId();
         $query = Requisition::with(['branch', 'warehouse', 'creator']);
 
         if ($restrictedBranchId) {
             $query->where('branch_id', $restrictedBranchId);
+        } elseif ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
         }
 
-        $requisitions = $query->latest()->paginate(20);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
-        return view('erp.requisition.index', compact('requisitions', 'restrictedBranchId'));
+        if ($request->filled('start_date')) {
+            $query->whereDate('requisition_date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('requisition_date', '<=', $request->end_date);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where('requisition_number', 'LIKE', "%$search%");
+        }
+
+        $requisitions = $query->latest()->paginate(20)->appends($request->all());
+
+        if ($request->ajax()) {
+            return view('erp.requisition.partials.table', compact('requisitions'));
+        }
+
+        $branches = Branch::all();
+        return view('erp.requisition.index', compact('requisitions', 'restrictedBranchId', 'branches'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view requisitions')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $query = Requisition::with(['branch', 'warehouse', 'creator']);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        } elseif ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('start_date')) $query->whereDate('requisition_date', '>=', $request->start_date);
+        if ($request->filled('end_date')) $query->whereDate('requisition_date', '<=', $request->end_date);
+        if ($request->filled('search')) $query->where('requisition_number', 'LIKE', "%{$request->search}%");
+
+        $requisitions = $query->latest()->get();
+
+        $headers = ['Req #', 'Branch', 'Warehouse', 'Date', 'Status', 'Requested By'];
+        $data[] = $headers;
+
+        foreach ($requisitions as $req) {
+            $data[] = [
+                $req->requisition_number,
+                $req->branch->name,
+                $req->warehouse->name,
+                $req->requisition_date,
+                strtoupper(str_replace('_', ' ', $req->status)),
+                $req->creator->name
+            ];
+        }
+
+        $filename = 'requisitions_' . date('Y-m-d_His') . '.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray($data, null, 'A1');
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filePath = storage_path('app/public/' . $filename);
+        $writer->save($filePath);
+
+        return response()->download($filePath, $filename)->deleteFileAfterSend();
+    }
+
+    public function exportPdf(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view requisitions')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $query = Requisition::with(['branch', 'warehouse', 'creator']);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        } elseif ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('start_date')) $query->whereDate('requisition_date', '>=', $request->start_date);
+        if ($request->filled('end_date')) $query->whereDate('requisition_date', '<=', $request->end_date);
+        if ($request->filled('search')) $query->where('requisition_number', 'LIKE', "%{$request->search}%");
+
+        $requisitions = $query->latest()->get();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.requisition.report-pdf', compact('requisitions'));
+        return $pdf->download('requisitions_' . date('Y-m-d_His') . '.pdf');
     }
 
     public function create()
