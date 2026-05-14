@@ -43,6 +43,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'manage seasons', 'category' => 'Product Management'],
             ['name' => 'manage genders', 'category' => 'Product Management'],
             ['name' => 'manage attributes', 'category' => 'Product Management'],
+            ['name' => 'view combos', 'category' => 'Product Management'],
+            ['name' => 'manage combos', 'category' => 'Product Management'],
             
             // Inventory & Stock
             ['name' => 'view stock', 'category' => 'Inventory Management'],
@@ -52,6 +54,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'approve transfers', 'category' => 'Inventory Management'],
             ['name' => 'delete transfers', 'category' => 'Inventory Management'],
             ['name' => 'manage transfers', 'category' => 'Inventory Management'],
+            ['name' => 'view requisitions', 'category' => 'Inventory Management'],
+            ['name' => 'manage requisitions', 'category' => 'Inventory Management'],
+            ['name' => 'process requisitions', 'category' => 'Inventory Management'],
             
             // Purchases
             ['name' => 'view purchases', 'category' => 'Purchase Management'],

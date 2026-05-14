@@ -35,6 +35,7 @@
                 <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-edit me-2 text-primary"></i>Edit Combo Details</h6>
             </div>
             <div class="card-body p-4">
+                @can('manage combos')
                 <form action="{{ route('product.update', $product) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PATCH')
@@ -72,11 +73,28 @@
                         </div>
                     </div>
                 </form>
+                @else
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Combo Name</label>
+                        <div class="form-control-plaintext">{{ $product->name }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">SKU</label>
+                        <div class="form-control-plaintext">{{ $product->sku }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Combo Price</label>
+                        <div class="form-control-plaintext">৳{{ number_format($product->price, 2) }}</div>
+                    </div>
+                </div>
+                @endcan
             </div>
         </div>
 
     {{-- Add Combo Item Form --}}
     <div class="row">
+        @can('manage combos')
         <div class="col-md-6">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-bottom p-4">
@@ -139,6 +157,7 @@
                 </div>
             </div>
         </div>
+        @endcan
     </div>
 
     {{-- Combo Items List --}}
@@ -183,11 +202,15 @@
                                     <td>৳{{ number_format($comboPrice, 2) }}</td>
                                     <td>৳{{ number_format($subtotalCombo, 2) }}</td>
                                     <td>
+                                        @can('manage combos')
                                         <form action="{{ route('erp.combo-products.destroy', $item) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Remove this item?')">Remove</button>
                                         </form>
+                                        @else
+                                        <span class="text-muted small">No Access</span>
+                                        @endcan
                                     </td>
                                 </tr>
                             @empty

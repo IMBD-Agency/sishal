@@ -18,6 +18,9 @@ class ComboProductController extends Controller
      */
     public function list(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('view combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $query = Product::where('type', 'combo')
             ->with(['comboItems.product.branchStock', 'comboItems.variation.stocks', 'branch']);
             
@@ -55,6 +58,9 @@ class ComboProductController extends Controller
      */
     public function create()
     {
+        if (!auth()->user()->hasPermissionTo('manage combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $userBranchId = $this->getUserBranchId();
         
         $availableProducts = Product::where('type', 'product')
@@ -89,6 +95,9 @@ class ComboProductController extends Controller
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermissionTo('manage combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'sku' => 'required|string|unique:products,sku',
@@ -159,6 +168,9 @@ class ComboProductController extends Controller
      */
     public function index(Product $product)
     {
+        if (!auth()->user()->hasPermissionTo('view combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         if (!$product->isCombo()) {
             return redirect()->back()->with('error', 'This is not a combo product');
         }
@@ -198,6 +210,9 @@ class ComboProductController extends Controller
      */
     public function addItem(Request $request, Product $product)
     {
+        if (!auth()->user()->hasPermissionTo('manage combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         if (!$product->isCombo()) {
             return redirect()->back()->with('error', 'This is not a combo product');
         }
@@ -225,6 +240,9 @@ class ComboProductController extends Controller
      */
     public function destroy(ComboProduct $comboProduct)
     {
+        if (!auth()->user()->hasPermissionTo('manage combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         $comboProduct->delete();
         return redirect()->back()->with('success', 'Item removed from combo');
     }
@@ -234,6 +252,9 @@ class ComboProductController extends Controller
      */
     public function destroyCombo(Product $product)
     {
+        if (!auth()->user()->hasPermissionTo('manage combos')) {
+            abort(403, 'Unauthorized action.');
+        }
         if (!$product->isCombo()) {
             return redirect()->back()->with('error', 'This is not a combo product');
         }

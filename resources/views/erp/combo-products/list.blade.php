@@ -22,9 +22,11 @@
                 <p class="text-muted small mb-0">Manage your combo offers and bundles</p>
             </div>
             <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                @can('manage combos')
                 <a href="{{ route('erp.combo-products.create') }}" class="btn btn-primary px-4" style="border-radius: 12px; font-weight: 600;">
                     <i class="fas fa-plus me-2"></i>Create Combo
                 </a>
+                @endcan
             </div>
         </div>
     </div>
@@ -123,6 +125,7 @@
                                            class="btn btn-sm btn-primary me-1">
                                             <i class="fas fa-cog me-2"></i>Manage
                                         </a>
+                                        @can('manage combos')
                                         <form action="{{ route('erp.combo-products.delete', $combo) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this combo? All items will be removed.')">
                                             @csrf
                                             @method('DELETE')
@@ -130,6 +133,7 @@
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </form>
+                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach

@@ -611,6 +611,7 @@ class MoneyReceiptController extends Controller
                 $year = $request->input('year', date('Y'));
                 $query->whereYear('payment_date', $year);
             }
+            // 'all' type does not apply any date restriction
         }
 
         if ($request->filled('start_date')) {
@@ -659,6 +660,8 @@ class MoneyReceiptController extends Controller
                     $pq->where('branch_id', $branchId);
                 })->orWhereHas('invoice.pos', function($ipq) use ($branchId) {
                     $ipq->where('branch_id', $branchId);
+                })->orWhereHas('creator.employee', function($eq) use ($branchId) {
+                    $eq->where('branch_id', $branchId);
                 });
             });
         }

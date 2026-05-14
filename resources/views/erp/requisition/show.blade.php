@@ -30,9 +30,11 @@
                         <i class="fas fa-arrow-left me-2"></i>Back
                     </a>
                     @if(in_array($requisition->status, ['pending', 'partially_fulfilled']))
+                        @can('process requisitions')
                         <button class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#fulfillModal">
                             <i class="fas fa-check-double me-2"></i>PROCESS REQUEST
                         </button>
+                        @endcan
                     @endif
                     @if($requisition->status === 'pending')
                         <a href="{{ route('requisition.edit', $requisition->id) }}" class="btn btn-warning fw-bold shadow-sm">

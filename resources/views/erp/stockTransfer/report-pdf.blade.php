@@ -40,7 +40,6 @@
                 <th style="width: 7%;">Date</th>
                 <th style="width: 8%;">Source</th>
                 <th style="width: 8%;">Destination</th>
-                <th style="width: 8%;">Branch</th>
                 <th style="width: 8%;">Category</th>
                 <th style="width: 8%;">Brand</th>
                 <th style="width: 12%;">Product Name</th>
@@ -70,7 +69,6 @@
                     <td class="fw-bold">{{ $transfer->invoice_number ?? 'N/A' }}</td>
                     <td class="text-center">{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-' }}</td>
                     <td>{{ $transfer->from_type == 'branch' ? ($transfer->fromBranch->name ?? '-') : ($transfer->fromWarehouse->name ?? '-') }}</td>
-                    <td>{{ $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-') }}</td>
                     <td>{{ $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-') }}</td>
                     <td>{{ $product->category->name ?? '-' }}</td>
                     <td>{{ $product->brand->name ?? '-' }}</td>

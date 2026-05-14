@@ -58,8 +58,11 @@
                 <span>Products</span>
             </a>
         </div>
+        @endcan
+
+        @can('view combos')
         <div class="nav-item">
-            <a href="{{ route('erp.combo-products.index') }}" class="nav-link {{ request()->is('erp/products/*/combo') ? ' active' : '' }}">
+            <a href="{{ route('erp.combo-products.index') }}" class="nav-link {{ request()->is('erp/combo-products*') || request()->is('erp/combos*') ? ' active' : '' }}">
                 <i class="fas fa-gift nav-icon text-warning"></i>
                 <span>Manage Combos</span>
             </a>
@@ -174,6 +177,9 @@
                 <span>Fund Transfer</span>
             </a>
         </div>
+        @endcan
+
+        @can('view requisitions')
         <div class="nav-item">
             <a href="{{ route('requisition.index') }}" class="nav-link {{ request()->is('erp/requisition*') ? ' active' : '' }}">
                 <i class="fas fa-file-invoice nav-icon text-info"></i>

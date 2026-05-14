@@ -12,7 +12,6 @@
                 <th>Date</th>
                 <th>Source</th>
                 <th>Destination</th>
-                <th>Branch</th>
                 <th>Requested By</th>
                 <th class="text-center">Img</th>
                 <th>Category</th>
@@ -65,7 +64,6 @@
                     <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}</td>
                     <td>{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}</td>
                     <td>{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}</td>
-                    <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? '-') }}</span></td>
                     <td>
                         <div class="d-flex align-items-center">
                             <div class="avatar-xs bg-light rounded-circle text-primary me-2 d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:10px;">

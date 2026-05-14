@@ -271,7 +271,7 @@ class StockTransferController extends Controller
         }
 
         $transfers = $query->orderBy('requested_at', 'desc')->get();
-        $headers = ['Invoice No', 'Date', 'Source', 'Destination', 'Branch', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style #', 'Color', 'Size', 'Qty', 'Requested By', 'Status'];
+        $headers = ['Invoice No', 'Date', 'Source', 'Destination', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style #', 'Color', 'Size', 'Qty', 'Requested By', 'Status'];
         
         $exportData = [];
         foreach ($transfers as $transfer) {
@@ -291,7 +291,6 @@ class StockTransferController extends Controller
                 $transfer->invoice_number ?? 'N/A',
                 $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d-m-Y') : '-',
                 $transfer->from_type == 'branch' ? ($transfer->fromBranch->name ?? '-') : ($transfer->fromWarehouse->name ?? '-'),
-                $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-'),
                 $transfer->to_type == 'branch' ? ($transfer->toBranch->name ?? '-') : ($transfer->toWarehouse->name ?? '-'),
                 $product->category->name ?? '-',
                 $product->brand->name ?? '-',

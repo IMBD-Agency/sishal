@@ -5,7 +5,7 @@
     <td>{{ $receipt->payment_date }}</td>
     <td>{{ $receipt->invoice ? $receipt->invoice->issue_date : '-' }}</td>
     <td>{{ $receipt->customer ? $receipt->customer->name : '-' }}</td>
-    <td>{{ $receipt->pos && $receipt->pos->branch ? $receipt->pos->branch->name : 'Main' }}</td>
+    <td>{{ $receipt->pos->branch->name ?? $receipt->invoice->pos->branch->name ?? 'Main' }}</td>
     <td>{{ $receipt->invoice ? $receipt->invoice->invoice_number : '-' }}</td>
     <td class="text-end text-danger">{{ $receipt->invoice ? number_format($receipt->invoice->due_amount, 2) : '-' }}</td>
     <td class="text-end text-success fw-bold">{{ number_format($receipt->amount, 2) }}</td>

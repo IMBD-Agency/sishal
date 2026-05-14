@@ -116,7 +116,7 @@
                                 [
                                     'title' => 'Purchase Report',
                                     'desc' => 'In-depth analysis of purchases and materials.',
-                                    'route' => 'reports.purchase',
+                                    'route' => 'purchase.list',
                                     'icon' => 'fa-shopping-cart',
                                     'color' => 'warning'
                                 ],

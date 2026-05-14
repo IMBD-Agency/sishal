@@ -57,7 +57,11 @@
                         <!-- Report Type Radios -->
                         <div class="d-flex gap-4 mb-4">
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_daily" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_all" value="all" {{ request('report_type', 'all') == 'all' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="report_all">All Time</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="report_daily" value="daily" {{ request('report_type') == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="report_daily">Daily Reports</label>
                             </div>
                             <div class="form-check custom-radio">
@@ -99,6 +103,15 @@
 
                           
                             <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Outlet</label>
+                                <select name="branch_id" class="form-select select2-setup" data-placeholder="All Outlets">
+                                    <option value=""></option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer</label>
                                 <select name="customer_id" class="form-select select2-setup" data-placeholder="All Customers">
                                     <option value=""></option>
@@ -125,6 +138,11 @@
                                     @endforeach
                                 </select>
                             </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
+                                <input type="text" name="search" id="searchInput" class="form-control" placeholder="Name, Invoice, Phone...">
+                            </div>
+
                             <div class="col-md-1">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Per Page</label>
                                 <select name="per_page" class="form-select">
@@ -132,11 +150,6 @@
                                     <option value="50">50</option>
                                     <option value="100">100</option>
                                 </select>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Anything</label>
-                                <input type="text" name="search" id="searchInput" class="form-control" placeholder="Name, Invoice, Phone...">
                             </div>
 
                             <div class="col-md-1">
@@ -270,7 +283,7 @@
                 $('.select2-setup').val('').trigger('change.select2');
                 
                 // Set default report type
-                $('#report_daily').prop('checked', true);
+                $('#report_all').prop('checked', true);
                 toggleDateGroups();
                 
                 // Reset Global Search

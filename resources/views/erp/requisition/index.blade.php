@@ -25,9 +25,11 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    @can('manage requisitions')
                     <a href="{{ route('requisition.create') }}" class="btn btn-create-premium px-4 shadow-sm">
                         <i class="fas fa-plus-circle me-2"></i>Create New Request
                     </a>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -96,6 +98,7 @@
                                                     <i class="fas fa-eye text-primary"></i>
                                                 </a>
                                                 @if($req->status === 'pending')
+                                                    @can('manage requisitions')
                                                     <form action="{{ route('requisition.destroy', $req->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this request?')">
                                                         @csrf
                                                         @method('DELETE')
@@ -103,6 +106,7 @@
                                                             <i class="fas fa-trash text-danger"></i>
                                                         </button>
                                                     </form>
+                                                    @endcan
                                                 @endif
                                             </div>
                                         </td>
