@@ -830,7 +830,7 @@ class SimpleAccountingController extends Controller
                 if ($branchId) {
                     $query->where('branch_id', $branchId);
                 }
-            })->with('product');
+            })->with(['product', 'pos.branch']);
 
             if ($categoryId) {
                 $posItemsQuery->whereHas('product', function($q) use ($categoryId) {
@@ -896,6 +896,10 @@ class SimpleAccountingController extends Controller
                 }
 
                 $productId = $item->product_id;
+                $branchIdVal = 0; // Online
+                $branchName = 'Online Store';
+                $key = $productId . '_' . $branchIdVal;
+
                 $itemRevenue = $item->unit_price * $item->quantity;
                 
                 // Apply COD discount proportionally to this item
@@ -909,9 +913,10 @@ class SimpleAccountingController extends Controller
                 $cost = ($item->product->cost ?? 0) * $item->quantity;
                 $profit = $revenue - $cost;
 
-                if (!$productProfits->has($productId)) {
-                    $productProfits->put($productId, [
+                if (!$productProfits->has($key)) {
+                    $productProfits->put($key, [
                         'product' => $item->product,
+                        'branch_name' => $branchName,
                         'revenue' => 0,
                         'cost' => 0,
                         'profit' => 0,
@@ -919,9 +924,10 @@ class SimpleAccountingController extends Controller
                     ]);
                 }
 
-                $current = $productProfits->get($productId);
-                $productProfits->put($productId, [
+                $current = $productProfits->get($key);
+                $productProfits->put($key, [
                     'product' => $current['product'],
+                    'branch_name' => $current['branch_name'],
                     'revenue' => $current['revenue'] + $revenue,
                     'cost' => $current['cost'] + $cost,
                     'profit' => $current['profit'] + $profit,
@@ -937,14 +943,19 @@ class SimpleAccountingController extends Controller
                 continue;
             }
 
+            $branchIdVal = $item->pos->branch_id ?? 0;
+            $branchName = $item->pos->branch->name ?? 'Unknown Branch';
+            $key = $item->product_id . '_' . $branchIdVal;
+
             $productId = $item->product_id;
             $revenue = $item->unit_price * $item->quantity;
             $cost = ($item->product->cost ?? 0) * $item->quantity;
             $profit = $revenue - $cost;
 
-            if (!$productProfits->has($productId)) {
-                $productProfits->put($productId, [
+            if (!$productProfits->has($key)) {
+                $productProfits->put($key, [
                     'product' => $item->product,
+                    'branch_name' => $branchName,
                     'revenue' => 0,
                     'cost' => 0,
                     'profit' => 0,
@@ -952,9 +963,10 @@ class SimpleAccountingController extends Controller
                 ]);
             }
 
-            $current = $productProfits->get($productId);
-            $productProfits->put($productId, [
+            $current = $productProfits->get($key);
+            $productProfits->put($key, [
                 'product' => $current['product'],
+                'branch_name' => $current['branch_name'],
                 'revenue' => $current['revenue'] + $revenue,
                 'cost' => $current['cost'] + $cost,
                 'profit' => $current['profit'] + $profit,
@@ -1077,7 +1089,7 @@ class SimpleAccountingController extends Controller
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
         
-        $headers = ['Rank', 'Product', 'Style No.', 'Category', 'Qty Sold', 'Revenue', 'Profit'];
+        $headers = ['Rank', 'Product', 'Style No.', 'Category', 'Branch', 'Qty Sold', 'Revenue', 'Profit'];
         $col = 'A';
         foreach ($headers as $h) {
             $sheet->setCellValue($col . $row, $h);
@@ -1086,14 +1098,16 @@ class SimpleAccountingController extends Controller
         }
         $row++;
 
-        foreach ($topByRevenue as $index => $data) {
-            $sheet->setCellValue('A' . $row, $index + 1);
+        $rank = 1;
+        foreach ($topByRevenue as $data) {
+            $sheet->setCellValue('A' . $row, $rank++);
             $sheet->setCellValue('B' . $row, $data['product']->name);
             $sheet->setCellValue('C' . $row, $data['product']->style_number ?? $data['product']->sku ?? 'N/A');
             $sheet->setCellValue('D' . $row, $data['product']->category->name ?? 'N/A');
-            $sheet->setCellValue('E' . $row, $data['quantity_sold']);
-            $sheet->setCellValue('F' . $row, $data['revenue']);
-            $sheet->setCellValue('G' . $row, $data['profit']);
+            $sheet->setCellValue('E' . $row, $data['branch_name']);
+            $sheet->setCellValue('F' . $row, $data['quantity_sold']);
+            $sheet->setCellValue('G' . $row, $data['revenue']);
+            $sheet->setCellValue('H' . $row, $data['profit']);
             $row++;
         }
 
@@ -1110,14 +1124,16 @@ class SimpleAccountingController extends Controller
         }
         $row++;
 
-        foreach ($topByProfit as $index => $data) {
-            $sheet->setCellValue('A' . $row, $index + 1);
+        $rank = 1;
+        foreach ($topByProfit as $data) {
+            $sheet->setCellValue('A' . $row, $rank++);
             $sheet->setCellValue('B' . $row, $data['product']->name);
             $sheet->setCellValue('C' . $row, $data['product']->style_number ?? $data['product']->sku ?? 'N/A');
             $sheet->setCellValue('D' . $row, $data['product']->category->name ?? 'N/A');
-            $sheet->setCellValue('E' . $row, $data['quantity_sold']);
-            $sheet->setCellValue('F' . $row, $data['revenue']);
-            $sheet->setCellValue('G' . $row, $data['profit']);
+            $sheet->setCellValue('E' . $row, $data['branch_name']);
+            $sheet->setCellValue('F' . $row, $data['quantity_sold']);
+            $sheet->setCellValue('G' . $row, $data['revenue']);
+            $sheet->setCellValue('H' . $row, $data['profit']);
             $row++;
         }
 
