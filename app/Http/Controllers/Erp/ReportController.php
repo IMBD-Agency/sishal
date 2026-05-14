@@ -1824,16 +1824,21 @@ class ReportController extends Controller
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : $now->copy()->endOfDay();
         }
 
-        // --- ACCOUNT IDS ---
-        $cashAccId = 14; // Main Cash:
-        $bankAccId = 15; // Bank
-        $walletAccId = 16; // Mobile Wallet
+        // --- ACCOUNT IDS (Dynamic Mapping from Financial Accounts) ---
+        $cashAccIds = \App\Models\FinancialAccount::where('type', 'cash')->pluck('account_id')->unique()->toArray();
+        $bankAccIds = \App\Models\FinancialAccount::where('type', 'bank')->pluck('account_id')->unique()->toArray();
+        $walletAccIds = \App\Models\FinancialAccount::where('type', 'mobile')->pluck('account_id')->unique()->toArray();
+
+        // Fallback to legacy defaults if no accounts are mapped (for backward compatibility)
+        if (empty($cashAccIds)) $cashAccIds = [14];
+        if (empty($bankAccIds)) $bankAccIds = [15];
+        if (empty($walletAccIds)) $walletAccIds = [16];
 
         // Helper function for calculation
-        $getBalance = function($accId, $to) use ($branchId) {
+        $getBalance = function($accIds, $to) use ($branchId) {
             $query = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
                 ->leftJoin('financial_accounts', 'journal_entries.financial_account_id', '=', 'financial_accounts.id')
-                ->where('journal_entries.chart_of_account_id', $accId)
+                ->whereIn('journal_entries.chart_of_account_id', (array)$accIds)
                 ->where('journals.entry_date', '<=', $to->toDateString());
             
             if ($branchId) {
@@ -1851,22 +1856,22 @@ class ReportController extends Controller
         };
 
         // Current Balances (at the end of selected period)
-        $cashBalance = $getBalance($cashAccId, $endDate);
-        $bankBalance = $getBalance($bankAccId, $endDate);
-        $walletBalance = $getBalance($walletAccId, $endDate);
+        $cashBalance = $getBalance($cashAccIds, $endDate);
+        $bankBalance = $getBalance($bankAccIds, $endDate);
+        $walletBalance = $getBalance($walletAccIds, $endDate);
         $totalLiquidity = $cashBalance + $bankBalance + $walletBalance;
 
         // Opening Balances (at the start of selected period)
         $openingDate = $startDate->copy()->subDay();
-        $openingCash = $getBalance($cashAccId, $openingDate);
-        $openingBank = $getBalance($bankAccId, $openingDate);
-        $openingWallet = $getBalance($walletAccId, $openingDate);
+        $openingCash = $getBalance($cashAccIds, $openingDate);
+        $openingBank = $getBalance($bankAccIds, $openingDate);
+        $openingWallet = $getBalance($walletAccIds, $openingDate);
 
         // Transactions in Period
-        $getInflowOutflow = function($accId, $from, $to) use ($branchId) {
+        $getInflowOutflow = function($accIds, $from, $to) use ($branchId) {
             $query = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
                 ->leftJoin('financial_accounts', 'journal_entries.financial_account_id', '=', 'financial_accounts.id')
-                ->where('journal_entries.chart_of_account_id', $accId)
+                ->whereIn('journal_entries.chart_of_account_id', (array)$accIds)
                 ->whereBetween('journals.entry_date', [$from->toDateString(), $to->toDateString()]);
             
             if ($branchId) {
@@ -1882,9 +1887,9 @@ class ReportController extends Controller
             return $query->selectRaw('SUM(journal_entries.debit) as inflow, SUM(journal_entries.credit) as outflow')->first();
         };
 
-        $cashStats = $getInflowOutflow($cashAccId, $startDate, $endDate);
-        $bankStats = $getInflowOutflow($bankAccId, $startDate, $endDate);
-        $walletStats = $getInflowOutflow($walletAccId, $startDate, $endDate);
+        $cashStats = $getInflowOutflow($cashAccIds, $startDate, $endDate);
+        $bankStats = $getInflowOutflow($bankAccIds, $startDate, $endDate);
+        $walletStats = $getInflowOutflow($walletAccIds, $startDate, $endDate);
 
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
 
