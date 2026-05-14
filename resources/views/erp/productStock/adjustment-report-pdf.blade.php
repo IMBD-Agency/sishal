@@ -23,6 +23,7 @@
                 <th>#</th>
                 <th>Invoice</th>
                 <th>Date</th>
+                <th>Location</th>
                 <th>Category</th>
                 <th>Brand</th>
                 <th>Season</th>
@@ -38,8 +39,17 @@
             @foreach($adjustments as $index => $item)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $item->adjustment->adjustment_number }}</td>
-                    <td>{{ $item->adjustment->date }}</td>
+                    <td>{{ $item->adjustment->adjustment_number ?? 'N/A' }}</td>
+                    <td>{{ $item->adjustment?->date ? $item->adjustment->date->format('d/m/Y') : '-' }}</td>
+                    <td>
+                        @if($item->adjustment?->branch)
+                            {{ $item->adjustment->branch->name }}
+                        @elseif($item->adjustment?->warehouse)
+                            {{ $item->adjustment->warehouse->name }}
+                        @else
+                            System
+                        @endif
+                    </td>
                     <td>{{ optional($item->product)->category->name ?? '-' }}</td>
                     <td>{{ optional($item->product)->brand->name ?? '-' }}</td>
                     <td>{{ optional($item->product)->season->name ?? '-' }}</td>

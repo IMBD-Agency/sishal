@@ -1207,26 +1207,34 @@ class StockController extends Controller
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $headers = ['Serial No', 'Invoice', 'Date', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Old Qty', 'New Qty', 'Diff', 'Adjusted By'];
+        $headers = ['Serial No', 'Invoice', 'Date', 'Location', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Old Qty', 'New Qty', 'Diff', 'Adjusted By'];
         foreach ($headers as $key => $header) {
             $sheet->setCellValue(chr(65 + $key) . '1', $header);
         }
         
         $row = 2;
         foreach ($items as $index => $item) {
+            $location = '-';
+            if ($item->adjustment?->branch) {
+                $location = $item->adjustment->branch->name;
+            } elseif ($item->adjustment?->warehouse) {
+                $location = $item->adjustment->warehouse->name;
+            }
+
             $sheet->setCellValue('A' . $row, $index + 1);
-            $sheet->setCellValue('B' . $row, $item->adjustment->adjustment_number);
-            $sheet->setCellValue('C' . $row, $item->adjustment->date);
-            $sheet->setCellValue('D' . $row, $item->product->category->name ?? '-');
-            $sheet->setCellValue('E' . $row, $item->product->brand->name ?? '-');
-            $sheet->setCellValue('F' . $row, $item->product->season->name ?? '-');
-            $sheet->setCellValue('G' . $row, $item->product->gender->name ?? '-');
-            $sheet->setCellValue('H' . $row, $item->product->name);
-            $sheet->setCellValue('I' . $row, $item->product->style_number);
-            $sheet->setCellValue('J' . $row, $item->old_quantity);
-            $sheet->setCellValue('K' . $row, $item->new_quantity);
-            $sheet->setCellValue('L' . $row, $item->new_quantity - $item->old_quantity);
-            $sheet->setCellValue('M' . $row, $item->adjustment->creator->name ?? 'Admin');
+            $sheet->setCellValue('B' . $row, $item->adjustment->adjustment_number ?? 'N/A');
+            $sheet->setCellValue('C' . $row, $item->adjustment?->date ? $item->adjustment->date->format('d/m/Y') : '-');
+            $sheet->setCellValue('D' . $row, $location);
+            $sheet->setCellValue('E' . $row, $item->product?->category?->name ?? '-');
+            $sheet->setCellValue('F' . $row, $item->product?->brand?->name ?? '-');
+            $sheet->setCellValue('G' . $row, $item->product?->season?->name ?? '-');
+            $sheet->setCellValue('H' . $row, $item->product?->gender?->name ?? '-');
+            $sheet->setCellValue('I' . $row, $item->product?->name ?? 'Deleted Product');
+            $sheet->setCellValue('J' . $row, $item->product?->style_number ?? '-');
+            $sheet->setCellValue('K' . $row, $item->old_quantity);
+            $sheet->setCellValue('L' . $row, $item->new_quantity);
+            $sheet->setCellValue('M' . $row, $item->new_quantity - $item->old_quantity);
+            $sheet->setCellValue('N' . $row, $item->adjustment?->creator?->name ?? 'Admin');
             $row++;
         }
         

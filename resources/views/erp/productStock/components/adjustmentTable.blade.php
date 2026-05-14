@@ -20,27 +20,33 @@
                     <tr>
                         <td>{{ $adjustments->firstItem() + $index }}</td>
                         <td>
-                            <span class="fw-bold text-primary">{{ $item->adjustment->adjustment_number }}</span>
+                            <span class="fw-bold text-primary">{{ $item->adjustment->adjustment_number ?? 'N/A' }}</span>
                         </td>
-                        <td class="text-nowrap">{{ $item->adjustment->date->format('d-M-Y') }}</td>
+                        <td class="text-nowrap">{{ $item->adjustment?->date ? $item->adjustment->date->format('d-M-Y') : 'N/A' }}</td>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div>
-                                    <div class="fw-bold text-dark">{{ $item->product->name }}</div>
+                                    <div class="fw-bold text-dark">{{ $item->product->name ?? 'Deleted Product' }}</div>
                                     <div class="small text-muted">{{ $item->product->category->name ?? 'Uncategorized' }}</div>
                                 </div>
                             </div>
                         </td>
                         <td>
-                            <div>{{ $item->product->style_number ?: $item->product->sku }}</div>
+                            <div>{{ $item->product?->style_number ?: ($item->product?->sku ?? '-') }}</div>
                             @if($item->variation)
                                 <div class="small text-muted" style="font-size: 0.7rem;">
-                                    {{ $item->variation->attributeValues->pluck('value')->implode(', ') }}
+                                    {{ optional($item->variation->attributeValues)->pluck('value')->implode(', ') ?? '' }}
                                 </div>
                             @endif
                         </td>
                         <td>
-                            <span class="badge bg-light text-dark border">{{ $item->adjustment->branch->name }}</span>
+                            @if($item->adjustment?->branch)
+                                <span class="badge bg-light text-dark border"><i class="fas fa-store me-1"></i>{{ $item->adjustment->branch->name }}</span>
+                            @elseif($item->adjustment?->warehouse)
+                                <span class="badge bg-light text-primary border"><i class="fas fa-warehouse me-1"></i>{{ $item->adjustment->warehouse->name }}</span>
+                            @else
+                                <span class="badge bg-light text-muted border">System</span>
+                            @endif
                         </td>
                         <td class="text-center fw-bold">{{ $item->old_quantity }}</td>
                         <td class="text-center fw-bold text-success">{{ $item->new_quantity }}</td>
