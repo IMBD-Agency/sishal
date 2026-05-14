@@ -190,40 +190,4 @@
     </div>
 </div>
 
-<!-- Bottom Row: Current Balances Summary -->
-<h4 class="mb-3 text-secondary border-bottom pb-2 mt-2"><i class="fas fa-balance-scale me-2"></i> Current Balances (Live)</h4>
-<div class="row">
-    <div class="col-md-4 mb-3">
-        <div class="card bg-primary text-white shadow-sm border-0 h-100 rounded-3">
-            <div class="card-body p-4 d-flex align-items-center">
-                <div class="display-4 me-4 opacity-50"><i class="fas fa-boxes"></i></div>
-                <div>
-                    <h6 class="text-uppercase fw-semibold mb-1 text-white-50">Total Stock Value</h6>
-                    <h3 class="mb-0 fw-bold">৳ {{ number_format($data['stockValue'], 2) }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card bg-info text-white shadow-sm border-0 h-100 rounded-3">
-            <div class="card-body p-4 d-flex align-items-center">
-                <div class="display-4 me-4 opacity-50"><i class="fas fa-money-bill-wave"></i></div>
-                <div>
-                    <h6 class="text-uppercase fw-semibold mb-1 text-white-50">Cash Balance</h6>
-                    <h3 class="mb-0 fw-bold">৳ {{ number_format($data['cashBalance'], 2) }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card bg-indigo text-white shadow-sm border-0 h-100 rounded-3" style="background-color: #6610f2;">
-            <div class="card-body p-4 d-flex align-items-center">
-                <div class="display-4 me-4 opacity-50"><i class="fas fa-university"></i></div>
-                <div>
-                    <h6 class="text-uppercase fw-semibold mb-1 text-white-50">Bank & Mobile Balance</h6>
-                    <h3 class="mb-0 fw-bold">৳ {{ number_format($data['bankBalance'], 2) }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
