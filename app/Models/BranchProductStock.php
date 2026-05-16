@@ -10,6 +10,7 @@ class BranchProductStock extends Model
         'branch_id',
         'product_id',
         'quantity',
+        'opening_stock',
         'updated_by',
         'last_updated_at'
     ];

@@ -347,6 +347,74 @@ $(document).ready(function() {
 
         // Live Search removed in favor of global server-side search
         
+        // Edit Opening Stock Logic
+        $('.opening-stock-display, .edit-opening-stock').off('click').on('click', function() {
+            const td = $(this).closest('td');
+            const span = td.find('.opening-stock-display');
+            const productId = span.data('product-id');
+            const variationId = span.data('variation-id');
+            const locationType = span.data('location-type');
+            const locationId = span.data('location-id');
+            const currentVal = span.text().trim();
+
+            Swal.fire({
+                title: 'Adjust Opening Stock',
+                html: `<div class="text-start small text-muted mb-3">
+                        Setting a new opening balance will automatically adjust the <b>Current Total Stock</b>.
+                        <br><br>
+                        Current Opening: <b>${currentVal}</b>
+                       </div>`,
+                input: 'number',
+                inputValue: currentVal,
+                inputAttributes: {
+                    min: 0,
+                    step: 'any',
+                    class: 'form-control shadow-sm border-2'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Update Baseline',
+                confirmButtonColor: '#198754',
+                showLoaderOnConfirm: true,
+                customClass: {
+                    popup: 'rounded-4 border-0 shadow-lg',
+                    confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                    cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                },
+                preConfirm: (newVal) => {
+                    if (newVal === "" || newVal === null) {
+                        Swal.showValidationMessage('Please enter a valid quantity');
+                        return false;
+                    }
+                    return $.ajax({
+                        url: "{{ route('stock.updateOpening') }}",
+                        method: "POST",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            product_id: productId,
+                            variation_id: variationId,
+                            location_type: locationType,
+                            location_id: locationId,
+                            opening_stock: newVal,
+                            current_opening: span.data('current-opening')
+                        }
+                    }).then(response => {
+                        if (!response.success) {
+                            throw new Error(response.message || 'Update failed');
+                        }
+                        return response;
+                    }).catch(error => {
+                        Swal.showValidationMessage(`Request failed: ${error.responseJSON?.message || error.statusText || error.message}`);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value.success) {
+                    erpNotify.success(result.value.message);
+                    fetchStockData(); // Refresh table to show updated quantities everywhere
+                }
+            });
+        });
+
         // Initialize Bootstrap tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {

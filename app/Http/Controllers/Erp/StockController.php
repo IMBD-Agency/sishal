@@ -1257,6 +1257,76 @@ class StockController extends Controller
         return $pdf->download('stock_adjustments_' . date('Y-m-d') . '.pdf');
     }
 
+    public function updateOpeningStock(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('manage opening stock')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action. You need "manage opening stock" permission.'], 403);
+        }
+
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'location_type' => 'required|in:branch,warehouse',
+            'location_id' => 'required',
+            'opening_stock' => 'required|numeric|min:0',
+        ]);
+
+        $productId = $request->product_id;
+        $variationId = $request->filled('variation_id') ? (int)$request->variation_id : null;
+        if ($variationId === 0) $variationId = null; // Normalize 0 to null for simple products
+        $locationType = $request->location_type;
+        $locationId = $request->location_id;
+        $newOpeningStock = $request->opening_stock;
+
+        // 1. Find the stock record
+        $stock = null;
+        if ($variationId) {
+            $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                ->where($locationType == 'branch' ? 'branch_id' : 'warehouse_id', $locationId)
+                ->first();
+        } else {
+            $model = $locationType == 'branch' ? \App\Models\BranchProductStock::class : \App\Models\WarehouseProductStock::class;
+            $stock = $model::where('product_id', $productId)
+                ->where($locationType == 'branch' ? 'branch_id' : 'warehouse_id', $locationId)
+                ->first();
+        }
+
+        $currentCalculatedOpening = (float)$request->current_opening;
+        $diff = (float)$newOpeningStock - $currentCalculatedOpening;
+        $currentStock = $stock ? $stock->quantity : 0;
+        $newQuantity = $currentStock + $diff;
+
+        if (!$stock) {
+            $model = $variationId ? \App\Models\ProductVariationStock::class : ($locationType == 'branch' ? \App\Models\BranchProductStock::class : \App\Models\WarehouseProductStock::class);
+            $stockData = [
+                $locationType == 'branch' ? 'branch_id' : 'warehouse_id' => $locationId,
+                'quantity' => $newQuantity, 
+                'opening_stock' => $newOpeningStock,
+                'updated_by' => auth()->id() ?? 1,
+                'last_updated_at' => now(),
+            ];
+            if ($variationId) $stockData['variation_id'] = $variationId;
+            else $stockData['product_id'] = $productId;
+            
+            $stock = $model::create($stockData);
+        } else {
+            // Adjust current quantity and set the new opening stock baseline
+            $stock->quantity = $newQuantity;
+            $stock->opening_stock = $newOpeningStock;
+            $stock->updated_by = auth()->id() ?? 1;
+            $stock->last_updated_at = now();
+            $stock->save();
+        }
+
+        \App\Services\CacheService::clearProductCaches($productId);
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Opening stock updated successfully.', 
+            'new_quantity' => $stock->quantity,
+            'new_opening_stock' => $stock->opening_stock
+        ]);
+    }
+
     private function getAdjustmentQuery(Request $request)
     {
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);

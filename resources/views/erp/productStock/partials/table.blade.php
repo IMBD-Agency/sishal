@@ -265,7 +265,26 @@
                                     {{ $loc['name'] }}
                                 </span>
                             </td>
-                            <td class="text-center bg-light text-dark fw-bold" style="font-size: 14px;">{{ $opening_stock }}</td>
+                            <td class="text-center bg-light text-dark fw-bold position-relative" style="font-size: 14px;">
+                                @can('manage opening stock')
+                                <span class="opening-stock-display" 
+                                      data-product-id="{{ $prod->id }}" 
+                                      data-variation-id="{{ $vid }}" 
+                                      data-location-type="{{ $locationType }}" 
+                                      data-location-id="{{ $locationId }}"
+                                      data-current-opening="{{ $opening_stock }}"
+                                      title="Click to change opening balance">
+                                    {{ $opening_stock }}
+                                </span>
+                                @else
+                                <span>{{ $opening_stock }}</span>
+                                @endcan
+                                @can('manage opening stock')
+                                <button class="btn btn-sm btn-link p-0 ms-1 edit-opening-stock no-loader" title="Edit Opening Stock">
+                                    <i class="fas fa-edit text-muted" style="font-size: 10px;"></i>
+                                </button>
+                                @endcan
+                            </td>
                             <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $p_qnt ?: '' }}</td>
                             <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $pr_qnt ?: '' }}</td>
                             <td class="text-center fw-bold text-info" style="font-size: 14px; background: rgba(0,229,255,0.02)">{{ ($p_qnt - $pr_qnt) ?: '' }}</td>

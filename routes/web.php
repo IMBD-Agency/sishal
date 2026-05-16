@@ -358,6 +358,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/stock/adjustment-excel', [\App\Http\Controllers\Erp\StockController::class, 'exportAdjustmentExcel'])->name('stock.adjustment.excel');
     Route::get('/stock/adjustment-pdf', [\App\Http\Controllers\Erp\StockController::class, 'exportAdjustmentPdf'])->name('stock.adjustment.pdf');
     Route::post('/stock/adjustment/store', [\App\Http\Controllers\Erp\StockController::class, 'storeAdjustment'])->name('stock.adjustment.store');
+    Route::post('/stock/update-opening', [\App\Http\Controllers\Erp\StockController::class, 'updateOpeningStock'])->name('stock.updateOpening');
     Route::get('/stock/current', [\App\Http\Controllers\Erp\StockController::class, 'getCurrentStock'])->name('stock.current');
 
     // Transfers

@@ -12,6 +12,7 @@ class ProductVariationStock extends Model
         'branch_id',
         'warehouse_id',
         'quantity',
+        'opening_stock',
         'reserved_quantity',
         'min_stock_level',
         'max_stock_level',
