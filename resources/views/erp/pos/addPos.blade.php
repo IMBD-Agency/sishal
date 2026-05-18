@@ -860,13 +860,13 @@ $(document).ready(function() {
             let found = null;
             let foundVariation = null;
 
-            // Search in main products and their variations
+            // Search in main products and their variations locally first
             products.forEach(p => {
-                if (p.sku === code || p.style_number === code) {
+                if (p.sku === code || p.style_number === code || p.name === code) {
                     found = p;
                 }
                 if (p.variations) {
-                    let v = p.variations.find(varItem => varItem.sku === code);
+                    let v = p.variations.find(varItem => varItem.sku === code || varItem.name === code);
                     if (v) {
                         found = p;
                         foundVariation = v;
@@ -887,7 +887,46 @@ $(document).ready(function() {
                     $(this).val('');
                 }
             } else {
-                showError('Product not found in current list.');
+                // FALLBACK: If not in current list, search the server
+                let branchId = $('#branchFilter').val();
+                $.ajax({
+                    url: `/erp/products/find-by-barcode/${branchId}`,
+                    method: 'POST',
+                    data: {
+                        barcode: code,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(res) {
+                        if (res.success && res.product) {
+                            if (res.type === 'variation') {
+                                let v = res.product.selected_variation;
+                                if (v.stock > 0) {
+                                    addToCart(res.product, v, v.stock);
+                                } else {
+                                    showError('Variation Out of Stock!');
+                                }
+                            } else {
+                                if (res.product.has_variations) {
+                                    openVariationModal(res.product);
+                                } else {
+                                    let stock = res.product.branch_stock?.quantity || 0;
+                                    if (stock <= 0) {
+                                        showError('Out of Stock!');
+                                    } else {
+                                        res.product.stock = stock;
+                                        addToCart(res.product);
+                                    }
+                                }
+                            }
+                            $('#barcodeInput').val('');
+                        } else {
+                            showError('Product not found in system.');
+                        }
+                    },
+                    error: function() {
+                        showError('Product not found or out of stock.');
+                    }
+                });
             }
         }
     });

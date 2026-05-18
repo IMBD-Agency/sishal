@@ -1157,13 +1157,17 @@ class ProductController extends Controller
             return response()->json(['success' => false, 'message' => 'Barcode/SKU is required'], 400);
         }
 
-        // First, try to find by product SKU
+        // First, try to find by product SKU, style number, or exact name
         $product = Product::with(['category', 'branchStock' => function($q) use ($branchId) {
             $q->where('branch_id', $branchId);
         }, 'variations.stocks' => function($q) use ($branchId) {
             $q->where('branch_id', $branchId)->whereNull('warehouse_id');
         }])
-        ->where('sku', $barcode)
+        ->where(function($q) use ($barcode) {
+            $q->where('sku', $barcode)
+              ->orWhere('style_number', $barcode)
+              ->orWhere('name', $barcode);
+        })
         ->where('status', 'active')
         ->whereIn('type', ['product', 'combo'])
         ->where(function($q) use ($branchId) {

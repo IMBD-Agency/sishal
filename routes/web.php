@@ -305,6 +305,12 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/barcodes/print/{productId}/{variationId?}', [\App\Http\Controllers\Erp\BarcodeController::class, 'printBarcodeLabel'])->name('barcodes.print');
     Route::get('/barcodes/download/{productId}/{variationId?}', [\App\Http\Controllers\Erp\BarcodeController::class, 'downloadBarcodePDF'])->name('barcodes.download');
 
+    // Combo Barcode Management
+    Route::get('/barcodes/combo/search', [\App\Http\Controllers\Erp\BarcodeController::class, 'searchCombo'])->name('barcodes.combo.search');
+    Route::get('/barcodes/combo/{comboId}', [\App\Http\Controllers\Erp\BarcodeController::class, 'generateComboBarcode'])->name('barcodes.combo.generate');
+    Route::get('/barcodes/combo/{comboId}/print', [\App\Http\Controllers\Erp\BarcodeController::class, 'printComboBarcodeLabel'])->name('barcodes.combo.print');
+    Route::get('/barcodes/combo/{comboId}/download', [\App\Http\Controllers\Erp\BarcodeController::class, 'downloadComboBarcodePDF'])->name('barcodes.combo.download');
+
     // Product Variations
     Route::prefix('products/{productId}/variations')->group(function () {
         Route::get('/', [ProductVariationController::class, 'index'])->name('erp.products.variations.index');

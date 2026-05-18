@@ -276,6 +276,118 @@ class BarcodeController extends Controller
         return $pdf->download('barcode-' . $sku . '.pdf');
     }
 
+    // ─────────────── COMBO PRODUCT BARCODES ───────────────
+
+    /**
+     * Search combo products by name or SKU for barcode generation
+     */
+    public function searchCombo(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view products')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $query = $request->query('q');
+
+        if (!$query) {
+            return response()->json(['success' => false, 'message' => 'Search query is required']);
+        }
+
+        $combos = Product::where('type', 'combo')
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', '%' . $query . '%')
+                  ->orWhere('sku', 'like', '%' . $query . '%');
+            })
+            ->limit(15)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'combos'  => $combos->map(fn($c) => [
+                'id'    => $c->id,
+                'name'  => $c->name,
+                'sku'   => $c->sku,
+                'price' => $c->price,
+            ])
+        ]);
+    }
+
+    /**
+     * Generate barcode for a single combo product (JSON, used for preview)
+     */
+    public function generateComboBarcode($comboId)
+    {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $combo = Product::where('type', 'combo')->findOrFail($comboId);
+
+        $identifier = $combo->sku;
+        $barcode    = $this->generateLinearBarcode($identifier, 1.5, 75);
+
+        return response()->json([
+            'success' => true,
+            'barcode' => $barcode,
+            'product' => [
+                'id'    => $combo->id,
+                'name'  => $combo->name,
+                'sku'   => $identifier,
+                'price' => $combo->price,
+            ]
+        ]);
+    }
+
+    /**
+     * Return printable barcode label view for a combo product
+     */
+    public function printComboBarcodeLabel($comboId)
+    {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $combo = Product::where('type', 'combo')->findOrFail($comboId);
+
+        $sku   = $combo->sku;
+        $price = $combo->price;
+        $name  = $combo->name;
+        $color = null;
+        $size  = null;
+
+        $barcodeSvg    = $this->generateLinearBarcode($sku, 1.5, 75);
+        $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
+        $quantity      = request('quantity', 1);
+
+        // Reuse the same label view – it is generic enough
+        return view('erp.barcodes.label', compact('barcodeBase64', 'sku', 'price', 'name', 'quantity', 'color', 'size'));
+    }
+
+    /**
+     * Download combo barcode label as PDF
+     */
+    public function downloadComboBarcodePDF($comboId)
+    {
+        if (!auth()->user()->hasPermissionTo('manage products')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $combo = Product::where('type', 'combo')->findOrFail($comboId);
+
+        $sku   = $combo->sku;
+        $price = $combo->price;
+        $name  = $combo->name;
+        $color = null;
+        $size  = null;
+
+        $barcodeSvg    = $this->generateLinearBarcode($sku, 1.5, 75);
+        $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
+        $quantity      = request('quantity', 1);
+
+        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size'));
+        $pdf->setPaper([0, 0, 107.711, 70.866], 'portrait');
+
+        return $pdf->download('barcode-combo-' . $sku . '.pdf');
+    }
+
+    // ─────────────────────────────────────────────────────────
+
     /**
      * Generate a Code 128 barcode SVG
      */

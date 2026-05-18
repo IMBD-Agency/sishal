@@ -558,6 +558,53 @@ class Product extends Model
         });
     }
 
+    /**
+     * Calculate the dynamic stock of this combo product
+     */
+    public function getComboStock($branchId = null)
+    {
+        if (!$this->isCombo()) {
+            return 0;
+        }
+
+        $comboStock = PHP_INT_MAX;
+        
+        // Eager load if not loaded
+        if (!$this->relationLoaded('comboItems')) {
+            $this->load('comboItems.product');
+        }
+
+        foreach ($this->comboItems as $comboItem) {
+            $itemStock = 0;
+            if ($comboItem->variation_id) {
+                if ($branchId) {
+                    $vStock = \App\Models\ProductVariationStock::where('variation_id', $comboItem->variation_id)
+                        ->where('branch_id', $branchId)->whereNull('warehouse_id')->first();
+                    $itemStock = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+                } else {
+                    $itemStock = \App\Models\ProductVariationStock::where('variation_id', $comboItem->variation_id)
+                        ->whereNull('warehouse_id')->sum('quantity');
+                }
+            } else {
+                if ($branchId) {
+                    $pStock = \App\Models\BranchProductStock::where('product_id', $comboItem->product_id)
+                        ->where('branch_id', $branchId)->first();
+                    $itemStock = $pStock ? $pStock->quantity : 0;
+                } else {
+                    $itemStock = \App\Models\BranchProductStock::where('product_id', $comboItem->product_id)
+                        ->sum('quantity');
+                }
+            }
+            
+            $possibleCombos = floor($itemStock / max(1, $comboItem->quantity));
+            if ($possibleCombos < $comboStock) {
+                $comboStock = $possibleCombos;
+            }
+        }
+
+        return $comboStock === PHP_INT_MAX ? 0 : $comboStock;
+    }
+
 }
 
 

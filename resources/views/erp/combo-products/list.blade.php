@@ -80,6 +80,7 @@
                                 <th>Created Branch</th>
                                 <th>Items</th>
                                 <th>Price</th>
+                                <th>Available Stock</th>
                                 <th>Status</th>
                                 <th class="text-end pe-4">Actions</th>
                             </tr>
@@ -116,6 +117,26 @@
                                         @endif
                                     </td>
                                     <td>
+                                        @php
+                                            $userBranchId = auth()->user()->hasRole('Super Admin') ? null : (auth()->user()->employee ? auth()->user()->employee->branch_id : null);
+                                            $branchId = request('branch_id') ?: $userBranchId;
+                                            $stock = $combo->getComboStock($branchId);
+                                        @endphp
+                                        @if($stock <= 0)
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border py-1 px-2" style="font-weight: 600;">
+                                                <i class="fas fa-times-circle me-1"></i> Out of Stock
+                                            </span>
+                                        @elseif($stock <= 5)
+                                            <span class="badge bg-warning bg-opacity-10 text-warning border py-1 px-2" style="font-weight: 600;">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> Low Stock ({{ $stock }})
+                                            </span>
+                                        @else
+                                            <span class="badge bg-success bg-opacity-10 text-success border py-1 px-2" style="font-weight: 600;">
+                                                <i class="fas fa-check-circle me-1"></i> In Stock ({{ $stock }})
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <span class="badge {{ $combo->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
                                             {{ $combo->status }}
                                         </span>
@@ -125,6 +146,13 @@
                                            class="btn btn-sm btn-primary me-1">
                                             <i class="fas fa-cog me-2"></i>Manage
                                         </a>
+                                        @can('manage products')
+                                        <a href="{{ route('barcodes.index') }}?combo_id={{ $combo->id }}"
+                                           class="btn btn-sm btn-outline-secondary me-1"
+                                           title="Generate Barcode">
+                                            <i class="fas fa-barcode"></i>
+                                        </a>
+                                        @endcan
                                         @can('manage combos')
                                         <form action="{{ route('erp.combo-products.delete', $combo) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this combo? All items will be removed.')">
                                             @csrf
