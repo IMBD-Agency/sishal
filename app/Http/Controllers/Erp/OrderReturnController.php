@@ -114,7 +114,7 @@ class OrderReturnController extends Controller
             });
         }
 
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType === 'daily') {
             if ($request->filled('start_date')) {
                 $query->whereDate('return_date', '>=', $request->start_date, 'and');

@@ -796,6 +796,146 @@ class StockTransferController extends Controller
         }
     }
 
+    public function reconcile(Request $request, $id)
+    {
+        if (!auth()->user()->hasPermissionTo('reconcile transfers') && !$this->isSuperAdmin()) {
+            abort(403, 'Unauthorized action. You need permission to reconcile stock transfers.');
+        }
+
+        $request->validate([
+            'quantities' => 'required|array',
+            'quantities.*' => 'required|numeric|min:0'
+        ]);
+
+        $primaryTransfer = StockTransfer::findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            foreach ($request->quantities as $itemId => $newQty) {
+                $transfer = StockTransfer::findOrFail($itemId);
+                $oldQty = $transfer->quantity;
+                $delta = $newQty - $oldQty;
+
+                if ($delta == 0) {
+                    continue;
+                }
+
+                // If transfer was delivered, adjust the stocks at source and destination locations
+                if ($transfer->status === 'delivered') {
+                    // Source Location: Restore/Deduct stock based on -$delta
+                    $this->adjustOutletStock(
+                        $transfer->from_type,
+                        $transfer->from_id,
+                        $transfer->product_id,
+                        $transfer->variation_id,
+                        -$delta
+                    );
+
+                    // Destination Location: Add/Deduct stock based on +$delta
+                    $this->adjustOutletStock(
+                        $transfer->to_type,
+                        $transfer->to_id,
+                        $transfer->product_id,
+                        $transfer->variation_id,
+                        $delta
+                    );
+                } elseif ($transfer->status === 'approved') {
+                    // Source Location only: Restore/Deduct stock based on -$delta (as destination hasn't confirmed receipt yet)
+                    $this->adjustOutletStock(
+                        $transfer->from_type,
+                        $transfer->from_id,
+                        $transfer->product_id,
+                        $transfer->variation_id,
+                        -$delta
+                    );
+                }
+
+                // Update the Stock Transfer record
+                $transfer->quantity = $newQty;
+                $transfer->total_price = $newQty * $transfer->unit_price;
+                $transfer->due_amount = $transfer->total_price - $transfer->paid_amount;
+                $transfer->save();
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Stock Transfer quantities reconciled successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Error reconciling stock: ' . $e->getMessage());
+        }
+    }
+
+    private function adjustOutletStock($type, $id, $productId, $variationId, $qtyChange)
+    {
+        if ($variationId) {
+            if ($type === 'branch') {
+                $vStock = ProductVariationStock::firstOrNew([
+                    'variation_id' => $variationId,
+                    'branch_id' => $id,
+                    'warehouse_id' => null
+                ]);
+                $vStock->quantity = ($vStock->quantity ?? 0) + $qtyChange;
+                if ($vStock->quantity < 0) $vStock->quantity = 0;
+                $vStock->updated_by = auth()->id();
+                $vStock->last_updated_at = now();
+                $vStock->save();
+
+                $branchStock = BranchProductStock::firstOrNew([
+                    'branch_id' => $id,
+                    'product_id' => $productId
+                ]);
+                $branchStock->quantity = ($branchStock->quantity ?? 0) + $qtyChange;
+                if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                $branchStock->updated_by = auth()->id();
+                $branchStock->last_updated_at = now();
+                $branchStock->save();
+            } else {
+                $vStock = ProductVariationStock::firstOrNew([
+                    'variation_id' => $variationId,
+                    'warehouse_id' => $id,
+                    'branch_id' => null
+                ]);
+                $vStock->quantity = ($vStock->quantity ?? 0) + $qtyChange;
+                if ($vStock->quantity < 0) $vStock->quantity = 0;
+                $vStock->updated_by = auth()->id();
+                $vStock->last_updated_at = now();
+                $vStock->save();
+
+                $warehouseStock = WarehouseProductStock::firstOrNew([
+                    'warehouse_id' => $id,
+                    'product_id' => $productId
+                ]);
+                $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $qtyChange;
+                if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                $warehouseStock->updated_by = auth()->id();
+                $warehouseStock->last_updated_at = now();
+                $warehouseStock->save();
+            }
+        } else {
+            if ($type === 'branch') {
+                $branchStock = BranchProductStock::firstOrNew([
+                    'product_id' => $productId,
+                    'branch_id' => $id
+                ]);
+                $branchStock->quantity = ($branchStock->quantity ?? 0) + $qtyChange;
+                if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                $branchStock->updated_by = auth()->id();
+                $branchStock->last_updated_at = now();
+                $branchStock->save();
+            } else {
+                $warehouseStock = WarehouseProductStock::firstOrNew([
+                    'product_id' => $productId,
+                    'warehouse_id' => $id
+                ]);
+                $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $qtyChange;
+                if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                $warehouseStock->updated_by = auth()->id();
+                $warehouseStock->last_updated_at = now();
+                $warehouseStock->save();
+            }
+        }
+     }
+
     private function deductStock(StockTransfer $transfer)
     {
         if ($transfer->variation_id) {

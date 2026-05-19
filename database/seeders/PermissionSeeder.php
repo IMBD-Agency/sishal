@@ -55,6 +55,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'approve transfers', 'category' => 'Inventory Management'],
             ['name' => 'delete transfers', 'category' => 'Inventory Management'],
             ['name' => 'manage transfers', 'category' => 'Inventory Management'],
+            ['name' => 'reconcile transfers', 'category' => 'Inventory Management'],
             ['name' => 'view requisitions', 'category' => 'Inventory Management'],
             ['name' => 'manage requisitions', 'category' => 'Inventory Management'],
             ['name' => 'process requisitions', 'category' => 'Inventory Management'],

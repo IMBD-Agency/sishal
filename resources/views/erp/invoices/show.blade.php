@@ -354,7 +354,7 @@
                                 <span
                                     class="fw-medium text-success">-{{ number_format($invoice->discount_apply ?? 0, 2) }}৳</span>
                             </div>
-                            @php $onlineDelivery = isset($order) ? ($order->delivery ?? 0) : 0; @endphp
+                            @php $onlineDelivery = isset($invoice->order) ? ($invoice->order->delivery ?? 0) : 0; @endphp
                             @if(($onlineDelivery ?? 0) > 0)
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <span class="text-muted">Delivery</span>

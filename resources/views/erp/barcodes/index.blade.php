@@ -135,6 +135,47 @@
 
 @push('css')
 <style>
+    /* Premium Tabs Styling Override */
+    #barcodeTab {
+        border-bottom: 2px solid #e2e8f0;
+        background: #fff;
+        padding: 6px 6px 0 6px;
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    #barcodeTab .nav-link {
+        color: #64748b !important;
+        font-weight: 600;
+        border: none !important;
+        padding: 12px 24px;
+        border-radius: 8px 8px 0 0 !important;
+        transition: all 0.25s ease;
+        background-color: transparent !important;
+        position: relative;
+    }
+    #barcodeTab .nav-link:hover {
+        color: #1e293b !important;
+        background-color: #f8fafc !important;
+    }
+    #barcodeTab .nav-link.active {
+        background-color: #ffffff !important;
+        box-shadow: none !important;
+    }
+    #barcodeTab .nav-link i {
+        transition: transform 0.2s ease;
+    }
+    #barcodeTab .nav-link.active i {
+        transform: scale(1.1);
+    }
+    #barcodeTab #product-tab.active {
+        color: #0d6efd !important;
+        border-bottom: 3px solid #0d6efd !important;
+    }
+    #barcodeTab #combo-tab.active {
+        color: #ea580c !important;
+        border-bottom: 3px solid #ffc107 !important;
+    }
+
     .product-pills {
         border-left: 4px solid #0d6efd !important;
     }
@@ -220,6 +261,7 @@
     // ══════════ PRODUCT BARCODE LOGIC ══════════
     let currentProduct = null;
     let currentVariation = null;
+    let currentCombo = null;
 
     $(document).ready(function() {
         $('.select2-simple').select2({ width: '100%' });
@@ -338,7 +380,6 @@
         $('#previewBtn').on('click', generatePreview);
 
         // ══════════ COMBO BARCODE LOGIC ══════════
-        let currentCombo = null;
 
         function autoLoadCombo(comboId) {
             // Show a loading state in preview while fetching

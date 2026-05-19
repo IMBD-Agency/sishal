@@ -98,15 +98,15 @@
                         <!-- Report Type Radios -->
                         <div class="d-flex gap-4 mb-3">
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'yearly') == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily</label>
                             </div>
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type', 'yearly') == 'monthly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
                             </div>
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
                             </div>
                         </div>
@@ -128,17 +128,17 @@
                             </div>
 
                             <!-- Daily Fields -->
-                            <div class="col-md-2 report-field daily-group">
+                            <div class="col-md-2 report-field daily-group {{ request('report_type', 'yearly') !== 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
                                 <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
                             </div>
-                            <div class="col-md-2 report-field daily-group">
+                            <div class="col-md-2 report-field daily-group {{ request('report_type', 'yearly') !== 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
                                 <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
                             </div>
 
                             <!-- Monthly Fields -->
-                            <div class="col-md-4 report-field monthly-group d-none">
+                            <div class="col-md-4 report-field monthly-group {{ request('report_type', 'yearly') !== 'monthly' ? 'd-none' : '' }}">
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month</label>
@@ -160,7 +160,7 @@
                             </div>
 
                             <!-- Yearly Fields -->
-                            <div class="col-md-2 report-field yearly-group d-none">
+                            <div class="col-md-2 report-field yearly-group {{ request('report_type', 'yearly') !== 'yearly' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
                                 <select name="year" class="form-select form-select-sm">
                                     @foreach(range(date('Y'), date('Y') - 10) as $y)

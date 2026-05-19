@@ -123,7 +123,7 @@ class OrderController extends Controller
         }
 
         // Handle Report Type Filters
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
 
         if ($reportType === 'daily') {
             if ($request->filled('start_date')) {

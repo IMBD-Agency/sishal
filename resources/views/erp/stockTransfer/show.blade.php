@@ -304,6 +304,13 @@
                                     </a>
                                 @endif
 
+                                 {{-- RECONCILE QUANTITIES: Super Admin only --}}
+                                @if($isSuperAdmin || auth()->user()->hasPermissionTo('reconcile transfers'))
+                                    <button type="button" class="btn btn-danger px-5 fw-bold" data-bs-toggle="modal" data-bs-target="#reconcileModal">
+                                        <i class="fas fa-edit me-2"></i>RECONCILE QUANTITIES (ADMIN)
+                                    </button>
+                                @endif
+
                                 {{-- VOID TRANSFER: Sender or Admin only --}}
                                 @if(in_array($transfer->status, ['pending', 'rejected']) && $canManageSending)
                                     <form action="{{ route('stocktransfer.destroy', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
@@ -338,6 +345,94 @@
             </div>
         </div>
     </div>
+
+    @if($isSuperAdmin || auth()->user()->hasPermissionTo('reconcile transfers'))
+    <!-- Reconcile Modal -->
+    <div class="modal fade" id="reconcileModal" tabindex="-1" aria-labelledby="reconcileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+                <div class="modal-header bg-danger text-white border-0 py-3 px-4">
+                    <h5 class="modal-title fw-bold" id="reconcileModalLabel">
+                        <i class="fas fa-tools me-2"></i>Super Admin Stock Reconciliation
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ route('stocktransfer.reconcile', $transfer->id) }}" method="POST">
+                    @csrf
+                    <div class="modal-body p-4">
+                        <div class="alert alert-warning border-0 small mb-4 d-flex align-items-center gap-2" style="background-color: #fff9db; border-radius: 8px;">
+                            <i class="fas fa-exclamation-triangle text-warning fs-5"></i>
+                            <div>
+                                <span class="fw-bold">Warning:</span> You are modifying a <strong>{{ strtoupper($transfer->status) }}</strong> stock transfer. 
+                                @if($transfer->status === 'delivered')
+                                    The system will automatically recalculate the difference and correct the stock levels at both the source and destination locations.
+                                @elseif($transfer->status === 'approved')
+                                    The system will automatically correct the stock levels at the source location.
+                                @else
+                                    This will update the invoice details directly (no stock movements have occurred yet).
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light small text-uppercase font-monospace" style="font-size: 11px;">
+                                    <tr>
+                                        <th>Product Description</th>
+                                        <th>Attributes</th>
+                                        <th class="text-center" style="width: 150px;">Current Qty</th>
+                                        <th class="text-center" style="width: 180px;">New Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($transfers as $item)
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ $item->product->name ?? '-' }}</div>
+                                                <div class="small text-muted">SKU: {{ $item->product->style_number ?? 'N/A' }}</div>
+                                            </td>
+                                            <td>
+                                                @if($item->variation)
+                                                    @php
+                                                        $color = null; $size = null;
+                                                        if($item->variation->combinations) {
+                                                            foreach($item->variation->combinations as $combo) {
+                                                                $name = strtolower($combo->attribute->name ?? '');
+                                                                if(in_array($name, ['color','colour'])) $color = $combo->attributeValue->value ?? '';
+                                                                if(in_array($name, ['size','sizes'])) $size = $combo->attributeValue->value ?? '';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <span class="badge bg-light text-dark border me-1 small">{{ $size ?? '-' }}</span>
+                                                    <span class="badge bg-light text-dark border small">{{ $color ?? '-' }}</span>
+                                                @else
+                                                    <span class="text-muted small">Standard</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-center fw-bold text-muted">{{ number_format($item->quantity, 0) }}</td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="quantities[{{ $item->id }}]" class="form-control text-center fw-bold form-control-sm" value="{{ intval($item->quantity) }}" min="0" required>
+                                                    <span class="input-group-text bg-light text-muted small">Pcs</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-0 py-3 px-4 d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger fw-bold px-4 shadow-sm" onclick="return confirm('Are you sure you want to apply these reconciled stock changes? This will instantly adjust live inventory.')">
+                            <i class="fas fa-save me-2"></i>Apply Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
 @endsection
 
 @push('css')

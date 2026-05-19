@@ -376,6 +376,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/stock-transfer', [\App\Http\Controllers\Erp\StockTransferController::class, 'store'])->name('stocktransfer.store');
     Route::patch('/stock-transfer/{id}/status', [\App\Http\Controllers\Erp\StockTransferController::class, 'updateStatus'])->name('stocktransfer.status');
     Route::get('/stock-transfer/{id}/return', [\App\Http\Controllers\Erp\StockTransferController::class, 'return'])->name('stocktransfer.return');
+    Route::post('/stock-transfer/{id}/reconcile', [\App\Http\Controllers\Erp\StockTransferController::class, 'reconcile'])->name('stocktransfer.reconcile');
     Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.destroy');
     Route::post('/stock-transfer/bulk-delete', [\App\Http\Controllers\Erp\StockTransferController::class, 'bulkDelete'])->name('stocktransfer.bulk.delete');
 
