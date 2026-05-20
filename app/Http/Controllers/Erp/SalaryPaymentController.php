@@ -132,6 +132,7 @@ class SalaryPaymentController extends Controller
             'total_salary' => $request->total_salary ?? $employee->salary,
             'paid_amount' => $request->paid_amount,
             'bonus_amount' => $request->bonus_amount ?? 0,
+            'festival_bonus_amount' => $request->festival_bonus_amount ?? 0,
             'is_bonus_editable' => $request->boolean('is_bonus_editable', true),
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
@@ -156,7 +157,7 @@ class SalaryPaymentController extends Controller
                 \Log::warning('Salary account not found in Chart of Accounts. Journal entry not created for salary payment ID: ' . $salaryPayment->id);
             } else {
                 // Calculate Total for Journal
-                $totalPaymentAmount = $salaryPayment->paid_amount + $salaryPayment->bonus_amount;
+                $totalPaymentAmount = $salaryPayment->paid_amount + $salaryPayment->bonus_amount + $salaryPayment->festival_bonus_amount;
 
                 // Create Journal Header
                 $journal = Journal::create([

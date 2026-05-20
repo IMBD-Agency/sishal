@@ -1,67 +1,32 @@
 @extends('erp.master')
 
-@section('title', 'Sales Targets Management')
+@section('title', 'Branch Sales Targets')
 
 @section('body')
     @include('erp.components.sidebar')
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
-
-        <!-- Premium Header -->
-        <div class="glass-header">
-            <div class="row align-items-center">
-                <div class="col-md-7">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb pe-3 mb-1" style="font-size: 0.85rem;">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
-                            <li class="breadcrumb-item active text-primary fw-600">Sales Targets</li>
-                        </ol>
-                    </nav>
-                    <div class="d-flex align-items-center gap-2">
-                        <h4 class="fw-bold mb-0 text-dark">Sales Targets Management</h4>
-                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3 py-1">
-                            Target Registry
-                        </span>
-                    </div>
-                </div>
-                <div class="col-md-5 text-md-end mt-3 mt-md-0">
-                    <div class="d-flex gap-2 justify-content-md-end">
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-download me-2"></i>Export
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ route('sales-targets.export.excel') }}">
-                                    <i class="fas fa-file-excel me-2 text-success"></i>Export Excel
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ route('sales-targets.export.pdf') }}">
-                                    <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
-                                </a></li>
-                            </ul>
-                        </div>
-                        <a href="{{ route('sales-targets.create') }}" class="btn btn-create-premium shadow-sm">
-                            <i class="fas fa-bullseye me-2"></i>Set Target
-                        </a>
-                    </div>
-                </div>
+        <div class="container-fluid px-4 py-4">
+        <!-- Header -->
+        <div class="row align-items-center mb-4">
+            <div class="col">
+                <h1 class="h3 mb-0 text-gray-800 fw-bold">Branch Sales Targets</h1>
+                <p class="text-muted mb-0 small">Manage and track monthly sales targets, branch incentives, and commissions for branches.</p>
+            </div>
+            <div class="col-auto">
+                <a href="{{ route('sales-targets.create') }}" class="btn btn-create-premium shadow-sm">
+                    <i class="fas fa-plus me-2"></i>Create Branch Target
+                </a>
             </div>
         </div>
 
-        <div class="container-fluid px-4 py-4">
-            @if(session('success'))
-                <div class="alert alert-success border-0 shadow-sm alert-dismissible fade show mb-4" role="alert">
-                    <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            @endif
-
+        <div class="row">
             <!-- Filter Card -->
             <div class="card premium-card report-filter-card mb-4">
                 <div class="card-body p-4">
                     <form action="{{ route('sales-targets.index') }}" method="GET" id="filterForm">
                         <div class="row g-3 mb-4">
-                            @if(auth()->user()->hasRole('Super Admin'))
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small">Branch</label>
                                 <select name="branch_id" class="form-select select2-premium-42">
                                     <option value="">All Branches</option>
@@ -72,8 +37,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            @endif
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small">Period Month</label>
                                 <select name="period_month" class="form-select">
                                     <option value="">Select Month</option>
@@ -82,7 +46,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small">Period Year</label>
                                 <select name="period_year" class="form-select">
                                     <option value="">Select Year</option>
@@ -91,18 +55,7 @@
                                     @endfor
                                 </select>
                             </div>
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
-                                <label class="form-label fw-bold small">Employee</label>
-                                <select name="employee_id" class="form-select select2-premium-42">
-                                    <option value="">All Employees</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->id }}" {{ request('employee_id') == $employee->id ? 'selected' : '' }}>
-                                            {{ $employee->user->first_name }} {{ $employee->user->last_name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '2' : '3' }}">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small">Status</label>
                                 <select name="status" class="form-select">
                                     <option value="">All Status</option>
@@ -150,13 +103,14 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="border-0">ID</th>
-                                    <th class="border-0">Employee</th>
                                     <th class="border-0">Branch</th>
                                     <th class="border-0">Period</th>
-                                    <th class="border-0">Target Amount</th>
-                                    <th class="border-0">Achieved</th>
+                                    <th class="border-0">Target Qty</th>
+                                    <th class="border-0">Achieved Qty</th>
                                     <th class="border-0">Achievement %</th>
-                                    <th class="border-0">Bonus %</th>
+                                    <th class="border-0">Incentive (৳)</th>
+                                    <th class="border-0">Comm./Extra (৳)</th>
+                                    <th class="border-0">Total Bonus (৳)</th>
                                     <th class="border-0">Status</th>
                                     <th class="border-0">Actions</th>
                                 </tr>
@@ -168,40 +122,41 @@
                                         <td class="align-middle">
                                             <div class="d-flex align-items-center">
                                                 <div class="avatar-sm bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-2">
-                                                    <span class="text-primary fw-bold">{{ strtoupper(substr($target->employee->user->first_name, 0, 1)) }}</span>
+                                                    <span class="text-primary fw-bold">{{ strtoupper(substr($target->branch ? $target->branch->name : 'B', 0, 1)) }}</span>
                                                 </div>
                                                 <div>
-                                                    <div class="fw-semibold">{{ $target->employee->user->first_name }} {{ $target->employee->user->last_name }}</div>
-                                                    <small class="text-muted">{{ $target->employee->designation }}</small>
+                                                    <div class="fw-semibold">{{ $target->branch ? $target->branch->name : 'N/A' }}</div>
+                                                    <small class="text-muted">Branch Target</small>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td class="align-middle">
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary">
-                                                {{ $target->branch ? $target->branch->name : 'N/A' }}
-                                            </span>
                                         </td>
                                         <td class="align-middle">
                                             <div class="fw-semibold">{{ $target->period_month }}</div>
                                             <small class="text-muted">{{ $target->period_year }}</small>
                                         </td>
                                         <td class="align-middle">
-                                            <span class="fw-semibold text-primary">{{ number_format($target->target_amount, 2) }}</span>
+                                            <span class="fw-semibold text-primary">{{ number_format($target->target_quantity, 2) }}</span>
                                         </td>
                                         <td class="align-middle">
                                             <span class="fw-semibold {{ $target->is_achieved ? 'text-success' : 'text-warning' }}">
-                                                {{ number_format($target->achieved_amount, 2) }}
+                                                {{ number_format($target->achieved_quantity, 2) }}
                                             </span>
                                         </td>
                                         <td class="align-middle">
-                                            <div class="progress" style="height: 6px;">
+                                            <div class="progress mb-1" style="height: 6px;">
                                                 <div class="progress-bar {{ $target->is_achieved ? 'bg-success' : 'bg-warning' }}" 
                                                      style="width: {{ min($target->achievement_percentage, 100) }}%"></div>
                                             </div>
                                             <small class="text-muted">{{ number_format($target->achievement_percentage, 1) }}%</small>
                                         </td>
                                         <td class="align-middle">
-                                            <span class="badge bg-info bg-opacity-10 text-info">{{ $target->bonus_percentage }}%</span>
+                                            <span class="fw-semibold">৳{{ number_format($target->incentive_amount, 2) }}</span>
+                                        </td>
+                                        <td class="align-middle">
+                                            <span class="fw-semibold">৳{{ number_format($target->commission_per_extra_sale, 2) }}</span>
+                                        </td>
+                                        <td class="align-middle">
+                                            <span class="badge bg-success bg-opacity-10 text-success fw-bold">৳{{ number_format($target->total_achieved_bonus, 2) }}</span>
                                         </td>
                                         <td class="align-middle">
                                             @if($target->status == 'achieved')
@@ -216,16 +171,16 @@
                                         </td>
                                         <td class="align-middle">
                                             <div class="btn-group btn-group-sm">
-                                                <a href="{{ route('sales-targets.show', $target->id) }}" class="btn btn-outline-primary">
+                                                <a href="{{ route('sales-targets.show', $target->id) }}" class="btn btn-outline-primary" title="View details">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <a href="{{ route('sales-targets.edit', $target->id) }}" class="btn btn-outline-warning">
+                                                <a href="{{ route('sales-targets.edit', $target->id) }}" class="btn btn-outline-warning" title="Edit target">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-outline-success" onclick="updateAchievement({{ $target->id }})">
+                                                <button type="button" class="btn btn-outline-success" onclick="updateAchievement({{ $target->id }}, {{ $target->achieved_quantity }})" title="Update sales volume">
                                                     <i class="fas fa-chart-line"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-outline-danger" onclick="deleteTarget({{ $target->id }})">
+                                                <button type="button" class="btn btn-outline-danger" onclick="deleteTarget({{ $target->id }})" title="Delete target">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
@@ -233,9 +188,9 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center py-4">
+                                        <td colspan="11" class="text-center py-4">
                                             <i class="fas fa-bullseye fa-3x text-muted mb-3"></i>
-                                            <p class="text-muted mb-0">No sales targets found</p>
+                                            <p class="text-muted mb-0">No branch sales targets found</p>
                                         </td>
                                     </tr>
                                 @endforelse
@@ -257,19 +212,15 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Update Achievement</h5>
+                    <h5 class="modal-title">Update Sales Achievement</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="achievementForm">
                     <div class="modal-body">
                         <input type="hidden" id="targetId" name="target_id">
                         <div class="mb-3">
-                            <label class="form-label">Achieved Amount</label>
-                            <input type="number" step="0.01" class="form-control" id="achievedAmount" name="achieved_amount" required>
-                        </div>
-                        <div id="achievementPreview" class="alert alert-info" style="display: none;">
-                            <strong>Achievement:</strong> <span id="achievementPercentage"></span>%<br>
-                            <strong>Bonus Amount:</strong> <span id="bonusAmount"></span>
+                            <label class="form-label">Achieved Quantity (units)</label>
+                            <input type="number" step="0.01" class="form-control" id="achievedQuantity" name="achieved_quantity" required>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -279,13 +230,15 @@
                 </form>
             </div>
         </div>
+        </div>
     </div>
 @endsection
 
 @push('scripts')
 <script>
-function updateAchievement(targetId) {
+function updateAchievement(targetId, currentQty) {
     $('#targetId').val(targetId);
+    $('#achievedQuantity').val(currentQty);
     $('#updateAchievementModal').modal('show');
 }
 
@@ -306,21 +259,6 @@ $('#achievementForm').on('submit', function(e) {
             alert('Error updating achievement');
         }
     });
-});
-
-$('#achievedAmount').on('input', function() {
-    const targetId = $('#targetId').val();
-    const achievedAmount = parseFloat($(this).value) || 0;
-    
-    if (achievedAmount > 0) {
-        // This would need to be fetched from the server
-        // For now, just show the input value
-        $('#achievementPreview').show();
-        $('#achievementPercentage').text('0');
-        $('#bonusAmount').text('0');
-    } else {
-        $('#achievementPreview').hide();
-    }
 });
 
 function deleteTarget(targetId) {

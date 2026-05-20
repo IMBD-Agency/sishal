@@ -66,16 +66,24 @@ class AppServiceProvider extends ServiceProvider
             ]);
         }
 
-        $additionalPages = AdditionalPage::where('is_active', 1)->select('id', 'title', 'slug', 'positioned_at')->get();
+        try {
+            $additionalPages = AdditionalPage::where('is_active', 1)->select('id', 'title', 'slug', 'positioned_at')->get();
+        } catch (\Exception $e) {
+            $additionalPages = collect();
+        }
         
         // Share categories globally for navigation menu
-        $navCategories = ProductServiceCategory::whereNull('parent_id')
-            ->where('status', 'active')
-            ->with(['children' => function($q) {
-                $q->where('status', 'active')->orderBy('name');
-            }])
-            ->orderBy('name')
-            ->get();
+        try {
+            $navCategories = ProductServiceCategory::whereNull('parent_id')
+                ->where('status', 'active')
+                ->with(['children' => function($q) {
+                    $q->where('status', 'active')->orderBy('name');
+                }])
+                ->orderBy('name')
+                ->get();
+        } catch (\Exception $e) {
+            $navCategories = collect();
+        }
         
         View::share('general_settings', $generalSettings);
         View::share('additional_pages', $additionalPages);

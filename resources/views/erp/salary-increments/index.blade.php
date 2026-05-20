@@ -60,7 +60,7 @@
                     <form action="{{ route('salary-increments.index') }}" method="GET">
                         <div class="row g-3 mb-4">
                             @if(auth()->user()->hasRole('Super Admin'))
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-bold small">Branch</label>
                                 <select name="branch_id" class="form-select select2-premium-42">
                                     <option value="">All Branches</option>
@@ -71,16 +71,25 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold small">Increment Month</label>
-                                <input type="month" name="increment_month" class="form-control" value="{{ request('increment_month') }}">
-                            </div>
-                            @else
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small">Increment Month</label>
-                                <input type="month" name="increment_month" class="form-control" value="{{ request('increment_month') }}">
-                            </div>
                             @endif
+                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '4' : '6' }}">
+                                <label class="form-label fw-bold small">Select Month</label>
+                                <select name="month" class="form-select select2-premium-42">
+                                    <option value="">Select Month</option>
+                                    @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $m)
+                                        <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ $m }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-{{ auth()->user()->hasRole('Super Admin') ? '4' : '6' }}">
+                                <label class="form-label fw-bold small">Select Year</label>
+                                <select name="year" class="form-select select2-premium-42">
+                                    <option value="">Select Year</option>
+                                    @for($y = date('Y')-2; $y <= date('Y')+1; $y++)
+                                        <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
                         </div>
 
                         <!-- Filter Actions -->

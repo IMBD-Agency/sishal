@@ -1,6 +1,6 @@
 @extends('erp.master')
 
-@section('title', 'Create Sales Target')
+@section('title', 'Set Branch Sales Target')
 
 @section('body')
     @include('erp.components.sidebar')
@@ -11,7 +11,7 @@
             <div class="card premium-card">
                 <div class="card-header bg-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold text-dark mb-0">Set Sales Target</h5>
+                        <h5 class="fw-bold text-dark mb-0">Set Branch Sales Target</h5>
                         <nav aria-label="breadcrumb">
                             <ol class="breadcrumb small mb-0">
                                 <li class="breadcrumb-item"><a href="{{ route('sales-targets.index') }}" class="text-decoration-none">List</a></li>
@@ -24,15 +24,18 @@
                     <form action="{{ route('sales-targets.store') }}" method="POST" id="targetForm">
                         @csrf
                         <div class="row g-4">
-                            <!-- Employee Selection -->
+                            <!-- Branch Selection -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold small">Select Employee *</label>
-                                <select name="employee_id" id="employee_id" class="form-select select2-premium-42" required>
-                                    <option value="">Select Employee</option>
-                                    @foreach($employees as $emp)
-                                        <option value="{{ $emp->id }}">{{ $emp->user->first_name }} {{ $emp->user->last_name }} ({{ $emp->phone }})</option>
+                                <label class="form-label fw-bold small">Select Branch *</label>
+                                <select name="branch_id" id="branch_id" class="form-select select2-premium-42" required>
+                                    <option value="">Select Branch</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                     @endforeach
                                 </select>
+                                @error('branch_id')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <!-- Period Type -->
@@ -65,27 +68,37 @@
                                 </select>
                             </div>
 
-                            <!-- Target Amount -->
+                            <!-- Target Quantity -->
                             <div class="col-md-4">
-                                <label class="form-label fw-bold small">Target Amount *</label>
+                                <label class="form-label fw-bold small">Target Quantity (Units) *</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">৳</span>
-                                    <input type="number" name="target_amount" class="form-control" step="0.01" min="0" required>
+                                    <input type="number" name="target_quantity" class="form-control" step="0.01" min="0" required placeholder="e.g. 500">
+                                    <span class="input-group-text">units</span>
                                 </div>
                             </div>
 
-                            <!-- Bonus Percentage -->
+                            <!-- Incentive Amount -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold small">Bonus Percentage *</label>
+                                <label class="form-label fw-bold small">Incentive Amount (৳) *</label>
                                 <div class="input-group">
-                                    <input type="number" name="bonus_percentage" class="form-control" step="0.01" min="0" max="100" required>
-                                    <span class="input-group-text">%</span>
+                                    <span class="input-group-text">৳</span>
+                                    <input type="number" name="incentive_amount" class="form-control" step="0.01" min="0" required placeholder="e.g. 5000">
                                 </div>
-                                <small class="text-muted">Percentage of achieved amount to be given as bonus</small>
+                                <small class="text-muted">Fixed bonus distributed to branch employees if target quantity is met</small>
+                            </div>
+
+                            <!-- Commission Per Extra Sale -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Commission Per Extra Sale (৳) *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">৳</span>
+                                    <input type="number" name="commission_per_extra_sale" class="form-control" step="0.01" min="0" required placeholder="e.g. 10">
+                                </div>
+                                <small class="text-muted">Extra incentive per unit sold above target quantity</small>
                             </div>
 
                             <!-- Notes -->
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <label class="form-label fw-bold small">Notes</label>
                                 <textarea name="notes" class="form-control" rows="3" placeholder="Any additional notes about this target..."></textarea>
                             </div>

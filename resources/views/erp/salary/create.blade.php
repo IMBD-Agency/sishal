@@ -85,24 +85,40 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="row g-3">
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold small">Bonus Amount</label>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold small">Target Bonus</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text">৳</span>
                                                     <input type="number" step="0.01" name="bonus_amount" id="bonus_amount" class="form-control" value="0" placeholder="0.00">
                                                 </div>
                                                 <div id="bonus_info" class="small text-info mt-1"></div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold small">Make Bonus Editable</label>
                                                 <div class="form-check mt-2">
                                                     <input class="form-check-input" type="checkbox" name="is_bonus_editable" id="is_bonus_editable" checked>
-                                                    <label class="form-check-label" for="is_bonus_editable">
-                                                        Allow editing of bonus amount
+                                                    <label class="form-check-label small" for="is_bonus_editable">
+                                                        Editable Target Bonus
                                                     </label>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold small text-warning">Festival Bonus %</label>
+                                                <select id="festival_bonus_percentage" class="form-select border-warning">
+                                                    <option value="0">0% (None)</option>
+                                                    <option value="25">25%</option>
+                                                    <option value="50">50% (Half Salary)</option>
+                                                    <option value="75">75%</option>
+                                                    <option value="100">100% (Full Salary)</option>
+                                                </select>
+                                                <div class="small text-warning mt-1">Select percentage</div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold small text-warning">Festival Bonus Amount</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-warning text-dark border-warning">৳</span>
+                                                    <input type="number" step="0.01" name="festival_bonus_amount" id="festival_bonus_amount" class="form-control border-warning" value="0" placeholder="0.00">
+                                                </div>
+                                                <div class="small text-muted mt-1">Or edit manually</div>
+                                            </div>
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-bold small">Total Payment</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text bg-success text-white">৳</span>
@@ -203,7 +219,21 @@
             $('#employee_id, #month, #year').on('change', fetchSalaryDetails);
             
             // Bonus calculation handlers
-            $('#bonus_amount, #paid_amount').on('input', calculateTotal);
+            $('#bonus_amount, #paid_amount, #festival_bonus_amount').on('input', calculateTotal);
+            
+            $('#festival_bonus_percentage').on('change', function() {
+                let percentage = parseFloat($(this).val()) || 0;
+                let baseSalary = parseFloat($('#total_salary').val()) || 0;
+                
+                if (percentage > 0 && baseSalary > 0) {
+                    let festivalBonus = (baseSalary * percentage) / 100;
+                    $('#festival_bonus_amount').val(festivalBonus.toFixed(2));
+                } else {
+                    $('#festival_bonus_amount').val(0);
+                }
+                calculateTotal();
+            });
+
             $('#is_bonus_editable').on('change', function() {
                 if ($(this).is(':checked')) {
                     $('#bonus_amount').prop('readonly', false);
@@ -215,7 +245,8 @@
             function calculateTotal() {
                 let paidAmount = parseFloat($('#paid_amount').val()) || 0;
                 let bonusAmount = parseFloat($('#bonus_amount').val()) || 0;
-                let total = paidAmount + bonusAmount;
+                let festivalBonusAmount = parseFloat($('#festival_bonus_amount').val()) || 0;
+                let total = paidAmount + bonusAmount + festivalBonusAmount;
                 $('#total_payment').val(total.toFixed(2));
             }
             

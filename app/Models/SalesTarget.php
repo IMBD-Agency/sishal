@@ -12,6 +12,13 @@ class SalesTarget extends Model
         'target_amount',
         'achieved_amount',
         'bonus_percentage',
+        'target_quantity',
+        'incentive_amount',
+        'commission_per_extra_sale',
+        'achieved_quantity',
+        'achieved_incentive',
+        'achieved_extra_commission',
+        'total_achieved_bonus',
         'period_type',
         'period_month',
         'period_year',
@@ -24,6 +31,13 @@ class SalesTarget extends Model
         'target_amount' => 'decimal:2',
         'achieved_amount' => 'decimal:2',
         'bonus_percentage' => 'decimal:2',
+        'target_quantity' => 'decimal:2',
+        'incentive_amount' => 'decimal:2',
+        'commission_per_extra_sale' => 'decimal:2',
+        'achieved_quantity' => 'decimal:2',
+        'achieved_incentive' => 'decimal:2',
+        'achieved_extra_commission' => 'decimal:2',
+        'total_achieved_bonus' => 'decimal:2',
     ];
 
     public function employee()
@@ -48,19 +62,18 @@ class SalesTarget extends Model
 
     public function getAchievementPercentageAttribute()
     {
-        if ($this->target_amount == 0) return 0;
-        return ($this->achieved_amount / $this->target_amount) * 100;
+        if ($this->target_quantity == 0) return 0;
+        return ($this->achieved_quantity / $this->target_quantity) * 100;
     }
 
     public function getIsAchievedAttribute()
     {
-        return $this->achieved_amount >= $this->target_amount;
+        return $this->achieved_quantity >= $this->target_quantity;
     }
 
     public function getCalculatedBonusAttribute()
     {
-        if (!$this->is_achieved) return 0;
-        return ($this->achieved_amount * $this->bonus_percentage) / 100;
+        return $this->total_achieved_bonus;
     }
 
     public function scopeForEmployee($query, $employeeId)

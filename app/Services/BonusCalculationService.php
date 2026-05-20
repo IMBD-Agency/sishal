@@ -12,12 +12,18 @@ class BonusCalculationService
 {
     public function calculateAchievementForEmployee($employeeId, $month, $year)
     {
-        $target = SalesTarget::where('employee_id', $employeeId)
-                           ->where('period_month', $month)
-                           ->where('period_year', $year)
-                           ->whereIn('status', ['active', 'achieved'])
-                           ->first();
+        $employee = Employee::find($employeeId);
+        if (!$employee || !$employee->branch_id) {
+            return [
+                'has_target' => false,
+                'target_amount' => 0,
+                'achieved_amount' => 0,
+                'achievement_percentage' => 0,
+                'bonus_amount' => 0,
+            ];
+        }
 
+        $target = $this->calculateAchievementForBranch($employee->branch_id, $month, $year);
         if (!$target) {
             return [
                 'has_target' => false,
@@ -28,45 +34,105 @@ class BonusCalculationService
             ];
         }
 
-        $achievedAmount = $this->calculateEmployeeSales($employeeId, $month, $year);
-        $achievementPercentage = ($target->target_amount > 0) ? ($achievedAmount / $target->target_amount) * 100 : 0;
-        $bonusAmount = ($achievementPercentage >= 100) ? ($achievedAmount * $target->bonus_percentage) / 100 : 0;
+        // Get all active employees in this branch to distribute bonus percentage-wise based on salary
+        $branchEmployees = Employee::where('branch_id', $employee->branch_id)
+                                   ->where('status', 'active')
+                                   ->get();
 
-        $target->update([
-            'achieved_amount' => $achievedAmount,
-            'status' => ($achievementPercentage >= 100) ? 'achieved' : 'active'
-        ]);
+        $totalBranchSalary = $branchEmployees->sum('salary');
+        $employeeSalary = $employee->salary;
+
+        $employeeSharePercentage = 0;
+        $employeeBonus = 0;
+
+        if ($totalBranchSalary > 0 && $target->total_achieved_bonus > 0) {
+            $employeeSharePercentage = ($employeeSalary / $totalBranchSalary) * 100;
+            $employeeBonus = ($target->total_achieved_bonus * $employeeSalary) / $totalBranchSalary;
+        }
 
         return [
             'has_target' => true,
             'target' => $target,
-            'target_amount' => $target->target_amount,
-            'achieved_amount' => $achievedAmount,
-            'achievement_percentage' => $achievementPercentage,
-            'bonus_amount' => $bonusAmount,
+            'target_amount' => $target->target_quantity, // mapped to target_quantity for display compatibility
+            'achieved_amount' => $target->achieved_quantity, // mapped to achieved_quantity
+            'achievement_percentage' => $target->achievement_percentage,
+            'bonus_amount' => $employeeBonus,
+            'bonus_data' => [
+                'has_target' => true,
+                'target_quantity' => $target->target_quantity,
+                'achieved_quantity' => $target->achieved_quantity,
+                'incentive_amount' => $target->incentive_amount,
+                'commission_per_extra_sale' => $target->commission_per_extra_sale,
+                'total_branch_bonus' => $target->total_achieved_bonus,
+                'employee_salary' => $employeeSalary,
+                'total_branch_salary' => $totalBranchSalary,
+                'share_percentage' => $employeeSharePercentage,
+            ]
         ];
+    }
+
+    public function calculateAchievementForBranch($branchId, $month, $year)
+    {
+        $target = SalesTarget::where('branch_id', $branchId)
+                             ->where('period_month', $month)
+                             ->where('period_year', $year)
+                             ->whereIn('status', ['active', 'achieved'])
+                             ->first();
+
+        if (!$target) {
+            return null;
+        }
+
+        $achievedQty = $this->calculateBranchSales($branchId, $month, $year);
+
+        $achievedIncentive = 0;
+        $achievedExtraCommission = 0;
+        $totalAchievedBonus = 0;
+        $status = 'active';
+
+        if ($achievedQty >= $target->target_quantity) {
+            $achievedIncentive = $target->incentive_amount;
+            $extraQty = $achievedQty - $target->target_quantity;
+            $achievedExtraCommission = $extraQty * $target->commission_per_extra_sale;
+            $totalAchievedBonus = $achievedIncentive + $achievedExtraCommission;
+            $status = 'achieved';
+        }
+
+        $target->update([
+            'achieved_quantity' => $achievedQty,
+            'achieved_incentive' => $achievedIncentive,
+            'achieved_extra_commission' => $achievedExtraCommission,
+            'total_achieved_bonus' => $totalAchievedBonus,
+            'status' => $status,
+        ]);
+
+        return $target;
+    }
+
+    public function calculateBranchSales($branchId, $month, $year)
+    {
+        $monthNum = date('m', strtotime($month));
+
+        // Sum the quantities of items sold in the branch for the specified period
+        $branchSalesQty = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
+            ->where('pos.branch_id', $branchId)
+            ->whereMonth('pos.sale_date', '=', $monthNum)
+            ->whereYear('pos.sale_date', '=', $year)
+            ->where('pos.status', '!=', 'cancelled')
+            ->sum('pos_items.quantity');
+
+        return $branchSalesQty;
     }
 
     public function calculateEmployeeSales($employeeId, $month, $year)
     {
+        // Kept for backwards compatibility but redirected to employee's branch sales quantity
         $employee = Employee::find($employeeId);
-        if (!$employee || !$employee->user_id) {
+        if (!$employee || !$employee->branch_id) {
             return 0;
         }
-
-        $userId = $employee->user_id;
-        $monthNum = date('m', strtotime($month));
-
-        // Get sales from POS system (which includes manual sales via sale_type)
-        // We use 'sold_by' which stores the user_id of the person who made the sale
-        // We use 'sale_date' for the period filtering
-        $posSales = DB::table('pos')
-            ->where('sold_by', $userId)
-            ->whereMonth('sale_date', '=', $monthNum)
-            ->whereYear('sale_date', '=', $year)
-            ->sum('total_amount');
-
-        return $posSales;
+        return $this->calculateBranchSales($employee->branch_id, $month, $year);
     }
 
     public function applyBonusToSalaryPayment($salaryPaymentId, $bonusAmount = null, $isEditable = true)
@@ -103,50 +169,81 @@ class BonusCalculationService
     {
         $targets = SalesTarget::where('period_month', $month)
                              ->where('period_year', $year)
-                             ->where('status', 'active')
+                             ->whereIn('status', ['active', 'achieved'])
                              ->get();
 
         $results = [];
         foreach ($targets as $target) {
-            $achievementData = $this->calculateAchievementForEmployee(
-                $target->employee_id, 
-                $month, 
-                $year
-            );
+            // Update branch achievement first
+            $this->calculateAchievementForBranch($target->branch_id, $month, $year);
 
-            $results[] = [
-                'employee_id' => $target->employee_id,
-                'employee_name' => $target->employee->user->first_name . ' ' . $target->employee->user->last_name,
-                'target_amount' => $achievementData['target_amount'],
-                'achieved_amount' => $achievementData['achieved_amount'],
-                'achievement_percentage' => $achievementData['achievement_percentage'],
-                'bonus_amount' => $achievementData['bonus_amount'],
-                'target_achieved' => $achievementData['achievement_percentage'] >= 100,
-            ];
+            // Fetch active employees of that branch
+            $branchEmployees = Employee::where('branch_id', $target->branch_id)
+                                       ->where('status', 'active')
+                                       ->get();
+
+            $totalBranchSalary = $branchEmployees->sum('salary');
+
+            foreach ($branchEmployees as $employee) {
+                $employeeSharePercentage = 0;
+                $employeeBonus = 0;
+
+                if ($totalBranchSalary > 0 && $target->total_achieved_bonus > 0) {
+                    $employeeSharePercentage = ($employee->salary / $totalBranchSalary) * 100;
+                    $employeeBonus = ($target->total_achieved_bonus * $employee->salary) / $totalBranchSalary;
+                }
+
+                $results[] = [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->user->first_name . ' ' . $employee->user->last_name,
+                    'branch_id' => $target->branch_id,
+                    'branch_name' => $target->branch ? $target->branch->name : 'N/A',
+                    'target_quantity' => $target->target_quantity,
+                    'achieved_quantity' => $target->achieved_quantity,
+                    'total_branch_bonus' => $target->total_achieved_bonus,
+                    'employee_salary' => $employee->salary,
+                    'share_percentage' => $employeeSharePercentage,
+                    'bonus_amount' => $employeeBonus,
+                    'target_achieved' => $target->is_achieved,
+                ];
+            }
         }
 
         return $results;
     }
 
-    public function updateSalesTargetAchievement($targetId, $achievedAmount)
+    public function updateSalesTargetAchievement($targetId, $achievedQuantity)
     {
         $target = SalesTarget::find($targetId);
         if (!$target) {
             return false;
         }
 
-        $achievementPercentage = ($target->target_amount > 0) ? ($achievedAmount / $target->target_amount) * 100 : 0;
-        $status = ($achievementPercentage >= 100) ? 'achieved' : 'active';
+        $achievedIncentive = 0;
+        $achievedExtraCommission = 0;
+        $totalAchievedBonus = 0;
+        $status = 'active';
+
+        if ($achievedQuantity >= $target->target_quantity) {
+            $achievedIncentive = $target->incentive_amount;
+            $extraQty = $achievedQuantity - $target->target_quantity;
+            $achievedExtraCommission = $extraQty * $target->commission_per_extra_sale;
+            $totalAchievedBonus = $achievedIncentive + $achievedExtraCommission;
+            $status = 'achieved';
+        }
 
         $target->update([
-            'achieved_amount' => $achievedAmount,
+            'achieved_quantity' => $achievedQuantity,
+            'achieved_incentive' => $achievedIncentive,
+            'achieved_extra_commission' => $achievedExtraCommission,
+            'total_achieved_bonus' => $totalAchievedBonus,
             'status' => $status,
         ]);
 
         return [
-            'achievement_percentage' => $achievementPercentage,
+            'achievement_percentage' => ($target->target_quantity > 0) ? ($achievedQuantity / $target->target_quantity) * 100 : 0,
             'status' => $status,
-            'bonus_amount' => ($achievementPercentage >= 100) ? ($achievedAmount * $target->bonus_percentage) / 100 : 0,
+            'bonus_amount' => $totalAchievedBonus,
         ];
     }
 
@@ -154,23 +251,17 @@ class BonusCalculationService
     {
         $targets = SalesTarget::where('period_month', $month)
                              ->where('period_year', $year)
-                             ->with(['employee.user'])
+                             ->with(['branch'])
                              ->get();
 
         $summary = [
             'total_targets' => $targets->count(),
             'achieved_targets' => $targets->where('status', 'achieved')->count(),
-            'total_target_amount' => $targets->sum('target_amount'),
-            'total_achieved_amount' => $targets->sum('achieved_amount'),
-            'total_bonus_amount' => 0,
+            'total_target_quantity' => $targets->sum('target_quantity'),
+            'total_achieved_quantity' => $targets->sum('achieved_quantity'),
+            'total_bonus_amount' => $targets->sum('total_achieved_bonus'),
             'achievement_rate' => 0,
         ];
-
-        foreach ($targets as $target) {
-            if ($target->status === 'achieved') {
-                $summary['total_bonus_amount'] += ($target->achieved_amount * $target->bonus_percentage) / 100;
-            }
-        }
 
         $summary['achievement_rate'] = $summary['total_targets'] > 0 
             ? ($summary['achieved_targets'] / $summary['total_targets']) * 100 

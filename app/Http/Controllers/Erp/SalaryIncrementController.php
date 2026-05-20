@@ -30,9 +30,12 @@ class SalaryIncrementController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        if ($request->filled('increment_month')) {
-            $query->whereMonth('last_increment_date', '=', date('m', strtotime($request->increment_month)))
-                  ->whereYear('last_increment_date', '=', date('Y', strtotime($request->increment_month)));
+        if ($request->filled('month') && $request->month != 'Select Month') {
+            $query->whereMonth('last_increment_date', date('m', strtotime($request->month)));
+        }
+
+        if ($request->filled('year') && $request->year != 'Select Year') {
+            $query->whereYear('last_increment_date', $request->year);
         }
 
         $employees = $query->orderBy('last_increment_date', 'desc')->paginate(15)->withQueryString();
@@ -151,13 +154,13 @@ class SalaryIncrementController extends Controller
                         ->with('success', 'Salary increment updated successfully. New salary will be effective from ' . $request->increment_effective_date);
     }
 
-    public function getEmployeeSalaryInfo(Request $request)
+    public function getEmployeeSalaryInfo($employeeId)
     {
         if (!auth()->user()->hasPermissionTo('view salary increments')) {
             abort(403, 'Unauthorized action.');
         }
 
-        $employee = Employee::with('user')->find($request->employee_id);
+        $employee = Employee::with('user')->find($employeeId);
         if (!$employee) {
             return response()->json(['error' => 'Employee not found'], 404);
         }
@@ -190,9 +193,12 @@ class SalaryIncrementController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        if ($request->filled('increment_month')) {
-            $query->whereMonth('last_increment_date', '=', date('m', strtotime($request->increment_month)))
-                  ->whereYear('last_increment_date', '=', date('Y', strtotime($request->increment_month)));
+        if ($request->filled('month') && $request->month != 'Select Month') {
+            $query->whereMonth('last_increment_date', date('m', strtotime($request->month)));
+        }
+
+        if ($request->filled('year') && $request->year != 'Select Year') {
+            $query->whereYear('last_increment_date', $request->year);
         }
 
         $employees = $query->orderBy('last_increment_date', 'desc')->get();
@@ -260,9 +266,12 @@ class SalaryIncrementController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        if ($request->filled('increment_month')) {
-            $query->whereMonth('last_increment_date', '=', date('m', strtotime($request->increment_month)))
-                  ->whereYear('last_increment_date', '=', date('Y', strtotime($request->increment_month)));
+        if ($request->filled('month') && $request->month != 'Select Month') {
+            $query->whereMonth('last_increment_date', date('m', strtotime($request->month)));
+        }
+
+        if ($request->filled('year') && $request->year != 'Select Year') {
+            $query->whereYear('last_increment_date', $request->year);
         }
 
         $employees = $query->orderBy('last_increment_date', 'desc')->get();

@@ -9,6 +9,7 @@ use App\Models\SalesTarget;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class SalesTargetController extends Controller
 {
@@ -18,7 +19,7 @@ class SalesTargetController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $query = SalesTarget::with(['employee.user', 'branch', 'creator']);
+        $query = SalesTarget::with(['branch', 'creator']);
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $query->where('branch_id', $restrictedBranchId);
@@ -31,9 +32,6 @@ class SalesTargetController extends Controller
         if ($request->filled('period_year') && $request->period_year != 'Select One') {
             $query->where('period_year', $request->period_year);
         }
-        if ($request->filled('employee_id') && $request->employee_id != 'all') {
-            $query->where('employee_id', $request->employee_id);
-        }
         if ($request->filled('status') && $request->status != 'all') {
             $query->where('status', $request->status);
         }
@@ -42,30 +40,31 @@ class SalesTargetController extends Controller
         }
 
         $targets = $query->orderBy('period_year', 'desc')
-                         ->orderBy('period_month', 'desc')
-                         ->paginate(15)
-                         ->withQueryString();
+                          ->orderBy('period_month', 'desc')
+                          ->paginate(15)
+                          ->withQueryString();
 
-        // Recalculate achievement for the current page targets to ensure fresh data
+        // Recalculate achievement for the current page branch targets to ensure fresh data
         $bonusService = new \App\Services\BonusCalculationService();
         foreach ($targets as $target) {
-            $bonusService->calculateAchievementForEmployee(
-                $target->employee_id,
+            $bonusService->calculateAchievementForBranch(
+                $target->branch_id,
                 $target->period_month,
                 $target->period_year
             );
         }
 
-        // Get employees for filter (based on user's access)
+        // Fetch all active employees for potential display/referencing
         $employeesQuery = Employee::where('status', 'active')->with('user');
         if ($restrictedBranchId) {
             $employeesQuery->where('branch_id', $restrictedBranchId);
         }
         $employees = $employeesQuery->get();
 
-        // Get branches for filter (only for Super Admin)
-        $branches = [];
-        if (auth()->user()->hasRole('Super Admin')) {
+        // Get branches (filtered if restricted)
+        if ($restrictedBranchId) {
+            $branches = Branch::where('id', $restrictedBranchId)->get();
+        } else {
             $branches = Branch::orderBy('name')->get();
         }
 
@@ -80,14 +79,12 @@ class SalesTargetController extends Controller
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $employees = Employee::with('user')->where('branch_id', $restrictedBranchId)->get();
             $branches = Branch::where('id', $restrictedBranchId)->get();
         } else {
-            $employees = Employee::with('user')->get();
             $branches = Branch::all();
         }
 
-        return view('erp.sales-targets.create', compact('employees', 'branches'));
+        return view('erp.sales-targets.create', compact('branches'));
     }
 
     public function store(Request $request)
@@ -97,22 +94,37 @@ class SalesTargetController extends Controller
         }
 
         $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'target_amount' => 'required|numeric|min:0',
-            'bonus_percentage' => 'required|numeric|min:0|max:100',
+            'branch_id' => 'required|exists:branches,id',
+            'target_quantity' => 'required|numeric|min:0',
+            'incentive_amount' => 'required|numeric|min:0',
+            'commission_per_extra_sale' => 'required|numeric|min:0',
             'period_type' => 'required|in:monthly,quarterly,yearly',
             'period_month' => 'required_if:period_type,monthly',
             'period_year' => 'required|integer|min:2020|max:2030',
         ]);
 
-        $employee = Employee::find($request->employee_id);
+        // Prevent setting duplicate targets for the same branch and period
+        $exists = SalesTarget::where('branch_id', $request->branch_id)
+                             ->where('period_month', $request->period_month)
+                             ->where('period_year', $request->period_year)
+                             ->whereIn('status', ['active', 'achieved'])
+                             ->exists();
+
+        if ($exists) {
+            return redirect()->back()
+                ->withErrors(['branch_id' => 'A sales target has already been set for this branch and period.'])
+                ->withInput();
+        }
 
         SalesTarget::create([
-            'employee_id' => $request->employee_id,
-            'branch_id' => $employee->branch_id,
-            'target_amount' => $request->target_amount,
-            'achieved_amount' => 0,
-            'bonus_percentage' => $request->bonus_percentage,
+            'branch_id' => $request->branch_id,
+            'target_quantity' => $request->target_quantity,
+            'incentive_amount' => $request->incentive_amount,
+            'commission_per_extra_sale' => $request->commission_per_extra_sale,
+            'achieved_quantity' => 0,
+            'achieved_incentive' => 0,
+            'achieved_extra_commission' => 0,
+            'total_achieved_bonus' => 0,
             'period_type' => $request->period_type,
             'period_month' => $request->period_month,
             'period_year' => $request->period_year,
@@ -121,7 +133,7 @@ class SalesTargetController extends Controller
             'created_by' => auth()->id(),
         ]);
 
-        return redirect()->route('sales-targets.index')->with('success', 'Sales target created successfully.');
+        return redirect()->route('sales-targets.index')->with('success', 'Branch sales target created successfully.');
     }
 
     public function show($id)
@@ -130,10 +142,18 @@ class SalesTargetController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $target = SalesTarget::with(['employee.user', 'branch', 'creator', 'salaryPayments'])
+        $target = SalesTarget::with(['branch', 'creator', 'salaryPayments'])
                              ->findOrFail($id);
 
-        return view('erp.sales-targets.show', compact('target'));
+        // Fetch active employees of this branch to show how the bonus is split percentage-wise
+        $branchEmployees = Employee::where('branch_id', $target->branch_id)
+                                   ->where('status', 'active')
+                                   ->with('user')
+                                   ->get();
+
+        $totalBranchSalary = $branchEmployees->sum('salary');
+
+        return view('erp.sales-targets.show', compact('target', 'branchEmployees', 'totalBranchSalary'));
     }
 
     public function edit($id)
@@ -146,14 +166,12 @@ class SalesTargetController extends Controller
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $employees = Employee::with('user')->where('branch_id', $restrictedBranchId)->get();
             $branches = Branch::where('id', $restrictedBranchId)->get();
         } else {
-            $employees = Employee::with('user')->get();
             $branches = Branch::all();
         }
 
-        return view('erp.sales-targets.edit', compact('target', 'employees', 'branches'));
+        return view('erp.sales-targets.edit', compact('target', 'branches'));
     }
 
     public function update(Request $request, $id)
@@ -163,8 +181,10 @@ class SalesTargetController extends Controller
         }
 
         $request->validate([
-            'target_amount' => 'required|numeric|min:0',
-            'bonus_percentage' => 'required|numeric|min:0|max:100',
+            'branch_id' => 'required|exists:branches,id',
+            'target_quantity' => 'required|numeric|min:0',
+            'incentive_amount' => 'required|numeric|min:0',
+            'commission_per_extra_sale' => 'required|numeric|min:0',
             'period_type' => 'required|in:monthly,quarterly,yearly',
             'period_month' => 'required_if:period_type,monthly',
             'period_year' => 'required|integer|min:2020|max:2030',
@@ -172,9 +192,28 @@ class SalesTargetController extends Controller
         ]);
 
         $target = SalesTarget::findOrFail($id);
+
+        // Prevent duplicates if branch, month, or year changes
+        if ($target->branch_id != $request->branch_id || $target->period_month != $request->period_month || $target->period_year != $request->period_year) {
+            $exists = SalesTarget::where('branch_id', $request->branch_id)
+                                 ->where('period_month', $request->period_month)
+                                 ->where('period_year', $request->period_year)
+                                 ->where('id', '!=', $id)
+                                 ->whereIn('status', ['active', 'achieved'])
+                                 ->exists();
+
+            if ($exists) {
+                return redirect()->back()
+                    ->withErrors(['branch_id' => 'A sales target has already been set for this branch and period.'])
+                    ->withInput();
+            }
+        }
+
         $target->update([
-            'target_amount' => $request->target_amount,
-            'bonus_percentage' => $request->bonus_percentage,
+            'branch_id' => $request->branch_id,
+            'target_quantity' => $request->target_quantity,
+            'incentive_amount' => $request->incentive_amount,
+            'commission_per_extra_sale' => $request->commission_per_extra_sale,
             'period_type' => $request->period_type,
             'period_month' => $request->period_month,
             'period_year' => $request->period_year,
@@ -182,7 +221,11 @@ class SalesTargetController extends Controller
             'notes' => $request->notes,
         ]);
 
-        return redirect()->route('sales-targets.index')->with('success', 'Sales target updated successfully.');
+        // Trigger recalculation immediately
+        $bonusService = new \App\Services\BonusCalculationService();
+        $bonusService->calculateAchievementForBranch($target->branch_id, $target->period_month, $target->period_year);
+
+        return redirect()->route('sales-targets.index')->with('success', 'Branch sales target updated successfully.');
     }
 
     public function updateAchievement(Request $request, $id)
@@ -192,21 +235,19 @@ class SalesTargetController extends Controller
         }
 
         $request->validate([
-            'achieved_amount' => 'required|numeric|min:0',
+            'achieved_quantity' => 'required|numeric|min:0',
         ]);
 
         $target = SalesTarget::findOrFail($id);
-        $target->update([
-            'achieved_amount' => $request->achieved_amount,
-            'status' => $request->achieved_amount >= $target->target_amount ? 'achieved' : 'active',
-        ]);
+        $bonusService = new \App\Services\BonusCalculationService();
+        $result = $bonusService->updateSalesTargetAchievement($target->id, $request->achieved_quantity);
 
         return response()->json([
             'success' => true,
             'message' => 'Achievement updated successfully.',
-            'achievement_percentage' => $target->achievement_percentage,
-            'is_achieved' => $target->is_achieved,
-            'calculated_bonus' => $target->calculated_bonus,
+            'achievement_percentage' => $result['achievement_percentage'],
+            'is_achieved' => $target->fresh()->is_achieved,
+            'calculated_bonus' => $result['bonus_amount'],
         ]);
     }
 
@@ -231,7 +272,7 @@ class SalesTargetController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $query = SalesTarget::with(['employee.user', 'branch']);
+        $query = SalesTarget::with(['branch']);
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $query->where('branch_id', $restrictedBranchId);
@@ -243,16 +284,16 @@ class SalesTargetController extends Controller
         if ($request->filled('period_year') && $request->period_year != 'Select One') {
             $query->where('period_year', $request->period_year);
         }
-        if ($request->filled('employee_id') && $request->employee_id != 'all') {
-            $query->where('employee_id', $request->employee_id);
-        }
         if ($request->filled('status') && $request->status != 'all') {
             $query->where('status', $request->status);
         }
+        if ($request->filled('branch_id') && $request->branch_id != '') {
+            $query->where('branch_id', $request->branch_id);
+        }
 
         $targets = $query->orderBy('period_year', 'desc')
-                         ->orderBy('period_month', 'desc')
-                         ->get();
+                          ->orderBy('period_month', 'desc')
+                          ->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -265,34 +306,35 @@ class SalesTargetController extends Controller
         ];
 
         // Headers
-        $headers = ['ID', 'Employee', 'Branch', 'Period Month', 'Period Year', 'Target Amount', 'Achieved Amount', 'Achievement %', 'Bonus %', 'Status', 'Created Date'];
+        $headers = ['ID', 'Branch', 'Period Month', 'Period Year', 'Target Quantity', 'Achieved Quantity', 'Achievement %', 'Incentive (৳)', 'Commission / Extra Sale (৳)', 'Branch Bonus (৳)', 'Status', 'Created Date'];
         $sheet->fromArray($headers, null, 'A1');
-        $sheet->getStyle('A1:K1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
 
         // Data
         $row = 2;
         foreach ($targets as $target) {
             $sheet->setCellValue('A' . $row, $target->id);
-            $sheet->setCellValue('B' . $row, $target->employee->user->first_name . ' ' . $target->employee->user->last_name);
-            $sheet->setCellValue('C' . $row, $target->branch ? $target->branch->name : 'N/A');
-            $sheet->setCellValue('D' . $row, $target->period_month);
-            $sheet->setCellValue('E' . $row, $target->period_year);
-            $sheet->setCellValue('F' . $row, $target->target_amount);
-            $sheet->setCellValue('G' . $row, $target->achieved_amount);
-            $sheet->setCellValue('H' . $row, number_format($target->achievement_percentage, 2));
-            $sheet->setCellValue('I' . $row, $target->bonus_percentage);
-            $sheet->setCellValue('J' . $row, $target->status);
-            $sheet->setCellValue('K' . $row, date('d M Y', strtotime($target->created_at)));
+            $sheet->setCellValue('B' . $row, $target->branch ? $target->branch->name : 'N/A');
+            $sheet->setCellValue('C' . $row, $target->period_month);
+            $sheet->setCellValue('D' . $row, $target->period_year);
+            $sheet->setCellValue('E' . $row, $target->target_quantity);
+            $sheet->setCellValue('F' . $row, $target->achieved_quantity);
+            $sheet->setCellValue('G' . $row, number_format($target->achievement_percentage, 2));
+            $sheet->setCellValue('H' . $row, $target->incentive_amount);
+            $sheet->setCellValue('I' . $row, $target->commission_per_extra_sale);
+            $sheet->setCellValue('J' . $row, $target->total_achieved_bonus);
+            $sheet->setCellValue('K' . $row, $target->status);
+            $sheet->setCellValue('L' . $row, date('d M Y', strtotime($target->created_at)));
             $row++;
         }
 
         // Auto-size columns
-        foreach (range('A', 'K') as $col) {
+        foreach (range('A', 'L') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
         $writer = new Xlsx($spreadsheet);
-        $filename = 'sales_targets_' . date('Y-m-d_His') . '.xlsx';
+        $filename = 'branch_sales_targets_' . date('Y-m-d_His') . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $filename . '"');
@@ -308,7 +350,7 @@ class SalesTargetController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $query = SalesTarget::with(['employee.user', 'branch']);
+        $query = SalesTarget::with(['branch']);
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $query->where('branch_id', $restrictedBranchId);
@@ -320,19 +362,19 @@ class SalesTargetController extends Controller
         if ($request->filled('period_year') && $request->period_year != 'Select One') {
             $query->where('period_year', $request->period_year);
         }
-        if ($request->filled('employee_id') && $request->employee_id != 'all') {
-            $query->where('employee_id', $request->employee_id);
-        }
         if ($request->filled('status') && $request->status != 'all') {
             $query->where('status', $request->status);
         }
+        if ($request->filled('branch_id') && $request->branch_id != '') {
+            $query->where('branch_id', $request->branch_id);
+        }
 
         $targets = $query->orderBy('period_year', 'desc')
-                         ->orderBy('period_month', 'desc')
-                         ->get();
+                          ->orderBy('period_month', 'desc')
+                          ->get();
 
-        $pdf = PDF::loadView('erp.sales-targets.pdf', compact('targets'));
-        return $pdf->download('sales_targets_' . date('Y-m-d_His') . '.pdf');
+        $pdf = Pdf::loadView('erp.sales-targets.pdf', compact('targets'));
+        return $pdf->download('branch_sales_targets_' . date('Y-m-d_His') . '.pdf');
     }
 
     protected function getRestrictedBranchId()

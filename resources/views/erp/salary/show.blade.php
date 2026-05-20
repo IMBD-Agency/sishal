@@ -78,8 +78,12 @@
                                     <h5 class="fw-bold">{{ number_format($payment->paid_amount, 2) }}৳</h5>
                                 </div>
                                 <div class="col-sm-6 col-md-3">
-                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Bonus Amount</label>
+                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Target Bonus</label>
                                     <h5 class="fw-bold text-success">+ {{ number_format($payment->bonus_amount, 2) }}৳</h5>
+                                </div>
+                                <div class="col-sm-6 col-md-3">
+                                    <label class="small text-muted text-uppercase fw-bold d-block mb-1">Festival Bonus</label>
+                                    <h5 class="fw-bold text-warning">+ {{ number_format($payment->festival_bonus_amount, 2) }}৳</h5>
                                 </div>
                                 <div class="col-sm-6 col-md-3">
                                     <label class="small text-muted text-uppercase fw-bold d-block mb-1">Total Payment</label>

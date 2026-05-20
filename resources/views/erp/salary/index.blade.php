@@ -167,7 +167,8 @@
                                 <th>Year</th>
                                 <th>Month</th>
                                 <th class="text-end">Base Salary</th>
-                                <th class="text-end">Bonus</th>
+                                <th class="text-end">Target Bonus</th>
+                                <th class="text-end">Festival Bonus</th>
                                 <th class="text-end">Total Paid</th>
                                 <th>Account Type</th>
                                 <th>Note</th>
@@ -184,6 +185,7 @@
                                     <td>{{ $payment->month }}</td>
                                     <td class="text-end fw-semibold">{{ number_format($payment->paid_amount, 2) }}৳</td>
                                     <td class="text-end text-success">{{ number_format($payment->bonus_amount, 2) }}৳</td>
+                                    <td class="text-end text-warning">{{ number_format($payment->festival_bonus_amount, 2) }}৳</td>
                                     <td class="text-end fw-bold text-primary">{{ number_format($payment->total_payment, 2) }}৳</td>
                                     <td>
                                         <span class="badge bg-light text-dark border">{{ $payment->payment_method }}</span>
@@ -220,7 +222,8 @@
                                     <td colspan="5" class="text-end">Grand Totals</td>
                                     <td class="text-end">{{ number_format($payments->sum('paid_amount'), 2) }}৳</td>
                                     <td class="text-end text-success">{{ number_format($payments->sum('bonus_amount'), 2) }}৳</td>
-                                    <td class="text-end text-primary">{{ number_format($payments->sum('paid_amount') + $payments->sum('bonus_amount'), 2) }}৳</td>
+                                    <td class="text-end text-warning">{{ number_format($payments->sum('festival_bonus_amount'), 2) }}৳</td>
+                                    <td class="text-end text-primary">{{ number_format($payments->sum('paid_amount') + $payments->sum('bonus_amount') + $payments->sum('festival_bonus_amount'), 2) }}৳</td>
                                     <td colspan="3"></td>
                                 </tr>
                             </tfoot>

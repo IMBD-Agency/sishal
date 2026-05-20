@@ -14,6 +14,7 @@ class SalaryPayment extends Model
         'total_salary',
         'paid_amount',
         'bonus_amount',
+        'festival_bonus_amount',
         'is_bonus_editable',
         'sales_target_id',
         'payment_date',
@@ -29,6 +30,7 @@ class SalaryPayment extends Model
         'total_salary' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'bonus_amount' => 'decimal:2',
+        'festival_bonus_amount' => 'decimal:2',
         'is_bonus_editable' => 'boolean',
     ];
 
@@ -59,11 +61,11 @@ class SalaryPayment extends Model
 
     public function getTotalPaymentAttribute()
     {
-        return $this->paid_amount + $this->bonus_amount;
+        return $this->paid_amount + $this->bonus_amount + $this->festival_bonus_amount;
     }
 
     public function getNetSalaryAttribute()
     {
-        return $this->total_salary + $this->bonus_amount;
+        return $this->total_salary + $this->bonus_amount + $this->festival_bonus_amount;
     }
 }
