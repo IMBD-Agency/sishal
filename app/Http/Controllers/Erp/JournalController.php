@@ -18,11 +18,13 @@ class JournalController extends Controller
         if (!auth()->user()->hasPermissionTo('view accounts')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Journal::with(['entries.chartOfAccount', 'creator']);
+        $query = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator', 'branch']);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $query->where('branch_id', $restrictedBranchId);
+        } elseif ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
         }
 
         if ($request->filled('start_date')) {
@@ -48,11 +50,22 @@ class JournalController extends Controller
             $query->where('type', $request->type);
         }
 
+        if ($request->filled('financial_account_type')) {
+            $query->whereHas('entries.financialAccount', function($q) use ($request) {
+                $q->where('type', $request->financial_account_type);
+            });
+        }
+
         $journals = $query->latest()->paginate(50)->appends($request->except('page'));
         $chartAccounts = ChartOfAccount::with('parent')->orderBy('name')->get();
         $financialAccounts = FinancialAccount::all();
+        
+        $branches = collect();
+        if (!$restrictedBranchId) {
+            $branches = \App\Models\Branch::all();
+        }
 
-        return view('erp.doubleEntry.journalaccount', compact('journals', 'chartAccounts', 'financialAccounts'));
+        return view('erp.doubleEntry.journalaccount', compact('journals', 'chartAccounts', 'financialAccounts', 'branches', 'restrictedBranchId'));
     }
 
     public function store(Request $request)
@@ -241,6 +254,12 @@ class JournalController extends Controller
             $query->where('type', $request->type);
         }
 
+        if ($request->filled('financial_account_type')) {
+            $query->whereHas('entries.financialAccount', function($q) use ($request) {
+                $q->where('type', $request->financial_account_type);
+            });
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -262,7 +281,7 @@ class JournalController extends Controller
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
-        $headers = ['Voucher No', 'Date', 'Type', 'Description', 'Total Debit (Tk)', 'Total Credit (Tk)', 'Created By'];
+        $headers = ['Voucher No', 'Date', 'Type', 'Branch', 'Accounts', 'Description', 'Total Debit (Tk)', 'Total Credit (Tk)', 'Created By'];
         
         $col = 'A';
         foreach ($headers as $header) {
@@ -278,27 +297,37 @@ class JournalController extends Controller
             $sheet->setCellValue('A' . $row, $journal->voucher_no);
             $sheet->setCellValue('B' . $row, $journal->entry_date->format('d M, Y'));
             $sheet->setCellValue('C' . $row, $journal->type);
-            $sheet->setCellValue('D' . $row, $journal->description);
-            $sheet->setCellValue('E' . $row, $journal->total_debit);
-            $sheet->setCellValue('F' . $row, $journal->total_credit);
-            $sheet->setCellValue('G' . $row, $journal->creator ? $journal->creator->first_name . ' ' . $journal->creator->last_name : 'System');
+            $sheet->setCellValue('D' . $row, $journal->branch ? $journal->branch->name : 'N/A');
+            
+            $accounts = $journal->entries->map(function($e) {
+                if ($e->financialAccount) {
+                    return $e->financialAccount->provider_name;
+                }
+                return $e->chartOfAccount ? $e->chartOfAccount->name : '';
+            })->filter()->unique()->implode(', ');
+            $sheet->setCellValue('E' . $row, $accounts);
+            
+            $sheet->setCellValue('F' . $row, $journal->description);
+            $sheet->setCellValue('G' . $row, $journal->total_debit);
+            $sheet->setCellValue('H' . $row, $journal->total_credit);
+            $sheet->setCellValue('I' . $row, $journal->creator ? $journal->creator->first_name . ' ' . $journal->creator->last_name : 'System');
             $totalDebit += $journal->total_debit;
             $totalCredit += $journal->total_credit;
             $row++;
         }
         
         if (count($journals) > 0) {
-            $sheet->setCellValue('D' . $row, 'Grand Total:');
-            $sheet->getStyle('A' . $row . ':G' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('f8f9fa');
-            $sheet->getStyle('D' . $row)->getFont()->setBold(true);
-            $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
-            $sheet->setCellValue('E' . $row, $totalDebit);
-            $sheet->getStyle('E' . $row)->getFont()->setBold(true);
-            $sheet->setCellValue('F' . $row, $totalCredit);
+            $sheet->setCellValue('F' . $row, 'Grand Total:');
+            $sheet->getStyle('A' . $row . ':I' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('f8f9fa');
             $sheet->getStyle('F' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('F' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->setCellValue('G' . $row, $totalDebit);
+            $sheet->getStyle('G' . $row)->getFont()->setBold(true);
+            $sheet->setCellValue('H' . $row, $totalCredit);
+            $sheet->getStyle('H' . $row)->getFont()->setBold(true);
         }
         
-        foreach (range('A', 'G') as $columnID) {
+        foreach (range('A', 'I') as $columnID) {
             $sheet->getColumnDimension($columnID)->setAutoSize(true);
         }
 
@@ -335,6 +364,12 @@ class JournalController extends Controller
             $query->where('type', $request->type);
         }
 
+        if ($request->filled('financial_account_type')) {
+            $query->whereHas('entries.financialAccount', function($q) use ($request) {
+                $q->where('type', $request->financial_account_type);
+            });
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -349,7 +384,7 @@ class JournalController extends Controller
         $journals = $query->latest()->get();
         $html = '<h1 style="text-align: center;">Journal Report</h1>';
         $html .= '<table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">';
-        $html .= '<thead><tr style="background-color: #f2f2f2;"><th>Voucher No</th><th>Date</th><th>Type</th><th>Description</th><th>Total Debit</th><th>Total Credit</th></tr></thead>';
+        $html .= '<thead><tr style="background-color: #f2f2f2;"><th>Voucher No</th><th>Date</th><th>Type</th><th>Branch</th><th>Accounts</th><th>Description</th><th>Total Debit</th><th>Total Credit</th></tr></thead>';
         $html .= '<tbody>';
         $totalDebit = 0;
         $totalCredit = 0;
@@ -358,6 +393,16 @@ class JournalController extends Controller
             $html .= '<td>' . $journal->voucher_no . '</td>';
             $html .= '<td>' . $journal->entry_date->format('d M, Y') . '</td>';
             $html .= '<td>' . ($journal->type ?? 'General') . '</td>';
+            $html .= '<td>' . ($journal->branch ? $journal->branch->name : 'N/A') . '</td>';
+            
+            $accounts = $journal->entries->map(function($e) {
+                if ($e->financialAccount) {
+                    return $e->financialAccount->provider_name;
+                }
+                return $e->chartOfAccount ? $e->chartOfAccount->name : '';
+            })->filter()->unique()->implode(', ');
+            $html .= '<td>' . ($accounts ?: 'N/A') . '</td>';
+            
             $html .= '<td>' . $journal->description . '</td>';
             $html .= '<td>' . number_format($journal->total_debit, 2) . '</td>';
             $html .= '<td>' . number_format($journal->total_credit, 2) . '</td>';
@@ -369,7 +414,7 @@ class JournalController extends Controller
         if (count($journals) > 0) {
             $html .= '<tfoot>';
             $html .= '<tr style="font-weight: bold; background-color: #f8f9fa;">';
-            $html .= '<td colspan="4" style="text-align: right;">Grand Total:</td>';
+            $html .= '<td colspan="6" style="text-align: right;">Grand Total:</td>';
             $html .= '<td>' . number_format($totalDebit, 2) . '</td>';
             $html .= '<td>' . number_format($totalCredit, 2) . '</td>';
             $html .= '</tr>';

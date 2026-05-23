@@ -99,7 +99,33 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
+                                <label for="financial_account_type" class="form-label text-muted small fw-bold">Account Type</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-wallet text-primary"></i></span>
+                                    <select class="form-select border-start-0 ps-0" name="financial_account_type">
+                                        <option value="">All Types</option>
+                                        <option value="cash" {{ request('financial_account_type') == 'cash' ? 'selected' : '' }}>Cash</option>
+                                        <option value="bank" {{ request('financial_account_type') == 'bank' ? 'selected' : '' }}>Bank</option>
+                                        <option value="mobile" {{ request('financial_account_type') == 'mobile' ? 'selected' : '' }}>Mobile Banking</option>
+                                    </select>
+                                </div>
+                            </div>
+                            @if(!$restrictedBranchId)
+                            <div class="col-md-2">
+                                <label for="branch_id" class="form-label text-muted small fw-bold">Branch</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-store text-primary"></i></span>
+                                    <select class="form-select border-start-0 ps-0" name="branch_id">
+                                        <option value="">All Branches</option>
+                                        @foreach($branches as $branch)
+                                            <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            @endif
+                            <div class="col-md-2">
                                 <label for="search" class="form-label text-muted small fw-bold">Search</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-primary"></i></span>
@@ -187,10 +213,12 @@
                         <table class="table premium-table mb-0 align-middle">
                             <thead>
                                 <tr>
-                                    <th class="ps-4">Voucher No</th>
-                                    <th>Date</th>
-                                    <th>Memo</th>
-                                    <th>Type</th>
+                                    <th class="ps-4 text-nowrap">Voucher No</th>
+                                    <th class="text-nowrap">Date</th>
+                                    <th class="text-nowrap">Branch</th>
+                                    <th class="text-nowrap">Account</th>
+                                    <th class="text-nowrap">Memo</th>
+                                    <th class="text-nowrap">Type</th>
                                     <th class="text-end">Total Debit</th>
                                     <th class="text-end">Total Credit</th>
                                     <th class="text-center">Status</th>
@@ -204,9 +232,25 @@
                                                 <td class="ps-4">
                                                     <span class="badge bg-light text-primary border border-primary border-opacity-25 px-2 py-1">{{ $journal->voucher_no }}</span>
                                                 </td>
-                                                <td class="text-dark fw-500">{{ $journal->entry_date->format('d M, Y') }}</td>
+                                                <td class="text-dark fw-500 text-nowrap">{{ $journal->entry_date->format('d M, Y') }}</td>
+                                                <td class="text-nowrap">
+                                                    <span class="small fw-500">{{ $journal->branch ? $journal->branch->name : 'N/A' }}</span>
+                                                </td>
                                                 <td>
-                                                    <div class="text-truncate text-muted small" style="max-width: 250px;" title="{{ $journal->description }}">
+                                                        @php
+                                                            $accounts = $journal->entries->map(function($e) {
+                                                                if ($e->financialAccount) {
+                                                                    return $e->financialAccount->provider_name;
+                                                                }
+                                                                return $e->chartOfAccount ? $e->chartOfAccount->name : '';
+                                                            })->filter()->unique()->implode(', ');
+                                                        @endphp
+                                                    <div class="small text-muted text-truncate" style="max-width: 150px;" title="{{ $accounts ?: 'N/A' }}">
+                                                        {{ $accounts ?: 'N/A' }}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="text-truncate text-muted small" style="max-width: 200px;" title="{{ $journal->description }}">
                                                         {{ $journal->description ?? 'N/A' }}
                                                     </div>
                                                 </td>
@@ -277,7 +321,7 @@
                                     @if(isset($journals) && count($journals) > 0)
                                     <tfoot class="table-light fw-bold border-top border-2">
                                         <tr>
-                                            <td colspan="4" class="text-end pe-3">Grand Total:</td>
+                                            <td colspan="6" class="text-end pe-3">Grand Total:</td>
                                             <td class="text-end text-success fs-6">৳{{ number_format($journals->sum('total_debit'), 2) }}</td>
                                             <td class="text-end text-warning fs-6">৳{{ number_format($journals->sum('total_credit'), 2) }}</td>
                                             <td colspan="3"></td>
