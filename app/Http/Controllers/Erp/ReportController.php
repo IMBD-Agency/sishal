@@ -626,10 +626,21 @@ class ReportController extends Controller
         $saleReturnCashRefund = 0;
 
         foreach ($saleReturns as $ret) {
-            $returnTotal = $ret->items->sum('total_price');
-            if ($returnTotal <= 0) continue;
 
-            $saleReturnCashRefund += $returnTotal;
+            // $returnTotal = $ret->items->sum('total_price');
+            // if ($returnTotal <= 0) continue;
+
+            // $saleReturnCashRefund += $returnTotal;
+$returnCostQuery = \App\Models\SaleReturnItem::where('sale_return_id', $ret->id)
+    ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+    ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id');
+$returnCost = $returnCostQuery->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+ 
+$returnTotal = $ret->items->sum('total_price');
+$returnProfit = $returnTotal - $returnCost; // Only subtract the profit portion
+ 
+$saleReturnCashRefund += $returnProfit;
+
             $saleReturnDetails->push((object)[
                 'date'         => $ret->return_date,
                 'reference'    => $ret->posSale ? ($ret->posSale->sale_number ?? ('POS-'.$ret->pos_sale_id)) : ('RET-'.$ret->id),
