@@ -211,10 +211,9 @@
                                 @endphp
                                 @forelse($items as $index => $item)
                                     @php
-                                        $sale = $item->pos;
+                                        $exchange = $item->exchange;
                                         $product = $item->product;
                                         $variation = $item->variation;
-                                        $invoice = $sale->invoice;
 
                                         $color = '-'; $size = '-';
                                         if ($variation && $variation->attributeValues) {
@@ -225,25 +224,22 @@
                                             }
                                         }
 
-                                        $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
+                                        $isFirst = ($index == 0 || $items[$index-1]->pos_exchange_id != $item->pos_exchange_id);
                                         if($isFirst) {
-                                            $totalSaleDiscount = $sale->discount + $sale->items->sum(function($i) {
-                                                return ($i->quantity * $i->unit_price) - $i->total_price;
-                                            });
-                                            $tExchange += $sale->exchange_amount;
-                                            $tRefund += ($sale->refund_amount ?? 0);
-                                            $tDiscount += $totalSaleDiscount;
-                                            $tPaid += ($invoice->paid_amount ?? 0);
-                                            $tDue += ($invoice->due_amount ?? 0);
+                                            $tExchange += $exchange->total_new_amount;
+                                            $tRefund += $exchange->refund_amount;
+                                            $tDiscount += $exchange->discount_amount;
+                                            $tPaid += $exchange->extra_payable;
+                                            $tDue += 0; // Assuming exchanges are fully settled on the spot
                                         }
                                     @endphp
                                     <tr>
                                         <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
-                                        <td class="fw-bold text-dark">{{ $sale?->sale_number ?? 'N/A' }}</td>
-                                        <td class="text-primary">{{ $sale?->originalPos?->sale_number ?? '-' }}</td>
-                                        <td>{{ $sale?->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') : '-' }}</td>
-                                        <td>{{ $sale?->branch?->name ?? '-' }}</td>
-                                        <td>{{ $sale?->customer?->name ?? 'Walk-in' }}</td>
+                                        <td class="fw-bold text-dark">{{ $exchange?->exchange_number ?? 'N/A' }}</td>
+                                        <td class="text-primary">{{ $exchange?->originalPos?->sale_number ?? '-' }}</td>
+                                        <td>{{ $exchange?->exchange_date ? \Carbon\Carbon::parse($exchange->exchange_date)->format('d/m/Y') : '-' }}</td>
+                                        <td>{{ $exchange?->branch?->name ?? '-' }}</td>
+                                        <td>{{ $exchange?->customer?->name ?? 'Walk-in' }}</td>
                                         <td class="text-center">
                                             @if($product && $product->image)
                                                 <img src="{{ asset($product->image) }}" width="30" height="30" class="rounded shadow-sm" alt="">
@@ -257,14 +253,14 @@
                                         <td>{{ $product?->style_number ?? '-' }}</td>
                                         <td>{{ $color }}</td>
                                         <td>{{ $size }}</td>
-                                        <td class="text-center bg-light">{{ $item->quantity }}</td>
-                                        <td class="text-end">{{ $isFirst ? number_format($sale->exchange_amount, 2) : '' }}</td>
-                                        <td class="text-end text-danger">{{ $isFirst ? number_format($sale->refund_amount ?? 0, 2) : '' }}</td>
-                                        <td class="text-end">{{ $isFirst ? number_format($totalSaleDiscount, 2) : '' }}</td>
-                                        <td class="text-end text-success fw-bold">{{ $isFirst ? number_format($invoice->paid_amount ?? 0, 2) : '' }}</td>
-                                        <td class="text-end text-danger fw-bold">{{ $isFirst ? number_format($invoice->due_amount ?? 0, 2) : '' }}</td>
+                                        <td class="text-center bg-light">{{ $item->quantity }} <br> <span class="badge bg-secondary" style="font-size: 0.6rem;">{{ ucfirst($item->type) }}</span></td>
+                                        <td class="text-end">{{ $isFirst ? number_format($exchange->total_new_amount, 2) : '' }}</td>
+                                        <td class="text-end text-danger">{{ $isFirst ? number_format($exchange->refund_amount, 2) : '' }}</td>
+                                        <td class="text-end">{{ $isFirst ? number_format($exchange->discount_amount, 2) : '' }}</td>
+                                        <td class="text-end text-success fw-bold">{{ $isFirst ? number_format($exchange->extra_payable, 2) : '' }}</td>
+                                        <td class="text-end text-danger fw-bold">{{ $isFirst ? number_format(0, 2) : '' }}</td>
                                         <td class="text-center">
-                                            <a href="{{ route('pos.show', $sale->id) }}" class="btn btn-action btn-sm">
+                                            <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                         </td>

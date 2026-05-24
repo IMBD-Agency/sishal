@@ -438,6 +438,226 @@ class ReportController extends Controller
         
         return $pdf->download('sale_report_' . date('Y-m-d') . '.pdf');
     }
+
+    public function cashProfitReport(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view financial reports')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $reportType = $request->get('report_type', 'daily');
+        
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', Carbon::now()->month);
+            $year = $request->get('year', Carbon::now()->year);
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', Carbon::now()->year);
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfDay();
+            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+        }
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $branchId = $restrictedBranchId ?: $request->get('branch_id');
+
+        // We want to fetch all Payments that are collections for sales (invoices/pos)
+        $paymentsQuery = Payment::with(['pos', 'invoice'])
+            ->whereBetween('payment_date', [$startDate, $endDate])
+            ->whereIn('payment_for', ['invoice', 'pos', 'pos_sale', 'advance_payment', 'customer_due']);
+
+        if ($branchId) {
+            $paymentsQuery->where(function($q) use ($branchId) {
+                $q->whereHas('pos', function($pq) use ($branchId) { $pq->where('branch_id', $branchId); })
+                  ->orWhereHas('invoice.pos', function($ipq) use ($branchId) { $ipq->where('branch_id', $branchId); });
+            });
+        }
+
+        $payments = $paymentsQuery->get();
+
+        $cashProfits = collect();
+        $totalCollected = 0;
+        $totalEstimatedCost = 0;
+        $totalCashProfit = 0;
+
+        foreach ($payments as $payment) {
+            $saleAmount = 0;
+            $costAmount = 0;
+            $reference = $payment->reference ?? '-';
+
+            if ($payment->pos) {
+                $pos = $payment->pos;
+                $reference = $pos->invoice_number ?? ('POS-'.$pos->id);
+                $saleAmount = $pos->total_amount;
+                // Calculate Cost for this POS
+                $posCostQuery = PosItem::where('pos_sale_id', $pos->id)
+                    ->join('products', 'pos_items.product_id', '=', 'products.id')
+                    ->leftJoin('product_variations', 'pos_items.variation_id', '=', 'product_variations.id');
+                $costAmount = $posCostQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+            } elseif ($payment->invoice) {
+                $invoice = $payment->invoice;
+                $reference = $invoice->invoice_number ?? ('INV-'.$invoice->id);
+                // If the invoice is from a POS
+                if ($invoice->pos) {
+                    $pos = $invoice->pos;
+                    $saleAmount = $pos->total_amount;
+                    $posCostQuery = PosItem::where('pos_sale_id', $pos->id)
+                        ->join('products', 'pos_items.product_id', '=', 'products.id')
+                        ->leftJoin('product_variations', 'pos_items.variation_id', '=', 'product_variations.id');
+                    $costAmount = $posCostQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                } elseif ($invoice->order) {
+                    // It's from online order
+                    $order = $invoice->order;
+                    $saleAmount = $order->total_amount;
+                    $orderCostQuery = OrderItem::where('order_id', $order->id)
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->leftJoin('product_variations', 'order_items.variation_id', '=', 'product_variations.id');
+                    $costAmount = $orderCostQuery->sum(\DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                } else {
+                    $saleAmount = $invoice->total_amount;
+                    // Generic invoice items? Assuming 0 cost if not linked to order/pos for now to avoid errors
+                    $costAmount = 0;
+                }
+            } else {
+                // Not tied to invoice/pos directly, but might be a loose customer due payment
+                // Without knowing original sale, we can't determine profit margin accurately here.
+                continue;
+            }
+
+            if ($saleAmount > 0) {
+                $invoiceProfit = $saleAmount - $costAmount;
+                $profitMargin = $invoiceProfit / $saleAmount;
+                
+                // If collected amount exceeds sale amount (shouldn't normally happen but just in case)
+                // we cap the margin calculation, or just calculate on actual payment
+                $cashProfit = $payment->amount * $profitMargin;
+                $estimatedCost = $payment->amount - $cashProfit;
+
+                $totalCollected += $payment->amount;
+                $totalEstimatedCost += $estimatedCost;
+                $totalCashProfit += $cashProfit;
+
+                $cashProfits->push((object)[
+                    'date' => $payment->payment_date,
+                    'reference' => $reference,
+                    'collection_amount' => $payment->amount,
+                    'sale_amount' => $saleAmount,
+                    'invoice_profit' => $invoiceProfit,
+                    'profit_margin' => $profitMargin * 100, // percentage
+                    'estimated_cost' => $estimatedCost,
+                    'cash_profit' => $cashProfit
+                ]);
+            }
+        }
+
+        // --- Calculate Operating Expenses ---
+        $debitVoucherQuery = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+            ->join('chart_of_accounts', 'journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
+            ->join('chart_of_account_types', 'chart_of_accounts.type_id', '=', 'chart_of_account_types.id')
+            ->where('chart_of_account_types.name', 'like', 'Expense%')
+            ->where('chart_of_accounts.name', 'not like', '%Purchase%') // Exclude Purchases as it's part of estimated cost
+            ->whereBetween('journals.entry_date', [$startDate, $endDate]);
+
+        if ($branchId) $debitVoucherQuery->where('journals.branch_id', $branchId);
+        
+        $debitVoucherDetails = $debitVoucherQuery
+            ->select('chart_of_accounts.name', \DB::raw('SUM(journal_entries.debit) - SUM(journal_entries.credit) as amount'))
+            ->groupBy('chart_of_accounts.name')
+            ->having('amount', '>', 0)
+            ->get();
+
+        $debitVoucher = $debitVoucherDetails->sum('amount');
+
+        $salaryPaymentQuery = \App\Models\SalaryPayment::whereBetween('payment_date', [$startDate, $endDate]);
+        if ($branchId) $salaryPaymentQuery->where('branch_id', $branchId);
+        
+        $salaryPaymentIdsWithoutJournal = $salaryPaymentQuery->whereNotExists(function($q) {
+            $q->select(\DB::raw(1))
+              ->from('journals')
+              ->whereRaw('journals.voucher_no = CONCAT("SAL-", DATE_FORMAT(salary_payments.payment_date, "%Y%m%d"), "-", LPAD(salary_payments.id, 4, "0"))');
+        })->pluck('id');
+        
+        $employeePayment = \App\Models\SalaryPayment::whereIn('id', $salaryPaymentIdsWithoutJournal)->sum('paid_amount');
+
+        $totalOperatingExpenses = $debitVoucher + $employeePayment;
+
+        // --- Credit Vouchers: Other Cash Incomes (non-product-sale revenue) ---
+        $creditVoucherQuery = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+            ->join('chart_of_accounts', 'journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
+            ->join('chart_of_account_types', 'chart_of_accounts.type_id', '=', 'chart_of_account_types.id')
+            ->where('chart_of_account_types.name', 'like', 'Revenue%')
+            ->where('chart_of_accounts.name', 'not like', '%Sales%') // Exclude product sales — already in collection
+            ->where('chart_of_accounts.name', 'not like', '%Sale%')
+            ->whereBetween('journals.entry_date', [$startDate, $endDate]);
+
+        if ($branchId) $creditVoucherQuery->where('journals.branch_id', $branchId);
+
+        $creditVoucherDetails = $creditVoucherQuery
+            ->select('chart_of_accounts.name', \DB::raw('SUM(journal_entries.credit) - SUM(journal_entries.debit) as amount'))
+            ->groupBy('chart_of_accounts.name')
+            ->having('amount', '>', 0)
+            ->get();
+
+        $totalOtherIncome = $creditVoucherDetails->sum('amount');
+
+        // --- Sale Returns: Fetch from sale_return_items (actual returned amounts) ---
+        // NOTE: Exclude 'exchange' refund_type because those are stock-only adjustments,
+        //       not real cash outflows. Cash difference for exchanges is handled separately via journals.
+        $saleReturnQuery = \App\Models\SaleReturn::with(['items', 'posSale'])
+            ->whereBetween('return_date', [$startDate, $endDate])
+            ->whereIn('status', ['completed', 'approved'])
+            ->where(function($q) {
+                $q->whereNull('refund_type')
+                  ->orWhere('refund_type', '!=', 'exchange');
+            });
+
+        if ($branchId) {
+            $saleReturnQuery->whereHas('posSale', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        }
+
+        $saleReturns = $saleReturnQuery->get();
+
+        $saleReturnDetails = collect();
+        $saleReturnCashRefund = 0;
+
+        foreach ($saleReturns as $ret) {
+            $returnTotal = $ret->items->sum('total_price');
+            if ($returnTotal <= 0) continue;
+
+            $saleReturnCashRefund += $returnTotal;
+            $saleReturnDetails->push((object)[
+                'date'         => $ret->return_date,
+                'reference'    => $ret->posSale ? ($ret->posSale->sale_number ?? ('POS-'.$ret->pos_sale_id)) : ('RET-'.$ret->id),
+                'refund_type'  => $ret->refund_type ?? 'none',
+                'return_amount'=> $returnTotal,
+            ]);
+        }
+
+        $netCashProfit = ($totalCashProfit + $totalOtherIncome) - ($totalOperatingExpenses + $saleReturnCashRefund);
+
+        // --- Calculate Total Due generated in this period ---
+        $dueQuery = \App\Models\Invoice::whereBetween('issue_date', [$startDate, $endDate]);
+        if ($branchId) {
+            $dueQuery->whereHas('pos', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        }
+        $totalDue = $dueQuery->sum('due_amount');
+
+        $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+
+        return view('erp.reports.cash-profit', compact(
+            'cashProfits', 'startDate', 'endDate', 'reportType', 'branches', 'branchId',
+            'totalCollected', 'totalEstimatedCost', 'totalCashProfit', 'totalOtherIncome', 'creditVoucherDetails',
+            'totalOperatingExpenses', 'debitVoucherDetails', 'employeePayment',
+            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'totalDue'
+        ));
+    }
     public function profitLossReport(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('view financial reports')) {

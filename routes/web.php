@@ -244,6 +244,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/reports/purchases', [\App\Http\Controllers\Erp\ReportController::class, 'purchaseReport'])->name('reports.purchase');
     Route::get('/reports/sales', [\App\Http\Controllers\Erp\ReportController::class, 'saleReport'])->name('reports.sale');
     Route::get('/reports/profit-loss', [\App\Http\Controllers\Erp\ReportController::class, 'profitLossReport'])->name('reports.profit-loss');
+    Route::get('/reports/cash-profit', [\App\Http\Controllers\Erp\ReportController::class, 'cashProfitReport'])->name('reports.cash-profit');
     Route::get('/reports/cash-book', [\App\Http\Controllers\Erp\ReportController::class, 'cashBookReport'])->name('reports.cash-book');
     Route::get('/reports/bank-book', [\App\Http\Controllers\Erp\ReportController::class, 'bankBookReport'])->name('reports.bank-book');
     Route::get('/reports/mobile-book', [\App\Http\Controllers\Erp\ReportController::class, 'mobileBookReport'])->name('reports.mobile-book');
@@ -415,6 +416,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/exchange/latest-invoices', [\App\Http\Controllers\Erp\ExchangeController::class, 'latestInvoices'])->name('exchange.latest.invoices');
     Route::get('/exchange/search-invoice', [\App\Http\Controllers\Erp\ExchangeController::class, 'searchInvoice'])->name('exchange.search.invoice');
     Route::post('/exchange/store', [\App\Http\Controllers\Erp\ExchangeController::class, 'store'])->name('exchange.store');
+    Route::get('/exchange/{id}', [\App\Http\Controllers\Erp\ExchangeController::class, 'show'])->name('exchange.show');
+    Route::get('/exchange/{id}/print', [\App\Http\Controllers\Erp\ExchangeController::class, 'printReceipt'])->name('exchange.print');
 
     // Purchase
     Route::get('/purchases', [\App\Http\Controllers\Erp\PurchaseController::class, 'index'])->name('purchase.list');

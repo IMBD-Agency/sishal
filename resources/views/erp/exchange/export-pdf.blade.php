@@ -44,55 +44,54 @@
 </thead>
         <tbody>
             @php 
-                $tEx = 0; $tDisc = 0; $tPaid = 0; $tDue = 0;
+                $tEx = 0; $tRef = 0; $tDisc = 0; $tPaid = 0; $tDue = 0;
             @endphp
-            @foreach($items as $index => $item)
+            @foreach($items as $index => $exchange)
                 @php
-                    $sale = $item->pos;
-                    $product = $item->product;
-                    $variation = $item->variation;
-                    $invoice = $sale->invoice;
+                    $originalSale = $exchange->originalPos;
+                @endphp
+                @foreach($exchange->items as $i => $item)
+                    @php
+                        $product = $item->product;
+                        $variation = $item->variation;
 
-                    $color = '-'; $size = '-';
-                    if ($variation && $variation->attributeValues) {
-                        foreach($variation->attributeValues as $val) {
-                            $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color')) $color = $val->value;
-                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                        $color = '-'; $size = '-';
+                        if ($variation && $variation->attributeValues) {
+                            foreach($variation->attributeValues as $val) {
+                                $attrName = strtolower($val->attribute->name ?? '');
+                                if (str_contains($attrName, 'color')) $color = $val->value;
+                                elseif (str_contains($attrName, 'size')) $size = $val->value;
+                            }
                         }
-                    }
 
-                    $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
-                    $totalDiscount = 0; $tRef = $tRef ?? 0;
-                    if($isFirst) {
-                        $totalDiscount = ($sale->discount ?? 0) + $sale->items->sum(function($i) {
-                            return ($i->quantity * $i->unit_price) - $i->total_price;
-                        });
-                        $tEx += $sale->exchange_amount;
-                        $tRef += ($sale->refund_amount ?? 0);
-                        $tDisc += $totalDiscount;
-                        $tPaid += ($invoice->paid_amount ?? 0);
-                        $tDue += ($invoice->due_amount ?? 0);
-                    }
-@endphp
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="fw-bold">{{ $sale->sale_number }}</td>
-                    <td>{{ $sale->originalPos->sale_number ?? '-' }}</td>
-                    <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') }}</td>
-                    <td>{{ $sale->branch->name ?? '-' }}</td>
-                    <td>{{ $sale->customer->name ?? 'Walk-in' }}</td>
-                    <td>{{ $product->name }}</td>
-                    <td>{{ $product->style_number }}</td>
-                    <td>{{ $color }}</td>
-                    <td>{{ $size }}</td>
-                    <td class="text-center">{{ $item->quantity }}</td>
-                    <td class="text-end">{{ $isFirst ? number_format($sale->exchange_amount, 2) : '' }}</td>
-                    <td class="text-end">{{ $isFirst ? number_format($sale->refund_amount ?? 0, 2) : '' }}</td>
-                    <td class="text-end">{{ $isFirst ? number_format($totalDiscount, 2) : '' }}</td>
-                    <td class="text-end">{{ $isFirst ? number_format($invoice->paid_amount ?? 0, 2) : '' }}</td>
-                    <td class="text-end">{{ $isFirst ? number_format($invoice->due_amount ?? 0, 2) : '' }}</td>
-                </tr>
+                        $isFirst = ($i == 0);
+                        if($isFirst) {
+                            $tEx += $exchange->total_new_amount;
+                            $tRef += $exchange->refund_amount;
+                            $tDisc += $exchange->discount_amount;
+                            $tPaid += $exchange->extra_payable;
+                            $tDue += 0;
+                        }
+                    @endphp
+                    <tr>
+                        <td class="text-center">{{ $index + 1 }}{{ $isFirst ? '' : '.'.($i+1) }}</td>
+                        <td class="fw-bold">{{ $exchange->exchange_number }}</td>
+                        <td>{{ $originalSale->sale_number ?? '-' }}</td>
+                        <td>{{ \Carbon\Carbon::parse($exchange->exchange_date)->format('d/m/Y') }}</td>
+                        <td>{{ $exchange->branch->name ?? '-' }}</td>
+                        <td>{{ $exchange->customer->name ?? 'Walk-in' }}</td>
+                        <td>{{ $product->name }}</td>
+                        <td>{{ $product->style_number }}</td>
+                        <td>{{ $color }}</td>
+                        <td>{{ $size }}</td>
+                        <td class="text-center">{{ $item->quantity }} <br>({{ ucfirst($item->type) }})</td>
+                        <td class="text-end">{{ $isFirst ? number_format($exchange->total_new_amount, 2) : '' }}</td>
+                        <td class="text-end">{{ $isFirst ? number_format($exchange->refund_amount, 2) : '' }}</td>
+                        <td class="text-end">{{ $isFirst ? number_format($exchange->discount_amount, 2) : '' }}</td>
+                        <td class="text-end">{{ $isFirst ? number_format($exchange->extra_payable, 2) : '' }}</td>
+                        <td class="text-end">{{ $isFirst ? '0.00' : '' }}</td>
+                    </tr>
+                @endforeach
             @endforeach
         </tbody>
         <tfoot class="bg-light">

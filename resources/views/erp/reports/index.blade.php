@@ -189,6 +189,13 @@
                                     'color' => 'danger'
                                 ],
                                 [
+                                    'title' => 'Cash Profit Report',
+                                    'desc' => 'Collection-based realized profit analysis.',
+                                    'route' => 'reports.cash-profit',
+                                    'icon' => 'fa-hand-holding-usd',
+                                    'color' => 'success'
+                                ],
+                                [
                                     'title' => 'Cash Book',
                                     'desc' => 'Track all petty cash and daily cash flow.',
                                     'route' => 'reports.cash-book',

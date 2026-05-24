@@ -20,6 +20,7 @@ use App\Models\Journal;
 use App\Models\JournalEntry;
 use App\Models\ChartOfAccount;
 use App\Models\FinancialAccount;
+use App\Models\GeneralSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -50,12 +51,10 @@ class ExchangeController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = PosItem::with([
-            'pos.customer', 'pos.originalPos', 'pos.branch', 'product.category', 'product.brand', 'product.season', 'product.gender',
+        $query = \App\Models\PosExchangeItem::with([
+            'exchange.customer', 'exchange.originalPos', 'exchange.branch', 'product.category', 'product.brand', 'product.season', 'product.gender',
             'variation.attributeValues.attribute'
-        ])->whereHas('pos', function($q) {
-            $q->whereNotNull('original_pos_id');
-        });
+        ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
@@ -188,262 +187,83 @@ class ExchangeController extends Controller
         try {
             $originalSale = Pos::findOrFail($request->original_pos_id);
             
-            // 1. Process Returns
-            $saleReturn = new SaleReturn();
-            $saleReturn->pos_sale_id = $originalSale->id;
-            $saleReturn->customer_id = $originalSale->customer_id;
-            $saleReturn->return_date = $request->exchange_date;
-            $saleReturn->status = 'completed';
-            $saleReturn->refund_type = 'exchange';
-            $saleReturn->processed_by = Auth::id();
-            $saleReturn->return_to_type = 'branch';
-            $saleReturn->return_to_id = $originalSale->branch_id;
-            $saleReturn->save();
+            // Generate Exchange Number
+            $lastExchange = \App\Models\PosExchange::latest('id')->first();
+            $exchangeNumber = 'EXC-' . str_pad(($lastExchange ? $lastExchange->id + 1 : 1), 6, '0', STR_PAD_LEFT);
+
+            $posExchange = \App\Models\PosExchange::create([
+                'exchange_number' => $exchangeNumber,
+                'original_pos_id' => $originalSale->id,
+                'customer_id'     => $originalSale->customer_id,
+                'branch_id'       => $originalSale->branch_id,
+                'employee_id'     => Auth::id(),
+                'exchange_date'   => $request->exchange_date,
+                'status'          => 'completed'
+            ]);
 
             $totalReturnAmount = 0;
             $originalDiscountRatio = $originalSale->sub_total > 0 ? ($originalSale->discount / $originalSale->sub_total) : 0;
 
+            // 1. Process Returns
             foreach ($request->return_items as $item) {
                 if ($item['qty'] > 0) {
-                    // SERVER SIDE VALIDATION: Check original item and its return history
                     $posItemId = $item['pos_item_id'];
-                    $posItem = PosItem::with('returnItems')->findOrFail($posItemId);
-                    $alreadyReturned = $posItem->returnItems->sum('returned_qty');
-                    $canReturn = $posItem->quantity - $alreadyReturned;
-
-                    if ($item['qty'] > $canReturn) {
-                        throw new \Exception("Cannot return more than purchased. Product: {$posItem->product->name}. Max allowed: $canReturn");
-                    }
+                    $posItem = PosItem::findOrFail($posItemId);
 
                     $variationId = ($item['variation_id'] == 'null' || $item['variation_id'] == '') ? null : $item['variation_id'];
                     
-                    // Real-world logic: Apply pro-rated discount from original invoice
                     $unitPrice = $item['unit_price'];
                     $itemDiscount = $unitPrice * $originalDiscountRatio;
                     $actualReturnPrice = $unitPrice - $itemDiscount;
+                    $totalReturnItemAmount = $item['qty'] * $actualReturnPrice;
 
-                    $returnItem = new SaleReturnItem();
-                    $returnItem->sale_return_id = $saleReturn->id;
-                    $returnItem->sale_item_id = $posItem->id;
-                    $returnItem->product_id = $item['product_id'];
-                    $returnItem->variation_id = $variationId;
-                    $returnItem->returned_qty = $item['qty'];
-                    $returnItem->unit_price = $unitPrice;
-                    $returnItem->total_price = $item['qty'] * $actualReturnPrice; // Storing actual credit value
-                    $returnItem->save();
+                    \App\Models\PosExchangeItem::create([
+                        'pos_exchange_id' => $posExchange->id,
+                        'type'            => 'returned',
+                        'product_id'      => $item['product_id'],
+                        'variation_id'    => $variationId,
+                        'quantity'        => $item['qty'],
+                        'unit_price'      => $actualReturnPrice,
+                        'total_price'     => $totalReturnItemAmount,
+                    ]);
 
-                    $totalReturnAmount += $returnItem->total_price;
+                    // Also create standard SaleReturnItem for the original invoice so UI calculations hold
+                    if (!isset($saleReturn)) {
+                        $saleReturn = \App\Models\SaleReturn::create([
+                            'customer_id'    => $originalSale->customer_id,
+                            'pos_sale_id'    => $originalSale->id,
+                            'invoice_id'     => $originalSale->invoice_id,
+                            'return_date'    => $request->exchange_date,
+                            'status'         => 'completed',
+                            'refund_type'    => 'exchange',
+                            'reason'         => 'Exchange ' . $exchangeNumber,
+                            'processed_by'   => Auth::id(),
+                            'processed_at'   => now(),
+                            'return_to_type' => 'branch',
+                            'return_to_id'   => $originalSale->branch_id,
+                        ]);
+                    }
+
+                    \App\Models\SaleReturnItem::create([
+                        'sale_return_id' => $saleReturn->id,
+                        'sale_item_id'   => $posItemId,
+                        'product_id'     => $item['product_id'],
+                        'variation_id'   => $variationId,
+                        'returned_qty'   => $item['qty'],
+                        'unit_price'     => $actualReturnPrice,
+                        'total_price'    => $totalReturnItemAmount,
+                    ]);
+
+                    $totalReturnAmount += $totalReturnItemAmount;
 
                     // Restore Stock
                     $this->restoreStock($item['product_id'], $variationId, $item['qty'], $originalSale->branch_id);
                 }
             }
 
-            // 2. Process New Sale (Exchange)
-            $newPos = new Pos();
-            $newPos->sale_number = $this->generateSaleNumber();
-            $newPos->customer_id = $originalSale->customer_id;
-            $newPos->branch_id = $originalSale->branch_id;
-            $newPos->sold_by = Auth::id();
-            $newPos->sale_date = $request->exchange_date;
-            $newPos->sale_type = 'exchange';
-            $newPos->original_pos_id = $originalSale->id;
-            $newPos->exchange_amount = $totalReturnAmount;
-            
-            $subTotal = 0;
+            // 2. Process New Items
+            $subTotalNew = 0;
             foreach ($request->new_items as $item) {
-                $itemGross = $item['qty'] * $item['unit_price'];
-                $itemDiscStr = $item['discount'] ?? 0;
-                $itemDisc = 0;
-                if (strpos($itemDiscStr, '%') !== false) {
-                    $itemDisc = ($itemGross * floatval($itemDiscStr)) / 100;
-                } else {
-                    $itemDisc = floatval($itemDiscStr);
-                }
-                $subTotal += ($itemGross - $itemDisc);
-            }
-            
-            $netPurchase = ($subTotal + $newPos->delivery) - ($request->discount ?? 0);
-            
-            // Real-world logic: exchange_amount is the amount of return credit actually USED for this purchase
-            $exchangeCreditUsed = min($netPurchase, $totalReturnAmount);
-            $finalPayable = max(0, $netPurchase - $totalReturnAmount);
-            $refundAmount = max(0, $totalReturnAmount - $netPurchase);
-
-            $newPos->sub_total = $subTotal;
-            $newPos->discount = $request->discount ?? 0;
-            $newPos->delivery = $request->delivery ?? 0;
-            $newPos->exchange_amount = $exchangeCreditUsed;
-            $newPos->refund_amount = $refundAmount; // New Column
-            $newPos->total_amount = $finalPayable;
-            $newPos->status = 'delivered';
-            $newPos->save();
-
-            // Create Invoice
-            $invoice = new Invoice();
-            $defaultTemplate = \App\Models\InvoiceTemplate::orderBy('id', 'asc')->first();
-            $invoice->template_id = $defaultTemplate ? $defaultTemplate->id : 1;
-            $invoice->invoice_number = $this->generateInvoiceNumber();
-            $invoice->customer_id = $newPos->customer_id;
-            $invoice->issue_date = $newPos->sale_date;
-            $invoice->due_date = $newPos->sale_date;
-            $invoice->subtotal = $newPos->sub_total;
-            $invoice->total_amount = $newPos->total_amount;
-            $invoice->discount_apply = $newPos->discount;
-            $invoice->paid_amount = $request->paid_amount ?? 0;
-            $invoice->due_amount = max(0, $newPos->total_amount - ($request->paid_amount ?? 0));
-            $invoice->status = $invoice->due_amount <= 0 ? 'paid' : 'partial';
-            $invoice->created_by = Auth::id();
-            $invoice->operated_by = Auth::id();
-            $invoice->save();
-
-            // Update Customer Balance (Real world ledger management)
-            if ($originalSale->customer_id) {
-                $balance = Balance::where('source_type', 'customer')->where('source_id', $originalSale->customer_id)->first();
-                if ($balance) {
-                    // 1. Return credit decreases what they owe (or increases what we owe them)
-                    $balance->balance -= $totalReturnAmount;
-                    
-                    // 2. New purchase increases what they owe
-                    $balance->balance += $netPurchase;
-                    
-                    // 3. Cash paid decreases what they owe
-                    $balance->balance -= ($request->paid_amount ?? 0);
-                    
-                    $balance->save();
-                }
-            }
-
-            $newPos->invoice_id = $invoice->id;
-            $newPos->save();
-
-            // =====================================================
-            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
-            // =====================================================
-            
-            $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
-            $returnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
-            $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first() ?? ChartOfAccount::where('name', 'like', '%Debtors%')->first();
-            
-            // Fallbacks
-            if (!$salesAccount) $salesAccount = ChartOfAccount::first();
-            if (!$arAccount) {
-                 // Try to find any asset account as fallback or use ID 1
-                 $arAccount = ChartOfAccount::whereHas('type', function($q){ $q->where('name', 'Asset'); })->first() ?? ChartOfAccount::find(1);
-            }
-
-            $voucherNo = 'EXC-' . str_pad($newPos->id, 6, '0', STR_PAD_LEFT);
-            while (Journal::where('voucher_no', $voucherNo)->exists()) {
-                $voucherNo = 'EXC-' . str_pad($newPos->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
-            }
-
-            $journal = Journal::create([
-                'voucher_no'     => $voucherNo,
-                'entry_date'     => $newPos->sale_date,
-                'type'           => 'Receipt',
-                'description'    => 'Exchange Transaction #' . $newPos->sale_number,
-                'customer_id'    => $newPos->customer_id,
-                'branch_id'      => $newPos->branch_id,
-                'voucher_amount' => $newPos->total_amount,
-                'paid_amount'    => $request->paid_amount ?? 0,
-                'reference'      => $newPos->sale_number,
-                'created_by'     => Auth::id(),
-                'updated_by'     => Auth::id(),
-            ]);
-
-            // 1. CREDIT Sales Revenue (Gross Items)
-            JournalEntry::create([
-                'journal_id'           => $journal->id,
-                'chart_of_account_id'  => $salesAccount->id,
-                'debit'                => 0,
-                'credit'               => $subTotal,
-                'memo'                 => 'Revenue from Exchange (New Items)',
-                'created_by'           => Auth::id(),
-                'updated_by'           => Auth::id(),
-            ]);
-
-            // 2. CREDIT Delivery Revenue (if any)
-            if ($newPos->delivery > 0) {
-                $deliveryAccount = ChartOfAccount::where('name', 'like', '%Delivery%')->orWhere('name', 'like', '%Shipping%')->first() ?? $salesAccount;
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $deliveryAccount->id,
-                    'debit'                => 0,
-                    'credit'               => $newPos->delivery,
-                    'memo'                 => 'Delivery revenue from Exchange',
-                    'created_by'           => Auth::id(),
-                    'updated_by'           => Auth::id(),
-                ]);
-            }
-
-            // 3. DEBIT Sales Return (Returned Items value)
-            if ($totalReturnAmount > 0) {
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $returnAccount ? $returnAccount->id : $salesAccount->id,
-                    'debit'                => $totalReturnAmount,
-                    'credit'               => 0,
-                    'memo'                 => 'Sales Return Adjustment during Exchange',
-                    'created_by'           => Auth::id(),
-                    'updated_by'           => Auth::id(),
-                ]);
-            }
-
-            // 4. DEBIT Global Discount (if any)
-            if ($newPos->discount > 0) {
-                $discountAccount = ChartOfAccount::where('name', 'like', '%Discount%')->first() ?? $salesAccount;
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $discountAccount->id,
-                    'debit'                => $newPos->discount,
-                    'credit'               => 0,
-                    'memo'                 => 'Global discount applied in Exchange',
-                    'created_by'           => Auth::id(),
-                    'updated_by'           => Auth::id(),
-                ]);
-            }
-
-            // 5. DEBIT Cash/Bank (Paid Amount)
-            $paidAmt = $request->paid_amount ?? 0;
-            if ($paidAmt > 0) {
-                $financialAccount = FinancialAccount::find($request->account_id);
-                if ($financialAccount && $financialAccount->account_id) {
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $financialAccount->account_id,
-                        'financial_account_id' => $financialAccount->id,
-                        'debit'                => $paidAmt,
-                        'credit'               => 0,
-                        'memo'                 => 'Exchange payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
-                        'created_by'           => Auth::id(),
-                        'updated_by'           => Auth::id(),
-                    ]);
-                }
-            }
-
-            // 6. BALANCE WITH ACCOUNTS RECEIVABLE (Customer Ledger)
-            // Credits: Sales + Delivery
-            // Debits: Return + Discount + Paid
-            $totalCredits = $subTotal + $newPos->delivery;
-            $totalDebits = $totalReturnAmount + $newPos->discount + $paidAmt;
-            $arDiff = $totalCredits - $totalDebits;
-
-            if (abs($arDiff) > 0.01) {
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $arAccount->id,
-                    'debit'                => $arDiff > 0 ? $arDiff : 0,
-                    'credit'               => $arDiff < 0 ? abs($arDiff) : 0,
-                    'memo'                 => $arDiff > 0 ? 'Accounts Receivable: Due from Customer' : 'Accounts Receivable: Excess Credit/Refund',
-                    'created_by'           => Auth::id(),
-                    'updated_by'           => Auth::id(),
-                ]);
-            }
-
-            // Save Items
-            foreach ($request->new_items as $item) {
-                $variationId = ($item['variation_id'] == 'null' || $item['variation_id'] == '') ? null : $item['variation_id'];
-                
                 $itemGross = $item['qty'] * $item['unit_price'];
                 $itemDiscStr = $item['discount'] ?? 0;
                 $itemDisc = 0;
@@ -453,33 +273,148 @@ class ExchangeController extends Controller
                     $itemDisc = floatval($itemDiscStr);
                 }
                 $itemNetTotal = $itemGross - $itemDisc;
+                $subTotalNew += $itemNetTotal;
 
-                PosItem::create([
-                    'pos_sale_id' => $newPos->id,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $variationId,
-                    'quantity' => $item['qty'],
-                    'unit_price' => $item['unit_price'],
-                    'total_price' => $itemNetTotal,
-                ]);
+                $variationId = ($item['variation_id'] == 'null' || $item['variation_id'] == '') ? null : $item['variation_id'];
 
-                // Create Invoice Item
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $variationId,
-                    'quantity' => $item['qty'],
-                    'unit_price' => $item['unit_price'],
-                    'discount'   => $itemDisc,
-                    'total_price' => $itemNetTotal,
+                \App\Models\PosExchangeItem::create([
+                    'pos_exchange_id' => $posExchange->id,
+                    'type'            => 'new',
+                    'product_id'      => $item['product_id'],
+                    'variation_id'    => $variationId,
+                    'quantity'        => $item['qty'],
+                    'unit_price'      => $item['unit_price'],
+                    'total_price'     => $itemNetTotal,
                 ]);
 
                 // Deduct Stock
-                $this->deductStock($item['product_id'], $variationId, $item['qty'], $newPos->branch_id);
+                $this->deductStock($item['product_id'], $variationId, $item['qty'], $originalSale->branch_id);
+            }
+            
+            $globalDiscount = $request->discount ?? 0;
+            $deliveryCharge = $request->delivery ?? 0;
+            $netNewAmount = ($subTotalNew + $deliveryCharge) - $globalDiscount;
+
+            $extraPayable = max(0, $netNewAmount - $totalReturnAmount);
+            $refundAmount = max(0, $totalReturnAmount - $netNewAmount);
+
+            // Determine Exchange Type
+            if ($totalReturnAmount == $subTotalNew && $extraPayable == 0 && $refundAmount == 0) {
+                $posExchange->exchange_type = 'variation_exchange';
+            } elseif ($extraPayable > 0 || $refundAmount > 0) {
+                $posExchange->exchange_type = 'price_adjustment';
+            } else {
+                $posExchange->exchange_type = 'product_exchange';
+            }
+
+            $posExchange->update([
+                'total_return_amount' => $totalReturnAmount,
+                'total_new_amount'    => $subTotalNew,
+                'delivery_charge'     => $deliveryCharge,
+                'discount_amount'     => $globalDiscount,
+                'extra_payable'       => $extraPayable,
+                'refund_amount'       => $refundAmount,
+                'account_id'          => $request->account_id,
+                'payment_method'      => $request->account_id ? 'account' : 'cash',
+            ]);
+
+            // Update Original POS Sale to reflect new totals
+            $originalSale->exchange_amount = ($originalSale->exchange_amount ?? 0) + $subTotalNew;
+            $originalSale->refund_amount = ($originalSale->refund_amount ?? 0) + $refundAmount;
+            $originalSale->save();
+            
+            // Also update the Invoice paid_amount if there's an extra payable so due amount is correct
+            if ($originalSale->invoice && $extraPayable > 0) {
+                $invoice = $originalSale->invoice;
+                $invoice->paid_amount += $extraPayable;
+                $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                $invoice->save();
+            }
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // Only if there's a difference
+            // =====================================================
+            
+            if ($extraPayable > 0 || $refundAmount > 0) {
+                $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first() ?? ChartOfAccount::first();
+                $returnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first() ?? $salesAccount;
+                
+                $voucherNo = $exchangeNumber;
+                while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                    $voucherNo = $exchangeNumber . '-' . rand(10, 99);
+                }
+
+                $journal = Journal::create([
+                    'voucher_no'     => $voucherNo,
+                    'entry_date'     => $posExchange->exchange_date,
+                    'type'           => $extraPayable > 0 ? 'Receipt' : 'Payment',
+                    'description'    => 'Exchange Diff for #' . $originalSale->sale_number,
+                    'customer_id'    => $posExchange->customer_id,
+                    'branch_id'      => $posExchange->branch_id,
+                    'voucher_amount' => $extraPayable > 0 ? $extraPayable : $refundAmount,
+                    'paid_amount'    => $extraPayable > 0 ? ($request->paid_amount ?? 0) : $refundAmount,
+                    'reference'      => $posExchange->exchange_number,
+                    'created_by'     => Auth::id(),
+                    'updated_by'     => Auth::id(),
+                ]);
+
+                // Determine the Cash/Bank account to hit
+                $financialAccount = FinancialAccount::find($request->account_id);
+                $cashBankAccountId = $financialAccount ? $financialAccount->account_id : null;
+                if (!$cashBankAccountId) {
+                    $cashAcc = ChartOfAccount::where('name', 'like', '%Cash%')->first();
+                    $cashBankAccountId = $cashAcc ? $cashAcc->id : 1;
+                }
+
+                if ($extraPayable > 0) {
+                    // Customer pays us (Receipt)
+                    // Debit: Cash/Bank
+                    // Credit: Sales (Difference)
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $cashBankAccountId,
+                        'financial_account_id' => $financialAccount ? $financialAccount->id : null,
+                        'debit'                => $extraPayable,
+                        'credit'               => 0,
+                        'memo'                 => 'Exchange Extra Payable Received',
+                        'created_by'           => Auth::id(),
+                    ]);
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $salesAccount->id,
+                        'debit'                => 0,
+                        'credit'               => $extraPayable,
+                        'memo'                 => 'Exchange Extra Sales Revenue',
+                        'created_by'           => Auth::id(),
+                    ]);
+                } elseif ($refundAmount > 0) {
+                    // We refund customer (Payment)
+                    // Debit: Sales Return (Difference)
+                    // Credit: Cash/Bank
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $returnAccount->id,
+                        'debit'                => $refundAmount,
+                        'credit'               => 0,
+                        'memo'                 => 'Exchange Refund',
+                        'created_by'           => Auth::id(),
+                    ]);
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $cashBankAccountId,
+                        'financial_account_id' => $financialAccount ? $financialAccount->id : null,
+                        'debit'                => 0,
+                        'credit'               => $refundAmount,
+                        'memo'                 => 'Exchange Refund Paid',
+                        'created_by'           => Auth::id(),
+                    ]);
+                }
             }
 
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'Exchange completed successfully.', 'redirect' => route('pos.show', $newPos->id)]);
+            // Since we don't have a dedicated POS Exchange view page yet, redirect back with success
+            return response()->json(['success' => true, 'message' => 'Exchange completed successfully.', 'redirect' => route('exchange.list')]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
@@ -532,16 +467,16 @@ class ExchangeController extends Controller
     {
         // Date Filtering
         if ($startDate && $endDate) {
-            $query->whereHas('pos', function($q) use ($startDate, $endDate) {
-                $q->whereBetween('sale_date', [$startDate, $endDate]);
+            $query->whereHas('exchange', function($q) use ($startDate, $endDate) {
+                $q->whereBetween('exchange_date', [$startDate, $endDate]);
             });
         } elseif ($startDate) {
-            $query->whereHas('pos', function($q) use ($startDate) {
-                $q->whereDate('sale_date', '>=', $startDate);
+            $query->whereHas('exchange', function($q) use ($startDate) {
+                $q->whereDate('exchange_date', '>=', $startDate);
             });
         } elseif ($endDate) {
-            $query->whereHas('pos', function($q) use ($endDate) {
-                $q->whereDate('sale_date', '<=', $endDate);
+            $query->whereHas('exchange', function($q) use ($endDate) {
+                $q->whereDate('exchange_date', '<=', $endDate);
             });
         }
         
@@ -549,8 +484,8 @@ class ExchangeController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->whereHas('pos', function($pq) use ($search) {
-                    $pq->where('sale_number', 'LIKE', "%$search%")
+                $q->whereHas('exchange', function($eq) use ($search) {
+                    $eq->where('exchange_number', 'LIKE', "%$search%")
                       ->orWhereHas('originalPos', function($osq) use ($search) {
                           $osq->where('sale_number', 'LIKE', "%$search%");
                       })
@@ -569,22 +504,24 @@ class ExchangeController extends Controller
         // Filters from dropdowns
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $query->whereHas('pos', function($q) use ($restrictedBranchId) {
+            $query->whereHas('exchange', function($q) use ($restrictedBranchId) {
                 $q->where('branch_id', $restrictedBranchId);
             });
         } elseif ($request->filled('branch_id')) {
-            $query->whereHas('pos', function($q) use ($request) {
+            $query->whereHas('exchange', function($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
             });
         }
         if ($request->filled('customer_id')) {
-            $query->whereHas('pos', function($q) use ($request) {
+            $query->whereHas('exchange', function($q) use ($request) {
                 $q->where('customer_id', $request->customer_id);
             });
         }
         
         // Filter by Product/Style/Category/Brand/Season/Gender
-        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
 
         if ($request->filled('style_number') || $request->filled('category_id') || 
             $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
@@ -598,19 +535,14 @@ class ExchangeController extends Controller
             });
         }
 
-        // Assuming city and country are on the Pos model or related to it, not Product
         if ($request->filled('city')) {
-            $query->whereHas('pos', function($q) use ($request) {
-                $q->whereHas('customer', function($cq) use ($request) {
-                    $cq->where('city', $request->city);
-                });
+            $query->whereHas('exchange.customer', function($cq) use ($request) {
+                $cq->where('city', $request->city);
             });
         }
         if ($request->filled('country')) {
-            $query->whereHas('pos', function($q) use ($request) {
-                $q->whereHas('customer', function($cq) use ($request) {
-                    $cq->where('country', $request->country);
-                });
+            $query->whereHas('exchange.customer', function($cq) use ($request) {
+                $cq->where('country', $request->country);
             });
         }
 
@@ -635,11 +567,9 @@ class ExchangeController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = PosItem::whereHas('pos', function($q) {
-            $q->whereNotNull('original_pos_id');
-        })->with([
-            'pos.customer', 'pos.originalPos', 'pos.branch', 'product.category', 'product.brand', 'product.season', 'product.gender',
-            'variation.attributeValues.attribute'
+        $query = \App\Models\PosExchange::with([
+            'customer', 'originalPos', 'branch', 'items.product.category', 'items.product.brand', 'items.product.season', 'items.product.gender',
+            'items.variation.attributeValues.attribute'
         ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
@@ -659,58 +589,56 @@ class ExchangeController extends Controller
 
         $rowNum = 2;
         $tEx = 0; $tRef = 0; $tDisc = 0; $tPaid = 0; $tDue = 0;
-        foreach ($items as $index => $item) {
-            $sale = $item->pos;
-            $product = $item->product;
-            $variation = $item->variation;
-            $invoice = $sale->invoice;
+        foreach ($items as $index => $exchange) {
+            $originalSale = $exchange->originalPos;
+            
+            foreach ($exchange->items as $i => $item) {
+                $product = $item->product;
+                $variation = $item->variation;
 
-            $color = '-'; $size = '-';
-            if ($variation && $variation->attributeValues) {
-                foreach($variation->attributeValues as $val) {
-                    $attrName = strtolower($val->attribute->name ?? '');
-                    if (str_contains($attrName, 'color')) $color = $val->value;
-                    elseif (str_contains($attrName, 'size')) $size = $val->value;
+                $color = '-'; $size = '-';
+                if ($variation && $variation->attributeValues) {
+                    foreach($variation->attributeValues as $val) {
+                        $attrName = strtolower($val->attribute->name ?? '');
+                        if (str_contains($attrName, 'color')) $color = $val->value;
+                        elseif (str_contains($attrName, 'size')) $size = $val->value;
+                    }
                 }
-            }
 
-            $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
-            $totalDiscount = 0;
-            if ($isFirst) {
-                $totalDiscount = ($sale->discount ?? 0) + $sale->items->sum(function($i) {
-                    return ($i->quantity * $i->unit_price) - $i->total_price;
-                });
-                $tEx += $sale->exchange_amount;
-                $tRef += ($sale->refund_amount ?? 0);
-                $tDisc += $totalDiscount;
-                $tPaid += ($invoice->paid_amount ?? 0);
-                $tDue += ($invoice->due_amount ?? 0);
-            }
+                $isFirst = ($i == 0);
+                if ($isFirst) {
+                    $tEx += $exchange->total_new_amount;
+                    $tRef += $exchange->refund_amount;
+                    $tDisc += $exchange->discount_amount;
+                    $tPaid += $exchange->extra_payable; // Actually paid in this transaction
+                    // $tDue isn't perfectly mapped without an invoice, keeping as 0 or skipped
+                }
 
-            $data = [
-                $index + 1,
-                $sale->sale_number,
-                $sale->originalPos->sale_number ?? '-',
-                \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y'),
-                $sale->branch->name ?? '-',
-                $sale->customer->name ?? 'Walk-in',
-                $product->category->name ?? '-',
-                $product->brand->name ?? '-',
-                $product->season->name ?? '-',
-                $product->gender->name ?? '-',
-                $product->name,
-                $product->style_number,
-                $color,
-                $size,
-                $item->quantity,
-                $isFirst ? $sale->exchange_amount : '',
-                $isFirst ? ($sale->refund_amount ?? 0) : '',
-                $isFirst ? $totalDiscount : '',
-                $isFirst ? ($invoice->paid_amount ?? 0) : '',
-                $isFirst ? ($invoice->due_amount ?? 0) : ''
-            ];
-            $sheet->fromArray([$data], NULL, 'A' . $rowNum);
-            $rowNum++;
+                $data = [
+                    ($index + 1) . ($isFirst ? '' : '.'.($i+1)),
+                    $exchange->exchange_number,
+                    $originalSale->sale_number ?? '-',
+                    \Carbon\Carbon::parse($exchange->exchange_date)->format('d/m/Y'),
+                    $exchange->branch->name ?? '-',
+                    $exchange->customer->name ?? 'Walk-in',
+                    $product->category->name ?? '-',
+                    $product->brand->name ?? '-',
+                    $product->season->name ?? '-',
+                    $product->gender->name ?? '-',
+                    $product->name,
+                    $product->style_number,
+                    $color,
+                    $size,
+                    $item->quantity . ' (' . ucfirst($item->type) . ')',
+                    $isFirst ? $exchange->total_new_amount : '',
+                    $isFirst ? $exchange->refund_amount : '',
+                    $isFirst ? $exchange->discount_amount : '',
+                    $isFirst ? $exchange->extra_payable : '',
+                    '' // Due
+                ];
+                $sheet->fromArray([$data], NULL, 'A' . $rowNum);
+                $rowNum++;
+            }
         }
 
         // Add Totals Row
@@ -753,11 +681,9 @@ class ExchangeController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
-        $query = PosItem::whereHas('pos', function($q) {
-            $q->whereNotNull('original_pos_id');
-        })->with([
-            'pos.customer', 'pos.originalPos', 'pos.branch', 'product.category', 'product.brand', 'product.season', 'product.gender',
-            'variation.attributeValues.attribute'
+        $query = \App\Models\PosExchange::with([
+            'customer', 'originalPos', 'branch', 'items.product.category', 'items.product.brand', 'items.product.season', 'items.product.gender',
+            'items.variation.attributeValues.attribute'
         ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
@@ -771,5 +697,35 @@ class ExchangeController extends Controller
             return $pdf->stream($filename);
         }
         return $pdf->download($filename);
+    }
+    public function show($id)
+    {
+        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $exchange = \App\Models\PosExchange::with([
+            'customer', 'originalPos', 'branch', 'employee',
+            'items.product', 'items.variation.attributeValues.attribute'
+        ])->findOrFail($id);
+
+        return view('erp.exchange.show', compact('exchange'));
+    }
+
+    public function printReceipt($id, Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $exchange = \App\Models\PosExchange::with([
+            'customer', 'originalPos', 'branch', 'employee',
+            'items.product', 'items.variation.attributeValues.attribute'
+        ])->findOrFail($id);
+
+        $general_settings = GeneralSetting::first();
+        $action = $request->get('action', 'print');
+
+        return view('erp.exchange.print', compact('exchange', 'general_settings', 'action'));
     }
 }
