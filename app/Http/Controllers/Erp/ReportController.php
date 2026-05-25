@@ -649,7 +649,33 @@ $saleReturnCashRefund += $returnProfit;
             ]);
         }
 
-        $netCashProfit = ($totalCashProfit + $totalOtherIncome) - ($totalOperatingExpenses + $saleReturnCashRefund);
+        // --- Exchanges Profit Calculation ---
+        $exchangesQuery = \App\Models\PosExchange::with(['items.product', 'items.variation'])
+            ->whereBetween('exchange_date', [$startDate, $endDate]);
+        if ($branchId) {
+            $exchangesQuery->where('branch_id', $branchId);
+        }
+        $exchanges = $exchangesQuery->get();
+
+        $exchangeProfitChange = 0;
+        foreach ($exchanges as $exchange) {
+            $newProfit = 0;
+            $returnProfit = 0;
+            foreach ($exchange->items as $item) {
+                $cost = $item->variation ? $item->variation->cost : ($item->product ? $item->product->cost : 0);
+                $totalCost = $item->quantity * $cost;
+                $itemProfit = $item->total_price - $totalCost;
+                
+                if ($item->type == 'new') {
+                    $newProfit += $itemProfit;
+                } elseif ($item->type == 'returned') {
+                    $returnProfit += $itemProfit;
+                }
+            }
+            $exchangeProfitChange += ($newProfit - $returnProfit);
+        }
+
+        $netCashProfit = ($totalCashProfit + $totalOtherIncome + $exchangeProfitChange) - ($totalOperatingExpenses + $saleReturnCashRefund);
 
         // --- Calculate Total Due generated in this period ---
         $dueQuery = \App\Models\Invoice::whereBetween('issue_date', [$startDate, $endDate]);
@@ -666,7 +692,7 @@ $saleReturnCashRefund += $returnProfit;
             'cashProfits', 'startDate', 'endDate', 'reportType', 'branches', 'branchId',
             'totalCollected', 'totalEstimatedCost', 'totalCashProfit', 'totalOtherIncome', 'creditVoucherDetails',
             'totalOperatingExpenses', 'debitVoucherDetails', 'employeePayment',
-            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'totalDue'
+            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'totalDue', 'exchangeProfitChange'
         ));
     }
     public function profitLossReport(Request $request)
@@ -779,8 +805,30 @@ $saleReturnCashRefund += $returnProfit;
             ->join('products', 'order_items.product_id', '=', 'products.id')
             ->leftJoin('product_variations', 'order_items.variation_id', '=', 'product_variations.id')
             ->sum(DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+
+        $exchangeCostQuery = \App\Models\PosExchangeItem::where('pos_exchange_items.type', 'new')
+            ->whereHas('exchange', function($q) use ($startDate, $endDate, $branchId) {
+                $q->whereBetween('exchange_date', [$startDate, $endDate]);
+                if ($branchId) $q->where('branch_id', $branchId);
+            })
+            ->join('products', 'pos_exchange_items.product_id', '=', 'products.id')
+            ->leftJoin('product_variations', 'pos_exchange_items.variation_id', '=', 'product_variations.id');
+        $exchangeCost = $exchangeCostQuery->sum(DB::raw('pos_exchange_items.quantity * COALESCE(product_variations.cost, products.cost, 0)'));
+
+        $returnCostQuery = \App\Models\SaleReturnItem::whereHas('saleReturn', function($q) use ($startDate, $endDate, $branchId) {
+                $q->whereBetween('return_date', [$startDate, $endDate]);
+                $q->whereIn('status', ['completed', 'approved', 'processed']);
+                if ($branchId) {
+                    $q->whereHas('posSale', function($pq) use ($branchId) {
+                        $pq->where('branch_id', $branchId);
+                    });
+                }
+            })
+            ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+            ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id');
+        $returnCost = $returnCostQuery->sum(DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
             
-        $cogsAmount = $posCost + $onlineCost;
+        $cogsAmount = $posCost + $onlineCost + $exchangeCost - $returnCost;
 
         // 2. Debit Voucher (Net Expenses from Journals)
         // We exclude 'Purchases' here because inventory consumption is already handled by COGS above.

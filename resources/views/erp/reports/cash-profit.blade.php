@@ -118,6 +118,14 @@
                                                 <td class="ps-3 py-2 fw-semibold">Gross Cash Profit on Sales</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-success">Tk. {{ number_format($totalCashProfit, 2) }}</td>
                                             </tr>
+                                            @if(($exchangeProfitChange ?? 0) != 0)
+                                            <tr>
+                                                <td class="ps-3 py-2 text-secondary">Net Profit from Exchanges</td>
+                                                <td class="pe-3 py-2 text-end fw-bold {{ $exchangeProfitChange > 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $exchangeProfitChange > 0 ? '+' : '' }}Tk. {{ number_format($exchangeProfitChange, 2) }}
+                                                </td>
+                                            </tr>
+                                            @endif
 
                                             {{-- Other incomes (credit vouchers) --}}
                                             @if($creditVoucherDetails->isNotEmpty())
@@ -158,19 +166,14 @@
                                             @endif
 
                                             {{-- Sale Returns Breakdown --}}
-                                            @if($saleReturnDetails->isNotEmpty())
+                                            @if(($saleReturnCashRefund ?? 0) > 0)
                                             <tr class="table-light">
-                                                <td class="ps-3 py-2 text-secondary fw-semibold" colspan="2"><small class="text-uppercase text-muted">Sale Returns</small></td>
+                                                <td class="ps-3 py-2 text-secondary fw-semibold" colspan="2"><small class="text-uppercase text-muted">Sale Return Adjustments</small></td>
                                             </tr>
-                                            @foreach($saleReturnDetails as $ret)
                                             <tr>
-                                                <td class="ps-3 py-2 text-secondary">
-                                                    {{ $ret->reference }}
-                                                    <span class="badge bg-{{ $ret->refund_type === 'cash' ? 'danger' : ($ret->refund_type === 'exchange' ? 'warning text-dark' : 'secondary') }} ms-1" style="font-size:0.7em">{{ strtoupper($ret->refund_type) }}</span>
-                                                </td>
-                                                <td class="pe-3 py-2 text-end text-danger">Tk. {{ number_format($ret->return_amount, 2) }}</td>
+                                                <td class="ps-3 py-2 text-secondary">Profit Deducted from Returns</td>
+                                                <td class="pe-3 py-2 text-end text-danger">Tk. {{ number_format($saleReturnCashRefund, 2) }}</td>
                                             </tr>
-                                            @endforeach
                                             @endif
                                         </table>
                                     </td>
@@ -179,11 +182,11 @@
                                     <td class="p-3">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="fw-bold text-uppercase small text-dark">Total Cash Inflow
-                                                @if(($totalOtherIncome ?? 0) > 0)
-                                                <small class="text-muted fw-normal">(incl. Tk. {{ number_format($totalOtherIncome, 2) }} other income)</small>
+                                                @if(($totalOtherIncome ?? 0) > 0 || ($exchangeProfitChange ?? 0) != 0)
+                                                <small class="text-muted fw-normal">(incl. other items & exchanges)</small>
                                                 @endif
                                             </span>
-                                            <span class="fw-bold fs-5 text-success">Tk. {{ number_format($totalCashProfit + ($totalOtherIncome ?? 0), 2) }}</span>
+                                            <span class="fw-bold fs-5 text-success">Tk. {{ number_format($totalCashProfit + ($totalOtherIncome ?? 0) + ($exchangeProfitChange ?? 0), 2) }}</span>
                                         </div>
                                     </td>
                                     <td class="p-3 border-start">
