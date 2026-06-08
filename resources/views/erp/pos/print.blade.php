@@ -161,9 +161,7 @@
         </div>
 
         @php
-            $totalPosDiscount = ($pos->discount ?? 0) + $pos->items->sum(function($i) {
-                return ($i->quantity * $i->unit_price) - $i->total_price;
-            });
+            $totalPosDiscount = $pos->discount ?? 0;
         @endphp
 
         <!-- Sale Details -->

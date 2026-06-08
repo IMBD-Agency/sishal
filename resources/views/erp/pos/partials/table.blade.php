@@ -185,9 +185,7 @@
                     <td class="text-end text-danger">
                         @if($isFirst) 
                             @php
-                                $totalSaleDiscount = $sale->discount + $sale->items->sum(function($i) {
-                                    return ($i->quantity * $i->unit_price) - $i->total_price;
-                                });
+                                $totalSaleDiscount = $sale->discount ?? 0;
                             @endphp
                             {{ number_format($totalSaleDiscount, 2) }} 
                         @endif

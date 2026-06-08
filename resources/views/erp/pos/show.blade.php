@@ -8,9 +8,7 @@
         @include('erp.components.header')
         
         @php
-            $totalSaleDiscount = ($pos->discount ?? 0) + $pos->items->sum(function($i) {
-                return ($i->quantity * $i->unit_price) - $i->total_price;
-            });
+            $totalSaleDiscount = $pos->discount ?? 0;
         @endphp
 
         <!-- Header Section -->

@@ -265,9 +265,7 @@
         </table>
 
         @php
-            $totalInvoiceDiscount = ($invoice->discount_apply ?? 0) + $invoice->items->sum(function($i) {
-                return ($i->quantity * $i->unit_price) - $i->total_price;
-            });
+            $totalInvoiceDiscount = $invoice->discount_apply ?? 0;
             $pos = $invoice->pos;
         @endphp
         <table class="summary-table">

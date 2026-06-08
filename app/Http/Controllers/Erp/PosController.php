@@ -658,7 +658,7 @@ class PosController extends Controller
             'gross_amt' => $itemTotals->gross_amount ?? 0,
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
-            'discount' => ($saleTotals->total_discount ?? 0) + ($itemTotals->item_discount ?? 0),
+            'discount' => $saleTotals->total_discount ?? 0,
             'vat_amt' => $saleTotals->total_vat ?? 0,
             'exchange' => $saleTotals->total_exchange ?? 0,
             'refund' => $saleTotals->total_refund ?? 0,
@@ -1019,6 +1019,11 @@ class PosController extends Controller
             // Delete old items
             $pos->items()->delete();
 
+            // --- Proportional Discount Distribution Logic ---
+            $totalInvoiceDiscount = floatval($pos->discount ?? 0);
+            $invoiceSubtotal = floatval($pos->sub_total ?? 0);
+            $discountRatio = ($invoiceSubtotal > 0) ? ($totalInvoiceDiscount / $invoiceSubtotal) : 0;
+
             // Add new items and deduct stock
             foreach ($request->items as $item) {
                 // Validate and deduct stock
@@ -1034,6 +1039,11 @@ class PosController extends Controller
                     return response()->json(['success' => false, 'message' => $stockResult['message']], 400);
                 }
 
+                // Calculate this item's share of the total discount
+                $itemOriginalTotal = floatval($item['quantity'] * $item['unit_price']);
+                $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
+                $itemNetTotal = $itemOriginalTotal - $allocatedDiscount;
+
                 // Create POS item
                 $product = Product::find($item['product_id']);
                 $posItem = new PosItem();
@@ -1043,7 +1053,7 @@ class PosController extends Controller
                 $posItem->quantity = $item['quantity'];
                 $posItem->unit_price = $item['unit_price'];
                 $posItem->unit_cost = $this->calculateItemCost($product, $item['variation_id'] ?? null);
-                $posItem->total_price = $item['quantity'] * $item['unit_price'];
+                $posItem->total_price = $itemNetTotal;
                 $posItem->current_position_type = 'branch';
                 $posItem->current_position_id = $request->branch_id;
                 $posItem->save();
@@ -1091,13 +1101,18 @@ class PosController extends Controller
 
                 // Create new invoice items
                 foreach ($request->items as $item) {
+                    $itemOriginalTotal = floatval($item['quantity'] * $item['unit_price']);
+                    $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
+                    $itemNetTotal = $itemOriginalTotal - $allocatedDiscount;
+
                     $invoiceItem = new InvoiceItem();
                     $invoiceItem->invoice_id = $invoice->id;
                     $invoiceItem->product_id = $item['product_id'];
                     $invoiceItem->variation_id = $item['variation_id'] ?? null;
                     $invoiceItem->quantity = $item['quantity'];
                     $invoiceItem->unit_price = $item['unit_price'];
-                    $invoiceItem->total_price = $item['quantity'] * $item['unit_price'];
+                    $invoiceItem->discount   = $allocatedDiscount;
+                    $invoiceItem->total_price = $itemNetTotal;
                     $invoiceItem->save();
                 }
             }
@@ -1668,10 +1683,8 @@ class PosController extends Controller
                 
                 $i_TotalSalesAmt = $i_GrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
                 
-                // Total Discount (Global + Item-level)
-                $totalPosDiscount = ($sale->discount ?? 0) + $invItems->sum(function($i) {
-                    return ($i->quantity * $i->unit_price) - $i->total_price;
-                });
+                // Total Discount
+                $totalPosDiscount = $sale->discount ?? 0;
                 
                 $i_NetTotal = $i_TotalSalesAmt - $sale->discount; // Note: Original discount was global only, but here we show it as part of totals
                 // Actually we should use the combined discount for Net Total if it was already applied
