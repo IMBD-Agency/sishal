@@ -4,7 +4,7 @@ namespace App\Services;
 
 class BarcodeGenerator
 {
-    // Code 128 encoding tables
+    // Code 128B character-to-pattern map (ASCII 32–126, Code 128 values 0–94)
     private static $code128 = [
         ' ' => '11011001100', '!' => '11001101100', '"' => '11001100110', '#' => '10010011000',
         '$' => '10010001100', '%' => '10001001100', '&' => '10011001000', "'" => '10011000100',
@@ -33,42 +33,97 @@ class BarcodeGenerator
     ];
 
     /**
-     * Generate Code 128 barcode as SVG
+     * Full Code 128 value-to-pattern lookup (values 0–102).
+     * Values 0–94 correspond to ASCII 32–126 (printable chars).
+     * Values 95–102 are special control symbols (FNC, SHIFT, Code-switch)
+     * that have no printable ASCII equivalent — these were the source of the
+     * checksum-bar bug when checksum % 103 fell in this range.
+     */
+    private static $code128ByValue = [
+          0 => '11011001100',   1 => '11001101100',   2 => '11001100110',
+          3 => '10010011000',   4 => '10010001100',   5 => '10001001100',
+          6 => '10011001000',   7 => '10011000100',   8 => '10001100100',
+          9 => '11001001000',  10 => '11001000100',  11 => '11000100100',
+         12 => '10110011100',  13 => '10011011100',  14 => '10011001110',
+         15 => '10111001100',  16 => '10011101100',  17 => '10011100110',
+         18 => '11001110010',  19 => '11001011100',  20 => '11001001110',
+         21 => '11011100100',  22 => '11001110100',  23 => '11101101110',
+         24 => '11101001100',  25 => '11100101100',  26 => '11100100110',
+         27 => '11101100100',  28 => '11100110100',  29 => '11100110010',
+         30 => '11011011000',  31 => '11011000110',  32 => '11000110110',
+         33 => '10100011000',  34 => '10001011000',  35 => '10001000110',
+         36 => '10110001000',  37 => '10001101000',  38 => '10001100010',
+         39 => '11010001000',  40 => '11000101000',  41 => '11000100010',
+         42 => '10110111000',  43 => '10110001110',  44 => '10001101110',
+         45 => '10111011000',  46 => '10111000110',  47 => '10001110110',
+         48 => '11101110110',  49 => '11010001110',  50 => '11000101110',
+         51 => '11011101000',  52 => '11011100010',  53 => '11011101110',
+         54 => '11101011000',  55 => '11101000110',  56 => '11100010110',
+         57 => '11101101000',  58 => '11101100010',  59 => '11100011010',
+         60 => '11101111010',  61 => '11001000010',  62 => '11110001010',
+         63 => '10100110000',  64 => '10100001100',  65 => '10010110000',
+         66 => '10010000110',  67 => '10000101100',  68 => '10000100110',
+         69 => '10110010000',  70 => '10110000100',  71 => '10011010000',
+         72 => '10011000010',  73 => '10000110100',  74 => '10000110010',
+         75 => '11000010010',  76 => '11001010000',  77 => '11110111010',
+         78 => '11000010100',  79 => '10001111010',  80 => '10100111100',
+         81 => '10010111100',  82 => '10010011110',  83 => '10111100100',
+         84 => '10011110100',  85 => '10011110010',  86 => '11110100100',
+         87 => '11110010100',  88 => '11110010010',  89 => '11011011110',
+         90 => '11011110110',  91 => '11110110110',  92 => '10101111000',
+         93 => '10100011110',  94 => '10001011110',
+         // Special symbols — these were MISSING and caused the checksum-bar bug
+         95 => '10111101000',  // FNC3 / DEL
+         96 => '10111100010',  // FNC2
+         97 => '11110101000',  // SHIFT
+         98 => '11110100010',  // Code C
+         99 => '10111011110',  // FNC4 / Code B
+        100 => '10111101110',  // Code A / FNC4
+        101 => '11101011110',  // FNC1
+        102 => '11110101110',  // FNC1 (alternate)
+    ];
+
+    /**
+     * Generate Code 128B barcode as SVG.
      */
     public static function generateCode128SVG($text, $width = 2, $height = 50)
     {
         // Start code for Code 128B
         $startCode = '11010010000';
-        $stopCode = '1100011101011';
-        
+        $stopCode  = '1100011101011';
+
         // Build barcode pattern
-        $pattern = $startCode;
+        $pattern  = $startCode;
         $checksum = 104; // Start B value
         $position = 1;
-        
+
         for ($i = 0; $i < strlen($text); $i++) {
             $char = $text[$i];
             if (isset(self::$code128[$char])) {
-                $pattern .= self::$code128[$char];
+                $pattern  .= self::$code128[$char];
                 $checksum += (ord($char) - 32) * $position;
                 $position++;
             }
         }
-        
-        // Add checksum
+
+        // Add checksum bar.
+        // BUG FIX: Previously used chr($checksumValue + 32) which fails for values 95-102
+        // (those map to non-printable ASCII and are absent from the $code128 table),
+        // causing the checksum bar to be silently dropped and producing invalid barcodes.
+        // Now we use the numeric $code128ByValue lookup that covers all 103 values.
         $checksumValue = $checksum % 103;
-        $checksumChar = chr($checksumValue + 32);
-        if (isset(self::$code128[$checksumChar])) {
-            $pattern .= self::$code128[$checksumChar];
+        if (isset(self::$code128ByValue[$checksumValue])) {
+            $pattern .= self::$code128ByValue[$checksumValue];
         }
-        
+
         // Add stop code
         $pattern .= $stopCode;
-        
+
         // Generate SVG
         $svgWidth = strlen($pattern) * $width;
-        $svg = '<svg viewBox="0 0 ' . $svgWidth . ' ' . $height . '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">';
-        
+        $svg = '<svg viewBox="0 0 ' . $svgWidth . ' ' . $height
+             . '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">';
+
         $x = 0;
         for ($i = 0; $i < strlen($pattern); $i++) {
             if ($pattern[$i] === '1') {
@@ -76,18 +131,17 @@ class BarcodeGenerator
             }
             $x += $width;
         }
-        
+
         $svg .= '</svg>';
-        
+
         return $svg;
     }
 
     /**
-     * Generate Code 128 barcode as HTML (alternative method)
+     * Generate Code 128 barcode as HTML (alias for SVG method).
      */
     public static function generateCode128HTML($text, $barWidth = 2, $height = 50)
     {
-        $svg = self::generateCode128SVG($text, $barWidth, $height);
-        return $svg;
+        return self::generateCode128SVG($text, $barWidth, $height);
     }
 }
