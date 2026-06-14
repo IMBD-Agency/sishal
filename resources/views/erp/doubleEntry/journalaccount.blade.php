@@ -290,22 +290,9 @@
                                                     {{ $journal->createdBy ? ($journal->createdBy->first_name . ' ' . $journal->createdBy->last_name) : 'N/A' }}
                                                 </td>
                                                 <td class="text-center pe-4">
-                                                    <div class="btn-group btn-group-sm rounded-3 overflow-hidden border shadow-sm">
-                                                        <a href="{{ route('journal.show', $journal->id) }}" class="btn btn-white text-primary" title="View">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                        <button type="button" class="btn btn-white text-info"
-                                                            onclick="editJournal({{ $journal->id }}, '{{ $journal->entry_date->format('Y-m-d') }}', '{{ addslashes($journal->description) }}', '{{ $journal->type }}')"
-                                                            title="Edit">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                        <button type="button" class="btn btn-white text-danger delete-journal-btn"
-                                                            data-journal-id="{{ $journal->id }}"
-                                                            data-voucher-no="{{ $journal->voucher_no }}"
-                                                            title="Delete">
-                                                            <i class="fas fa-trash-alt"></i>
-                                                        </button>
-                                                    </div>
+                                                    <a href="{{ route('journal.show', $journal->id) }}" class="btn btn-sm btn-light border shadow-sm text-primary" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
                                                 </td>
                                             </tr>
                                         @empty

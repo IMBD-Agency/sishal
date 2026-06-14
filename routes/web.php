@@ -418,6 +418,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::post('/exchange/store', [\App\Http\Controllers\Erp\ExchangeController::class, 'store'])->name('exchange.store');
     Route::get('/exchange/{id}', [\App\Http\Controllers\Erp\ExchangeController::class, 'show'])->name('exchange.show');
     Route::get('/exchange/{id}/print', [\App\Http\Controllers\Erp\ExchangeController::class, 'printReceipt'])->name('exchange.print');
+    Route::delete('/exchange/{id}', [\App\Http\Controllers\Erp\ExchangeController::class, 'destroy'])->name('exchange.delete');
 
     // Purchase
     Route::get('/purchases', [\App\Http\Controllers\Erp\PurchaseController::class, 'index'])->name('purchase.list');

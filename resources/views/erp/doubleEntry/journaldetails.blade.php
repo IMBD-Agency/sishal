@@ -83,18 +83,9 @@
                     <button class="btn btn-light border shadow-sm fw-bold" onclick="window.print()">
                         <i class="fas fa-print me-2"></i>Print
                     </button>
-                    <div class="btn-group shadow-sm">
-                        <button class="btn btn-create-premium text-nowrap" onclick="exportJournal()">
-                            <i class="fas fa-download me-2"></i>Export
-                        </button>
-                        <form action="{{ route('journal.destroy', $journal->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this entire journal entry?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger text-white border-0" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </form>
-                    </div>
+                    <button class="btn btn-create-premium text-nowrap shadow-sm" onclick="exportJournal()">
+                        <i class="fas fa-download me-2"></i>Export
+                    </button>
                 </div>
             </div>
         </div>
@@ -191,16 +182,13 @@
         <!-- Journal Entries Section -->
         <div class="container-fluid px-4 pb-4">
             <div class="premium-card shadow-sm overflow-hidden">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-4">
+                <div class="card-header bg-white border-bottom py-4">
                      <h5 class="mb-0 fw-bold text-dark d-flex align-items-center">
                         <span class="icon-box-sm bg-primary bg-opacity-10 text-primary me-2 rounded">
                             <i class="fas fa-list-ul"></i>
                         </span>
                         Journal Entries
                     </h5>
-                    <button type="button" class="btn btn-create-premium px-4" onclick="showAddEntryModal()">
-                        <i class="fas fa-plus me-2"></i>Add Line Entry
-                    </button>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -212,7 +200,6 @@
                                     <th class="text-end">Debit</th>
                                     <th class="text-end">Credit</th>
                                     <th>Memo</th>
-                                    <th class="text-center pe-4">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="entriesTableBody">
@@ -247,30 +234,14 @@
                                         <td>
                                             <span class="text-muted small">{{ $entry->memo ?? '—' }}</span>
                                         </td>
-                                        <td class="text-center pe-4">
-                                            <div class="d-flex justify-content-center gap-2">
-                                                <button type="button" class="btn-action-premium text-info" 
-                                                        onclick="editEntry({{ $entry->id }})" title="Edit">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button type="button" class="btn-action-premium text-danger" 
-                                                        onclick="deleteEntry({{ $entry->id }})" title="Delete">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
-                                            </div>
-                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-5">
+                                        <td colspan="5" class="text-center text-muted py-5">
                                             <div class="opacity-25 mb-3">
                                                 <i class="fas fa-receipt fa-4x"></i>
                                             </div>
                                             <h6 class="fw-bold">No transactions recorded yet</h6>
-                                            <p class="small">Start by adding a debit or credit line to this voucher.</p>
-                                            <button onclick="showAddEntryModal()" class="btn btn-primary btn-sm px-4 rounded-pill mt-2">
-                                                <i class="fas fa-plus me-1"></i>Add First Line
-                                            </button>
                                         </td>
                                     </tr>
                                 @endforelse
@@ -280,7 +251,7 @@
                                     <td colspan="2" class="text-end ps-4 py-4 text-dark h6 mb-0">Closing Totals</td>
                                     <td class="text-end text-success py-4 h6 mb-0">৳{{ number_format($journal->total_debit, 2) }}</td>
                                     <td class="text-end text-warning py-4 h6 mb-0">৳{{ number_format($journal->total_credit, 2) }}</td>
-                                    <td colspan="2" class="pe-4 text-end">
+                                    <td class="pe-4 text-end">
                                         @if($journal->isBalanced())
                                             <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-4 py-2 rounded-pill">
                                                 <i class="fas fa-shield-alt me-2"></i>Voucher Balanced
@@ -299,235 +270,4 @@
             </div>
         </div>
     </div>
-
-    <!-- Modern Add Entry Modal -->
-    <div class="modal fade" id="addEntryModal" tabindex="-1" aria-labelledby="addEntryModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-primary text-white p-4">
-                    <h5 class="modal-title fw-bold" id="addEntryModalLabel">
-                        <i class="fas fa-plus-circle me-2"></i>New Transaction Line
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="entryForm" action="{{ route('journal.entry.store', $journal->id) }}" method="POST">
-                    @csrf
-                    <div class="modal-body p-4">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark small">Chart of Account <span class="text-danger">*</span></label>
-                                <select class="form-select border-2 @error('chart_of_account_id') is-invalid @enderror" 
-                                        name="chart_of_account_id" required>
-                                    <option value="">Select Account</option>
-                                    @foreach($chartAccounts as $account)
-                                        <option value="{{ $account->id }}" {{ old('chart_of_account_id') == $account->id ? 'selected' : '' }}>
-                                            {{ $account->name }} ({{ $account->code }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark small">Financial Account (Optional)</label>
-                                <select class="form-select border-2" name="financial_account_id">
-                                    <option value="">Select Financial Account</option>
-                                    @foreach($financialAccounts as $account)
-                                        <option value="{{ $account->id }}">
-                                            {{ $account->provider_name }} - {{ $account->account_number }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-success small">Debit Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-success bg-opacity-10 text-success">৳</span>
-                                    <input type="number" class="form-control border-2" id="debit" name="debit" 
-                                           step="0.01" min="0" placeholder="0.00" oninput="validateAmounts()">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-warning small">Credit Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-warning bg-opacity-10 text-warning">৳</span>
-                                    <input type="number" class="form-control border-2" id="credit" name="credit" 
-                                           step="0.01" min="0" placeholder="0.00" oninput="validateAmounts()">
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-dark small">Line Memo / Reference</label>
-                                <textarea class="form-control border-2" name="memo" rows="2" placeholder="Describe this transaction line..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-light p-4">
-                        <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm" id="saveEntryBtn" disabled>
-                            <i class="fas fa-save me-2"></i>Record Transaction
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modern Edit Entry Modal -->
-    <div class="modal fade" id="editEntryModal" tabindex="-1" aria-labelledby="editEntryModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-info text-white p-4">
-                    <h5 class="modal-title fw-bold" id="editEntryModalLabel">
-                        <i class="fas fa-edit me-2"></i>Modify Transaction Line
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="editEntryForm" method="POST">
-                    @csrf
-                    @method('PUT')
-                    <div class="modal-body p-4">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark small">Chart of Account <span class="text-danger">*</span></label>
-                                <select class="form-select border-2" id="edit_chart_of_account_id" name="chart_of_account_id" required>
-                                    @foreach($chartAccounts as $account)
-                                        <option value="{{ $account->id }}">{{ $account->name }} ({{ $account->code }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark small">Financial Account</label>
-                                <select class="form-select border-2" id="edit_financial_account_id" name="financial_account_id">
-                                    <option value="">Select Financial Account</option>
-                                    @foreach($financialAccounts as $account)
-                                        <option value="{{ $account->id }}">{{ $account->provider_name }} - {{ $account->account_number }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-success small">Debit Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-success bg-opacity-10 text-success">৳</span>
-                                    <input type="number" class="form-control border-2" id="edit_debit" name="debit" 
-                                           step="0.01" min="0" placeholder="0.00" oninput="validateEditAmounts()">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-warning small">Credit Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-warning bg-opacity-10 text-warning">৳</span>
-                                    <input type="number" class="form-control border-2" id="edit_credit" name="credit" 
-                                           step="0.01" min="0" placeholder="0.00" oninput="validateEditAmounts()">
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-dark small">Line Memo / Reference</label>
-                                <textarea class="form-control border-2" id="edit_memo" name="memo" rows="2"></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-light p-4">
-                        <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-info text-white fw-bold px-4 shadow-sm" id="updateEntryBtn" disabled>
-                            <i class="fas fa-check-circle me-2"></i>Update Line
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script src='https://code.jquery.com/jquery-3.7.1.min.js'></script>
-    <script>
-        function showAddEntryModal() {
-            $('#addEntryModal').modal('show');
-        }
-
-        function validateAmounts() {
-            const debit = parseFloat($('#debit').val()) || 0;
-            const credit = parseFloat($('#credit').val()) || 0;
-            const saveBtn = $('#saveEntryBtn');
-            
-            if (debit > 0 || credit > 0) {
-                saveBtn.prop('disabled', false);
-            } else {
-                saveBtn.prop('disabled', true);
-            }
-        }
-
-        function validateEditAmounts() {
-            const debit = parseFloat($('#edit_debit').val()) || 0;
-            const credit = parseFloat($('#edit_credit').val()) || 0;
-            const updateBtn = $('#updateEntryBtn');
-            
-            if (debit > 0 || credit > 0) {
-                updateBtn.prop('disabled', false);
-            } else {
-                updateBtn.prop('disabled', true);
-            }
-        }
-
-        function editEntry(entryId) {
-            // Fetch entry data via AJAX
-            $.ajax({
-                url: '{{ url("erp/journal-entry") }}/' + entryId,
-                type: 'GET',
-                success: function(response) {
-                    const entry = response.entry;
-                    
-                    // Populate form fields
-                    $('#edit_chart_of_account_id').val(entry.chart_of_account_id);
-                    $('#edit_financial_account_id').val(entry.financial_account_id);
-                    $('#edit_debit').val(entry.debit);
-                    $('#edit_credit').val(entry.credit);
-                    $('#edit_memo').val(entry.memo);
-                    
-                    // Set form action
-                    $('#editEntryForm').attr('action', '{{ url("erp/journal-entry") }}/' + entryId);
-                    
-                    // Show modal
-                    $('#editEntryModal').modal('show');
-                    
-                    // Validate amounts
-                    validateEditAmounts();
-                },
-                error: function() {
-                    alert('Error loading entry data');
-                }
-            });
-        }
-
-        function deleteEntry(entryId) {
-            if (confirm('Are you sure you want to delete this entry?')) {
-                $.ajax({
-                    url: '{{ url("erp/journal-entry") }}/' + entryId,
-                    type: 'DELETE',
-                    data: {
-                        _token: '{{ csrf_token() }}'
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            location.reload();
-                        } else {
-                            alert('Error deleting entry');
-                        }
-                    },
-                    error: function() {
-                        alert('Error deleting entry');
-                    }
-                });
-            }
-        }
-
-        
-
-        // Reset form when modal is closed
-        $('#addEntryModal').on('hidden.bs.modal', function() {
-            $('#entryForm')[0].reset();
-            $('#saveEntryBtn').prop('disabled', true);
-        });
-
-        $('#editEntryModal').on('hidden.bs.modal', function() {
-            $('#editEntryForm')[0].reset();
-            $('#updateEntryBtn').prop('disabled', true);
-        });
-    </script>
 @endsection

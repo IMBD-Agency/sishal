@@ -52,14 +52,14 @@
                                 <div class="mb-3">
                                     <label for="pos_sale_id" class="form-label small fw-bold text-muted text-uppercase">POS Sale Reference</label>
                                     <select name="pos_sale_id" id="pos_sale_id" class="form-select" required>
-                                        <option value="{{ $saleReturn->pos_sale_id }}" selected>POS #{{ $saleReturn->posSale->sale_number ?? $saleReturn->pos_sale_id }}</option>
+                                        <option value="{{ $saleReturn->pos_sale_id }}" selected>POS #{{ $saleReturn->posSale?->sale_number ?? $saleReturn->pos_sale_id }}</option>
                                     </select>
                                 </div>
 
                                 <div class="mb-3">
                                     <label for="customer_id" class="form-label small fw-bold text-muted text-uppercase">Customer</label>
                                     <select name="customer_id" id="customer_id" class="form-select">
-                                        <option value="{{ $saleReturn->customer_id }}" selected>{{ $saleReturn->customer->name }}</option>
+                                        <option value="{{ $saleReturn->customer_id }}" selected>{{ $saleReturn->customer?->name ?? 'Walk-in Customer' }}</option>
                                     </select>
                                 </div>
 

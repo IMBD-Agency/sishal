@@ -728,4 +728,74 @@ class ExchangeController extends Controller
 
         return view('erp.exchange.print', compact('exchange', 'general_settings', 'action'));
     }
+
+    public function destroy($id)
+    {
+        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $posExchange = \App\Models\PosExchange::with(['items', 'originalPos'])->findOrFail($id);
+
+            $branchId = $posExchange->branch_id;
+            
+            // 1. Rollback Stock
+            // Returned items: we restored stock during store, so now we must deduct stock.
+            // New items: we deducted stock during store, so now we must restore stock.
+            foreach ($posExchange->items as $item) {
+                $productId = $item->product_id;
+                $variationId = $item->variation_id;
+                $qty = $item->quantity;
+
+                if ($item->type === 'returned') {
+                    $this->deductStock($productId, $variationId, $qty, $branchId);
+                } elseif ($item->type === 'new') {
+                    $this->restoreStock($productId, $variationId, $qty, $branchId);
+                }
+            }
+
+            // 2. Rollback original POS Sale changes
+            $originalSale = $posExchange->originalPos;
+            if ($originalSale) {
+                $originalSale->exchange_amount = max(0, ($originalSale->exchange_amount ?? 0) - $posExchange->total_new_amount);
+                $originalSale->refund_amount = max(0, ($originalSale->refund_amount ?? 0) - $posExchange->refund_amount);
+                $originalSale->save();
+
+                // 3. Rollback Invoice updates (if extra payable was applied)
+                if ($originalSale->invoice && $posExchange->extra_payable > 0) {
+                    $invoice = $originalSale->invoice;
+                    $invoice->paid_amount = max(0, $invoice->paid_amount - $posExchange->extra_payable);
+                    $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                    $invoice->save();
+                }
+            }
+
+            // 4. Delete Journal entries associated with this exchange
+            $journal = Journal::where('reference', $posExchange->exchange_number)->first();
+            if ($journal) {
+                $journal->entries()->delete();
+                $journal->delete();
+            }
+
+            // 5. Delete associated SaleReturn and SaleReturnItems
+            $saleReturn = \App\Models\SaleReturn::where('reason', 'Exchange ' . $posExchange->exchange_number)->first();
+            if ($saleReturn) {
+                $saleReturn->items()->delete();
+                $saleReturn->delete();
+            }
+
+            // 6. Delete Exchange items and Exchange
+            $posExchange->items()->delete();
+            $posExchange->delete();
+
+            DB::commit();
+            return redirect()->route('exchange.list')->with('success', 'Exchange deleted successfully and stock/accounting rolled back.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('exchange.list')->with('error', 'Failed to delete exchange: ' . $e->getMessage());
+        }
+    }
 }
+

@@ -27,6 +27,13 @@
                            class="btn btn-outline-secondary px-4 py-2 rounded-pill">
                             <i class="fas fa-print me-2"></i>Print Receipt
                         </a>
+                        <form action="{{ route('exchange.delete', $exchange->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this exchange? Stock and accounting will be fully rolled back!')" style="display:inline;">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-danger px-4 py-2 rounded-pill fw-bold">
+                                <i class="fas fa-trash me-2"></i>Delete
+                            </button>
+                        </form>
                         <a href="{{ route('exchange.list') }}" class="btn btn-outline-primary px-4 py-2 rounded-pill">
                             <i class="fas fa-arrow-left me-2"></i>Back to List
                         </a>

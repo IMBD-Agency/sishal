@@ -463,7 +463,7 @@ class SaleReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $saleReturn = SaleReturn::with(['items', 'employee.user'])->findOrFail($id);
+        $saleReturn = SaleReturn::with(['items', 'employee.user', 'customer', 'posSale', 'branch', 'warehouse'])->findOrFail($id);
         $restrictedBranchId = $this->getRestrictedBranchId();
         $customersQuery = Customer::query();
         if ($restrictedBranchId) {
@@ -548,9 +548,40 @@ class SaleReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $saleReturn = SaleReturn::findOrFail($id);
-        $saleReturn->delete();
-        return redirect()->route('saleReturn.list')->with('success', 'Sale return deleted successfully.');
+
+        DB::beginTransaction();
+        try {
+            $saleReturn = SaleReturn::with(['items'])->findOrFail($id);
+
+            // Block deletion of return records created by exchanges
+            if ($saleReturn->reason && str_starts_with($saleReturn->reason, 'Exchange ')) {
+                return redirect()->route('saleReturn.list')->with('error', 'This return was created from an Exchange. Please delete the Exchange record instead to keep stock and accounting in sync.');
+            }
+
+            // Roll back stock if it was processed
+            if ($saleReturn->status === 'processed') {
+                foreach ($saleReturn->items as $item) {
+                    $this->removeStockForReturnItem($saleReturn, $item);
+                }
+
+                // Delete associated Journal entries
+                $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
+                $journal = Journal::where('voucher_no', $voucherNo)->first();
+                if ($journal) {
+                    $journal->entries()->delete();
+                    $journal->delete();
+                }
+            }
+
+            $saleReturn->items()->delete();
+            $saleReturn->delete();
+
+            DB::commit();
+            return redirect()->route('saleReturn.list')->with('success', 'Sale return deleted successfully and stock rolled back.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('saleReturn.list')->with('error', 'Failed to delete sale return: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -859,6 +890,77 @@ class SaleReturnController extends Controller
                 break;
             default:
                 throw new \Exception("Invalid return_to_type: {$toType}");
+        }
+    }
+
+    private function removeStockForReturnItem($saleReturn, $item)
+    {
+        $qty = $item->returned_qty;
+        $productId = $item->product_id;
+        $variationId = $item->variation_id ?? null;
+
+        // Handle Combo Products recursively
+        $product = \App\Models\Product::find($productId);
+        if ($product && $product->type === 'combo') {
+            foreach ($product->comboItems as $comboItem) {
+                $compItem = (object)[
+                    'product_id'   => $comboItem->product_id,
+                    'variation_id' => $comboItem->variation_id,
+                    'returned_qty' => $comboItem->quantity * $qty
+                ];
+                $this->removeStockForReturnItem($saleReturn, $compItem);
+            }
+            return;
+        }
+
+        $toType = $saleReturn->return_to_type;
+        $toId = $saleReturn->return_to_id;
+
+        switch ($toType) {
+            case 'branch':
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('branch_id', $toId)
+                        ->whereNull('warehouse_id')
+                        ->first();
+                    if ($stock) {
+                        $stock->decrement('quantity', $qty);
+                    }
+                } else {
+                    $stock = \App\Models\BranchProductStock::where('branch_id', $toId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    if ($stock) {
+                        $stock->decrement('quantity', $qty);
+                    }
+                }
+                break;
+            case 'warehouse':
+                if ($variationId) {
+                    $stock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                        ->where('warehouse_id', $toId)
+                        ->whereNull('branch_id')
+                        ->first();
+                    if ($stock) {
+                        $stock->decrement('quantity', $qty);
+                    }
+                } else {
+                    $stock = \App\Models\WarehouseProductStock::where('warehouse_id', $toId)
+                        ->where('product_id', $productId)
+                        ->first();
+                    if ($stock) {
+                        $stock->decrement('quantity', $qty);
+                    }
+                }
+                break;
+            case 'employee':
+                $stock = \App\Models\EmployeeProductStock::where('employee_id', $toId)
+                    ->where('product_id', $productId)
+                    ->first();
+                if ($stock) {
+                    $stock->decrement('quantity', $qty);
+                }
+                break;
         }
     }
 } 

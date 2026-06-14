@@ -1063,24 +1063,26 @@ class PurchaseReturnController extends Controller
         try {
             $purchaseReturn = PurchaseReturn::with(['items'])->findOrFail($id);
 
-            // 1. Reverse Stock Adjustments
-            foreach ($purchaseReturn->items as $item) {
-                $this->reverseStockForReturnItem($item);
+            // 1. Reverse Stock Adjustments & Accounting ONLY if the return was processed
+            if ($purchaseReturn->status === 'processed') {
+                foreach ($purchaseReturn->items as $item) {
+                    $this->reverseStockForReturnItem($item);
+                }
+
+                // Delete Associated Journal & Entries
+                $journal = Journal::where('reference', 'PR-' . $purchaseReturn->id)->first();
+                if ($journal) {
+                    $journal->entries()->delete();
+                    $journal->delete();
+                }
             }
 
-            // 2. Delete Associated Journal & Entries
-            $journal = Journal::where('reference', 'PR-' . $purchaseReturn->id)->first();
-            if ($journal) {
-                $journal->entries()->delete();
-                $journal->delete();
-            }
-
-            // 3. Delete Return Items & Return Record
+            // 2. Delete Return Items & Return Record
             $purchaseReturn->items()->delete();
             $purchaseReturn->delete();
 
             DB::commit();
-            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return deleted and stock/accounting reversed successfully.');
+            return redirect()->route('purchaseReturn.list')->with('success', 'Purchase return deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Deletion failed: ' . $e->getMessage()]);

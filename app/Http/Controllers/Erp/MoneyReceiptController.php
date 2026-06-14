@@ -26,7 +26,10 @@ class MoneyReceiptController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos', 'account'])
-            ->whereNotNull('customer_id');
+            ->where(function($q) {
+                $q->where('payment_for', 'manual_receipt')
+                  ->orWhereNotNull('customer_id');
+            });
 
         $query = $this->applyFilters($query, $request);
 
@@ -548,6 +551,24 @@ class MoneyReceiptController extends Controller
                 $invoice->save();
             }
 
+            // Revert Financial Account balance if account_id exists
+            if ($payment->account_id) {
+                $account = FinancialAccount::find($payment->account_id);
+                if ($account) {
+                    $account->balance -= $payment->amount;
+                    $account->save();
+                }
+            }
+
+            // Delete Associated Journal and Journal Entries
+            if ($payment->payment_reference) {
+                $journal = Journal::where('reference', $payment->payment_reference)->first();
+                if ($journal) {
+                    $journal->entries()->delete();
+                    $journal->delete();
+                }
+            }
+
             $payment->delete();
 
             DB::commit();
@@ -675,7 +696,10 @@ class MoneyReceiptController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos'])
-            ->whereNotNull('customer_id');
+            ->where(function($q) {
+                $q->where('payment_for', 'manual_receipt')
+                  ->orWhereNotNull('customer_id');
+            });
         $query = $this->applyFilters($query, $request);
         $receipts = $query->latest('id')->get();
 
@@ -724,7 +748,10 @@ class MoneyReceiptController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $query = Payment::with(['customer', 'invoice', 'creator.employee', 'pos', 'account'])
-            ->whereNotNull('customer_id');
+            ->where(function($q) {
+                $q->where('payment_for', 'manual_receipt')
+                  ->orWhereNotNull('customer_id');
+            });
         $query = $this->applyFilters($query, $request);
         $receipts = $query->latest('id')->get();
         $totalAmount = $query->sum('amount');

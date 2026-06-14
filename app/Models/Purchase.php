@@ -18,6 +18,16 @@ class Purchase extends Model
         'is_billed',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($purchase) {
+            if ($purchase->bill) {
+                $purchase->bill->delete();
+            }
+            $purchase->items()->delete();
+        });
+    }
+
     public function items()
     {
         return $this->hasMany(PurchaseItem::class,'purchase_id');

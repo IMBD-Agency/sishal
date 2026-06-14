@@ -467,7 +467,7 @@ class ReportController extends Controller
         // We want to fetch all Payments that are collections for sales (invoices/pos)
         $paymentsQuery = Payment::with(['pos', 'invoice'])
             ->whereBetween('payment_date', [$startDate, $endDate])
-            ->whereIn('payment_for', ['invoice', 'pos', 'pos_sale', 'advance_payment', 'customer_due']);
+            ->whereIn('payment_for', ['invoice', 'pos', 'pos_sale', 'advance_payment', 'customer_due', 'manual_receipt']);
 
         if ($branchId) {
             $paymentsQuery->where(function($q) use ($branchId) {
@@ -591,6 +591,7 @@ class ReportController extends Controller
             ->where('chart_of_account_types.name', 'like', 'Revenue%')
             ->where('chart_of_accounts.name', 'not like', '%Sales%') // Exclude product sales — already in collection
             ->where('chart_of_accounts.name', 'not like', '%Sale%')
+            ->where('chart_of_accounts.name', 'not like', '%Purchase%') // Exclude Purchase Returns / Purchases from cash profit revenue
             ->whereBetween('journals.entry_date', [$startDate, $endDate]);
 
         if ($branchId) $creditVoucherQuery->where('journals.branch_id', $branchId);

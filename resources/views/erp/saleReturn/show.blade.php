@@ -50,6 +50,13 @@
                     <a href="{{ route('saleReturn.edit', $saleReturn->id) }}" class="btn btn-light fw-bold shadow-sm">
                         <i class="fas fa-edit me-2"></i>Edit
                     </a>
+                    <form action="{{ route('saleReturn.delete', $saleReturn->id) }}" method="POST" onsubmit="return confirm('Are you sure? This will roll back all stock and accounting changes!')" style="display:inline;">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger fw-bold shadow-sm">
+                            <i class="fas fa-trash me-2"></i>Delete
+                        </button>
+                    </form>
                     <a href="{{ route('saleReturn.list') }}" class="btn btn-create-premium text-nowrap">
                         <i class="fas fa-list me-2"></i>Return List
                     </a>

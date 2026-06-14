@@ -259,11 +259,20 @@
                                         <td class="text-end">{{ $isFirst ? number_format($exchange->discount_amount, 2) : '' }}</td>
                                         <td class="text-end text-success fw-bold">{{ $isFirst ? number_format($exchange->extra_payable, 2) : '' }}</td>
                                         <td class="text-end text-danger fw-bold">{{ $isFirst ? number_format(0, 2) : '' }}</td>
-                                        <td class="text-center">
-                                            <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        </td>
+                                         <td class="text-center">
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm" title="View">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <form action="{{ route('exchange.delete', $exchange->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this exchange? All stock and accounting entries will be rolled back!')" style="display:inline;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-action btn-sm text-danger" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                         </td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="20" class="text-center py-5 text-muted">No records found</td></tr>
