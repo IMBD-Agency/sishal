@@ -1327,6 +1327,87 @@ class StockController extends Controller
         ]);
     }
 
+    public function deleteAdjustment(Request $request, $id)
+    {
+        if (!auth()->user()->hasPermissionTo('adjust stock')) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+            }
+            abort(403, 'Unauthorized action.');
+        }
+
+        $adjustment = \App\Models\StockAdjustment::with('items')->findOrFail($id);
+
+        \DB::beginTransaction();
+        try {
+            foreach ($adjustment->items as $item) {
+                // Calculate the difference this adjustment applied
+                $diff = $item->new_quantity - $item->old_quantity;
+
+                if ($item->variation_id) {
+                    // --- Variation stock ---
+                    if ($adjustment->branch_id) {
+                        $stock = ProductVariationStock::where('variation_id', $item->variation_id)
+                            ->where('branch_id', $adjustment->branch_id)
+                            ->whereNull('warehouse_id')
+                            ->first();
+                    } else {
+                        $stock = ProductVariationStock::where('variation_id', $item->variation_id)
+                            ->where('warehouse_id', $adjustment->warehouse_id)
+                            ->whereNull('branch_id')
+                            ->first();
+                    }
+
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $diff);
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
+                        $stock->save();
+                    }
+                } else {
+                    // --- Product-level stock ---
+                    if ($adjustment->branch_id) {
+                        $stock = BranchProductStock::where('product_id', $item->product_id)
+                            ->where('branch_id', $adjustment->branch_id)
+                            ->first();
+                    } else {
+                        $stock = WarehouseProductStock::where('product_id', $item->product_id)
+                            ->where('warehouse_id', $adjustment->warehouse_id)
+                            ->first();
+                    }
+
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $diff);
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
+                        $stock->save();
+                    }
+                }
+
+                // Clear product cache
+                \App\Services\CacheService::clearProductCaches($item->product_id);
+            }
+
+            // Delete items then the parent adjustment record
+            $adjustment->items()->delete();
+            $adjustment->delete();
+
+            \DB::commit();
+
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'message' => 'Adjustment deleted and stock reversed successfully.']);
+            }
+            return redirect()->route('stock.adjustment.list')->with('success', 'Adjustment deleted and stock reversed successfully.');
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Stock Adjustment Delete Failed: ' . $e->getMessage());
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Failed to delete: ' . $e->getMessage()], 500);
+            }
+            return redirect()->back()->with('error', 'Failed to delete adjustment: ' . $e->getMessage());
+        }
+    }
+
     private function getAdjustmentQuery(Request $request)
     {
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);

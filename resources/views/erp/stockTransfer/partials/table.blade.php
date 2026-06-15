@@ -122,14 +122,19 @@
                                 </a>
                             @endif
 
-                            @if((auth()->user()->hasPermissionTo('delete transfers') || auth()->user()->hasPermissionTo('manage transfers')) && in_array($transfer->status, ['pending', 'rejected']))
-                                <form action="{{ route('stocktransfer.destroy', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this transfer batch? This cannot be undone.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="action-circle border-0 bg-transparent" title="Delete Transfer">
-                                        <i class="fas fa-trash text-danger"></i>
-                                    </button>
-                                </form>
+                            @if(auth()->user()->hasPermissionTo('delete transfers') || auth()->user()->hasPermissionTo('manage transfers'))
+                                <button type="button"
+                                    class="action-circle border-0 bg-transparent btn-delete-transfer"
+                                    data-transfer-id="{{ $transfer->id }}"
+                                    data-invoice="{{ $transfer->invoice_number ?? 'ID:'.$transfer->id }}"
+                                    data-status="{{ $transfer->status }}"
+                                    data-product="{{ $product->name ?? 'this product' }}"
+                                    data-qty="{{ number_format($transfer->quantity, 0) }}"
+                                    data-source="{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}"
+                                    data-destination="{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}"
+                                    title="Delete Transfer">
+                                    <i class="fas fa-trash text-danger"></i>
+                                </button>
                             @endif
                         </div>
                     </td>

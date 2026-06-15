@@ -222,6 +222,86 @@
             let data = $('#filterForm').serialize();
             window.location.href = "{{ route('stock.adjustment.pdf') }}?" + data;
         });
+
+        // ── Delete Adjustment ──────────────────────────────────────────────
+        let pendingAdjId = null;
+
+        $(document).on('click', '.btn-delete-adjustment', function() {
+            const adjId     = $(this).data('adj-id');
+            const adjNumber = $(this).data('adj-number');
+            const product   = $(this).data('product');
+            const diff      = parseInt($(this).data('diff'));
+
+            pendingAdjId = adjId;
+
+            $('#modal-adj-number').text(adjNumber || 'N/A');
+            $('#modal-adj-product').text(product || '—');
+
+            if (diff > 0) {
+                $('#modal-adj-diff').html('<span class="text-success">+' + diff + ' (Stock In)</span>');
+                $('#modal-adj-reversal').html('<span class="text-danger">−' + diff + ' (will be removed)</span>');
+            } else if (diff < 0) {
+                $('#modal-adj-diff').html('<span class="text-danger">' + diff + ' (Stock Out)</span>');
+                $('#modal-adj-reversal').html('<span class="text-success">+' + Math.abs(diff) + ' (will be restored)</span>');
+            } else {
+                $('#modal-adj-diff').html('<span class="text-muted">0 (no change)</span>');
+                $('#modal-adj-reversal').html('<span class="text-muted">No reversal needed</span>');
+            }
+
+            var modal = new bootstrap.Modal(document.getElementById('deleteAdjustmentModal'));
+            modal.show();
+        });
+
+        $(document).on('click', '#confirmDeleteBtn', function() {
+            if (!pendingAdjId) return;
+
+            const btn = $(this);
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
+
+            $.ajax({
+                url: '/erp/stock/adjustment/' + pendingAdjId,
+                method: 'POST',
+                data: {
+                    _method: 'DELETE',
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(res) {
+                    bootstrap.Modal.getInstance(document.getElementById('deleteAdjustmentModal')).hide();
+                    pendingAdjId = null;
+                    showAdjToast('success', res.message || 'Adjustment deleted successfully.');
+                    refreshAdjustments();
+                },
+                error: function(xhr) {
+                    const modalEl = document.getElementById('deleteAdjustmentModal');
+                    if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                    }
+                    const msg = xhr.responseJSON?.message || 'Failed to delete adjustment.';
+                    showAdjToast('danger', msg);
+                },
+                complete: function() {
+                    btn.prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete & Reverse Stock');
+                }
+            });
+        });
+
+        function showAdjToast(type, message) {
+            const colors = { success: '#198754', danger: '#dc3545' };
+            const icons  = { success: 'fa-check-circle', danger: 'fa-times-circle' };
+            const id = 'adj-toast-' + Date.now();
+            $('body').append(`
+                <div id="${id}" style="
+                    position:fixed;bottom:24px;right:24px;z-index:9999;
+                    background:${colors[type]};color:#fff;
+                    padding:14px 20px;border-radius:10px;
+                    font-weight:600;font-size:0.9rem;
+                    box-shadow:0 6px 20px rgba(0,0,0,0.18);
+                    display:flex;align-items:center;gap:10px;">
+                    <i class="fas ${icons[type]}"></i> ${message}
+                </div>`);
+            setTimeout(() => $('#' + id).fadeOut(400, function(){ $(this).remove(); }), 3500);
+        }
+        // ───────────────────────────────────────────────────────────────────
     });
 </script>
 @endpush

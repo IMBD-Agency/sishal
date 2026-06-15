@@ -364,33 +364,75 @@ class StockTransferController extends Controller
         return $pdf->download($filename);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         if (!auth()->user()->hasPermissionTo('delete transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+            }
             abort(403, 'Unauthorized action.');
         }
 
         $transfer = StockTransfer::findOrFail($id);
 
-        // Prevent deleting delivered transfers for non-superadmins.
-        // Super Admins can override this for historical cleanup purposes.
-        if ($transfer->status === 'delivered' && !$this->isSuperAdmin()) {
-            return redirect()->back()->with('error', 'Delivered transfers can only be deleted by a Super Admin for cleanup purposes. Use "Return" for mistakes.');
+        // Collect all transfers in the same invoice batch (or just this one)
+        $transfers = $transfer->invoice_number
+            ? StockTransfer::where('invoice_number', $transfer->invoice_number)->get()
+            : collect([$transfer]);
+
+        // Non-super-admins cannot delete delivered transfers
+        if (!$this->isSuperAdmin()) {
+            $hasDelivered = $transfers->contains(fn($t) => $t->status === 'delivered');
+            if ($hasDelivered) {
+                $msg = 'Delivered transfers cannot be deleted. Use "Return" to reverse stock instead.';
+                if ($request->ajax()) return response()->json(['success' => false, 'message' => $msg], 422);
+                return redirect()->back()->with('error', $msg);
+            }
+            $hasInvalid = $transfers->contains(fn($t) => !in_array($t->status, ['pending', 'rejected']));
+            if ($hasInvalid) {
+                $msg = 'Only pending or rejected transfers can be deleted by non-admins.';
+                if ($request->ajax()) return response()->json(['success' => false, 'message' => $msg], 422);
+                return redirect()->back()->with('error', $msg);
+            }
         }
 
-        // For other statuses (Approved/Pending/Rejected), non-superadmins can only delete pending/rejected
-        if (!in_array($transfer->status, ['pending', 'rejected']) && !$this->isSuperAdmin()) {
-            return redirect()->back()->with('error', 'Only pending or rejected transfers can be deleted.');
-        }
+        DB::beginTransaction();
+        try {
+            foreach ($transfers as $t) {
+                // Reverse stock based on what was actually moved
+                if ($t->status === 'delivered') {
+                    // Full reversal: restore FROM source, deduct FROM destination
+                    $this->adjustOutletStock($t->from_type, $t->from_id, $t->product_id, $t->variation_id, +$t->quantity);
+                    $this->adjustOutletStock($t->to_type,   $t->to_id,   $t->product_id, $t->variation_id, -$t->quantity);
+                } elseif ($t->status === 'approved') {
+                    // Stock was only deducted from source (not yet added to destination)
+                    $this->adjustOutletStock($t->from_type, $t->from_id, $t->product_id, $t->variation_id, +$t->quantity);
+                }
+                // pending / rejected: no stock was moved, just delete
 
-        // If part of an invoice, delete the entire batch
-        if ($transfer->invoice_number) {
-            StockTransfer::where('invoice_number', $transfer->invoice_number)->delete();
-        } else {
-            $transfer->delete();
-        }
+                // Clear product cache
+                \App\Services\CacheService::clearProductCaches($t->product_id);
+            }
 
-        return redirect()->route('stocktransfer.list')->with('success', 'Transfer record deleted successfully.');
+            // Delete all records in the batch
+            if ($transfer->invoice_number) {
+                StockTransfer::where('invoice_number', $transfer->invoice_number)->delete();
+            } else {
+                $transfer->delete();
+            }
+
+            DB::commit();
+
+            $msg = 'Transfer deleted and stock reversed successfully.';
+            if ($request->ajax()) return response()->json(['success' => true, 'message' => $msg]);
+            return redirect()->route('stocktransfer.list')->with('success', $msg);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Stock Transfer Delete Failed: ' . $e->getMessage());
+            $msg = 'Failed to delete transfer: ' . $e->getMessage();
+            if ($request->ajax()) return response()->json(['success' => false, 'message' => $msg], 500);
+            return redirect()->back()->with('error', $msg);
+        }
     }
 
     public function bulkDelete(Request $request)
@@ -868,6 +910,35 @@ class StockTransferController extends Controller
     private function adjustOutletStock($type, $id, $productId, $variationId, $qtyChange)
     {
         if ($variationId) {
+            // Check if variation still exists in database to prevent foreign key issues
+            if (!\App\Models\ProductVariation::where('id', $variationId)->exists()) {
+                // Variation deleted, but we should still adjust base product stock if product exists
+                if (\App\Models\Product::where('id', $productId)->exists()) {
+                    if ($type === 'branch') {
+                        $branchStock = BranchProductStock::firstOrNew([
+                            'branch_id' => $id,
+                            'product_id' => $productId
+                        ]);
+                        $branchStock->quantity = ($branchStock->quantity ?? 0) + $qtyChange;
+                        if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                        $branchStock->updated_by = auth()->id();
+                        $branchStock->last_updated_at = now();
+                        $branchStock->save();
+                    } else {
+                        $warehouseStock = WarehouseProductStock::firstOrNew([
+                            'warehouse_id' => $id,
+                            'product_id' => $productId
+                        ]);
+                        $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $qtyChange;
+                        if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                        $warehouseStock->updated_by = auth()->id();
+                        $warehouseStock->last_updated_at = now();
+                        $warehouseStock->save();
+                    }
+                }
+                return;
+            }
+
             if ($type === 'branch') {
                 $vStock = ProductVariationStock::firstOrNew([
                     'variation_id' => $variationId,

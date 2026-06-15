@@ -318,6 +318,67 @@
                 </form>
             </div>
         </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div class="modal fade" id="deleteTransferModal" tabindex="-1" aria-labelledby="deleteTransferModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
+                    <div class="modal-header bg-danger text-white border-0 py-3">
+                        <h5 class="modal-title fw-bold" id="deleteTransferModalLabel">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete Transfer
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-warning border-0 rounded-2 mb-3" style="background:#fff8e1;" id="reversalWarningAlert">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="fas fa-undo text-warning mt-1"></i>
+                                <div>
+                                    <strong id="modal-warning-title">Stock will be reversed!</strong><br>
+                                    <small class="text-muted" id="modal-warning-desc">Deleting this transfer will undo its stock changes and restore the source quantities.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-light rounded-2 p-3 mb-1">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="small text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Invoice No / ID</div>
+                                    <div class="fw-bold text-primary" id="modal-transfer-invoice">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="small text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Status</div>
+                                    <div class="fw-bold" id="modal-transfer-status">—</div>
+                                </div>
+                                <div class="col-12 mt-2">
+                                    <div class="small text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Product & Qty</div>
+                                    <div class="fw-bold text-dark" id="modal-transfer-product-qty">—</div>
+                                </div>
+                                <div class="col-6 mt-2">
+                                    <div class="small text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Source</div>
+                                    <div class="fw-bold text-secondary" id="modal-transfer-source">—</div>
+                                </div>
+                                <div class="col-6 mt-2">
+                                    <div class="small text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Destination</div>
+                                    <div class="fw-bold text-secondary" id="modal-transfer-destination">—</div>
+                                </div>
+                                <div class="col-12 mt-2" id="modal-reversal-impact-section">
+                                    <div class="small text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Expected Reversal Impact</div>
+                                    <div class="fw-bold text-danger" id="modal-transfer-reversal">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 bg-light px-4 pb-4 pt-2">
+                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 fw-bold" id="confirmDeleteTransferBtn">
+                            <i class="fas fa-trash-alt me-2"></i>Delete & Reverse Stock
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
 @push('css')
@@ -557,6 +618,115 @@
                 var statusModal = new bootstrap.Modal(document.getElementById('statusUpdateModal'));
                 statusModal.show();
             });
+
+            // Delete Transfer Logic
+            let pendingTransferId = null;
+
+            $(document).on('click', '.btn-delete-transfer', function() {
+                const id = $(this).data('transfer-id');
+                const invoice = $(this).data('invoice');
+                const status = $(this).data('status');
+                const product = $(this).data('product');
+                const qty = $(this).data('qty');
+                const source = $(this).data('source');
+                const destination = $(this).data('destination');
+
+                pendingTransferId = id;
+
+                // Populate fields
+                $('#modal-transfer-invoice').text(invoice || 'N/A');
+                $('#modal-transfer-status').html(`<span class="badge bg-${getStatusBadgeClass(status)}">${status.toUpperCase()}</span>`);
+                $('#modal-transfer-product-qty').text(`${product} (Qty: ${qty})`);
+                $('#modal-transfer-source').text(source);
+                $('#modal-transfer-destination').text(destination);
+
+                // Set warning messaging based on status
+                if (status === 'delivered') {
+                    $('#modal-warning-title').text('Full Stock Reversal Warning!');
+                    $('#modal-warning-desc').text('Deleting this transfer will subtract stock from the destination and restore it to the source.');
+                    $('#modal-transfer-reversal').html(`<span class="text-danger">- ${qty} from ${destination}</span><br><span class="text-success">+ ${qty} to ${source}</span>`);
+                    $('#modal-reversal-impact-section').show();
+                } else if (status === 'approved') {
+                    $('#modal-warning-title').text('Stock Restoration Warning!');
+                    $('#modal-warning-desc').text('Stock was only deducted from the source location. Deleting this will restore the quantity back to the source.');
+                    $('#modal-transfer-reversal').html(`<span class="text-success">+ ${qty} to ${source}</span>`);
+                    $('#modal-reversal-impact-section').show();
+                } else {
+                    $('#modal-warning-title').text('Delete Transfer Confirmation');
+                    $('#modal-warning-desc').text('No stock was moved for pending or rejected transfers. Deleting is safe and will remove the record.');
+                    $('#modal-transfer-reversal').text('No stock reversal needed.');
+                    $('#modal-reversal-impact-section').hide();
+                }
+
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteTransferModal'));
+                deleteModal.show();
+            });
+
+            function getStatusBadgeClass(status) {
+                switch(status) {
+                    case 'approved': return 'success';
+                    case 'rejected': return 'danger';
+                    case 'delivered': return 'primary';
+                    default: return 'warning';
+                }
+            }
+
+            $(document).on('click', '#confirmDeleteTransferBtn', function() {
+                if (!pendingTransferId) return;
+
+                const btn = $(this);
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
+
+                $.ajax({
+                    url: '/erp/stock-transfer/' + pendingTransferId,
+                    method: 'POST',
+                    data: {
+                        _method: 'DELETE',
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(res) {
+                        const modalEl = document.getElementById('deleteTransferModal');
+                        if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
+                            bootstrap.Modal.getInstance(modalEl).hide();
+                        }
+                        pendingTransferId = null;
+                        
+                        // Show toast
+                        showTransferToast('success', res.message || 'Transfer deleted successfully.');
+                        
+                        // Refresh the table using the existing mechanism
+                        $('#filterForm').submit();
+                    },
+                    error: function(xhr) {
+                        const modalEl = document.getElementById('deleteTransferModal');
+                        if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
+                            bootstrap.Modal.getInstance(modalEl).hide();
+                        }
+                        const msg = xhr.responseJSON?.message || 'Failed to delete transfer.';
+                        showTransferToast('danger', msg);
+                    },
+                    complete: function() {
+                        btn.prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete & Reverse Stock');
+                    }
+                });
+            });
+
+            function showTransferToast(type, message) {
+                const colors = { success: '#198754', danger: '#dc3545' };
+                const icons  = { success: 'fa-check-circle', danger: 'fa-times-circle' };
+                const id = 'transfer-toast-' + Date.now();
+                $('body').append(`
+                    <div id="${id}" style="
+                        position:fixed;bottom:24px;right:24px;z-index:9999;
+                        background:${colors[type]};color:#fff;
+                        padding:14px 20px;border-radius:10px;
+                        font-weight:600;font-size:0.9rem;
+                        box-shadow:0 6px 20px rgba(0,0,0,0.18);
+                        display:flex;align-items:center;gap:10px;">
+                        <i class="fas ${icons[type]}"></i> ${message}
+                    </div>`);
+                setTimeout(() => $('#' + id).fadeOut(400, function(){ $(this).remove(); }), 3500);
+            }
         });
     </script>
 @endpush
