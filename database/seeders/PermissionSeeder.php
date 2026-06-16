@@ -70,6 +70,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'manage suppliers', 'category' => 'Purchase Management'],
             ['name' => 'view payments', 'category' => 'Purchase Management'],
             ['name' => 'manage payments', 'category' => 'Purchase Management'],
+            ['name' => 'delete payments', 'category' => 'Purchase Management'],
             ['name' => 'view purchase returns', 'category' => 'Purchase Management'],
             ['name' => 'create purchase returns', 'category' => 'Purchase Management'],
             ['name' => 'edit purchase returns', 'category' => 'Purchase Management'],

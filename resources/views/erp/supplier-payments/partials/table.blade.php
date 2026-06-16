@@ -48,21 +48,18 @@
                     </div>
                 </td>
                 <td class="text-center pe-3">
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport">
-                            <i class="fas fa-ellipsis-v text-muted"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg premium-dropdown">
-                            <li><a class="dropdown-item" href="{{ route('supplier-payments.show', $payment->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Voucher</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-print me-2 text-dark"></i>Print Receipt</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form action="{{ route('supplier-payments.destroy', $payment->id) }}" method="POST" onsubmit="return confirm('Void this payment?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt me-2"></i>Void Payment</button>
-                                </form>
-                            </li>
-                        </ul>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="{{ route('supplier-payments.show', $payment->id) }}" class="action-circle bg-light border-0" title="View Voucher">
+                            <i class="fas fa-eye text-primary"></i>
+                        </a>
+                        @if(auth()->user()->hasPermissionTo('delete payments'))
+                        <form action="{{ route('supplier-payments.destroy', $payment->id) }}" method="POST" onsubmit="return confirm('Void this payment?\n\nThis will reverse the following:\n1. Revert and increase the purchase bill due amount by {{ number_format($payment->amount, 2) }}৳.\n2. Refund and increase the Cash/Bank account balance.\n3. Delete the transaction from Supplier Ledger.\n4. Recalibrate Supplier Balance.\n5. Delete the double-entry Journal records.')" class="d-inline">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="action-circle bg-light border-0" title="Void Payment">
+                                <i class="fas fa-trash-alt text-danger"></i>
+                            </button>
+                        </form>
+                        @endif
                     </div>
                 </td>
             </tr>

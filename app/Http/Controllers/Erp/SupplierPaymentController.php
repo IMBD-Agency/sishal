@@ -281,9 +281,99 @@ class SupplierPaymentController extends Controller
                 throw new \Exception('Selected financial account not found.');
             }
 
-            $totalPaymentAmount = 0;
-            $paymentIds = [];
-            $billUpdates = [];
+            // Helper closure to record all related entries for a single payment
+            $recordPaymentDetails = function($payment, $financialAccount) {
+                // 1. Record in Ledger
+                $description = 'Payment via ' . $financialAccount->provider_name;
+                if ($payment->reference) {
+                    $description .= ' (' . $payment->reference . ')';
+                }
+                if ($payment->purchase_bill_id && $payment->bill) {
+                    $description .= ' - Bill: ' . $payment->bill->bill_number;
+                } else {
+                    $description .= ' - Advance Payment';
+                }
+
+                SupplierLedger::recordTransaction(
+                    $payment->supplier_id,
+                    'debit',
+                    $payment->amount,
+                    $description,
+                    $payment->payment_date,
+                    $payment
+                );
+
+                // 2. Update the supplier balance using the Balance model
+                if ($payment->supplier_id) {
+                    $balance = \App\Models\Balance::where('source_type', 'supplier')->where('source_id', $payment->supplier_id)->first();
+                    if ($balance) {
+                        $balance->balance -= $payment->amount;
+                        $balance->save();
+                    } else {
+                        \App\Models\Balance::create([
+                            'source_type' => 'supplier',
+                            'source_id' => $payment->supplier_id,
+                            'balance' => -$payment->amount,
+                            'description' => 'Supplier Payment',
+                        ]);
+                    }
+                }
+
+                // 3. Update financial account balance
+                $financialAccount->balance -= $payment->amount;
+                $financialAccount->save();
+
+                // 4. Auto Journal Entry
+                $paymentChartAccountId = $financialAccount->account_id;
+                $payableChartAccount = ChartOfAccount::where('name', 'like', '%payable%')
+                    ->orWhere('name', 'like', '%creditor%')
+                    ->first();
+
+                if ($paymentChartAccountId && $payableChartAccount) {
+                    $voucherNo = 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+                    while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                        $voucherNo = 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                    }
+
+                    $journal = Journal::create([
+                        'voucher_no'     => $voucherNo,
+                        'entry_date'     => $payment->payment_date,
+                        'type'           => 'Payment',
+                        'description'    => 'Auto: Supplier Payment #' . $payment->id . ' to ' . ($payment->supplier->name ?? 'Supplier'),
+                        'supplier_id'    => $payment->supplier_id,
+                        'branch_id'      => $payment->bill && $payment->bill->purchase ? ($payment->bill->purchase->location_id) : null,
+                        'voucher_amount' => $payment->amount,
+                        'paid_amount'    => $payment->amount,
+                        'reference'      => $payment->reference,
+                        'created_by'     => Auth::id(),
+                        'updated_by'     => Auth::id(),
+                    ]);
+
+                    // DEBIT: Accounts Payable (Liability decreases)
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $payableChartAccount->id,
+                        'financial_account_id' => null,
+                        'debit'                => $payment->amount,
+                        'credit'               => 0,
+                        'memo'                 => 'Payment to ' . ($payment->supplier->name ?? 'Supplier'),
+                        'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
+                    ]);
+
+                    // CREDIT: Bank/Cash (Asset decreases)
+                    JournalEntry::create([
+                        'journal_id'           => $journal->id,
+                        'chart_of_account_id'  => $paymentChartAccountId,
+                        'financial_account_id' => $financialAccount->id,
+                        'debit'                => 0,
+                        'credit'               => $payment->amount,
+                        'memo'                 => 'Payment via ' . $financialAccount->provider_name,
+                        'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
+                    ]);
+                }
+            };
 
             // Handle multiple bills payment
             if ($hasMultipleBills && count($request->bills) > 0) {
@@ -294,6 +384,7 @@ class SupplierPaymentController extends Controller
                     if (!$bill) continue;
                     
                     $payAmount = min($billData['amount'], $bill->due_amount);
+                    if ($payAmount <= 0) continue;
                     
                     // Create individual payment for each bill
                     $payment = SupplierPayment::create([
@@ -308,9 +399,6 @@ class SupplierPaymentController extends Controller
                         'created_by'       => auth()->id(),
                     ]);
                     
-                    $paymentIds[] = $payment->id;
-                    $totalPaymentAmount += $payAmount;
-                    
                     // Update bill
                     $bill->paid_amount += $payAmount;
                     $bill->due_amount -= $payAmount;
@@ -323,7 +411,8 @@ class SupplierPaymentController extends Controller
                     }
                     $bill->save();
                     
-                    $billUpdates[] = $bill->bill_number;
+                    // Record all details for this payment
+                    $recordPaymentDetails($payment, $financialAccount);
                 }
             } 
             // Handle single bill payment (backward compatibility) or advance payment
@@ -340,9 +429,6 @@ class SupplierPaymentController extends Controller
                     'created_by'       => auth()->id(),
                 ]);
                 
-                $paymentIds[] = $payment->id;
-                $totalPaymentAmount = $request->amount;
-                
                 // Update Purchase Bill if selected
                 if ($request->purchase_bill_id) {
                     $bill = PurchaseBill::find($request->purchase_bill_id);
@@ -356,103 +442,11 @@ class SupplierPaymentController extends Controller
                         $bill->status = 'partial';
                     }
                     $bill->save();
-                    $billUpdates[] = $bill->bill_number;
                 }
-            }
-
-            // Record in Ledger (single entry for total amount)
-            $description = 'Payment via ' . $financialAccount->provider_name;
-            if ($request->reference) {
-                $description .= ' (' . $request->reference . ')';
-            }
-            if (count($billUpdates) > 0) {
-                $description .= ' - Bills: ' . implode(', ', $billUpdates);
-            }
-            
-            SupplierLedger::recordTransaction(
-                $request->supplier_id,
-                'debit',
-                $totalPaymentAmount,
-                $description,
-                $request->payment_date,
-                $payment ?? SupplierPayment::find($paymentIds[0])
-            );
-
-            // Update the supplier balance using the Balance model
-            if ($request->supplier_id) {
-                $balance = \App\Models\Balance::where('source_type', 'supplier')->where('source_id', $request->supplier_id)->first();
-                if ($balance) {
-                    $balance->balance -= $totalPaymentAmount;
-                    $balance->save();
-                } else {
-                    \App\Models\Balance::create([
-                        'source_type' => 'supplier',
-                        'source_id' => $request->supplier_id,
-                        'balance' => -$totalPaymentAmount,
-                        'description' => 'Supplier Payment - Multiple Bills',
-                    ]);
-                }
-            }
-
-            // =====================================================
-            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
-            // =====================================================
-            $paymentChartAccountId = $financialAccount->account_id;
-
-            // Find Accounts Payable account (Liability)
-            $payableChartAccount = ChartOfAccount::where('name', 'like', '%payable%')
-                ->orWhere('name', 'like', '%creditor%')
-                ->first();
-
-            if ($paymentChartAccountId && $payableChartAccount) {
-                // Get first payment for journal reference
-                $firstPayment = isset($payment) ? $payment : SupplierPayment::find($paymentIds[0]);
                 
-                // Ensure unique voucher number
-                $voucherNo = 'PAY-' . str_pad($firstPayment->id, 6, '0', STR_PAD_LEFT);
-                while (Journal::where('voucher_no', $voucherNo)->exists()) {
-                    $voucherNo = 'PAY-' . str_pad($firstPayment->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
-                }
-
-                $journal = Journal::create([
-                    'voucher_no'     => $voucherNo,
-                    'entry_date'     => $request->payment_date,
-                    'type'           => 'Payment',
-                    'description'    => 'Auto: Supplier Payment #' . $firstPayment->id . ' to ' . ($firstPayment->supplier->name ?? 'Supplier'),
-                    'supplier_id'    => $request->supplier_id,
-                    'branch_id'      => isset($bill) && $bill->purchase ? ($bill->purchase->location_id) : null,
-                    'voucher_amount' => $totalPaymentAmount,
-                    'paid_amount'    => $totalPaymentAmount,
-                    'reference'      => $request->reference,
-                    'created_by'     => Auth::id(),
-                    'updated_by'     => Auth::id(),
-                ]);
-
-                // DEBIT: Accounts Payable (Liability decreases)
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $payableChartAccount->id,
-                    'financial_account_id' => null,
-                    'debit'                => $totalPaymentAmount,
-                    'credit'               => 0,
-                    'memo'                 => 'Payment to ' . ($firstPayment->supplier->name ?? 'Supplier'),
-                    'created_by'           => Auth::id(),
-                    'updated_by'           => Auth::id(),
-                ]);
-
-                // CREDIT: Bank/Cash (Asset decreases)
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $paymentChartAccountId,
-                    'financial_account_id' => $financialAccount->id,
-                    'debit'                => 0,
-                    'credit'               => $totalPaymentAmount,
-                    'memo'                 => 'Payment via ' . $financialAccount->provider_name,
-                    'created_by'           => Auth::id(),
-                    'updated_by'           => Auth::id(),
-                ]);
+                // Record all details for this payment
+                $recordPaymentDetails($payment, $financialAccount);
             }
-            // =====================================================
 
             DB::commit();
             return redirect()->route('supplier-payments.index')->with('success', 'Payment recorded and ledger updated.');
@@ -472,12 +466,9 @@ class SupplierPaymentController extends Controller
 
     public function destroy(SupplierPayment $supplierPayment)
     {
-        if (!auth()->user()->hasPermissionTo('manage payments')) {
+        if (!auth()->user()->hasPermissionTo('delete payments')) {
             abort(403, 'Unauthorized action.');
         }
-        // For ledger integrity, we should probably handle reverse entry or recalibrate balance
-        // Simplest: prohibit deletion of ledger-linked items or handle with care.
-        // For now, let's just delete and mention it.
         
         DB::beginTransaction();
         try {
@@ -497,7 +488,9 @@ class SupplierPaymentController extends Controller
             }
 
             // Delete ledger entry
-            $supplierPayment->ledger()->delete();
+            if ($supplierPayment->ledger()) {
+                $supplierPayment->ledger()->delete();
+            }
 
             // Reverse the balance update using the Balance model
             if ($supplierPayment->supplier_id) {
@@ -508,9 +501,27 @@ class SupplierPaymentController extends Controller
                 }
             }
             
-            // Recalibrate subsequent ledger entries' balance? 
-            // In a real accounting system, we'd add a reverse entry instead of deleting.
-            // But let's keep it simple for now and just delete the payment.
+            // Reverse the financial account balance update
+            if ($supplierPayment->account_id) {
+                $financialAccount = FinancialAccount::find($supplierPayment->account_id);
+                if ($financialAccount) {
+                    $financialAccount->balance += $supplierPayment->amount; // Return payment amount back to bank/cash
+                    $financialAccount->save();
+                }
+            }
+
+            // Delete related journal entries
+            $voucherNo = 'PAY-' . str_pad($supplierPayment->id, 6, '0', STR_PAD_LEFT);
+            $journal = Journal::where('voucher_no', $voucherNo)
+                ->orWhere('voucher_no', 'like', $voucherNo . '-%')
+                ->first();
+
+            if ($journal) {
+                // Delete journal entries
+                JournalEntry::where('journal_id', $journal->id)->delete();
+                // Delete journal header
+                $journal->delete();
+            }
             
             $supplierPayment->delete();
             
