@@ -47,17 +47,15 @@
                             <a href="{{ route('requisition.show', $req->id) }}" class="btn btn-sm btn-light border action-circle shadow-none" title="View Details">
                                 <i class="fas fa-eye text-primary"></i>
                             </a>
-                            @if($req->status === 'pending')
-                                @can('manage requisitions')
-                                <form action="{{ route('requisition.destroy', $req->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this request?')">
+                            @can('manage requisitions')
+                                <form action="{{ route('requisition.destroy', $req->id) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ $req->status === 'pending' ? 'Delete this requisition?' : 'WARNING: This requisition is ' . strtoupper(str_replace('_', ' ', $req->status)) . '. Deleting it will reverse all associated stock transfers and restore inventory. Are you sure you want to proceed?' }}')">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-light border action-circle shadow-none" title="Delete">
                                         <i class="fas fa-trash text-danger"></i>
                                     </button>
                                 </form>
-                                @endcan
-                            @endif
+                            @endcan
                         </div>
                     </td>
                 </tr>

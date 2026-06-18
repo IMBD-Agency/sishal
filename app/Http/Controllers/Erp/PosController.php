@@ -902,13 +902,64 @@ class PosController extends Controller
 
         DB::beginTransaction();
         try {
-            // Delete invoice if linked
+            // 1. Restore stock for all sold items
+            foreach ($pos->items as $item) {
+                if ($item->parent_item_id === null) {
+                    // Only restore for root items (combo parent or regular)
+                    $this->restoreStock(
+                        $item->product_id,
+                        $item->variation_id,
+                        $item->quantity,
+                        $pos->branch_id
+                    );
+                }
+            }
+
+            // 2. Reverse FinancialAccount balance for each payment
+            foreach ($pos->payments as $payment) {
+                if ($payment->account_id && $payment->amount > 0) {
+                    $finAcc = FinancialAccount::find($payment->account_id);
+                    if ($finAcc) {
+                        $finAcc->balance -= $payment->amount;
+                        if ($finAcc->balance < 0) $finAcc->balance = 0;
+                        $finAcc->save();
+                    }
+                }
+            }
+
+            // 3. Remove/reverse Customer Balance entries linked to this sale
+            if ($pos->customer_id) {
+                \App\Models\Balance::where('source_type', 'customer')
+                    ->where('source_id', $pos->customer_id)
+                    ->where('reference', $pos->sale_number)
+                    ->delete();
+            }
+
+            // 4. Delete related Journal entries (Double-Entry Accounting)
+            $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            $journal = Journal::where('voucher_no', 'like', $voucherNo . '%')
+                ->orWhere('reference', $pos->sale_number)
+                ->first();
+            if ($journal) {
+                $journal->entries()->delete();
+                $journal->delete();
+            }
+            // Also handle manual sale journal
+            $manualVoucherNo = 'SAL-M-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            $manualJournal = Journal::where('voucher_no', $manualVoucherNo)->first();
+            if ($manualJournal) {
+                $manualJournal->entries()->delete();
+                $manualJournal->delete();
+            }
+
+            // 5. Delete invoice items, invoice payments, and the invoice itself
             if ($pos->invoice) {
                 $pos->invoice->items()->delete();
                 $pos->invoice->payments()->delete();
                 $pos->invoice->delete();
             }
-            // Delete POS payments and items
+
+            // 6. Delete POS payments and items, then the POS record
             $pos->payments()->delete();
             $pos->items()->delete();
             $pos->delete();
@@ -936,11 +987,62 @@ class PosController extends Controller
         try {
             $sales = Pos::whereIn('id', $ids)->with(['items', 'invoice.items', 'invoice.payments', 'payments'])->get();
             foreach ($sales as $pos) {
+                // 1. Restore stock for all sold items
+                foreach ($pos->items as $item) {
+                    if ($item->parent_item_id === null) {
+                        $this->restoreStock(
+                            $item->product_id,
+                            $item->variation_id,
+                            $item->quantity,
+                            $pos->branch_id
+                        );
+                    }
+                }
+
+                // 2. Reverse FinancialAccount balance for each payment
+                foreach ($pos->payments as $payment) {
+                    if ($payment->account_id && $payment->amount > 0) {
+                        $finAcc = FinancialAccount::find($payment->account_id);
+                        if ($finAcc) {
+                            $finAcc->balance -= $payment->amount;
+                            if ($finAcc->balance < 0) $finAcc->balance = 0;
+                            $finAcc->save();
+                        }
+                    }
+                }
+
+                // 3. Remove Customer Balance entries linked to this sale
+                if ($pos->customer_id) {
+                    \App\Models\Balance::where('source_type', 'customer')
+                        ->where('source_id', $pos->customer_id)
+                        ->where('reference', $pos->sale_number)
+                        ->delete();
+                }
+
+                // 4. Delete related Journal entries
+                $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+                $journal = Journal::where('voucher_no', 'like', $voucherNo . '%')
+                    ->orWhere('reference', $pos->sale_number)
+                    ->first();
+                if ($journal) {
+                    $journal->entries()->delete();
+                    $journal->delete();
+                }
+                $manualVoucherNo = 'SAL-M-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+                $manualJournal = Journal::where('voucher_no', $manualVoucherNo)->first();
+                if ($manualJournal) {
+                    $manualJournal->entries()->delete();
+                    $manualJournal->delete();
+                }
+
+                // 5. Delete invoice
                 if ($pos->invoice) {
                     $pos->invoice->items()->delete();
                     $pos->invoice->payments()->delete();
                     $pos->invoice->delete();
                 }
+
+                // 6. Delete POS payments, items, then the POS record
                 $pos->payments()->delete();
                 $pos->items()->delete();
                 $pos->delete();

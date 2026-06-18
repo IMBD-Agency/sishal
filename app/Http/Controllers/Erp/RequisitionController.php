@@ -9,6 +9,9 @@ use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\Warehouse;
 use App\Models\StockTransfer;
+use App\Models\BranchProductStock;
+use App\Models\WarehouseProductStock;
+use App\Models\ProductVariationStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -297,14 +300,144 @@ class RequisitionController extends Controller
         if (!auth()->user()->hasPermissionTo('manage requisitions')) {
             abort(403, 'Unauthorized action.');
         }
-        $requisition = Requisition::findOrFail($id);
+        $requisition = Requisition::with('items')->findOrFail($id);
         
-        if ($requisition->status !== 'pending') {
-            return back()->with('error', 'Only pending requisitions can be deleted.');
-        }
+        DB::beginTransaction();
+        try {
+            // Find all related stock transfers linked to the items of this requisition
+            $itemIds = $requisition->items->pluck('id');
+            $relatedTransfers = StockTransfer::whereIn('requisition_item_id', $itemIds)->get();
 
-        $requisition->delete();
-        return redirect()->route('requisition.index')->with('success', 'Requisition deleted successfully.');
+            foreach ($relatedTransfers as $transfer) {
+                // Reverse stock adjustments if they were approved/delivered
+                if ($transfer->status === 'delivered') {
+                    // Restore to source (Warehouse), deduct from destination (Branch)
+                    $this->adjustOutletStock($transfer->from_type, $transfer->from_id, $transfer->product_id, $transfer->variation_id, +$transfer->quantity);
+                    $this->adjustOutletStock($transfer->to_type,   $transfer->to_id,   $transfer->product_id, $transfer->variation_id, -$transfer->quantity);
+                } elseif ($transfer->status === 'approved') {
+                    // Restore to source (Warehouse)
+                    $this->adjustOutletStock($transfer->from_type, $transfer->from_id, $transfer->product_id, $transfer->variation_id, +$transfer->quantity);
+                }
+
+                // Clear cache for product
+                \App\Services\CacheService::clearProductCaches($transfer->product_id);
+
+                // Delete the Stock Transfer record
+                $transfer->delete();
+            }
+
+            // Delete child items first to prevent orphan rows
+            $requisition->items()->delete();
+
+            // Delete the main requisition
+            $requisition->delete();
+
+            DB::commit();
+            return redirect()->route('requisition.index')->with('success', 'Requisition and related stock transfers deleted/reversed successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to delete requisition: ' . $e->getMessage());
+        }
+    }
+
+    private function adjustOutletStock($type, $id, $productId, $variationId, $qtyChange)
+    {
+        if ($variationId) {
+            // Check if variation still exists in database to prevent foreign key issues
+            if (!\App\Models\ProductVariation::where('id', $variationId)->exists()) {
+                // Variation deleted, but we should still adjust base product stock if product exists
+                if (\App\Models\Product::where('id', $productId)->exists()) {
+                    if ($type === 'branch') {
+                        $branchStock = BranchProductStock::firstOrNew([
+                            'branch_id' => $id,
+                            'product_id' => $productId
+                        ]);
+                        $branchStock->quantity = ($branchStock->quantity ?? 0) + $qtyChange;
+                        if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                        $branchStock->updated_by = auth()->id();
+                        $branchStock->last_updated_at = now();
+                        $branchStock->save();
+                    } else {
+                        $warehouseStock = WarehouseProductStock::firstOrNew([
+                            'warehouse_id' => $id,
+                            'product_id' => $productId
+                        ]);
+                        $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $qtyChange;
+                        if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                        $warehouseStock->updated_by = auth()->id();
+                        $warehouseStock->last_updated_at = now();
+                        $warehouseStock->save();
+                    }
+                }
+                return;
+            }
+
+            if ($type === 'branch') {
+                $vStock = ProductVariationStock::firstOrNew([
+                    'variation_id' => $variationId,
+                    'branch_id' => $id,
+                    'warehouse_id' => null
+                ]);
+                $vStock->quantity = ($vStock->quantity ?? 0) + $qtyChange;
+                if ($vStock->quantity < 0) $vStock->quantity = 0;
+                $vStock->updated_by = auth()->id();
+                $vStock->last_updated_at = now();
+                $vStock->save();
+
+                $branchStock = BranchProductStock::firstOrNew([
+                    'branch_id' => $id,
+                    'product_id' => $productId
+                ]);
+                $branchStock->quantity = ($branchStock->quantity ?? 0) + $qtyChange;
+                if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                $branchStock->updated_by = auth()->id();
+                $branchStock->last_updated_at = now();
+                $branchStock->save();
+            } else {
+                $vStock = ProductVariationStock::firstOrNew([
+                    'variation_id' => $variationId,
+                    'warehouse_id' => $id,
+                    'branch_id' => null
+                ]);
+                $vStock->quantity = ($vStock->quantity ?? 0) + $qtyChange;
+                if ($vStock->quantity < 0) $vStock->quantity = 0;
+                $vStock->updated_by = auth()->id();
+                $vStock->last_updated_at = now();
+                $vStock->save();
+
+                $warehouseStock = WarehouseProductStock::firstOrNew([
+                    'warehouse_id' => $id,
+                    'product_id' => $productId
+                ]);
+                $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $qtyChange;
+                if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                $warehouseStock->updated_by = auth()->id();
+                $warehouseStock->last_updated_at = now();
+                $warehouseStock->save();
+            }
+        } else {
+            if ($type === 'branch') {
+                $branchStock = BranchProductStock::firstOrNew([
+                    'product_id' => $productId,
+                    'branch_id' => $id
+                ]);
+                $branchStock->quantity = ($branchStock->quantity ?? 0) + $qtyChange;
+                if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+                $branchStock->updated_by = auth()->id();
+                $branchStock->last_updated_at = now();
+                $branchStock->save();
+            } else {
+                $warehouseStock = WarehouseProductStock::firstOrNew([
+                    'product_id' => $productId,
+                    'warehouse_id' => $id
+                ]);
+                $warehouseStock->quantity = ($warehouseStock->quantity ?? 0) + $qtyChange;
+                if ($warehouseStock->quantity < 0) $warehouseStock->quantity = 0;
+                $warehouseStock->updated_by = auth()->id();
+                $warehouseStock->last_updated_at = now();
+                $warehouseStock->save();
+            }
+        }
     }
 
     /**
