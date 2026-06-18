@@ -16,12 +16,12 @@
                 <tr>
                     <td class="ps-4 fw-bold text-dark">{{ $req->requisition_number }}</td>
                     <td>
-                        <div class="fw-bold">{{ $req->branch->name }}</div>
-                        <div class="extra-small text-muted text-uppercase">{{ $req->branch->location }}</div>
+                        <div class="fw-bold">{{ optional($req->branch)->name ?? '—' }}</div>
+                        <div class="extra-small text-muted text-uppercase">{{ optional($req->branch)->location }}</div>
                     </td>
                     <td>
                         <div class="badge bg-light text-dark border fw-bold px-3 py-2">
-                            <i class="fas fa-warehouse me-1 text-info"></i>{{ $req->warehouse->name }}
+                            <i class="fas fa-warehouse me-1 text-info"></i>{{ optional($req->warehouse)->name ?? '—' }}
                         </div>
                     </td>
                     <td>{{ \Carbon\Carbon::parse($req->requisition_date)->format('M d, Y') }}</td>
@@ -39,7 +39,7 @@
                         </span>
                     </td>
                     <td>
-                        <div class="small fw-bold">{{ $req->creator->name }}</div>
+                        <div class="small fw-bold">{{ optional($req->creator)->name ?? '—' }}</div>
                         <div class="extra-small text-muted">{{ $req->created_at->diffForHumans() }}</div>
                     </td>
                     <td class="text-center pe-4">

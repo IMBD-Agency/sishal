@@ -137,8 +137,13 @@
                                                         ->first();
                                                     $stock = $ws ? $ws->quantity : 0;
                                                 }
-                                                
-                                                $img = ($item->variation && $item->variation->image) ? $item->variation->image : $item->product->image;
+
+                                                $img = null;
+                                                if ($item->variation && $item->variation->image) {
+                                                    $img = $item->variation->image;
+                                                } elseif ($item->product && $item->product->image) {
+                                                    $img = $item->product->image;
+                                                }
                                             @endphp
                                             <tr>
                                                 <td class="ps-4">
@@ -149,10 +154,10 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <div class="fw-bold text-dark">{{ $item->product->name }}</div>
-                                                    <div class="extra-small text-muted">{{ $item->product->category->name ?? 'General' }}</div>
+                                                    <div class="fw-bold text-dark">{{ optional($item->product)->name ?? '—' }}</div>
+                                                    <div class="extra-small text-muted">{{ optional(optional($item->product)->category)->name ?? 'General' }}</div>
                                                 </td>
-                                                <td class="text-pink fw-bold">{{ $item->product->style_number ?? $item->product->sku }}</td>
+                                                <td class="text-pink fw-bold">{{ optional($item->product)->style_number ?? optional($item->product)->sku ?? '—' }}</td>
                                                 <td>
                                                     @if($item->variation)
                                                         @php
@@ -239,7 +244,7 @@
                                             @endphp
                                             <tr>
                                                 <td>
-                                                    <div class="fw-bold">{{ $item->product->name }}</div>
+                                                    <div class="fw-bold">{{ optional($item->product)->name ?? '—' }}</div>
                                                     <div class="small text-muted">
                                                         @if($item->variation)
                                                             @php
