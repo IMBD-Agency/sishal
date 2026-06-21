@@ -183,7 +183,7 @@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="remember" id="remember">
                         <label class="form-check-label small text-muted" for="remember">
-                            Stay signed in for 30 days
+                            Remember me
                         </label>
                     </div>
                 </div>
