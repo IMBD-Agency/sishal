@@ -564,6 +564,31 @@ class SaleReturnController extends Controller
                     $this->removeStockForReturnItem($saleReturn, $item);
                 }
 
+                // Restore Invoice amounts that were reduced during processing
+                $totalReturnAmount = $saleReturn->items->sum('total_price');
+                $invoiceToRestore = null;
+                if ($saleReturn->invoice_id) {
+                    $invoiceToRestore = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
+                } elseif ($saleReturn->pos_sale_id) {
+                    $pos = \App\Models\Pos::with('invoice')->find($saleReturn->pos_sale_id);
+                    if ($pos && $pos->invoice_id) {
+                        $invoiceToRestore = Invoice::lockForUpdate()->find($pos->invoice_id);
+                    }
+                }
+                if ($invoiceToRestore && $totalReturnAmount > 0) {
+                    $invoiceToRestore->total_amount += $totalReturnAmount;
+                    $invoiceToRestore->due_amount    = max(0, $invoiceToRestore->total_amount - $invoiceToRestore->paid_amount);
+                    if ($invoiceToRestore->paid_amount >= $invoiceToRestore->total_amount) {
+                        $invoiceToRestore->status    = 'paid';
+                        $invoiceToRestore->due_amount = 0;
+                    } elseif ($invoiceToRestore->paid_amount > 0) {
+                        $invoiceToRestore->status    = 'partial';
+                    } else {
+                        $invoiceToRestore->status    = 'unpaid';
+                    }
+                    $invoiceToRestore->save();
+                }
+
                 // Delete associated Journal entries
                 $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
                 $journal = Journal::where('voucher_no', $voucherNo)->first();
@@ -628,9 +653,38 @@ class SaleReturnController extends Controller
             }
 
             // =====================================================
-            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // UPDATE INVOICE DUE AMOUNT (deduct returned amount)
             // =====================================================
             $totalReturnAmount = $saleReturn->items->sum('total_price');
+
+            // Find the linked invoice via invoice_id or pos_sale_id
+            $invoiceToUpdate = null;
+            if ($saleReturn->invoice_id) {
+                $invoiceToUpdate = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
+            } elseif ($saleReturn->pos_sale_id) {
+                $pos = \App\Models\Pos::with('invoice')->find($saleReturn->pos_sale_id);
+                if ($pos && $pos->invoice_id) {
+                    $invoiceToUpdate = Invoice::lockForUpdate()->find($pos->invoice_id);
+                }
+            }
+            if ($invoiceToUpdate && $totalReturnAmount > 0) {
+                $invoiceToUpdate->total_amount = max(0, $invoiceToUpdate->total_amount - $totalReturnAmount);
+                $invoiceToUpdate->due_amount   = max(0, $invoiceToUpdate->total_amount - $invoiceToUpdate->paid_amount);
+                if ($invoiceToUpdate->paid_amount >= $invoiceToUpdate->total_amount) {
+                    $invoiceToUpdate->status   = 'paid';
+                    $invoiceToUpdate->due_amount = 0;
+                } elseif ($invoiceToUpdate->paid_amount > 0) {
+                    $invoiceToUpdate->status   = 'partial';
+                } else {
+                    $invoiceToUpdate->status   = 'unpaid';
+                }
+                $invoiceToUpdate->save();
+            }
+            // =====================================================
+
+            // =====================================================
+            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+            // =====================================================
             if ($totalReturnAmount > 0) {
                 $salesReturnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
                 if (!$salesReturnAccount) {
