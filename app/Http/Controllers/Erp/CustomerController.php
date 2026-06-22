@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\Pos;
 use App\Models\Branch;
+use App\Models\SaleReturn;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
