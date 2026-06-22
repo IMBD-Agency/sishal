@@ -379,6 +379,7 @@ class ExchangeController extends Controller
                         'credit'               => 0,
                         'memo'                 => 'Exchange Extra Payable Received',
                         'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
                     ]);
                     JournalEntry::create([
                         'journal_id'           => $journal->id,
@@ -387,6 +388,7 @@ class ExchangeController extends Controller
                         'credit'               => $extraPayable,
                         'memo'                 => 'Exchange Extra Sales Revenue',
                         'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
                     ]);
                 } elseif ($refundAmount > 0) {
                     // We refund customer (Payment)
@@ -399,6 +401,7 @@ class ExchangeController extends Controller
                         'credit'               => 0,
                         'memo'                 => 'Exchange Refund',
                         'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
                     ]);
                     JournalEntry::create([
                         'journal_id'           => $journal->id,
@@ -408,6 +411,7 @@ class ExchangeController extends Controller
                         'credit'               => $refundAmount,
                         'memo'                 => 'Exchange Refund Paid',
                         'created_by'           => Auth::id(),
+                        'updated_by'           => Auth::id(),
                     ]);
                 }
             }
