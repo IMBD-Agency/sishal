@@ -13,144 +13,195 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         // Define permissions with categories
+        // Define permissions with categories
         $permissions = [
-            // User & Role Management
-            ['name' => 'view users', 'category' => 'User Management'],
-            ['name' => 'create users', 'category' => 'User Management'],
-            ['name' => 'edit users', 'category' => 'User Management'],
-            ['name' => 'delete users', 'category' => 'User Management'],
-            ['name' => 'view roles', 'category' => 'User Management'],
-            ['name' => 'manage roles', 'category' => 'User Management'],
-            
-            // Branch & Warehouse
-            ['name' => 'view branches', 'category' => 'Branch Management'],
-            ['name' => 'create branches', 'category' => 'Branch Management'],
-            ['name' => 'edit branches', 'category' => 'Branch Management'],
-            ['name' => 'delete branches', 'category' => 'Branch Management'],
-            ['name' => 'manage branches', 'category' => 'Branch Management'],
-            ['name' => 'view warehouses', 'category' => 'Warehouse Management'],
-            ['name' => 'manage warehouses', 'category' => 'Warehouse Management'],
-            
-            // Product Management
-            ['name' => 'view products', 'category' => 'Product Management'],
-            ['name' => 'create products', 'category' => 'Product Management'],
-            ['name' => 'edit products', 'category' => 'Product Management'],
-            ['name' => 'delete products', 'category' => 'Product Management'],
-            ['name' => 'manage products', 'category' => 'Product Management'],
-            ['name' => 'manage categories', 'category' => 'Product Management'],
-            ['name' => 'manage brands', 'category' => 'Product Management'],
-            ['name' => 'manage units', 'category' => 'Product Management'],
-            ['name' => 'manage seasons', 'category' => 'Product Management'],
-            ['name' => 'manage genders', 'category' => 'Product Management'],
-            ['name' => 'manage attributes', 'category' => 'Product Management'],
-            ['name' => 'view combos', 'category' => 'Product Management'],
-            ['name' => 'manage combos', 'category' => 'Product Management'],
-            
-            // Inventory & Stock
-            ['name' => 'view stock', 'category' => 'Inventory Management'],
-            ['name' => 'adjust stock', 'category' => 'Inventory Management'],
-            ['name' => 'manage opening stock', 'category' => 'Inventory Management'],
-            ['name' => 'view transfers', 'category' => 'Inventory Management'],
-            ['name' => 'create transfers', 'category' => 'Inventory Management'],
-            ['name' => 'approve transfers', 'category' => 'Inventory Management'],
-            ['name' => 'delete transfers', 'category' => 'Inventory Management'],
-            ['name' => 'manage transfers', 'category' => 'Inventory Management'],
-            ['name' => 'reconcile transfers', 'category' => 'Inventory Management'],
-            ['name' => 'view requisitions', 'category' => 'Inventory Management'],
-            ['name' => 'manage requisitions', 'category' => 'Inventory Management'],
-            ['name' => 'process requisitions', 'category' => 'Inventory Management'],
-            
-            // Purchases
-            ['name' => 'view purchases', 'category' => 'Purchase Management'],
-            ['name' => 'create purchases', 'category' => 'Purchase Management'],
-            ['name' => 'edit purchases', 'category' => 'Purchase Management'],
-            ['name' => 'delete purchases', 'category' => 'Purchase Management'],
-            ['name' => 'manage purchases', 'category' => 'Purchase Management'],
-            ['name' => 'view suppliers', 'category' => 'Purchase Management'],
-            ['name' => 'manage suppliers', 'category' => 'Purchase Management'],
-            ['name' => 'view payments', 'category' => 'Purchase Management'],
-            ['name' => 'manage payments', 'category' => 'Purchase Management'],
-            ['name' => 'delete payments', 'category' => 'Purchase Management'],
-            ['name' => 'view purchase returns', 'category' => 'Purchase Management'],
-            ['name' => 'create purchase returns', 'category' => 'Purchase Management'],
-            ['name' => 'edit purchase returns', 'category' => 'Purchase Management'],
-            ['name' => 'delete purchase returns', 'category' => 'Purchase Management'],
-            ['name' => 'manage purchase returns', 'category' => 'Purchase Management'],
-            
-            // Sales & POS
-            ['name' => 'use pos', 'category' => 'Sales Management'],
-            ['name' => 'view sales', 'category' => 'Sales Management'],
-            ['name' => 'edit sales', 'category' => 'Sales Management'],
-            ['name' => 'manage sales', 'category' => 'Sales Management'],
-            ['name' => 'delete sales', 'category' => 'Sales Management'],
-            ['name' => 'view invoices', 'category' => 'Sales Management'],
-            ['name' => 'manage invoices', 'category' => 'Sales Management'],
-            ['name' => 'delete invoices', 'category' => 'Sales Management'],
-            ['name' => 'view returns', 'category' => 'Sales Management'],
-            ['name' => 'manage returns', 'category' => 'Sales Management'],
-            ['name' => 'create sale returns', 'category' => 'Sales Management'],
-            ['name' => 'edit sale returns', 'category' => 'Sales Management'],
-            ['name' => 'delete sale returns', 'category' => 'Sales Management'],
-            ['name' => 'view exchanges', 'category' => 'Sales Management'],
-            ['name' => 'manage exchanges', 'category' => 'Sales Management'],
-            ['name' => 'view money receipts', 'category' => 'Sales Management'],
-            ['name' => 'manage money receipts', 'category' => 'Sales Management'],
-
-            // Ecommerce
-            ['name' => 'view online orders', 'category' => 'Ecommerce'],
-            ['name' => 'manage online orders', 'category' => 'Ecommerce'],
-            ['name' => 'view online returns', 'category' => 'Ecommerce'],
-            ['name' => 'manage online returns', 'category' => 'Ecommerce'],
-            ['name' => 'view online exchanges', 'category' => 'Ecommerce'],
-            ['name' => 'manage online exchanges', 'category' => 'Ecommerce'],
-            ['name' => 'view customers', 'category' => 'Ecommerce'],
-            ['name' => 'manage customers', 'category' => 'Ecommerce'],
-            ['name' => 'view internal invoices', 'category' => 'Ecommerce'],
-            
-            // Accounting
-            ['name' => 'view accounts', 'category' => 'Accounting'],
-            ['name' => 'manage accounts', 'category' => 'Accounting'],
-            ['name' => 'view vouchers', 'category' => 'Accounting'],
-            ['name' => 'manage vouchers', 'category' => 'Accounting'],
-            ['name' => 'view ledger', 'category' => 'Accounting'],
-            ['name' => 'view salary', 'category' => 'Accounting'],
-            ['name' => 'manage salary', 'category' => 'Accounting'],
-            
-            // Sales Targets & Salary Increments
-            ['name' => 'view sales targets', 'category' => 'Accounting'],
-            ['name' => 'manage sales targets', 'category' => 'Accounting'],
-            ['name' => 'view salary increments', 'category' => 'Accounting'],
-            ['name' => 'manage salary increments', 'category' => 'Accounting'],
-            
-            // Marketing
-            ['name' => 'view coupons', 'category' => 'Marketing'],
-            ['name' => 'manage coupons', 'category' => 'Marketing'],
-            ['name' => 'view bulk discounts', 'category' => 'Marketing'],
-            ['name' => 'manage bulk discounts', 'category' => 'Marketing'],
-            ['name' => 'view banners', 'category' => 'Marketing'],
-            ['name' => 'manage banners', 'category' => 'Marketing'],
-            ['name' => 'view vlogs', 'category' => 'Marketing'],
-            ['name' => 'manage vlogs', 'category' => 'Marketing'],
-            ['name' => 'view reviews', 'category' => 'Marketing'],
-            ['name' => 'manage reviews', 'category' => 'Marketing'],
-            
-            // Reports
-            ['name' => 'view reports', 'category' => 'Reports'],
-            ['name' => 'view financial reports', 'category' => 'Reports'],
-            ['name' => 'view executive reports', 'category' => 'Reports'],
-            
-            // Setup & Settings
-            ['name' => 'view employees', 'category' => 'Setup'],
-            ['name' => 'manage employees', 'category' => 'Setup'],
-            ['name' => 'manage settings', 'category' => 'Setup'],
-            ['name' => 'view shipping', 'category' => 'Setup'],
-            ['name' => 'manage shipping', 'category' => 'Setup'],
-            ['name' => 'view additional pages', 'category' => 'Setup'],
-            ['name' => 'manage additional pages', 'category' => 'Setup'],
-            ['name' => 'manage pages', 'category' => 'Setup'],
-
             // Dashboard
             ['name' => 'view dashboard', 'category' => 'Dashboard'],
+
+            // Branches
+            ['name' => 'view branches', 'category' => 'Branches'],
+            ['name' => 'create branches', 'category' => 'Branches'],
+            ['name' => 'edit branches', 'category' => 'Branches'],
+            ['name' => 'delete branches', 'category' => 'Branches'],
+            ['name' => 'manage branches', 'category' => 'Branches'],
+
+            // Warehouses
+            ['name' => 'view warehouses', 'category' => 'Warehouses'],
+            ['name' => 'manage warehouses', 'category' => 'Warehouses'],
+
+            // Products
+            ['name' => 'view products', 'category' => 'Products'],
+            ['name' => 'create products', 'category' => 'Products'],
+            ['name' => 'edit products', 'category' => 'Products'],
+            ['name' => 'delete products', 'category' => 'Products'],
+            ['name' => 'manage products', 'category' => 'Products'],
+            ['name' => 'manage categories', 'category' => 'Products'],
+            ['name' => 'manage brands', 'category' => 'Products'],
+            ['name' => 'manage units', 'category' => 'Products'],
+            ['name' => 'manage seasons', 'category' => 'Products'],
+            ['name' => 'manage genders', 'category' => 'Products'],
+            ['name' => 'manage attributes', 'category' => 'Products'],
+
+            // Manage Combos
+            ['name' => 'view combos', 'category' => 'Manage Combos'],
+            ['name' => 'manage combos', 'category' => 'Manage Combos'],
+
+            // Stock Adjust
+            ['name' => 'view stock', 'category' => 'Stock Adjust'],
+            ['name' => 'adjust stock', 'category' => 'Stock Adjust'],
+            ['name' => 'manage opening stock', 'category' => 'Stock Adjust'],
+
+            // Purchase
+            ['name' => 'view purchases', 'category' => 'Purchase'],
+            ['name' => 'create purchases', 'category' => 'Purchase'],
+            ['name' => 'edit purchases', 'category' => 'Purchase'],
+            ['name' => 'delete purchases', 'category' => 'Purchase'],
+            ['name' => 'manage purchases', 'category' => 'Purchase'],
+
+            // Purchase Return
+            ['name' => 'view purchase returns', 'category' => 'Purchase Return'],
+            ['name' => 'create purchase returns', 'category' => 'Purchase Return'],
+            ['name' => 'edit purchase returns', 'category' => 'Purchase Return'],
+            ['name' => 'delete purchase returns', 'category' => 'Purchase Return'],
+            ['name' => 'manage purchase returns', 'category' => 'Purchase Return'],
+
+            // Suppliers
+            ['name' => 'view suppliers', 'category' => 'Suppliers'],
+            ['name' => 'manage suppliers', 'category' => 'Suppliers'],
+
+            // Supplier Pay
+            ['name' => 'view payments', 'category' => 'Supplier Pay'],
+            ['name' => 'manage payments', 'category' => 'Supplier Pay'],
+            ['name' => 'delete payments', 'category' => 'Supplier Pay'],
+
+            // POS
+            ['name' => 'use pos', 'category' => 'POS'],
+
+            // Sales
+            ['name' => 'view sales', 'category' => 'Sales'],
+            ['name' => 'edit sales', 'category' => 'Sales'],
+            ['name' => 'manage sales', 'category' => 'Sales'],
+            ['name' => 'delete sales', 'category' => 'Sales'],
+            ['name' => 'view invoices', 'category' => 'Sales'],
+            ['name' => 'manage invoices', 'category' => 'Sales'],
+            ['name' => 'delete invoices', 'category' => 'Sales'],
+
+            // Sale Return
+            ['name' => 'view returns', 'category' => 'Sale Return'],
+            ['name' => 'manage returns', 'category' => 'Sale Return'],
+            ['name' => 'create sale returns', 'category' => 'Sale Return'],
+            ['name' => 'edit sale returns', 'category' => 'Sale Return'],
+            ['name' => 'delete sale returns', 'category' => 'Sale Return'],
+
+            // Exchange
+            ['name' => 'view exchanges', 'category' => 'Exchange'],
+            ['name' => 'manage exchanges', 'category' => 'Exchange'],
+
+            // Money Receipt
+            ['name' => 'view money receipts', 'category' => 'Money Receipt'],
+            ['name' => 'manage money receipts', 'category' => 'Money Receipt'],
+
+            // Stock Transfer
+            ['name' => 'view transfers', 'category' => 'Stock Transfer'],
+            ['name' => 'create transfers', 'category' => 'Stock Transfer'],
+            ['name' => 'approve transfers', 'category' => 'Stock Transfer'],
+            ['name' => 'delete transfers', 'category' => 'Stock Transfer'],
+            ['name' => 'manage transfers', 'category' => 'Stock Transfer'],
+            ['name' => 'reconcile transfers', 'category' => 'Stock Transfer'],
+
+            // Requisition
+            ['name' => 'view requisitions', 'category' => 'Requisition'],
+            ['name' => 'manage requisitions', 'category' => 'Requisition'],
+            ['name' => 'process requisitions', 'category' => 'Requisition'],
+
+            // Vouchers
+            ['name' => 'view vouchers', 'category' => 'Vouchers'],
+            ['name' => 'manage vouchers', 'category' => 'Vouchers'],
+
+            // General Ledger
+            ['name' => 'view ledger', 'category' => 'General Ledger'],
+
+            // Financial Accounts
+            ['name' => 'view accounts', 'category' => 'Financial Accounts'],
+            ['name' => 'manage accounts', 'category' => 'Financial Accounts'],
+
+            // Salary
+            ['name' => 'view salary', 'category' => 'Salary'],
+            ['name' => 'manage salary', 'category' => 'Salary'],
+
+            // Sales Target
+            ['name' => 'view sales targets', 'category' => 'Sales Target'],
+            ['name' => 'manage sales targets', 'category' => 'Sales Target'],
+
+            // Salary Increment
+            ['name' => 'view salary increments', 'category' => 'Salary Increment'],
+            ['name' => 'manage salary increments', 'category' => 'Salary Increment'],
+
+            // Reports Center
+            ['name' => 'view reports', 'category' => 'Reports Center'],
+            ['name' => 'view financial reports', 'category' => 'Reports Center'],
+            ['name' => 'view executive reports', 'category' => 'Reports Center'],
+
+            // Online Orders
+            ['name' => 'view online orders', 'category' => 'Online Orders'],
+            ['name' => 'manage online orders', 'category' => 'Online Orders'],
+
+            // Order Returns
+            ['name' => 'view online returns', 'category' => 'Order Returns'],
+            ['name' => 'manage online returns', 'category' => 'Order Returns'],
+
+            // Order Exchanges
+            ['name' => 'view online exchanges', 'category' => 'Order Exchanges'],
+            ['name' => 'manage online exchanges', 'category' => 'Order Exchanges'],
+
+            // Customers
+            ['name' => 'view customers', 'category' => 'Customers'],
+            ['name' => 'manage customers', 'category' => 'Customers'],
+
+            // Invoice List
+            ['name' => 'view internal invoices', 'category' => 'Invoice List'],
+
+            // Coupons
+            ['name' => 'view coupons', 'category' => 'Coupons'],
+            ['name' => 'manage coupons', 'category' => 'Coupons'],
+
+            // Bulk Discounts
+            ['name' => 'view bulk discounts', 'category' => 'Bulk Discounts'],
+            ['name' => 'manage bulk discounts', 'category' => 'Bulk Discounts'],
+
+            // Visual Stories
+            ['name' => 'view vlogs', 'category' => 'Visual Stories'],
+            ['name' => 'manage vlogs', 'category' => 'Visual Stories'],
+
+            // Reviews
+            ['name' => 'view reviews', 'category' => 'Reviews'],
+            ['name' => 'manage reviews', 'category' => 'Reviews'],
+
+            // Banners
+            ['name' => 'view banners', 'category' => 'Banners'],
+            ['name' => 'manage banners', 'category' => 'Banners'],
+
+            // Employees
+            ['name' => 'view employees', 'category' => 'Employees'],
+            ['name' => 'manage employees', 'category' => 'Employees'],
+
+            // Master Settings
+            ['name' => 'manage settings', 'category' => 'Master Settings'],
+
+            // App Settings
+            ['name' => 'view shipping', 'category' => 'App Settings'],
+            ['name' => 'manage shipping', 'category' => 'App Settings'],
+            ['name' => 'view additional pages', 'category' => 'App Settings'],
+            ['name' => 'manage additional pages', 'category' => 'App Settings'],
+            ['name' => 'manage pages', 'category' => 'App Settings'],
+
+            // User Roles
+            ['name' => 'view users', 'category' => 'User Roles'],
+            ['name' => 'create users', 'category' => 'User Roles'],
+            ['name' => 'edit users', 'category' => 'User Roles'],
+            ['name' => 'delete users', 'category' => 'User Roles'],
+            ['name' => 'view roles', 'category' => 'User Roles'],
+            ['name' => 'manage roles', 'category' => 'User Roles'],
         ];
   
         // Create/Update permissions

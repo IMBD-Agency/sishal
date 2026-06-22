@@ -33,6 +33,48 @@
                 </div>
 
                 <!-- Sales & Performance Section -->
+                @php
+                    $salesReports = [
+                        [
+                            'title' => 'Daily Sales Report',
+                            'desc' => 'Detailed daily sales transactions and breakdowns.',
+                            'route' => 'pos.list',
+                            'icon' => 'fa-receipt',
+                            'color' => 'success',
+                            'permission' => 'view sales'
+                        ],
+                        [
+                            'title' => 'Top Selling Products',
+                            'desc' => 'Identify best-performing products by volume.',
+                            'route' => 'simple-accounting.top-products',
+                            'icon' => 'fa-fire',
+                            'color' => 'danger',
+                            'permission' => 'view reports'
+                        ],
+                        [
+                            'title' => 'Customer Summary',
+                            'desc' => 'Sales history and revenue contribution.',
+                            'route' => 'reports.customer',
+                            'icon' => 'fa-users',
+                            'color' => 'info',
+                            'permission' => 'view reports'
+                        ],
+                        [
+                            'title' => 'Customer Ledger',
+                            'desc' => 'Detailed transaction history and statements.',
+                            'route' => 'reports.customer.ledger',
+                            'icon' => 'fa-book-open',
+                            'color' => 'indigo',
+                            'permission' => 'view reports'
+                        ],
+                    ];
+
+                    $accessibleSalesReports = collect($salesReports)->filter(function($report) {
+                        return auth()->user()->hasPermissionTo($report['permission']);
+                    });
+                @endphp
+
+                @if($accessibleSalesReports->isNotEmpty())
                 <div class="col-12 report-section" id="sales">
                     <div class="d-flex align-items-center mb-4 section-header">
                         <div class="section-icon bg-soft-primary text-primary me-3">
@@ -43,40 +85,7 @@
                     </div>
                     
                     <div class="row g-4">
-                        @php
-                            $salesReports = [
-                                [
-                                    'title' => 'Daily Sales Report',
-                                    'desc' => 'Detailed daily sales transactions and breakdowns.',
-                                    'route' => 'pos.list',
-                                    'icon' => 'fa-receipt',
-                                    'color' => 'success'
-                                ],
-                                [
-                                    'title' => 'Top Selling Products',
-                                    'desc' => 'Identify best-performing products by volume.',
-                                    'route' => 'simple-accounting.top-products',
-                                    'icon' => 'fa-fire',
-                                    'color' => 'danger'
-                                ],
-                                [
-                                    'title' => 'Customer Summary',
-                                    'desc' => 'Sales history and revenue contribution.',
-                                    'route' => 'reports.customer',
-                                    'icon' => 'fa-users',
-                                    'color' => 'info'
-                                ],
-                                [
-                                    'title' => 'Customer Ledger',
-                                    'desc' => 'Detailed transaction history and statements.',
-                                    'route' => 'reports.customer.ledger',
-                                    'icon' => 'fa-book-open',
-                                    'color' => 'indigo'
-                                ],
-                            ];
-                        @endphp
-
-                        @foreach($salesReports as $report)
+                        @foreach($accessibleSalesReports as $report)
                         <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
                             <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
                                 <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
@@ -99,8 +108,51 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
 
                 <!-- Procurement & Inventory Section -->
+                @php
+                    $inventoryReports = [
+                        [
+                            'title' => 'Purchase Report',
+                            'desc' => 'In-depth analysis of purchases and materials.',
+                            'route' => 'purchase.list',
+                            'icon' => 'fa-shopping-cart',
+                            'color' => 'warning',
+                            'permission' => 'view purchases'
+                        ],
+                        [
+                            'title' => 'Supplier Summary',
+                            'desc' => 'Suppliers list, total purchases, and dues.',
+                            'route' => 'reports.supplier-summary',
+                            'icon' => 'fa-truck-loading',
+                            'color' => 'primary',
+                            'permission' => 'view reports'
+                        ],
+                        [
+                            'title' => 'Supplier Ledger',
+                            'desc' => 'Full statements and payment histories.',
+                            'route' => 'reports.supplier.ledger',
+                            'icon' => 'fa-clipboard-list',
+                            'color' => 'info',
+                            'permission' => 'view reports'
+                        ],
+                        [
+                            'title' => 'Stock Report',
+                            'desc' => 'Real-time inventory levels across all locations.',
+                            'route' => 'productstock.list',
+                            'icon' => 'fa-boxes',
+                            'color' => 'success',
+                            'permission' => 'view stock'
+                        ],
+                    ];
+
+                    $accessibleInventoryReports = collect($inventoryReports)->filter(function($report) {
+                        return auth()->user()->hasPermissionTo($report['permission']);
+                    });
+                @endphp
+
+                @if($accessibleInventoryReports->isNotEmpty())
                 <div class="col-12 report-section mt-5" id="inventory">
                     <div class="d-flex align-items-center mb-4 section-header">
                         <div class="section-icon bg-soft-warning text-warning me-3">
@@ -111,40 +163,7 @@
                     </div>
                     
                     <div class="row g-4">
-                        @php
-                            $inventoryReports = [
-                                [
-                                    'title' => 'Purchase Report',
-                                    'desc' => 'In-depth analysis of purchases and materials.',
-                                    'route' => 'purchase.list',
-                                    'icon' => 'fa-shopping-cart',
-                                    'color' => 'warning'
-                                ],
-                                [
-                                    'title' => 'Supplier Summary',
-                                    'desc' => 'Suppliers list, total purchases, and dues.',
-                                    'route' => 'reports.supplier-summary',
-                                    'icon' => 'fa-truck-loading',
-                                    'color' => 'primary'
-                                ],
-                                [
-                                    'title' => 'Supplier Ledger',
-                                    'desc' => 'Full statements and payment histories.',
-                                    'route' => 'reports.supplier.ledger',
-                                    'icon' => 'fa-clipboard-list',
-                                    'color' => 'info'
-                                ],
-                                [
-                                    'title' => 'Stock Report',
-                                    'desc' => 'Real-time inventory levels across all locations.',
-                                    'route' => 'productstock.list',
-                                    'icon' => 'fa-boxes',
-                                    'color' => 'success'
-                                ],
-                            ];
-                        @endphp
-
-                        @foreach($inventoryReports as $report)
+                        @foreach($accessibleInventoryReports as $report)
                         <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
                             <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
                                 <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
@@ -167,8 +186,75 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
 
                 <!-- Financial & Accounts Section -->
+                @php
+                    $financialReports = [
+                        [
+                            'title' => 'Profit & Loss',
+                            'desc' => 'Comprehensive income vs. expenses statement.',
+                            'route' => 'reports.profit-loss',
+                            'icon' => 'fa-balance-scale',
+                            'color' => 'danger',
+                            'permission' => 'view financial reports'
+                        ],
+                        [
+                            'title' => 'Cash Profit Report',
+                            'desc' => 'Collection-based realized profit analysis.',
+                            'route' => 'reports.cash-profit',
+                            'icon' => 'fa-hand-holding-usd',
+                            'color' => 'success',
+                            'permission' => 'view financial reports'
+                        ],
+                        [
+                            'title' => 'Cash Book',
+                            'desc' => 'Track all petty cash and daily cash flow.',
+                            'route' => 'reports.cash-book',
+                            'icon' => 'fa-coins',
+                            'color' => 'warning',
+                            'permission' => 'view financial reports'
+                        ],
+                        [
+                            'title' => 'Bank Book',
+                            'desc' => 'Overview of bank statements and deposits.',
+                            'route' => 'reports.bank-book',
+                            'icon' => 'fa-university',
+                            'color' => 'info',
+                            'permission' => 'view financial reports'
+                        ],
+                        [
+                            'title' => 'Mobile Book',
+                            'desc' => 'Mobile gateway accounts (bKash/Nagad).',
+                            'route' => 'reports.mobile-book',
+                            'icon' => 'fa-mobile-alt',
+                            'color' => 'success',
+                            'permission' => 'view financial reports'
+                        ],
+                        [
+                            'title' => 'Expense Report',
+                            'desc' => 'Categorized business expenditures analysis.',
+                            'route' => 'reports.expenses',
+                            'icon' => 'fa-wallet',
+                            'color' => 'secondary',
+                            'permission' => 'view financial reports'
+                        ],
+                        [
+                            'title' => 'Fund Transfer',
+                            'desc' => 'History of inter-branch and account transfers.',
+                            'route' => 'transfers.index',
+                            'icon' => 'fa-exchange-alt',
+                            'color' => 'primary',
+                            'permission' => 'view transfers'
+                        ],
+                    ];
+
+                    $accessibleFinancialReports = collect($financialReports)->filter(function($report) {
+                        return auth()->user()->hasPermissionTo($report['permission']);
+                    });
+                @endphp
+
+                @if($accessibleFinancialReports->isNotEmpty())
                 <div class="col-12 report-section mt-5" id="financial">
                     <div class="d-flex align-items-center mb-4 section-header">
                         <div class="section-icon bg-soft-danger text-danger me-3">
@@ -179,61 +265,7 @@
                     </div>
                     
                     <div class="row g-4">
-                        @php
-                            $financialReports = [
-                                [
-                                    'title' => 'Profit & Loss',
-                                    'desc' => 'Comprehensive income vs. expenses statement.',
-                                    'route' => 'reports.profit-loss',
-                                    'icon' => 'fa-balance-scale',
-                                    'color' => 'danger'
-                                ],
-                                [
-                                    'title' => 'Cash Profit Report',
-                                    'desc' => 'Collection-based realized profit analysis.',
-                                    'route' => 'reports.cash-profit',
-                                    'icon' => 'fa-hand-holding-usd',
-                                    'color' => 'success'
-                                ],
-                                [
-                                    'title' => 'Cash Book',
-                                    'desc' => 'Track all petty cash and daily cash flow.',
-                                    'route' => 'reports.cash-book',
-                                    'icon' => 'fa-coins',
-                                    'color' => 'warning'
-                                ],
-                                [
-                                    'title' => 'Bank Book',
-                                    'desc' => 'Overview of bank statements and deposits.',
-                                    'route' => 'reports.bank-book',
-                                    'icon' => 'fa-university',
-                                    'color' => 'info'
-                                ],
-                                [
-                                    'title' => 'Mobile Book',
-                                    'desc' => 'Mobile gateway accounts (bKash/Nagad).',
-                                    'route' => 'reports.mobile-book',
-                                    'icon' => 'fa-mobile-alt',
-                                    'color' => 'success'
-                                ],
-                                [
-                                    'title' => 'Expense Report',
-                                    'desc' => 'Categorized business expenditures analysis.',
-                                    'route' => 'reports.expenses',
-                                    'icon' => 'fa-wallet',
-                                    'color' => 'secondary'
-                                ],
-                                [
-                                    'title' => 'Fund Transfer',
-                                    'desc' => 'History of inter-branch and account transfers.',
-                                    'route' => 'transfers.index',
-                                    'icon' => 'fa-exchange-alt',
-                                    'color' => 'primary'
-                                ],
-                            ];
-                        @endphp
-
-                        @foreach($financialReports as $report)
+                        @foreach($accessibleFinancialReports as $report)
                         <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
                             <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
                                 <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
@@ -256,8 +288,35 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
 
                 <!-- Insights & Growth Section -->
+                @php
+                    $insightReports = [
+                        [
+                            'title' => 'Executive Report',
+                            'desc' => 'High-level business overview for management.',
+                            'route' => 'reports.executive',
+                            'icon' => 'fa-user-tie',
+                            'color' => 'primary',
+                            'permission' => 'view executive reports'
+                        ],
+                        [
+                            'title' => 'Performance Analysis',
+                            'desc' => 'Actual sales vs. purchase costs (Net COGS).',
+                            'route' => 'reports.performance',
+                            'icon' => 'fa-tachometer-alt',
+                            'color' => 'success',
+                            'permission' => 'view executive reports'
+                        ],
+                    ];
+
+                    $accessibleInsightReports = collect($insightReports)->filter(function($report) {
+                        return auth()->user()->hasPermissionTo($report['permission']);
+                    });
+                @endphp
+
+                @if($accessibleInsightReports->isNotEmpty())
                 <div class="col-12 report-section mt-5 mb-5" id="insights">
                     <div class="d-flex align-items-center mb-4 section-header">
                         <div class="section-icon bg-soft-info text-info me-3">
@@ -268,26 +327,7 @@
                     </div>
                     
                     <div class="row g-4">
-                        @php
-                            $insightReports = [
-                                [
-                                    'title' => 'Executive Report',
-                                    'desc' => 'High-level business overview for management.',
-                                    'route' => 'reports.executive',
-                                    'icon' => 'fa-user-tie',
-                                    'color' => 'primary'
-                                ],
-                                [
-                                    'title' => 'Performance Analysis',
-                                    'desc' => 'Actual sales vs. purchase costs (Net COGS).',
-                                    'route' => 'reports.performance',
-                                    'icon' => 'fa-tachometer-alt',
-                                    'color' => 'success'
-                                ],
-                            ];
-                        @endphp
-
-                        @foreach($insightReports as $report)
+                        @foreach($accessibleInsightReports as $report)
                         <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
                             <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
                                 <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
@@ -310,6 +350,7 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
