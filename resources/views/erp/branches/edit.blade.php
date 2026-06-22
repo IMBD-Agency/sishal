@@ -194,6 +194,19 @@
                                 </div>
                             </div>
 
+                            <!-- Warehouse Status -->
+                            <div class="col-12">
+                                <div class="switch-premium shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-warehouse me-2 text-warning"></i>Mark as Warehouse Branch</h6>
+                                        <div class="form-check form-switch p-0">
+                                            <input class="form-check-input ms-0" type="checkbox" id="is_warehouse" name="is_warehouse" value="1" {{ old('is_warehouse', $branch->is_warehouse) ? 'checked' : '' }} style="width: 3rem; height: 1.5rem;">
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-0">Designate this branch as a warehouse. Warehouse branches can perform stock dispatches to other branches.</p>
+                                </div>
+                            </div>
+
                             <div class="col-md-12">
                                 <label for="status" class="form-label">Operational Status</label>
                                 <select class="form-select @error('status') is-invalid @enderror" id="status" name="status">

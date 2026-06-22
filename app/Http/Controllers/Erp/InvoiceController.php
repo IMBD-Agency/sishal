@@ -949,14 +949,14 @@ class InvoiceController extends Controller
         if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete invoices')) {
             abort(403, 'Unauthorized action.');
         }
-        $invoice = Invoice::with(['items', 'payments'])->findOrFail($id);
+
+        $invoice = Invoice::with(['items', 'payments', 'pos.items', 'pos.payments', 'order.items'])->findOrFail($id);
+        
         \DB::beginTransaction();
         try {
-            $invoice->items()->delete();
-            $invoice->payments()->delete();
-            $invoice->delete();
+            $this->deleteSingleInvoice($invoice);
             \DB::commit();
-            return redirect()->route('invoice.list')->with('success', 'Invoice #' . $invoice->invoice_number . ' deleted successfully.');
+            return redirect()->route('invoice.list')->with('success', 'Invoice #' . $invoice->invoice_number . ' and all related records deleted and reversed successfully.');
         } catch (\Exception $e) {
             \DB::rollBack();
             return redirect()->back()->with('error', 'Failed to delete invoice: ' . $e->getMessage());
@@ -976,17 +976,310 @@ class InvoiceController extends Controller
 
         \DB::beginTransaction();
         try {
-            $invoices = Invoice::whereIn('id', $ids)->with(['items', 'payments'])->get();
+            $invoices = Invoice::whereIn('id', $ids)->with(['items', 'payments', 'pos.items', 'pos.payments', 'order.items'])->get();
             foreach ($invoices as $invoice) {
-                $invoice->items()->delete();
-                $invoice->payments()->delete();
-                $invoice->delete();
+                $this->deleteSingleInvoice($invoice);
             }
             \DB::commit();
             return response()->json(['success' => true, 'message' => 'Selected invoices deleted successfully.']);
         } catch (\Exception $e) {
             \DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Failed to delete invoices: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Helper to delete a single invoice, reversing all related data (POS, online orders, cash balances, journals, etc.)
+     */
+    private function deleteSingleInvoice($invoice)
+    {
+        // 1. If linked to a POS sale, delegate to POS deletion flow
+        if ($invoice->pos) {
+            $pos = $invoice->pos;
+            
+            // Restore stock for all sold items
+            foreach ($pos->items as $item) {
+                if ($item->parent_item_id === null) {
+                    $this->restoreStock($item->product_id, $item->variation_id, $item->quantity, $pos->branch_id);
+                }
+            }
+
+            // Reverse FinancialAccount balance for each payment
+            foreach ($pos->payments as $payment) {
+                if ($payment->account_id && $payment->amount > 0) {
+                    $finAcc = \App\Models\FinancialAccount::find($payment->account_id);
+                    if ($finAcc) {
+                        $finAcc->balance -= $payment->amount;
+                        if ($finAcc->balance < 0) $finAcc->balance = 0;
+                        $finAcc->save();
+                    }
+                }
+            }
+
+            // Remove Customer Balance entries linked to this sale
+            if ($pos->customer_id) {
+                \App\Models\Balance::where('source_type', 'customer')
+                    ->where('source_id', $pos->customer_id)
+                    ->where('reference', $pos->sale_number)
+                    ->delete();
+            }
+
+            // Delete related Journal entries (Double-Entry Accounting)
+            $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            $journal = \App\Models\Journal::where('voucher_no', 'like', $voucherNo . '%')
+                ->orWhere('reference', $pos->sale_number)
+                ->first();
+            if ($journal) {
+                $journal->entries()->delete();
+                $journal->delete();
+            }
+            $manualVoucherNo = 'SAL-M-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            $manualJournal = \App\Models\Journal::where('voucher_no', $manualVoucherNo)->first();
+            if ($manualJournal) {
+                $manualJournal->entries()->delete();
+                $manualJournal->delete();
+            }
+
+            // Delete POS payments and items
+            $pos->payments()->delete();
+            $pos->items()->delete();
+            
+            // Delete POS record
+            $pos->delete();
+        }
+
+        // 2. If linked to an online order, delegate to Order deletion flow
+        elseif ($invoice->order) {
+            $order = $invoice->order;
+            
+            // Check if order can be deleted based on status (Only pending or cancelled)
+            $deletableStatuses = ['pending', 'cancelled'];
+            if (!in_array($order->status, $deletableStatuses)) {
+                throw new \Exception('Cannot delete invoice linked to online order ' . $order->order_number . ' with status: ' . ucfirst($order->status) . '. Only pending or cancelled orders can be deleted.');
+            }
+
+            // Restore stock for each order item (only if not already cancelled)
+            if ($order->status !== 'cancelled') {
+                foreach ($order->items as $item) {
+                    $this->restoreStockForOrderItem($item);
+                }
+            }
+
+            // Delete related order items and payments
+            $order->items()->delete();
+            $order->payments()->delete();
+            $order->delete();
+        }
+
+        // 3. Otherwise (pure manual invoice), reverse manual payments
+        else {
+            foreach ($invoice->payments as $payment) {
+                // Revert Customer Balance
+                if ($payment->customer_id) {
+                    $balance = \App\Models\Balance::where('source_type', 'customer')
+                        ->where('source_id', $payment->customer_id)
+                        ->first();
+                    if ($balance) {
+                        $balance->balance += $payment->amount; // Add back the amount we previously deducted
+                        $balance->save();
+                    }
+                }
+
+                // Revert Financial Account balance if account_id exists
+                if ($payment->account_id) {
+                    $account = \App\Models\FinancialAccount::find($payment->account_id);
+                    if ($account) {
+                        $account->balance -= $payment->amount;
+                        if ($account->balance < 0) $account->balance = 0;
+                        $account->save();
+                    }
+                }
+
+                // Delete Associated Journal and Journal Entries
+                if ($payment->payment_reference) {
+                    $journal = \App\Models\Journal::where('reference', $payment->payment_reference)->first();
+                    if ($journal) {
+                        $journal->entries()->delete();
+                        $journal->delete();
+                    }
+                }
+
+                // Delete payment
+                $payment->delete();
+            }
+        }
+
+        // Delete invoice items
+        $invoice->items()->delete();
+
+        // Delete invoice address
+        if ($invoice->invoiceAddress) {
+            $invoice->invoiceAddress()->delete();
+        }
+
+        // Delete the invoice itself
+        $invoice->delete();
+    }
+
+    /**
+     * Restore stock for a product/variation to branch
+     */
+    private function restoreStock($productId, $variationId, $quantity, $branchId)
+    {
+        $product = \App\Models\Product::find($productId);
+        if ($product && $product->type === 'combo') {
+            foreach ($product->comboItems as $comboItem) {
+                $itemVariationId = $comboItem->variation_id;
+                $itemQuantity = $comboItem->quantity * $quantity;
+                $this->restoreStock($comboItem->product_id, $itemVariationId, $itemQuantity, $branchId);
+            }
+            return;
+        }
+
+        if ($variationId) {
+            $vStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                ->where('branch_id', $branchId)
+                ->whereNull('warehouse_id')
+                ->lockForUpdate()
+                ->first();
+            
+            if ($vStock) {
+                $vStock->quantity += $quantity;
+                $vStock->save();
+            } else {
+                \App\Models\ProductVariationStock::create([
+                    'variation_id' => $variationId,
+                    'branch_id' => $branchId,
+                    'quantity' => $quantity,
+                    'reserved_quantity' => 0,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
+        } else {
+            $branchStock = \App\Models\BranchProductStock::where('branch_id', $branchId)
+                ->where('product_id', $productId)
+                ->lockForUpdate()
+                ->first();
+            
+            if ($branchStock) {
+                $branchStock->quantity += $quantity;
+                $branchStock->save();
+            } else {
+                \App\Models\BranchProductStock::create([
+                    'branch_id' => $branchId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Restore stock for an order item
+     */
+    private function restoreStockForOrderItem($item)
+    {
+        $productId = $item->product_id;
+        $variationId = $item->variation_id;
+        $quantity = $item->quantity;
+        $fromType = $item->current_position_type;
+        $fromId = $item->current_position_id;
+        $userId = auth()->id() ?? 1;
+
+        // If no stock source, try to find existing stock or use default branch
+        if (!$fromType || !$fromId) {
+            if ($variationId) {
+                $existingStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                    ->whereNotNull('branch_id')
+                    ->whereNull('warehouse_id')
+                    ->first();
+                if ($existingStock) {
+                    $fromType = 'branch';
+                    $fromId = $existingStock->branch_id;
+                } else {
+                    $fromType = 'branch';
+                    $fromId = \App\Models\Branch::first()->id ?? 1;
+                }
+            } else {
+                $existingStock = \App\Models\BranchProductStock::where('product_id', $productId)
+                    ->first();
+                if ($existingStock) {
+                    $fromType = 'branch';
+                    $fromId = $existingStock->branch_id;
+                } else {
+                    $fromType = 'branch';
+                    $fromId = \App\Models\Branch::first()->id ?? 1;
+                }
+            }
+        }
+
+        // For products with variations, restore to variation-level stock
+        if ($variationId) {
+            if ($fromType === 'warehouse') {
+                $variationStock = \App\Models\ProductVariationStock::firstOrCreate(
+                    [
+                        'variation_id' => $variationId,
+                        'warehouse_id' => $fromId,
+                        'branch_id' => null
+                    ],
+                    [
+                        'quantity' => 0,
+                        'updated_by' => $userId,
+                        'last_updated_at' => now()
+                    ]
+                );
+                $variationStock->quantity += $quantity;
+                $variationStock->updated_by = $userId;
+                $variationStock->last_updated_at = now();
+                $variationStock->save();
+            } elseif ($fromType === 'branch') {
+                $variationStock = \App\Models\ProductVariationStock::firstOrCreate(
+                    [
+                        'variation_id' => $variationId,
+                        'branch_id' => $fromId,
+                        'warehouse_id' => null
+                    ],
+                    [
+                        'quantity' => 0,
+                        'updated_by' => $userId,
+                        'last_updated_at' => now()
+                    ]
+                );
+                $variationStock->quantity += $quantity;
+                $variationStock->updated_by = $userId;
+                $variationStock->last_updated_at = now();
+                $variationStock->save();
+            }
+        } else {
+            // For products without variations, restore to product-level stock
+            if ($fromType === 'branch') {
+                $stock = \App\Models\BranchProductStock::firstOrCreate(
+                    ['branch_id' => $fromId, 'product_id' => $productId],
+                    ['quantity' => 0, 'updated_by' => $userId]
+                );
+            } elseif ($fromType === 'warehouse') {
+                $stock = \App\Models\WarehouseProductStock::firstOrCreate(
+                    ['warehouse_id' => $fromId, 'product_id' => $productId],
+                    ['quantity' => 0, 'updated_by' => $userId]
+                );
+            } elseif ($fromType === 'employee') {
+                $stock = \App\Models\EmployeeProductStock::firstOrCreate(
+                    ['employee_id' => $fromId, 'product_id' => $productId],
+                    ['quantity' => 0, 'issued_by' => $userId, 'updated_by' => $userId]
+                );
+            } else {
+                return;
+            }
+
+            $stock->quantity += $quantity;
+            $stock->updated_by = $userId;
+            if (isset($stock->last_updated_at)) {
+                $stock->last_updated_at = now();
+            }
+            $stock->save();
         }
     }
 

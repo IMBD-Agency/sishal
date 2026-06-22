@@ -14,6 +14,7 @@ class Branch extends Model
         'manager_id',
         'show_online',
         'warehouse_id',
+        'is_warehouse',
     ];
 
     public function products()

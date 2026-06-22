@@ -47,16 +47,23 @@
                             <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="col-md-3">
-                            <label for="location_selector" class="form-label small fw-bold text-muted text-uppercase mb-2">Receive At (Warehouse) <span class="text-danger">*</span></label>
+                            <label for="location_selector" class="form-label small fw-bold text-muted text-uppercase mb-2">Receive At <span class="text-danger">*</span></label>
                             <select id="location_selector" class="form-select select2-simple" required>
-                                <option value="">Select Warehouse</option>
-                                @foreach($warehouses as $warehouse)
-                                    <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                                @endforeach
+                                <option value="">Select Location</option>
+                                <optgroup label="Warehouses">
+                                    @foreach($warehouses as $warehouse)
+                                        <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                    @endforeach
+                                </optgroup>
+                                <optgroup label="Warehouse Branches">
+                                    @foreach($branches->where('is_warehouse', true) as $branch)
+                                        <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </optgroup>
                             </select>
                             <input type="hidden" name="location_id" id="location_id" value="">
                             <input type="hidden" name="ship_location_type" id="ship_location_type" value="warehouse">
-                            <small class="text-muted extra-small"><i class="fas fa-lock me-1"></i> Purchases are warehouse-exclusive.</small>
+                            <small class="text-muted extra-small"><i class="fas fa-lock me-1"></i> Purchases can be received at Warehouses or Warehouse Branches.</small>
                         </div>
                         <div class="col-md-3">
                             <label for="supplier_id" class="form-label small fw-bold text-muted text-uppercase mb-2">Select Supplier <span class="text-danger">*</span></label>

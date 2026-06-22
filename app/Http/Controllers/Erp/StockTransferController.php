@@ -543,10 +543,13 @@ class StockTransferController extends Controller
         return redirect()->back()->with('error', 'Invalid sender outlet selected.');
     }    
 
-    // Restrict to Warehouse -> Branch only (for new transfers)
+    // Restrict to Warehouse or Warehouse-Branch -> Branch only (for new transfers)
     if (!$request->return_of_id) {
-        if ($fromType !== 'warehouse' || $toType !== 'branch') {
-            return redirect()->back()->with('error', 'Transfers are only allowed from Warehouse to Branch.');
+        $fromBranch = ($fromType === 'branch') ? \App\Models\Branch::find($fromId) : null;
+        $isFromWarehouse = ($fromType === 'warehouse') || ($fromBranch && $fromBranch->is_warehouse);
+        
+        if (!$isFromWarehouse || $toType !== 'branch') {
+            return redirect()->back()->with('error', 'Transfers are only allowed from Warehouse (or Warehouse Branch) to Branch.');
         }
     }
 

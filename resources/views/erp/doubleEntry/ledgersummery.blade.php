@@ -268,13 +268,6 @@
                                                 <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}" class="action-circle bg-light" title="View Full Account Ledger">
                                                     <i class="fas fa-book text-info"></i>
                                                 </a>
-                                                <form action="{{ route('journal.destroy', $entry->journal_id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this journal?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="action-circle bg-light border-0" title="Delete Journal">
-                                                        <i class="fas fa-trash-alt text-danger"></i>
-                                                    </button>
-                                                </form>
                                             </div>
                                         </td>
                                     </tr>

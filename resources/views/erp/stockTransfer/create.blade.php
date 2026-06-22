@@ -121,9 +121,14 @@
                                                 <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                             @endforeach
                                         </optgroup>
+                                        <optgroup label="Warehouse Branches">
+                                            @foreach($branches->where('is_warehouse', true) as $branch)
+                                                <option value="branch_{{ $branch->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }} (Warehouse)</option>
+                                            @endforeach
+                                        </optgroup>
                                         @if(isset($originalTransfer))
                                         <optgroup label="Branches">
-                                            @foreach($branches as $branch)
+                                            @foreach($branches->where('is_warehouse', false) as $branch)
                                                 <option value="branch_{{ $branch->id }}"
                                                     {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>
                                                     {{ $branch->name }}

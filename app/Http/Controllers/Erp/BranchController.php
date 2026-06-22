@@ -72,9 +72,11 @@ class BranchController extends Controller
             'contact_info' => 'required|string|max:255',
             'manager_id' => 'nullable|exists:users,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
-            'show_online' => 'nullable'
+            'show_online' => 'nullable',
+            'is_warehouse' => 'nullable'
         ]);
         $validated['show_online'] = $request->has('show_online');
+        $validated['is_warehouse'] = $request->has('is_warehouse');
         $branch = Branch::create($validated);
         return redirect()->route('branches.index')->with('status', 'Branch created successfully!');
     }
@@ -180,9 +182,11 @@ class BranchController extends Controller
             'contact_info' => 'required|string|max:255',
             'manager_id' => 'nullable|exists:users,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
-            'show_online' => 'nullable'
+            'show_online' => 'nullable',
+            'is_warehouse' => 'nullable'
         ]);
         $validated['show_online'] = $request->has('show_online');
+        $validated['is_warehouse'] = $request->has('is_warehouse');
         $branch->update($validated);
         return redirect()->route('branches.index')->with('status', 'Branch updated successfully!');
     }
