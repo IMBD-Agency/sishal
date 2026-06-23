@@ -139,8 +139,18 @@ class PermissionSeeder extends Seeder
 
             // Reports Center
             ['name' => 'view reports', 'category' => 'Reports Center'],
-            ['name' => 'view financial reports', 'category' => 'Reports Center'],
-            ['name' => 'view executive reports', 'category' => 'Reports Center'],
+            ['name' => 'customer summary', 'category' => 'Reports Center'],
+            ['name' => 'customer ledger', 'category' => 'Reports Center'],
+            ['name' => 'supplier summary', 'category' => 'Reports Center'],
+            ['name' => 'supplier ledger', 'category' => 'Reports Center'],
+            ['name' => 'profit and loss', 'category' => 'Reports Center'],
+            ['name' => 'cash profit', 'category' => 'Reports Center'],
+            ['name' => 'cash book', 'category' => 'Reports Center'],
+            ['name' => 'bank book', 'category' => 'Reports Center'],
+            ['name' => 'mobile book', 'category' => 'Reports Center'],
+            ['name' => 'expense report', 'category' => 'Reports Center'],
+            ['name' => 'executive report', 'category' => 'Reports Center'],
+            ['name' => 'performance analysis', 'category' => 'Reports Center'],
 
             // Online Orders
             ['name' => 'view online orders', 'category' => 'Online Orders'],
@@ -186,14 +196,30 @@ class PermissionSeeder extends Seeder
             ['name' => 'manage employees', 'category' => 'Employees'],
 
             // Master Settings
-            ['name' => 'manage settings', 'category' => 'Master Settings'],
+            ['name' => 'view master settings', 'category' => 'Master Settings'],
+            ['name' => 'product category', 'category' => 'Master Settings'],
+            ['name' => 'product subcategory', 'category' => 'Master Settings'],
+            ['name' => 'product brand', 'category' => 'Master Settings'],
+            ['name' => 'product unit', 'category' => 'Master Settings'],
+            ['name' => 'product season', 'category' => 'Master Settings'],
+            ['name' => 'product gender', 'category' => 'Master Settings'],
+            ['name' => 'product variation', 'category' => 'Master Settings'],
+            ['name' => 'product attribute', 'category' => 'Master Settings'],
+
 
             // App Settings
-            ['name' => 'view shipping', 'category' => 'App Settings'],
-            ['name' => 'manage shipping', 'category' => 'App Settings'],
-            ['name' => 'view additional pages', 'category' => 'App Settings'],
-            ['name' => 'manage additional pages', 'category' => 'App Settings'],
-            ['name' => 'manage pages', 'category' => 'App Settings'],
+            ['name' => 'view settings', 'category' => 'App Settings'],
+
+            //custom page
+            ['name' => 'view additional pages', 'category' => 'custom page'],
+            ['name' => 'manage additional pages', 'category' => 'custom page'],
+
+
+
+            // Shipping Methods
+            ['name' => 'view shipping', 'category' => 'Shipping Methods'],
+            ['name' => 'manage shipping', 'category' => 'Shipping Methods'],
+
 
             // User Roles
             ['name' => 'view users', 'category' => 'User Roles'],
@@ -203,10 +229,10 @@ class PermissionSeeder extends Seeder
             ['name' => 'view roles', 'category' => 'User Roles'],
             ['name' => 'manage roles', 'category' => 'User Roles'],
         ];
-  
+
         // Create/Update permissions
         $permissionNames = array_column($permissions, 'name');
-        
+
         foreach ($permissions as $permission) {
             Permission::updateOrCreate(
                 [
@@ -241,7 +267,7 @@ class PermissionSeeder extends Seeder
         if ($adminUser) {
             $adminUser->assignRole($superAdmin);
         }
-        
+
         echo "All permissions assigned to Super Admin role and assigned to User (" . ($adminUser->email ?? 'None') . ")!\n";
     }
-} 
+}

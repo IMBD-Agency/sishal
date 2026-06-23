@@ -6,7 +6,7 @@
     @include('erp.components.sidebar')
     <div class="main-content bg-gray-50 min-vh-100" id="mainContent">
         @include('erp.components.header')
-        
+
         <div class="container-fluid px-4 py-4">
             <div class="d-flex align-items-center justify-content-between mb-4">
                 <div>
@@ -15,8 +15,10 @@
                 </div>
                 <div class="d-none d-md-block">
                     <div class="input-group search-reports">
-                        <span class="input-group-text border-0 bg-white shadow-sm"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" class="form-control border-0 bg-white shadow-sm" id="reportSearch" placeholder="Search reports...">
+                        <span class="input-group-text border-0 bg-white shadow-sm"><i
+                                class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control border-0 bg-white shadow-sm" id="reportSearch"
+                            placeholder="Search reports...">
                     </div>
                 </div>
             </div>
@@ -57,7 +59,7 @@
                             'route' => 'reports.customer',
                             'icon' => 'fa-users',
                             'color' => 'info',
-                            'permission' => 'view reports'
+                            'permission' => 'customer summary'
                         ],
                         [
                             'title' => 'Customer Ledger',
@@ -65,49 +67,51 @@
                             'route' => 'reports.customer.ledger',
                             'icon' => 'fa-book-open',
                             'color' => 'indigo',
-                            'permission' => 'view reports'
+                            'permission' => 'customer ledger'
                         ],
                     ];
 
-                    $accessibleSalesReports = collect($salesReports)->filter(function($report) {
+                    $accessibleSalesReports = collect($salesReports)->filter(function ($report) {
                         return auth()->user()->hasPermissionTo($report['permission']);
                     });
                 @endphp
 
                 @if($accessibleSalesReports->isNotEmpty())
-                <div class="col-12 report-section" id="sales">
-                    <div class="d-flex align-items-center mb-4 section-header">
-                        <div class="section-icon bg-soft-primary text-primary me-3">
-                            <i class="fas fa-chart-line fs-5"></i>
+                    <div class="col-12 report-section" id="sales">
+                        <div class="d-flex align-items-center mb-4 section-header">
+                            <div class="section-icon bg-soft-primary text-primary me-3">
+                                <i class="fas fa-chart-line fs-5"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0">Sales & Customers</h5>
+                            <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
                         </div>
-                        <h5 class="fw-bold text-dark mb-0">Sales & Customers</h5>
-                        <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
-                    </div>
-                    
-                    <div class="row g-4">
-                        @foreach($accessibleSalesReports as $report)
-                        <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
-                            <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
-                                <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
-                                    <div class="card-body p-4">
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <div class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
-                                                <i class="fas {{ $report['icon'] }} fs-4"></i>
+
+                        <div class="row g-4">
+                            @foreach($accessibleSalesReports as $report)
+                                <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
+                                    <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
+                                        <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
+                                            <div class="card-body p-4">
+                                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                                    <div
+                                                        class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
+                                                        <i class="fas {{ $report['icon'] }} fs-4"></i>
+                                                    </div>
+                                                    <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                                </div>
+                                                <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
+                                                <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
                                             </div>
-                                            <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                            <div
+                                                class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
+                                                <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
+                                            </div>
                                         </div>
-                                        <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
-                                        <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
-                                        <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
-                                    </div>
+                                    </a>
                                 </div>
-                            </a>
+                            @endforeach
                         </div>
-                        @endforeach
                     </div>
-                </div>
                 @endif
 
                 <!-- Procurement & Inventory Section -->
@@ -127,7 +131,7 @@
                             'route' => 'reports.supplier-summary',
                             'icon' => 'fa-truck-loading',
                             'color' => 'primary',
-                            'permission' => 'view reports'
+                            'permission' => 'supplier summary'
                         ],
                         [
                             'title' => 'Supplier Ledger',
@@ -135,7 +139,7 @@
                             'route' => 'reports.supplier.ledger',
                             'icon' => 'fa-clipboard-list',
                             'color' => 'info',
-                            'permission' => 'view reports'
+                            'permission' => 'supplier ledger'
                         ],
                         [
                             'title' => 'Stock Report',
@@ -147,45 +151,47 @@
                         ],
                     ];
 
-                    $accessibleInventoryReports = collect($inventoryReports)->filter(function($report) {
+                    $accessibleInventoryReports = collect($inventoryReports)->filter(function ($report) {
                         return auth()->user()->hasPermissionTo($report['permission']);
                     });
                 @endphp
 
                 @if($accessibleInventoryReports->isNotEmpty())
-                <div class="col-12 report-section mt-5" id="inventory">
-                    <div class="d-flex align-items-center mb-4 section-header">
-                        <div class="section-icon bg-soft-warning text-warning me-3">
-                            <i class="fas fa-warehouse fs-5"></i>
+                    <div class="col-12 report-section mt-5" id="inventory">
+                        <div class="d-flex align-items-center mb-4 section-header">
+                            <div class="section-icon bg-soft-warning text-warning me-3">
+                                <i class="fas fa-warehouse fs-5"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0">Procurement & Inventory</h5>
+                            <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
                         </div>
-                        <h5 class="fw-bold text-dark mb-0">Procurement & Inventory</h5>
-                        <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
-                    </div>
-                    
-                    <div class="row g-4">
-                        @foreach($accessibleInventoryReports as $report)
-                        <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
-                            <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
-                                <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
-                                    <div class="card-body p-4">
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <div class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
-                                                <i class="fas {{ $report['icon'] }} fs-4"></i>
+
+                        <div class="row g-4">
+                            @foreach($accessibleInventoryReports as $report)
+                                <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
+                                    <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
+                                        <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
+                                            <div class="card-body p-4">
+                                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                                    <div
+                                                        class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
+                                                        <i class="fas {{ $report['icon'] }} fs-4"></i>
+                                                    </div>
+                                                    <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                                </div>
+                                                <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
+                                                <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
                                             </div>
-                                            <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                            <div
+                                                class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
+                                                <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
+                                            </div>
                                         </div>
-                                        <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
-                                        <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
-                                        <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
-                                    </div>
+                                    </a>
                                 </div>
-                            </a>
+                            @endforeach
                         </div>
-                        @endforeach
                     </div>
-                </div>
                 @endif
 
                 <!-- Financial & Accounts Section -->
@@ -197,7 +203,7 @@
                             'route' => 'reports.profit-loss',
                             'icon' => 'fa-balance-scale',
                             'color' => 'danger',
-                            'permission' => 'view financial reports'
+                            'permission' => 'profit and loss'
                         ],
                         [
                             'title' => 'Cash Profit Report',
@@ -205,7 +211,7 @@
                             'route' => 'reports.cash-profit',
                             'icon' => 'fa-hand-holding-usd',
                             'color' => 'success',
-                            'permission' => 'view financial reports'
+                            'permission' => 'cash profit'
                         ],
                         [
                             'title' => 'Cash Book',
@@ -213,7 +219,7 @@
                             'route' => 'reports.cash-book',
                             'icon' => 'fa-coins',
                             'color' => 'warning',
-                            'permission' => 'view financial reports'
+                            'permission' => 'cash book'
                         ],
                         [
                             'title' => 'Bank Book',
@@ -221,7 +227,7 @@
                             'route' => 'reports.bank-book',
                             'icon' => 'fa-university',
                             'color' => 'info',
-                            'permission' => 'view financial reports'
+                            'permission' => 'bank book'
                         ],
                         [
                             'title' => 'Mobile Book',
@@ -229,7 +235,7 @@
                             'route' => 'reports.mobile-book',
                             'icon' => 'fa-mobile-alt',
                             'color' => 'success',
-                            'permission' => 'view financial reports'
+                            'permission' => 'mobile book'
                         ],
                         [
                             'title' => 'Expense Report',
@@ -237,7 +243,7 @@
                             'route' => 'reports.expenses',
                             'icon' => 'fa-wallet',
                             'color' => 'secondary',
-                            'permission' => 'view financial reports'
+                            'permission' => 'expense report'
                         ],
                         [
                             'title' => 'Fund Transfer',
@@ -249,45 +255,47 @@
                         ],
                     ];
 
-                    $accessibleFinancialReports = collect($financialReports)->filter(function($report) {
+                    $accessibleFinancialReports = collect($financialReports)->filter(function ($report) {
                         return auth()->user()->hasPermissionTo($report['permission']);
                     });
                 @endphp
 
                 @if($accessibleFinancialReports->isNotEmpty())
-                <div class="col-12 report-section mt-5" id="financial">
-                    <div class="d-flex align-items-center mb-4 section-header">
-                        <div class="section-icon bg-soft-danger text-danger me-3">
-                            <i class="fas fa-coins fs-5"></i>
+                    <div class="col-12 report-section mt-5" id="financial">
+                        <div class="d-flex align-items-center mb-4 section-header">
+                            <div class="section-icon bg-soft-danger text-danger me-3">
+                                <i class="fas fa-coins fs-5"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0">Financial & Accounts</h5>
+                            <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
                         </div>
-                        <h5 class="fw-bold text-dark mb-0">Financial & Accounts</h5>
-                        <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
-                    </div>
-                    
-                    <div class="row g-4">
-                        @foreach($accessibleFinancialReports as $report)
-                        <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
-                            <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
-                                <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
-                                    <div class="card-body p-4">
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <div class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
-                                                <i class="fas {{ $report['icon'] }} fs-4"></i>
+
+                        <div class="row g-4">
+                            @foreach($accessibleFinancialReports as $report)
+                                <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
+                                    <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
+                                        <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
+                                            <div class="card-body p-4">
+                                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                                    <div
+                                                        class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
+                                                        <i class="fas {{ $report['icon'] }} fs-4"></i>
+                                                    </div>
+                                                    <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                                </div>
+                                                <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
+                                                <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
                                             </div>
-                                            <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                            <div
+                                                class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
+                                                <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
+                                            </div>
                                         </div>
-                                        <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
-                                        <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
-                                        <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
-                                    </div>
+                                    </a>
                                 </div>
-                            </a>
+                            @endforeach
                         </div>
-                        @endforeach
                     </div>
-                </div>
                 @endif
 
                 <!-- Insights & Growth Section -->
@@ -299,7 +307,7 @@
                             'route' => 'reports.executive',
                             'icon' => 'fa-user-tie',
                             'color' => 'primary',
-                            'permission' => 'view executive reports'
+                            'permission' => 'executive report'
                         ],
                         [
                             'title' => 'Performance Analysis',
@@ -307,49 +315,51 @@
                             'route' => 'reports.performance',
                             'icon' => 'fa-tachometer-alt',
                             'color' => 'success',
-                            'permission' => 'view executive reports'
+                            'permission' => 'performance analysis'
                         ],
                     ];
 
-                    $accessibleInsightReports = collect($insightReports)->filter(function($report) {
+                    $accessibleInsightReports = collect($insightReports)->filter(function ($report) {
                         return auth()->user()->hasPermissionTo($report['permission']);
                     });
                 @endphp
 
                 @if($accessibleInsightReports->isNotEmpty())
-                <div class="col-12 report-section mt-5 mb-5" id="insights">
-                    <div class="d-flex align-items-center mb-4 section-header">
-                        <div class="section-icon bg-soft-info text-info me-3">
-                            <i class="fas fa-lightbulb fs-5"></i>
+                    <div class="col-12 report-section mt-5 mb-5" id="insights">
+                        <div class="d-flex align-items-center mb-4 section-header">
+                            <div class="section-icon bg-soft-info text-info me-3">
+                                <i class="fas fa-lightbulb fs-5"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0">Insights & Growth</h5>
+                            <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
                         </div>
-                        <h5 class="fw-bold text-dark mb-0">Insights & Growth</h5>
-                        <div class="flex-grow-1 ms-3 border-bottom border-light"></div>
-                    </div>
-                    
-                    <div class="row g-4">
-                        @foreach($accessibleInsightReports as $report)
-                        <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
-                            <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
-                                <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
-                                    <div class="card-body p-4">
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <div class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
-                                                <i class="fas {{ $report['icon'] }} fs-4"></i>
+
+                        <div class="row g-4">
+                            @foreach($accessibleInsightReports as $report)
+                                <div class="col-xl-3 col-lg-4 col-md-6 report-card-wrapper">
+                                    <a href="{{ route($report['route']) }}" class="text-decoration-none h-100 d-block">
+                                        <div class="card border-0 shadow-sm rounded-4 h-100 report-card">
+                                            <div class="card-body p-4">
+                                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                                    <div
+                                                        class="icon-box bg-soft-{{ $report['color'] }} text-{{ $report['color'] }} rounded-3">
+                                                        <i class="fas {{ $report['icon'] }} fs-4"></i>
+                                                    </div>
+                                                    <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                                </div>
+                                                <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
+                                                <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
                                             </div>
-                                            <div class="badge-dot bg-{{ $report['color'] }}"></div>
+                                            <div
+                                                class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
+                                                <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
+                                            </div>
                                         </div>
-                                        <h6 class="fw-bold text-dark mb-2 report-title">{{ $report['title'] }}</h6>
-                                        <p class="text-muted small mb-0 lh-base">{{ $report['desc'] }}</p>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-0 px-4 pb-4 pt-0 text-end opacity-0 card-arrow">
-                                        <i class="fas fa-arrow-right text-{{ $report['color'] }} small"></i>
-                                    </div>
+                                    </a>
                                 </div>
-                            </a>
+                            @endforeach
                         </div>
-                        @endforeach
                     </div>
-                </div>
                 @endif
             </div>
         </div>
@@ -364,61 +374,99 @@
             justify-content: center;
             transition: transform 0.3s ease;
         }
-        
+
         .report-card {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.02) !important;
+            border: 1px solid rgba(0, 0, 0, 0.02) !important;
         }
-        
+
         .report-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
-            border-color: rgba(0,0,0,0.05) !important;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1) !important;
+            border-color: rgba(0, 0, 0, 0.05) !important;
             cursor: pointer;
         }
-        
+
         .report-card:hover .icon-box {
             transform: scale(1.1);
         }
-        
+
         .report-card:hover .card-arrow {
             opacity: 1 !important;
             transform: translateX(0);
         }
-        
+
         .card-arrow {
             transform: translateX(-10px);
             transition: all 0.3s ease;
         }
-        
-        .bg-soft-primary { background-color: rgba(67, 97, 238, 0.1); }
-        .text-primary { color: #4361ee !important; }
-        .bg-soft-success { background-color: rgba(76, 175, 80, 0.1); }
-        .text-success { color: #4caf50 !important; }
-        .bg-soft-danger { background-color: rgba(244, 67, 54, 0.1); }
-        .text-danger { color: #f44336 !important; }
-        .bg-soft-warning { background-color: rgba(255, 152, 0, 0.1); }
-        .text-warning { color: #ff9800 !important; }
-        .bg-soft-info { background-color: rgba(0, 188, 212, 0.1); }
-        .text-info { color: #00bcd4 !important; }
-        .bg-soft-indigo { background-color: rgba(102, 16, 242, 0.1); }
-        .text-indigo { color: #6610f2 !important; }
-        .bg-soft-secondary { background-color: rgba(108, 117, 125, 0.1); }
-        
+
+        .bg-soft-primary {
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+
+        .text-primary {
+            color: #4361ee !important;
+        }
+
+        .bg-soft-success {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+
+        .text-success {
+            color: #4caf50 !important;
+        }
+
+        .bg-soft-danger {
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+
+        .text-danger {
+            color: #f44336 !important;
+        }
+
+        .bg-soft-warning {
+            background-color: rgba(255, 152, 0, 0.1);
+        }
+
+        .text-warning {
+            color: #ff9800 !important;
+        }
+
+        .bg-soft-info {
+            background-color: rgba(0, 188, 212, 0.1);
+        }
+
+        .text-info {
+            color: #00bcd4 !important;
+        }
+
+        .bg-soft-indigo {
+            background-color: rgba(102, 16, 242, 0.1);
+        }
+
+        .text-indigo {
+            color: #6610f2 !important;
+        }
+
+        .bg-soft-secondary {
+            background-color: rgba(108, 117, 125, 0.1);
+        }
+
         .badge-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
         }
-        
+
         .search-reports {
             width: 300px;
         }
-        
+
         .search-reports .form-control:focus {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
         }
 
         .section-icon {
@@ -435,13 +483,20 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 
     <script>
-        document.getElementById('reportSearch').addEventListener('keyup', function() {
+        document.getElementById('reportSearch').addEventListener('keyup', function () {
             let value = this.value.toLowerCase();
             let cards = document.querySelectorAll('.report-card-wrapper');
             let sections = document.querySelectorAll('.report-section');
@@ -449,7 +504,7 @@
             cards.forEach(card => {
                 let title = card.querySelector('.report-title').textContent.toLowerCase();
                 let desc = card.querySelector('.text-muted').textContent.toLowerCase();
-                
+
                 if (title.indexOf(value) > -1 || desc.indexOf(value) > -1) {
                     card.style.display = "";
                 } else {
@@ -469,4 +524,3 @@
         });
     </script>
 @endsection
-
