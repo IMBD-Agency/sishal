@@ -139,6 +139,7 @@ class PermissionSeeder extends Seeder
 
             // Reports Center
             ['name' => 'view reports', 'category' => 'Reports Center'],
+            ['name' => 'view financial reports', 'category' => 'Reports Center'],
             ['name' => 'customer summary', 'category' => 'Reports Center'],
             ['name' => 'customer ledger', 'category' => 'Reports Center'],
             ['name' => 'supplier summary', 'category' => 'Reports Center'],
@@ -149,7 +150,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'bank book', 'category' => 'Reports Center'],
             ['name' => 'mobile book', 'category' => 'Reports Center'],
             ['name' => 'expense report', 'category' => 'Reports Center'],
-            ['name' => 'executive report', 'category' => 'Reports Center'],
+            ['name' => 'view executive reports', 'category' => 'Reports Center'],
             ['name' => 'performance analysis', 'category' => 'Reports Center'],
 
             // Online Orders

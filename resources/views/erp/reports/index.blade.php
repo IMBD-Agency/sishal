@@ -307,7 +307,7 @@
                             'route' => 'reports.executive',
                             'icon' => 'fa-user-tie',
                             'color' => 'primary',
-                            'permission' => 'executive report'
+                            'permission' => 'view executive reports'
                         ],
                         [
                             'title' => 'Performance Analysis',
