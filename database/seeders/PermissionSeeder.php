@@ -145,6 +145,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'supplier summary', 'category' => 'Reports Center'],
             ['name' => 'supplier ledger', 'category' => 'Reports Center'],
             ['name' => 'profit and loss', 'category' => 'Reports Center'],
+            ['name' => 'top selling products', 'category' => 'Reports Center'],
             ['name' => 'cash profit', 'category' => 'Reports Center'],
             ['name' => 'cash book', 'category' => 'Reports Center'],
             ['name' => 'bank book', 'category' => 'Reports Center'],

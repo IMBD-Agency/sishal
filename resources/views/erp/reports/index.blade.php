@@ -51,7 +51,7 @@
                             'route' => 'simple-accounting.top-products',
                             'icon' => 'fa-fire',
                             'color' => 'danger',
-                            'permission' => 'view reports'
+                            'permission' => 'top selling products'
                         ],
                         [
                             'title' => 'Customer Summary',
@@ -299,6 +299,7 @@
                 @endif
 
                 <!-- Insights & Growth Section -->
+
                 @php
                     $insightReports = [
                         [
