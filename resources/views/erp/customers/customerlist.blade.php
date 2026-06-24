@@ -27,9 +27,11 @@
                         <a href="{{ route('customers.export.pdf', request()->query()) }}" class="btn btn-outline-danger btn-sm fw-bold export-link-pdf">
                             <i class="fas fa-file-pdf me-1"></i>PDF
                         </a>
-                        <button class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                            <i class="fas fa-plus me-1"></i>ADD CUSTOMER
-                        </button>
+                        @can('manage customers')
+                            <button class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                <i class="fas fa-plus me-1"></i>ADD CUSTOMER
+                            </button>
+                        @endcan
                     </div>
                 </div>
             </div>
@@ -225,6 +227,7 @@
                                             <button class="btn btn-sm btn-light border shadow-sm rounded-circle px-2" type="button" data-bs-toggle="dropdown">
                                                 <i class="fas fa-ellipsis-v text-muted"></i>
                                             </button>
+                                            @can('manage customers')
                                             <ul class="dropdown-menu dropdown-menu-end border-0 shadow rounded-3">
                                                 <li><a class="dropdown-item py-2" href="{{ route('customer.show', $customer->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View Details</a></li>
                                                 <li><a class="dropdown-item py-2" href="{{ route('customers.edit', $customer->id) }}"><i class="fas fa-edit me-2 text-info"></i>Edit Info</a></li>
@@ -237,6 +240,7 @@
                                                     </form>
                                                 </li>
                                             </ul>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
@@ -490,4 +494,4 @@ $(document).ready(function() {
     });
 });
 </script>
-@endpush
+@endpush

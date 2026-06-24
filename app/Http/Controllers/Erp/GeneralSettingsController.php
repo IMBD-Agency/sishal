@@ -15,14 +15,14 @@ class GeneralSettingsController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('manage settings')) {
+        if (!auth()->user()->hasPermissionTo('view settings')) {
             abort(403, 'Unauthorized action.');
         }
         $settings = GeneralSetting::first();
         // Fetch branches and warehouses for e-commerce fulfillment settings
         $settings_branches = \App\Models\Branch::all();
         $settings_warehouses = \App\Models\Warehouse::all();
-        
+
         return view('erp.settings.settings', compact('settings', 'settings_branches', 'settings_warehouses'));
     }
 
@@ -119,10 +119,10 @@ class GeneralSettingsController extends Controller
 
         $settings->fill($validated);
         $settings->save();
-        
+
         // Clear general settings cache
         Cache::forget('general_settings');
-        
+
         // Also clear home page cache as it may use settings
         Cache::forget('home_page_data');
 
@@ -156,9 +156,9 @@ class GeneralSettingsController extends Controller
             ]);
 
             // Send test email
-            Mail::raw('This is a test email to verify your SMTP configuration is working correctly.', function($message) use ($request) {
+            Mail::raw('This is a test email to verify your SMTP configuration is working correctly.', function ($message) use ($request) {
                 $message->to($request->test_email)
-                       ->subject('SMTP Configuration Test - ' . now()->format('Y-m-d H:i:s'));
+                    ->subject('SMTP Configuration Test - ' . now()->format('Y-m-d H:i:s'));
             });
 
             Log::info('SMTP test email sent successfully', [
@@ -168,7 +168,7 @@ class GeneralSettingsController extends Controller
             ]);
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Test email sent successfully! Check your inbox.'
             ]);
 
@@ -180,7 +180,7 @@ class GeneralSettingsController extends Controller
             ]);
 
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'SMTP Test failed: ' . $e->getMessage()
             ]);
         }

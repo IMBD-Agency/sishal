@@ -170,7 +170,6 @@ class PermissionSeeder extends Seeder
 
             // Online Orders
             ['name' => 'view online orders', 'category' => 'Online Orders'],
-            ['name' => 'manage online orders', 'category' => 'Online Orders'],
 
             // Order Returns
             ['name' => 'view online returns', 'category' => 'Order Returns'],

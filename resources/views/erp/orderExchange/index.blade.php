@@ -24,9 +24,11 @@
                         <a href="{{ route('orderExchange.export', request()->query()) }}" class="btn btn-outline-success btn-sm fw-bold export-link-excel">
                             <i class="fas fa-file-excel me-1"></i>EXCEL
                         </a>
+                        @can('manage online exchanges')
                         <a href="{{ route('orderExchange.create') }}" class="btn btn-primary btn-sm fw-bold">
                             <i class="fas fa-plus me-1"></i>NEW EXCHANGE
                         </a>
+                        @endcan
                     </div>
                 </div>
             </div>

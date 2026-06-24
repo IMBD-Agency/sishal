@@ -21,17 +21,19 @@
                     <tr class="transition-all">
                         <td class="ps-4">
                             <div class="fw-bold text-primary">#OR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</div>
-                            <div class="small text-muted">{{ \Carbon\Carbon::parse($return->return_date)->format('d M, Y') }}</div>
+                            <div class="small text-muted">
+                                {{ \Carbon\Carbon::parse($return->return_date)->format('d M, Y') }}</div>
                         </td>
                         <td>
                             <div class="fw-bold text-dark">{{ $return->customer->name ?? 'Walk-in' }}</div>
                             @if($return->customer && $return->customer->phone)
-                                <div class="small text-muted"><i class="fas fa-phone-alt me-1" style="font-size: 0.7rem;"></i>{{ $return->customer->phone }}</div>
+                                <div class="small text-muted"><i class="fas fa-phone-alt me-1"
+                                        style="font-size: 0.7rem;"></i>{{ $return->customer->phone }}</div>
                             @endif
                         </td>
                         <td>
                             @if($return->order)
-                                <div class="fw-medium">#{{ $return->order->order_number ?? 'Order-'.$return->order->id }}</div>
+                                <div class="fw-medium">#{{ $return->order->order_number ?? 'Order-' . $return->order->id }}</div>
                                 <div class="small text-muted">Ref Order</div>
                             @else
                                 <span class="text-muted italic small">Direct Return</span>
@@ -48,10 +50,8 @@
                                 $currentClass = $statusClasses[$return->status] ?? 'bg-secondary-subtle text-secondary border-secondary';
                             @endphp
                             <span class="badge {{ $currentClass }} border px-3 py-2 fw-medium status-badge"
-                                  data-id="{{ $return->id }}" 
-                                  data-status="{{ $return->status }}"
-                                  data-refund-type="{{ $return->refund_type }}"
-                                  style="cursor:pointer; font-size: 0.75rem;">
+                                data-id="{{ $return->id }}" data-status="{{ $return->status }}"
+                                data-refund-type="{{ $return->refund_type }}" style="cursor:pointer; font-size: 0.75rem;">
                                 {{ ucfirst($return->status) }}
                             </span>
                         </td>
@@ -66,31 +66,43 @@
                         </td>
                         <td>
                             <div class="small fw-medium">
-                                @if($return->return_to_type == 'branch') <i class="fas fa-store text-muted me-1"></i> {{ $return->destination_name }}
-                                @elseif($return->return_to_type == 'warehouse') <i class="fas fa-warehouse text-muted me-1"></i> {{ $return->destination_name }}
-                                @elseif($return->return_to_type == 'employee') <i class="fas fa-user-tie text-muted me-1"></i> {{ $return->destination_name }}
+                                @if($return->return_to_type == 'branch') <i class="fas fa-store text-muted me-1"></i>
+                                    {{ $return->destination_name }}
+                                @elseif($return->return_to_type == 'warehouse') <i
+                                    class="fas fa-warehouse text-muted me-1"></i> {{ $return->destination_name }}
+                                @elseif($return->return_to_type == 'employee') <i
+                                    class="fas fa-user-tie text-muted me-1"></i> {{ $return->destination_name }}
                                 @else N/A
                                 @endif
                             </div>
                         </td>
                         <td class="pe-4 text-end">
                             <div class="dropdown">
-                                <button class="btn btn-light btn-sm shadow-sm border" type="button" data-bs-toggle="dropdown">
+                                <button class="btn btn-light btn-sm shadow-sm border" type="button"
+                                    data-bs-toggle="dropdown">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2">
-                                    <li><a class="dropdown-item py-2" href="{{ route('orderReturn.show', $return->id) }}"><i class="fas fa-eye me-2 text-primary"></i>Show Details</a></li>
-                                    <li><a class="dropdown-item py-2" href="{{ route('orderReturn.edit', $return->id) }}"><i class="fas fa-edit me-2 text-warning"></i>Edit Record</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <form action="{{ route('orderReturn.delete', $return->id) }}" method="POST" class="d-inline">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="dropdown-item py-2 text-danger" onclick="return confirm('Delete this return?')">
-                                                <i class="fas fa-trash-alt me-2"></i>Delete
-                                            </button>
-                                        </form>
-                                    </li>
-                                </ul>
+                                @can('manage order returns')
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2">
+                                        <li><a class="dropdown-item py-2" href="{{ route('orderReturn.show', $return->id) }}"><i
+                                                    class="fas fa-eye me-2 text-primary"></i>Show Details</a></li>
+                                        <li><a class="dropdown-item py-2" href="{{ route('orderReturn.edit', $return->id) }}"><i
+                                                    class="fas fa-edit me-2 text-warning"></i>Edit Record</a></li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li>
+                                            <form action="{{ route('orderReturn.delete', $return->id) }}" method="POST"
+                                                class="d-inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="dropdown-item py-2 text-danger"
+                                                    onclick="return confirm('Delete this return?')">
+                                                    <i class="fas fa-trash-alt me-2"></i>Delete
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                @endcan
                             </div>
                         </td>
                     </tr>
@@ -107,7 +119,8 @@
             </tbody>
             <tfoot class="table-light border-top-2">
                 <tr>
-                    <td colspan="4" class="ps-4 py-3 fw-bold text-end text-uppercase small" style="letter-spacing: 0.05em;">Total Refund for Current Page:</td>
+                    <td colspan="4" class="ps-4 py-3 fw-bold text-end text-uppercase small"
+                        style="letter-spacing: 0.05em;">Total Refund for Current Page:</td>
                     <td class="py-3">
                         <div class="fw-bold text-primary fs-6">
                             {{ number_format($returns->sum(fn($r) => $r->items->sum('total_price')), 2) }}৳
@@ -121,7 +134,8 @@
 </div>
 <div class="card-footer bg-white border-0 py-3" id="order-return-pagination">
     <div class="d-flex justify-content-between align-items-center">
-        <small class="text-muted">Showing {{ $returns->firstItem() ?? 0 }} to {{ $returns->lastItem() ?? 0 }} of {{ $returns->total() }} returns</small>
+        <small class="text-muted">Showing {{ $returns->firstItem() ?? 0 }} to {{ $returns->lastItem() ?? 0 }} of
+            {{ $returns->total() }} returns</small>
         {{ $returns->links('vendor.pagination.bootstrap-5') }}
     </div>
 </div>
