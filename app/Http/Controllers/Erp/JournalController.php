@@ -15,7 +15,7 @@ class JournalController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view accounts')) {
+        if (!auth()->user()->hasPermissionTo('view journal')) {
             abort(403, 'Unauthorized action.');
         }
         $query = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator', 'branch']);
@@ -37,12 +37,12 @@ class JournalController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('voucher_no', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('entries', function($q2) use ($search) {
-                      $q2->where('memo', 'like', "%{$search}%");
-                  });
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('entries', function ($q2) use ($search) {
+                        $q2->where('memo', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -51,7 +51,7 @@ class JournalController extends Controller
         }
 
         if ($request->filled('financial_account_type')) {
-            $query->whereHas('entries.financialAccount', function($q) use ($request) {
+            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
                 $q->where('type', $request->financial_account_type);
             });
         }
@@ -59,7 +59,7 @@ class JournalController extends Controller
         $journals = $query->latest()->paginate(50)->appends($request->except('page'));
         $chartAccounts = ChartOfAccount::with('parent')->orderBy('name')->get();
         $financialAccounts = FinancialAccount::all();
-        
+
         $branches = collect();
         if (!$restrictedBranchId) {
             $branches = \App\Models\Branch::all();
@@ -138,7 +138,7 @@ class JournalController extends Controller
         $journal = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator'])->findOrFail($id);
         $chartAccounts = ChartOfAccount::orderBy('name')->get();
         $financialAccounts = FinancialAccount::all();
-        
+
         return view('erp.doubleEntry.journaldetails', compact('journal', 'chartAccounts', 'financialAccounts'));
     }
 
@@ -234,7 +234,7 @@ class JournalController extends Controller
         if (!auth()->user()->hasPermissionTo('view accounts')) {
             abort(403, 'Unauthorized action.');
         }
-        
+
         $query = Journal::with(['entries.chartOfAccount', 'creator']);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -249,25 +249,25 @@ class JournalController extends Controller
         if ($request->filled('end_date')) {
             $query->whereDate('entry_date', '<=', $request->end_date);
         }
-        
+
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
 
         if ($request->filled('financial_account_type')) {
-            $query->whereHas('entries.financialAccount', function($q) use ($request) {
+            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
                 $q->where('type', $request->financial_account_type);
             });
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('voucher_no', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('entries', function($q2) use ($search) {
-                      $q2->where('memo', 'like', "%{$search}%");
-                  });
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('entries', function ($q2) use ($search) {
+                        $q2->where('memo', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -275,21 +275,21 @@ class JournalController extends Controller
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         $sheet->setCellValue('A1', 'Journal Report');
         $sheet->mergeCells('A1:G1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
         $headers = ['Voucher No', 'Date', 'Type', 'Branch', 'Accounts', 'Description', 'Total Debit (Tk)', 'Total Credit (Tk)', 'Created By'];
-        
+
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col . '3', $header);
             $sheet->getStyle($col . '3')->getFont()->setBold(true);
             $col++;
         }
-        
+
         $row = 4;
         $totalDebit = 0;
         $totalCredit = 0;
@@ -298,15 +298,15 @@ class JournalController extends Controller
             $sheet->setCellValue('B' . $row, $journal->entry_date->format('d M, Y'));
             $sheet->setCellValue('C' . $row, $journal->type);
             $sheet->setCellValue('D' . $row, $journal->branch ? $journal->branch->name : 'N/A');
-            
-            $accounts = $journal->entries->map(function($e) {
+
+            $accounts = $journal->entries->map(function ($e) {
                 if ($e->financialAccount) {
                     return $e->financialAccount->provider_name;
                 }
                 return $e->chartOfAccount ? $e->chartOfAccount->name : '';
             })->filter()->unique()->implode(', ');
             $sheet->setCellValue('E' . $row, $accounts);
-            
+
             $sheet->setCellValue('F' . $row, $journal->description);
             $sheet->setCellValue('G' . $row, $journal->total_debit);
             $sheet->setCellValue('H' . $row, $journal->total_credit);
@@ -315,7 +315,7 @@ class JournalController extends Controller
             $totalCredit += $journal->total_credit;
             $row++;
         }
-        
+
         if (count($journals) > 0) {
             $sheet->setCellValue('F' . $row, 'Grand Total:');
             $sheet->getStyle('A' . $row . ':I' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('f8f9fa');
@@ -326,7 +326,7 @@ class JournalController extends Controller
             $sheet->setCellValue('H' . $row, $totalCredit);
             $sheet->getStyle('H' . $row)->getFont()->setBold(true);
         }
-        
+
         foreach (range('A', 'I') as $columnID) {
             $sheet->getColumnDimension($columnID)->setAutoSize(true);
         }
@@ -335,7 +335,7 @@ class JournalController extends Controller
         $filename = 'journals_report_' . date('Ymd_His') . '.xlsx';
         $filepath = storage_path('app/public/' . $filename);
         $writer->save($filepath);
-        
+
         return response()->download($filepath)->deleteFileAfterSend(true);
     }
 
@@ -359,25 +359,25 @@ class JournalController extends Controller
         if ($request->filled('end_date')) {
             $query->whereDate('entry_date', '<=', $request->end_date);
         }
-        
+
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
 
         if ($request->filled('financial_account_type')) {
-            $query->whereHas('entries.financialAccount', function($q) use ($request) {
+            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
                 $q->where('type', $request->financial_account_type);
             });
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('voucher_no', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('entries', function($q2) use ($search) {
-                      $q2->where('memo', 'like', "%{$search}%");
-                  });
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('entries', function ($q2) use ($search) {
+                        $q2->where('memo', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -394,15 +394,15 @@ class JournalController extends Controller
             $html .= '<td>' . $journal->entry_date->format('d M, Y') . '</td>';
             $html .= '<td>' . ($journal->type ?? 'General') . '</td>';
             $html .= '<td>' . ($journal->branch ? $journal->branch->name : 'N/A') . '</td>';
-            
-            $accounts = $journal->entries->map(function($e) {
+
+            $accounts = $journal->entries->map(function ($e) {
                 if ($e->financialAccount) {
                     return $e->financialAccount->provider_name;
                 }
                 return $e->chartOfAccount ? $e->chartOfAccount->name : '';
             })->filter()->unique()->implode(', ');
             $html .= '<td>' . ($accounts ?: 'N/A') . '</td>';
-            
+
             $html .= '<td>' . $journal->description . '</td>';
             $html .= '<td>' . number_format($journal->total_debit, 2) . '</td>';
             $html .= '<td>' . number_format($journal->total_credit, 2) . '</td>';

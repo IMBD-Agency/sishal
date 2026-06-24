@@ -19,9 +19,11 @@
                     <h4 class="fw-bold mb-0 text-dark">Exchange List</h4>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    <a href="{{ route('exchange.create') }}" class="btn btn-create-premium text-nowrap">
+                @can('manage exchanges')
+                <a href="{{ route('exchange.create') }}" class="btn btn-create-premium text-nowrap">
                         <i class="fas fa-plus me-2"></i>New Exchange
                     </a>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -264,6 +266,7 @@
                                                 <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm" title="View">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
+                                                @can('manage exchange')
                                                 <form action="{{ route('exchange.delete', $exchange->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this exchange? All stock and accounting entries will be rolled back!')" style="display:inline;">
                                                     @csrf
                                                     @method('DELETE')
@@ -271,6 +274,7 @@
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </form>
+                                                @endcan
                                             </div>
                                          </td>
                                     </tr>

@@ -34,20 +34,25 @@
                     $isReturn = str_starts_with($transfer->invoice_number ?? '', 'RET-');
                     $product = $transfer->product;
                     $variation = $transfer->variation;
-                    
-                    $color = '-'; $size = '-';
+
+                    $color = '-';
+                    $size = '-';
                     if ($variation && $variation->attributeValues) {
-                        foreach($variation->attributeValues as $val) {
+                        foreach ($variation->attributeValues as $val) {
                             $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
-                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color))
+                                $color = $val->value;
+                            elseif (str_contains($attrName, 'size'))
+                                $size = $val->value;
                         }
                     }
                 @endphp
                 <tr class="{{ $isReturn ? 'table-warning' : '' }}">
                     <td class="ps-3">
                         <div class="form-check">
-                            <input class="form-check-input row-checkbox" type="checkbox" value="{{ $transfer->invoice_number ?? $transfer->id }}" data-type="{{ $transfer->invoice_number ? 'invoice' : 'single' }}">
+                            <input class="form-check-input row-checkbox" type="checkbox"
+                                value="{{ $transfer->invoice_number ?? $transfer->id }}"
+                                data-type="{{ $transfer->invoice_number ? 'invoice' : 'single' }}">
                         </div>
                     </td>
                     <td class="text-muted">{{ $transfers->firstItem() + $index }}</td>
@@ -55,18 +60,21 @@
                         @if($transfer->invoice_number)
                             {{ $transfer->invoice_number }}
                             @if($isReturn)
-                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i class="fas fa-undo-alt me-1"></i>RETURN</span>
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i
+                                        class="fas fa-undo-alt me-1"></i>RETURN</span>
                             @endif
                         @else
                             <span class="text-muted small">N/A (ID: {{ $transfer->id }})</span>
                         @endif
                     </td>
-                    <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}</td>
+                    <td>{{ $transfer->requested_at ? \Carbon\Carbon::parse($transfer->requested_at)->format('d/m/Y') : '-' }}
+                    </td>
                     <td>{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}</td>
                     <td>{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}</td>
                     <td>
                         <div class="d-flex align-items-center">
-                            <div class="avatar-xs bg-light rounded-circle text-primary me-2 d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:10px;">
+                            <div class="avatar-xs bg-light rounded-circle text-primary me-2 d-flex align-items-center justify-content-center"
+                                style="width:24px;height:24px;font-size:10px;">
                                 <i class="fas fa-user"></i>
                             </div>
                             {{ $transfer->requestedPerson->name ?? 'System' }}
@@ -74,11 +82,12 @@
                     </td>
                     <td class="text-center">
                         <div class="thumbnail-box" style="width: 30px; height: 30px; margin: 0 auto;">
-                             @if($product && $product->image)
-                                <img src="{{ asset($product->image) }}" alt="" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">
-                             @else
+                            @if($product && $product->image)
+                                <img src="{{ asset($product->image) }}" alt=""
+                                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">
+                            @else
                                 <i class="fas fa-cube text-muted opacity-50 small"></i>
-                             @endif
+                            @endif
                         </div>
                     </td>
                     <td>{{ $product->category->name ?? '-' }}</td>
@@ -101,7 +110,7 @@
                     </td>
                     <td class="text-center">
                         @php
-                            $statusClass = match($transfer->status) {
+                            $statusClass = match ($transfer->status) {
                                 'approved' => 'success',
                                 'rejected' => 'danger',
                                 'delivered' => 'primary',
@@ -112,30 +121,31 @@
                     </td>
                     <td class="pe-3 text-center">
                         <div class="d-flex gap-2 justify-content-center">
-                            <a href="{{ route('stocktransfer.show', $transfer->id) }}" class="action-circle" title="View Details">
+                            <a href="{{ route('stocktransfer.show', $transfer->id) }}" class="action-circle"
+                                title="View Details">
                                 <i class="fas fa-eye text-primary"></i>
                             </a>
                             @if($transfer->status === 'delivered' && !$isReturn)
-                                <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="action-circle" title="Return Items"
-                                   onclick="return confirm('Initiate a return of these items?')">
-                                    <i class="fas fa-undo-alt text-warning"></i>
-                                </a>
+                                @can('reconcile transfers')
+                                    <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="action-circle"
+                                        title="Return Items" onclick="return confirm('Initiate a return of these items?')">
+                                        <i class="fas fa-undo-alt text-warning"></i>
+                                    </a>
+                                @endcan
                             @endif
 
-                            @if(auth()->user()->hasPermissionTo('delete transfers') || auth()->user()->hasPermissionTo('manage transfers'))
-                                <button type="button"
-                                    class="action-circle border-0 bg-transparent btn-delete-transfer"
+                            @can('delete transfers')
+                                <button type="button" class="action-circle border-0 bg-transparent btn-delete-transfer"
                                     data-transfer-id="{{ $transfer->id }}"
-                                    data-invoice="{{ $transfer->invoice_number ?? 'ID:'.$transfer->id }}"
-                                    data-status="{{ $transfer->status }}"
-                                    data-product="{{ $product->name ?? 'this product' }}"
+                                    data-invoice="{{ $transfer->invoice_number ?? 'ID:' . $transfer->id }}"
+                                    data-status="{{ $transfer->status }}" data-product="{{ $product->name ?? 'this product' }}"
                                     data-qty="{{ number_format($transfer->quantity, 0) }}"
                                     data-source="{{ $transfer->fromBranch->name ?? ($transfer->fromWarehouse->name ?? 'Unknown') }}"
                                     data-destination="{{ $transfer->toBranch->name ?? ($transfer->toWarehouse->name ?? 'Unknown') }}"
                                     title="Delete Transfer">
                                     <i class="fas fa-trash text-danger"></i>
                                 </button>
-                            @endif
+                            @endcan
                         </div>
                     </td>
                 </tr>
@@ -154,10 +164,10 @@
 </div>
 
 @if($transfers->hasPages())
-<div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
-    <small class="text-muted fw-500">Showing {{ $transfers->firstItem() }} to {{ $transfers->lastItem() }}</small>
-    <div class="ajax-pagination">
-        {{ $transfers->links('vendor.pagination.bootstrap-5') }}
+    <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
+        <small class="text-muted fw-500">Showing {{ $transfers->firstItem() }} to {{ $transfers->lastItem() }}</small>
+        <div class="ajax-pagination">
+            {{ $transfers->links('vendor.pagination.bootstrap-5') }}
+        </div>
     </div>
-</div>
 @endif

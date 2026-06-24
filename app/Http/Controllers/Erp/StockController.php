@@ -15,7 +15,7 @@ class StockController extends Controller
 {
     public function stocklist(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view stock')) {
+        if (!auth()->user()->hasPermissionTo('stock report')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -34,60 +34,78 @@ class StockController extends Controller
 
         $query = $this->getStockQuery($request);
         $productStocks = $query->paginate((int) $request->get('per_page', 20))->appends($request->except('page'));
-        
+
         $startDate = $request->start_date;
         $endDate = $request->end_date;
 
         // We build the query based on Variations if it exists, otherwise the Product itself
         // But the user wants a row for EACH variation + location.
         // This means we should iterate over ProductVariationStock and handle simple products separately.
-        
+
         $query = $this->getStockQuery($request);
         $productStocks = $query->paginate((int) $request->get('per_page', 20))->appends($request->except('page'));
 
         // Load all movement relations for the paginated items
         $productStocks->load([
-            'purchaseItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'purchaseItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
                 $q->with('purchase');
             },
-            'purchaseReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'purchaseReturnItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
                 $q->with('purchaseReturn');
             },
-            'saleItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'saleItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
                 $q->with('pos');
             },
-            'invoiceItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'invoiceItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
             },
-            'orderItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'orderItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
                 $q->with('order');
             },
-            'saleReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'saleReturnItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
                 $q->with('saleReturn');
             },
-            'orderReturnItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'orderReturnItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
                 $q->with('orderReturn');
             },
-            'stockAdjustmentItems' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'stockAdjustmentItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
             },
-            'stockTransfers' => function($q) use ($startDate, $endDate) {
-                if ($startDate) $q->whereDate('created_at', '>=', $startDate);
-                if ($endDate) $q->whereDate('created_at', '<=', $endDate);
+            'stockTransfers' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
             },
             'branchStock.branch',
             'warehouseStock.warehouse',
@@ -101,20 +119,39 @@ class StockController extends Controller
 
         // Simplified aggregate logic for totals
         $totals = \DB::table('products')
-            ->selectRaw('SUM(cost) as total_value') 
+            ->selectRaw('SUM(cost) as total_value')
             ->first();
 
         $isDateFiltered = ($startDate || $endDate);
 
         if ($request->ajax()) {
             return view('erp.productStock.partials.table', compact(
-                'productStocks', 'totalStockQty', 'totalStockValue', 'totalStockRevenue', 'isDateFiltered', 'selectedBranchId', 'selectedWarehouseId'
+                'productStocks',
+                'totalStockQty',
+                'totalStockValue',
+                'totalStockRevenue',
+                'isDateFiltered',
+                'selectedBranchId',
+                'selectedWarehouseId'
             ))->render();
         }
 
         return view('erp.productStock.productStockList', compact(
-            'productStocks', 'branches', 'warehouses', 'categories', 'brands', 'seasons', 'genders', 'variationValues',
-            'totalStockQty', 'totalStockValue', 'totalStockRevenue', 'selectedBranchId', 'selectedWarehouseId', 'restrictedBranchId', 'isDateFiltered'
+            'productStocks',
+            'branches',
+            'warehouses',
+            'categories',
+            'brands',
+            'seasons',
+            'genders',
+            'variationValues',
+            'totalStockQty',
+            'totalStockValue',
+            'totalStockRevenue',
+            'selectedBranchId',
+            'selectedWarehouseId',
+            'restrictedBranchId',
+            'isDateFiltered'
         ));
     }
 
@@ -136,11 +173,29 @@ class StockController extends Controller
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         $headers = [
-            'Product Name', 'Style #', 'Color', 'Size', 'Outlet', 
-            'Opening', 'P-Qnt', 'PR-Qnt', 'Net-P', 'S-Qnt', 'SR-Qnt', 'Net-S', 'Adjust', 'Exc-To', 'Exc-Fr', 'Tr-Fr', 'Tr-To',
-            'STOCK', 'Cost Value', 'Sale Value', 'Actual Revenue'
+            'Product Name',
+            'Style #',
+            'Color',
+            'Size',
+            'Outlet',
+            'Opening',
+            'P-Qnt',
+            'PR-Qnt',
+            'Net-P',
+            'S-Qnt',
+            'SR-Qnt',
+            'Net-S',
+            'Adjust',
+            'Exc-To',
+            'Exc-Fr',
+            'Tr-Fr',
+            'Tr-To',
+            'STOCK',
+            'Cost Value',
+            'Sale Value',
+            'Actual Revenue'
         ];
 
         foreach ($headers as $key => $header) {
@@ -151,80 +206,101 @@ class StockController extends Controller
             $sheet->getStyle($col . '1')->getFont()->getColor()->setARGB('FFFFFFFF');
         }
         $row = 2;
-        $t_op = 0; $t_p = 0; $t_pr = 0; $t_np = 0; $t_s = 0; $t_sr = 0; $t_ns = 0;
-        $t_adj = 0; $t_et = 0; $t_ef = 0; $t_tf = 0; $t_tt = 0;
-        $t_stk = 0; $t_cost = 0; $t_sale = 0; $t_rev = 0;
+        $t_op = 0;
+        $t_p = 0;
+        $t_pr = 0;
+        $t_np = 0;
+        $t_s = 0;
+        $t_sr = 0;
+        $t_ns = 0;
+        $t_adj = 0;
+        $t_et = 0;
+        $t_ef = 0;
+        $t_tf = 0;
+        $t_tt = 0;
+        $t_stk = 0;
+        $t_cost = 0;
+        $t_sale = 0;
+        $t_rev = 0;
 
         foreach ($products as $prod) {
             $productLocations = [];
-            foreach($prod->branchStock as $bs) { $productLocations['branch_' . $bs->branch_id] = ['type' => 'branch', 'id' => $bs->branch_id, 'name' => $bs->branch->name ?? 'Unknown']; }
-            foreach($prod->warehouseStock as $ws) { $productLocations['warehouse_' . $ws->warehouse_id] = ['type' => 'warehouse', 'id' => $ws->warehouse_id, 'name' => $ws->warehouse->name ?? 'Unknown']; }
-            foreach($prod->variationStocks as $vs) {
+            foreach ($prod->branchStock as $bs) {
+                $productLocations['branch_' . $bs->branch_id] = ['type' => 'branch', 'id' => $bs->branch_id, 'name' => $bs->branch->name ?? 'Unknown'];
+            }
+            foreach ($prod->warehouseStock as $ws) {
+                $productLocations['warehouse_' . $ws->warehouse_id] = ['type' => 'warehouse', 'id' => $ws->warehouse_id, 'name' => $ws->warehouse->name ?? 'Unknown'];
+            }
+            foreach ($prod->variationStocks as $vs) {
                 $lkey = $vs->branch_id ? 'branch_' . $vs->branch_id : 'warehouse_' . $vs->warehouse_id;
-                if(!isset($productLocations[$lkey])) {
+                if (!isset($productLocations[$lkey])) {
                     $productLocations[$lkey] = ['type' => $vs->branch_id ? 'branch' : 'warehouse', 'id' => $vs->branch_id ?: $vs->warehouse_id, 'name' => ($vs->branch->name ?? $vs->warehouse->name) ?? 'Unknown'];
                 }
             }
 
             // PRE-AGGREGATE MOVEMENTS FOR O(1) LOOKUP PERFORMANCE
             if (!isset($prod->agg)) {
-                $agg = [ 'p' => [], 'pr' => [], 's' => [], 'sr' => [], 'adj' => [], 'et' => [], 'ef' => [], 'tf' => [], 'tt' => [], 'rev' => [] ];
-                
-                foreach($prod->purchaseItems as $m) {
-                    if($m->purchase) {
+                $agg = ['p' => [], 'pr' => [], 's' => [], 'sr' => [], 'adj' => [], 'et' => [], 'ef' => [], 'tf' => [], 'tt' => [], 'rev' => []];
+
+                foreach ($prod->purchaseItems as $m) {
+                    if ($m->purchase) {
                         $k = ($m->variation_id ?: 0) . '_' . $m->purchase->ship_location_type . '_' . $m->purchase->location_id;
                         $agg['p'][$k] = ($agg['p'][$k] ?? 0) + $m->quantity;
                     }
                 }
-                foreach($prod->purchaseReturnItems as $m) {
+                foreach ($prod->purchaseReturnItems as $m) {
                     $k = ($m->variation_id ?: 0) . '_' . $m->return_from_type . '_' . $m->return_from_id;
-                        $agg['pr'][$k] = ($agg['pr'][$k] ?? 0) + $m->returned_qty;
+                    $agg['pr'][$k] = ($agg['pr'][$k] ?? 0) + $m->returned_qty;
                 }
-                foreach($prod->saleItems as $m) {
-                    if($m->pos) {
+                foreach ($prod->saleItems as $m) {
+                    if ($m->pos) {
                         $k = ($m->variation_id ?: 0) . '_branch_' . $m->pos->branch_id;
-                        if ($m->pos->sale_type != 'exchange') $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
-                        else $agg['et'][$k] = ($agg['et'][$k] ?? 0) + $m->quantity;
+                        if ($m->pos->sale_type != 'exchange')
+                            $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
+                        else
+                            $agg['et'][$k] = ($agg['et'][$k] ?? 0) + $m->quantity;
                         $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
                     }
                 }
-                foreach($prod->invoiceItems as $m) {
+                foreach ($prod->invoiceItems as $m) {
                     $k = ($m->variation_id ?: 0) . '_warehouse_0';
                     $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
                     $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
                 }
-                foreach($prod->orderItems as $m) {
-                    if($m->order) {
+                foreach ($prod->orderItems as $m) {
+                    if ($m->order) {
                         $k = ($m->variation_id ?: 0) . '_branch_' . $m->order->branch_id;
                         $agg['s'][$k] = ($agg['s'][$k] ?? 0) + $m->quantity;
                         $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
                     }
                 }
-                foreach($prod->saleReturnItems as $m) {
-                    if($m->saleReturn) {
+                foreach ($prod->saleReturnItems as $m) {
+                    if ($m->saleReturn) {
                         $k = ($m->variation_id ?: 0) . '_' . $m->saleReturn->return_to_type . '_' . $m->saleReturn->return_to_id;
-                        if ($m->saleReturn->refund_type != 'exchange') $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
-                        else $agg['ef'][$k] = ($agg['ef'][$k] ?? 0) + $m->returned_qty;
+                        if ($m->saleReturn->refund_type != 'exchange')
+                            $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
+                        else
+                            $agg['ef'][$k] = ($agg['ef'][$k] ?? 0) + $m->returned_qty;
                         $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) - $m->total_price;
                     }
                 }
-                foreach($prod->orderReturnItems as $m) {
-                    if($m->orderReturn) {
+                foreach ($prod->orderReturnItems as $m) {
+                    if ($m->orderReturn) {
                         $k = ($m->variation_id ?: 0) . '_' . $m->orderReturn->return_to_type . '_' . $m->orderReturn->return_to_id;
                         $agg['sr'][$k] = ($agg['sr'][$k] ?? 0) + $m->returned_qty;
                         $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) - $m->total_price;
                     }
                 }
-                foreach($prod->stockAdjustmentItems as $m) {
-                    if($m->adjustment) {
+                foreach ($prod->stockAdjustmentItems as $m) {
+                    if ($m->adjustment) {
                         $ltype_adj = $m->adjustment->branch_id ? 'branch' : 'warehouse';
                         $lid_adj = $m->adjustment->branch_id ?: $m->adjustment->warehouse_id;
                         $k = ($m->variation_id ?: 0) . '_' . $ltype_adj . '_' . $lid_adj;
                         $agg['adj'][$k] = ($agg['adj'][$k] ?? 0) + ($m->new_quantity - $m->old_quantity);
                     }
                 }
-                foreach($prod->stockTransfers as $m) {
-                    if($m->status == 'delivered') {
+                foreach ($prod->stockTransfers as $m) {
+                    if ($m->status == 'delivered') {
                         $k_from = ($m->variation_id ?: 0) . '_' . $m->from_type . '_' . $m->from_id;
                         $k_to = ($m->variation_id ?: 0) . '_' . $m->to_type . '_' . $m->to_id;
                         $agg['tf'][$k_from] = ($agg['tf'][$k_from] ?? 0) + $m->quantity;
@@ -235,7 +311,8 @@ class StockController extends Controller
             }
 
             foreach ($productLocations as $loc) {
-                $lid = $loc['id']; $ltype = $loc['type'];
+                $lid = $loc['id'];
+                $ltype = $loc['type'];
                 $vars = $prod->has_variations ? $prod->variations : [null];
 
                 foreach ($vars as $var) {
@@ -245,9 +322,10 @@ class StockController extends Controller
 
                     $p_qnt = $prod->agg['p'][$key] ?? 0;
                     $pr_qnt = $prod->agg['pr'][$key] ?? 0;
-                    
+
                     $s_qnt = $prod->agg['s'][$key] ?? 0;
-                    if ($ltype == 'warehouse') $s_qnt += $prod->agg['s'][$wh_key] ?? 0;
+                    if ($ltype == 'warehouse')
+                        $s_qnt += $prod->agg['s'][$wh_key] ?? 0;
 
                     $sr_qnt = $prod->agg['sr'][$key] ?? 0;
                     $adjust = $prod->agg['adj'][$key] ?? 0;
@@ -267,19 +345,23 @@ class StockController extends Controller
                     $outflows = $s_qnt + $pr_qnt + ($adjust < 0 ? abs($adjust) : 0) + $tr_from + $exc_to;
                     $opening_stock = $stock_qty - ($inflows - $outflows);
 
-                    $color = '-'; $size = '-';
+                    $color = '-';
+                    $size = '-';
                     if ($var) {
-                        foreach($var->attributeValues as $av) {
+                        foreach ($var->attributeValues as $av) {
                             $attr = strtolower($av->attribute->name ?? '');
-                            if(str_contains($attr, 'color')) $color = $av->value;
-                            elseif(str_contains($attr, 'size')) $size = $av->value;
+                            if (str_contains($attr, 'color'))
+                                $color = $av->value;
+                            elseif (str_contains($attr, 'size'))
+                                $size = $av->value;
                         }
                     }
                     $cost = $var ? ($var->cost ?: $prod->cost) : $prod->cost;
                     $price = $var ? ($var->price ?: $prod->price) : $prod->price;
 
                     $actual_revenue = $prod->agg['rev'][$key] ?? 0;
-                    if ($ltype == 'warehouse') $actual_revenue += $prod->agg['rev'][$wh_key] ?? 0;
+                    if ($ltype == 'warehouse')
+                        $actual_revenue += $prod->agg['rev'][$wh_key] ?? 0;
 
                     $sheet->setCellValue('A' . $row, $prod->name);
                     $sheet->setCellValue('B' . $row, $prod->style_number ?? $prod->sku);
@@ -302,19 +384,31 @@ class StockController extends Controller
                     $sheet->setCellValue('S' . $row, $stock_qty * $cost);
                     $sheet->setCellValue('T' . $row, $stock_qty * $price);
                     $sheet->setCellValue('U' . $row, $actual_revenue);
-                    $t_op += $opening_stock; $t_p += $p_qnt; $t_pr += $pr_qnt; $t_np += ($p_qnt - $pr_qnt);
-                    $t_s += $s_qnt; $t_sr += $sr_qnt; $t_ns += ($s_qnt - $sr_qnt);
-                    $t_adj += $adjust; $t_et += $exc_to; $t_ef += $exc_from; $t_tf += $tr_from; $t_tt += $tr_to;
-                    $t_stk += $stock_qty; $t_cost += ($stock_qty * $cost); $t_sale += ($stock_qty * $price); $t_rev += $actual_revenue;
+                    $t_op += $opening_stock;
+                    $t_p += $p_qnt;
+                    $t_pr += $pr_qnt;
+                    $t_np += ($p_qnt - $pr_qnt);
+                    $t_s += $s_qnt;
+                    $t_sr += $sr_qnt;
+                    $t_ns += ($s_qnt - $sr_qnt);
+                    $t_adj += $adjust;
+                    $t_et += $exc_to;
+                    $t_ef += $exc_from;
+                    $t_tf += $tr_from;
+                    $t_tt += $tr_to;
+                    $t_stk += $stock_qty;
+                    $t_cost += ($stock_qty * $cost);
+                    $t_sale += ($stock_qty * $price);
+                    $t_rev += $actual_revenue;
 
                     $row++;
                 }
             }
         }
-        
+
         // Total Row
         $sheet->setCellValue('A' . $row, 'TOTALS');
-        $sheet->mergeCells('A'.$row.':E'.$row);
+        $sheet->mergeCells('A' . $row . ':E' . $row);
         $sheet->setCellValue('F' . $row, $t_op);
         $sheet->setCellValue('G' . $row, $t_p);
         $sheet->setCellValue('H' . $row, $t_pr);
@@ -331,8 +425,8 @@ class StockController extends Controller
         $sheet->setCellValue('S' . $row, $t_cost);
         $sheet->setCellValue('T' . $row, $t_sale);
         $sheet->setCellValue('U' . $row, $t_rev);
-        $sheet->getStyle('A'.$row.':U'.$row)->getFont()->setBold(true);
-        $sheet->getStyle('A'.$row.':U'.$row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF3F4F6');
+        $sheet->getStyle('A' . $row . ':U' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row . ':U' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF3F4F6');
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filename = 'detailed_inventory_report_' . date('Y-m-d') . '.xlsx';
         $path = storage_path('app/public/' . $filename);
@@ -351,7 +445,7 @@ class StockController extends Controller
         $products = $this->getStockQuery($request)->paginate($perPage, ['*'], 'page', $page)->items();
         $startDate = $request->start_date;
         $endDate = $request->end_date;
-        
+
 
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.productStock.stock-report-pdf', compact('products'));
@@ -389,159 +483,200 @@ class StockController extends Controller
         $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
 
         $query = Product::with([
-            'category:id,name', 
+            'category:id,name',
             'brand:id,name',
             'season:id,name',
             'gender:id,name',
-            'branchStock' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+            'branchStock' => function ($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
-                if ($activeBranch) $q->where('branch_id', $activeBranch);
-                elseif ($selectedWarehouseId) $q->whereRaw('1=0');
+                if ($activeBranch)
+                    $q->where('branch_id', $activeBranch);
+                elseif ($selectedWarehouseId)
+                    $q->whereRaw('1=0');
                 $q->with('branch:id,name');
             },
-            'warehouseStock' => function($q) use ($selectedWarehouseId, $selectedBranchId, $restrictedBranchId) {
-                if ($restrictedBranchId) $q->whereRaw('1=0');
-                elseif ($selectedWarehouseId) $q->where('warehouse_id', $selectedWarehouseId);
-                elseif ($selectedBranchId) $q->whereRaw('1=0');
+            'warehouseStock' => function ($q) use ($selectedWarehouseId, $selectedBranchId, $restrictedBranchId) {
+                if ($restrictedBranchId)
+                    $q->whereRaw('1=0');
+                elseif ($selectedWarehouseId)
+                    $q->where('warehouse_id', $selectedWarehouseId);
+                elseif ($selectedBranchId)
+                    $q->whereRaw('1=0');
                 $q->with('warehouse:id,name');
             },
-            'variations' => function($q) use ($selectedVariationValueId) {
+            'variations' => function ($q) use ($selectedVariationValueId) {
                 if ($selectedVariationValueId) {
-                    $q->whereHas('attributeValues', function($sq) use ($selectedVariationValueId) {
+                    $q->whereHas('attributeValues', function ($sq) use ($selectedVariationValueId) {
                         $sq->where('variation_attribute_values.id', $selectedVariationValueId);
                     });
                 }
                 $q->with('attributeValues');
             },
-            'variations.stocks' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+            'variations.stocks' => function ($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                    $q->where(function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch)
+                            $sq->where('branch_id', $activeBranch);
                         if ($selectedWarehouseId) {
-                            if ($activeBranch) $sq->orWhere('warehouse_id', $selectedWarehouseId);
-                            else $sq->where('warehouse_id', $selectedWarehouseId);
+                            if ($activeBranch)
+                                $sq->orWhere('warehouse_id', $selectedWarehouseId);
+                            else
+                                $sq->where('warehouse_id', $selectedWarehouseId);
                         }
                     });
                 }
                 $q->with(['branch:id,name', 'warehouse:id,name']);
             },
-            'variationStocks' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+            'variationStocks' => function ($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                    $q->where(function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch)
+                            $sq->where('branch_id', $activeBranch);
                         if ($selectedWarehouseId) {
-                            if ($activeBranch) $sq->orWhere('warehouse_id', $selectedWarehouseId);
-                            else $sq->where('warehouse_id', $selectedWarehouseId);
+                            if ($activeBranch)
+                                $sq->orWhere('warehouse_id', $selectedWarehouseId);
+                            else
+                                $sq->where('warehouse_id', $selectedWarehouseId);
                         }
                     });
                 }
                 $q->with(['branch:id,name', 'warehouse:id,name']);
             },
-            'purchaseItems' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId, $request, $selectedVariationValueId) {
-                if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
-                if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
-                if (!$request->filled('start_date') && !$request->filled('end_date')) $q->whereYear('created_at', date('Y'));
-                
+            'purchaseItems' => function ($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId, $request, $selectedVariationValueId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
+                if (!$request->filled('start_date') && !$request->filled('end_date'))
+                    $q->whereYear('created_at', date('Y'));
+
                 if ($selectedVariationValueId) {
-                    $q->whereHas('variation.attributeValues', function($sq) use ($selectedVariationValueId) {
+                    $q->whereHas('variation.attributeValues', function ($sq) use ($selectedVariationValueId) {
                         $sq->where('variation_attribute_values.id', $selectedVariationValueId);
                     });
                 }
 
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->whereHas('purchase', function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        $sq->where(function($ssq) use ($activeBranch, $selectedWarehouseId) {
-                            if ($activeBranch) $ssq->where('ship_location_type', 'branch')->where('location_id', $activeBranch);
+                    $q->whereHas('purchase', function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        $sq->where(function ($ssq) use ($activeBranch, $selectedWarehouseId) {
+                            if ($activeBranch)
+                                $ssq->where('ship_location_type', 'branch')->where('location_id', $activeBranch);
                             if ($selectedWarehouseId) {
-                                if ($activeBranch) $ssq->orWhere(function($sssq) use ($selectedWarehouseId) { $sssq->where('ship_location_type', 'warehouse')->where('location_id', $selectedWarehouseId); });
-                                else $ssq->where('ship_location_type', 'warehouse')->where('location_id', $selectedWarehouseId);
+                                if ($activeBranch)
+                                    $ssq->orWhere(function ($sssq) use ($selectedWarehouseId) {
+                                        $sssq->where('ship_location_type', 'warehouse')->where('location_id', $selectedWarehouseId); });
+                                else
+                                    $ssq->where('ship_location_type', 'warehouse')->where('location_id', $selectedWarehouseId);
                             }
                         });
                     });
                 }
             },
-            'saleItems' => function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId, $request, $selectedVariationValueId) {
-                if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
-                if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
-                if (!$request->filled('start_date') && !$request->filled('end_date')) $q->whereYear('created_at', date('Y'));
+            'saleItems' => function ($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId, $request, $selectedVariationValueId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
+                if (!$request->filled('start_date') && !$request->filled('end_date'))
+                    $q->whereYear('created_at', date('Y'));
 
                 if ($selectedVariationValueId) {
-                    $q->whereHas('variation.attributeValues', function($sq) use ($selectedVariationValueId) {
+                    $q->whereHas('variation.attributeValues', function ($sq) use ($selectedVariationValueId) {
                         $sq->where('variation_attribute_values.id', $selectedVariationValueId);
                     });
                 }
 
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch) {
-                    $q->whereHas('pos', function($sq) use ($activeBranch) {
+                    $q->whereHas('pos', function ($sq) use ($activeBranch) {
                         $sq->where('branch_id', $activeBranch);
                     });
                 } elseif ($selectedWarehouseId) {
                     $q->whereRaw('1=0'); // POS sales are typically branch-only
                 }
             },
-            'purchaseReturnItems' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
-                if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
-                if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
-                
+            'purchaseReturnItems' => function ($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
+
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        if ($activeBranch) $sq->where('return_from_type', 'branch')->where('return_from_id', $activeBranch);
+                    $q->where(function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch)
+                            $sq->where('return_from_type', 'branch')->where('return_from_id', $activeBranch);
                         if ($selectedWarehouseId) {
-                            if ($activeBranch) $sq->orWhere(function($ssq) use ($selectedWarehouseId) { $ssq->where('return_from_type', 'warehouse')->where('return_from_id', $selectedWarehouseId); });
-                            else $sq->where('return_from_type', 'warehouse')->where('return_from_id', $selectedWarehouseId);
+                            if ($activeBranch)
+                                $sq->orWhere(function ($ssq) use ($selectedWarehouseId) {
+                                    $ssq->where('return_from_type', 'warehouse')->where('return_from_id', $selectedWarehouseId); });
+                            else
+                                $sq->where('return_from_type', 'warehouse')->where('return_from_id', $selectedWarehouseId);
                         }
                     });
                 }
             },
-            'saleReturnItems' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
-                if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
-                if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+            'saleReturnItems' => function ($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
 
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->whereHas('saleReturn', function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        $sq->where(function($ssq) use ($activeBranch, $selectedWarehouseId) {
-                            if ($activeBranch) $ssq->where('return_to_type', 'branch')->where('return_to_id', $activeBranch);
+                    $q->whereHas('saleReturn', function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        $sq->where(function ($ssq) use ($activeBranch, $selectedWarehouseId) {
+                            if ($activeBranch)
+                                $ssq->where('return_to_type', 'branch')->where('return_to_id', $activeBranch);
                             if ($selectedWarehouseId) {
-                                if ($activeBranch) $ssq->orWhere(function($sssq) use ($selectedWarehouseId) { $sssq->where('return_to_type', 'warehouse')->where('return_to_id', $selectedWarehouseId); });
-                                else $ssq->where('return_to_type', 'warehouse')->where('return_to_id', $selectedWarehouseId);
+                                if ($activeBranch)
+                                    $ssq->orWhere(function ($sssq) use ($selectedWarehouseId) {
+                                        $sssq->where('return_to_type', 'warehouse')->where('return_to_id', $selectedWarehouseId); });
+                                else
+                                    $ssq->where('return_to_type', 'warehouse')->where('return_to_id', $selectedWarehouseId);
                             }
                         });
                     });
                 }
             },
-            'stockAdjustmentItems' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
-                if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
-                if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+            'stockAdjustmentItems' => function ($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
 
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->whereHas('adjustment', function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        if ($activeBranch) $sq->where('branch_id', $activeBranch);
+                    $q->whereHas('adjustment', function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch)
+                            $sq->where('branch_id', $activeBranch);
                         if ($selectedWarehouseId) {
-                            if ($activeBranch) $sq->orWhere('warehouse_id', $selectedWarehouseId);
-                            else $sq->where('warehouse_id', $selectedWarehouseId);
+                            if ($activeBranch)
+                                $sq->orWhere('warehouse_id', $selectedWarehouseId);
+                            else
+                                $sq->where('warehouse_id', $selectedWarehouseId);
                         }
                     });
                 }
             },
-            'stockTransfers' => function($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
-                if ($request->filled('start_date')) $q->whereDate('created_at', '>=', $request->start_date);
-                if ($request->filled('end_date')) $q->whereDate('created_at', '<=', $request->end_date);
+            'stockTransfers' => function ($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
 
                 $activeBranch = $selectedBranchId ?: $restrictedBranchId;
                 if ($activeBranch || $selectedWarehouseId) {
-                    $q->where(function($sq) use ($activeBranch, $selectedWarehouseId) {
-                        if ($activeBranch) $sq->where('from_id', $activeBranch)->where('from_type', 'branch')->orWhere('to_id', $activeBranch)->where('to_type', 'branch');
+                    $q->where(function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                        if ($activeBranch)
+                            $sq->where('from_id', $activeBranch)->where('from_type', 'branch')->orWhere('to_id', $activeBranch)->where('to_type', 'branch');
                         if ($selectedWarehouseId) {
-                             $sq->orWhere(function($ssq) use ($selectedWarehouseId) {
-                                 $ssq->where('from_id', $selectedWarehouseId)->where('from_type', 'warehouse')->orWhere('to_id', $selectedWarehouseId)->where('to_type', 'warehouse');
-                             });
+                            $sq->orWhere(function ($ssq) use ($selectedWarehouseId) {
+                                $ssq->where('from_id', $selectedWarehouseId)->where('from_type', 'warehouse')->orWhere('to_id', $selectedWarehouseId)->where('to_type', 'warehouse');
+                            });
                         }
                     });
                 }
@@ -550,51 +685,65 @@ class StockController extends Controller
 
 
         if ($selectedVariationValueId) {
-            $query->whereHas('variations.attributeValues', function($q) use ($selectedVariationValueId) {
+            $query->whereHas('variations.attributeValues', function ($q) use ($selectedVariationValueId) {
                 $q->where('variation_attribute_values.id', $selectedVariationValueId);
             });
         }
 
         // Filter: Only show products that have been purchased at least once OR have current stock in selected locations
-        $query->where(function($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+        $query->where(function ($q) use ($selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
             $activeBranch = $selectedBranchId ?: $restrictedBranchId;
-            
+
             $q->whereHas('purchaseItems')
-              ->orWhereHas('branchStock', function($sq) use ($activeBranch) { 
-                  if ($activeBranch) $sq->where('branch_id', $activeBranch);
-                  $sq->where('quantity', '>', 0); 
-              })
-              ->orWhereHas('warehouseStock', function($sq) use ($selectedWarehouseId, $restrictedBranchId) { 
-                  if ($restrictedBranchId) $sq->whereRaw('1=0');
-                  elseif ($selectedWarehouseId) $sq->where('warehouse_id', $selectedWarehouseId);
-                  $sq->where('quantity', '>', 0); 
-              })
-              ->orWhereHas('variationStocks', function($sq) use ($activeBranch, $selectedWarehouseId) { 
-                  $sq->where('quantity', '>', 0); 
-                  if ($activeBranch || $selectedWarehouseId) {
-                      $sq->where(function($ssq) use ($activeBranch, $selectedWarehouseId) {
-                          if ($activeBranch) $ssq->where('branch_id', $activeBranch);
-                          if ($selectedWarehouseId) {
-                              if ($activeBranch) $ssq->orWhere('warehouse_id', $selectedWarehouseId);
-                              else $ssq->where('warehouse_id', $selectedWarehouseId);
-                          }
-                      });
-                  }
-              });
+                ->orWhereHas('branchStock', function ($sq) use ($activeBranch) {
+                    if ($activeBranch)
+                        $sq->where('branch_id', $activeBranch);
+                    $sq->where('quantity', '>', 0);
+                })
+                ->orWhereHas('warehouseStock', function ($sq) use ($selectedWarehouseId, $restrictedBranchId) {
+                    if ($restrictedBranchId)
+                        $sq->whereRaw('1=0');
+                    elseif ($selectedWarehouseId)
+                        $sq->where('warehouse_id', $selectedWarehouseId);
+                    $sq->where('quantity', '>', 0);
+                })
+                ->orWhereHas('variationStocks', function ($sq) use ($activeBranch, $selectedWarehouseId) {
+                    $sq->where('quantity', '>', 0);
+                    if ($activeBranch || $selectedWarehouseId) {
+                        $sq->where(function ($ssq) use ($activeBranch, $selectedWarehouseId) {
+                            if ($activeBranch)
+                                $ssq->where('branch_id', $activeBranch);
+                            if ($selectedWarehouseId) {
+                                if ($activeBranch)
+                                    $ssq->orWhere('warehouse_id', $selectedWarehouseId);
+                                else
+                                    $ssq->where('warehouse_id', $selectedWarehouseId);
+                            }
+                        });
+                    }
+                });
         });
-        
+
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")->orWhere('sku', 'like', "%$search%")->orWhere('style_number', 'like', "%$search%");
             });
         }
 
-        if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
-        if ($request->filled('brand_id')) { $query->where('brand_id', $request->brand_id); }
-        if ($request->filled('season_id')) { $query->where('season_id', $request->season_id); }
-        if ($request->filled('gender_id')) { $query->where('gender_id', $request->gender_id); }
-        
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('brand_id')) {
+            $query->where('brand_id', $request->brand_id);
+        }
+        if ($request->filled('season_id')) {
+            $query->where('season_id', $request->season_id);
+        }
+        if ($request->filled('gender_id')) {
+            $query->where('gender_id', $request->gender_id);
+        }
+
         // Order by last purchase date or product creation date (new first)
         $query->addSelect([
             'last_purchase_date' => \App\Models\PurchaseItem::select('created_at')
@@ -760,8 +909,7 @@ class StockController extends Controller
         $oldQty = 0;
         $newQty = 0;
 
-        if($request->location_type == 'branch')
-        {
+        if ($request->location_type == 'branch') {
             if ($isVariation) {
                 $stock = ProductVariationStock::where('variation_id', $request->variation_id)
                     ->where('branch_id', $request->branch_id)
@@ -770,10 +918,10 @@ class StockController extends Controller
 
                 $oldQty = $stock ? $stock->quantity : 0;
                 if ($stock) {
-                    if($request->type == 'stock_in') {
+                    if ($request->type == 'stock_in') {
                         $stock->quantity += $request->quantity;
                     } else {
-                        if($stock->quantity >= $request->quantity){
+                        if ($stock->quantity >= $request->quantity) {
                             $stock->quantity -= $request->quantity;
                         } else {
                             return response()->json(['success' => false, 'message' => 'Insufficient variation stock'], 400);
@@ -784,7 +932,7 @@ class StockController extends Controller
                     $stock->save();
                     $newQty = $stock->quantity;
                 } else {
-                    if($request->type == 'stock_in') {
+                    if ($request->type == 'stock_in') {
                         ProductVariationStock::create([
                             'variation_id' => $request->variation_id,
                             'branch_id' => $request->branch_id,
@@ -801,20 +949,19 @@ class StockController extends Controller
                 $branchStock = BranchProductStock::where('branch_id', $request->branch_id)->where('product_id', $request->product_id)->first();
                 $oldQty = $branchStock ? $branchStock->quantity : 0;
                 if ($branchStock) {
-                    if($request->type == 'stock_in')
-                    {
+                    if ($request->type == 'stock_in') {
                         $branchStock->quantity += $request->quantity;
-                    }else{
-                        if($branchStock->quantity >= $request->quantity){
+                    } else {
+                        if ($branchStock->quantity >= $request->quantity) {
                             $branchStock->quantity -= $request->quantity;
-                        }else{
+                        } else {
                             return response()->json(['success' => false, 'message' => 'Insufficient stock'], 400);
                         }
                     }
                     $branchStock->save();
                     $newQty = $branchStock->quantity;
                 } else {
-                    if($request->type == 'stock_in') {
+                    if ($request->type == 'stock_in') {
                         BranchProductStock::create([
                             'branch_id' => $request->branch_id,
                             'product_id' => $request->product_id,
@@ -837,10 +984,10 @@ class StockController extends Controller
 
                 $oldQty = $stock ? $stock->quantity : 0;
                 if ($stock) {
-                    if($request->type == 'stock_in') {
+                    if ($request->type == 'stock_in') {
                         $stock->quantity += $request->quantity;
                     } else {
-                        if($stock->quantity >= $request->quantity){
+                        if ($stock->quantity >= $request->quantity) {
                             $stock->quantity -= $request->quantity;
                         } else {
                             return response()->json(['success' => false, 'message' => 'Insufficient variation stock'], 400);
@@ -851,7 +998,7 @@ class StockController extends Controller
                     $stock->save();
                     $newQty = $stock->quantity;
                 } else {
-                    if($request->type == 'stock_in') {
+                    if ($request->type == 'stock_in') {
                         ProductVariationStock::create([
                             'variation_id' => $request->variation_id,
                             'warehouse_id' => $request->warehouse_id,
@@ -868,21 +1015,19 @@ class StockController extends Controller
                 $warehouseStock = WarehouseProductStock::where('warehouse_id', $request->warehouse_id)->where('product_id', $request->product_id)->first();
                 $oldQty = $warehouseStock ? $warehouseStock->quantity : 0;
                 if ($warehouseStock) {
-                    if($request->type == 'stock_in')
-                    {
+                    if ($request->type == 'stock_in') {
                         $warehouseStock->quantity += $request->quantity;
-                    } else{
-                        if($warehouseStock->quantity >= $request->quantity)
-                        {
+                    } else {
+                        if ($warehouseStock->quantity >= $request->quantity) {
                             $warehouseStock->quantity -= $request->quantity;
-                        }else{
+                        } else {
                             return response()->json(['success' => false, 'message' => 'Insufficient stock'], 400);
                         }
                     }
                     $warehouseStock->save();
                     $newQty = $warehouseStock->quantity;
                 } else {
-                    if($request->type == 'stock_in') {
+                    if ($request->type == 'stock_in') {
                         WarehouseProductStock::create([
                             'warehouse_id' => $request->warehouse_id,
                             'product_id' => $request->product_id,
@@ -897,7 +1042,7 @@ class StockController extends Controller
                 }
             }
         }
-        
+
         // Create Stock Adjustment Record
         $adjustment = \App\Models\StockAdjustment::create([
             'adjustment_number' => 'ADJ-' . time() . '-' . rand(100, 999),
@@ -917,8 +1062,8 @@ class StockController extends Controller
         ]);
 
         \App\Services\CacheService::clearProductCaches($request->product_id);
-        
-        if($request->ajax()) {
+
+        if ($request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Stock adjusted successfully.']);
         }
         return redirect()->back()->with('success', 'Stock adjusted successfully.');
@@ -987,7 +1132,7 @@ class StockController extends Controller
 
         $branches = Branch::all();
         $warehouses = Warehouse::all();
-        
+
         return view('erp.productStock.createAdjustment', compact('branches', 'warehouses'));
     }
 
@@ -1021,15 +1166,15 @@ class StockController extends Controller
                 $productId = $itemData['product_id'];
                 $variationId = $itemData['variation_id'] ?? null;
                 $newQty = $itemData['quantity'];
-                
+
                 $oldQty = 0;
-                
+
                 if ($variationId) {
                     $stock = ProductVariationStock::where('variation_id', $variationId)
                         ->where('branch_id', $branchId)
                         ->whereNull('warehouse_id')
                         ->first();
-                        
+
                     if ($stock) {
                         $oldQty = $stock->quantity;
                         $stock->quantity = $newQty;
@@ -1049,7 +1194,7 @@ class StockController extends Controller
                     $stock = BranchProductStock::where('product_id', $productId)
                         ->where('branch_id', $branchId)
                         ->first();
-                        
+
                     if ($stock) {
                         $oldQty = $stock->quantity;
                         $stock->quantity = $newQty;
@@ -1102,22 +1247,22 @@ class StockController extends Controller
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('n'));
             $year = $request->get('year', date('Y'));
-            $query->whereHas('adjustment', function($q) use ($month, $year) {
+            $query->whereHas('adjustment', function ($q) use ($month, $year) {
                 $q->whereMonth('date', $month)->whereYear('date', $year);
             });
         } elseif ($reportType == 'yearly') {
             $year = $request->get('year', date('Y'));
-            $query->whereHas('adjustment', function($q) use ($year) {
+            $query->whereHas('adjustment', function ($q) use ($year) {
                 $q->whereYear('date', $year);
             });
         } else {
             if ($request->filled('start_date')) {
-                $query->whereHas('adjustment', function($q) use ($request) {
+                $query->whereHas('adjustment', function ($q) use ($request) {
                     $q->where('date', '>=', $request->start_date);
                 });
             }
             if ($request->filled('end_date')) {
-                $query->whereHas('adjustment', function($q) use ($request) {
+                $query->whereHas('adjustment', function ($q) use ($request) {
                     $q->where('date', '<=', $request->end_date);
                 });
             }
@@ -1125,7 +1270,7 @@ class StockController extends Controller
 
         // Parent Adjustment Filters
         if ($request->filled('adjustment_number')) {
-            $query->whereHas('adjustment', function($q) use ($request) {
+            $query->whereHas('adjustment', function ($q) use ($request) {
                 $q->where('adjustment_number', 'like', '%' . $request->adjustment_number . '%');
             });
         }
@@ -1134,7 +1279,7 @@ class StockController extends Controller
         $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
 
         if ($selectedBranchId) {
-            $query->whereHas('adjustment', function($q) use ($selectedBranchId) {
+            $query->whereHas('adjustment', function ($q) use ($selectedBranchId) {
                 $q->where('branch_id', $selectedBranchId);
             });
         }
@@ -1142,38 +1287,38 @@ class StockController extends Controller
         // Item/Product Filters
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->whereHas('product', function($q) use ($search) {
+            $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
-                  ->orWhere('style_number', 'like', "%$search%")
-                  ->orWhere('sku', 'like', "%$search%");
+                    ->orWhere('style_number', 'like', "%$search%")
+                    ->orWhere('sku', 'like', "%$search%");
             });
         }
         if ($request->filled('product_id')) {
             $query->where('product_id', $request->product_id);
         }
         if ($request->filled('style_number')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('style_number', 'like', '%' . $request->style_number . '%')
-                  ->orWhere('sku', 'like', '%' . $request->style_number . '%');
+                    ->orWhere('sku', 'like', '%' . $request->style_number . '%');
             });
         }
         if ($request->filled('category_id')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category_id', $request->category_id);
             });
         }
         if ($request->filled('brand_id')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('brand_id', $request->brand_id);
             });
         }
         if ($request->filled('season_id')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('season_id', $request->season_id);
             });
         }
         if ($request->filled('gender_id')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('gender_id', $request->gender_id);
             });
         }
@@ -1193,7 +1338,14 @@ class StockController extends Controller
         $genders = \App\Models\Gender::all();
 
         return view('erp.productStock.adjustmentList', compact(
-            'adjustments', 'branches', 'products', 'categories', 'brands', 'seasons', 'genders', 'reportType'
+            'adjustments',
+            'branches',
+            'products',
+            'categories',
+            'brands',
+            'seasons',
+            'genders',
+            'reportType'
         ));
     }
 
@@ -1203,15 +1355,15 @@ class StockController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $items = $this->getAdjustmentQuery($request)->get();
-        
+
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         $headers = ['Serial No', 'Invoice', 'Date', 'Location', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Old Qty', 'New Qty', 'Diff', 'Adjusted By'];
         foreach ($headers as $key => $header) {
             $sheet->setCellValue(chr(65 + $key) . '1', $header);
         }
-        
+
         $row = 2;
         foreach ($items as $index => $item) {
             $location = '-';
@@ -1237,12 +1389,12 @@ class StockController extends Controller
             $sheet->setCellValue('N' . $row, $item->adjustment?->creator?->name ?? 'Admin');
             $row++;
         }
-        
+
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filename = 'stock_adjustments_' . date('Y-m-d') . '.xlsx';
         $path = storage_path('app/public/' . $filename);
         $writer->save($path);
-        
+
         return response()->download($path)->deleteFileAfterSend(true);
     }
 
@@ -1271,8 +1423,9 @@ class StockController extends Controller
         ]);
 
         $productId = $request->product_id;
-        $variationId = $request->filled('variation_id') ? (int)$request->variation_id : null;
-        if ($variationId === 0) $variationId = null; // Normalize 0 to null for simple products
+        $variationId = $request->filled('variation_id') ? (int) $request->variation_id : null;
+        if ($variationId === 0)
+            $variationId = null; // Normalize 0 to null for simple products
         $locationType = $request->location_type;
         $locationId = $request->location_id;
         $newOpeningStock = $request->opening_stock;
@@ -1290,8 +1443,8 @@ class StockController extends Controller
                 ->first();
         }
 
-        $currentCalculatedOpening = (float)$request->current_opening;
-        $diff = (float)$newOpeningStock - $currentCalculatedOpening;
+        $currentCalculatedOpening = (float) $request->current_opening;
+        $diff = (float) $newOpeningStock - $currentCalculatedOpening;
         $currentStock = $stock ? $stock->quantity : 0;
         $newQuantity = $currentStock + $diff;
 
@@ -1299,14 +1452,16 @@ class StockController extends Controller
             $model = $variationId ? \App\Models\ProductVariationStock::class : ($locationType == 'branch' ? \App\Models\BranchProductStock::class : \App\Models\WarehouseProductStock::class);
             $stockData = [
                 $locationType == 'branch' ? 'branch_id' : 'warehouse_id' => $locationId,
-                'quantity' => $newQuantity, 
+                'quantity' => $newQuantity,
                 'opening_stock' => $newOpeningStock,
                 'updated_by' => auth()->id() ?? 1,
                 'last_updated_at' => now(),
             ];
-            if ($variationId) $stockData['variation_id'] = $variationId;
-            else $stockData['product_id'] = $productId;
-            
+            if ($variationId)
+                $stockData['variation_id'] = $variationId;
+            else
+                $stockData['product_id'] = $productId;
+
             $stock = $model::create($stockData);
         } else {
             // Adjust current quantity and set the new opening stock baseline
@@ -1320,8 +1475,8 @@ class StockController extends Controller
         \App\Services\CacheService::clearProductCaches($productId);
 
         return response()->json([
-            'success' => true, 
-            'message' => 'Opening stock updated successfully.', 
+            'success' => true,
+            'message' => 'Opening stock updated successfully.',
             'new_quantity' => $stock->quantity,
             'new_opening_stock' => $stock->opening_stock
         ]);
@@ -1417,22 +1572,22 @@ class StockController extends Controller
             if ($reportType == 'monthly') {
                 $month = $request->get('month', date('n'));
                 $year = $request->get('year', date('Y'));
-                $query->whereHas('adjustment', function($q) use ($month, $year) {
+                $query->whereHas('adjustment', function ($q) use ($month, $year) {
                     $q->whereMonth('date', $month)->whereYear('date', $year);
                 });
             } elseif ($reportType == 'yearly') {
                 $year = $request->get('year', date('Y'));
-                $query->whereHas('adjustment', function($q) use ($year) {
+                $query->whereHas('adjustment', function ($q) use ($year) {
                     $q->whereYear('date', $year);
                 });
             } else {
                 if ($request->filled('start_date')) {
-                    $query->whereHas('adjustment', function($q) use ($request) {
+                    $query->whereHas('adjustment', function ($q) use ($request) {
                         $q->where('date', '>=', $request->start_date);
                     });
                 }
                 if ($request->filled('end_date')) {
-                    $query->whereHas('adjustment', function($q) use ($request) {
+                    $query->whereHas('adjustment', function ($q) use ($request) {
                         $q->where('date', '<=', $request->end_date);
                     });
                 }
@@ -1440,12 +1595,12 @@ class StockController extends Controller
         }
 
         if ($request->filled('adjustment_number')) {
-            $query->whereHas('adjustment', function($q) use ($request) {
+            $query->whereHas('adjustment', function ($q) use ($request) {
                 $q->where('adjustment_number', 'like', '%' . $request->adjustment_number . '%');
             });
         }
         if ($request->filled('branch_id')) {
-            $query->whereHas('adjustment', function($q) use ($request) {
+            $query->whereHas('adjustment', function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
             });
         }
@@ -1453,12 +1608,12 @@ class StockController extends Controller
             $query->where('product_id', $request->product_id);
         }
         if ($request->filled('style_number')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('style_number', 'like', '%' . $request->style_number . '%');
             });
         }
         if ($request->filled('category_id')) {
-            $query->whereHas('product', function($q) use ($request) {
+            $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category_id', $request->category_id);
             });
         }

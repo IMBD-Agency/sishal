@@ -37,9 +37,11 @@
                         @endcan
                     @endif
                     @if($requisition->status === 'pending')
-                        <a href="{{ route('requisition.edit', $requisition->id) }}" class="btn btn-warning fw-bold shadow-sm">
-                            <i class="fas fa-edit me-2"></i>EDIT
-                        </a>
+                        @can('manage requisitions')
+                            <a href="{{ route('requisition.edit', $requisition->id) }}" class="btn btn-warning fw-bold shadow-sm">
+                                <i class="fas fa-edit me-2"></i>EDIT
+                            </a>
+                        @endcan
                     @endif
                 </div>
             </div>

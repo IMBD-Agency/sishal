@@ -298,21 +298,26 @@
 
                                 {{-- RETURN ITEMS: Sender or Admin only (after delivery) --}}
                                 @if($transfer->status == 'delivered' && $transfer->type !== 'return' && $canManageSending)
+                                @can('approve transfers')
                                     <a href="{{ route('stocktransfer.return', $transfer->id) }}" class="btn btn-warning px-5 fw-bold text-dark"
                                        onclick="return confirm('You are about to initiate a Return of items from this transfer. Proceed?')">
                                         <i class="fas fa-undo-alt me-2"></i>RETURN ITEMS TO SOURCE
                                     </a>
+                                    @endcan
                                 @endif
 
                                  {{-- RECONCILE QUANTITIES: Super Admin only --}}
                                 @if($isSuperAdmin || auth()->user()->hasPermissionTo('reconcile transfers'))
+                                @can('approve transfers')
                                     <button type="button" class="btn btn-danger px-5 fw-bold" data-bs-toggle="modal" data-bs-target="#reconcileModal">
                                         <i class="fas fa-edit me-2"></i>RECONCILE QUANTITIES (ADMIN)
                                     </button>
+                                @endcan
                                 @endif
 
                                 {{-- VOID TRANSFER: Sender or Admin only --}}
                                 @if(in_array($transfer->status, ['pending', 'rejected']) && $canManageSending)
+                                @can('delete transfers')
                                     <form action="{{ route('stocktransfer.destroy', $transfer->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this entire transfer invoice? This action cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
@@ -320,6 +325,7 @@
                                             <i class="fas fa-trash-alt me-2"></i>VOID TRANSFER
                                         </button>
                                     </form>
+                                @endcan
                                 @endif
 
                             </div>

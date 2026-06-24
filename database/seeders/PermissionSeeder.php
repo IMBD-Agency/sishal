@@ -113,6 +113,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'manage transfers', 'category' => 'Stock Transfer'],
             ['name' => 'reconcile transfers', 'category' => 'Stock Transfer'],
 
+            //fund transfer
+            ['name' => 'view fund transfers', 'category' => 'Fund Transfer'],
+            ['name' => 'create fund transfers', 'category' => 'Fund Transfer'],
+            ['name' => 'delete fund transfers', 'category' => 'Fund Transfer'],
+
             // Requisition
             ['name' => 'view requisitions', 'category' => 'Requisition'],
             ['name' => 'manage requisitions', 'category' => 'Requisition'],
@@ -129,6 +134,10 @@ class PermissionSeeder extends Seeder
             ['name' => 'view accounts', 'category' => 'Financial Accounts'],
             ['name' => 'manage accounts', 'category' => 'Financial Accounts'],
 
+            //journal 
+            ['name' => 'view journal', 'category' => 'Journal'],
+
+
             // Salary
             ['name' => 'view salary', 'category' => 'Salary'],
             ['name' => 'manage salary', 'category' => 'Salary'],
@@ -143,6 +152,7 @@ class PermissionSeeder extends Seeder
 
             // Reports Center
             ['name' => 'view reports', 'category' => 'Reports Center'],
+            ['name' => 'stock report', 'category' => 'Reports Center'],
             ['name' => 'view financial reports', 'category' => 'Reports Center'],
             ['name' => 'customer summary', 'category' => 'Reports Center'],
             ['name' => 'customer ledger', 'category' => 'Reports Center'],

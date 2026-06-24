@@ -33,9 +33,11 @@
                             <li><a class="dropdown-item" href="javascript:void(0)" onclick="exportData('pdf')"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF Report</a></li>
                         </ul>
                     </div>
-                    <a href="{{ route('transfers.create') }}" class="btn btn-create-premium">
-                        <i class="fas fa-plus-circle me-2"></i>New Transfer
-                    </a>
+                    @can('create fund transfers')
+                        <a href="{{ route('transfers.create') }}" class="btn btn-create-premium">
+                            <i class="fas fa-plus-circle me-2"></i>New Transfer
+                        </a>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -178,10 +180,12 @@
                                                 <li><a class="dropdown-item" href="{{ route('transfers.show', $transfer->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View</a></li>
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
-                                                    <form action="{{ route('transfers.destroy', $transfer->id) }}" method="POST" onsubmit="return confirm('Delete this transfer? This will reverse the amounts.')">
-                                                        @csrf @method('DELETE')
-                                                        <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt me-2"></i>Delete</button>
-                                                    </form>
+                                                    @can('delete fund transfers')
+                                                        <form action="{{ route('transfers.destroy', $transfer->id) }}" method="POST" onsubmit="return confirm('Delete this transfer? This will reverse the amounts.')">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt me-2"></i>Delete</button>
+                                                        </form>
+                                                    @endcan
                                                 </li>
                                             </ul>
                                         </div>

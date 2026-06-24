@@ -229,6 +229,9 @@
                     <span>Financial Accounts</span>
                 </a>
             </div>
+        @endcan
+
+        @can('view journal')
             <div class="nav-item">
                 <a href="{{ route('journal.list') }}"
                     class="nav-link {{ request()->is('erp/double-entry/journals*') ? ' active' : '' }}">
@@ -247,6 +250,25 @@
             </div>
         @endcan
 
+
+        <!-- <div class="nav-item">
+                            <a href="{{ route('reports.snapshot') }}"
+                                class="nav-link {{ request()->is('erp/reports/snapshot') ? ' active' : '' }}">
+                                <i class="fas fa-camera nav-icon text-primary"></i>
+                                <span>Business Snapshot</span>
+                            </a>
+                        </div> -->
+
+        @can('stock report')
+            <div class="nav-item">
+                <a href="{{ route('productstock.list') }}"
+                    class="nav-link {{ request()->is('erp/product-stock*') ? ' active' : '' }}">
+                    <i class="fas fa-layer-group nav-icon text-success"></i>
+                    <span>Stock Report</span>
+                </a>
+            </div>
+        @endcan
+
         @can('view reports')
             <div class="nav-item">
                 <a href="{{ route('reports.index') }}" class="nav-link {{ request()->is('erp/reports') ? ' active' : '' }}">
@@ -255,30 +277,15 @@
                 </a>
             </div>
 
-            <div class="nav-item">
-                <a href="{{ route('reports.snapshot') }}"
-                    class="nav-link {{ request()->is('erp/reports/snapshot') ? ' active' : '' }}">
-                    <i class="fas fa-camera nav-icon text-primary"></i>
-                    <span>Business Snapshot</span>
-                </a>
-            </div>
-
-            <div class="nav-item">
-                <a href="{{ route('productstock.list') }}"
-                    class="nav-link {{ request()->is('erp/product-stock*') ? ' active' : '' }}">
-                    <i class="fas fa-layer-group nav-icon text-success"></i>
-                    <span>Stock Report</span>
-                </a>
-            </div>
-
         @endcan
 
-        @can('view financial reports')
+
+        <!-- @can('view financial reports')
 
 
-        @endcan
+        @endcan -->
 
-        @can('view executive reports')
+        <!-- @can('view executive reports')
             <div class="nav-item">
                 <a href="{{ route('reports.executive') }}"
                     class="nav-link {{ request()->is('erp/reports/executive*') ? ' active' : '' }}">
@@ -296,7 +303,7 @@
                     <span>Expense Report</span>
                 </a>
             </div>
-        @endcan
+        @endcan -->
 
         <!-- ECOMMERCE -->
         <span class="sidebar-category-title">Ecommerce</span>
