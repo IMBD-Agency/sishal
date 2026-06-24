@@ -35,9 +35,11 @@
                             <i class="fas fa-file-pdf me-2"></i>Download PDF
                         </a>
                         @if($pos->status !== 'cancelled')
+                        @can('edit sale')
                         <a href="{{ route('pos.edit', $pos->id) }}" class="btn btn-info px-4 py-2 rounded-pill">
                             <i class="fas fa-edit me-2"></i>Edit Sale
                         </a>
+                        @endcan
                         @endif
                         @if($pos->invoice && $pos->invoice->id)
                             <a href="{{ route('invoice.show', $pos->invoice->id) }}" class="btn btn-primary px-4 py-2 rounded-pill">

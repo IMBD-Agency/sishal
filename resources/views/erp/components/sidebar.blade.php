@@ -68,7 +68,7 @@
             </div>
         @endcan
 
-        @can('adjust stock')
+        @can('view stock')
             <div class="nav-item">
                 <a href="{{ route('stock.adjustment.list') }}"
                     class="nav-link {{ request()->is('erp/stock/adjustment-list*') ? ' active' : '' }}">

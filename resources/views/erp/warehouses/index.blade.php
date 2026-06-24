@@ -82,9 +82,11 @@
                 <p class="text-muted small mb-0">{{ $warehouses->total() }} Warehouses registered in the system</p>
             </div>
             <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end gap-2 align-items-md-center">
-                <a href="{{ route('warehouses.create') }}" class="btn btn-create-premium">
-                    <i class="fas fa-plus-circle me-2"></i>Create Warehouse
-                </a>
+                @can('create warehouses')
+                    <a href="{{ route('warehouses.create') }}" class="btn btn-create-premium">
+                        <i class="fas fa-plus-circle me-2"></i>Create Warehouse
+                    </a>
+                @endcan
             </div>
         </div>
     </div>
@@ -165,15 +167,19 @@
                                             <a href="{{ route('warehouses.show', $warehouse->id) }}" class="btn btn-sm btn-light border" title="View Details">
                                                 <i class="fas fa-eye text-primary"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editWarehouseModal{{ $warehouse->id }}" title="Edit">
-                                                <i class="fas fa-edit text-warning"></i>
-                                            </button>
-                                            <form action="{{ route('warehouses.destroy', $warehouse->id) }}" method="POST" onsubmit="return confirm('Archive this warehouse?')" class="d-inline">
-                                                @csrf @method('DELETE')
+                                            @can('edit warehouses')
+                                                <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editWarehouseModal{{ $warehouse->id }}" title="Edit">
+                                                    <i class="fas fa-edit text-warning"></i>
+                                                </button>
+                                            @endcan
+                                            @can('delete warehouses')
+                                                <form action="{{ route('warehouses.destroy', $warehouse->id) }}" method="POST" onsubmit="return confirm('Archive this warehouse?')" class="d-inline">
+                                                    @csrf @method('DELETE')
                                                 <button type="submit" class="btn btn-sm btn-light border" title="Delete">
                                                     <i class="fas fa-trash text-danger"></i>
                                                 </button>
                                             </form>
+                                            @endcan
                                         </div>
                                         
                                         <!-- Edit Modal -->

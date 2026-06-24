@@ -16,7 +16,7 @@ class MasterSettingController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('manage settings')) {
+        if (!auth()->user()->hasPermissionTo('view master settings')) {
             abort(403, 'Unauthorized action.');
         }
         $stats = [

@@ -22,9 +22,11 @@
                             </span>
                         </div>
                         <div class="d-flex gap-2">
+                            @can('edit warehouses')
                             <button class="btn btn-white btn-sm shadow-sm border-0 rounded-3 text-dark transition-2" data-bs-toggle="modal" data-bs-target="#editWarehouseModal">
                                 <i class="fas fa-edit me-1 text-warning"></i> Edit
                             </button>
+                            @endcan
                         </div>
                     </div>
                     <p class="text-muted small ms-5 ps-1 mb-0"><i class="fas fa-map-marker-alt me-1"></i> {{ $warehouse->location }}</p>

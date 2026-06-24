@@ -27,6 +27,9 @@ class PermissionSeeder extends Seeder
 
             // Warehouses
             ['name' => 'view warehouses', 'category' => 'Warehouses'],
+            ['name' => 'create warehouses', 'category' => 'Warehouses'],
+            ['name' => 'edit warehouses', 'category' => 'Warehouses'],
+            ['name' => 'delete warehouses', 'category' => 'Warehouses'],
             ['name' => 'manage warehouses', 'category' => 'Warehouses'],
 
             // Products
@@ -35,12 +38,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'edit products', 'category' => 'Products'],
             ['name' => 'delete products', 'category' => 'Products'],
             ['name' => 'manage products', 'category' => 'Products'],
-            ['name' => 'manage categories', 'category' => 'Products'],
-            ['name' => 'manage brands', 'category' => 'Products'],
-            ['name' => 'manage units', 'category' => 'Products'],
-            ['name' => 'manage seasons', 'category' => 'Products'],
-            ['name' => 'manage genders', 'category' => 'Products'],
-            ['name' => 'manage attributes', 'category' => 'Products'],
+
+
 
             // Manage Combos
             ['name' => 'view combos', 'category' => 'Manage Combos'],
@@ -48,6 +47,7 @@ class PermissionSeeder extends Seeder
 
             // Stock Adjust
             ['name' => 'view stock', 'category' => 'Stock Adjust'],
+            ['name' => 'delete stock', 'category' => 'Stock Adjust'],
             ['name' => 'adjust stock', 'category' => 'Stock Adjust'],
             ['name' => 'manage opening stock', 'category' => 'Stock Adjust'],
 
@@ -67,20 +67,24 @@ class PermissionSeeder extends Seeder
 
             // Suppliers
             ['name' => 'view suppliers', 'category' => 'Suppliers'],
+            ['name' => 'create suppliers', 'category' => 'Suppliers'],
+            ['name' => 'edit suppliers', 'category' => 'Suppliers'],
+            ['name' => 'delete suppliers', 'category' => 'Suppliers'],
             ['name' => 'manage suppliers', 'category' => 'Suppliers'],
 
             // Supplier Pay
             ['name' => 'view payments', 'category' => 'Supplier Pay'],
-            ['name' => 'manage payments', 'category' => 'Supplier Pay'],
+            ['name' => 'create payments', 'category' => 'Supplier Pay'],
             ['name' => 'delete payments', 'category' => 'Supplier Pay'],
+            ['name' => 'manage payments', 'category' => 'Supplier Pay'],
 
             // POS
             ['name' => 'use pos', 'category' => 'POS'],
 
             // Sales
             ['name' => 'view sales', 'category' => 'Sales'],
+            ['name' => 'create sales', 'category' => 'Sales'],
             ['name' => 'edit sales', 'category' => 'Sales'],
-            ['name' => 'manage sales', 'category' => 'Sales'],
             ['name' => 'delete sales', 'category' => 'Sales'],
             ['name' => 'view invoices', 'category' => 'Sales'],
             ['name' => 'manage invoices', 'category' => 'Sales'],

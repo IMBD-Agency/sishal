@@ -33,8 +33,10 @@
                 <td>
                     <div class="d-flex align-items-center gap-2">
                         @if($payment->financialAccount)
-                            <i class="fas {{ $payment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($payment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }}"></i>
-                            <span class="fw-bold text-uppercase" style="font-size: 11px;">{{ $payment->financialAccount->provider_name }}</span>
+                            <i
+                                class="fas {{ $payment->financialAccount->type == 'bank' ? 'fa-university text-primary' : ($payment->financialAccount->type == 'cash' ? 'fa-wallet text-success' : 'fa-mobile-alt text-info') }}"></i>
+                            <span class="fw-bold text-uppercase"
+                                style="font-size: 11px;">{{ $payment->financialAccount->provider_name }}</span>
                         @else
                             @if($payment->payment_method == 'cash')
                                 <i class="fas fa-wallet text-success"></i>
@@ -43,17 +45,21 @@
                             @else
                                 <i class="fas fa-money-check text-warning"></i>
                             @endif
-                            <span class="fw-bold text-uppercase" style="font-size: 11px;">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
+                            <span class="fw-bold text-uppercase"
+                                style="font-size: 11px;">{{ str_replace('_', ' ', $payment->payment_method) }}</span>
                         @endif
                     </div>
                 </td>
                 <td class="text-center pe-3">
                     <div class="d-flex gap-2 justify-content-center">
-                        <a href="{{ route('supplier-payments.show', $payment->id) }}" class="action-circle bg-light border-0" title="View Voucher">
+                        <a href="{{ route('supplier-payments.show', $payment->id) }}"
+                            class="action-circle bg-light border-0" title="View Voucher">
                             <i class="fas fa-eye text-primary"></i>
                         </a>
-                        @if(auth()->user()->hasPermissionTo('delete payments'))
-                        <form action="{{ route('supplier-payments.destroy', $payment->id) }}" method="POST" onsubmit="return confirm('Void this payment?\n\nThis will reverse the following:\n1. Revert and increase the purchase bill due amount by {{ number_format($payment->amount, 2) }}৳.\n2. Refund and increase the Cash/Bank account balance.\n3. Delete the transaction from Supplier Ledger.\n4. Recalibrate Supplier Balance.\n5. Delete the double-entry Journal records.')" class="d-inline">
+                        @can('delete payments')
+                        <form action="{{ route('supplier-payments.destroy', $payment->id) }}" method="POST"
+                            onsubmit="return confirm('Void this payment?\n\nThis will reverse the following:\n1. Revert and increase the purchase bill due amount by {{ number_format($payment->amount, 2) }}৳.\n2. Refund and increase the Cash/Bank account balance.\n3. Delete the transaction from Supplier Ledger.\n4. Recalibrate Supplier Balance.\n5. Delete the double-entry Journal records.')"
+                            class="d-inline">
                             @csrf @method('DELETE')
                             <button type="submit" class="action-circle bg-light border-0" title="Void Payment">
                                 <i class="fas fa-trash-alt text-danger"></i>
@@ -78,8 +84,8 @@
 </div>
 
 @if($payments->hasPages())
-<div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-    <div class="small text-muted fw-bold">Records found: {{ $payments->total() }}</div>
-    {{ $payments->links('vendor.pagination.bootstrap-5') }}
-</div>
+    <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+        <div class="small text-muted fw-bold">Records found: {{ $payments->total() }}</div>
+        {{ $payments->links('vendor.pagination.bootstrap-5') }}
+    </div>
 @endif
