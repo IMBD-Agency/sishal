@@ -24,7 +24,7 @@
                 </div>
                 <div
                     class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    @if(auth()->user()->can('create branch'))
+                    @if(auth()->user()->can('create branches'))
                         <a href="{{ route('branches.create') }}" class="btn btn-create-premium">
                             <i class="fas fa-plus-circle me-2"></i>New Outlet
                         </a>
@@ -248,49 +248,49 @@
                     data.data.forEach(branch => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                                                <td class="text-muted fw-medium">#${branch.id}</td>
-                                                <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; border: 1px solid #edf2f7;">
-                                                            <i class="fas fa-store text-primary"></i>
-                                                        </div>
-                                                        <div>
-                                                            <a href="/erp/branches/${branch.id}" class="d-block fw-bold text-dark text-decoration-none hover-primary">${branch.name}</a>
-                                                            <small class="text-muted">Manager: ${branch.manager ? branch.manager.first_name + ' ' + branch.manager.last_name : 'N/A'}</small>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="text-dark small"><i class="fas fa-map-marker-alt text-muted me-2"></i>${branch.location || 'N/A'}</div>
-                                                    <div class="text-muted small mt-1"><i class="fas fa-phone-alt text-muted me-2"></i>${branch.contact_info || 'N/A'}</div>
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="badge rounded-pill ${branch.show_online ? 'bg-info bg-opacity-10 text-info' : 'bg-secondary bg-opacity-10 text-secondary'}" style="font-size: 0.7rem; border: 1px solid currentColor;">
-                                                        <i class="fas ${branch.show_online ? 'fa-globe' : 'fa-times-circle'} me-1"></i>
-                                                        ${branch.show_online ? 'Ecommerce' : 'Offline'}
-                                                    </span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="status-badge ${branch.status === 'active' ? 'status-active' : 'status-inactive'}">
-                                                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
-                                                        ${branch.status.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td class="text-end">
-                                                    <div class="d-flex justify-content-end gap-1">
-                                                         @can('edit branches')
-                                                            <a href="/erp/branches/${branch.id}/edit" class="btn-action btn-light border text-warning" title="Edit Properties">
-                                                                <i class="fas fa-pencil-alt"></i>
-                                                            </a>
-                                                        @endcan
-                                                        @can('delete branches')
-                                                            <button onclick="deleteBranch(${branch.id})" class="btn-action btn-light border text-danger" title="Shut Down Branch">
-                                                                <i class="fas fa-trash-alt"></i>
-                                                            </button>
-                                                        @endcan
-                                                    </div>
-                                                </td>
-                                            `;
+                                                                <td class="text-muted fw-medium">#${branch.id}</td>
+                                                                <td>
+                                                                    <div class="d-flex align-items-center">
+                                                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; border: 1px solid #edf2f7;">
+                                                                            <i class="fas fa-store text-primary"></i>
+                                                                        </div>
+                                                                        <div>
+                                                                            <a href="/erp/branches/${branch.id}" class="d-block fw-bold text-dark text-decoration-none hover-primary">${branch.name}</a>
+                                                                            <small class="text-muted">Manager: ${branch.manager ? branch.manager.first_name + ' ' + branch.manager.last_name : 'N/A'}</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div class="text-dark small"><i class="fas fa-map-marker-alt text-muted me-2"></i>${branch.location || 'N/A'}</div>
+                                                                    <div class="text-muted small mt-1"><i class="fas fa-phone-alt text-muted me-2"></i>${branch.contact_info || 'N/A'}</div>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <span class="badge rounded-pill ${branch.show_online ? 'bg-info bg-opacity-10 text-info' : 'bg-secondary bg-opacity-10 text-secondary'}" style="font-size: 0.7rem; border: 1px solid currentColor;">
+                                                                        <i class="fas ${branch.show_online ? 'fa-globe' : 'fa-times-circle'} me-1"></i>
+                                                                        ${branch.show_online ? 'Ecommerce' : 'Offline'}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <span class="status-badge ${branch.status === 'active' ? 'status-active' : 'status-inactive'}">
+                                                                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                                                        ${branch.status.toUpperCase()}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <div class="d-flex justify-content-end gap-1">
+                                                                         @can('edit branches')
+                                                                            <a href="/erp/branches/${branch.id}/edit" class="btn-action btn-light border text-warning" title="Edit Properties">
+                                                                                <i class="fas fa-pencil-alt"></i>
+                                                                            </a>
+                                                                        @endcan
+                                                                        @can('delete branches')
+                                                                            <button onclick="deleteBranch(${branch.id})" class="btn-action btn-light border text-danger" title="Shut Down Branch">
+                                                                                <i class="fas fa-trash-alt"></i>
+                                                                            </button>
+                                                                        @endcan
+                                                                    </div>
+                                                                </td>
+                                                            `;
                         tbody.appendChild(tr);
                     });
                 }
@@ -309,19 +309,19 @@
                         const item = document.createElement('div');
                         item.className = 'p-3 border-bottom bg-white';
                         item.innerHTML = `
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="fw-bold mb-0">${branch.name}</h6>
-                                                    <span class="badge ${branch.status === 'active' ? 'bg-success' : 'bg-danger'}">${branch.status}</span>
-                                                </div>
-                                                <div class="text-muted small mb-3">
-                                                    <div><i class="fas fa-map-marker-alt me-2"></i>${branch.location}</div>
-                                                    <div><i class="fas fa-phone me-2"></i>${branch.contact_info}</div>
-                                                </div>
-                                                <div class="d-flex gap-2">
-                                                    <a href="/erp/branches/${branch.id}" class="btn btn-sm btn-light border flex-grow-1">View Details</a>
-                                                    <a href="/erp/branches/${branch.id}/edit" class="btn btn-sm btn-light border"><i class="fas fa-edit text-warning"></i></a>
-                                                </div>
-                                            `;
+                                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                    <h6 class="fw-bold mb-0">${branch.name}</h6>
+                                                                    <span class="badge ${branch.status === 'active' ? 'bg-success' : 'bg-danger'}">${branch.status}</span>
+                                                                </div>
+                                                                <div class="text-muted small mb-3">
+                                                                    <div><i class="fas fa-map-marker-alt me-2"></i>${branch.location}</div>
+                                                                    <div><i class="fas fa-phone me-2"></i>${branch.contact_info}</div>
+                                                                </div>
+                                                                <div class="d-flex gap-2">
+                                                                    <a href="/erp/branches/${branch.id}" class="btn btn-sm btn-light border flex-grow-1">View Details</a>
+                                                                    <a href="/erp/branches/${branch.id}/edit" class="btn btn-sm btn-light border"><i class="fas fa-edit text-warning"></i></a>
+                                                                </div>
+                                                            `;
                         container.appendChild(item);
                     });
                 }
