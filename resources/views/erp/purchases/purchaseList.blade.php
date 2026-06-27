@@ -93,7 +93,7 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
-                    @can('create purchase')
+                    @can('create purchases')
                         <a href="{{ route('purchase.create') }}" class="btn btn-create-premium text-nowrap">
                             <i class="fas fa-plus-circle me-2"></i>New Purchase
                         </a>

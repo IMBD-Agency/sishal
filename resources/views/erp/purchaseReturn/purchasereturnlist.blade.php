@@ -43,7 +43,7 @@
                 </div>
             </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
-                    @can('create purchase')
+                    @can('create purchase returns')
                     <a href="{{ route('purchaseReturn.create') }}" class="btn btn-primary fw-bold px-4 shadow-sm" style="border-radius: 10px;">
                         <i class="fas fa-plus-circle me-2"></i>New Return Entry
                     </a>
