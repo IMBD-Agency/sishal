@@ -294,7 +294,7 @@
                     <div class="d-flex align-items-center gap-2">
                         <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i
                                 class="fas fa-list me-2 text-primary"></i>Sales Registry</h6>
-                        @if(auth()->user()->hasRole('Super Admin') || auth()->user()->hasPermissionTo('delete sales'))
+                        @if(auth()->user()->hasRole('Super Admin') || auth()->user()->can('delete sales'))
                             <button type="button" id="bulkDeleteBtn" class="btn btn-danger btn-sm text-white d-none ms-3"
                                 onclick="bulkDeleteSales()">
                                 <i class="fas fa-trash-alt me-2"></i>Bulk Delete

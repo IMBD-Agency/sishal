@@ -38,12 +38,12 @@ class PosController extends Controller
 {
     public function addPos()
     {
-        if (!auth()->user()->hasPermissionTo('use pos')) {
+        if (!auth()->user()->can('use pos')) {
             abort(403, 'Unauthorized action.');
         }
         $categories = ProductServiceCategory::where('status', 'active')->get()->sortBy('full_path_name');
         $branches = Branch::where('status', 'active')->get();
-        
+
         // Branch Isolation: Check if user is an employee with a branch
         $user = auth()->user();
         if ($user && $user->employee && $user->employee->branch_id) {
@@ -56,7 +56,7 @@ class PosController extends Controller
         }
 
         $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
-        
+
         $customersQuery = Customer::query();
         if ($user && $user->isBranchRestricted()) {
             $customersQuery->where('branch_id', $user->employee->branch_id);
@@ -67,7 +67,7 @@ class PosController extends Controller
 
     public function makeSale(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('use pos')) {
+        if (!auth()->user()->can('use pos')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -125,7 +125,7 @@ class PosController extends Controller
             $pos->vat_amount = $request->vat_amount ?? 0;
             $pos->save();
 
-            if($request->customer_type == 'new-customer') {
+            if ($request->customer_type == 'new-customer') {
                 $customer = Customer::create([
                     'name' => $request->customer_name,
                     'phone' => $request->customer_phone,
@@ -146,7 +146,7 @@ class PosController extends Controller
             // --- Create Invoice ---
 
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
-            
+
             // Use submitted tax if provided, otherwise fallback to global setting
             $tax = $pos->vat_amount ?? 0;
             if ($tax <= 0) {
@@ -154,7 +154,7 @@ class PosController extends Controller
                 $taxRate = $generalSettings ? ($generalSettings->tax_rate / 100) : 0.00;
                 $tax = round($pos->sub_total * $taxRate, 2);
             }
-            
+
             $invoice = new Invoice();
             $invoice->invoice_number = $this->generateInvoiceNumber();
             $invoice->template_id = $invTemplate?->id;
@@ -187,7 +187,7 @@ class PosController extends Controller
             // Save POS items with combo handling
             foreach ($request->items as $item) {
                 $product = Product::find($item['product_id']);
-                
+
                 // Calculate this item's share of the total discount
                 $itemOriginalTotal = floatval($item['total_price']);
                 $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
@@ -215,7 +215,7 @@ class PosController extends Controller
                         'variation_id' => $item['variation_id'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
-                        'discount'   => $allocatedDiscount,
+                        'discount' => $allocatedDiscount,
                         'total_price' => $itemNetTotal,
                     ]);
 
@@ -230,7 +230,7 @@ class PosController extends Controller
                                 $comboItem->quantity * $item['quantity'],
                                 $request->branch_id
                             );
-                            
+
                             if (!$result['success']) {
                                 DB::rollBack();
                                 return response()->json([
@@ -262,7 +262,7 @@ class PosController extends Controller
                         $item['quantity'],
                         $request->branch_id
                     );
-                    
+
                     if (!$result['success']) {
                         DB::rollBack();
                         return response()->json([
@@ -290,13 +290,13 @@ class PosController extends Controller
                         'variation_id' => $item['variation_id'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
-                        'discount'   => $allocatedDiscount,
+                        'discount' => $allocatedDiscount,
                         'total_price' => $itemNetTotal,
                     ]);
                 }
             }
 
-            if($request->customer_address) {
+            if ($request->customer_address) {
                 InvoiceAddress::create([
                     'invoice_id' => $invoice->id,
                     'billing_address_1' => $request->customer_address,
@@ -386,7 +386,7 @@ class PosController extends Controller
             // =====================================================
             // AUTO JOURNAL ENTRY (Double-Entry Accounting)
             // =====================================================
-            
+
             // 1. Ensure Sales Account exists
             $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first();
             if (!$salesAccount) {
@@ -423,29 +423,29 @@ class PosController extends Controller
             }
 
             $journal = Journal::create([
-                'voucher_no'     => $voucherNo,
-                'entry_date'     => $pos->sale_date,
-                'type'           => 'Receipt',
-                'description'    => 'POS Sale #' . $pos->sale_number,
-                'customer_id'    => $pos->customer_id,
-                'branch_id'      => $pos->branch_id,
+                'voucher_no' => $voucherNo,
+                'entry_date' => $pos->sale_date,
+                'type' => 'Receipt',
+                'description' => 'POS Sale #' . $pos->sale_number,
+                'customer_id' => $pos->customer_id,
+                'branch_id' => $pos->branch_id,
                 'voucher_amount' => $pos->total_amount,
-                'paid_amount'    => $request->paid_amount,
-                'reference'      => $pos->sale_number,
-                'created_by'     => auth()->id(),
-                'updated_by'     => auth()->id(),
+                'paid_amount' => $request->paid_amount,
+                'reference' => $pos->sale_number,
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
             ]);
 
             // CREDIT Sales (Net Amount - Revenue increases)
             $netSalesAmount = $pos->total_amount - $pos->vat_amount;
             JournalEntry::create([
-                'journal_id'           => $journal->id,
-                'chart_of_account_id'  => $salesAccount->id,
-                'debit'                => 0,
-                'credit'               => $netSalesAmount,
-                'memo'                 => 'Revenue from POS Sale (Net of Tax)',
-                'created_by'           => auth()->id(),
-                'updated_by'           => auth()->id(),
+                'journal_id' => $journal->id,
+                'chart_of_account_id' => $salesAccount->id,
+                'debit' => 0,
+                'credit' => $netSalesAmount,
+                'memo' => 'Revenue from POS Sale (Net of Tax)',
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
             ]);
 
             // CREDIT VAT Payable (Tax Amount - Liability increases)
@@ -479,13 +479,13 @@ class PosController extends Controller
                 }
 
                 JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $vatAccount->id,
-                    'debit'                => 0,
-                    'credit'               => $pos->vat_amount,
-                    'memo'                 => 'VAT collected from POS Sale',
-                    'created_by'           => auth()->id(),
-                    'updated_by'           => auth()->id(),
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $vatAccount->id,
+                    'debit' => 0,
+                    'credit' => $pos->vat_amount,
+                    'memo' => 'VAT collected from POS Sale',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
                 ]);
             }
 
@@ -498,17 +498,17 @@ class PosController extends Controller
                     $type = $request->payment_method ?? 'cash';
                     $financialAccount = FinancialAccount::where('type', $type)->first();
                 }
-                
+
                 if ($financialAccount && $financialAccount->account_id) {
                     JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $financialAccount->account_id,
+                        'journal_id' => $journal->id,
+                        'chart_of_account_id' => $financialAccount->account_id,
                         'financial_account_id' => $financialAccount->id,
-                        'debit'                => $request->paid_amount,
-                        'credit'               => 0,
-                        'memo'                 => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
-                        'created_by'           => auth()->id(),
-                        'updated_by'           => auth()->id(),
+                        'debit' => $request->paid_amount,
+                        'credit' => 0,
+                        'memo' => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
                     ]);
                 }
             }
@@ -545,19 +545,19 @@ class PosController extends Controller
                     ]);
                 }
                 JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $arAccount->id,
-                    'debit'                => $dueAmount,
-                    'credit'               => 0,
-                    'memo'                 => 'Due amount from customer',
-                    'created_by'           => auth()->id(),
-                    'updated_by'           => auth()->id(),
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $arAccount->id,
+                    'debit' => $dueAmount,
+                    'credit' => 0,
+                    'memo' => 'Due amount from customer',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
                 ]);
             }
             // =====================================================
 
             DB::commit();
-            
+
             // Send Sale Confirmation Email
             try {
                 if ($pos->customer && $pos->customer->email) {
@@ -574,13 +574,13 @@ class PosController extends Controller
         }
     }
 
-        public function index(Request $request)
+    public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'yearly');
-        
+
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
             $year = $request->get('year', date('Y'));
@@ -651,7 +651,7 @@ class PosController extends Controller
 
         $totalQty = $itemTotals->total_qty ?? 0;
         $totalAmount = $itemTotals->total_amount ?? 0;
-        
+
         // Pass all totals to the view
         $reportTotals = [
             'sell_qty' => $totalQty,
@@ -668,11 +668,11 @@ class PosController extends Controller
         ];
 
         $items = $query->latest('pos_items.created_at')->paginate(100)->appends($request->all());
-        
+
         // Big Data Dropdown Optimization: Only load top 100 for initial view
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::all();
-        
+
         $customersQuery = Customer::query();
         if ($restrictedBranchId) {
             $customersQuery->where('branch_id', $restrictedBranchId);
@@ -701,8 +701,18 @@ class PosController extends Controller
         }
 
         return view('erp.pos.index', compact(
-            'items', 'branches', 'customers', 'categories', 'brands', 'seasons', 'genders', 'products', 
-            'reportType', 'startDate', 'endDate', 'reportTotals'
+            'items',
+            'branches',
+            'customers',
+            'categories',
+            'brands',
+            'seasons',
+            'genders',
+            'products',
+            'reportType',
+            'startDate',
+            'endDate',
+            'reportTotals'
         ));
     }
 
@@ -710,15 +720,15 @@ class PosController extends Controller
     {
         // Date Filtering
         if ($startDate && $endDate) {
-            $query->whereHas('pos', function($q) use ($startDate, $endDate) {
+            $query->whereHas('pos', function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('sale_date', [$startDate, $endDate]);
             });
         } elseif ($startDate) {
-            $query->whereHas('pos', function($q) use ($startDate) {
+            $query->whereHas('pos', function ($q) use ($startDate) {
                 $q->whereDate('sale_date', '>=', $startDate);
             });
         } elseif ($endDate) {
-            $query->whereHas('pos', function($q) use ($endDate) {
+            $query->whereHas('pos', function ($q) use ($endDate) {
                 $q->whereDate('sale_date', '<=', $endDate);
             });
         }
@@ -726,22 +736,22 @@ class PosController extends Controller
         // Search by sale number / invoice / customer / product / salesperson
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('pos', function($pq) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('pos', function ($pq) use ($search) {
                     $pq->where('sale_number', 'LIKE', "%$search%")
-                      ->orWhereHas('customer', function($cq) use ($search) {
-                          $cq->where('name', 'LIKE', "%$search%")
-                            ->orWhere('phone', 'LIKE', "%$search%");
-                      })
-                      ->orWhereHas('soldBy', function($sq) use ($search) {
-                          $sq->where('first_name', 'LIKE', "%$search%")
-                            ->orWhere('last_name', 'LIKE', "%$search%");
-                      });
+                        ->orWhereHas('customer', function ($cq) use ($search) {
+                            $cq->where('name', 'LIKE', "%$search%")
+                                ->orWhere('phone', 'LIKE', "%$search%");
+                        })
+                        ->orWhereHas('soldBy', function ($sq) use ($search) {
+                            $sq->where('first_name', 'LIKE', "%$search%")
+                                ->orWhere('last_name', 'LIKE', "%$search%");
+                        });
                 })
-                ->orWhereHas('product', function($prq) use ($search) {
-                    $prq->where('name', 'LIKE', "%$search%")
-                        ->orWhere('style_number', 'LIKE', "%$search%");
-                });
+                    ->orWhereHas('product', function ($prq) use ($search) {
+                        $prq->where('name', 'LIKE', "%$search%")
+                            ->orWhere('style_number', 'LIKE', "%$search%");
+                    });
             });
         }
 
@@ -750,24 +760,24 @@ class PosController extends Controller
         $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
 
         if ($selectedBranchId) {
-            $query->whereHas('pos', function($q) use ($selectedBranchId) {
+            $query->whereHas('pos', function ($q) use ($selectedBranchId) {
                 $q->where('branch_id', $selectedBranchId);
             });
         }
         if ($request->filled('customer_id')) {
-            $query->whereHas('pos', function($q) use ($request) {
+            $query->whereHas('pos', function ($q) use ($request) {
                 $q->where('customer_id', $request->customer_id);
             });
         }
         if ($request->filled('status')) {
-            $query->whereHas('pos', function($q) use ($request) {
+            $query->whereHas('pos', function ($q) use ($request) {
                 $q->where('status', $request->status);
             });
         }
 
         if ($request->filled('payment_status')) {
             $status = $request->payment_status;
-            $query->whereHas('pos.invoice', function($q) use ($status) {
+            $query->whereHas('pos.invoice', function ($q) use ($status) {
                 if ($status == 'due') {
                     $q->whereIn('status', ['partial', 'unpaid']);
                 } else {
@@ -775,28 +785,36 @@ class PosController extends Controller
                 }
             });
         }
-        
-        // Filter by Product/Style/Category/Brand/Season/Gender
-        if ($request->filled('product_id')) $query->where('pos_items.product_id', $request->product_id);
 
-        if ($request->filled('style_number') || $request->filled('category_id') || 
-            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
-            
-            $query->whereHas('product', function($q) use ($request) {
-                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
-                if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
-                if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
-                if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
-                if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+        // Filter by Product/Style/Category/Brand/Season/Gender
+        if ($request->filled('product_id'))
+            $query->where('pos_items.product_id', $request->product_id);
+
+        if (
+            $request->filled('style_number') || $request->filled('category_id') ||
+            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')
+        ) {
+
+            $query->whereHas('product', function ($q) use ($request) {
+                if ($request->filled('style_number'))
+                    $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('category_id'))
+                    $q->where('category_id', $request->category_id);
+                if ($request->filled('brand_id'))
+                    $q->where('brand_id', $request->brand_id);
+                if ($request->filled('season_id'))
+                    $q->where('season_id', $request->season_id);
+                if ($request->filled('gender_id'))
+                    $q->where('gender_id', $request->gender_id);
             });
         }
 
         return $query;
     }
-    
+
     public function show($id)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::where('id', $id)
@@ -827,7 +845,7 @@ class PosController extends Controller
      */
     public function getDetails($id)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::where('id', $id)
@@ -854,7 +872,7 @@ class PosController extends Controller
                 'branch_id' => $pos->branch_id,
                 'branch_name' => $pos->branch ? $pos->branch->name : null,
                 'invoice_id' => $pos->invoice_id,
-                'items' => $pos->items->map(function($item) {
+                'items' => $pos->items->map(function ($item) {
                     return [
                         'id' => $item->id,
                         'product_id' => $item->product_id,
@@ -872,7 +890,7 @@ class PosController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('edit sales')) {
+        if (!auth()->user()->can('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -894,7 +912,7 @@ class PosController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete sales')) {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->can('delete sales')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -921,7 +939,8 @@ class PosController extends Controller
                     $finAcc = FinancialAccount::find($payment->account_id);
                     if ($finAcc) {
                         $finAcc->balance -= $payment->amount;
-                        if ($finAcc->balance < 0) $finAcc->balance = 0;
+                        if ($finAcc->balance < 0)
+                            $finAcc->balance = 0;
                         $finAcc->save();
                     }
                 }
@@ -974,7 +993,7 @@ class PosController extends Controller
 
     public function bulkDestroy(Request $request)
     {
-        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete sales')) {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->can('delete sales')) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -1005,7 +1024,8 @@ class PosController extends Controller
                         $finAcc = FinancialAccount::find($payment->account_id);
                         if ($finAcc) {
                             $finAcc->balance -= $payment->amount;
-                            if ($finAcc->balance < 0) $finAcc->balance = 0;
+                            if ($finAcc->balance < 0)
+                                $finAcc->balance = 0;
                             $finAcc->save();
                         }
                     }
@@ -1057,11 +1077,11 @@ class PosController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('edit sales')) {
+        if (!auth()->user()->can('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::with(['items', 'invoice'])->findOrFail($id);
-        
+
         // Only allow editing if status is pending or delivered (not cancelled)
         if ($pos->status === 'cancelled') {
             return response()->json(['success' => false, 'message' => 'Cannot edit a cancelled sale.'], 400);
@@ -1091,7 +1111,7 @@ class PosController extends Controller
         try {
             // Store old items for stock restoration
             $oldItems = $pos->items;
-            
+
             // Restore stock from old items
             foreach ($oldItems as $oldItem) {
                 $this->restoreStock(
@@ -1186,7 +1206,7 @@ class PosController extends Controller
 
                 $invoice->paid_amount = $newPaidAmount;
                 $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
-                
+
                 // Update invoice status based on payment
                 if ($invoice->paid_amount >= $invoice->total_amount) {
                     $invoice->status = 'paid';
@@ -1213,7 +1233,7 @@ class PosController extends Controller
                     $invoiceItem->variation_id = $item['variation_id'] ?? null;
                     $invoiceItem->quantity = $item['quantity'];
                     $invoiceItem->unit_price = $item['unit_price'];
-                    $invoiceItem->discount   = $allocatedDiscount;
+                    $invoiceItem->discount = $allocatedDiscount;
                     $invoiceItem->total_price = $itemNetTotal;
                     $invoiceItem->save();
                 }
@@ -1229,7 +1249,7 @@ class PosController extends Controller
 
     public function print($id)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::with([
@@ -1260,7 +1280,7 @@ class PosController extends Controller
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
             // Increased width to 260 points (~91mm) to provide breathing room and prevent clipping
             $pdf->setPaper([0, 0, 260, 1000], 'portrait');
-            return $pdf->download('pos-receipt-'.$pos->sale_number.'.pdf');
+            return $pdf->download('pos-receipt-' . $pos->sale_number . '.pdf');
         }
 
         return view('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
@@ -1268,7 +1288,7 @@ class PosController extends Controller
 
     public function getMultiBranchStock($productId, $variationId = null)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -1301,19 +1321,19 @@ class PosController extends Controller
 
     public function getBranchStock($productId, $branchId, $variationId = null)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         if ($variationId && $variationId !== 'null') {
             $stock = ProductVariationStock::where('variation_id', $variationId)
                 ->where('branch_id', $branchId)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->whereNull('warehouse_id')->orWhere('warehouse_id', 0);
                 })
                 ->first();
             // Use available_quantity accessor or calculate manually
             $quantity = $stock ? ($stock->quantity - ($stock->reserved_quantity ?? 0)) : 0;
-            
+
             // Double check: if no variation stock record exists, strictly return 0
             // Do NOT fall back to product stock here
         } else {
@@ -1344,7 +1364,7 @@ class PosController extends Controller
 
     public function updateNote($saleId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('edit sales')) {
+        if (!auth()->user()->can('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::find($saleId);
@@ -1358,7 +1378,7 @@ class PosController extends Controller
 
     public function addPayment($saleId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('edit sales')) {
+        if (!auth()->user()->can('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::with('invoice')->find($saleId);
@@ -1392,14 +1412,14 @@ class PosController extends Controller
         if ($invoice->paid_amount >= $invoice->total_amount) {
             $invoice->status = 'paid';
             $invoice->due_amount = 0;
-                    // Auto-set POS status to delivered when fully paid
-                    $pos->status = 'delivered';
-                    // Move items to customer (delivered) - reload items to ensure they're available
-                    $pos->load('items');
-                    foreach ($pos->items as $item) {
-                        $item->current_position_id = null;
-                        $item->save();
-                    }
+            // Auto-set POS status to delivered when fully paid
+            $pos->status = 'delivered';
+            // Move items to customer (delivered) - reload items to ensure they're available
+            $pos->load('items');
+            foreach ($pos->items as $item) {
+                $item->current_position_id = null;
+                $item->save();
+            }
             $pos->save();
         } elseif ($invoice->paid_amount > 0) {
             $invoice->status = 'partial';
@@ -1409,16 +1429,12 @@ class PosController extends Controller
         $invoice->save();
 
 
-        if($request->payment_method == 'cash' && $pos->customer_id)
-        {
+        if ($request->payment_method == 'cash' && $pos->customer_id) {
             $balance = Balance::where('source_type', 'customer')->where('source_id', $pos->customer_id)->first();
-            if($balance)
-            {
+            if ($balance) {
                 $balance->balance -= $request->amount;
                 $balance->save();
-            }
-            else
-            {
+            } else {
                 Balance::create([
                     'source_type' => 'customer',
                     'source_id' => $pos->customer_id,
@@ -1429,16 +1445,12 @@ class PosController extends Controller
             }
         }
 
-        if($request->received_by)
-        {
+        if ($request->received_by) {
             $balance = Balance::where('source_type', 'employee')->where('source_id', $request->received_by)->first();
-            if($balance)
-            {
+            if ($balance) {
                 $balance->balance += $request->amount;
                 $balance->save();
-            }
-            else
-            {
+            } else {
                 Balance::create([
                     'source_type' => 'employee',
                     'source_id' => $request->received_by,
@@ -1454,11 +1466,11 @@ class PosController extends Controller
 
     public function updateStatus($saleId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('edit sales')) {
+        if (!auth()->user()->can('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $pos = Pos::findOrFail($saleId);
-        
+
         $request->validate([
             'status' => 'required|string',
         ]);
@@ -1500,7 +1512,7 @@ class PosController extends Controller
 
     public function addAddress(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('edit sales')) {
+        if (!auth()->user()->can('edit sales')) {
             abort(403, 'Unauthorized action.');
         }
         $existingInvoiceAddress = InvoiceAddress::where('invoice_id', $id)->first();
@@ -1544,18 +1556,18 @@ class PosController extends Controller
 
     public function posSearch(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $q = $request->input('q');
         $customerId = $request->input('customer_id');
         $query = \App\Models\Pos::with('customer');
-        
+
         // Filter by customer if provided
         if ($customerId) {
             $query->where('customer_id', $customerId);
         }
-        
+
         if ($q) {
             $query->where(function ($sub) use ($q) {
                 $sub->where('sale_number', 'like', "%$q%")
@@ -1594,15 +1606,15 @@ class PosController extends Controller
     {
         $generalSettings = GeneralSetting::first();
         $prefix = $generalSettings ? $generalSettings->invoice_prefix : 'INV';
-        
+
         $nextId = (\App\Models\Invoice::max('id') ?? 0) + 1;
         $number = $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
-        
+
         while (\App\Models\Invoice::where('invoice_number', $number)->exists()) {
             $nextId++;
             $number = $prefix . '-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
         }
-        
+
         return $number;
     }
 
@@ -1612,7 +1624,7 @@ class PosController extends Controller
      */
     public function getReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         try {
@@ -1683,10 +1695,10 @@ class PosController extends Controller
             $summary = [
                 'total_sales' => $sales->count(),
                 'total_amount' => number_format($sales->sum('total_amount'), 2),
-                'paid_sales' => $sales->filter(function($sale) {
+                'paid_sales' => $sales->filter(function ($sale) {
                     return $sale->invoice && $sale->invoice->status === 'paid';
                 })->count(),
-                'unpaid_sales' => $sales->filter(function($sale) {
+                'unpaid_sales' => $sales->filter(function ($sale) {
                     return $sale->invoice && $sale->invoice->status === 'unpaid';
                 })->count(),
             ];
@@ -1707,7 +1719,7 @@ class PosController extends Controller
 
     public function exportExcel(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'daily');
@@ -1723,9 +1735,16 @@ class PosController extends Controller
         }
 
         $query = \App\Models\PosItem::with([
-            'pos.customer', 'pos.invoice', 'pos.branch', 'pos.soldBy',
-            'product.category', 'product.brand', 'product.season', 'product.gender',
-            'variation.attributeValues.attribute', 'returnItems'
+            'pos.customer',
+            'pos.invoice',
+            'pos.branch',
+            'pos.soldBy',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
         ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
@@ -1733,17 +1752,44 @@ class PosController extends Controller
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         $headers = [
-            'Serial No', 'Invoice', 'Date', 'Customer', 'Branch', 'Created By', 'Category', 'Brand', 'Season', 'Gender',
-            'Product Name', 'Style #', 'Color', 'Size', 'Unit Price', 
-            'Sales Qty', 'Total S-Qty', 'Sales Amount', 'Total Sales Amount', 
-            'Sales Return Qty', 'Total SR-Qty', 'Sales Return Amount', 'Total SR-Amount', 
-            'Actual Sales Qty', 'Total AS-Qty',
-            'Delivery Charge', 'VAT Amount', 'Discount Amount', 'Exchange Amount', 'Refund Amount', 
-            'Actual Sales Amount', 'Total', 'Received Amount', 'Due Amount'
+            'Serial No',
+            'Invoice',
+            'Date',
+            'Customer',
+            'Branch',
+            'Created By',
+            'Category',
+            'Brand',
+            'Season',
+            'Gender',
+            'Product Name',
+            'Style #',
+            'Color',
+            'Size',
+            'Unit Price',
+            'Sales Qty',
+            'Total S-Qty',
+            'Sales Amount',
+            'Total Sales Amount',
+            'Sales Return Qty',
+            'Total SR-Qty',
+            'Sales Return Amount',
+            'Total SR-Amount',
+            'Actual Sales Qty',
+            'Total AS-Qty',
+            'Delivery Charge',
+            'VAT Amount',
+            'Discount Amount',
+            'Exchange Amount',
+            'Refund Amount',
+            'Actual Sales Amount',
+            'Total',
+            'Received Amount',
+            'Due Amount'
         ];
-        
+
         $sheet->fromArray([$headers], NULL, 'A1');
         $sheet->getStyle('A1:AH1')->getFont()->setBold(true);
 
@@ -1753,28 +1799,36 @@ class PosController extends Controller
             $invoice = $sale->invoice;
             $product = $item->product;
             $variation = $item->variation;
-            
-            $color = '-'; $size = '-';
+
+            $color = '-';
+            $size = '-';
             if ($variation && $variation->attributeValues) {
-                foreach($variation->attributeValues as $val) {
+                foreach ($variation->attributeValues as $val) {
                     $attrName = strtolower($val->attribute->name ?? '');
-                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
-                    elseif (str_contains($attrName, 'size')) $size = $val->value;
+                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color))
+                        $color = $val->value;
+                    elseif (str_contains($attrName, 'size'))
+                        $size = $val->value;
                 }
             }
 
-            $isFirst = ($index == 0 || $items[$index-1]->pos_sale_id != $item->pos_sale_id);
-            
+            $isFirst = ($index == 0 || $items[$index - 1]->pos_sale_id != $item->pos_sale_id);
+
             // Item Level
             $grossAmt = $item->quantity * $item->unit_price;
             $retQty = $item->returnItems->sum('returned_qty');
             $retAmt = $item->returnItems->sum('total_price');
             $actualQty = $item->quantity - $retQty;
-            
+
             // Invoice Level (Calculate once per sale)
-            $invTotalQty = ''; $invTotalSalesAmt = ''; $invRetQty = ''; $invRetAmt = ''; 
-            $invActualQty = ''; $invTotal = ''; $invActualAmt = '';
-            
+            $invTotalQty = '';
+            $invTotalSalesAmt = '';
+            $invRetQty = '';
+            $invRetAmt = '';
+            $invActualQty = '';
+            $invTotal = '';
+            $invActualAmt = '';
+
             if ($isFirst) {
                 $invItems = $sale->items;
                 $i_TotalQty = $invItems->sum('quantity');
@@ -1782,16 +1836,16 @@ class PosController extends Controller
                 $i_RetQty = $invItems->sum(fn($i) => $i->returnItems->sum('returned_qty'));
                 $i_RetAmt = $invItems->sum(fn($i) => $i->returnItems->sum('total_price'));
                 $i_ActualQty = $i_TotalQty - $i_RetQty;
-                
+
                 $i_TotalSalesAmt = $i_GrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
-                
+
                 // Total Discount
                 $totalPosDiscount = $sale->discount ?? 0;
-                
+
                 $i_NetTotal = $i_TotalSalesAmt - $sale->discount; // Note: Original discount was global only, but here we show it as part of totals
                 // Actually we should use the combined discount for Net Total if it was already applied
                 // In PosController, total_amount usually accounts for the global discount.
-                
+
                 $i_ActualAmt = $i_NetTotal - $i_RetAmt;
 
                 // Set strings for Excel
@@ -1846,7 +1900,7 @@ class PosController extends Controller
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filename = 'pos_sales_report_' . date('Ymd_His') . '.xlsx';
-        
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $writer->save('php://output');
@@ -1855,7 +1909,7 @@ class PosController extends Controller
 
     public function exportPdf(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view sales')) {
+        if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'daily');
@@ -1871,9 +1925,16 @@ class PosController extends Controller
         }
 
         $query = \App\Models\PosItem::with([
-            'pos.customer', 'pos.invoice', 'pos.branch', 'pos.soldBy',
-            'product.category', 'product.brand', 'product.season', 'product.gender',
-            'variation.attributeValues.attribute', 'returnItems'
+            'pos.customer',
+            'pos.invoice',
+            'pos.branch',
+            'pos.soldBy',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
+            'variation.attributeValues.attribute',
+            'returnItems'
         ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
@@ -1881,7 +1942,7 @@ class PosController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.export-pdf', compact('items', 'reportType', 'startDate', 'endDate'));
         $pdf->setPaper('A4', 'landscape');
-        
+
         $filename = 'pos_sales_report_' . date('Ymd_His') . '.pdf';
         if ($request->input('action') === 'print') {
             return $pdf->stream($filename);
@@ -1893,12 +1954,12 @@ class PosController extends Controller
     {
         $nextId = (Pos::max('id') ?? 0) + 1;
         $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
-        
+
         while (Pos::where('sale_number', $number)->exists()) {
             $nextId++;
             $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
         }
-        
+
         return $number;
     }
 
@@ -1933,9 +1994,9 @@ class PosController extends Controller
                 ->whereNull('warehouse_id')
                 ->lockForUpdate()
                 ->first();
-            
+
             $availableQty = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
-            
+
             if (!$vStock || $availableQty < $quantity) {
                 $product = Product::find($productId);
                 $productName = $product ? $product->name : 'Product';
@@ -1944,12 +2005,13 @@ class PosController extends Controller
                     'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
                 ];
             }
-            
+
             // Deduct stock
             $vStock->quantity -= $quantity;
-            if ($vStock->quantity < 0) $vStock->quantity = 0;
+            if ($vStock->quantity < 0)
+                $vStock->quantity = 0;
             $vStock->save();
-            
+
             return ['success' => true];
         } else {
             // Handle regular product stock
@@ -1957,7 +2019,7 @@ class PosController extends Controller
                 ->where('product_id', $productId)
                 ->lockForUpdate()
                 ->first();
-            
+
             if (!$branchStock || $branchStock->quantity < $quantity) {
                 $availableQty = $branchStock ? $branchStock->quantity : 0;
                 $product = Product::find($productId);
@@ -1967,12 +2029,13 @@ class PosController extends Controller
                     'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
                 ];
             }
-            
+
             // Deduct stock
             $branchStock->quantity -= $quantity;
-            if ($branchStock->quantity < 0) $branchStock->quantity = 0;
+            if ($branchStock->quantity < 0)
+                $branchStock->quantity = 0;
             $branchStock->save();
-            
+
             return ['success' => true];
         }
     }
@@ -2005,7 +2068,7 @@ class PosController extends Controller
                 ->whereNull('warehouse_id')
                 ->lockForUpdate()
                 ->first();
-            
+
             if ($vStock) {
                 $vStock->quantity += $quantity;
                 $vStock->save();
@@ -2026,7 +2089,7 @@ class PosController extends Controller
                 ->where('product_id', $productId)
                 ->lockForUpdate()
                 ->first();
-            
+
             if ($branchStock) {
                 $branchStock->quantity += $quantity;
                 $branchStock->save();
@@ -2045,11 +2108,11 @@ class PosController extends Controller
 
     public function manualSaleCreate()
     {
-        if (!auth()->user()->hasPermissionTo('use pos')) {
+        if (!auth()->user()->can('use pos')) {
             abort(403, 'Unauthorized action.');
         }
         $user = auth()->user();
-        
+
         $customersQuery = Customer::query();
         if ($user && $user->isBranchRestricted()) {
             $customersQuery->where('branch_id', $user->employee->branch_id);
@@ -2057,7 +2120,7 @@ class PosController extends Controller
         $customers = $customersQuery->orderBy('name')->take(200)->get();
 
         $branches = Branch::where('status', 'active')->get();
-        
+
         // Branch Isolation
         if ($user && $user->employee && $user->employee->branch_id) {
             $branches = $branches->where('id', $user->employee->branch_id);
@@ -2066,7 +2129,7 @@ class PosController extends Controller
         $products = Product::where('status', 'active')
             ->whereIn('type', ['product', 'combo'])
             ->get();
-        
+
         // Mark combo products
         foreach ($products as $product) {
             if ($product->type === 'combo') {
@@ -2074,13 +2137,13 @@ class PosController extends Controller
                 $product->combo_items_count = $product->comboItems->count();
             }
         }
-        
+
         $brands = \App\Models\Brand::all();
         $seasons = \App\Models\Season::all();
         $genders = \App\Models\Gender::all();
         $categories = ProductServiceCategory::whereNull('parent_id')->get();
         $shippingMethods = \App\Models\ShippingMethod::orderBy('sort_order')->get();
-        
+
         // Generate next numbers
         $invoiceNo = $this->generateInvoiceNumber();
         $challanNo = str_replace('INV', 'CHA', $invoiceNo);
@@ -2092,15 +2155,24 @@ class PosController extends Controller
         }
 
         return view('erp.pos.manualSale.create', compact(
-            'customers', 'branches', 'products', 'brands', 'seasons', 
-            'genders', 'categories', 'shippingMethods', 'invoiceNo', 
-            'challanNo', 'saleNo', 'bankAccounts'
+            'customers',
+            'branches',
+            'products',
+            'brands',
+            'seasons',
+            'genders',
+            'categories',
+            'shippingMethods',
+            'invoiceNo',
+            'challanNo',
+            'saleNo',
+            'bankAccounts'
         ));
     }
 
     public function manualSaleStore(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('use pos')) {
+        if (!auth()->user()->can('use pos')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -2147,11 +2219,11 @@ class PosController extends Controller
                                 ->first();
                             $availableQty = $branchStock ? $branchStock->quantity : 0;
                         }
-                        
+
                         if ($availableQty < $itemQuantity) {
                             $productName = $comboItem->product ? $comboItem->product->name : 'Combo Item';
                             return response()->json([
-                                'success' => false, 
+                                'success' => false,
                                 'message' => "Insufficient stock for combo item ({$productName}). Available: {$availableQty}, Requested: {$itemQuantity}"
                             ], 400); // Return error before any DB records are created
                         }
@@ -2173,7 +2245,7 @@ class PosController extends Controller
                     if ($availableQty < $quantity) {
                         $productName = $product ? $product->name : 'Product';
                         return response()->json([
-                            'success' => false, 
+                            'success' => false,
                             'message' => "Insufficient stock for {$productName}. Available: {$availableQty}, Requested: {$quantity}"
                         ], 400); // Return error before any DB records are created
                     }
@@ -2182,7 +2254,7 @@ class PosController extends Controller
 
             // 2. STAGE 2: CREATE RECORDS (Only if Stage 1 passed)
             $pos = new Pos();
-            
+
             // Generate numbers inside transaction to ensure uniqueness
             $saleNo = $request->input('sale_no');
             if (empty($saleNo) || Pos::where('sale_number', $saleNo)->exists()) {
@@ -2205,7 +2277,7 @@ class PosController extends Controller
             $pos->discount = $request->discount ?? 0;
             $pos->delivery = $request->delivery_charge ?? 0;
             $pos->total_amount = $request->total_amount;
-            $pos->status = 'delivered'; 
+            $pos->status = 'delivered';
             $pos->remarks = $request->remarks;
             $pos->notes = $request->note;
             $pos->courier_id = $request->courier_id;
@@ -2216,7 +2288,7 @@ class PosController extends Controller
             // Create Invoice
             $invTemplate = InvoiceTemplate::where('is_default', 1)->first();
             $invoice = new Invoice();
-            
+
             $invoiceNo = $request->invoice_no;
             if (empty($invoiceNo) || Invoice::where('invoice_number', $invoiceNo)->exists()) {
                 $invoiceNo = $this->generateInvoiceNumber();
@@ -2229,7 +2301,7 @@ class PosController extends Controller
             $invoice->issue_date = $pos->sale_date;
             $invoice->due_date = $pos->sale_date;
             $invoice->subtotal = $pos->sub_total;
-            $invoice->tax = $pos->vat_amount ?? 0; 
+            $invoice->tax = $pos->vat_amount ?? 0;
             $invoice->total_amount = $pos->total_amount;
             $invoice->discount_apply = $pos->discount;
             $invoice->paid_amount = $request->paid_amount;
@@ -2318,7 +2390,7 @@ class PosController extends Controller
                     'variation_id' => $item['variation_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'discount'   => $allocatedDiscount,
+                    'discount' => $allocatedDiscount,
                     'total_price' => $itemNetTotal,
                 ]);
             }
@@ -2328,29 +2400,29 @@ class PosController extends Controller
             if ($salesAccount) {
                 $voucherNo = 'SAL-M-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
                 $journal = Journal::create([
-                    'voucher_no'     => $voucherNo,
-                    'entry_date'     => $pos->sale_date,
-                    'type'           => 'Receipt',
-                    'description'    => 'Manual Sale #' . $pos->sale_number,
-                    'customer_id'    => $pos->customer_id,
-                    'branch_id'      => $pos->branch_id,
+                    'voucher_no' => $voucherNo,
+                    'entry_date' => $pos->sale_date,
+                    'type' => 'Receipt',
+                    'description' => 'Manual Sale #' . $pos->sale_number,
+                    'customer_id' => $pos->customer_id,
+                    'branch_id' => $pos->branch_id,
                     'voucher_amount' => $pos->total_amount,
-                    'paid_amount'    => $request->paid_amount,
-                    'reference'      => $pos->sale_number,
-                    'created_by'     => auth()->id(),
-                    'updated_by'     => auth()->id(),
+                    'paid_amount' => $request->paid_amount,
+                    'reference' => $pos->sale_number,
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
                 ]);
 
                 // Credit Sales (Net of Tax)
                 $netManualSales = $pos->total_amount - $pos->vat_amount;
                 JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $salesAccount->id,
-                    'debit'                => 0,
-                    'credit'               => $netManualSales,
-                    'memo'                 => 'Revenue from Manual Sale (Net of Tax)',
-                    'created_by'           => auth()->id(),
-                    'updated_by'           => auth()->id(),
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $salesAccount->id,
+                    'debit' => 0,
+                    'credit' => $netManualSales,
+                    'memo' => 'Revenue from Manual Sale (Net of Tax)',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
                 ]);
 
                 // Credit VAT Payable
@@ -2358,13 +2430,13 @@ class PosController extends Controller
                     $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')->orWhere('name', 'like', '%Tax Payable%')->first();
                     if ($vatAccount) {
                         JournalEntry::create([
-                            'journal_id'           => $journal->id,
-                            'chart_of_account_id'  => $vatAccount->id,
-                            'debit'                => 0,
-                            'credit'               => $pos->vat_amount,
-                            'memo'                 => 'VAT collected from Manual Sale',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
+                            'journal_id' => $journal->id,
+                            'chart_of_account_id' => $vatAccount->id,
+                            'debit' => 0,
+                            'credit' => $pos->vat_amount,
+                            'memo' => 'VAT collected from Manual Sale',
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
                         ]);
                     }
                 }
@@ -2374,14 +2446,14 @@ class PosController extends Controller
                     $finAcc = FinancialAccount::find($request->account_id);
                     if ($finAcc && $finAcc->account_id) {
                         JournalEntry::create([
-                            'journal_id'           => $journal->id,
-                            'chart_of_account_id'  => $finAcc->account_id,
+                            'journal_id' => $journal->id,
+                            'chart_of_account_id' => $finAcc->account_id,
                             'financial_account_id' => $finAcc->id,
-                            'debit'                => $request->paid_amount,
-                            'credit'               => 0,
-                            'memo'                 => 'Payment received for Manual Sale',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
+                            'debit' => $request->paid_amount,
+                            'credit' => 0,
+                            'memo' => 'Payment received for Manual Sale',
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
                         ]);
                     }
                 }
@@ -2392,13 +2464,13 @@ class PosController extends Controller
                     $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
                     if ($arAccount) {
                         JournalEntry::create([
-                            'journal_id'           => $journal->id,
-                            'chart_of_account_id'  => $arAccount->id,
-                            'debit'                => $dueAmt,
-                            'credit'               => 0,
-                            'memo'                 => 'Due amount from Manual Sale',
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
+                            'journal_id' => $journal->id,
+                            'chart_of_account_id' => $arAccount->id,
+                            'debit' => $dueAmt,
+                            'credit' => 0,
+                            'memo' => 'Due amount from Manual Sale',
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
                         ]);
                     }
                 }
@@ -2417,7 +2489,7 @@ class PosController extends Controller
         if ($variationId) {
             $variation = \App\Models\ProductVariation::find($variationId);
             if ($variation && $variation->cost > 0) {
-                return (float)$variation->cost;
+                return (float) $variation->cost;
             }
         }
 
@@ -2428,10 +2500,10 @@ class PosController extends Controller
                 $itemVariationId = $item->variation_id;
                 $comboCost += $this->calculateItemCost($itemProduct, $itemVariationId) * $item->quantity;
             }
-            return (float)$comboCost;
+            return (float) $comboCost;
         }
 
-        return (float)($product->cost ?? 0);
+        return (float) ($product->cost ?? 0);
     }
 }
 
