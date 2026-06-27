@@ -611,6 +611,8 @@ class PurchaseReturnController extends Controller
                     $this->adjustStockForReturnItem($item);
                 }
                 $this->createJournalForReturn($purchaseReturn, $request->return_type, $request->account_id);
+                // ✅ Also deduct return amount from the bill's due_amount
+                $this->adjustBillDueForReturn($purchaseReturn);
             }
 
             DB::commit();
@@ -913,7 +915,7 @@ class PurchaseReturnController extends Controller
 
             $purchaseReturn->update($updateData);
 
-            // If status is being processed, adjust stock AND accounting
+            // If status is being processed, adjust stock AND accounting AND bill due_amount
             if ($newStatus === 'processed') {
                 foreach ($purchaseReturn->items as $item) {
                     $this->adjustStockForReturnItem($item);
@@ -921,6 +923,9 @@ class PurchaseReturnController extends Controller
                 
                 // Create accounting journal entries
                 $this->createJournalForReturn($purchaseReturn, $purchaseReturn->return_type, $purchaseReturn->account_id);
+
+                // ✅ Update PurchaseBill due_amount — deduct return amount from the bill's due
+                $this->adjustBillDueForReturn($purchaseReturn);
             }
 
             DB::commit();
@@ -951,6 +956,50 @@ class PurchaseReturnController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Adjust PurchaseBill due_amount when a purchase return is processed.
+     * Deducts the total return amount from the bill's due_amount so the
+     * "Due A/C" column in purchase list reflects the actual remaining payable.
+     *
+     * Logic:
+     *  - 'adjust_to_due' → reduce due_amount (goods returned, less owed to supplier)
+     *  - 'refund'        → reduce due_amount (supplier pays back cash, still reduces what's owed)
+     *  - 'none'          → reduce due_amount (goods returned, no cash exchange)
+     */
+    private function adjustBillDueForReturn(PurchaseReturn $purchaseReturn)
+    {
+        // Only adjust bill if the return is linked to a specific purchase
+        if (!$purchaseReturn->purchase_id) {
+            return;
+        }
+
+        $purchase = Purchase::with('bill')->find($purchaseReturn->purchase_id);
+        if (!$purchase || !$purchase->bill) {
+            return;
+        }
+
+        $bill = $purchase->bill;
+
+        // Calculate total return amount for this return
+        $totalReturnAmount = $purchaseReturn->items->sum('total_price');
+        if ($totalReturnAmount <= 0) {
+            return;
+        }
+
+        // Deduct the return amount from the bill's due_amount — cannot go below 0
+        $bill->due_amount = max(0, $bill->due_amount - $totalReturnAmount);
+
+        // Update bill status accordingly
+        if ($bill->due_amount <= 0) {
+            $bill->status = 'paid';
+            $bill->due_amount = 0;
+        } elseif ($bill->paid_amount > 0) {
+            $bill->status = 'partial';
+        }
+
+        $bill->save();
     }
 
     /**
