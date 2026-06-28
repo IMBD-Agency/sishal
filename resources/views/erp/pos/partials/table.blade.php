@@ -43,8 +43,8 @@
                 <th class="text-end">Discount Amount</th>
                 <th class="text-end">Exchange Amount</th>
                 <th class="text-end">Refund</th>
-                <th class="text-end text-success">Actual Amt</th>
-                <th class="text-end fw-bold">Total</th>
+                <th class="text-end text-success">Net Amount</th>
+                <th class="text-end fw-bold">Gross Amount</th>
                 <th class="text-end text-success fw-bold">Total Received Amount</th>
                 <th class="text-end text-danger fw-bold">Total Due Amount</th>
                 <th class="text-center">Option</th>
@@ -313,7 +313,7 @@
     <div class="card-footer bg-white py-3">
         <div class="d-flex justify-content-between align-items-center">
             <small class="text-muted">Showing {{ $items->firstItem() }} - {{ $items->lastItem() }} of {{ $items->total()
-                    }}</small>
+                            }}</small>
             {{ $items->links('vendor.pagination.bootstrap-5') }}
         </div>
     </div>
