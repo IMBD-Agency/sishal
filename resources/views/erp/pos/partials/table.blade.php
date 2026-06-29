@@ -35,6 +35,11 @@
                 <th class="text-end bg-soft-danger">Sales Return Amount</th>
                 <th class="text-end bg-soft-danger">Total Sales Return Amount</th>
 
+                <th class="text-center bg-soft-warning" style="background-color: #fff3cd; color: #856404;">Exchange Qty</th>
+                <th class="text-center bg-soft-warning" style="background-color: #fff3cd; color: #856404;">Total Exch-Qty</th>
+                <th class="text-end bg-soft-warning" style="background-color: #fff3cd; color: #856404;">Exchange Return Amount</th>
+                <th class="text-end bg-soft-warning" style="background-color: #fff3cd; color: #856404;">Total Exchange Return Amount</th>
+
                 <th class="text-center bg-soft-success">Actual Sales Qty</th>
                 <th class="text-center bg-soft-success">Total AS-Qty</th>
 
@@ -72,8 +77,18 @@
                             }
                         }
 
+                        $regRetItems = $item->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange');
+                        $exchRetItems = $item->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange');
+
+                        $regRetQty = $regRetItems->sum('returned_qty');
+                        $regRetAmt = $regRetItems->sum('total_price');
+
+                        $exchRetQty = $exchRetItems->sum('returned_qty');
+                        $exchRetAmt = $exchRetItems->sum('total_price');
+
                         $retQty = $item->returnItems->sum('returned_qty');
                         $retAmt = $item->returnItems->sum('total_price');
+
                         $grossAmt = $item->quantity * $item->unit_price;
                         $itemDiscount = $grossAmt - $item->total_price;
                         $actualQty = $item->quantity - $retQty;
@@ -83,17 +98,45 @@
                         $invItems = $sale->items;
                         $invTotalQty = $invItems->sum(fn($i) => ($i->product?->type === 'combo') ? 0 : $i->quantity);
                         $invGrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
-                        $invRetQty = $invItems->sum(fn($i) => $i->returnItems->sum('returned_qty'));
-                        $invRetAmt = $invItems->sum(fn($i) => $i->returnItems->sum('total_price'));
+
+                        $invRegRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange')->sum('returned_qty'));
+                        $invRegRetAmt = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange')->sum('total_price'));
+
+                        $invExchRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('returned_qty'));
+                        $invExchRetAmt = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('total_price'));
+
+                        $invRetQty = $invRegRetQty + $invExchRetQty;
+                        $invRetAmt = $invRegRetAmt + $invExchRetAmt;
                         $invActualQty = $invTotalQty - $invRetQty;
 
+                        // Calculate proportional returned VAT and discount
+                        $invReturnedVat = 0;
+                        $invReturnedDiscount = 0;
+                        if ($invGrossAmt > 0) {
+                            foreach ($invItems as $invItem) {
+                                foreach ($invItem->returnItems as $returnItem) {
+                                    if (($returnItem->saleReturn?->status ?? '') === 'processed') {
+                                        $itemGross = $invItem->quantity * $invItem->unit_price;
+                                        $itemProportion = $itemGross / $invGrossAmt;
+                                        $qtyProportion = $returnItem->returned_qty / $invItem->quantity;
+                                        $invReturnedVat += round($itemProportion * $qtyProportion * ($sale->vat_amount ?? 0), 2);
+                                        $invReturnedDiscount += round($itemProportion * $qtyProportion * ($sale->discount ?? 0), 2);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Net VAT and Discount after returns
+                        $invNetVat = max(0, ($sale->vat_amount ?? 0) - $invReturnedVat);
+                        $invNetDiscount = max(0, ($sale->discount ?? 0) - $invReturnedDiscount);
+
                         // Aligned with snippet logic:
-                        // Total Sales Amount = Gross + VAT + Delivery + Exchange (Total before discount)
-                        $invTotalSalesAmt = $invGrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
-                        // Total = Total Sales Amount - Discount (Net Invoice Total)
-                        $invTotal = $invTotalSalesAmt - $sale->discount;
-                        // Actual Sales Amount = Total - Returns
-                        $invActualAmt = $invTotal - $invRetAmt;
+                        // Total Sales Amount = Gross + Net VAT + Delivery + Exchange (Total before discount)
+                        $invTotalSalesAmt = $invGrossAmt + $invNetVat + $sale->delivery + ($sale->exchange_amount ?? 0);
+                        // Total = Total Sales Amount - Net Discount (Net Invoice Total)
+                        $invTotal = $invTotalSalesAmt - $invNetDiscount;
+                        // Net Amount: always use invoice->total_amount (correctly reduced on return processing)
+                        $invActualAmt = $invoice ? floatval($invoice->total_amount ?? 0) : max(0, $invTotal - $invRetAmt);
                     @endphp
                     <tr>
                         <!-- @if(auth()->user()->hasRole('Super Admin') || auth()->user()->can('delete sales')) -->
@@ -170,13 +213,24 @@
                                                                 </td> -->
 
                         <!-- Returns -->
-                        <td class="text-center text-danger">{{ $retQty ?: '-' }}</td>
+                        <td class="text-center text-danger">{{ $regRetQty ?: '-' }}</td>
                         <td class="text-center text-danger">
-                            @if($isFirst) <span class="fw-bold">{{ $invRetQty ?: '-' }}</span> @endif
+                            @if($isFirst) <span class="fw-bold">{{ $invRegRetQty ?: '-' }}</span> @endif
                         </td>
-                        <td class="text-end text-danger">{{ $retQty ? number_format($retAmt, 2) : '-' }}</td>
+                        <td class="text-end text-danger">{{ $regRetQty ? number_format($regRetAmt, 2) : '-' }}</td>
                         <td class="text-end text-danger">
-                            @if($isFirst) <span class="fw-bold">{{ $invRetAmt ? number_format($invRetAmt, 2) : '-' }}</span>
+                            @if($isFirst) <span class="fw-bold">{{ $invRegRetAmt ? number_format($invRegRetAmt, 2) : '-' }}</span>
+                            @endif
+                        </td>
+
+                        <!-- Exchanges -->
+                        <td class="text-center text-warning" style="background-color: #fffdf5;">{{ $exchRetQty ?: '-' }}</td>
+                        <td class="text-center text-warning" style="background-color: #fffdf5;">
+                            @if($isFirst) <span class="fw-bold">{{ $invExchRetQty ?: '-' }}</span> @endif
+                        </td>
+                        <td class="text-end text-warning" style="background-color: #fffdf5;">{{ $exchRetQty ? number_format($exchRetAmt, 2) : '-' }}</td>
+                        <td class="text-end text-warning" style="background-color: #fffdf5;">
+                            @if($isFirst) <span class="fw-bold">{{ $invExchRetAmt ? number_format($invExchRetAmt, 2) : '-' }}</span>
                             @endif
                         </td>
 
@@ -190,15 +244,10 @@
                             @if($isFirst) {{ number_format($sale->delivery, 2) }} @endif
                         </td>
                         <td class="text-end">
-                            @if($isFirst) {{ number_format($sale->vat_amount, 2) }} @endif
+                            @if($isFirst) {{ number_format($invNetVat, 2) }} @endif
                         </td>
                         <td class="text-end text-danger">
-                            @if($isFirst)
-                                @php
-                                    $totalSaleDiscount = $sale->discount ?? 0;
-                                @endphp
-                                {{ number_format($totalSaleDiscount, 2) }}
-                            @endif
+                            @if($isFirst) {{ number_format($invNetDiscount, 2) }} @endif
                         </td>
                         <td class="text-end">
                             @if($isFirst) {{ number_format($sale->exchange_amount ?? 0, 2) }} @endif
@@ -211,7 +260,7 @@
                             @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
                         </td>
                         <td class="text-end fw-bold">
-                            @if($isFirst) {{ number_format($sale->total_amount, 2) }} @endif
+                            @if($isFirst) {{ number_format($invTotal, 2) }} @endif
                         </td>
                         <td class="text-end text-success fw-bold">
                             @if($isFirst) {{ number_format($invoice->paid_amount ?? 0, 2) }} @endif
@@ -288,7 +337,7 @@
                 <!-- <td></td> -->
                 <!-- Total Sales Amount footer empty -->
 
-                <td colspan="4" class="bg-light"></td> <!-- Returns space -->
+                <td colspan="8" class="bg-light"></td> <!-- Returns & Exchanges space -->
 
                 <td colspan="2" class="bg-light"></td> <!-- Actual Qty space -->
 

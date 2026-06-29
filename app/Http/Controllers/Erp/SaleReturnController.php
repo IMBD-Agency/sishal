@@ -23,6 +23,8 @@ use App\Models\JournalEntry;
 use App\Models\ChartOfAccount;
 use App\Models\FinancialAccount;
 use App\Models\ChartOfAccountType;
+use App\Models\ChartOfAccountSubType;
+use App\Models\ChartOfAccountParent;
 
 class SaleReturnController extends Controller
 {
@@ -32,7 +34,7 @@ class SaleReturnController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $reportType = $request->get('report_type', 'daily');
-        
+
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
             $year = $request->get('year', date('Y'));
@@ -64,7 +66,7 @@ class SaleReturnController extends Controller
         $totalAmount = $query->sum('total_price');
 
         $items = $query->latest()->paginate(20)->appends($request->all());
-        
+
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
@@ -83,8 +85,19 @@ class SaleReturnController extends Controller
         $genders = \App\Models\Gender::orderBy('name')->get();
 
         return view('erp.saleReturn.salereturnlist', compact(
-            'items', 'branches', 'customers', 'products', 'categories', 'brands', 'seasons', 'genders',
-            'reportType', 'startDate', 'endDate', 'totalQty', 'totalAmount'
+            'items',
+            'branches',
+            'customers',
+            'products',
+            'categories',
+            'brands',
+            'seasons',
+            'genders',
+            'reportType',
+            'startDate',
+            'endDate',
+            'totalQty',
+            'totalAmount'
         ));
     }
 
@@ -106,8 +119,13 @@ class SaleReturnController extends Controller
         }
 
         $query = \App\Models\SaleReturnItem::whereHas("saleReturn")->with([
-            'saleReturn.customer', 'saleReturn.posSale', 'saleReturn.branch',
-            'product.category', 'product.brand', 'product.season', 'product.gender',
+            'saleReturn.customer',
+            'saleReturn.posSale',
+            'saleReturn.branch',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
             'variation.attributeValues.attribute'
         ]);
 
@@ -116,30 +134,48 @@ class SaleReturnController extends Controller
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         $headers = [
-            'Serial No', 'Date', 'R-Inv. No.', 'S-Inv. No.', 'Customer', 'Mobile', 'Branch',
-            'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style Number', 'Color', 'Size',
-            'Qty', 'Total Amount'
+            'Serial No',
+            'Date',
+            'R-Inv. No.',
+            'S-Inv. No.',
+            'Customer',
+            'Mobile',
+            'Branch',
+            'Category',
+            'Brand',
+            'Season',
+            'Gender',
+            'Product Name',
+            'Style Number',
+            'Color',
+            'Size',
+            'Qty',
+            'Total Amount'
         ];
-        
+
         $sheet->fromArray([$headers], NULL, 'A1');
         $sheet->getStyle('A1:Q1')->getFont()->setBold(true);
 
         $rowNum = 2;
         foreach ($items as $index => $item) {
             $return = $item->saleReturn;
-            if (!$return) continue;
-            
+            if (!$return)
+                continue;
+
             $product = $item->product;
             $variation = $item->variation;
-            
-            $color = '-'; $size = '-';
+
+            $color = '-';
+            $size = '-';
             if ($variation && $variation->attributeValues) {
-                foreach($variation->attributeValues as $val) {
+                foreach ($variation->attributeValues as $val) {
                     $attrName = strtolower($val->attribute->name ?? '');
-                    if (str_contains($attrName, 'color')) $color = $val->value;
-                    elseif (str_contains($attrName, 'size')) $size = $val->value;
+                    if (str_contains($attrName, 'color'))
+                        $color = $val->value;
+                    elseif (str_contains($attrName, 'size'))
+                        $size = $val->value;
                 }
             }
 
@@ -168,7 +204,7 @@ class SaleReturnController extends Controller
 
         $writer = new Xlsx($spreadsheet);
         $filename = 'sale_return_report_' . date('Ymd_His') . '.xlsx';
-        
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $writer->save('php://output');
@@ -193,8 +229,13 @@ class SaleReturnController extends Controller
         }
 
         $query = \App\Models\SaleReturnItem::whereHas("saleReturn")->with([
-            'saleReturn.customer', 'saleReturn.posSale', 'saleReturn.branch',
-            'product.category', 'product.brand', 'product.season', 'product.gender',
+            'saleReturn.customer',
+            'saleReturn.posSale',
+            'saleReturn.branch',
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
             'variation.attributeValues.attribute'
         ]);
 
@@ -203,7 +244,7 @@ class SaleReturnController extends Controller
 
         $pdf = Pdf::loadView('erp.saleReturn.export-pdf', compact('items', 'reportType', 'startDate', 'endDate'));
         $pdf->setPaper('A4', 'landscape');
-        
+
         $filename = 'sale_return_report_' . date('Ymd_His') . '.pdf';
         if ($request->input('action') === 'print') {
             return $pdf->stream($filename);
@@ -215,15 +256,15 @@ class SaleReturnController extends Controller
     {
         // Date Filtering
         if ($startDate && $endDate) {
-            $query->whereHas('saleReturn', function($q) use ($startDate, $endDate) {
+            $query->whereHas('saleReturn', function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('return_date', [$startDate, $endDate]);
             });
         } elseif ($startDate) {
-            $query->whereHas('saleReturn', function($q) use ($startDate) {
+            $query->whereHas('saleReturn', function ($q) use ($startDate) {
                 $q->whereDate('return_date', '>=', $startDate);
             });
         } elseif ($endDate) {
-            $query->whereHas('saleReturn', function($q) use ($endDate) {
+            $query->whereHas('saleReturn', function ($q) use ($endDate) {
                 $q->whereDate('return_date', '<=', $endDate);
             });
         }
@@ -231,57 +272,65 @@ class SaleReturnController extends Controller
         // Search by sale number / invoice / customer / product / salesperson
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('saleReturn', function($sq) use ($search) {
-                    $sq->whereHas('posSale', function($psq) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('saleReturn', function ($sq) use ($search) {
+                    $sq->whereHas('posSale', function ($psq) use ($search) {
                         $psq->where('sale_number', 'LIKE', "%{$search}%");
                     })
-                    ->orWhereHas('customer', function($cq) use ($search) {
-                        $cq->where('name', 'LIKE', "%{$search}%")
-                          ->orWhere('phone', 'LIKE', "%{$search}%");
-                    });
+                        ->orWhereHas('customer', function ($cq) use ($search) {
+                            $cq->where('name', 'LIKE', "%{$search}%")
+                                ->orWhere('phone', 'LIKE', "%{$search}%");
+                        });
                 })
-                ->orWhereHas('product', function($prq) use ($search) {
-                    $prq->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('style_number', 'LIKE', "%{$search}%");
-                });
+                    ->orWhereHas('product', function ($prq) use ($search) {
+                        $prq->where('name', 'LIKE', "%{$search}%")
+                            ->orWhere('style_number', 'LIKE', "%{$search}%");
+                    });
             });
         }
 
         // Filters from dropdowns
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $query->whereHas('saleReturn', function($q) use ($restrictedBranchId) {
+            $query->whereHas('saleReturn', function ($q) use ($restrictedBranchId) {
                 $q->where('return_to_id', $restrictedBranchId)->where('return_to_type', 'branch');
             });
         } elseif ($request->filled('branch_id')) {
-            $query->whereHas('saleReturn', function($q) use ($request) {
+            $query->whereHas('saleReturn', function ($q) use ($request) {
                 $q->where('return_to_id', $request->branch_id)->where('return_to_type', 'branch');
             });
         }
         if ($request->filled('customer_id')) {
-            $query->whereHas('saleReturn', function($q) use ($request) {
+            $query->whereHas('saleReturn', function ($q) use ($request) {
                 $q->where('customer_id', $request->customer_id);
             });
         }
         if ($request->filled('status')) {
-            $query->whereHas('saleReturn', function($q) use ($request) {
+            $query->whereHas('saleReturn', function ($q) use ($request) {
                 $q->where('status', $request->status);
             });
         }
-        
-        // Product Filters
-        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
 
-        if ($request->filled('style_number') || $request->filled('category_id') || 
-            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
-            
-            $query->whereHas('product', function($q) use ($request) {
-                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
-                if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
-                if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
-                if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
-                if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+        // Product Filters
+        if ($request->filled('product_id'))
+            $query->where('product_id', $request->product_id);
+
+        if (
+            $request->filled('style_number') || $request->filled('category_id') ||
+            $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')
+        ) {
+
+            $query->whereHas('product', function ($q) use ($request) {
+                if ($request->filled('style_number'))
+                    $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('category_id'))
+                    $q->where('category_id', $request->category_id);
+                if ($request->filled('brand_id'))
+                    $q->where('brand_id', $request->brand_id);
+                if ($request->filled('season_id'))
+                    $q->where('season_id', $request->season_id);
+                if ($request->filled('gender_id'))
+                    $q->where('gender_id', $request->gender_id);
             });
         }
 
@@ -303,19 +352,19 @@ class SaleReturnController extends Controller
         // We only load what is absolutely needed for the view to avoid memory issues
         $branches = Branch::where('status', 'active')->get();
         $warehouses = Warehouse::all();
-        
+
         // PosSales, Invoices, and Products are fetched via AJAX when searching or not needed for initial load
-        $posSales = collect(); 
+        $posSales = collect();
         $invoices = collect();
-        $products = collect(); 
-        
+        $products = collect();
+
         // Handle pre-selected POS sale from query parameter
         $selectedPosSale = null;
         if ($request->has('pos_sale_id')) {
             $selectedPosSale = Pos::with(['customer', 'items.product', 'items.variation', 'branch', 'invoice'])
                 ->find($request->pos_sale_id);
         }
-        
+
         return view('erp.saleReturn.create', compact('customers', 'posSales', 'invoices', 'products', 'branches', 'warehouses', 'selectedPosSale'));
     }
 
@@ -346,13 +395,16 @@ class SaleReturnController extends Controller
                 'customer_name' => $sale->customer->name ?? 'Walk-in',
                 'customer_phone' => $sale->customer->phone ?? '-',
                 'branch_id' => $sale->branch_id,
-                'items' => $sale->items->map(function($item) {
-                    $color = '-'; $size = '-';
+                'items' => $sale->items->map(function ($item) {
+                    $color = '-';
+                    $size = '-';
                     if ($item->variation && $item->variation->attributeValues) {
-                        foreach($item->variation->attributeValues as $val) {
+                        foreach ($item->variation->attributeValues as $val) {
                             $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color')) $color = $val->value;
-                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                            if (str_contains($attrName, 'color'))
+                                $color = $val->value;
+                            elseif (str_contains($attrName, 'size'))
+                                $size = $val->value;
                         }
                     }
 
@@ -364,7 +416,8 @@ class SaleReturnController extends Controller
                         'variation_name' => $item->variation->name ?? 'Standard',
                         'quantity' => $item->quantity,
                         'already_returned' => \App\Models\SaleReturnItem::where('sale_item_id', $item->id)
-                            ->whereHas('saleReturn', function($q) { $q->where('status', '!=', 'rejected'); })
+                            ->whereHas('saleReturn', function ($q) {
+                                $q->where('status', '!=', 'rejected'); })
                             ->sum('returned_qty'),
                         'unit_price' => $item->unit_price,
                         'net_unit_price' => $item->quantity > 0 ? round($item->total_price / $item->quantity, 2) : $item->unit_price,
@@ -404,9 +457,10 @@ class SaleReturnController extends Controller
                 $saleItem = \App\Models\PosItem::find($item['sale_item_id']);
                 if ($saleItem) {
                     $alreadyReturned = \App\Models\SaleReturnItem::where('sale_item_id', $saleItem->id)
-                        ->whereHas('saleReturn', function($q) { $q->where('status', '!=', 'rejected'); })
+                        ->whereHas('saleReturn', function ($q) {
+                            $q->where('status', '!=', 'rejected'); })
                         ->sum('returned_qty');
-                    
+
                     if (($alreadyReturned + $item['returned_qty']) > $saleItem->quantity) {
                         return back()->withInput()->with('error', "Invalid quantity for {$saleItem->product->name}. Sold: {$saleItem->quantity}, Returned so far: {$alreadyReturned}, Attempting to return: {$item['returned_qty']}");
                     }
@@ -420,8 +474,11 @@ class SaleReturnController extends Controller
 
         foreach ($request->items as $item) {
             $returnedQty = $item['returned_qty'] ?? 0;
-            if ($returnedQty <= 0) continue;
+            if ($returnedQty <= 0)
+                continue;
 
+            // Use net_unit_price to account for original item discount
+            $netUnitPrice = $item['net_unit_price'] ?? $item['unit_price'];
             $returnItem = \App\Models\SaleReturnItem::create([
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
@@ -429,7 +486,7 @@ class SaleReturnController extends Controller
                 'variation_id' => ($item['variation_id'] === 'null' || !$item['variation_id']) ? null : $item['variation_id'],
                 'returned_qty' => $returnedQty,
                 'unit_price' => $item['unit_price'],
-                'total_price' => $returnedQty * $item['unit_price'],
+                'total_price' => $returnedQty * $netUnitPrice,
                 'reason' => $item['reason'] ?? null,
             ]);
 
@@ -507,16 +564,17 @@ class SaleReturnController extends Controller
             'items.*.reason' => 'nullable|string',
         ]);
         // Validate return quantities against original sale
-        
+
         foreach ($request->items as $item) {
             if (isset($item['sale_item_id'])) {
                 $saleItem = \App\Models\PosItem::find($item['sale_item_id']);
                 if ($saleItem) {
                     $alreadyReturned = \App\Models\SaleReturnItem::where('sale_item_id', $saleItem->id)
                         ->where('sale_return_id', '!=', $saleReturn->id)
-                        ->whereHas('saleReturn', function($q) { $q->where('status', '!=', 'rejected'); })
+                        ->whereHas('saleReturn', function ($q) {
+                            $q->where('status', '!=', 'rejected'); })
                         ->sum('returned_qty');
-                    
+
                     if (($alreadyReturned + $item['returned_qty']) > $saleItem->quantity) {
                         return back()->withInput()->with('error', "Invalid quantity for {$saleItem->product->name}. Sold: {$saleItem->quantity}, Returned so far: {$alreadyReturned}, Attempting to return: {$item['returned_qty']}");
                     }
@@ -529,6 +587,8 @@ class SaleReturnController extends Controller
         $saleReturn->items()->delete();
         // Add new items
         foreach ($request->items as $item) {
+            // Use net_unit_price to account for original item discount
+            $netUnitPrice = $item['net_unit_price'] ?? $item['unit_price'];
             \App\Models\SaleReturnItem::create([
                 'sale_return_id' => $saleReturn->id,
                 'sale_item_id' => $item['sale_item_id'] ?? null,
@@ -536,7 +596,7 @@ class SaleReturnController extends Controller
                 'variation_id' => ($item['variation_id'] === 'null' || !$item['variation_id']) ? null : $item['variation_id'],
                 'returned_qty' => $item['returned_qty'],
                 'unit_price' => $item['unit_price'],
-                'total_price' => $item['returned_qty'] * $item['unit_price'],
+                'total_price' => $item['returned_qty'] * $netUnitPrice,
                 'reason' => $item['reason'] ?? null,
             ]);
         }
@@ -577,14 +637,14 @@ class SaleReturnController extends Controller
                 }
                 if ($invoiceToRestore && $totalReturnAmount > 0) {
                     $invoiceToRestore->total_amount += $totalReturnAmount;
-                    $invoiceToRestore->due_amount    = max(0, $invoiceToRestore->total_amount - $invoiceToRestore->paid_amount);
+                    $invoiceToRestore->due_amount = max(0, $invoiceToRestore->total_amount - $invoiceToRestore->paid_amount);
                     if ($invoiceToRestore->paid_amount >= $invoiceToRestore->total_amount) {
-                        $invoiceToRestore->status    = 'paid';
+                        $invoiceToRestore->status = 'paid';
                         $invoiceToRestore->due_amount = 0;
                     } elseif ($invoiceToRestore->paid_amount > 0) {
-                        $invoiceToRestore->status    = 'partial';
+                        $invoiceToRestore->status = 'partial';
                     } else {
-                        $invoiceToRestore->status    = 'unpaid';
+                        $invoiceToRestore->status = 'unpaid';
                     }
                     $invoiceToRestore->save();
                 }
@@ -647,170 +707,230 @@ class SaleReturnController extends Controller
             $saleReturn->update($updateData);
 
             // If status is being processed, adjust stock (add returned qty)
-        if ($newStatus === 'processed') {
-            foreach ($saleReturn->items as $item) {
-                $this->addStockForReturnItem($saleReturn, $item);
-            }
-
-            // =====================================================
-            // UPDATE INVOICE DUE AMOUNT (deduct returned amount)
-            // =====================================================
-            $totalReturnAmount = $saleReturn->items->sum('total_price');
-
-            // Find the linked invoice via invoice_id or pos_sale_id
-            $invoiceToUpdate = null;
-            if ($saleReturn->invoice_id) {
-                $invoiceToUpdate = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
-            } elseif ($saleReturn->pos_sale_id) {
-                $pos = \App\Models\Pos::with('invoice')->find($saleReturn->pos_sale_id);
-                if ($pos && $pos->invoice_id) {
-                    $invoiceToUpdate = Invoice::lockForUpdate()->find($pos->invoice_id);
-                }
-            }
-            if ($invoiceToUpdate && $totalReturnAmount > 0) {
-                $invoiceToUpdate->total_amount = max(0, $invoiceToUpdate->total_amount - $totalReturnAmount);
-                $invoiceToUpdate->due_amount   = max(0, $invoiceToUpdate->total_amount - $invoiceToUpdate->paid_amount);
-                if ($invoiceToUpdate->paid_amount >= $invoiceToUpdate->total_amount) {
-                    $invoiceToUpdate->status   = 'paid';
-                    $invoiceToUpdate->due_amount = 0;
-                } elseif ($invoiceToUpdate->paid_amount > 0) {
-                    $invoiceToUpdate->status   = 'partial';
-                } else {
-                    $invoiceToUpdate->status   = 'unpaid';
-                }
-                $invoiceToUpdate->save();
-            }
-            // =====================================================
-
-            // =====================================================
-            // AUTO JOURNAL ENTRY (Double-Entry Accounting)
-            // =====================================================
-            if ($totalReturnAmount > 0) {
-                $salesReturnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
-                if (!$salesReturnAccount) {
-                    $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
-                    $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
-                    if (!$revenueSubType) {
-                        $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
-                    }
-                    $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
-                    if (!$revenueParent) {
-                        $revenueParent = \App\Models\ChartOfAccountParent::create([
-                            'name' => 'Operating Revenue',
-                            'type_id' => $revenueType->id,
-                            'sub_type_id' => $revenueSubType->id,
-                            'code' => '4000',
-                            'created_by' => auth()->id()
-                        ]);
-                    }
-
-                    $salesReturnAccount = ChartOfAccount::create([
-                        'name' => 'Sales Returns',
-                        'type_id' => $revenueType->id,
-                        'sub_type_id' => $revenueSubType->id,
-                        'parent_id' => $revenueParent->id,
-                        'code' => '40002',
-                        'status' => 'active',
-                        'created_by' => auth()->id()
-                    ]);
+            if ($newStatus === 'processed') {
+                foreach ($saleReturn->items as $item) {
+                    $this->addStockForReturnItem($saleReturn, $item);
                 }
 
-                $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
-                while (Journal::where('voucher_no', $voucherNo)->exists()) {
-                    $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                // =====================================================
+                // UPDATE INVOICE DUE AMOUNT (deduct returned amount + proportional VAT + proportional discount)
+                // =====================================================
+                $totalReturnAmount = $saleReturn->items->sum('total_price');
+
+                // Get original POS for VAT and discount calculation
+                $posSale = null;
+                if ($saleReturn->pos_sale_id) {
+                    $posSale = \App\Models\Pos::with('invoice')->find($saleReturn->pos_sale_id);
+                } elseif ($saleReturn->invoice_id) {
+                    $posSale = \App\Models\Pos::where('invoice_id', $saleReturn->invoice_id)->with('invoice')->first();
                 }
 
-                $journal = Journal::create([
-                    'voucher_no'     => $voucherNo,
-                    'entry_date'     => $saleReturn->return_date,
-                    'type'           => 'Payment',
-                    'description'    => 'Sale Return #' . $saleReturn->id . ($saleReturn->reason ? ' - ' . $saleReturn->reason : ''),
-                    'customer_id'    => $saleReturn->customer_id,
-                    'branch_id'      => $saleReturn->return_to_type == 'branch' ? $saleReturn->return_to_id : null,
-                    'voucher_amount' => $totalReturnAmount,
-                    'paid_amount'    => in_array($saleReturn->refund_type, ['cash', 'bank']) ? $totalReturnAmount : 0,
-                    'reference'      => 'SR-' . $saleReturn->id,
-                    'created_by'     => auth()->id(),
-                    'updated_by'     => auth()->id(),
-                ]);
+                // Calculate proportional VAT and discount per returned item
+                $totalReturnedVat = 0;
+                $totalReturnedDiscount = 0;
 
-                // DEBIT Sales Return (Revenue decreases)
-                JournalEntry::create([
-                    'journal_id'           => $journal->id,
-                    'chart_of_account_id'  => $salesReturnAccount->id,
-                    'debit'                => $totalReturnAmount,
-                    'credit'               => 0,
-                    'memo'                 => 'Sale Return processed',
-                    'created_by'           => auth()->id(),
-                    'updated_by'           => auth()->id(),
-                ]);
+                if ($posSale) {
+                    // Calculate original invoice gross amount (sum of all items at unit price)
+                    $originalItems = \App\Models\PosItem::where('pos_sale_id', $posSale->id)->get();
+                    $originalGrossTotal = $originalItems->sum(fn($i) => $i->quantity * $i->unit_price);
 
-                if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
-                    // CREDIT Cash/Bank (Asset decreases)
-                    $financialAccount = FinancialAccount::find($saleReturn->account_id);
-                    if (!$financialAccount) {
-                        $financialAccount = FinancialAccount::where('type', $saleReturn->refund_type)->first();
-                    }
+                    if ($originalGrossTotal > 0) {
+                        foreach ($saleReturn->items as $returnItem) {
+                            $originalItem = \App\Models\PosItem::find($returnItem->sale_item_id);
+                            if ($originalItem) {
+                                // Calculate this item's gross amount (original full quantity)
+                                $itemGross = $originalItem->quantity * $originalItem->unit_price;
+                                // Calculate proportion of this item in original invoice
+                                $itemProportion = $itemGross / $originalGrossTotal;
+                                // Calculate proportion of returned quantity vs original quantity
+                                $qtyProportion = $returnItem->returned_qty / $originalItem->quantity;
+                                // Calculate proportional VAT for this returned item (accounting for partial quantity)
+                                $itemVat = round($itemProportion * $qtyProportion * ($posSale->vat_amount ?? 0), 2);
+                                // Calculate proportional discount for this returned item (accounting for partial quantity)
+                                $itemDiscount = round($itemProportion * $qtyProportion * ($posSale->discount ?? 0), 2);
 
-                    if ($financialAccount && $financialAccount->account_id) {
-                        JournalEntry::create([
-                            'journal_id'           => $journal->id,
-                            'chart_of_account_id'  => $financialAccount->account_id,
-                            'financial_account_id' => $financialAccount->id,
-                            'debit'                => 0,
-                            'credit'               => $totalReturnAmount,
-                            'memo'                 => 'Refund via ' . $financialAccount->provider_name,
-                            'created_by'           => auth()->id(),
-                            'updated_by'           => auth()->id(),
-                        ]);
-                    }
-                } else {
-                    // CREDIT Accounts Receivable (Asset decreases)
-                    $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
-                    if (!$arAccount) {
-                        $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
-                        $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
-                        if (!$assetSubType) {
-                            $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
+                                $totalReturnedVat += $itemVat;
+                                $totalReturnedDiscount += $itemDiscount;
+                            }
                         }
-                        $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
-                        if (!$assetParent) {
-                            $assetParent = \App\Models\ChartOfAccountParent::create([
-                                'name' => 'Accounts Receivable Parent',
-                                'type_id' => $assetType->id,
-                                'sub_type_id' => $assetSubType->id,
-                                'code' => '1000',
+                    }
+                }
+
+                $totalDeduction = $totalReturnAmount + $totalReturnedVat + $totalReturnedDiscount;
+
+                // Find the linked invoice via invoice_id or pos_sale_id
+                $invoiceToUpdate = null;
+                if ($saleReturn->invoice_id) {
+                    $invoiceToUpdate = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
+                } elseif ($posSale && $posSale->invoice_id) {
+                    $invoiceToUpdate = Invoice::lockForUpdate()->find($posSale->invoice_id);
+                }
+
+                if ($invoiceToUpdate && $totalDeduction > 0) {
+                    $invoiceToUpdate->total_amount = max(0, $invoiceToUpdate->total_amount - $totalDeduction);
+                    $invoiceToUpdate->due_amount = max(0, $invoiceToUpdate->total_amount - $invoiceToUpdate->paid_amount);
+                    if ($invoiceToUpdate->paid_amount >= $invoiceToUpdate->total_amount) {
+                        $invoiceToUpdate->status = 'paid';
+                        $invoiceToUpdate->due_amount = 0;
+                    } elseif ($invoiceToUpdate->paid_amount > 0) {
+                        $invoiceToUpdate->status = 'partial';
+                    } else {
+                        $invoiceToUpdate->status = 'unpaid';
+                    }
+                    $invoiceToUpdate->save();
+                }
+
+                // Do NOT modify pos fields - keep them as original sale snapshot
+                // Net Amount is tracked via invoice->total_amount which is already updated above
+                // =====================================================
+
+                // =====================================================
+                // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+                // =====================================================
+                if ($totalReturnAmount > 0) {
+                    $salesReturnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
+                    if (!$salesReturnAccount) {
+                        $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+                        $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+                        if (!$revenueSubType) {
+                            $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
+                        }
+                        $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+                        if (!$revenueParent) {
+                            $revenueParent = \App\Models\ChartOfAccountParent::create([
+                                'name' => 'Operating Revenue',
+                                'type_id' => $revenueType->id,
+                                'sub_type_id' => $revenueSubType->id,
+                                'code' => '4000',
                                 'created_by' => auth()->id()
                             ]);
                         }
 
-                        $arAccount = ChartOfAccount::create([
-                            'name' => 'Accounts Receivable',
-                            'type_id' => $assetType->id,
-                            'sub_type_id' => $assetSubType->id,
-                            'parent_id' => $assetParent->id,
-                            'code' => '10002',
+                        $salesReturnAccount = ChartOfAccount::create([
+                            'name' => 'Sales Returns',
+                            'type_id' => $revenueType->id,
+                            'sub_type_id' => $revenueSubType->id,
+                            'parent_id' => $revenueParent->id,
+                            'code' => '40002',
                             'status' => 'active',
                             'created_by' => auth()->id()
                         ]);
                     }
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $arAccount->id,
-                        'debit'                => 0,
-                        'credit'               => $totalReturnAmount,
-                        'memo'                 => 'Return credit to customer balance',
-                        'created_by'           => auth()->id(),
-                        'updated_by'           => auth()->id(),
+
+                    $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
+                    while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                        $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+                    }
+
+                    $journal = Journal::create([
+                        'voucher_no' => $voucherNo,
+                        'entry_date' => $saleReturn->return_date,
+                        'type' => 'Payment',
+                        'description' => 'Sale Return #' . $saleReturn->id . ($saleReturn->reason ? ' - ' . $saleReturn->reason : ''),
+                        'customer_id' => $saleReturn->customer_id,
+                        'branch_id' => $saleReturn->return_to_type == 'branch' ? $saleReturn->return_to_id : null,
+                        'voucher_amount' => $totalDeduction,
+                        'paid_amount' => in_array($saleReturn->refund_type, ['cash', 'bank']) ? $totalDeduction : 0,
+                        'reference' => 'SR-' . $saleReturn->id,
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
                     ]);
+
+                    // DEBIT Sales Return account (Revenue decreases by item amount)
+                    JournalEntry::create([
+                        'journal_id' => $journal->id,
+                        'chart_of_account_id' => $salesReturnAccount->id,
+                        'debit' => $totalReturnAmount,
+                        'credit' => 0,
+                        'memo' => 'Sale Return processed (excl. VAT)',
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
+                    ]);
+
+                    // DEBIT VAT Payable (reverse collected VAT on returned items)
+                    if ($totalReturnedVat > 0) {
+                        $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')
+                            ->orWhere('name', 'like', '%Tax Payable%')
+                            ->first();
+                        if ($vatAccount) {
+                            JournalEntry::create([
+                                'journal_id' => $journal->id,
+                                'chart_of_account_id' => $vatAccount->id,
+                                'debit' => $totalReturnedVat,
+                                'credit' => 0,
+                                'memo' => 'VAT reversal on returned items',
+                                'created_by' => auth()->id(),
+                                'updated_by' => auth()->id(),
+                            ]);
+                        }
+                    }
+
+                    if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
+                        // CREDIT Cash/Bank (Asset decreases) — full refund including VAT
+                        $financialAccount = FinancialAccount::find($saleReturn->account_id);
+                        if (!$financialAccount) {
+                            $financialAccount = FinancialAccount::where('type', $saleReturn->refund_type)->first();
+                        }
+
+                        if ($financialAccount && $financialAccount->account_id) {
+                            JournalEntry::create([
+                                'journal_id' => $journal->id,
+                                'chart_of_account_id' => $financialAccount->account_id,
+                                'financial_account_id' => $financialAccount->id,
+                                'debit' => 0,
+                                'credit' => $totalDeduction,
+                                'memo' => 'Refund via ' . $financialAccount->provider_name . ' (incl. VAT)',
+                                'created_by' => auth()->id(),
+                                'updated_by' => auth()->id(),
+                            ]);
+                        }
+                    } else {
+                        // CREDIT Accounts Receivable (Asset decreases)
+                        $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                        if (!$arAccount) {
+                            $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+                            $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
+                            if (!$assetSubType) {
+                                $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
+                            }
+                            $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
+                            if (!$assetParent) {
+                                $assetParent = \App\Models\ChartOfAccountParent::create([
+                                    'name' => 'Accounts Receivable Parent',
+                                    'type_id' => $assetType->id,
+                                    'sub_type_id' => $assetSubType->id,
+                                    'code' => '1000',
+                                    'created_by' => auth()->id()
+                                ]);
+                            }
+
+                            $arAccount = ChartOfAccount::create([
+                                'name' => 'Accounts Receivable',
+                                'type_id' => $assetType->id,
+                                'sub_type_id' => $assetSubType->id,
+                                'parent_id' => $assetParent->id,
+                                'code' => '10002',
+                                'status' => 'active',
+                                'created_by' => auth()->id()
+                            ]);
+                        }
+                        JournalEntry::create([
+                            'journal_id' => $journal->id,
+                            'chart_of_account_id' => $arAccount->id,
+                            'debit' => 0,
+                            'credit' => $totalDeduction,
+                            'memo' => 'Return credit to customer balance (incl. VAT)',
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
+                        ]);
+                    }
                 }
+                // =====================================================
             }
-            // =====================================================
-        }
 
-        DB::commit();
+            DB::commit();
 
-            $statusMessage = match($newStatus) {
+            $statusMessage = match ($newStatus) {
                 'approved' => 'Sale return has been approved successfully.',
                 'rejected' => 'Sale return has been rejected.',
                 'processed' => 'Sale return has been processed and stock has been updated.',
@@ -849,8 +969,8 @@ class SaleReturnController extends Controller
         if ($product && $product->type === 'combo') {
             foreach ($product->comboItems as $comboItem) {
                 // Mock an item structure for recursion
-                $compItem = (object)[
-                    'product_id'   => $comboItem->product_id,
+                $compItem = (object) [
+                    'product_id' => $comboItem->product_id,
                     'variation_id' => $comboItem->variation_id,
                     'returned_qty' => $comboItem->quantity * $qty
                 ];
@@ -957,8 +1077,8 @@ class SaleReturnController extends Controller
         $product = \App\Models\Product::find($productId);
         if ($product && $product->type === 'combo') {
             foreach ($product->comboItems as $comboItem) {
-                $compItem = (object)[
-                    'product_id'   => $comboItem->product_id,
+                $compItem = (object) [
+                    'product_id' => $comboItem->product_id,
                     'variation_id' => $comboItem->variation_id,
                     'returned_qty' => $comboItem->quantity * $qty
                 ];
@@ -1017,4 +1137,4 @@ class SaleReturnController extends Controller
                 break;
         }
     }
-} 
+}

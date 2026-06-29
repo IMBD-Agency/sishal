@@ -114,6 +114,7 @@
         }
         .summary-label { text-align: right; padding-right: 3mm; width: 70%; }
         .summary-value { text-align: right; width: 30%; font-weight: bold; }
+        .currency-symbol { font-size: 7pt; }
         .total-row td { 
             border-top: 1px dashed #000; 
             font-size: 11pt; 
@@ -129,6 +130,10 @@
         }
 
         .item-sku { font-size: 7pt; display: block; color: #444; }
+        .item-returned { font-size: 7pt; display: block; color: #d32f2f; font-weight: bold; margin-top: 0.5mm; }
+        .item-exchanged { font-size: 7pt; display: block; color: #856404; font-weight: bold; margin-top: 0.5mm; }
+        .adjustment-row { border-bottom: 1px dotted #ccc; padding: 1mm 0; }
+        .refund-amount { font-weight: bold; color: #d32f2f; }
 
         /* QR Code integration */
         .qr-code {
@@ -214,6 +219,10 @@
             </thead>
             <tbody>
                 @foreach ($pos->items as $item)
+                @php
+                    $itemRegRetQty = $item->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange')->sum('returned_qty');
+                    $itemExchRetQty = $item->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('returned_qty');
+                @endphp
                 <tr>
                     <td class="text-left">
                         {{ $item->product->name }} <small>#{{ $item->product->style_number ?? $item->product->sku }}</small>
@@ -227,16 +236,22 @@
                             @endphp
                         @endif
                         <span class="item-sku">SKU: {{ $item->product->sku }}</span>
+                        @if($itemRegRetQty > 0)
+                            <span class="item-returned">↳ Returned: {{ number_format($itemRegRetQty, 0) }} unit(s)</span>
+                        @endif
+                        @if($itemExchRetQty > 0)
+                            <span class="item-exchanged">↳ Exchanged: {{ number_format($itemExchRetQty, 0) }} unit(s)</span>
+                        @endif
                     </td>
                     <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
-                    <td>{{ number_format($item->unit_price, 1) }}</td>
+                    <td><span class="currency-symbol">৳</span>{{ number_format($item->unit_price, 1) }}</td>
                     <td>
                         @php
                             $itemVat = $item->total_price * ($pos->vat_rate / 100);
                         @endphp
-                        {{ number_format($itemVat, 1) }}
+                        <span class="currency-symbol">৳</span>{{ number_format($itemVat, 1) }}
                     </td>
-                    <td>{{ number_format($item->total_price + $itemVat, 1) }}</td>
+                    <td><span class="currency-symbol">৳</span>{{ number_format($item->total_price + $itemVat, 1) }}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -244,9 +259,17 @@
 
         <!-- Summary Table -->
         <table class="summary-table">
+            @php
+                // Calculate original gross from items (sum of quantity * unit_price)
+                $originalGross = $pos->items->sum(fn($i) => $i->quantity * $i->unit_price);
+                // Use VAT from pos if available, otherwise from invoice tax (avoid double counting)
+                $vatAmount = $pos->vat_amount ?? $pos->invoice->tax ?? 0;
+                $originalTotal = $originalGross - ($totalPosDiscount ?? 0) + ($pos->delivery ?? 0) + $vatAmount - ($pos->exchange_amount ?? 0);
+                $returnAdjustment = $pos->invoice ? (($pos->total_amount ?? 0) - ($pos->invoice->total_amount ?? 0)) : 0;
+            @endphp
             <tr>
-                <td class="summary-label">Sub Total (Gross)</td>
-                <td class="summary-value">{{ number_format($pos->sub_total ?? 0, 2) }}</td>
+                <td class="summary-label">Sub Total</td>
+                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->sub_total ?? 0, 2) }}</td>
             </tr>
 
             @if($totalPosDiscount > 0)
@@ -255,73 +278,127 @@
             @endphp
             <tr>
                 <td class="summary-label">
-                    Discount (-) 
+                    Discount 
                     @if($effectivePercent > 0)
                         <small>({{ $effectivePercent }}%)</small>
                     @endif
                 </td>
-                <td class="summary-value">{{ number_format($totalPosDiscount ?? 0, 2) }}</td>
+                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalPosDiscount ?? 0, 2) }}</td>
             </tr>
             @endif
 
             @if($pos->delivery > 0)
             <tr>
-                <td class="summary-label">Delivery Charge (+)</td>
-                <td class="summary-value">{{ number_format($pos->delivery ?? 0, 2) }}</td>
+                <td class="summary-label">Delivery</td>
+                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->delivery ?? 0, 2) }}</td>
             </tr>
             @endif
 
             @if($pos->vat_amount > 0)
             <tr>
-                <td class="summary-label">VAT (+) @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
-                <td class="summary-value">{{ number_format($pos->vat_amount, 2) }}</td>
+                <td class="summary-label">VAT @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
+                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->vat_amount, 2) }}</td>
             </tr>
             @elseif(($pos->invoice->tax ?? 0) > 0)
             <tr>
-                <td class="summary-label">VAT & Tax (+)</td>
-                <td class="summary-value">{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
+                <td class="summary-label">VAT & Tax</td>
+                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
             </tr>
             @endif
 
             @if(($pos->exchange_amount ?? 0) > 0)
             <tr>
-                <td class="summary-label">Exchange Credit (-)</td>
-                <td class="summary-value">{{ number_format($pos->exchange_amount, 2) }}</td>
+                <td class="summary-label">Exchange Credit</td>
+                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($pos->exchange_amount, 2) }}</td>
             </tr>
             @endif
 
-            @if(($pos->refund_amount ?? 0) > 0)
+            <tr class="total-row">
+                <td class="summary-label bold" style="font-size: 10pt;">Original Total</td>
+                <td class="summary-value bold" style="font-size: 11pt;"><span class="currency-symbol">৳</span>{{ number_format($originalTotal, 2) }}</td>
+            </tr>
+
+            @if($returnAdjustment > 0)
             <tr>
-                <td class="summary-label">Refunded (-)</td>
-                <td class="summary-value">{{ number_format($pos->refund_amount, 2) }}</td>
+                <td class="summary-label">Less Return</td>
+                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($returnAdjustment, 2) }}</td>
             </tr>
             @endif
 
             <tr class="total-row">
                 <td class="summary-label bold" style="font-size: 10pt;">NET PAYABLE</td>
-                <td class="summary-value bold" style="font-size: 12pt;">{{ number_format($pos->total_amount ?? 0, 2) }}</td>
+                <td class="summary-value bold" style="font-size: 12pt;"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->total_amount ?? $pos->total_amount, 2) }}</td>
             </tr>
             <tr style="border-top: 1px solid #eee;">
                 <td class="summary-label" style="padding-top: 2mm;">Cash Received</td>
-                <td class="summary-value" style="padding-top: 2mm;">{{ number_format($pos->invoice->paid_amount ?? 0, 2) }}</td>
+                <td class="summary-value" style="padding-top: 2mm;"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->paid_amount ?? 0, 2) }}</td>
             </tr>
             @php
                 $paid = $pos->invoice->paid_amount ?? 0;
-                $total = $pos->total_amount ?? 0;
+                $total = $pos->invoice->total_amount ?? $pos->total_amount;
                 $diff = $paid - $total;
             @endphp
             @if($diff > 0)
             <tr>
                 <td class="summary-label">Change Return</td>
-                <td class="summary-value">{{ number_format($diff, 2) }}</td>
+                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($diff, 2) }}</td>
             </tr>
             @elseif($diff < 0)
             <tr>
                 <td class="summary-label">Due Amount</td>
-                <td class="summary-value" style="color: #d32f2f;">{{ number_format(abs($diff), 2) }}</td>
+                <td class="summary-value" style="color: #d32f2f;"><span class="currency-symbol">৳</span>{{ number_format(abs($diff), 2) }}</td>
             </tr>
             @endif
         </table>
+
+        <!-- Adjustment History (Returns & Exchanges) -->
+        @if((isset($saleReturns) && $saleReturns->count() > 0) || (isset($exchanges) && $exchanges->count() > 0))
+        <div style="margin-top: 4mm; border-top: 1px dashed #000; padding-top: 2mm;">
+            <span class="bold" style="font-size: 8pt; display: block; text-transform: uppercase; margin-bottom: 1.5mm;">Adjustment History:</span>
+            
+            @if(isset($saleReturns))
+                @foreach($saleReturns as $return)
+                    <div style="font-size: 8pt; margin-bottom: 1.5mm;">
+                        <span class="bold">Return #SR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</span> 
+                        <span style="font-size: 7pt; color: #555;">({{ \Carbon\Carbon::parse($return->return_date)->format('d-m-Y') }})</span>
+                        <table style="width: 100%; font-size: 8pt; margin-top: 0.5mm; border-collapse: collapse;">
+                            @foreach($return->items as $rItem)
+                                <tr class="adjustment-row">
+                                    <td style="text-align: left; padding: 0.5mm 0;">• {{ $rItem->product->name }} x{{ number_format($rItem->returned_qty, 0) }}</td>
+                                    <td class="refund-amount" style="text-align: right; padding: 0.5mm 0;">-৳{{ number_format($rItem->total_price, 1) }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endforeach
+            @endif
+
+            @if(isset($exchanges))
+                @foreach($exchanges as $exchange)
+                    <div style="font-size: 8pt; margin-bottom: 1.5mm;">
+                        <span class="bold">Exchange {{ $exchange->exchange_number }}</span>
+                        <span style="font-size: 7pt; color: #555;">({{ \Carbon\Carbon::parse($exchange->exchange_date)->format('d-m-Y') }})</span>
+                        <table style="width: 100%; font-size: 8pt; margin-top: 0.5mm; border-collapse: collapse;">
+                            {{-- Returned Items --}}
+                            @foreach($exchange->returnedItems as $rItem)
+                                <tr class="adjustment-row">
+                                    <td style="text-align: left; color: #d32f2f; padding: 0.5mm 0;">↳ {{ $rItem->product->name }} x{{ number_format($rItem->quantity, 0) }}</td>
+                                    <td style="text-align: right; color: #d32f2f; padding: 0.5mm 0;">-৳{{ number_format($rItem->total_price, 1) }}</td>
+                                </tr>
+                            @endforeach
+                            {{-- New Items --}}
+                            @foreach($exchange->newItems as $nItem)
+                                <tr class="adjustment-row">
+                                    <td style="text-align: left; color: #2e7d32; padding: 0.5mm 0;">+ {{ $nItem->product->name }} x{{ number_format($nItem->quantity, 0) }}</td>
+                                    <td style="text-align: right; color: #2e7d32; padding: 0.5mm 0;">+৳{{ number_format($nItem->total_price, 1) }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endforeach
+            @endif
+        </div>
+        @endif
 
         <!-- Footer -->
         <div class="footer text-center">

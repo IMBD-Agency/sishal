@@ -323,11 +323,63 @@ class ExchangeController extends Controller
             $originalSale->refund_amount = ($originalSale->refund_amount ?? 0) + $refundAmount;
             $originalSale->save();
             
-            // Also update the Invoice paid_amount if there's an extra payable so due amount is correct
-            if ($originalSale->invoice && $extraPayable > 0) {
+            // Update Invoice totals and payments
+            if ($originalSale->invoice) {
                 $invoice = $originalSale->invoice;
-                $invoice->paid_amount += $extraPayable;
+                
+                // Net change: new items - returned items
+                $netChange = $subTotalNew - $totalReturnAmount;
+                $invoice->total_amount = max(0, $invoice->total_amount + $netChange);
+                
+                // If there's an extra payable and the customer paid some of it
+                $actualPaid = floatval($request->paid_amount ?? 0);
+                if ($extraPayable > 0 && $actualPaid > 0) {
+                    $invoice->paid_amount += $actualPaid;
+                    
+                    // Increment the financial account balance
+                    $accountId = $request->account_id;
+                    $finAcc = null;
+                    if ($accountId) {
+                        $finAcc = FinancialAccount::find($accountId);
+                    } else {
+                        $finAcc = FinancialAccount::where('type', 'cash')->first();
+                    }
+                    
+                    if ($finAcc) {
+                        $finAcc->balance += $actualPaid;
+                        $finAcc->save();
+                    }
+                    
+                    // Create a Payment record
+                    Payment::create([
+                        'payment_for' => 'pos',
+                        'pos_id' => $originalSale->id,
+                        'invoice_id' => $invoice->id,
+                        'payment_date' => $request->exchange_date ?? now()->toDateString(),
+                        'amount' => $actualPaid,
+                        'account_id' => $finAcc ? $finAcc->id : $accountId,
+                        'payment_method' => $finAcc ? $finAcc->type : 'cash',
+                        'reference' => 'Exchange ' . $exchangeNumber,
+                        'note' => 'Extra payable received during exchange',
+                    ]);
+                } elseif ($refundAmount > 0) {
+                    // If it's a refund and we actually paid them cash
+                    if (in_array($posExchange->payment_method, ['cash', 'bank'])) {
+                        $invoice->paid_amount = max(0, $invoice->paid_amount - $refundAmount);
+                    }
+                }
+                
+                // Recalculate due and status
                 $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                if ($invoice->paid_amount >= $invoice->total_amount) {
+                    $invoice->status = 'paid';
+                    $invoice->due_amount = 0;
+                } elseif ($invoice->paid_amount > 0) {
+                    $invoice->status = 'partial';
+                } else {
+                    $invoice->status = 'unpaid';
+                }
+                
                 $invoice->save();
             }
 

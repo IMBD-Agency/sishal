@@ -230,7 +230,57 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @php
+                                    // Fetch processed returns for this invoice
+                                    $processedReturns = \App\Models\SaleReturn::with('items')
+                                        ->where('status', 'processed')
+                                        ->where(function($q) use ($invoice) {
+                                            $q->where('invoice_id', $invoice->id);
+                                            if ($invoice->pos) {
+                                                $q->orWhere('pos_sale_id', $invoice->pos->id);
+                                            }
+                                        })->get();
+
+                                    // Fetch exchanges for this invoice
+                                    $processedExchanges = \App\Models\PosExchange::with(['returnedItems', 'newItems'])
+                                        ->where(function($q) use ($invoice) {
+                                            if ($invoice->pos) {
+                                                $q->where('original_pos_id', $invoice->pos->id);
+                                            }
+                                        })->get();
+
+                                    // We will calculate updated subtotal and discount dynamically to make them consistent
+                                    $netSubtotal = 0;
+                                    $netDiscount = 0;
+                                @endphp
+
                                 @forelse(($invoice->items ?? collect()) as $item)
+                                    @php
+                                        // Calculate returned qty for this item
+                                        $returnedQty = 0;
+                                        foreach ($processedReturns as $ret) {
+                                            $returnedQty += $ret->items
+                                                ->where('product_id', $item->product_id)
+                                                ->where('variation_id', $item->variation_id)
+                                                ->sum('returned_qty');
+                                        }
+                                        foreach ($processedExchanges as $exch) {
+                                            $returnedQty += $exch->returnedItems
+                                                ->where('product_id', $item->product_id)
+                                                ->where('variation_id', $item->variation_id)
+                                                ->sum('quantity');
+                                        }
+
+                                        $netQty = max(0, $item->quantity - $returnedQty);
+                                        $discountPerItem = $item->quantity > 0 ? ($item->discount / $item->quantity) : 0;
+                                        
+                                        $rowSubtotal = $netQty * $item->unit_price;
+                                        $rowDiscount = $netQty * $discountPerItem;
+                                        $rowTotal = $rowSubtotal - $rowDiscount;
+
+                                        $netSubtotal += $rowSubtotal;
+                                        $netDiscount += $rowDiscount;
+                                    @endphp
                                     <tr>
                                         <td class="px-4 py-3 text-muted">{{ $loop->iteration }}</td>
                                         <td class="px-4 py-3">
@@ -250,21 +300,80 @@
                                             @endif
                                         </td>
                                         <td class="px-4 py-3 text-center">
-                                            <span class="badge bg-light text-dark rounded-pill">{{ $item->quantity }}</span>
+                                            <span class="badge bg-light text-dark rounded-pill">{{ number_format($item->quantity, 0) }}</span>
+                                            @if($returnedQty > 0)
+                                                <div class="text-danger small mt-1" style="font-size: 0.75rem;">
+                                                    Returned: -{{ number_format($returnedQty, 0) }}
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-3 text-end">{{ number_format($item->unit_price, 2) }}৳</td>
-                                        <td class="px-4 py-3 text-end text-danger">{{ $item->discount > 0 ? '-' . number_format($item->discount, 2) . '৳' : '-' }}</td>
-                                        <td class="px-4 py-3 text-end fw-semibold">{{ number_format($item->total_price, 2) }}৳
+                                        <td class="px-4 py-3 text-end text-danger">
+                                            {{ $rowDiscount > 0 ? '-' . number_format($rowDiscount, 2) . '৳' : '-' }}
+                                            @if($returnedQty > 0 && $item->discount > 0)
+                                                <div class="text-muted small" style="font-size: 0.7rem;">
+                                                    (Orig: -{{ number_format($item->discount, 2) }}৳)
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-end fw-semibold">
+                                            {{ number_format($rowTotal, 2) }}৳
+                                            @if($returnedQty > 0)
+                                                <div class="text-muted small fw-normal" style="font-size: 0.7rem;">
+                                                    (Orig: {{ number_format($item->total_price, 2) }}৳)
+                                                </div>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-4 py-5 text-center text-muted">
+                                        <td colspan="7" class="px-4 py-5 text-center text-muted">
                                             <i class="fas fa-inbox fa-2x mb-3"></i>
                                             <div>No items found.</div>
                                         </td>
                                     </tr>
                                 @endforelse
+
+                                @php $itemIndex = $invoice->items ? $invoice->items->count() : 0; @endphp
+                                @foreach($processedExchanges as $exch)
+                                    @foreach($exch->newItems as $newItem)
+                                        @php
+                                            $itemIndex++;
+                                            $rowSubtotal = $newItem->quantity * $newItem->unit_price;
+                                            $rowTotal = $newItem->total_price;
+                                            $rowDiscount = max(0, $rowSubtotal - $rowTotal);
+
+                                            $netSubtotal += $rowSubtotal;
+                                            $netDiscount += $rowDiscount;
+                                        @endphp
+                                        <tr style="background-color: rgba(25, 135, 84, 0.05);">
+                                            <td class="px-4 py-3 text-muted">{{ $itemIndex }}</td>
+                                            <td class="px-4 py-3">
+                                                <div class="fw-medium text-dark">{{ $newItem->product->name ?? '-' }}</div>
+                                                @if($newItem->variation)
+                                                    <div class="small text-muted mt-1">
+                                                        <span class="badge bg-info-subtle text-info">Variation:
+                                                            {{ $newItem->variation->name ?? '-' }}</span>
+                                                    </div>
+                                                @endif
+                                                <span class="badge bg-success text-white ms-1" style="font-size: 0.75rem;">New Item (Exchange)</span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                @if($newItem->variation)
+                                                    <span class="badge bg-light text-dark">{{ $newItem->variation->sku ?? '-' }}</span>
+                                                @else
+                                                    <span class="badge bg-light text-dark">{{ $newItem->product->style_number ?? ($newItem->product->sku ?? '-') }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <span class="badge bg-success text-white rounded-pill">{{ number_format($newItem->quantity, 0) }}</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-end">{{ number_format($newItem->unit_price, 2) }}৳</td>
+                                            <td class="px-4 py-3 text-end text-danger">{{ $rowDiscount > 0 ? '-' . number_format($rowDiscount, 2) . '৳' : '-' }}</td>
+                                            <td class="px-4 py-3 text-end fw-semibold text-success">{{ number_format($rowTotal, 2) }}৳</td>
+                                        </tr>
+                                    @endforeach
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
@@ -343,7 +452,7 @@
                         <div class="card-body p-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="text-muted">Subtotal</span>
-                                <span class="fw-medium">{{ number_format($invoice->subtotal ?? 0, 2) }}৳</span>
+                                <span class="fw-medium">{{ number_format($netSubtotal ?? $invoice->subtotal ?? 0, 2) }}৳</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="text-muted">Tax</span>
@@ -352,7 +461,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="text-muted">Discount</span>
                                 <span
-                                    class="fw-medium text-success">-{{ number_format($invoice->discount_apply ?? 0, 2) }}৳</span>
+                                    class="fw-medium text-success">-{{ number_format($netDiscount ?? $invoice->discount_apply ?? 0, 2) }}৳</span>
                             </div>
                             @php $onlineDelivery = isset($invoice->order) ? ($invoice->order->delivery ?? 0) : 0; @endphp
                             @if(($onlineDelivery ?? 0) > 0)

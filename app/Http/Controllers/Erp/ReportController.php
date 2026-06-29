@@ -609,7 +609,7 @@ class ReportController extends Controller
         //       not real cash outflows. Cash difference for exchanges is handled separately via journals.
         $saleReturnQuery = \App\Models\SaleReturn::with(['items', 'posSale'])
             ->whereBetween('return_date', [$startDate, $endDate])
-            ->whereIn('status', ['completed', 'approved'])
+            ->whereIn('status', ['completed', 'approved', 'processed'])
             ->where(function($q) {
                 $q->whereNull('refund_type')
                   ->orWhere('refund_type', '!=', 'exchange');

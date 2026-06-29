@@ -603,19 +603,21 @@ class PosController extends Controller
                 'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,refund_amount,invoice_id,status',
                 'pos.originalPos:id,sale_number',
                 'pos.customer:id,name',
-                'pos.invoice:id,paid_amount,due_amount',
+                'pos.invoice:id,total_amount,paid_amount,due_amount',
                 'pos.branch:id,name',
                 'pos.soldBy:id,first_name,last_name',
                 'pos.items:id,pos_sale_id,product_id,quantity,unit_price,total_price,parent_item_id',
                 'pos.items.product:id,type',
-                'pos.items.returnItems:id,sale_item_id,returned_qty,total_price',
+                'pos.items.returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
+                'pos.items.returnItems.saleReturn:id,refund_type,status',
                 'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image,type',
                 'product.category:id,name',
                 'product.brand:id,name',
                 'product.season:id,name',
                 'product.gender:id,name',
                 'variation.attributeValues.attribute',
-                'returnItems:id,sale_item_id,returned_qty,total_price'
+                'returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
+                'returnItems.saleReturn:id,refund_type,status'
             ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
@@ -1257,9 +1259,22 @@ class PosController extends Controller
             'branch',
             'items.product',
             'items.variation.attributeValues.attribute',
-            'invoice',
+            'items.returnItems.saleReturn',
+            'invoice.payments',
             'soldBy'
         ])->findOrFail($id);
+
+        // Load sale returns for this POS sale
+        $saleReturns = \App\Models\SaleReturn::with(['items.product', 'items.variation.attributeValues.attribute'])
+            ->where('pos_sale_id', $pos->id)
+            ->where('status', 'processed')
+            ->where('refund_type', '!=', 'exchange')
+            ->get();
+
+        // Load exchanges for this POS sale
+        $exchanges = \App\Models\PosExchange::with(['items.product', 'items.variation.attributeValues.attribute'])
+            ->where('original_pos_id', $pos->id)
+            ->get();
 
         $template = InvoiceTemplate::where('is_default', 1)->first();
         $general_settings = GeneralSetting::first();
@@ -1277,13 +1292,13 @@ class PosController extends Controller
 
         // PDF download logic
         if ($action == 'download') {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings', 'saleReturns', 'exchanges'));
             // Increased width to 260 points (~91mm) to provide breathing room and prevent clipping
             $pdf->setPaper([0, 0, 260, 1000], 'portrait');
             return $pdf->download('pos-receipt-' . $pos->sale_number . '.pdf');
         }
 
-        return view('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings'));
+        return view('erp.pos.print', compact('pos', 'template', 'action', 'qrCodeSvg', 'general_settings', 'saleReturns', 'exchanges'));
     }
 
     public function getMultiBranchStock($productId, $variationId = null)

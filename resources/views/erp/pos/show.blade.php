@@ -163,10 +163,28 @@
                                         <span>{{ number_format($pos->invoice->tax, 2) }}৳</span>
                                     </div>
                                 @endif
+                                @php
+                                    $returnAdjustment = $pos->invoice ? (($pos->total_amount ?? 0) - ($pos->invoice->total_amount ?? 0)) : 0;
+                                @endphp
                                 <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top">
                                     <span class="text-muted small fw-semibold">Total</span>
                                     <span class="fw-bold fs-5">{{ number_format($pos->total_amount ?? 0, 2) }}৳</span>
                                 </div>
+                                @if($pos->invoice && $returnAdjustment != 0)
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        @if($returnAdjustment > 0)
+                                            <span class="text-danger small">Return/Exchange Adjustment (-)</span>
+                                            <span class="text-danger fw-bold">-{{ number_format($returnAdjustment, 2) }}৳</span>
+                                        @else
+                                            <span class="text-success small">Return/Exchange Adjustment (+)</span>
+                                            <span class="text-success fw-bold">+{{ number_format(abs($returnAdjustment), 2) }}৳</span>
+                                        @endif
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top">
+                                        <span class="text-muted small fw-semibold">Net Total</span>
+                                        <span class="fw-bold fs-5">{{ number_format($pos->invoice->total_amount, 2) }}৳</span>
+                                    </div>
+                                @endif
                                 @if($pos->invoice)
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span class="text-success small">Paid</span>
@@ -463,9 +481,9 @@
                                         });
                                         
                                         // Calculate totals
-                                        $totalPaid = $validPayments->sum('amount');
-                                        $saleTotal = $pos->total_amount ?? 0;
-                                        $dueAmount = max(0, $saleTotal - $totalPaid);
+                                        $saleTotal = $invoice ? ($invoice->total_amount ?? $pos->total_amount ?? 0) : ($pos->total_amount ?? 0);
+                                        $totalPaid = $invoice ? ($invoice->paid_amount ?? 0) : $validPayments->sum('amount');
+                                        $dueAmount = $invoice ? ($invoice->due_amount ?? 0) : max(0, $saleTotal - $totalPaid);
                                     @endphp
                                     
                                     @if($validPayments->count() > 0)
