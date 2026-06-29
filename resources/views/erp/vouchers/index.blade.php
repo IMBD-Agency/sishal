@@ -382,26 +382,66 @@
             });
 
             function deleteVoucher(id, voucherNo) {
-                if (confirm('Are you sure you want to delete voucher ' + voucherNo + '?')) {
-                    $.ajax({
-                        url: '{{ url("erp/double-entry/vouchers") }}/' + id,
-                        type: 'DELETE',
-                        data: {
-                            _token: '{{ csrf_token() }}'
-                        },
-                        success: function (response) {
-                            if (response.success) {
-                                alert(response.message);
-                                location.reload();
-                            } else {
-                                alert('Error: ' + response.message);
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: 'Do you want to delete voucher ' + voucherNo + '?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0',
+                        confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                        cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '{{ url("erp/double-entry/vouchers") }}/' + id,
+                            type: 'DELETE',
+                            data: {
+                                _token: '{{ csrf_token() }}'
+                            },
+                            success: function (response) {
+                                if (response.success) {
+                                    Swal.fire({
+                                        title: 'Deleted!',
+                                        text: response.message,
+                                        icon: 'success',
+                                        timer: 2000,
+                                        showConfirmButton: false,
+                                        customClass: {
+                                            popup: 'rounded-4 shadow-lg border-0'
+                                        }
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Error',
+                                        text: response.message,
+                                        icon: 'error',
+                                        customClass: {
+                                            popup: 'rounded-4 shadow-lg border-0'
+                                        }
+                                    });
+                                }
+                            },
+                            error: function (xhr) {
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: 'Something went wrong. Please try again.',
+                                    icon: 'error',
+                                    customClass: {
+                                        popup: 'rounded-4 shadow-lg border-0'
+                                    }
+                                });
                             }
-                        },
-                        error: function (xhr) {
-                            alert('Something went wrong. Please try again.');
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             }
         </script>
     @endpush
