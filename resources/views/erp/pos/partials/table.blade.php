@@ -28,7 +28,7 @@
                 <th class="text-center bg-soft-primary">Sales Qty</th>
                 <th class="text-center bg-soft-primary">Total S-Qty</th>
                 <th class="text-end bg-soft-primary">Sales Amount</th>
-                <!-- <th class="text-end bg-soft-primary">Total Sales Amount</th> -->
+                <th class="text-end bg-soft-primary">Total Sales Amount</th>
 
                 <th class="text-center bg-soft-danger">Sales Return Qty</th>
                 <th class="text-center bg-soft-danger">Total SR-Qty</th>
@@ -206,9 +206,9 @@
 
                         <!-- Sales Amount & Total Sales Amount -->
                         <td class="text-end bg-light">{{ number_format($grossAmt, 2) }}</td>
-                        <!-- <td class="text-end bg-light">
-                                                                    @if($isFirst) <span class="fw-bold">{{ number_format($invGrossAmount, 2) }}</span> @endif
-                                                                </td> -->
+                        <td class="text-end bg-light">
+                            @if($isFirst) <span class="fw-bold">{{ number_format($invGrossAmt, 2) }}</span> @endif
+                        </td>
 
                         <!-- Returns -->
                         <td class="text-center text-danger">{{ $regRetQty ?: '-' }}</td>
@@ -332,7 +332,7 @@
                 <td></td> <!-- Total S-Qty footer empty -->
 
                 <td class="text-end py-3">{{ number_format($reportTotals['gross_amt'], 2) }}</td>
-                <!-- <td></td> -->
+                <td></td>
                 <!-- Total Sales Amount footer empty -->
 
                 <td colspan="8" class="bg-light"></td> <!-- Returns & Exchanges space -->
