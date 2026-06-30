@@ -7,15 +7,15 @@
         $productLocations = [];
         
         // Collect all locations associated with this product
-        foreach($product->branchStock as $bs) { $productLocations['branch_' . $bs->branch_id] = ['type' => 'branch', 'id' => $bs->branch_id, 'name' => $bs->branch->name ?? 'Unknown']; }
-        foreach($product->warehouseStock as $ws) { $productLocations['warehouse_' . $ws->warehouse_id] = ['type' => 'warehouse', 'id' => $ws->warehouse_id, 'name' => $ws->warehouse->name ?? 'Unknown']; }
+        foreach($product->branchStock as $bs) { $productLocations['branch_' . $bs->branch_id] = ['type' => 'branch', 'id' => $bs->branch_id, 'name' => $bs->branch?->name ?? 'Unknown']; }
+        foreach($product->warehouseStock as $ws) { $productLocations['warehouse_' . $ws->warehouse_id] = ['type' => 'warehouse', 'id' => $ws->warehouse_id, 'name' => $ws->warehouse?->name ?? 'Unknown']; }
         foreach($product->variationStocks as $vs) {
             $key = $vs->branch_id ? 'branch_' . $vs->branch_id : 'warehouse_' . $vs->warehouse_id;
             if(!isset($productLocations[$key])) {
                 $productLocations[$key] = [
                     'type' => $vs->branch_id ? 'branch' : 'warehouse',
                     'id' => $vs->branch_id ?: $vs->warehouse_id,
-                    'name' => ($vs->branch->name ?? $vs->warehouse->name) ?? 'Unknown'
+                    'name' => ($vs->branch?->name ?? $vs->warehouse?->name) ?? 'Unknown'
                 ];
             }
         }
