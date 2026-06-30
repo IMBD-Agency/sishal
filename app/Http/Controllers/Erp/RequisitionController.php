@@ -55,7 +55,7 @@ class RequisitionController extends Controller
             return view('erp.requisition.partials.table', compact('requisitions'));
         }
 
-        $branches = Branch::all();
+        $branches = Branch::where('status', 'active')->get();
         return view('erp.requisition.index', compact('requisitions', 'restrictedBranchId', 'branches'));
     }
 
@@ -139,7 +139,7 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
-        $branches = Branch::all();
+        $branches = Branch::where('status', 'active')->get();
         $warehouses = Warehouse::all();
         $products = Product::where('status', 'active')->get();
 
@@ -240,7 +240,7 @@ class RequisitionController extends Controller
         }
 
         $restrictedBranchId = $this->getRestrictedBranchId();
-        $branches   = Branch::all();
+        $branches   = Branch::where('status', 'active')->get();
         $warehouses = Warehouse::all();
 
         return view('erp.requisition.edit', compact('requisition', 'branches', 'warehouses', 'restrictedBranchId'));

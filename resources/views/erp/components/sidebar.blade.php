@@ -37,13 +37,13 @@
         @endcan
 
         @can('view warehouses')
-            <div class="nav-item">
+            <!-- <div class="nav-item">
                 <a href="{{ route('warehouses.index') }}"
                     class="nav-link {{ request()->is('erp/warehouses*') ? ' active' : '' }}">
                     <i class="fas fa-warehouse nav-icon text-warning"></i>
                     <span>Warehouses</span>
                 </a>
-            </div>
+            </div> -->
         @endcan
 
         <!-- PRODUCTS -->

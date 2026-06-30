@@ -71,7 +71,7 @@ class SaleReturnController extends Controller
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
         } else {
-            $branches = Branch::all();
+            $branches = Branch::where('status', 'active')->get();
         }
         $customersQuery = Customer::query();
         if ($restrictedBranchId) {

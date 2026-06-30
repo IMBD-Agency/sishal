@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class Branch extends Model
 {
@@ -16,6 +17,13 @@ class Branch extends Model
         'warehouse_id',
         'is_warehouse',
     ];
+
+    protected static function booted()
+    {
+        static::addGlobalScope('active', function (Builder $builder) {
+            $builder->where('status', 'active');
+        });
+    }
 
     public function products()
     {

@@ -27,7 +27,7 @@ class BranchController extends Controller
         if (!auth()->user()->hasPermissionTo('view branches')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Branch::query();
+        $query = Branch::withoutGlobalScope('active');
         if ($request->filled('name')) {
             $query->where('name', 'like', '%' . $request->name . '%');
         }
@@ -73,7 +73,8 @@ class BranchController extends Controller
             'manager_id' => 'nullable|exists:users,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'show_online' => 'nullable',
-            'is_warehouse' => 'nullable'
+            'is_warehouse' => 'nullable',
+            'status' => 'required|in:active,inactive'
         ]);
         $validated['show_online'] = $request->has('show_online');
         $validated['is_warehouse'] = $request->has('is_warehouse');
@@ -87,7 +88,7 @@ class BranchController extends Controller
     public function show($id)
     {
         if (auth()->user()->hasPermissionTo('view branches')) {
-            $branch = Branch::with(['manager', 'employees.user', 'warehouse', 'branchProductStocks.product', 'pos.invoice'])
+            $branch = Branch::withoutGlobalScope('active')->with(['manager', 'employees.user', 'warehouse', 'branchProductStocks.product', 'pos.invoice'])
                 ->findOrFail($id);
             
             // Dynamic counts
@@ -158,7 +159,7 @@ class BranchController extends Controller
     public function edit($id)
     {
         if (auth()->user()->hasPermissionTo('manage branches')) {
-            $branch = Branch::findOrFail($id);
+            $branch = Branch::withoutGlobalScope('active')->findOrFail($id);
             $employees = Employee::with('user')->get();
             $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
             return view('erp.branches.edit', compact('branch', 'employees', 'warehouses'));
@@ -175,7 +176,7 @@ class BranchController extends Controller
         if (!auth()->user()->hasPermissionTo('manage branches')) {
             abort(403, 'Unauthorized action.');
         }
-        $branch = Branch::findOrFail($id);
+        $branch = Branch::withoutGlobalScope('active')->findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
@@ -183,7 +184,8 @@ class BranchController extends Controller
             'manager_id' => 'nullable|exists:users,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'show_online' => 'nullable',
-            'is_warehouse' => 'nullable'
+            'is_warehouse' => 'nullable',
+            'status' => 'required|in:active,inactive'
         ]);
         $validated['show_online'] = $request->has('show_online');
         $validated['is_warehouse'] = $request->has('is_warehouse');
@@ -192,12 +194,79 @@ class BranchController extends Controller
     }
 
     /**
+     * Check if branch can be deleted
+     */
+    public function checkDelete($id)
+    {
+        if (!auth()->user()->hasPermissionTo('manage branches')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $branch = Branch::withoutGlobalScope('active')->findOrFail($id);
+        $errors = [];
+
+        // Check if branch has stock
+        if ($branch->branchProductStocks()->where('quantity', '>', 0)->exists()) {
+            $errors[] = 'Branch has stock. Please adjust stock to 0 first.';
+        }
+
+        // Check if branch has employees
+        if ($branch->employees()->exists()) {
+            $errors[] = 'Branch has employees. Please reassign employees first.';
+        }
+
+        // Check if branch has POS transactions
+        if ($branch->pos()->exists()) {
+            $errors[] = 'Branch has sales history.';
+        }
+
+        // Check if branch has variation stocks
+        if (\App\Models\ProductVariationStock::where('branch_id', $id)->where('quantity', '>', 0)->exists()) {
+            $errors[] = 'Branch has variation stock. Please adjust stock to 0 first.';
+        }
+
+        if (!empty($errors)) {
+            return response()->json([
+                'can_delete' => false,
+                'errors' => $errors,
+                'branch_name' => $branch->name
+            ]);
+        }
+
+        return response()->json([
+            'can_delete' => true,
+            'branch_name' => $branch->name
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy($id)
     {
         if (auth()->user()->hasPermissionTo('manage branches')) {
-            $branch = Branch::findOrFail($id);
+            $branch = Branch::withoutGlobalScope('active')->findOrFail($id);
+            
+            // Check if branch has stock
+            if ($branch->branchProductStocks()->where('quantity', '>', 0)->exists()) {
+                return back()->with('error', 'Cannot delete branch with stock. Please adjust stock to 0 first.');
+            }
+            
+            // Check if branch has employees
+            if ($branch->employees()->exists()) {
+                return back()->with('error', 'Cannot delete branch with employees. Please reassign employees first.');
+            }
+            
+            // Check if branch has POS transactions
+            if ($branch->pos()->exists()) {
+                return back()->with('error', 'Cannot delete branch with sales history.');
+            }
+            
+            // Check if branch has variation stocks
+            if (\App\Models\ProductVariationStock::where('branch_id', $id)->where('quantity', '>', 0)->exists()) {
+                return back()->with('error', 'Cannot delete branch with variation stock. Please adjust stock to 0 first.');
+            }
+            
             $branch->delete();
             return redirect()->route('branches.index')->with('status', 'Branch deleted successfully!');
         }else{

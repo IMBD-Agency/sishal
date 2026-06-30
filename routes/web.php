@@ -131,6 +131,7 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/users/search', [UserController::class, 'searchUser'])->name('user.search');
 
     Route::get('/branches/fetch', [\App\Http\Controllers\Erp\BranchController::class, 'fetchBranches']);
+    Route::get('/branches/{id}/check-delete', [\App\Http\Controllers\Erp\BranchController::class, 'checkDelete'])->name('branches.check-delete');
 
     // Branch Report Routes
     Route::get('/branches/report-data', [\App\Http\Controllers\Erp\BranchController::class, 'getReportData'])->name('branches.report.data');

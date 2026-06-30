@@ -329,7 +329,7 @@ class PurchaseReturnController extends Controller
             $branches = Branch::where('id', $restrictedBranchId)->get();
             $warehouses = collect(); 
         } else {
-            $branches = Branch::all();
+            $branches = Branch::where('status', 'active')->get();
             $warehouses = Warehouse::all();
         }
 
@@ -756,7 +756,7 @@ class PurchaseReturnController extends Controller
                 ->with('error', 'Only pending purchase returns can be edited for safety.');
         }
 
-        $branches = Branch::all();
+        $branches = Branch::where('status', 'active')->get();
         $warehouses = Warehouse::all();
 
         return view('erp.purchaseReturn.edit', compact('purchaseReturn', 'branches', 'warehouses'));

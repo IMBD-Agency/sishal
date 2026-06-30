@@ -355,30 +355,69 @@
                 }
 
                 window.deleteBranch = function (id) {
-                    Swal.fire({
-                        title: 'Are you sure?',
-                        text: "This branch and its associated records will be permanently removed. This action cannot be undone!",
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonColor: '#d33',
-                        cancelButtonColor: '#3085d6',
-                        confirmButtonText: 'Yes, shut it down!',
-                        cancelButtonText: 'Keep it open',
-                        customClass: {
-                            popup: 'rounded-4 shadow-lg border-0',
-                            confirmButton: 'px-4 py-2 rounded-3 fw-bold',
-                            cancelButton: 'px-4 py-2 rounded-3 fw-bold'
-                        }
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            const form = document.createElement('form');
-                            form.method = 'POST';
-                            form.action = `/erp/branches/${id}`;
-                            form.innerHTML = `@csrf @method('DELETE')`;
-                            document.body.appendChild(form);
-                            form.submit();
-                        }
-                    });
+                    // Check if branch can be deleted
+                    fetch(`/erp/branches/${id}/check-delete`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.can_delete) {
+                                // Show confirmation modal
+                                Swal.fire({
+                                    title: 'Are you sure?',
+                                    text: `Delete branch "${data.branch_name}"? This action cannot be undone!`,
+                                    icon: 'warning',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#d33',
+                                    cancelButtonColor: '#3085d6',
+                                    confirmButtonText: 'Yes, delete it!',
+                                    cancelButtonText: 'Cancel',
+                                    customClass: {
+                                        popup: 'rounded-4 shadow-lg border-0',
+                                        confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                                        cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                                    }
+                                }).then((result) => {
+                                    if (result.isConfirmed) {
+                                        const form = document.createElement('form');
+                                        form.method = 'POST';
+                                        form.action = `/erp/branches/${id}`;
+                                        form.innerHTML = `@csrf @method('DELETE')`;
+                                        document.body.appendChild(form);
+                                        form.submit();
+                                    }
+                                });
+                            } else {
+                                // Show error modal with validation messages
+                                let errorHtml = '<ul class="text-start mb-0">';
+                                data.errors.forEach(error => {
+                                    errorHtml += `<li class="mb-1"><i class="fas fa-exclamation-circle text-danger me-2"></i>${error}</li>`;
+                                });
+                                errorHtml += '</ul>';
+
+                                Swal.fire({
+                                    title: 'Cannot Delete Branch',
+                                    html: errorHtml,
+                                    icon: 'error',
+                                    confirmButtonColor: '#3085d6',
+                                    confirmButtonText: 'OK',
+                                    customClass: {
+                                        popup: 'rounded-4 shadow-lg border-0',
+                                        confirmButton: 'px-4 py-2 rounded-3 fw-bold'
+                                    }
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            Swal.fire({
+                                title: 'Error',
+                                text: 'Failed to validate branch. Please try again.',
+                                icon: 'error',
+                                confirmButtonColor: '#3085d6',
+                                customClass: {
+                                    popup: 'rounded-4 shadow-lg border-0',
+                                    confirmButton: 'px-4 py-2 rounded-3 fw-bold'
+                                }
+                            });
+                        });
                 };
 
                 // Export Logic

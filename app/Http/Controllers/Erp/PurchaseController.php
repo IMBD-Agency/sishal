@@ -116,7 +116,7 @@ class PurchaseController extends Controller
             $branches = Branch::where('id', $restrictedBranchId)->get();
             $warehouses = collect();
         } else {
-            $branches = Branch::all();
+            $branches = Branch::where('status', 'active')->get();
             $warehouses = \App\Models\Warehouse::all();
         }
         $bankAccounts = \DB::table('financial_accounts')->get();
@@ -373,7 +373,7 @@ class PurchaseController extends Controller
             $branches = Branch::where('id', $restrictedBranchId)->get();
             $warehouses = collect();
         } else {
-            $branches = Branch::all();
+            $branches = Branch::where('status', 'active')->get();
             $warehouses = \App\Models\Warehouse::all();
         }
         $products = \App\Models\Product::all();
@@ -672,7 +672,7 @@ class PurchaseController extends Controller
             $branches = Branch::where('id', $restrictedBranchId)->get();
             $warehouses = collect();
         } else {
-            $branches = Branch::all();
+            $branches = Branch::where('status', 'active')->get();
             $warehouses = Warehouse::all();
         }
         $suppliers = \App\Models\Supplier::all();

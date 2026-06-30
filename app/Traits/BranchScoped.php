@@ -78,23 +78,31 @@ trait BranchScoped
     /**
      * Get branches accessible to current user
      * Returns all branches for admins/global users, or single branch for restricted employees
+     * Only returns active branches by default
      */
-    protected function getAccessibleBranches()
+    protected function getAccessibleBranches($includeInactive = false)
     {
         $user = Auth::user();
-        
+
         if (!$user) {
             return collect();
         }
 
+        $query = \App\Models\Branch::query();
+
+        // Only return active branches unless explicitly requested
+        if (!$includeInactive) {
+            $query->where('status', 'active');
+        }
+
         // Super Admin or Global Employees (no branch_id) can access all branches
         if ($user->hasRole('Super Admin') || ($user->employee && is_null($user->employee->branch_id))) {
-            return \App\Models\Branch::all();
+            return $query->get();
         }
 
         // Restricted Employees can only access their branch
         if ($user->employee && $user->employee->branch_id) {
-            return \App\Models\Branch::where('id', $user->employee->branch_id)->get();
+            return $query->where('id', $user->employee->branch_id)->get();
         }
 
         // Fallback (e.g. non-employee users) - assume restricted or no access
