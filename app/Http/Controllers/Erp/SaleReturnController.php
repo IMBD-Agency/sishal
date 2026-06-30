@@ -626,6 +626,36 @@ class SaleReturnController extends Controller
 
                 // Restore Invoice amounts that were reduced during processing
                 $totalReturnAmount = $saleReturn->items->sum('total_price');
+
+                // Calculate VAT that was deducted during processing
+                $totalReturnedVat = 0;
+                $posSale = null;
+                if ($saleReturn->pos_sale_id) {
+                    $posSale = \App\Models\Pos::find($saleReturn->pos_sale_id);
+                } elseif ($saleReturn->invoice_id) {
+                    $posSale = \App\Models\Pos::where('invoice_id', $saleReturn->invoice_id)->first();
+                }
+
+                if ($posSale) {
+                    $originalItems = \App\Models\PosItem::where('pos_sale_id', $posSale->id)->get();
+                    $originalGrossTotal = $originalItems->sum(fn($i) => $i->quantity * $i->unit_price);
+
+                    if ($originalGrossTotal > 0) {
+                        foreach ($saleReturn->items as $returnItem) {
+                            $originalItem = \App\Models\PosItem::find($returnItem->sale_item_id);
+                            if ($originalItem) {
+                                $itemGross = $originalItem->quantity * $originalItem->unit_price;
+                                $itemProportion = $itemGross / $originalGrossTotal;
+                                $qtyProportion = $returnItem->returned_qty / $originalItem->quantity;
+                                $itemVat = round($itemProportion * $qtyProportion * ($posSale->vat_amount ?? 0), 2);
+                                $totalReturnedVat += $itemVat;
+                            }
+                        }
+                    }
+                }
+
+                $totalRestoration = $totalReturnAmount + $totalReturnedVat;
+
                 $invoiceToRestore = null;
                 if ($saleReturn->invoice_id) {
                     $invoiceToRestore = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
@@ -635,8 +665,8 @@ class SaleReturnController extends Controller
                         $invoiceToRestore = Invoice::lockForUpdate()->find($pos->invoice_id);
                     }
                 }
-                if ($invoiceToRestore && $totalReturnAmount > 0) {
-                    $invoiceToRestore->total_amount += $totalReturnAmount;
+                if ($invoiceToRestore && $totalRestoration > 0) {
+                    $invoiceToRestore->total_amount += $totalRestoration;
                     $invoiceToRestore->due_amount = max(0, $invoiceToRestore->total_amount - $invoiceToRestore->paid_amount);
                     if ($invoiceToRestore->paid_amount >= $invoiceToRestore->total_amount) {
                         $invoiceToRestore->status = 'paid';
@@ -756,7 +786,8 @@ class SaleReturnController extends Controller
                     }
                 }
 
-                $totalDeduction = $totalReturnAmount + $totalReturnedVat + $totalReturnedDiscount;
+                $totalDeduction = $totalReturnAmount + $totalReturnedVat;
+                // Note: totalReturnedDiscount is already included in totalReturnAmount (net_unit_price), so don't add it again
 
                 // Find the linked invoice via invoice_id or pos_sale_id
                 $invoiceToUpdate = null;

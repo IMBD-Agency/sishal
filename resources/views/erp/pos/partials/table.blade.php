@@ -130,13 +130,11 @@
                         $invNetVat = max(0, ($sale->vat_amount ?? 0) - $invReturnedVat);
                         $invNetDiscount = max(0, ($sale->discount ?? 0) - $invReturnedDiscount);
 
-                        // Aligned with snippet logic:
-                        // Total Sales Amount = Gross + Net VAT + Delivery + Exchange (Total before discount)
-                        $invTotalSalesAmt = $invGrossAmt + $invNetVat + $sale->delivery + ($sale->exchange_amount ?? 0);
-                        // Total = Total Sales Amount - Net Discount (Net Invoice Total)
-                        $invTotal = $invTotalSalesAmt - $invNetDiscount;
+                        // Real-world Gross Amount: Original invoice total before any returns/discounts
+                        // Gross = Original Gross (qty × unit_price) + Original VAT + Delivery
+                        $invGrossAmount = $invGrossAmt + ($sale->vat_amount ?? 0) + $sale->delivery;
                         // Net Amount: always use invoice->total_amount (correctly reduced on return processing)
-                        $invActualAmt = $invoice ? floatval($invoice->total_amount ?? 0) : max(0, $invTotal - $invRetAmt);
+                        $invActualAmt = $invoice ? floatval($invoice->total_amount ?? 0) : max(0, $invGrossAmount - $invRetAmt);
                     @endphp
                     <tr>
                         <!-- @if(auth()->user()->hasRole('Super Admin') || auth()->user()->can('delete sales')) -->
@@ -209,7 +207,7 @@
                         <!-- Sales Amount & Total Sales Amount -->
                         <td class="text-end bg-light">{{ number_format($grossAmt, 2) }}</td>
                         <!-- <td class="text-end bg-light">
-                                                                    @if($isFirst) <span class="fw-bold">{{ number_format($invTotalSalesAmt, 2) }}</span> @endif
+                                                                    @if($isFirst) <span class="fw-bold">{{ number_format($invGrossAmount, 2) }}</span> @endif
                                                                 </td> -->
 
                         <!-- Returns -->
@@ -260,7 +258,7 @@
                             @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
                         </td>
                         <td class="text-end fw-bold">
-                            @if($isFirst) {{ number_format($invTotal, 2) }} @endif
+                            @if($isFirst) {{ number_format($invGrossAmount, 2) }} @endif
                         </td>
                         <td class="text-end text-success fw-bold">
                             @if($isFirst) {{ number_format($invoice->paid_amount ?? 0, 2) }} @endif
@@ -347,8 +345,7 @@
                 <td class="text-end fw-bold">{{ number_format($reportTotals['exchange'], 2) }}</td>
                 <td class="text-end fw-bold text-danger">{{ number_format($reportTotals['refund'], 2) }}</td>
 
-                <td class="text-end fw-bold text-success">{{ number_format($reportTotals['gross_amt'] -
-    $reportTotals['discount'] - $reportTotals['exchange'] + $reportTotals['vat_amt'], 2) }}</td>
+                <td class="text-end fw-bold text-success">{{ number_format($reportTotals['gross_amt'] + $reportTotals['vat_amt'] + $reportTotals['delivery'], 2) }}</td>
 
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>
