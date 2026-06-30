@@ -213,7 +213,7 @@
                             $color = '-'; $size = '-';
                             if ($var) {
                                 foreach($var->attributeValues as $av) {
-                                    $attr = strtolower($av->attribute->name ?? '');
+                                    $attr = strtolower($av->attribute?->name ?? '');
                                     if(str_contains($attr, 'color')) $color = $av->value;
                                     elseif(str_contains($attr, 'size')) $size = $av->value;
                                 }
