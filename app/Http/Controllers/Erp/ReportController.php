@@ -1455,7 +1455,7 @@ $saleReturnCashRefund += $returnProfit;
         }
         if ($startDate) $retQuery->where('return_date', '>=', $startDate->toDateString());
         if ($endDate) $retQuery->where('return_date', '<=', $endDate->toDateString());
-        $returns = $retQuery->with(['items', 'pos.branch'])->get()->map(fn($r) => [
+        $returns = $retQuery->with(['items', 'posSale.branch'])->get()->map(fn($r) => [
             'date' => $r->return_date,
             'type' => 'Sale Return',
             'reference' => 'RET-'.$r->id,
@@ -1463,9 +1463,9 @@ $saleReturnCashRefund += $returnProfit;
             'credit' => $r->items->sum('total_price'),
             'note' => $r->reason,
             // Info wise details
-            'invoice' => $r->pos->invoice_number ?? '-',
+            'invoice' => $r->posSale->invoice_number ?? '-',
             'challan' => '-',
-            'branch' => $r->pos->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-'),
+            'branch' => $r->posSale->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-'),
             'total' => 0,
             'discount' => 0,
             'paid' => 0,
