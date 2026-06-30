@@ -47,18 +47,19 @@
                 <th style="width: 25px;">VAT</th>
                 <th style="width: 25px;">Disc.</th>
                 <th style="width: 25px;">Exch.</th>
-                <th style="width: 35px;">AS-A</th>
-                <th style="width: 40px;">Total</th>
-                <th style="width: 35px;">Paid</th>
-                <th style="width: 35px;">Due</th>
+                <th style="width: 25px;">Refund</th>
+                <th style="width: 35px;">Net Amt</th>
+                <th style="width: 40px;">Gross Amt</th>
+                <th style="width: 35px;">Recvd Amt</th>
+                <th style="width: 35px;">Due Amt</th>
             </tr>
         </thead>
         <tbody>
-            @php 
+            @php
                 $gSellQty = 0; $gTSQty = 0; $gSellAmt = 0; $gTSAmt = 0;
                 $gRetQty = 0; $gTSRQty = 0; $gRetAmt = 0; $gTSRAmt = 0;
                 $gActQty = 0; $gTASQty = 0; $gActAmt = 0;
-                $gDelivery = 0; $gVat = 0; $gDiscount = 0; $gExchange = 0;
+                $gDelivery = 0; $gVat = 0; $gDiscount = 0; $gExchange = 0; $gRefund = 0;
                 $gFinalTotal = 0; $gReceived = 0; $gDue = 0;
             @endphp
             @foreach($items as $index => $item)
@@ -105,7 +106,7 @@
                         $i_RetAmt = $invItems->sum(fn($i) => $i->returnItems->sum('total_price'));
                         $i_ActualQty = $i_TotalQty - $i_RetQty;
                         
-                        $i_TotalSalesAmt = $i_GrossAmt + $sale->vat_amount + $sale->delivery + ($sale->exchange_amount ?? 0);
+                        $i_TotalSalesAmt = $i_GrossAmt;
                         $i_NetTotalValue = $i_TotalSalesAmt - $sale->discount;
                         $i_ActualAmtValue = $i_NetTotalValue - $i_RetAmt;
 
@@ -133,6 +134,7 @@
                         $gVat += ($sale->vat_amount ?? 0);
                         $gDiscount += $sale->discount;
                         $gExchange += ($sale->exchange_amount ?? 0);
+                        $gRefund += ($sale->refund_amount ?? 0);
                         $gActAmt += $i_ActualAmtValue;
                         $gFinalTotal += $i_NetTotalValue;
                         $gReceived += ($invoice->paid_amount ?? 0);
@@ -160,6 +162,7 @@
                     <td class="text-right">{{ $invVat }}</td>
                     <td class="text-right">{{ $invDisc }}</td>
                     <td class="text-right">{{ $invExch }}</td>
+                    <td class="text-right">{{ $isFirst ? number_format($sale->refund_amount ?? 0, 2) : '' }}</td>
                     <td class="text-right fw-bold">{{ $invActualAmt }}</td>
                     <td class="text-right fw-bold">{{ $invNetTotal }}</td>
                     <td class="text-right">{{ $invPaid }}</td>
@@ -184,6 +187,7 @@
                 <td class="text-right">{{ number_format($gVat, 2) }}</td>
                 <td class="text-right">{{ number_format($gDiscount, 2) }}</td>
                 <td class="text-right">{{ number_format($gExchange, 2) }}</td>
+                <td class="text-right">{{ number_format($gRefund, 2) }}</td>
                 <td class="text-right">{{ number_format($gActAmt, 2) }}</td>
                 <td class="text-right">{{ number_format($gFinalTotal, 2) }}</td>
                 <td class="text-right">{{ number_format($gReceived, 2) }}</td>
