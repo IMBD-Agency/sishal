@@ -147,7 +147,7 @@
                         <th class="py-4 text-center" style="width: 90px; background: #111827 !important; color: #ffffff !important; border: none;" title="Exchange From">Exc-Fr</th>
                         <th class="py-4 text-center" style="width: 90px; background: #111827 !important; color: #ffffff !important; border: none;" title="Transfer From">Tr-Fr</th>
                         <th class="py-4 text-center" style="width: 90px; background: #111827 !important; color: #ffffff !important; border: none;" title="Transfer To">Tr-To</th>
-                        <th class="py-4 text-center fw-bold" style="width: 110px; background: #111827 !important; color: #ffffff !important; border: none;" title="Total Current Stock">STOCK</th>
+                        <th class="py-4 text-center fw-bold" style="width: 110px; background: #111827 !important; color: #ffffff !important; border: none;" title="Total Current Stock">Current STOCK</th>
                         <th class="py-4 text-end" style="width: 140px; background: #111827 !important; color: #ffffff !important; border: none;">Cost Value</th>
                         <th class="py-4 text-end pe-4" style="width: 140px; border-top-right-radius: 12px; background: #111827 !important; color: #ffffff !important; border: none;">Sale Value</th>
                     </tr>
