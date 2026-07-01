@@ -473,14 +473,12 @@ class StockController extends Controller
                 $startDate = "$year-01-01";
                 $endDate = "$year-12-31";
             }
-        } elseif (!$startDate && !$endDate) {
-            $year = date('Y');
-            $startDate = "$year-01-01";
-            $endDate = "$year-12-31";
         }
 
         // Merge back into request so relations can use them
-        $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
+        if ($startDate && $endDate) {
+            $request->merge(['start_date' => $startDate, 'end_date' => $endDate]);
+        }
 
         $query = Product::with([
             'category:id,name',

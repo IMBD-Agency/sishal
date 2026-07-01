@@ -443,7 +443,7 @@ class PurchaseController extends Controller
     
             // Add Purchase Items (Bulk Insert version for better performance)
             $itemsToInsert = [];
-            foreach ($request->items as $item) {
+            foreach ($request->items as $index => $item) {
                 $itemsToInsert[] = [
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
@@ -452,6 +452,7 @@ class PurchaseController extends Controller
                     'unit_price'   => $item['unit_price'],
                     'total_price'  => $item['quantity'] * $item['unit_price'],
                     'description'     => $item['description'] ?? null,
+                    'sort_order'   => $index,
                     'created_at'   => now(),
                     'updated_at'   => now(),
                 ];
@@ -721,7 +722,7 @@ class PurchaseController extends Controller
             // Remove old items
             $purchase->items()->delete();
             // Add new items
-            foreach ($request->items as $item) {
+            foreach ($request->items as $index => $item) {
                 $purchase->items()->create([
                     'product_id'   => $item['product_id'],
                     'variation_id' => $item['variation_id'] ?? null,
@@ -729,6 +730,7 @@ class PurchaseController extends Controller
                     'unit_price'   => $item['unit_price'],
                     'total_price'  => $item['quantity'] * $item['unit_price'],
                     'description'  => $item['description'] ?? null,
+                    'sort_order'   => $index,
                 ]);
             }
             // Calculate subtotal

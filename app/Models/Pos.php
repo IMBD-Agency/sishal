@@ -51,7 +51,7 @@ class Pos extends Model
     }
     public function items()
     {
-        return $this->hasMany(\App\Models\PosItem::class, 'pos_sale_id');
+        return $this->hasMany(\App\Models\PosItem::class, 'pos_sale_id')->orderBy('sort_order');
     }
     public function payments()
     {

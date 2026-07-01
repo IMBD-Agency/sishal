@@ -48,8 +48,8 @@
                 <th style="width: 25px;">Disc.</th>
                 <th style="width: 25px;">Exch.</th>
                 <th style="width: 25px;">Refund</th>
-                <th style="width: 35px;">Net Amt</th>
-                <th style="width: 40px;">Gross Amt</th>
+                <th style="width: 40px;">Gross Amt (with vat)</th>
+                <th style="width: 35px;">Net Amt (without vat)</th>
                 <th style="width: 35px;">Recvd Amt</th>
                 <th style="width: 35px;">Due Amt</th>
             </tr>
@@ -163,8 +163,8 @@
                     <td class="text-right">{{ $invDisc }}</td>
                     <td class="text-right">{{ $invExch }}</td>
                     <td class="text-right">{{ $isFirst ? number_format($sale->refund_amount ?? 0, 2) : '' }}</td>
-                    <td class="text-right fw-bold">{{ $invActualAmt }}</td>
                     <td class="text-right fw-bold">{{ $invNetTotal }}</td>
+                    <td class="text-right fw-bold">{{ $invActualAmt }}</td>
                     <td class="text-right">{{ $invPaid }}</td>
                     <td class="text-right">{{ $invDue }}</td>
                 </tr>
@@ -188,8 +188,8 @@
                 <td class="text-right">{{ number_format($gDiscount, 2) }}</td>
                 <td class="text-right">{{ number_format($gExchange, 2) }}</td>
                 <td class="text-right">{{ number_format($gRefund, 2) }}</td>
-                <td class="text-right">{{ number_format($gActAmt, 2) }}</td>
                 <td class="text-right">{{ number_format($gFinalTotal, 2) }}</td>
+                <td class="text-right">{{ number_format($gActAmt, 2) }}</td>
                 <td class="text-right">{{ number_format($gReceived, 2) }}</td>
                 <td class="text-right">{{ number_format($gDue, 2) }}</td>
             </tr>

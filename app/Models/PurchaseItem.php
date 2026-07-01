@@ -16,6 +16,7 @@ class PurchaseItem extends Model
         'total_price',
         'description',
         'requisition_item_id',
+        'sort_order',
     ];
 
     public function product()

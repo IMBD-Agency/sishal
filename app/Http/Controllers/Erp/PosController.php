@@ -185,7 +185,7 @@ class PosController extends Controller
             $discountRatio = ($invoiceSubtotal > 0) ? ($totalInvoiceDiscount / $invoiceSubtotal) : 0;
 
             // Save POS items with combo handling
-            foreach ($request->items as $item) {
+            foreach ($request->items as $index => $item) {
                 $product = Product::find($item['product_id']);
 
                 // Calculate this item's share of the total discount
@@ -205,7 +205,8 @@ class PosController extends Controller
                         'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
                         'total_price' => $itemNetTotal,
                         'current_position_type' => 'branch',
-                        'current_position_id' => $request->branch_id
+                        'current_position_id' => $request->branch_id,
+                        'sort_order' => $index
                     ]);
 
                     // Create invoice item for parent combo
@@ -250,7 +251,8 @@ class PosController extends Controller
                                 'unit_cost' => $this->calculateItemCost($comboItem->product, $comboItem->variation_id),
                                 'total_price' => 0,
                                 'current_position_type' => 'branch',
-                                'current_position_id' => $request->branch_id
+                                'current_position_id' => $request->branch_id,
+                                'sort_order' => $index
                             ]);
                         }
                     }
@@ -281,7 +283,8 @@ class PosController extends Controller
                         'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
                         'total_price' => $itemNetTotal,
                         'current_position_type' => 'branch',
-                        'current_position_id' => $request->branch_id
+                        'current_position_id' => $request->branch_id,
+                        'sort_order' => $index
                     ]);
 
                     $invoiceItem = InvoiceItem::create([
@@ -579,7 +582,7 @@ class PosController extends Controller
         if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'yearly');
+        $reportType = $request->get('report_type', 'custom');
 
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -591,14 +594,13 @@ class PosController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
+            // Default to show all sales for custom to ensure visibility
             $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
         }
 
         // Optimized query with specific columns
-        $query = \App\Models\PosItem::select('pos_items.id', 'pos_items.pos_sale_id', 'pos_items.product_id', 'pos_items.variation_id', 'pos_items.quantity', 'pos_items.unit_price', 'pos_items.total_price', 'pos_items.parent_item_id')
-            ->join('products', 'pos_items.product_id', '=', 'products.id')
-            ->addSelect('products.type as product_type')
+        $query = \App\Models\PosItem::select('pos_items.*')
             ->with([
                 'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,refund_amount,invoice_id,status',
                 'pos.originalPos:id,sale_number',
@@ -606,7 +608,7 @@ class PosController extends Controller
                 'pos.invoice:id,total_amount,paid_amount,due_amount',
                 'pos.branch:id,name',
                 'pos.soldBy:id,first_name,last_name',
-                'pos.items:id,pos_sale_id,product_id,quantity,unit_price,total_price,parent_item_id',
+                'pos.items:id,pos_sale_id,product_id,quantity,unit_price,total_price,parent_item_id,sort_order',
                 'pos.items.product:id,type',
                 'pos.items.returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
                 'pos.items.returnItems.saleReturn:id,refund_type,status',
@@ -626,7 +628,7 @@ class PosController extends Controller
         $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
             ->mergeBindings($query->getQuery())
             ->selectRaw("
-                SUM(CASE WHEN product_type = 'combo' THEN 0 ELSE quantity END) as total_qty, 
+                SUM(CASE WHEN EXISTS (SELECT 1 FROM products WHERE products.id = sub.product_id AND products.type = 'combo') THEN 0 ELSE quantity END) as total_qty, 
                 SUM(quantity * unit_price) as gross_amount,
                 SUM(total_price) as total_amount,
                 SUM((quantity * unit_price) - total_price) as item_discount
@@ -669,7 +671,7 @@ class PosController extends Controller
             'due' => $saleTotals->total_due ?? 0,
         ];
 
-        $items = $query->latest('pos_items.created_at')->paginate(100)->appends($request->all());
+        $items = $query->orderBy('pos_items.pos_sale_id', 'desc')->orderBy('pos_items.sort_order')->paginate(500)->appends($request->all());
 
         // Big Data Dropdown Optimization: Only load top 100 for initial view
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -1763,7 +1765,7 @@ class PosController extends Controller
         ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
-        $items = $query->latest()->get();
+        $items = $query->orderBy('sort_order')->get();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -1803,8 +1805,8 @@ class PosController extends Controller
             'Discount Amount',
             'Exchange Amount',
             'Refund',
-            'Net Amount',
-            'Gross Amount',
+            'Gross Amount (with vat)',
+            'Net Amount (without vat)',
             'Total Received Amount',
             'Total Due Amount'
         ];
@@ -1959,8 +1961,8 @@ class PosController extends Controller
                 $isFirst ? $invNetDiscount : '',
                 $isFirst ? ($sale->exchange_amount ?? 0) : '',
                 $isFirst ? ($sale->refund_amount ?? 0) : '',
-                $invActualAmt,
                 $invTotal,
+                $invActualAmt,
                 $isFirst ? ($invoice->paid_amount ?? 0) : '',
                 $isFirst ? ($invoice->due_amount ?? 0) : ''
             ];
@@ -2053,7 +2055,7 @@ class PosController extends Controller
         ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
-        $items = $query->latest()->get();
+        $items = $query->orderBy('sort_order')->get();
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.pos.export-pdf', compact('items', 'reportType', 'startDate', 'endDate'));
         $pdf->setPaper('A4', 'landscape');
@@ -2073,6 +2075,19 @@ class PosController extends Controller
         while (Pos::where('sale_number', $number)->exists()) {
             $nextId++;
             $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        }
+
+        return $number;
+    }
+
+    private function generateManualSaleNumber()
+    {
+        $nextId = (Pos::max('id') ?? 0) + 1;
+        $number = 'MAN-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+
+        while (Pos::where('sale_number', $number)->exists()) {
+            $nextId++;
+            $number = 'MAN-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
         }
 
         return $number;
@@ -2373,13 +2388,13 @@ class PosController extends Controller
             // Generate numbers inside transaction to ensure uniqueness
             $saleNo = $request->input('sale_no');
             if (empty($saleNo) || Pos::where('sale_number', $saleNo)->exists()) {
-                $saleNo = $this->generateSaleNumber();
+                $saleNo = $this->generateManualSaleNumber();
             }
             $pos->sale_number = $saleNo;
 
             $challanNo = $request->challan_no;
             if (empty($challanNo) || Pos::where('challan_number', $challanNo)->exists()) {
-                $challanNo = str_replace(['INV', 'POS'], 'CHA', $saleNo);
+                $challanNo = str_replace(['INV', 'POS', 'MAN'], 'CHA', $saleNo);
             }
             $pos->challan_number = $challanNo;
 
@@ -2467,7 +2482,7 @@ class PosController extends Controller
             $discountRatio = ($invoiceSubtotal > 0) ? ($totalInvoiceDiscount / $invoiceSubtotal) : 0;
 
             // 3. STAGE 3: PROCESS ITEMS AND DEDUCT STOCK
-            foreach ($request->items as $item) {
+            foreach ($request->items as $index => $item) {
                 $result = $this->deductStock(
                     $item['product_id'],
                     $item['variation_id'] ?? null,
@@ -2495,7 +2510,8 @@ class PosController extends Controller
                     'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
                     'total_price' => $itemNetTotal,
                     'current_position_type' => 'branch',
-                    'current_position_id' => $request->branch_id
+                    'current_position_id' => $request->branch_id,
+                    'sort_order' => $index
                 ]);
 
                 // Create Invoice Item

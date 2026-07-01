@@ -30,7 +30,7 @@ class Purchase extends Model
 
     public function items()
     {
-        return $this->hasMany(PurchaseItem::class,'purchase_id');
+        return $this->hasMany(PurchaseItem::class,'purchase_id')->orderBy('sort_order');
     }
 
     public function bill()

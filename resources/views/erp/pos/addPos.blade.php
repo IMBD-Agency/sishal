@@ -647,7 +647,8 @@ $(document).ready(function() {
             return;
         }
 
-        $('#cartCount').text(cart.length + (cart.length === 1 ? ' Item' : ' Items'));
+        let totalQty = cart.reduce((acc, item) => acc + item.qty, 0);
+        $('#cartCount').text(totalQty + (totalQty === 1 ? ' Item' : ' Items'));
 
         cart.forEach((item, idx) => {
             let itemTotal = item.price * item.qty;

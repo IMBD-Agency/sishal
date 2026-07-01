@@ -88,20 +88,19 @@
                         <!-- Row 2: Time & Date Filters -->
                         <div class="row g-3 align-items-end mb-4 bg-light p-3 rounded-3 mx-0 border">
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Year</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
                                 <select class="form-select form-select-sm" name="filter_year">
-                                    <option value="">Custom Range</option>
-                                    <option value="{{ date('Y') }}" {{ request('filter_year', !request()->has('start_date') ? date('Y') : '') == date('Y') ? 'selected' : '' }}>{{ date('Y') }}</option>
-                                    @for($i = date('Y') - 1; $i >= date('Y') - 5; $i--)
-                                        <option value="{{ $i }}" {{ request('filter_year') == $i ? 'selected' : '' }}>{{ $i }}
-                                        </option>
+                                    <option value="">All Years</option>
+                                    <option value="{{ date('Y') }}" {{ request('filter_year') == date('Y') ? 'selected' : '' }}>{{ date('Y') }} (Current)</option>
+                                    @for($i = date('Y') + 1; $i <= date('Y') + 5; $i++)
+                                        <option value="{{ $i }}" {{ request('filter_year') == $i ? 'selected' : '' }}>{{ $i }}</option>
                                     @endfor
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Month</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
                                 <select class="form-select form-select-sm" name="filter_month">
-                                    <option value="">All Year</option>
+                                    <option value="">All Months</option>
                                     @foreach(range(1, 12) as $m)
                                         <option value="{{ $m }}" {{ request('filter_month') == $m ? 'selected' : '' }}>
                                             {{ date('F', mktime(0, 0, 0, $m, 1)) }}
@@ -110,14 +109,12 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Specific Start
-                                    Date</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
                                 <input type="date" class="form-control form-control-sm" name="start_date"
                                     value="{{ request('start_date') }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Specific End
-                                    Date</label>
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
                                 <input type="date" class="form-control form-control-sm" name="end_date"
                                     value="{{ request('end_date') }}">
                             </div>
@@ -388,74 +385,6 @@
                     });
 
                     // Live Search removed in favor of global server-side search
-
-                    // Edit Opening Stock Logic
-                    $('.opening-stock-display, .edit-opening-stock').off('click').on('click', function () {
-                        const td = $(this).closest('td');
-                        const span = td.find('.opening-stock-display');
-                        const productId = span.data('product-id');
-                        const variationId = span.data('variation-id');
-                        const locationType = span.data('location-type');
-                        const locationId = span.data('location-id');
-                        const currentVal = span.text().trim();
-
-                        Swal.fire({
-                            title: 'Adjust Opening Stock',
-                            html: `<div class="text-start small text-muted mb-3">
-                                        Setting a new opening balance will automatically adjust the <b>Current Total Stock</b>.
-                                        <br><br>
-                                        Current Opening: <b>${currentVal}</b>
-                                       </div>`,
-                            input: 'number',
-                            inputValue: currentVal,
-                            inputAttributes: {
-                                min: 0,
-                                step: 'any',
-                                class: 'form-control shadow-sm border-2'
-                            },
-                            showCancelButton: true,
-                            confirmButtonText: 'Update Baseline',
-                            confirmButtonColor: '#198754',
-                            showLoaderOnConfirm: true,
-                            customClass: {
-                                popup: 'rounded-4 border-0 shadow-lg',
-                                confirmButton: 'px-4 py-2 rounded-3 fw-bold',
-                                cancelButton: 'px-4 py-2 rounded-3 fw-bold'
-                            },
-                            preConfirm: (newVal) => {
-                                if (newVal === "" || newVal === null) {
-                                    Swal.showValidationMessage('Please enter a valid quantity');
-                                    return false;
-                                }
-                                return $.ajax({
-                                    url: "{{ route('stock.updateOpening') }}",
-                                    method: "POST",
-                                    data: {
-                                        _token: "{{ csrf_token() }}",
-                                        product_id: productId,
-                                        variation_id: variationId,
-                                        location_type: locationType,
-                                        location_id: locationId,
-                                        opening_stock: newVal,
-                                        current_opening: span.data('current-opening')
-                                    }
-                                }).then(response => {
-                                    if (!response.success) {
-                                        throw new Error(response.message || 'Update failed');
-                                    }
-                                    return response;
-                                }).catch(error => {
-                                    Swal.showValidationMessage(`Request failed: ${error.responseJSON?.message || error.statusText || error.message}`);
-                                });
-                            },
-                            allowOutsideClick: () => !Swal.isLoading()
-                        }).then((result) => {
-                            if (result.isConfirmed && result.value.success) {
-                                erpNotify.success(result.value.message);
-                                fetchStockData(); // Refresh table to show updated quantities everywhere
-                            }
-                        });
-                    });
 
                     // Initialize Bootstrap tooltips
                     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))

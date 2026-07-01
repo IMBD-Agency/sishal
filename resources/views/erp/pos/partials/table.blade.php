@@ -48,8 +48,8 @@
                 <th class="text-end">Discount Amount</th>
                 <th class="text-end">Exchange Amount</th>
                 <th class="text-end">Refund</th>
-                <th class="text-end text-success">Net Amount</th>
-                <th class="text-end fw-bold">Gross Amount</th>
+                <th class="text-end fw-bold">Gross Amount (with vat)</th>
+                <th class="text-end text-success">Net Amount (without vat)</th>
                 <th class="text-end text-success fw-bold">Total Received Amount</th>
                 <th class="text-end text-danger fw-bold">Total Due Amount</th>
                 <th class="text-center">Option</th>
@@ -254,11 +254,11 @@
                             @if($isFirst) {{ number_format($sale->refund_amount ?? 0, 2) }} @endif
                         </td>
 
-                        <td class="text-end fw-bold text-success">
-                            @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
-                        </td>
                         <td class="text-end fw-bold">
                             @if($isFirst) {{ number_format($invGrossAmount, 2) }} @endif
+                        </td>
+                        <td class="text-end fw-bold text-success">
+                            @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
                         </td>
                         <td class="text-end text-success fw-bold">
                             @if($isFirst) {{ number_format($invoice->paid_amount ?? 0, 2) }} @endif
@@ -345,7 +345,7 @@
                 <td class="text-end fw-bold">{{ number_format($reportTotals['exchange'], 2) }}</td>
                 <td class="text-end fw-bold text-danger">{{ number_format($reportTotals['refund'], 2) }}</td>
 
-                <td class="text-end fw-bold text-success">{{ number_format($reportTotals['gross_amt'] + $reportTotals['vat_amt'] + $reportTotals['delivery'], 2) }}</td>
+                <td class="text-end fw-bold">{{ number_format($reportTotals['gross_amt'] + $reportTotals['vat_amt'] + $reportTotals['delivery'], 2) }}</td>
 
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>

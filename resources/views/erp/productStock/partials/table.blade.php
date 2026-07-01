@@ -136,7 +136,6 @@
                         <th class="py-4 text-center" style="width: 100px; background: #111827 !important; color: #ffffff !important; border: none;">Color</th>
                         <th class="py-4 text-center" style="width: 80px; background: #111827 !important; color: #ffffff !important; border: none;">Size</th>
                         <th class="py-4 text-center" style="min-width: 150px; background: #111827 !important; color: #ffffff !important; border: none;"> Outlet</th>
-                        <th class="py-4 text-center fw-bold" style="width: 100px; background: #111827 !important; color: #ffffff !important; border: none;" title="Stock before selected period">Opening</th>
                         <th class="py-4 text-center fw-bold" style="width: 90px; background: #111827 !important; color: #ffffff !important; border: none;" title="Purchase Quantity">P-Qnt</th>
                         <th class="py-4 text-center" style="width: 90px; background: #111827 !important; color: #ffffff !important; border: none;" title="Purchase Return">PR-Qnt</th>
                         <th class="py-4 text-center text-info" style="width: 90px; background: #111827 !important; color: #00e5ff !important; border: none;" title="Actual Purchase (P-Qnt - PR-Qnt)">Net-P</th>
@@ -155,7 +154,6 @@
                 </thead>
                 <tbody>
                     @php
-                        $total_opening = 0;
                         $total_p = 0;
                         $total_pr = 0;
                         $total_net_p = 0;
@@ -206,10 +204,6 @@
                                 $stock_qty = ($locationType == 'branch' ? $prod->branchStock->where('branch_id', $locationId)->sum('quantity') : $prod->warehouseStock->where('warehouse_id', $locationId)->sum('quantity'));
                             }
 
-                            $inflows = $p_qnt + $sr_qnt + ($adjust > 0 ? $adjust : 0) + $tr_to + $exc_from;
-                            $outflows = $s_qnt + $pr_qnt + ($adjust < 0 ? abs($adjust) : 0) + $tr_from + $exc_to;
-                            $opening_stock = $stock_qty - ($inflows - $outflows);
-
                             $color = '-'; $size = '-';
                             if ($var) {
                                 foreach($var->attributeValues as $av) {
@@ -229,7 +223,6 @@
                             if ($locationType == 'warehouse') $row_rev += $item['agg']['rev'][$wh_key] ?? 0;
 
                             // Accumulate Totals
-                            $total_opening += $opening_stock;
                             $total_p += $p_qnt;
                             $total_pr += $pr_qnt;
                             $total_net_p += ($p_qnt - $pr_qnt);
@@ -265,26 +258,6 @@
                                     {{ $loc['name'] }}
                                 </span>
                             </td>
-                            <td class="text-center bg-light text-dark fw-bold position-relative" style="font-size: 14px;">
-                                @can('manage opening stock')
-                                <span class="opening-stock-display" 
-                                      data-product-id="{{ $prod->id }}" 
-                                      data-variation-id="{{ $vid }}" 
-                                      data-location-type="{{ $locationType }}" 
-                                      data-location-id="{{ $locationId }}"
-                                      data-current-opening="{{ $opening_stock }}"
-                                      title="Click to change opening balance">
-                                    {{ $opening_stock }}
-                                </span>
-                                @else
-                                <span>{{ $opening_stock }}</span>
-                                @endcan
-                                @can('manage opening stock')
-                                <button class="btn btn-sm btn-link p-0 ms-1 edit-opening-stock no-loader" title="Edit Opening Stock">
-                                    <i class="fas fa-edit text-muted" style="font-size: 10px;"></i>
-                                </button>
-                                @endcan
-                            </td>
                             <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $p_qnt ?: '' }}</td>
                             <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $pr_qnt ?: '' }}</td>
                             <td class="text-center fw-bold text-info" style="font-size: 14px; background: rgba(0,229,255,0.02)">{{ ($p_qnt - $pr_qnt) ?: '' }}</td>
@@ -316,7 +289,6 @@
                 <tfoot style="background: #f8f9fa; border-top: 2px solid #111827;">
                     <tr>
                         <td colspan="6" class="text-end fw-bold py-3">GRAND TOTAL (PAGE)</td>
-                        <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $total_opening }}</td>
                         <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $total_p }}</td>
                         <td class="text-center fw-bold text-dark" style="font-size: 14px;">{{ $total_pr }}</td>
                         <td class="text-center fw-bold text-info" style="font-size: 14px; background: rgba(0,229,255,0.05)">{{ $total_net_p }}</td>

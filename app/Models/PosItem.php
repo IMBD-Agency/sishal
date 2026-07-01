@@ -15,7 +15,8 @@ class PosItem extends Model
         'unit_price',
         'total_price',
         'current_position_type',
-        'current_position_id'
+        'current_position_id',
+        'sort_order',
     ];
 
     // Relationships
