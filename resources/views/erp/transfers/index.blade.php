@@ -74,7 +74,7 @@
                         </div>
                         <div>
                             <div class="small text-muted text-uppercase fw-bold">Total Amount</div>
-                            <h4 class="fw-bold mb-0 text-dark">{{ number_format($totalTransfers, 2) }}৳</h4>
+                            <h4 class="fw-bold mb-0 text-dark" id="totalAmountText">{{ number_format($totalTransfers, 2) }}৳</h4>
                         </div>
                     </div>
                 </div>
@@ -83,134 +83,96 @@
             <!-- Filters -->
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-body p-4">
-                    <form method="GET" action="{{ route('transfers.index') }}" class="row g-3" id="filterForm">
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase">From Date</label>
-                            <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                    <form method="GET" action="{{ route('transfers.index') }}" id="filterForm">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-4">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
+                                    id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Manual Range</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
+                                    id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
+                                    id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
+                            </div>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase">To Date</label>
-                            <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Branch</label>
-                            <select name="branch_id" class="form-select select2-simple">
-                                <option value="">All Branches</option>
-                                @foreach($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
-                                        {{ $branch->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Account</label>
-                            <select name="from_account_id" class="form-select select2-simple">
-                                <option value="">All Accounts</option>
-                                @foreach($accounts as $account)
-                                    <option value="{{ $account->id }}" {{ request('from_account_id') == $account->id ? 'selected' : '' }}>
-                                        {{ $account->provider_name }} - {{ $account->account_number }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-2"></i>Filter
-                            </button>
+
+                        <div class="row g-3">
+                            <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">From Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                            </div>
+                            <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">To Date</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                            </div>
+
+                            <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
+                                <select name="month" class="form-select">
+                                    <option value="">All Months</option>
+                                    @for($m = 1; $m <= 12; $m++)
+                                        <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>
+                                            {{ date('F', mktime(0, 0, 0, $m, 1)) }}
+                                        </option>
+                                    @endfor
+                                </select>
+                            </div>
+
+                            <div class="col-md-2 year-field {{ !in_array($reportType, ['monthly', 'yearly']) ? 'd-none' : '' }}">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
+                                <select name="year" class="form-select">
+                                    <option value="">All Years</option>
+                                    @for($y = date('Y'); $y >= date('Y') - 5; $y--)
+                                        <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
+                                <select name="branch_id" class="form-select select2-simple">
+                                    <option value="">All Branches</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Account</label>
+                                <select name="from_account_id" class="form-select select2-simple">
+                                    <option value="">All Accounts</option>
+                                    @foreach($accounts as $account)
+                                        <option value="{{ $account->id }}" {{ request('from_account_id') == $account->id ? 'selected' : '' }}>
+                                            {{ $account->provider_name }} - {{ $account->account_number }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1">
+                                    <i class="fas fa-filter me-2"></i>Filter
+                                </button>
+                                <button type="button" id="resetFilters" class="btn btn-light border" title="Reset Filters">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
 
             <!-- Transfers Table -->
-            <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="ps-4">Date</th>
-                                    <th>From (Source)</th>
-                                    <th>To (Destination)</th>
-                                    <th class="text-end">Amount</th>
-                                    <th>Reference</th>
-                                    <th>Memo</th>
-                                    <th class="text-center pe-4">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($transfers as $transfer)
-                                <tr>
-                                    <td class="ps-4">
-                                        <div class="fw-bold">{{ $transfer->transfer_date->format('d M, Y') }}</div>
-                                        <div class="small text-muted">{{ $transfer->created_at->format('h:i A') }}</div>
-                                    </td>
-                                    <td>
-                                        <div class="fw-bold text-dark">{{ $transfer->fromAccount->provider_name ?? 'N/A' }}</div>
-                                        <div class="small text-muted">
-                                            @if($transfer->fromAccount->branch_id)
-                                                <span class="badge bg-soft-primary">{{ $transfer->fromAccount->branch->name ?? 'Branch' }}</span>
-                                            @elseif($transfer->fromAccount->warehouse_id)
-                                                <span class="badge bg-soft-info">{{ $transfer->fromAccount->warehouse->name ?? 'Warehouse' }}</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="fw-bold text-dark">{{ $transfer->toAccount->provider_name ?? 'N/A' }}</div>
-                                        <div class="small text-muted">
-                                            @if($transfer->toAccount->branch_id)
-                                                <span class="badge bg-soft-primary">{{ $transfer->toAccount->branch->name ?? 'Branch' }}</span>
-                                            @elseif($transfer->toAccount->warehouse_id)
-                                                <span class="badge bg-soft-info">{{ $transfer->toAccount->warehouse->name ?? 'Warehouse' }}</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td class="text-end">
-                                        <span class="fw-bold text-primary fs-5">{{ number_format($transfer->amount, 2) }}৳</span>
-                                    </td>
-                                    <td>{{ $transfer->reference ?: '-' }}</td>
-                                    <td>{{ $transfer->memo ?: '-' }}</td>
-                                    <td class="text-center pe-4">
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown">
-                                                <i class="fas fa-ellipsis-v text-muted"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
-                                                <li><a class="dropdown-item" href="{{ route('transfers.show', $transfer->id) }}"><i class="fas fa-eye me-2 text-primary"></i>View</a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li>
-                                                    @can('delete fund transfers')
-                                                        <form action="{{ route('transfers.destroy', $transfer->id) }}" method="POST" onsubmit="return confirm('Delete this transfer? This will reverse the amounts.')">
-                                                            @csrf @method('DELETE')
-                                                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt me-2"></i>Delete</button>
-                                                        </form>
-                                                    @endcan
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <div class="text-muted opacity-50">
-                                            <i class="fas fa-exchange-alt fa-4x mb-3"></i>
-                                            <p class="fw-bold mb-0">No fund transfers found.</p>
-                                            <a href="{{ route('transfers.create') }}" class="btn btn-primary mt-3">Create First Transfer</a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                @if($transfers->hasPages())
-                <div class="card-footer bg-white border-0 py-3">
-                    {{ $transfers->links('vendor.pagination.bootstrap-5') }}
-                </div>
-                @endif
+            <div class="card border-0 shadow-sm rounded-4" id="tableContainer">
+                @include('erp.transfers.partials.table')
             </div>
         </div>
     </div>
@@ -236,5 +198,68 @@
         // Reset flag after a delay
         setTimeout(() => { window.isDownloadNavigation = false; }, 2000);
     }
+
+    $(document).ready(function () {
+        $('.report-type-radio').on('change', function () {
+            const val = $(this).val();
+            if (val === 'daily') {
+                $('.date-range-field').removeClass('d-none').show();
+                $('.month-field, .year-field').addClass('d-none').hide();
+            } else if (val === 'monthly') {
+                $('.month-field, .year-field').removeClass('d-none').show();
+                $('.date-range-field').addClass('d-none').hide();
+            } else if (val === 'yearly') {
+                $('.year-field').removeClass('d-none').show();
+                $('.date-range-field, .month-field').addClass('d-none').hide();
+            }
+        });
+
+        // AJAX search helper
+        function fetchData(url = "{{ route('transfers.index') }}") {
+            const formData = $('#filterForm').serialize();
+            $('#tableContainer').css('opacity', '0.5');
+            $.ajax({
+                url: url,
+                data: formData,
+                success: function(res) {
+                    $('#tableContainer').html(res.html).css('opacity', '1');
+                    $('#totalAmountText').text(res.totalAmount);
+                }
+            });
+        }
+
+        // Form submit override
+        $('#filterForm').on('submit', function(e) {
+            e.preventDefault();
+            fetchData();
+        });
+
+        // AJAX Reset
+        $('#resetFilters').on('click', function () {
+            $('#filterForm')[0].reset();
+            $('.select2-simple').val('').trigger('change.select2');
+
+            // Reset report type radio to daily
+            $('#dailyReport').prop('checked', true);
+
+            // Set inputs back to today
+            const today = new Date().toISOString().split('T')[0];
+            $('input[name="start_date"]').val(today);
+            $('input[name="end_date"]').val(today);
+
+            $('.date-range-field').removeClass('d-none').show();
+            $('.month-field, .year-field').addClass('d-none').hide();
+
+            fetchData();
+        });
+
+        // Pagination links AJAX handler
+        $(document).on('click', '.pagination a', function(e) {
+            e.preventDefault();
+            const url = $(this).attr('href');
+            fetchData(url);
+            window.history.pushState({}, '', url);
+        });
+    });
 </script>
 @endpush

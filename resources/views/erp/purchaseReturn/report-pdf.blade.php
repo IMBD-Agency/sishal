@@ -70,15 +70,17 @@
                     
                     $purchase = $return->purchase;
                     $product = $item->product;
-                    $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
+                    $variation = $item->variation;
                     
                     $color = '-'; $size = '-';
                     if ($variation && $variation->attributeValues) {
                         foreach($variation->attributeValues as $val) {
-                            $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                            $attr = $val->attribute;
+                            if (!$attr) continue;
+                            $attrName = strtolower($attr->name);
+                            if (str_contains($attrName, 'color') || $attr->is_color) {
                                 $color = $val->value;
-                            } elseif (str_contains($attrName, 'size')) {
+                            } elseif (str_contains($attrName, 'size') || str_contains($attrName, 'fit')) {
                                 $size = $val->value;
                             }
                         }

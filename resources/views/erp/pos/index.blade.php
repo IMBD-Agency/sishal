@@ -119,7 +119,7 @@
                             <div class="d-flex gap-4">
                                 <div class="form-check custom-radio">
                                     <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                        id="dailyReport" value="daily" {{ request('report_type') == 'daily' ? 'checked' : '' }}>
+                                        id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily
                                         Reports</label>
                                 </div>
@@ -131,7 +131,7 @@
                                 </div>
                                 <div class="form-check custom-radio">
                                     <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                        id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
+                                        id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly
                                         Reports</label>
                                 </div>
@@ -143,12 +143,12 @@
                             <div class="col-md-2 daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
                                 <input type="date" name="start_date" class="form-control"
-                                    value="{{ request('report_type') == 'daily' ? request('start_date') : '' }}">
+                                    value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-2 daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
                                 <input type="date" name="end_date" class="form-control"
-                                    value="{{ request('report_type') == 'daily' ? request('end_date') : '' }}">
+                                    value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 monthly-group" style="display: none;">
@@ -374,7 +374,11 @@
                     $('.select2-simple').val('').trigger('change');
 
                     // Set default report type
-                    $('#yearlyReport').prop('checked', true).trigger('change');
+                    $('#dailyReport').prop('checked', true).trigger('change');
+
+                    const today = new Date().toISOString().split('T')[0];
+                    $('input[name="start_date"]').val(today);
+                    $('input[name="end_date"]').val(today);
 
                     // Fetch default data
                     fetchSalesData("{{ route('pos.list') }}");

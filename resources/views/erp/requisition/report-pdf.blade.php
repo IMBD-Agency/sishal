@@ -32,11 +32,11 @@
             @foreach($requisitions as $req)
                 <tr>
                     <td>{{ $req->requisition_number }}</td>
-                    <td>{{ $req->branch->name }}</td>
-                    <td>{{ $req->warehouse->name }}</td>
+                    <td>{{ optional($req->branch)->name ?? '—' }}</td>
+                    <td>{{ optional($req->warehouse)->name ?? '—' }}</td>
                     <td>{{ $req->requisition_date }}</td>
                     <td>{{ strtoupper(str_replace('_', ' ', $req->status)) }}</td>
-                    <td>{{ $req->creator->name }}</td>
+                    <td>{{ optional($req->creator)->name ?? '—' }}</td>
                 </tr>
             @endforeach
         </tbody>

@@ -111,6 +111,14 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Search Keywords</label>
                                 <input type="text" name="search" class="form-control form-control-sm" placeholder="Voucher # or Account..." value="{{ request('search') }}">
                             </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Per Page</label>
+                                <select name="per_page" class="form-select form-select-sm">
+                                    @foreach([25, 50, 100, 200] as $pp)
+                                        <option value="{{ $pp }}" {{ request('per_page', 50) == $pp ? 'selected' : '' }}>{{ $pp }} rows</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
 
                         <div class="card-footer bg-light border-top p-3 mt-4 mx-n3 mb-n3">
@@ -127,9 +135,9 @@
                                     </button>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('ledger.index') }}" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
+                                    <button type="button" id="resetBtn" class="btn btn-light border px-4 fw-bold text-muted justify-content-center" style="height: 42px; display: flex; align-items: center;">
                                         <i class="fas fa-undo me-2"></i>Reset
-                                    </a>
+                                    </button>
                                     <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
                                         <i class="fas fa-search me-2"></i>Filter
                                     </button>
@@ -150,7 +158,7 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-primary opacity-75">Total Debits</div>
-                                <div class="h5 mb-0 fw-bold text-primary">৳{{ number_format($totalDebits, 2) }}</div>
+                                <div class="h5 mb-0 fw-bold text-primary" id="statTotalDebits">৳{{ number_format($totalDebits, 2) }}</div>
                             </div>
                         </div>
                     </div>
@@ -163,7 +171,7 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-success opacity-75">Total Credits</div>
-                                <div class="h5 mb-0 fw-bold text-success">৳{{ number_format($totalCredits, 2) }}</div>
+                                <div class="h5 mb-0 fw-bold text-success" id="statTotalCredits">৳{{ number_format($totalCredits, 2) }}</div>
                             </div>
                         </div>
                     </div>
@@ -177,9 +185,9 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-info opacity-75">Net Position</div>
-                                <div class="h5 mb-0 fw-bold text-info">
+                                <div class="h5 mb-0 fw-bold text-info" id="statNet">
                                     ৳{{ number_format(abs($net), 2) }} 
-                                    <small class="fw-normal">({{ $net >= 0 ? 'Dr' : 'Cr' }})</small>
+                                    <small class="fw-normal" id="statNetType">({{ $net >= 0 ? 'Dr' : 'Cr' }})</small>
                                 </div>
                             </div>
                         </div>
@@ -193,7 +201,7 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-dark opacity-75">Total Entries</div>
-                                <div class="h5 mb-0 fw-bold text-dark">{{ $totalEntries }}</div>
+                                <div class="h5 mb-0 fw-bold text-dark" id="statTotalEntries">{{ $totalEntries }}</div>
                             </div>
                         </div>
                     </div>
@@ -225,65 +233,8 @@
                                     <th class="text-center pe-4">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @forelse($ledgerEntries as $entry)
-                                    <tr>
-                                        <td class="ps-4 text-dark fw-500">{{ \Carbon\Carbon::parse($entry->journal->entry_date)->format('d M, Y') }}</td>
-                                        <td>
-                                            <div class="d-flex flex-column">
-                                                <span class="badge bg-light text-dark border mb-1 align-self-start py-1 px-2 fw-normal">{{ $entry->journal->voucher_no }}</span>
-                                                <span class="text-muted small text-truncate" style="max-width: 250px;" title="{{ $entry->journal->description }}">{{ $entry->journal->description }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="fw-bold text-primary mb-0">{{ $entry->chartOfAccount->name }}</div>
-                                            <div class="text-muted small fs-xs text-uppercase">{{ $entry->chartOfAccount->code }}</div>
-                                        </td>
-                                        <td class="text-end">
-                                            @if($entry->debit > 0)
-                                                <span class="text-danger fw-bold">৳{{ number_format($entry->debit, 2) }}</span>
-                                            @else
-                                                <span class="text-muted opacity-50">-</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-end">
-                                            @if($entry->credit > 0)
-                                                <span class="text-success fw-bold">৳{{ number_format($entry->credit, 2) }}</span>
-                                            @else
-                                                <span class="text-muted opacity-50">-</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-end fw-bold">
-                                            @php $bal = $entry->debit - $entry->credit; @endphp
-                                            <span class="{{ $bal >= 0 ? 'text-primary' : 'text-danger' }}">
-                                                ৳{{ number_format(abs($bal), 2) }}
-                                                <small class="fw-normal text-muted fs-xs">{{ $bal >= 0 ? 'Dr' : 'Cr' }}</small>
-                                            </span>
-                                        </td>
-                                        <td class="text-center pe-4">
-                                            <div class="d-flex gap-2 justify-content-center">
-                                                <a href="{{ route('journal.show', $entry->journal_id) }}" class="action-circle bg-light" title="View Voucher">
-                                                    <i class="fas fa-eye text-primary"></i>
-                                                </a>
-                                                <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}" class="action-circle bg-light" title="View Full Account Ledger">
-                                                    <i class="fas fa-book text-info"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="7" class="text-center py-5">
-                                            <div class="py-5">
-                                                <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                                                    <i class="fas fa-search-dollar fa-2x text-muted"></i>
-                                                </div>
-                                                <h5 class="text-dark fw-bold">No Records Found</h5>
-                                                <p class="text-muted mx-auto" style="max-width: 300px;">Adjust your filters or date range to find the transactions you're looking for.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
+                            <tbody id="ledgerTableBody">
+                                @include('erp.doubleEntry.partials.ledger_rows', ['ledgerEntries' => $ledgerEntries])
                             </tbody>
                         </table>
                     </div>
@@ -291,12 +242,14 @@
 
                 <!-- Correct Pagination UI -->
                 @if($ledgerEntries->hasPages())
-                    <div class="card-footer bg-white border-top-0 py-3 px-4">
+                    <div class="card-footer bg-white border-top-0 py-3 px-4" id="paginationContainer">
                         <div class="d-flex justify-content-between align-items-center">
                             <p class="text-muted small mb-0">Displaying {{ $ledgerEntries->firstItem() }} to {{ $ledgerEntries->lastItem() }} of {{ $ledgerEntries->total() }} entries</p>
                             {{ $ledgerEntries->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
                         </div>
                     </div>
+                @else
+                    <div id="paginationContainer"></div>
                 @endif
             </div>
         </div>
@@ -325,51 +278,92 @@
     </style>
     <script>
         $(document).ready(function() {
-            // Live Search Logic
+            // Live Search
             let searchTimeout;
             $('#tableSearch').on('input', function() {
                 clearTimeout(searchTimeout);
                 const value = $(this).val().toLowerCase();
                 searchTimeout = setTimeout(function() {
-                    $("#ledgerTable tbody tr").filter(function() {
-                        const text = $(this).text().toLowerCase();
-                        $(this).toggle(text.indexOf(value) > -1);
+                    $("#ledgerTableBody tr").filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
                     });
                 }, 300);
             });
 
-            // Handle Report Toggles (Daily, Monthly, Yearly)
+            // Report type toggle
             function toggleDateGroups() {
                 const type = $('.report-type-radio:checked').val() || 'daily';
                 $('.report-field').addClass('d-none');
-                
-                if (type === 'daily') {
-                    $('.daily-group').removeClass('d-none');
-                } else if (type === 'monthly') {
-                    $('.monthly-group').removeClass('d-none');
-                } else if (type === 'yearly') {
-                    $('.yearly-group').removeClass('d-none');
-                }
+                if (type === 'daily')        $('.daily-group').removeClass('d-none');
+                else if (type === 'monthly') $('.monthly-group').removeClass('d-none');
+                else if (type === 'yearly')  $('.yearly-group').removeClass('d-none');
+            }
+            $('.report-type-radio').on('change', toggleDateGroups);
+            toggleDateGroups();
+
+            // AJAX fetch
+            function fetchData(url) {
+                const form = $('#filterForm');
+                const targetUrl = url || form.attr('action');
+                const formData = form.serialize();
+
+                $.ajax({
+                    url: targetUrl,
+                    type: 'GET',
+                    data: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    beforeSend: function() {
+                        $('#ledgerTableBody').css('opacity', '0.5');
+                    },
+                    success: function(res) {
+                        $('#ledgerTableBody').css('opacity', '1').html(res.html);
+                        $('#paginationContainer').html(res.pagination);
+                        $('#statTotalDebits').text('৳' + res.total_debits);
+                        $('#statTotalCredits').text('৳' + res.total_credits);
+                        $('#statNet').html('৳' + res.net + ' <small class="fw-normal" id="statNetType">(' + res.net_type + ')</small>');
+                        $('#statTotalEntries').text(res.total_entries);
+                    },
+                    error: function(xhr) {
+                        console.error('Ledger AJAX error', xhr);
+                        $('#ledgerTableBody').css('opacity', '1');
+                    }
+                });
             }
 
-            $('.report-type-radio').on('change', function() {
-                toggleDateGroups();
+            // Form submit → AJAX
+            $('#filterForm').on('submit', function(e) {
+                e.preventDefault();
+                fetchData();
             });
 
-            // Initial setup run
-            toggleDateGroups();
+            // Pagination → AJAX
+            $(document).on('click', '#paginationContainer .pagination a', function(e) {
+                e.preventDefault();
+                fetchData($(this).attr('href'));
+            });
+
+            // Reset → AJAX
+            $('#resetBtn').on('click', function() {
+                $('#filterForm')[0].reset();
+                $('#dailyReport').prop('checked', true);
+                toggleDateGroups();
+                const today = new Date().toISOString().split('T')[0];
+                $('input[name="start_date"]').val(today);
+                $('input[name="end_date"]').val(today);
+                $('select[name="per_page"]').val('50');
+                $('.select2-simple').val('').trigger('change.select2');
+                fetchData();
+            });
         });
 
         function exportLedger() {
-            const url = new URL(window.location);
-            url.searchParams.set('export', 'pdf');
-            window.open(url.toString(), '_blank');
+            const params = $('#filterForm').serialize();
+            window.open('{{ route("ledger.index") }}?' + params + '&export=pdf', '_blank');
         }
 
         function exportExcel() {
-            const url = new URL(window.location);
-            url.searchParams.set('export', 'excel');
-            window.open(url.toString(), '_blank');
+            const params = $('#filterForm').serialize();
+            window.open('{{ route("ledger.index") }}?' + params + '&export=excel', '_blank');
         }
     </script>
     @endpush

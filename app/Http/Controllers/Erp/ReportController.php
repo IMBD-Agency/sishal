@@ -1943,11 +1943,12 @@ $saleReturnCashRefund += $returnProfit;
                 $sheet->setCellValue('D'.$row, 'Opening Balance');
                 $sheet->setCellValue('E'.$row, '-');
                 $sheet->setCellValue('F'.$row, '-');
+                $sheet->setCellValue('G'.$row, (float) abs($runningBalance));
                 if ($runningBalance > 0) {
-                    $sheet->setCellValue('G'.$row, 'Due: ' . number_format($runningBalance, 2));
+                    $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('"Due: "#,##0.00');
                     $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000'); // Red
                 } else {
-                    $sheet->setCellValue('G'.$row, 'Advance: ' . number_format(abs($runningBalance), 2));
+                    $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('"Advance: "#,##0.00');
                     $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue
                 }
                 $row++;
@@ -1973,16 +1974,31 @@ $saleReturnCashRefund += $returnProfit;
                 $sheet->setCellValue('B'.$row, Carbon::parse($txn['date'])->format('d M, Y'));
                 $sheet->setCellValue('C'.$row, $txn['reference'] ?? '-');
                 $sheet->setCellValue('D'.$row, $txn['type'] . ($txn['note'] ? ' - ' . $txn['note'] : ''));
-                $sheet->setCellValue('E'.$row, $txn['credit'] > 0 ? number_format($txn['credit'], 2) : '-');
-                $sheet->setCellValue('F'.$row, $txnPaid > 0 ? number_format($txnPaid, 2) : '-');
+                
+                if ($txn['credit'] > 0) {
+                    $sheet->setCellValue('E'.$row, (float) $txn['credit']);
+                    $sheet->getStyle('E'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
+                } else {
+                    $sheet->setCellValue('E'.$row, '-');
+                }
+                
+                if ($txnPaid > 0) {
+                    $sheet->setCellValue('F'.$row, (float) $txnPaid);
+                    $sheet->getStyle('F'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
+                } else {
+                    $sheet->setCellValue('F'.$row, '-');
+                }
                 
                 // Due column with advance/due distinction
-                if ($runningBalance > 0) {
-                    $sheet->setCellValue('G'.$row, 'Due: ' . number_format($runningBalance, 2));
-                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000'); // Red text
-                } elseif ($runningBalance < 0) {
-                    $sheet->setCellValue('G'.$row, 'Advance: ' . number_format(abs($runningBalance), 2));
-                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue text
+                if ($runningBalance != 0) {
+                    $sheet->setCellValue('G'.$row, (float) abs($runningBalance));
+                    if ($runningBalance > 0) {
+                        $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('"Due: "#,##0.00');
+                        $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000'); // Red text
+                    } else {
+                        $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('"Advance: "#,##0.00');
+                        $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF'); // Blue text
+                    }
                 } else {
                     $sheet->setCellValue('G'.$row, '-');
                 }
@@ -1994,19 +2010,28 @@ $saleReturnCashRefund += $returnProfit;
             $finalBal = ($openingBalance ?? 0) + $transactions->sum('credit') - $transactions->sum('debit');
             $sheet->setCellValue('D'.$row, 'TOTAL');
             $sheet->getStyle('D'.$row)->getFont()->setBold(true);
-            $sheet->setCellValue('E'.$row, number_format($transactions->sum('credit'), 2));
+            
+            $sheet->setCellValue('E'.$row, (float) $transactions->sum('credit'));
+            $sheet->getStyle('E'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
             $sheet->getStyle('E'.$row)->getFont()->setBold(true);
-            $sheet->setCellValue('F'.$row, number_format($transactions->sum('debit'), 2));
+            
+            $sheet->setCellValue('F'.$row, (float) $transactions->sum('debit'));
+            $sheet->getStyle('F'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
             $sheet->getStyle('F'.$row)->getFont()->setBold(true);
             
-            if ($finalBal > 0) {
-                $sheet->setCellValue('G'.$row, 'Due: ' . number_format($finalBal, 2));
-                $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000');
-            } elseif ($finalBal < 0) {
-                $sheet->setCellValue('G'.$row, 'Advance: ' . number_format(abs($finalBal), 2));
-                $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF');
+            $sheet->getStyle('G'.$row)->getFont()->setBold(true);
+            if ($finalBal != 0) {
+                $sheet->setCellValue('G'.$row, (float) abs($finalBal));
+                if ($finalBal > 0) {
+                    $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('"Due: "#,##0.00');
+                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FFFF0000');
+                } else {
+                    $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('"Advance: "#,##0.00');
+                    $sheet->getStyle('G'.$row)->getFont()->getColor()->setARGB('FF0000FF');
+                }
             } else {
-                $sheet->setCellValue('G'.$row, '0.00');
+                $sheet->setCellValue('G'.$row, 0.00);
+                $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
             }
             $sheet->getStyle('G'.$row)->getFont()->setBold(true);
             

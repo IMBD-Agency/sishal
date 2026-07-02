@@ -90,36 +90,36 @@
                         <div class="d-flex gap-4 mb-4">
                             <div class="form-check custom-radio">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
-                                    id="dailyReport" value="daily" checked>
+                                    id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Manual
                                     Range</label>
                             </div>
                             <div class="form-check custom-radio">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
-                                    id="monthlyReport" value="monthly">
+                                    id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
                             </div>
                             <div class="form-check custom-radio">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
-                                    id="yearlyReport" value="yearly">
+                                    id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
                             </div>
                         </div>
 
                         <div class="row g-3">
                             <!-- Primary Row -->
-                            <div class="col-md-2 date-range-field">
+                            <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Date From</label>
                                 <input type="date" name="date_from" class="form-control shadow-none"
-                                    value="{{ request('date_from') }}">
+                                    value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
-                            <div class="col-md-2 date-range-field">
+                            <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Date To</label>
                                 <input type="date" name="date_to" class="form-control shadow-none"
-                                    value="{{ request('date_to') }}">
+                                    value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
-                            <div class="col-md-2 month-field d-none">
+                            <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
                                 <select name="month" class="form-select shadow-none">
                                     <option value="">All Months</option>
@@ -131,7 +131,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-2 year-field d-none">
+                            <div class="col-md-2 year-field {{ !in_array($reportType, ['monthly', 'yearly']) ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
                                 <select name="year" class="form-select shadow-none">
                                     <option value="">All Years</option>
@@ -558,9 +558,17 @@
                 $('#resetFilters').on('click', function () {
                     $('#filterForm')[0].reset();
                     $('input[name="view_mode"]').val('');
-                    $('.report-type-radio[value="daily"]').prop('checked', true).trigger('change');
-                    updateExportLinks("");
-                    loadTransfers("{{ route('stocktransfer.list') }}");
+                    $('.report-type-radio[value="daily"]').prop('checked', true);
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    $('input[name="date_from"]').val(today);
+                    $('input[name="date_to"]').val(today);
+                    
+                    $('.date-range-field').removeClass('d-none').show();
+                    $('.month-field, .year-field').addClass('d-none').hide();
+                    
+                    const formData = $('#filterForm').serialize();
+                    loadTransfers("{{ route('stocktransfer.list') }}", formData);
                 });
 
                 // View Mode Tabs AJAX

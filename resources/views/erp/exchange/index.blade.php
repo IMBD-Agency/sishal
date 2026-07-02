@@ -56,11 +56,11 @@
                         <div class="row g-3">
                              <div class="col-md-2 date-group daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                                <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-2 date-group daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 date-group monthly-group" style="display: none;">
@@ -143,14 +143,14 @@
                             </div>
                              <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Action</label>
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('exchange.list') }}" class="btn btn-light border flex-fill" title="Reset" style="height: 42px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-undo"></i>
-                                    </a>
-                                    <button type="submit" class="btn btn-create-premium flex-fill" style="height: 42px;">
-                                        <i class="fas fa-search me-2"></i>Apply
-                                    </button>
-                                </div>
+                                 <div class="d-flex gap-2">
+                                     <button type="button" id="resetBtn" class="btn btn-light border flex-fill" title="Reset" style="height: 42px;">
+                                         <i class="fas fa-undo"></i>
+                                     </button>
+                                     <button type="submit" class="btn btn-create-premium flex-fill" style="height: 42px;">
+                                         <i class="fas fa-search me-2"></i>Apply
+                                     </button>
+                                 </div>
                             </div>
                         </div>
                     </form>
@@ -173,137 +173,9 @@
                 </div>
             </div>
 
-            <!-- Table -->
-            <div class="premium-card">
-                <div class="card-header bg-white border-bottom p-3">
-                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-exchange-alt me-2 text-primary"></i>Product Exchange Registry</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table compact reporting-table mb-0" id="exchangeTable">
-                            <thead>
-                                <tr>
-                                    <th class="text-center" style="min-width: 40px;">#</th>
-                                    <th style="min-width: 120px;">Exchange Invoice</th>
-                                    <th style="min-width: 120px;">Sale Invoice</th>
-                                    <th style="min-width: 90px;">Date</th>
-                                    <th style="min-width: 100px;">Branch</th>
-                                    <th style="min-width: 120px;">Customer</th>
-                                    <th class="text-center">Img</th>
-                                    <th>Category</th>
-                                    <th>Brand</th>
-                                    <th>Season</th>
-                                    <th>Gender</th>
-                                    <th style="min-width: 140px;">Product Name</th>
-                                    <th>Style #</th>
-                                    <th>Color</th>
-                                    <th>Size</th>
-                                    <th class="text-center">Qty</th>
-                                    <th class="text-end">Exchange</th>
-                                    <th class="text-end">Refund</th>
-                                    <th class="text-end">Discount</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-end">Due</th>
-                                    <th class="text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php 
-                                    $tExchange = 0; $tRefund = 0; $tDiscount = 0; $tPaid = 0; $tDue = 0;
-                                @endphp
-                                @forelse($items as $index => $item)
-                                    @php
-                                        $exchange = $item->exchange;
-                                        $product = $item->product;
-                                        $variation = $item->variation;
-
-                                        $color = '-'; $size = '-';
-                                        if ($variation && $variation->attributeValues) {
-                                            foreach($variation->attributeValues as $val) {
-                                                $attrName = strtolower($val->attribute->name ?? '');
-                                                if (str_contains($attrName, 'color')) $color = $val->value;
-                                                elseif (str_contains($attrName, 'size')) $size = $val->value;
-                                            }
-                                        }
-
-                                        $isFirst = ($index == 0 || $items[$index-1]->pos_exchange_id != $item->pos_exchange_id);
-                                        if($isFirst) {
-                                            $tExchange += $exchange->total_new_amount;
-                                            $tRefund += $exchange->refund_amount;
-                                            $tDiscount += $exchange->discount_amount;
-                                            $tPaid += $exchange->extra_payable;
-                                            $tDue += 0; // Assuming exchanges are fully settled on the spot
-                                        }
-                                    @endphp
-                                    <tr>
-                                        <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
-                                        <td class="fw-bold text-dark">{{ $exchange?->exchange_number ?? 'N/A' }}</td>
-                                        <td class="text-primary">{{ $exchange?->originalPos?->sale_number ?? '-' }}</td>
-                                        <td>{{ $exchange?->exchange_date ? \Carbon\Carbon::parse($exchange->exchange_date)->format('d/m/Y') : '-' }}</td>
-                                        <td>{{ $exchange?->branch?->name ?? '-' }}</td>
-                                        <td>{{ $exchange?->customer?->name ?? 'Walk-in' }}</td>
-                                        <td class="text-center">
-                                            @if($product && $product->image)
-                                                <img src="{{ asset($product->image) }}" width="30" height="30" class="rounded shadow-sm" alt="">
-                                            @endif
-                                        </td>
-                                        <td>{{ $product?->category?->name ?? '-' }}</td>
-                                        <td>{{ $product?->brand?->name ?? '-' }}</td>
-                                        <td>{{ $product?->season?->name ?? '-' }}</td>
-                                        <td>{{ $product?->gender?->name ?? '-' }}</td>
-                                        <td class="fw-bold text-dark">{{ $product?->name ?? 'Unknown' }}</td>
-                                        <td>{{ $product?->style_number ?? '-' }}</td>
-                                        <td>{{ $color }}</td>
-                                        <td>{{ $size }}</td>
-                                        <td class="text-center bg-light">{{ $item->quantity }} <br> <span class="badge bg-secondary" style="font-size: 0.6rem;">{{ ucfirst($item->type) }}</span></td>
-                                        <td class="text-end">{{ $isFirst ? number_format($exchange->total_new_amount, 2) : '' }}</td>
-                                        <td class="text-end text-danger">{{ $isFirst ? number_format($exchange->refund_amount, 2) : '' }}</td>
-                                        <td class="text-end">{{ $isFirst ? number_format($exchange->discount_amount, 2) : '' }}</td>
-                                        <td class="text-end text-success fw-bold">{{ $isFirst ? number_format($exchange->extra_payable, 2) : '' }}</td>
-                                        <td class="text-end text-danger fw-bold">{{ $isFirst ? number_format(0, 2) : '' }}</td>
-                                         <td class="text-center">
-                                            <div class="d-flex gap-1 justify-content-center">
-                                                <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm" title="View">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                @can('manage exchange')
-                                                <form action="{{ route('exchange.delete', $exchange->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this exchange? All stock and accounting entries will be rolled back!')" style="display:inline;">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-action btn-sm text-danger" title="Delete">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                                @endcan
-                                            </div>
-                                         </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="20" class="text-center py-5 text-muted">No records found</td></tr>
-                                @endforelse
-                            </tbody>
-                            <tfoot class="bg-light fw-bold">
-                                <tr>
-                                    <td colspan="16" class="text-end text-uppercase">Grand Totals</td>
-                                    <td class="text-end">{{ number_format($tExchange, 2) }}</td>
-                                    <td class="text-end text-danger">{{ number_format($tRefund, 2) }}</td>
-                                    <td class="text-end">{{ number_format($tDiscount, 2) }}</td>
-                                    <td class="text-end text-success">{{ number_format($tPaid, 2) }}</td>
-                                    <td class="text-end text-danger">{{ number_format($tDue, 2) }}</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-                @if($items->hasPages())
-                <div class="card-footer bg-white py-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Showing {{ $items->firstItem() }} to {{ $items->lastItem() }} of {{ $items->total() }} entries</small>
-                        {{ $items->links('vendor.pagination.bootstrap-5') }}
-                    </div>
-                </div>
-                @endif
+            <!-- Table Container for AJAX -->
+            <div id="table-container">
+                @include('erp.exchange.partials.table')
             </div>
         </div>
     </div>
@@ -345,9 +217,63 @@
         // Trigger on load
         $('input[name="report_type"]:checked').trigger('change');
 
-        // Quick Search Table Functionality with Debounce
+        // AJAX Filtering Logic
+        function fetchExchangeData(url = null) {
+            const form = $('#filterForm');
+            const targetUrl = url || form.attr('action');
+            const data = url ? null : form.serialize();
+
+            $('#table-container').css('opacity', '0.5');
+
+            $.ajax({
+                url: targetUrl,
+                data: data,
+                success: function (response) {
+                    $('#table-container').html(response);
+                    $('#table-container').css('opacity', '1');
+                },
+                error: function () {
+                    $('#table-container').css('opacity', '1');
+                    alert('Error loading data. Please try again.');
+                }
+            });
+        }
+
+        // Intercept Filter Form Submission
+        $('#filterForm').on('submit', function (e) {
+            e.preventDefault();
+            fetchExchangeData();
+        });
+
+        // Intercept Pagination Clicks
+        $(document).on('click', '.pagination a', function (e) {
+            e.preventDefault();
+            const url = $(this).attr('href');
+            if (url) {
+                fetchExchangeData(url);
+                $('html, body').animate({
+                    scrollTop: $("#table-container").offset().top - 100
+                }, 200);
+            }
+        });
+
+        // Reset Filters Button
+        $('#resetBtn').on('click', function () {
+            const form = $('#filterForm');
+            form[0].reset();
+            $('.select2-simple').val('').trigger('change');
+            
+            const today = new Date().toISOString().split('T')[0];
+            $('input[name="start_date"]').val(today);
+            $('input[name="end_date"]').val(today);
+
+            $('#dailyReport').prop('checked', true).trigger('change');
+            fetchExchangeData("{{ route('exchange.list') }}");
+        });
+
+        // Quick Search Table Functionality with Debounce via Event Delegation
         let exchangeTimeout;
-        $('#exchangeSearch').on('input', function() {
+        $(document).on('input', '#exchangeSearch', function() {
             const value = $(this).val().toLowerCase();
             clearTimeout(exchangeTimeout);
             

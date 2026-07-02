@@ -47,8 +47,8 @@ class PurchaseReturnController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         // Query PurchaseReturnItem instead of PurchaseReturn for detailed report
@@ -84,6 +84,12 @@ class PurchaseReturnController extends Controller
         $products = \App\Models\Product::where('type', 'product')->orderBy('name')->get();
         $statuses = ['pending', 'approved', 'rejected', 'processed'];
 
+        if ($request->ajax()) {
+            return view('erp.purchaseReturn.partials.table', compact(
+                'items', 'totalQty', 'totalPrice'
+            ))->render();
+        }
+
         return view('erp.purchaseReturn.purchasereturnlist', compact(
             'items', 'statuses', 'suppliers', 'categories', 'brands', 'seasons', 'genders', 'products', 'reportType', 'startDate', 'endDate', 'totalQty', 'totalPrice'
         ));
@@ -105,8 +111,8 @@ class PurchaseReturnController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PurchaseReturnItem::with([
@@ -116,7 +122,7 @@ class PurchaseReturnController extends Controller
             'product.brand', 
             'product.season', 
             'product.gender',
-            'purchaseItem.variation'
+            'variation.attributeValues.attribute'
         ]);
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
         $items = $query->orderBy('created_at', 'desc')->get();
@@ -134,17 +140,19 @@ class PurchaseReturnController extends Controller
             
             $purchase = $return->purchase;
             $product = $item->product;
-            $variation = $item->purchaseItem ? $item->purchaseItem->variation : null;
+            $variation = $item->variation;
             $supplier = $purchase ? $purchase->supplier : null;
 
             // Extract Color and Size
             $color = '-'; $size = '-';
             if ($variation && $variation->attributeValues) {
                 foreach($variation->attributeValues as $val) {
-                    $attrName = strtolower($val->attribute->name ?? '');
-                    if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                    $attr = $val->attribute;
+                    if (!$attr) continue;
+                    $attrName = strtolower($attr->name);
+                    if (str_contains($attrName, 'color') || $attr->is_color) {
                         $color = $val->value;
-                    } elseif (str_contains($attrName, 'size')) {
+                    } elseif (str_contains($attrName, 'size') || str_contains($attrName, 'fit')) {
                         $size = $val->value;
                     }
                 }
@@ -220,8 +228,8 @@ class PurchaseReturnController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PurchaseReturnItem::with([
@@ -231,7 +239,7 @@ class PurchaseReturnController extends Controller
             'product.brand', 
             'product.season', 
             'product.gender',
-            'purchaseItem.variation'
+            'variation.attributeValues.attribute'
         ]);
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
         $items = $query->orderBy('created_at', 'desc')->get();
@@ -308,7 +316,12 @@ class PurchaseReturnController extends Controller
             $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
             
             $query->whereHas('product', function($q) use ($request) {
-                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('style_number')) {
+                    $q->where(function($subQ) use ($request) {
+                        $subQ->where('style_number', 'like', '%' . $request->style_number . '%')
+                             ->orWhere('sku', 'like', '%' . $request->style_number . '%');
+                    });
+                }
                 if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
                 if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
                 if ($request->filled('season_id')) $q->where('season_id', $request->season_id);

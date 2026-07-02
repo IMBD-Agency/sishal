@@ -60,12 +60,9 @@ class TransferController extends Controller
         }
 
         // Date filters
-        if ($request->filled('start_date')) {
-            $query->whereDate('transfer_date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('transfer_date', '<=', $request->end_date);
-        }
+        $startDate = null;
+        $endDate = null;
+        $this->applyDateFilters($query, $request, $startDate, $endDate);
 
         // Account filters
         if ($request->filled('from_account_id')) {
@@ -88,6 +85,15 @@ class TransferController extends Controller
         }
 
         $transfers = $query->latest('transfer_date')->latest('id')->paginate(20)->appends($request->all());
+
+        $totalTransfers = (clone $query)->sum('amount');
+
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('erp.transfers.partials.table', compact('transfers'))->render(),
+                'totalAmount' => number_format($totalTransfers, 2) . '৳'
+            ]);
+        }
 
         // Get accounts for filter dropdown - filtered by branch
         $accountsQuery = FinancialAccount::orderBy('type')->orderBy('provider_name');
@@ -112,9 +118,9 @@ class TransferController extends Controller
             $branches = Branch::orderBy('name')->get();
         }
 
-        $totalTransfers = $transfers->sum('amount');
+        $reportType = $request->get('report_type_active', 'daily');
 
-        return view('erp.transfers.index', compact('transfers', 'accounts', 'totalTransfers', 'branches'));
+        return view('erp.transfers.index', compact('transfers', 'accounts', 'totalTransfers', 'branches', 'startDate', 'endDate', 'reportType'));
     }
 
     public function exportExcel(Request $request)
@@ -137,8 +143,7 @@ class TransferController extends Controller
             });
         }
 
-        if ($request->filled('start_date')) $query->whereDate('transfer_date', '>=', $request->start_date);
-        if ($request->filled('end_date')) $query->whereDate('transfer_date', '<=', $request->end_date);
+        $this->applyDateFilters($query, $request);
         if ($request->filled('from_account_id')) $query->where('from_financial_account_id', $request->from_account_id);
         if ($request->filled('to_account_id')) $query->where('to_financial_account_id', $request->to_account_id);
         if ($request->filled('branch_id')) {
@@ -210,8 +215,7 @@ class TransferController extends Controller
             });
         }
 
-        if ($request->filled('start_date')) $query->whereDate('transfer_date', '>=', $request->start_date);
-        if ($request->filled('end_date')) $query->whereDate('transfer_date', '<=', $request->end_date);
+        $this->applyDateFilters($query, $request);
         if ($request->filled('from_account_id')) $query->where('from_financial_account_id', $request->from_account_id);
         if ($request->filled('to_account_id')) $query->where('to_financial_account_id', $request->to_account_id);
         if ($request->filled('branch_id')) {
@@ -521,5 +525,27 @@ class TransferController extends Controller
         });
 
         return response()->json($accounts);
+    }
+
+    private function applyDateFilters($query, Request $request, &$startDate = null, &$endDate = null)
+    {
+        $reportType = $request->get('report_type_active', 'daily');
+
+        if ($reportType === 'daily') {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : \Carbon\Carbon::today();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : \Carbon\Carbon::today();
+            $query->whereBetween('transfer_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+        } elseif ($reportType === 'monthly') {
+            if ($request->filled('month')) {
+                $query->whereMonth('transfer_date', $request->month);
+            }
+            if ($request->filled('year')) {
+                $query->whereYear('transfer_date', $request->year);
+            }
+        } elseif ($reportType === 'yearly') {
+            if ($request->filled('year')) {
+                $query->whereYear('transfer_date', $request->year);
+            }
+        }
     }
 }

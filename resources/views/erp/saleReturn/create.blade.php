@@ -114,6 +114,7 @@
                                                 <th class="text-end" style="width: 140px;">Return Price</th>
                                                 <th class="text-end" style="width: 140px;">Subtotal</th>
                                                 <th>Return Reason</th>
+                                                <th class="text-center" style="width: 50px;"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -125,6 +126,7 @@
                                                 <td id="totalReturnQty" class="text-center text-primary h6 mb-0">0</td>
                                                 <td></td>
                                                 <td id="grandTotal" class="text-end text-success h5 mb-0">0.00</td>
+                                                <td></td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
@@ -199,7 +201,7 @@
                     const remainingToReturn = item.quantity - item.already_returned;
                     const row = `
                         <tr>
-                            <td class="text-center">${index + 1}</td>
+                            <td class="text-center row-index">${index + 1}</td>
                             <td>
                                 <div class="fw-bold text-dark">${item.product_name}</div>
                                 <div class="mt-1">
@@ -228,11 +230,31 @@
                             <td>
                                 <input type="text" name="items[${index}][reason]" class="form-control form-control-sm" placeholder="Reason...">
                             </td>
+                            <td class="text-center pe-3">
+                                <button type="button" class="btn btn-link text-danger p-0 btn-remove shadow-none">
+                                    <i class="fas fa-times-circle"></i>
+                                </button>
+                            </td>
                         </tr>
                     `;
                     $itemsTableBody.append(row);
                 });
                 calculateTotals();
+            }
+
+            $(document).on('click', '.btn-remove', function() {
+                const $row = $(this).closest('tr');
+                $row.fadeOut(200, function() {
+                    $row.remove();
+                    reindexRows();
+                    calculateTotals();
+                });
+            });
+
+            function reindexRows() {
+                $itemsTableBody.find('tr').each(function(idx) {
+                    $(this).find('.row-index').text(idx + 1);
+                });
             }
 
             $(document).on('input', '.return-qty, .unit-price', function() {

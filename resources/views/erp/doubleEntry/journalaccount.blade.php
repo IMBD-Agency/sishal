@@ -27,12 +27,12 @@
                     {{-- <button type="button" class="btn btn-light border shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addJournalModal">
                         <i class="fas fa-plus me-2 text-primary"></i>New Journal
                     </button> --}}
-                    <a href="{{ route('journal.export.excel', request()->all()) }}" class="btn btn-create-premium text-nowrap bg-success border-success text-white">
+                    <button type="button" onclick="exportExcel()" class="btn btn-create-premium text-nowrap bg-success border-success text-white">
                         <i class="fas fa-file-excel me-2"></i>Excel
-                    </a>
-                    <a href="{{ route('journal.export.pdf', request()->all()) }}" class="btn btn-create-premium text-nowrap bg-danger border-danger text-white">
+                    </button>
+                    <button type="button" onclick="exportPdf()" class="btn btn-create-premium text-nowrap bg-danger border-danger text-white">
                         <i class="fas fa-file-pdf me-2"></i>PDF
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -67,26 +67,62 @@
             <!-- Filter Section -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-3">
-                    <form action="{{ route('journal.list') }}" method="GET">
+                    <form action="{{ route('journal.list') }}" method="GET" id="filterForm">
+                        <!-- Report Type Radios -->
+                        <div class="d-flex gap-4 mb-3">
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ ($reportType ?? 'daily') == 'daily' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ ($reportType ?? 'daily') == 'monthly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                            </div>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ ($reportType ?? 'daily') == 'yearly' ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
+                            </div>
+                        </div>
+
                         <div class="row g-3 align-items-end">
-                            <div class="col-md-2">
-                                <label for="start_date" class="form-label text-muted small fw-bold">From Date</label>
+                            <!-- Daily date range -->
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label text-muted small fw-bold">From Date</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar-alt text-primary"></i></span>
-                                    <input type="date" class="form-control border-start-0 ps-0" id="start_date" name="start_date" 
-                                           value="{{ request('start_date') }}">
+                                    <input type="date" class="form-control border-start-0 ps-0" name="start_date"
+                                           value="{{ isset($startDate) ? $startDate->toDateString() : '' }}">
                                 </div>
                             </div>
-                            <div class="col-md-2">
-                                <label for="end_date" class="form-label text-muted small fw-bold">To Date</label>
+                            <div class="col-md-2 report-field daily-group">
+                                <label class="form-label text-muted small fw-bold">To Date</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar-alt text-primary"></i></span>
-                                    <input type="date" class="form-control border-start-0 ps-0" id="end_date" name="end_date" 
-                                           value="{{ request('end_date') }}">
+                                    <input type="date" class="form-control border-start-0 ps-0" name="end_date"
+                                           value="{{ isset($endDate) ? $endDate->toDateString() : '' }}">
                                 </div>
                             </div>
+                            <!-- Monthly -->
+                            <div class="col-md-2 report-field monthly-group d-none">
+                                <label class="form-label text-muted small fw-bold">Month</label>
+                                <select name="month" class="form-select">
+                                    @foreach(range(1,12) as $m)
+                                        <option value="{{ $m }}" {{ (request('month') ?? date('n')) == $m ? 'selected' : '' }}>{{ date('F', mktime(0,0,0,$m,1)) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <!-- Year (monthly + yearly) -->
+                            <div class="col-md-2 report-field monthly-group yearly-group d-none">
+                                <label class="form-label text-muted small fw-bold">Year</label>
+                                <select name="year" class="form-select">
+                                    @foreach(range(date('Y'), date('Y')-10) as $y)
+                                        <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <!-- Type -->
                             <div class="col-md-2">
-                                <label for="type" class="form-label text-muted small fw-bold">Type</label>
+                                <label class="form-label text-muted small fw-bold">Type</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-filter text-primary"></i></span>
                                     <select class="form-select border-start-0 ps-0" name="type">
@@ -99,8 +135,9 @@
                                     </select>
                                 </div>
                             </div>
+                            <!-- Account Type -->
                             <div class="col-md-2">
-                                <label for="financial_account_type" class="form-label text-muted small fw-bold">Account Type</label>
+                                <label class="form-label text-muted small fw-bold">Account Type</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-wallet text-primary"></i></span>
                                     <select class="form-select border-start-0 ps-0" name="financial_account_type">
@@ -113,7 +150,7 @@
                             </div>
                             @if(!$restrictedBranchId)
                             <div class="col-md-2">
-                                <label for="branch_id" class="form-label text-muted small fw-bold">Branch</label>
+                                <label class="form-label text-muted small fw-bold">Branch</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-store text-primary"></i></span>
                                     <select class="form-select border-start-0 ps-0" name="branch_id">
@@ -126,10 +163,10 @@
                             </div>
                             @endif
                             <div class="col-md-2">
-                                <label for="search" class="form-label text-muted small fw-bold">Search</label>
+                                <label class="form-label text-muted small fw-bold">Search</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-primary"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="search" name="search" 
+                                    <input type="text" class="form-control border-start-0 ps-0" name="search"
                                            placeholder="Voucher No, Memo..." value="{{ request('search') }}">
                                 </div>
                             </div>
@@ -138,9 +175,9 @@
                                     <button type="submit" class="btn btn-primary flex-grow-1">
                                         <i class="fas fa-filter me-2"></i>Filter
                                     </button>
-                                    <a href="{{ route('journal.list') }}" class="btn btn-light border flex-grow-1" title="Reset Filters">
+                                    <button type="button" id="resetBtn" class="btn btn-light border flex-grow-1" title="Reset Filters">
                                         <i class="fas fa-undo text-secondary"></i>
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -158,7 +195,7 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-primary opacity-75">Total Journals</div>
-                                <div class="h5 mb-0 fw-bold text-primary">{{ $journals->count() ?? 0 }}</div>
+                                <div class="h5 mb-0 fw-bold text-primary" id="statTotalJournals">{{ $journals->total() ?? 0 }}</div>
                             </div>
                         </div>
                     </div>
@@ -171,7 +208,7 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-success opacity-75">Total Debit</div>
-                                <div class="h5 mb-0 fw-bold text-success">৳{{ number_format($journals->sum('total_debit') ?? 0, 2) }}</div>
+                                <div class="h5 mb-0 fw-bold text-success" id="statTotalDebit">৳{{ number_format($summary->total_debit ?? 0, 2) }}</div>
                             </div>
                         </div>
                     </div>
@@ -184,7 +221,7 @@
                             </div>
                             <div>
                                 <div class="text-uppercase small fw-bold text-warning opacity-75">Total Credit</div>
-                                <div class="h5 mb-0 fw-bold text-warning">৳{{ number_format($journals->sum('total_credit') ?? 0, 2) }}</div>
+                                <div class="h5 mb-0 fw-bold text-warning" id="statTotalCredit">৳{{ number_format($summary->total_credit ?? 0, 2) }}</div>
                             </div>
                         </div>
                     </div>
@@ -226,108 +263,24 @@
                                     <th class="text-center pe-4">Actions</th>
                                 </tr>
                             </thead>
-                                    <tbody>
-                                        @forelse($journals ?? [] as $journal)
-                                            <tr>
-                                                <td class="ps-4">
-                                                    <span class="badge bg-light text-primary border border-primary border-opacity-25 px-2 py-1">{{ $journal->voucher_no }}</span>
-                                                </td>
-                                                <td class="text-dark fw-500 text-nowrap">{{ $journal->entry_date->format('d M, Y') }}</td>
-                                                <td class="text-nowrap">
-                                                    <span class="small fw-500">{{ $journal->branch ? $journal->branch->name : 'N/A' }}</span>
-                                                </td>
-                                                <td>
-                                                        @php
-                                                            $accounts = $journal->entries->map(function($e) {
-                                                                if ($e->financialAccount) {
-                                                                    return $e->financialAccount->provider_name;
-                                                                }
-                                                                return $e->chartOfAccount ? $e->chartOfAccount->name : '';
-                                                            })->filter()->unique()->implode(', ');
-                                                        @endphp
-                                                    <div class="small text-muted text-truncate" style="max-width: 150px;" title="{{ $accounts ?: 'N/A' }}">
-                                                        {{ $accounts ?: 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="text-truncate text-muted small" style="max-width: 200px;" title="{{ $journal->description }}">
-                                                        {{ $journal->description ?? 'N/A' }}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    @if($journal->type)
-                                                        @php
-                                                            $typeColors = [
-                                                                'Journal' => 'bg-primary',
-                                                                'Payment' => 'bg-success',
-                                                                'Receipt' => 'bg-info',
-                                                                'Contra' => 'bg-warning',
-                                                                'Adjustment' => 'bg-secondary'
-                                                            ];
-                                                            $color = $typeColors[$journal->type] ?? 'bg-secondary';
-                                                        @endphp
-                                                        <span class="badge {{ $color }} bg-opacity-10 text-{{ str_replace('bg-', '', $color) }} border border-{{ str_replace('bg-', '', $color) }} border-opacity-25 px-2 py-1">
-                                                            {{ $journal->type }}
-                                                        </span>
-                                                    @else
-                                                        <span class="badge bg-light text-dark border px-2 py-1">General</span>
-                                                    @endif
-                                                </td>
-                                                <td class="text-end fw-bold text-success">৳{{ number_format($journal->total_debit, 2) }}</td>
-                                                <td class="text-end fw-bold text-warning">৳{{ number_format($journal->total_credit, 2) }}</td>
-                                                <td class="text-center">
-                                                    @if($journal->isBalanced())
-                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 py-1 px-2">
-                                                            <i class="fas fa-check-circle me-1"></i>Balanced
-                                                        </span>
-                                                    @else
-                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 py-1 px-2">
-                                                            <i class="fas fa-times-circle me-1"></i>Unbalanced
-                                                        </span>
-                                                    @endif
-                                                </td>
-                                                <td class="small text-muted">
-                                                    {{ $journal->createdBy ? ($journal->createdBy->first_name . ' ' . $journal->createdBy->last_name) : 'N/A' }}
-                                                </td>
-                                                <td class="text-center pe-4">
-                                                    <a href="{{ route('journal.show', $journal->id) }}" class="btn btn-sm btn-light border shadow-sm text-primary" title="View">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="10" class="text-center text-muted py-4">
-                                                    <i class="fas fa-book fa-2x mb-2"></i>
-                                                    <h6>No Journal Entries Found</h6>
-                                                    <p>Create your first journal entry to get started.</p>
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                    @if(isset($journals) && count($journals) > 0)
-                                    <tfoot class="table-light fw-bold border-top border-2">
-                                        <tr>
-                                            <td colspan="6" class="text-end pe-3">Grand Total:</td>
-                                            <td class="text-end text-success fs-6">৳{{ number_format($journals->sum('total_debit'), 2) }}</td>
-                                            <td class="text-end text-warning fs-6">৳{{ number_format($journals->sum('total_credit'), 2) }}</td>
-                                            <td colspan="3"></td>
-                                        </tr>
-                                    </tfoot>
-                                    @endif
-                                </table>
+                                            <tbody id="journalTableBody">
+                                @include('erp.doubleEntry.partials.journal_rows', ['journals' => $journals])
+                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <!-- Pagination -->
-            @if(isset($journals) && $journals->hasPages())
-            <div class="d-flex justify-content-center mt-4">
-                {{ $journals->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
+            <div id="paginationContainer">
+                @if(isset($journals) && $journals->hasPages())
+                <div class="d-flex justify-content-center mt-4">
+                    {{ $journals->onEachSide(1)->links('vendor.pagination.bootstrap-5') }}
+                </div>
+                @endif
             </div>
-            @endif
         </div>
     </div>
 
@@ -497,6 +450,72 @@
                 // Initialize with at least 2 entry rows
                 addEntryRow();
                 addEntryRow();
+
+                // Report type toggle
+                function toggleDateGroups() {
+                    const type = $('.report-type-radio:checked').val() || 'daily';
+                    $('.report-field').addClass('d-none');
+                    if (type === 'daily')        $('.daily-group').removeClass('d-none');
+                    else if (type === 'monthly') $('.monthly-group').removeClass('d-none');
+                    else if (type === 'yearly')  $('.yearly-group').removeClass('d-none');
+                }
+                $('.report-type-radio').on('change', toggleDateGroups);
+                toggleDateGroups();
+
+                // AJAX fetch
+                function fetchData(url) {
+                    const form = $('#filterForm');
+                    const targetUrl = url || form.attr('action');
+                    const formData = form.serialize();
+
+                    $.ajax({
+                        url: targetUrl,
+                        type: 'GET',
+                        data: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        beforeSend: function() {
+                            $('#journalTableBody').css('opacity', '0.5');
+                        },
+                        success: function(res) {
+                            $('#journalTableBody').css('opacity', '1').html(res.html);
+                            $('#paginationContainer').html(res.pagination);
+                            $('#statTotalJournals').text(res.total_journals);
+                            $('#statTotalDebit').text('৳' + res.total_debit);
+                            $('#statTotalCredit').text('৳' + res.total_credit);
+                        },
+                        error: function(xhr) {
+                            console.error('Journal AJAX error', xhr);
+                            $('#journalTableBody').css('opacity', '1');
+                        }
+                    });
+                }
+
+                // Form submit → AJAX
+                $('#filterForm').on('submit', function(e) {
+                    e.preventDefault();
+                    fetchData();
+                });
+
+                // Pagination → AJAX
+                $(document).on('click', '#paginationContainer .pagination a', function(e) {
+                    e.preventDefault();
+                    fetchData($(this).attr('href'));
+                });
+
+                // Reset → AJAX
+                $('#resetBtn').on('click', function() {
+                    $('#filterForm')[0].reset();
+                    $('#dailyReport').prop('checked', true);
+                    toggleDateGroups();
+                    const today = new Date().toISOString().split('T')[0];
+                    $('input[name="start_date"]').val(today);
+                    $('input[name="end_date"]').val(today);
+                    $('select[name="type"]').val('');
+                    $('select[name="financial_account_type"]').val('');
+                    $('select[name="branch_id"]').val('');
+                    $('input[name="search"]').val('');
+                    fetchData();
+                });
 
                 // Handle delete confirmation button click
                 $('#confirmDeleteBtn').on('click', function() {
@@ -780,6 +799,16 @@
                         updateTotals();
                     }
                 });
+            }
+
+            function exportExcel() {
+                const params = $('#filterForm').serialize();
+                window.open('{{ route("journal.export.excel") }}?' + params, '_blank');
+            }
+
+            function exportPdf() {
+                const params = $('#filterForm').serialize();
+                window.open('{{ route("journal.export.pdf") }}?' + params, '_blank');
             }
         </script>
     @endpush

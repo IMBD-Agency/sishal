@@ -47,8 +47,8 @@ class ExchangeController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PosExchangeItem::with([
@@ -72,6 +72,10 @@ class ExchangeController extends Controller
         $brands = \App\Models\Brand::orderBy('name', 'asc')->get();
         $seasons = \App\Models\Season::orderBy('name', 'asc')->get();
         $genders = \App\Models\Gender::orderBy('name', 'asc')->get();
+
+        if ($request->ajax()) {
+            return view('erp.exchange.partials.table', compact('items'))->render();
+        }
 
         return view('erp.exchange.index', compact(
             'items', 'branches', 'reportType', 'startDate', 'endDate', 
@@ -521,85 +525,154 @@ class ExchangeController extends Controller
 
     private function applyFilters($query, Request $request, $startDate = null, $endDate = null)
     {
+        $isExchangeModel = $query->getModel() instanceof \App\Models\PosExchange;
+
         // Date Filtering
         if ($startDate && $endDate) {
-            $query->whereHas('exchange', function($q) use ($startDate, $endDate) {
-                $q->whereBetween('exchange_date', [$startDate, $endDate]);
-            });
+            if ($isExchangeModel) {
+                $query->whereBetween('exchange_date', [$startDate, $endDate]);
+            } else {
+                $query->whereHas('exchange', function($q) use ($startDate, $endDate) {
+                    $q->whereBetween('exchange_date', [$startDate, $endDate]);
+                });
+            }
         } elseif ($startDate) {
-            $query->whereHas('exchange', function($q) use ($startDate) {
-                $q->whereDate('exchange_date', '>=', $startDate);
-            });
+            if ($isExchangeModel) {
+                $query->whereDate('exchange_date', '>=', $startDate);
+            } else {
+                $query->whereHas('exchange', function($q) use ($startDate) {
+                    $q->whereDate('exchange_date', '>=', $startDate);
+                });
+            }
         } elseif ($endDate) {
-            $query->whereHas('exchange', function($q) use ($endDate) {
-                $q->whereDate('exchange_date', '<=', $endDate);
-            });
+            if ($isExchangeModel) {
+                $query->whereDate('exchange_date', '<=', $endDate);
+            } else {
+                $query->whereHas('exchange', function($q) use ($endDate) {
+                    $q->whereDate('exchange_date', '<=', $endDate);
+                });
+            }
         }
         
         // Search by sale number / original sale / invoice / customer / product
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('exchange', function($eq) use ($search) {
-                    $eq->where('exchange_number', 'LIKE', "%$search%")
+            $query->where(function($q) use ($search, $isExchangeModel) {
+                if ($isExchangeModel) {
+                    $q->where('exchange_number', 'LIKE', "%$search%")
                       ->orWhereHas('originalPos', function($osq) use ($search) {
                           $osq->where('sale_number', 'LIKE', "%$search%");
                       })
                       ->orWhereHas('customer', function($cq) use ($search) {
                           $cq->where('name', 'LIKE', "%$search%")
                             ->orWhere('phone', 'LIKE', "%$search%");
+                      })
+                      ->orWhereHas('items.product', function($prq) use ($search) {
+                          $prq->where('name', 'LIKE', "%$search%")
+                              ->orWhere('style_number', 'LIKE', "%$search%");
                       });
-                })
-                ->orWhereHas('product', function($prq) use ($search) {
-                    $prq->where('name', 'LIKE', "%$search%")
-                        ->orWhere('style_number', 'LIKE', "%$search%");
-                });
+                } else {
+                    $q->whereHas('exchange', function($eq) use ($search) {
+                        $eq->where('exchange_number', 'LIKE', "%$search%")
+                          ->orWhereHas('originalPos', function($osq) use ($search) {
+                              $osq->where('sale_number', 'LIKE', "%$search%");
+                          })
+                          ->orWhereHas('customer', function($cq) use ($search) {
+                              $cq->where('name', 'LIKE', "%$search%")
+                                ->orWhere('phone', 'LIKE', "%$search%");
+                          });
+                    })
+                    ->orWhereHas('product', function($prq) use ($search) {
+                        $prq->where('name', 'LIKE', "%$search%")
+                            ->orWhere('style_number', 'LIKE', "%$search%");
+                    });
+                }
             });
         }
 
         // Filters from dropdowns
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $query->whereHas('exchange', function($q) use ($restrictedBranchId) {
-                $q->where('branch_id', $restrictedBranchId);
-            });
+            if ($isExchangeModel) {
+                $query->where('branch_id', $restrictedBranchId);
+            } else {
+                $query->whereHas('exchange', function($q) use ($restrictedBranchId) {
+                    $q->where('branch_id', $restrictedBranchId);
+                });
+            }
         } elseif ($request->filled('branch_id')) {
-            $query->whereHas('exchange', function($q) use ($request) {
-                $q->where('branch_id', $request->branch_id);
-            });
+            if ($isExchangeModel) {
+                $query->where('branch_id', $request->branch_id);
+            } else {
+                $query->whereHas('exchange', function($q) use ($request) {
+                    $q->where('branch_id', $request->branch_id);
+                });
+            }
         }
         if ($request->filled('customer_id')) {
-            $query->whereHas('exchange', function($q) use ($request) {
-                $q->where('customer_id', $request->customer_id);
-            });
+            if ($isExchangeModel) {
+                $query->where('customer_id', $request->customer_id);
+            } else {
+                $query->whereHas('exchange', function($q) use ($request) {
+                    $q->where('customer_id', $request->customer_id);
+                });
+            }
         }
         
         // Filter by Product/Style/Category/Brand/Season/Gender
         if ($request->filled('product_id')) {
-            $query->where('product_id', $request->product_id);
+            if ($isExchangeModel) {
+                $query->whereHas('items', function($q) use ($request) {
+                    $q->where('product_id', $request->product_id);
+                });
+            } else {
+                $query->where('product_id', $request->product_id);
+            }
         }
 
         if ($request->filled('style_number') || $request->filled('category_id') || 
             $request->filled('brand_id') || $request->filled('season_id') || $request->filled('gender_id')) {
             
-            $query->whereHas('product', function($q) use ($request) {
-                if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
-                if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
-                if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
-                if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
-                if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
-            });
+            if ($isExchangeModel) {
+                $query->whereHas('items.product', function($q) use ($request) {
+                    if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                    if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+                    if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+                    if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
+                    if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+                });
+            } else {
+                $query->whereHas('product', function($q) use ($request) {
+                    if ($request->filled('style_number')) $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                    if ($request->filled('category_id')) $q->where('category_id', $request->category_id);
+                    if ($request->filled('brand_id')) $q->where('brand_id', $request->brand_id);
+                    if ($request->filled('season_id')) $q->where('season_id', $request->season_id);
+                    if ($request->filled('gender_id')) $q->where('gender_id', $request->gender_id);
+                });
+            }
         }
 
         if ($request->filled('city')) {
-            $query->whereHas('exchange.customer', function($cq) use ($request) {
-                $cq->where('city', $request->city);
-            });
+            if ($isExchangeModel) {
+                $query->whereHas('customer', function($cq) use ($request) {
+                    $cq->where('city', $request->city);
+                });
+            } else {
+                $query->whereHas('exchange.customer', function($cq) use ($request) {
+                    $cq->where('city', $request->city);
+                });
+            }
         }
         if ($request->filled('country')) {
-            $query->whereHas('exchange.customer', function($cq) use ($request) {
-                $cq->where('country', $request->country);
-            });
+            if ($isExchangeModel) {
+                $query->whereHas('customer', function($cq) use ($request) {
+                    $cq->where('country', $request->country);
+                });
+            } else {
+                $query->whereHas('exchange.customer', function($cq) use ($request) {
+                    $cq->where('country', $request->country);
+                });
+            }
         }
 
         return $query;
@@ -619,8 +692,8 @@ class ExchangeController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PosExchange::with([
@@ -733,8 +806,8 @@ class ExchangeController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PosExchange::with([

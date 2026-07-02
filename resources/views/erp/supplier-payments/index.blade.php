@@ -113,12 +113,12 @@
                             <!-- Daily Range -->
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date</label>
-                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                                <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
@@ -133,7 +133,7 @@
                             <div class="col-md-2 year-field {{ $reportType == 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
                                 <select name="year" class="form-select select2-setup">
-                                    @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
+                                    @foreach(range(date('Y'), date('Y') - 5) as $y)
                                         <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endforeach
                                 </select>
@@ -195,12 +195,12 @@
                         <div class="card-footer bg-light border-top p-3 mt-4">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('supplier-payments.export.excel', request()->all()) }}" class="btn btn-outline-success btn-sm fw-bold px-3 no-loader" target="_blank">
+                                    <button type="button" id="btn-excel-export" class="btn btn-outline-success btn-sm fw-bold px-3">
                                         <i class="fas fa-file-excel me-2"></i>Excel
-                                    </a>
-                                    <a href="{{ route('supplier-payments.export.pdf', request()->all()) }}" class="btn btn-outline-danger btn-sm fw-bold px-3 no-loader" target="_blank">
+                                    </button>
+                                    <button type="button" id="btn-pdf-export" class="btn btn-outline-danger btn-sm fw-bold px-3">
                                         <i class="fas fa-file-pdf me-2"></i>PDF
-                                    </a>
+                                    </button>
                                 </div>
                                 <div class="d-flex gap-2">
                                     <button type="button" id="resetBtn" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
@@ -348,11 +348,26 @@
                 $('.select2-setup').val('all').trigger('change');
                 
                 // Special case for specific radio default
-                $('#yearlyReport').prop('checked', true).trigger('change');
-                $('#report_type_hidden').val('yearly');
+                $('#dailyReport').prop('checked', true).trigger('change');
+                $('#report_type_hidden').val('daily');
+
+                const today = new Date().toISOString().split('T')[0];
+                $('input[name="start_date"]').val(today);
+                $('input[name="end_date"]').val(today);
 
                 // Trigger update
                 updateTable();
+            });
+
+            // Excel & PDF Export Click Handlers
+            $('#btn-excel-export').on('click', function () {
+                let data = $('#filterForm').serialize();
+                window.open("{{ route('supplier-payments.export.excel') }}?" + data, '_blank');
+            });
+
+            $('#btn-pdf-export').on('click', function () {
+                let data = $('#filterForm').serialize();
+                window.open("{{ route('supplier-payments.export.pdf') }}?" + data, '_blank');
             });
 
             function updateTable() {

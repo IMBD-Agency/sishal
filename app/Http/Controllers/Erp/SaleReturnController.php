@@ -45,8 +45,8 @@ class SaleReturnController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\SaleReturnItem::whereHas('saleReturn')->with([
@@ -84,6 +84,10 @@ class SaleReturnController extends Controller
         $seasons = \App\Models\Season::orderBy('name')->get();
         $genders = \App\Models\Gender::orderBy('name')->get();
 
+        if ($request->ajax()) {
+            return view('erp.saleReturn.partials.table', compact('items'))->render();
+        }
+
         return view('erp.saleReturn.salereturnlist', compact(
             'items',
             'branches',
@@ -114,8 +118,8 @@ class SaleReturnController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\SaleReturnItem::whereHas("saleReturn")->with([
@@ -224,8 +228,8 @@ class SaleReturnController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\SaleReturnItem::whereHas("saleReturn")->with([

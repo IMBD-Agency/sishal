@@ -18,54 +18,48 @@ class JournalController extends Controller
         if (!auth()->user()->hasPermissionTo('view journal')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator', 'branch']);
 
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
-        } elseif ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
+        $startDate = null;
+        $endDate = null;
+        $reportType = null;
+        $query = $this->buildFilteredQuery($request, $startDate, $endDate, $reportType);
 
-        if ($request->filled('start_date')) {
-            $query->whereDate('entry_date', '>=', $request->start_date);
-        }
+        $totalJournals = (clone $query)->count();
+        $matchingIds = (clone $query)->select('journals.id');
+        $sumData = JournalEntry::whereIn('journal_id', $matchingIds)
+            ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
+            ->first();
 
-        if ($request->filled('end_date')) {
-            $query->whereDate('entry_date', '<=', $request->end_date);
-        }
+        $summary = (object)[
+            'total_journals' => $totalJournals,
+            'total_debit'    => $sumData->total_debit ?? 0,
+            'total_credit'   => $sumData->total_credit ?? 0,
+        ];
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('voucher_no', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('entries', function ($q2) use ($search) {
-                        $q2->where('memo', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->filled('financial_account_type')) {
-            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
-                $q->where('type', $request->financial_account_type);
-            });
-        }
-
-        $journals = $query->latest()->paginate(50)->appends($request->except('page'));
+        $journals = $query->latest()->paginate(50)->withQueryString();
         $chartAccounts = ChartOfAccount::with('parent')->orderBy('name')->get();
         $financialAccounts = FinancialAccount::all();
 
+        $restrictedBranchId = $this->getRestrictedBranchId();
         $branches = collect();
         if (!$restrictedBranchId) {
             $branches = \App\Models\Branch::all();
         }
 
-        return view('erp.doubleEntry.journalaccount', compact('journals', 'chartAccounts', 'financialAccounts', 'branches', 'restrictedBranchId'));
+        if ($request->ajax()) {
+            return response()->json([
+                'html'           => view('erp.doubleEntry.partials.journal_rows', compact('journals'))->render(),
+                'pagination'     => (string) $journals->onEachSide(1)->links('vendor.pagination.bootstrap-5'),
+                'total_journals' => $journals->total(),
+                'total_debit'    => number_format($summary->total_debit ?? 0, 2),
+                'total_credit'   => number_format($summary->total_credit ?? 0, 2),
+            ]);
+        }
+
+        return view('erp.doubleEntry.journalaccount', compact(
+            'journals', 'chartAccounts', 'financialAccounts', 'branches',
+            'restrictedBranchId', 'startDate', 'endDate', 'reportType', 'summary'
+        ));
     }
 
     public function store(Request $request)
@@ -235,42 +229,7 @@ class JournalController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $query = Journal::with(['entries.chartOfAccount', 'creator']);
-
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('entry_date', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->whereDate('entry_date', '<=', $request->end_date);
-        }
-
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->filled('financial_account_type')) {
-            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
-                $q->where('type', $request->financial_account_type);
-            });
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('voucher_no', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('entries', function ($q2) use ($search) {
-                        $q2->where('memo', 'like', "%{$search}%");
-                    });
-            });
-        }
-
+        $query = $this->buildFilteredQuery($request);
         $journals = $query->latest()->get();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -345,42 +304,7 @@ class JournalController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $query = Journal::with(['entries.chartOfAccount', 'creator']);
-
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('entry_date', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->whereDate('entry_date', '<=', $request->end_date);
-        }
-
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->filled('financial_account_type')) {
-            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
-                $q->where('type', $request->financial_account_type);
-            });
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('voucher_no', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('entries', function ($q2) use ($search) {
-                        $q2->where('memo', 'like', "%{$search}%");
-                    });
-            });
-        }
-
+        $query = $this->buildFilteredQuery($request);
         $journals = $query->latest()->get();
         $html = '<h1 style="text-align: center;">Journal Report</h1>';
         $html .= '<table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">';
@@ -425,5 +349,59 @@ class JournalController extends Controller
         $pdf = \App::make('dompdf.wrapper');
         $pdf->loadHTML($html);
         return $pdf->download('journals_report_' . date('Ymd_His') . '.pdf');
+    }
+
+    private function buildFilteredQuery(Request $request, &$startDate = null, &$endDate = null, &$reportType = null)
+    {
+        $query = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator', 'branch']);
+
+        $reportType = $request->get('report_type', 'daily');
+        $now = \Carbon\Carbon::now();
+
+        if ($reportType === 'monthly') {
+            $month = $request->input('month', date('n'));
+            $year  = $request->input('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate   = $startDate->copy()->endOfMonth();
+        } elseif ($reportType === 'yearly') {
+            $year  = $request->input('year', date('Y'));
+            $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate   = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : $now->copy()->startOfDay();
+            $endDate   = $request->filled('end_date')   ? \Carbon\Carbon::parse($request->end_date)->endOfDay()   : $now->copy()->endOfDay();
+        }
+
+        $query->whereBetween('entry_date', [$startDate, $endDate]);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        } elseif ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('voucher_no', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('entries', function ($q2) use ($search) {
+                        $q2->where('memo', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('financial_account_type')) {
+            $query->whereHas('entries.financialAccount', function ($q) use ($request) {
+                $q->where('type', $request->financial_account_type);
+            });
+        }
+
+        return $query;
     }
 }

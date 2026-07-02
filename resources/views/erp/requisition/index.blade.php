@@ -45,8 +45,28 @@
             <div class="premium-card mb-4">
                 <div class="card-body p-4">
                     <form id="filterForm" class="row g-3 align-items-end">
+                        <div class="col-md-12">
+                            <div class="d-flex gap-4">
+                                <div class="form-check custom-radio">
+                                    <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
+                                        id="dailyReport" value="daily" {{ $reportType == 'daily' ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold small text-muted" for="dailyReport">Manual Range</label>
+                                </div>
+                                <div class="form-check custom-radio">
+                                    <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
+                                        id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
+                                </div>
+                                <div class="form-check custom-radio">
+                                    <input class="form-check-input report-type-radio" type="radio" name="report_type_active"
+                                        id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
+                                </div>
+                            </div>
+                        </div>
+
                         @if(!$restrictedBranchId)
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold text-muted">Branch</label>
                             <select name="branch_id" class="form-select border-0 bg-light shadow-none">
                                 <option value="">All Branches</option>
@@ -66,13 +86,33 @@
                                 <option value="rejected">Rejected</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                             <label class="form-label small fw-bold text-muted">From Date</label>
-                            <input type="date" name="start_date" class="form-control border-0 bg-light shadow-none">
+                            <input type="date" name="start_date" class="form-control border-0 bg-light shadow-none" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                             <label class="form-label small fw-bold text-muted">To Date</label>
-                            <input type="date" name="end_date" class="form-control border-0 bg-light shadow-none">
+                            <input type="date" name="end_date" class="form-control border-0 bg-light shadow-none" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                        </div>
+                        <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
+                            <label class="form-label small fw-bold text-muted">Month</label>
+                            <select name="month" class="form-select border-0 bg-light shadow-none">
+                                <option value="">All Months</option>
+                                @for($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>
+                                        {{ date('F', mktime(0, 0, 0, $m, 1)) }}
+                                    </option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="col-md-2 year-field {{ !in_array($reportType, ['monthly', 'yearly']) ? 'd-none' : '' }}">
+                            <label class="form-label small fw-bold text-muted">Year</label>
+                            <select name="year" class="form-select border-0 bg-light shadow-none">
+                                <option value="">All Years</option>
+                                @for($y = date('Y'); $y >= date('Y') - 5; $y--)
+                                    <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
                         </div>
                         <div class="col-md-3">
                             <div class="d-flex gap-2">
@@ -151,8 +191,33 @@
                 fetchRequisitions($(this).attr('href'));
             });
 
+            // Report type toggles
+            $('.report-type-radio').on('change', function () {
+                const val = $(this).val();
+                if (val === 'daily') {
+                    $('.date-range-field').removeClass('d-none').show();
+                    $('.month-field, .year-field').addClass('d-none').hide();
+                } else if (val === 'monthly') {
+                    $('.month-field, .year-field').removeClass('d-none').show();
+                    $('.date-range-field').addClass('d-none').hide();
+                } else if (val === 'yearly') {
+                    $('.year-field').removeClass('d-none').show();
+                    $('.date-range-field, .month-field').addClass('d-none').hide();
+                }
+            });
+
             $('#resetBtn').on('click', function() {
                 $('#filterForm')[0].reset();
+                $('#dailyReport').prop('checked', true);
+
+                // Set inputs back to today
+                const today = new Date().toISOString().split('T')[0];
+                $('input[name="start_date"]').val(today);
+                $('input[name="end_date"]').val(today);
+
+                $('.date-range-field').removeClass('d-none').show();
+                $('.month-field, .year-field').addClass('d-none').hide();
+
                 fetchRequisitions();
             });
 

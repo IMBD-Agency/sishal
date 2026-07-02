@@ -430,10 +430,15 @@ let saleBranchId = null;
                                 <input type="hidden" name="return_items[${index}][unit_price]" value="${item.unit_price}">
                             </td>
                             <td class="text-center align-middle">
-                                <button type="button" class="btn btn-outline-dark btn-sm rounded-pill btn-quick-exchange" 
-                                    data-product-name="${item.product_name}" title="Exchange this item with another size/color">
-                                    <i class="fas fa-exchange-alt me-1"></i> Exchange
-                                </button>
+                                <div class="d-flex justify-content-center gap-1">
+                                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill btn-quick-exchange" 
+                                        data-product-name="${item.product_name}" title="Exchange this item with another size/color">
+                                        <i class="fas fa-exchange-alt me-1"></i> Exchange
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill btn-remove-return" title="Remove this item from return list">
+                                        <i class="fas fa-times-circle me-1"></i> Cancel
+                                    </button>
+                                </div>
                             </td>
                             <td class="text-center align-middle">
                                  <div class="input-group input-group-sm justify-content-center">
@@ -742,6 +747,14 @@ let saleBranchId = null;
             $(document).on('click', '.remove-item', function() {
                 $(this).closest('tr').remove();
                 calculateAll();
+            });
+
+            $(document).on('click', '.btn-remove-return', function() {
+                const $row = $(this).closest('tr');
+                $row.fadeOut(200, function() {
+                    $row.remove();
+                    calculateAll();
+                });
             });
 
             function calculateAll() {

@@ -56,11 +56,11 @@
                             <!-- Date Range Group -->
                             <div class="col-md-3 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                                <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
+                                <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-3 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <!-- Month Group -->
@@ -167,9 +167,9 @@
                                     </button>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('saleReturn.list') }}" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px; display: flex; align-items: center;">
+                                    <button type="button" id="resetBtn" class="btn btn-light border px-4 fw-bold text-muted" style="height: 42px;">
                                         <i class="fas fa-undo me-2"></i>Reset
-                                    </a>
+                                    </button>
                                     <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
                                         <i class="fas fa-search me-2"></i>Apply Filters
                                     </button>
@@ -180,134 +180,9 @@
                 </div>
             </div>
 
-            <!-- Table -->
-            <div class="premium-card">
-                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold mb-0 text-uppercase text-muted small"><i class="fas fa-list me-2 text-primary"></i>Return Data List</h6>
-                    <div class="search-wrapper-premium">
-                        <input type="text" id="returnSearch" class="form-control rounded-pill search-input-premium" placeholder="Quick find in this registry...">
-                        <i class="fas fa-search search-icon-premium"></i>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table premium-table compact reporting-table mb-0" id="returnTable">
-                            <thead>
-                                <tr>
-                                    <th class="text-center">SL</th>
-                                    <th>Date</th>
-                                    <th>R-Inv No</th>
-                                    <th>S-Inv No</th>
-                                    <th>Customer</th>
-                                    <th>Mobile</th>
-                                    <th>Branch</th>
-                                    <th>Category</th>
-                                    <th>Brand</th>
-                                    <th>Season</th>
-                                    <th>Gender</th>
-                                    <th style="min-width: 140px;">Product Name</th>
-                                    <th>Style #</th>
-                                    <th>Color</th>
-                                    <th>Size</th>
-                                    <th class="text-center">Qty</th>
-                                    <th class="text-center">T.Qty</th>
-                                    <th class="text-end">T.Amount</th>
-                                    <th class="text-end">Charge</th>
-                                    <th class="text-end">Paid</th>
-                                    <th class="text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php 
-                                    $gQty = 0; $gAmt = 0;
-                                @endphp
-                                @forelse($items as $index => $item)
-                                    @php
-                                        $return = $item->saleReturn;
-                                        $product = $item->product;
-                                        $variation = $item->variation;
-                                        if (!$return) continue;
-
-                                        $color = '-'; $size = '-';
-                                        if ($variation && $variation->attributeValues) {
-                                            foreach($variation->attributeValues as $val) {
-                                                $attrName = strtolower($val->attribute->name ?? '');
-                                                if (str_contains($attrName, 'color')) $color = $val->value;
-                                                elseif (str_contains($attrName, 'size')) $size = $val->value;
-                                            }
-                                        }
-
-                                        $gQty += $item->returned_qty;
-                                        $gAmt += $item->total_price;
-                                    @endphp
-                                    <tr>
-                                        <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
-                                        <td class="text-center">{{ $return->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-' }}</td>
-                                        <td class="fw-bold text-dark">#SR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</td>
-                                        <td>
-                                             <a href="{{ route('pos.show', $return->pos_sale_id) }}" class="text-decoration-none text-primary fw-600">
-                                                {{ $return->posSale->sale_number ?? '-' }}
-                                             </a>
-                                        </td>
-                                        <td>{{ $return->customer->name ?? 'Walk-in' }}</td>
-                                        <td>{{ $return->customer->phone ?? '-' }}</td>
-                                        <td>{{ $return->branch->name ?? '-' }}</td>
-                                        <td>{{ $product->category->name ?? '-' }}</td>
-                                        <td>{{ $product->brand->name ?? '-' }}</td>
-                                        <td>{{ $product->season->name ?? '-' }}</td>
-                                        <td>{{ $product->gender->name ?? '-' }}</td>
-                                        <td>{{ $product->name ?? '-' }}</td>
-                                        <td>{{ $product->style_number ?? '-' }}</td>
-                                        <td>{{ $color }}</td>
-                                        <td>{{ $size }}</td>
-                                        <td class="text-center">{{ $item->returned_qty }}</td>
-                                        <td class="text-center fw-bold">{{ $item->returned_qty }}</td>
-                                        <td class="text-end fw-bold">{{ number_format($item->total_price, 2) }}</td>
-                                        <td class="text-end">0.00</td>
-                                        <td class="text-end">0.00</td>
-                                         <td class="text-center">
-                                             <div class="d-flex gap-1 justify-content-center">
-                                                 <a href="{{ route('saleReturn.show', $return->id) }}" class="btn btn-action btn-sm" title="View">
-                                                     <i class="fas fa-eye"></i>
-                                                 </a>
-                                                 @can('delete sale returns')
-                                                 <form action="{{ route('saleReturn.delete', $return->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this return? All stock and accounting entries will be rolled back!')" style="display:inline;">
-                                                     @csrf
-                                                     @method('DELETE')
-                                                     <button type="submit" class="btn btn-action btn-sm text-danger" title="Delete">
-                                                         <i class="fas fa-trash"></i>
-                                                     </button>
-                                                 </form>
-                                                 @endcan
-                                             </div>
-                                         </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="21" class="text-center py-5 text-muted">No records found</td></tr>
-                                @endforelse
-                            </tbody>
-                            <tfoot class="bg-light">
-                                <tr class="fw-bold text-dark text-uppercase">
-                                    <td colspan="15" class="text-end">Grand Totals</td>
-                                    <td class="text-center">{{ $gQty }}</td>
-                                    <td class="text-center">{{ $gQty }}</td>
-                                    <td class="text-end">{{ number_format($gAmt, 2) }}</td>
-                                    <td class="text-end">0.00</td>
-                                    <td class="text-end">0.00</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-                @if($items->hasPages())
-                <div class="card-footer bg-white py-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Showing {{ $items->firstItem() }} to {{ $items->lastItem() }} of {{ $items->total() }} entries</small>
-                        {{ $items->links('vendor.pagination.bootstrap-5') }}
-                    </div>
-                </div>
-                @endif
+            <!-- Table Container for AJAX -->
+            <div id="table-container">
+                @include('erp.saleReturn.partials.table')
             </div>
         </div>
     </div>
@@ -351,9 +226,63 @@
                 });
             }
 
-            // Quick Search Table Functionality with Debounce
+            // AJAX Filtering Logic
+            function fetchReturnsData(url = null) {
+                const form = $('#filterForm');
+                const targetUrl = url || form.attr('action');
+                const data = url ? null : form.serialize();
+
+                $('#table-container').css('opacity', '0.5');
+
+                $.ajax({
+                    url: targetUrl,
+                    data: data,
+                    success: function (response) {
+                        $('#table-container').html(response);
+                        $('#table-container').css('opacity', '1');
+                    },
+                    error: function () {
+                        $('#table-container').css('opacity', '1');
+                        alert('Error loading data. Please try again.');
+                    }
+                });
+            }
+
+            // Intercept Filter Form Submission
+            $('#filterForm').on('submit', function (e) {
+                e.preventDefault();
+                fetchReturnsData();
+            });
+
+            // Intercept Pagination Clicks
+            $(document).on('click', '.pagination a', function (e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                if (url) {
+                    fetchReturnsData(url);
+                    $('html, body').animate({
+                        scrollTop: $("#table-container").offset().top - 100
+                    }, 200);
+                }
+            });
+
+            // Reset Filters Button
+            $('#resetBtn').on('click', function () {
+                const form = $('#filterForm');
+                form[0].reset();
+                $('.select2-setup').val('').trigger('change');
+                
+                const today = new Date().toISOString().split('T')[0];
+                $('input[name="start_date"]').val(today);
+                $('input[name="end_date"]').val(today);
+
+                $('#report_daily').prop('checked', true).trigger('change');
+                fetchReturnsData("{{ route('saleReturn.list') }}");
+            });
+
+            // Quick Search Table Functionality with Debounce via Event Delegation
             let returnSearchTimeout;
-            $('#returnSearch').on('input', function() {
+            $(document).on('input', '#returnSearch', function() {
                 const value = $(this).val().toLowerCase();
                 clearTimeout(returnSearchTimeout);
                 

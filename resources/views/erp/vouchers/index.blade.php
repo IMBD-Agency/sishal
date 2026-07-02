@@ -75,11 +75,11 @@
                             <div class="col-md-3 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date *</label>
                                 <input type="date" name="start_date" class="form-control"
-                                    value="{{ request('start_date') }}">
+                                    value="{{ $startDate ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-3 report-field daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date *</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <!-- Monthly Fields -->
@@ -165,29 +165,21 @@
                         <div class="card-footer bg-light border-top p-3 mt-4 mx-n4 mb-n4">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="d-flex gap-2">
-                                    <button type="button"
-                                        class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
-                                        <i class="fas fa-file-csv me-2"></i>CSV
-                                    </button>
-                                    <button type="button"
+                                    <button type="button" id="exportExcelBtn"
                                         class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm no-loader">
                                         <i class="fas fa-file-excel me-2"></i>Excel
                                     </button>
-                                    <button type="button"
+                                    <button type="button" id="exportPdfBtn"
                                         class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm no-loader">
                                         <i class="fas fa-file-pdf me-2"></i>PDF
                                     </button>
-                                    <button type="button"
-                                        class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm no-loader">
-                                        <i class="fas fa-print me-2"></i>Print
-                                    </button>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ route('vouchers.index') }}"
+                                    <button type="button" id="resetBtn"
                                         class="btn btn-light border px-4 fw-bold text-muted justify-content-center"
                                         style="height: 42px; display: flex; align-items: center;">
                                         <i class="fas fa-undo me-2"></i>Reset
-                                    </a>
+                                    </button>
                                     <button type="submit" class="btn btn-create-premium px-5" style="height: 42px;">
                                         <i class="fas fa-search me-2"></i>Filter
                                     </button>
@@ -341,6 +333,21 @@
                     fetchData();
                 });
 
+                // AJAX Reset
+                $('#resetBtn').on('click', function () {
+                    $('#filterForm')[0].reset();
+                    // Reset report type to daily
+                    $('#dailyReport').prop('checked', true);
+                    toggleDateGroups();
+                    // Set date fields back to today
+                    const today = new Date().toISOString().split('T')[0];
+                    $('input[name="start_date"]').val(today);
+                    $('input[name="end_date"]').val(today);
+                    // Reset select2 dropdowns
+                    $('.select2').val('all').trigger('change.select2');
+                    fetchData();
+                });
+
                 $(document).on('click', '.pagination a', function (e) {
                     e.preventDefault();
                     let url = $(this).attr('href');
@@ -364,8 +371,9 @@
                         url: targetUrl,
                         type: 'GET',
                         data: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
                         beforeSend: function () {
-                            $('#tableBody').css('opacity', '0.5'); // Minimal visual loading queue
+                            $('#tableBody').css('opacity', '0.5');
                         },
                         success: function (response) {
                             $('#tableBody').css('opacity', '1').html(response.html);
@@ -379,8 +387,26 @@
                         }
                     });
                 }
-            });
 
+                // Export handlers (inside ready so buttons are available)
+                function handleExport(route) {
+                    const formData = $('#filterForm').serialize();
+                    window.isDownloadNavigation = true;
+                    window.location.href = route + '?' + formData;
+                    setTimeout(() => { window.isDownloadNavigation = false; }, 2000);
+                }
+
+                $('#exportExcelBtn').on('click', function () {
+                    handleExport("{{ route('vouchers.export.excel') }}");
+                });
+
+                $('#exportPdfBtn').on('click', function () {
+                    handleExport("{{ route('vouchers.export.pdf') }}");
+                });
+
+            });
+        </script>
+        <script>
             function deleteVoucher(id, voucherNo) {
                 Swal.fire({
                     title: 'Are you sure?',

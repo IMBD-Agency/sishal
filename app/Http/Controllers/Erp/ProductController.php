@@ -282,7 +282,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         if (auth()->user()->hasPermissionTo('view products')) {
-            $reportType = $request->get('report_type', 'yearly');
+            $reportType = $request->get('report_type', 'daily');
             $restrictedBranchId = $this->getRestrictedBranchId();
             $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
             $selectedWarehouseId = $request->warehouse_id;
@@ -297,8 +297,8 @@ class ProductController extends Controller
                 $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
                 $endDate = $startDate->copy()->endOfYear();
             } else {
-                $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-                $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+                $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+                $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
             }
 
             $query = $this->buildProductQuery($request);
@@ -453,8 +453,8 @@ class ProductController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = Product::with(['category', 'brand', 'season', 'gender']);

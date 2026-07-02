@@ -26,8 +26,11 @@ class StockTransferController extends Controller
         // Grab view_mode before it can affect anything
         $viewMode = $request->input('view_mode', 'all');
 
+        $startDate = null;
+        $endDate = null;
+
         // Build the base query with all OTHER filters applied (no type/view_mode filter yet)
-        $query = $this->applyFilters($request);
+        $query = $this->applyFilters($request, $startDate, $endDate);
 
         // Count tabs on base query BEFORE adding the type filter
         $transferCount = (clone $query)->where('type', '!=', 'return')->count();
@@ -75,10 +78,13 @@ class StockTransferController extends Controller
             'variation_id', 'product_id', 'quick_filter', 'view_mode',
         ]);
 
+        $reportType = $request->get('report_type_active', 'daily');
+
         return view('erp.stockTransfer.stockTransfer', compact(
             'transfers', 'branches', 'warehouses', 'statuses', 'filters',
             'categories', 'brands', 'seasons', 'genders', 'styleNumbers', 'products',
-            'totalQuantity', 'totalValue', 'transferCount', 'returnCount'
+            'totalQuantity', 'totalValue', 'transferCount', 'returnCount',
+            'startDate', 'endDate', 'reportType'
         ));
     }
 
@@ -97,7 +103,7 @@ class StockTransferController extends Controller
         return view('erp.stockTransfer.create', compact('branches', 'warehouses', 'restrictedBranchId'));
     }
 
-    private function applyFilters(Request $request)
+    private function applyFilters(Request $request, &$startDate = null, &$endDate = null)
     {
         $query = StockTransfer::with([
             'product.category', 
@@ -217,19 +223,23 @@ class StockTransferController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('date_from')) {
-            $query->whereDate('requested_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('requested_at', '<=', $request->date_to);
-        }
-        
-        if ($request->filled('month')) {
-            $query->whereMonth('requested_at', $request->month);
-        }
-        
-        if ($request->filled('year')) {
-            $query->whereYear('requested_at', $request->year);
+        $reportType = $request->get('report_type_active', 'daily');
+
+        if ($reportType === 'daily') {
+            $startDate = $request->filled('date_from') ? \Carbon\Carbon::parse($request->date_from) : \Carbon\Carbon::today();
+            $endDate = $request->filled('date_to') ? \Carbon\Carbon::parse($request->date_to) : \Carbon\Carbon::today();
+            $query->whereBetween('requested_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+        } elseif ($reportType === 'monthly') {
+            if ($request->filled('month')) {
+                $query->whereMonth('requested_at', $request->month);
+            }
+            if ($request->filled('year')) {
+                $query->whereYear('requested_at', $request->year);
+            }
+        } elseif ($reportType === 'yearly') {
+            if ($request->filled('year')) {
+                $query->whereYear('requested_at', $request->year);
+            }
         }
 
         if ($request->filled('quick_filter')) {

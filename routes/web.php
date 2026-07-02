@@ -691,6 +691,8 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
         Route::get('/vouchers/create', [\App\Http\Controllers\Erp\VoucherController::class, 'create'])->name('vouchers.create');
         Route::post('/vouchers', [\App\Http\Controllers\Erp\VoucherController::class, 'store'])->name('vouchers.store');
         Route::delete('/vouchers/{id}', [\App\Http\Controllers\Erp\VoucherController::class, 'destroy'])->name('vouchers.destroy');
+        Route::get('/vouchers/export-excel', [\App\Http\Controllers\Erp\VoucherController::class, 'exportExcel'])->name('vouchers.export.excel');
+        Route::get('/vouchers/export-pdf', [\App\Http\Controllers\Erp\VoucherController::class, 'exportPdf'])->name('vouchers.export.pdf');
         
         // Accounting Reports
         Route::get('/ledger', [DoubleEntryReportController::class, 'ledgerIndex'])->name('ledger.index');

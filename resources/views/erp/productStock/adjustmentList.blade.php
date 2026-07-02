@@ -116,12 +116,12 @@
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start
                                         Date</label>
                                     <input type="date" name="start_date" class="form-control"
-                                        value="{{ request('start_date') }}">
+                                        value="{{ request('start_date') ?: ($startDate ?? '') }}">
                                 </div>
                                 <div class="col-md-2 date-range-field">
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
                                     <input type="date" name="end_date" class="form-control"
-                                        value="{{ request('end_date') }}">
+                                        value="{{ request('end_date') ?: ($endDate ?? '') }}">
                                 </div>
 
                                 <div class="col-md-2 month-field" style="display: none;">
@@ -136,7 +136,7 @@
                                 <div class="col-md-2 year-field" style="display: none;">
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
                                     <select name="year" class="form-select select2-simple">
-                                        @foreach(range(date('Y') - 5, date('Y') + 1) as $y)
+                                        @foreach(range(date('Y'), date('Y') - 5) as $y)
                                             <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>
                                                 {{ $y }}</option>
                                         @endforeach
@@ -271,13 +271,16 @@
 
                 $('#filterForm').on('submit', function (e) { e.preventDefault(); refreshAdjustments(); });
 
-                $('select').on('change', function () {
-                    refreshAdjustments();
-                });
+
 
                 $('#resetBtn').on('click', function () {
                     $('#filterForm')[0].reset();
                     $('.select2-simple').val('').trigger('change');
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    $('input[name="start_date"]').val(today);
+                    $('input[name="end_date"]').val(today);
+
                     toggleReportFields();
                     refreshAdjustments("{{ route('stock.adjustment.list') }}");
                 });

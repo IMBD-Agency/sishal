@@ -36,13 +36,9 @@ class RequisitionController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('start_date')) {
-            $query->whereDate('requisition_date', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->whereDate('requisition_date', '<=', $request->end_date);
-        }
+        $startDate = null;
+        $endDate = null;
+        $this->applyDateFilters($query, $request, $startDate, $endDate);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -55,8 +51,9 @@ class RequisitionController extends Controller
             return view('erp.requisition.partials.table', compact('requisitions'));
         }
 
+        $reportType = $request->get('report_type_active', 'daily');
         $branches = Branch::where('status', 'active')->get();
-        return view('erp.requisition.index', compact('requisitions', 'restrictedBranchId', 'branches'));
+        return view('erp.requisition.index', compact('requisitions', 'restrictedBranchId', 'branches', 'startDate', 'endDate', 'reportType'));
     }
 
     public function exportExcel(Request $request)
@@ -75,8 +72,7 @@ class RequisitionController extends Controller
         }
 
         if ($request->filled('status')) $query->where('status', $request->status);
-        if ($request->filled('start_date')) $query->whereDate('requisition_date', '>=', $request->start_date);
-        if ($request->filled('end_date')) $query->whereDate('requisition_date', '<=', $request->end_date);
+        $this->applyDateFilters($query, $request);
         if ($request->filled('search')) $query->where('requisition_number', 'LIKE', "%{$request->search}%");
 
         $requisitions = $query->latest()->get();
@@ -87,11 +83,11 @@ class RequisitionController extends Controller
         foreach ($requisitions as $req) {
             $data[] = [
                 $req->requisition_number,
-                $req->branch->name,
-                $req->warehouse->name,
+                $req->branch->name ?? '—',
+                $req->warehouse->name ?? '—',
                 $req->requisition_date,
                 strtoupper(str_replace('_', ' ', $req->status)),
-                $req->creator->name
+                $req->creator->name ?? '—'
             ];
         }
 
@@ -123,8 +119,7 @@ class RequisitionController extends Controller
         }
 
         if ($request->filled('status')) $query->where('status', $request->status);
-        if ($request->filled('start_date')) $query->whereDate('requisition_date', '>=', $request->start_date);
-        if ($request->filled('end_date')) $query->whereDate('requisition_date', '<=', $request->end_date);
+        $this->applyDateFilters($query, $request);
         if ($request->filled('search')) $query->where('requisition_number', 'LIKE', "%{$request->search}%");
 
         $requisitions = $query->latest()->get();
@@ -538,6 +533,28 @@ class RequisitionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Fulfillment failed: ' . $e->getMessage());
+        }
+    }
+
+    private function applyDateFilters($query, Request $request, &$startDate = null, &$endDate = null)
+    {
+        $reportType = $request->get('report_type_active', 'daily');
+
+        if ($reportType === 'daily') {
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : \Carbon\Carbon::today();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : \Carbon\Carbon::today();
+            $query->whereBetween('requisition_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+        } elseif ($reportType === 'monthly') {
+            if ($request->filled('month')) {
+                $query->whereMonth('requisition_date', $request->month);
+            }
+            if ($request->filled('year')) {
+                $query->whereYear('requisition_date', $request->year);
+            }
+        } elseif ($reportType === 'yearly') {
+            if ($request->filled('year')) {
+                $query->whereYear('requisition_date', $request->year);
+            }
         }
     }
 }

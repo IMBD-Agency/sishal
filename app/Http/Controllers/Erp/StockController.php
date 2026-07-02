@@ -1241,7 +1241,9 @@ class StockController extends Controller
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);
 
         // Reports Filter logic (applied to parent adjustment)
-        $reportType = $request->get('report_type', 'yearly');
+        $reportType = $request->get('report_type', 'daily');
+        $startDate = null;
+        $endDate = null;
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('n'));
             $year = $request->get('year', date('Y'));
@@ -1254,16 +1256,12 @@ class StockController extends Controller
                 $q->whereYear('date', $year);
             });
         } else {
-            if ($request->filled('start_date')) {
-                $query->whereHas('adjustment', function ($q) use ($request) {
-                    $q->where('date', '>=', $request->start_date);
-                });
-            }
-            if ($request->filled('end_date')) {
-                $query->whereHas('adjustment', function ($q) use ($request) {
-                    $q->where('date', '<=', $request->end_date);
-                });
-            }
+            $startDate = $request->filled('start_date') ? $request->start_date : \Carbon\Carbon::today()->toDateString();
+            $endDate = $request->filled('end_date') ? $request->end_date : \Carbon\Carbon::today()->toDateString();
+            
+            $query->whereHas('adjustment', function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('date', [$startDate, $endDate]);
+            });
         }
 
         // Parent Adjustment Filters
@@ -1343,7 +1341,9 @@ class StockController extends Controller
             'brands',
             'seasons',
             'genders',
-            'reportType'
+            'reportType',
+            'startDate',
+            'endDate'
         ));
     }
 
@@ -1565,31 +1565,25 @@ class StockController extends Controller
     {
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);
 
-        if ($request->filled('report_type')) {
-            $reportType = $request->report_type;
-            if ($reportType == 'monthly') {
-                $month = $request->get('month', date('n'));
-                $year = $request->get('year', date('Y'));
-                $query->whereHas('adjustment', function ($q) use ($month, $year) {
-                    $q->whereMonth('date', $month)->whereYear('date', $year);
-                });
-            } elseif ($reportType == 'yearly') {
-                $year = $request->get('year', date('Y'));
-                $query->whereHas('adjustment', function ($q) use ($year) {
-                    $q->whereYear('date', $year);
-                });
-            } else {
-                if ($request->filled('start_date')) {
-                    $query->whereHas('adjustment', function ($q) use ($request) {
-                        $q->where('date', '>=', $request->start_date);
-                    });
-                }
-                if ($request->filled('end_date')) {
-                    $query->whereHas('adjustment', function ($q) use ($request) {
-                        $q->where('date', '<=', $request->end_date);
-                    });
-                }
-            }
+        $reportType = $request->get('report_type', 'daily');
+        if ($reportType == 'monthly') {
+            $month = $request->get('month', date('n'));
+            $year = $request->get('year', date('Y'));
+            $query->whereHas('adjustment', function ($q) use ($month, $year) {
+                $q->whereMonth('date', $month)->whereYear('date', $year);
+            });
+        } elseif ($reportType == 'yearly') {
+            $year = $request->get('year', date('Y'));
+            $query->whereHas('adjustment', function ($q) use ($year) {
+                $q->whereYear('date', $year);
+            });
+        } else {
+            $startDate = $request->filled('start_date') ? $request->start_date : \Carbon\Carbon::today()->toDateString();
+            $endDate = $request->filled('end_date') ? $request->end_date : \Carbon\Carbon::today()->toDateString();
+            
+            $query->whereHas('adjustment', function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('date', [$startDate, $endDate]);
+            });
         }
 
         if ($request->filled('adjustment_number')) {

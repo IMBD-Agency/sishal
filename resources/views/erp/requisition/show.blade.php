@@ -80,15 +80,15 @@
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span class="text-muted small">Requesting Branch:</span>
-                                    <span class="fw-bold">{{ $requisition->branch->name }}</span>
+                                    <span class="fw-bold">{{ optional($requisition->branch)->name ?? '—' }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span class="text-muted small">Source Warehouse:</span>
-                                    <span class="fw-bold text-info">{{ $requisition->warehouse->name }}</span>
+                                    <span class="fw-bold text-info">{{ optional($requisition->warehouse)->name ?? '—' }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span class="text-muted small">Requested By:</span>
-                                    <span class="fw-bold">{{ $requisition->creator->name }}</span>
+                                    <span class="fw-bold">{{ optional($requisition->creator)->name ?? '—' }}</span>
                                 </div>
                             </div>
 

@@ -110,7 +110,7 @@
                         <div class="d-flex gap-4 mb-3">
                             <div class="form-check">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                    id="dailyReport" value="daily" {{ request('report_type') == 'daily' ? 'checked' : '' }}>
+                                    id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily
                                     Reports</label>
                             </div>
@@ -122,7 +122,7 @@
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                    id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
+                                    id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly
                                     Reports</label>
                             </div>
@@ -132,13 +132,13 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date
                                     Registry</label>
                                 <input type="date" name="start_date" class="form-control shadow-none"
-                                    value="{{ request('report_type') == 'daily' && $startDate ? $startDate->toDateString() : '' }}">
+                                    value="{{ (request('report_type', 'daily') == 'daily' && $startDate) ? $startDate->toDateString() : '' }}">
                             </div>
                             <div class="col-md-2 date-group daily-group">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date
                                     Registry</label>
                                 <input type="date" name="end_date" class="form-control shadow-none"
-                                    value="{{ request('report_type') == 'daily' && $endDate ? $endDate->toDateString() : '' }}">
+                                    value="{{ (request('report_type', 'daily') == 'daily' && $endDate) ? $endDate->toDateString() : '' }}">
                             </div>
 
                             <div class="col-md-2 date-group monthly-group" style="display: none;">
@@ -153,7 +153,7 @@
                             <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Year</label>
                                 <select name="year" class="form-select select2-setup shadow-none">
-                                    @foreach(range(date('Y'), date('Y') - 10) as $y)
+                                    @foreach(range(date('Y'), date('Y') - 5) as $y)
                                         <option value="{{ $y }}" {{ (request('year') ?? date('Y')) == $y ? 'selected' : '' }}>
                                             {{ $y }}</option>
                                     @endforeach
@@ -393,7 +393,12 @@
                     const form = $('#filterForm');
                     form[0].reset();
                     $('.select2-setup').val('').trigger('change');
-                    $('#yearlyReport').prop('checked', true).trigger('change');
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    $('input[name="start_date"]').val(today);
+                    $('input[name="end_date"]').val(today);
+
+                    $('#dailyReport').prop('checked', true).trigger('change');
                     fetchPurchasesData("{{ route('purchase.list') }}");
                 });
 

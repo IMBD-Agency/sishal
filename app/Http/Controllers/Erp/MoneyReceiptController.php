@@ -60,7 +60,15 @@ class MoneyReceiptController extends Controller
         } else {
             $branches = \App\Models\Branch::all();
         }
-        return view('erp.money-receipt.index', compact('receipts', 'totalAmount', 'customers', 'branches', 'recentReceipts', 'recentInvoices'));
+        $reportType = $request->input('report_type', 'daily');
+        $startDate = null;
+        $endDate = null;
+        if ($reportType === 'daily') {
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::today()->endOfDay();
+        }
+
+        return view('erp.money-receipt.index', compact('receipts', 'totalAmount', 'customers', 'branches', 'recentReceipts', 'recentInvoices', 'reportType', 'startDate', 'endDate'));
     }
 
     public function create(Request $request)
@@ -620,26 +628,18 @@ class MoneyReceiptController extends Controller
             });
         }
 
-        if ($request->filled('report_type')) {
-            $type = $request->report_type;
-            if ($type === 'daily') {
-                $query->whereDate('payment_date', Carbon::today());
-            } elseif ($type === 'monthly') {
-                $month = $request->input('month', date('m'));
-                $year = $request->input('year', date('Y'));
-                $query->whereMonth('payment_date', $month)->whereYear('payment_date', $year);
-            } elseif ($type === 'yearly') {
-                $year = $request->input('year', date('Y'));
-                $query->whereYear('payment_date', $year);
-            }
-            // 'all' type does not apply any date restriction
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('payment_date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('payment_date', '<=', $request->end_date);
+        $type = $request->input('report_type', 'daily');
+        if ($type === 'daily') {
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::today()->endOfDay();
+            $query->whereBetween('payment_date', [$startDate, $endDate]);
+        } elseif ($type === 'monthly') {
+            $month = $request->input('month', date('m'));
+            $year = $request->input('year', date('Y'));
+            $query->whereMonth('payment_date', $month)->whereYear('payment_date', $year);
+        } elseif ($type === 'yearly') {
+            $year = $request->input('year', date('Y'));
+            $query->whereYear('payment_date', $year);
         }
         
         if ($request->filled('search')) {

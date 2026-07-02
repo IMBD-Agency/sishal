@@ -219,9 +219,7 @@
                                         </th>
                                         <th class="text-end">Unit Price</th>
                                         <th class="text-end">Total Price</th>
-                                        @if(!isset($originalTransfer))
                                         <th class="text-center pe-3">Action</th>
-                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody id="productTableBody">
@@ -239,6 +237,7 @@
                                     @foreach($items as $item)
                                     @php
                                         $product = $item->product;
+                                        if (!$product) continue;
                                         $variation = $item->variation;
                                         $rowId = $variation ? "var_{$variation->id}" : "prod_{$product->id}";
                                         $unitPrice = $item->unit_price;
@@ -320,7 +319,11 @@
                                         </td>
                                         <td class="text-end fw-bold">{{ number_format($unitPrice, 2) }}৳</td>
                                         <td class="text-end fw-bold total-price-col" id="total_price_{{ $rowId }}" data-value="{{ number_format($maxReturnQty * $unitPrice, 2, '.', '') }}">{{ number_format($maxReturnQty * $unitPrice, 2) }}৳</td>
-                                        {{-- No remove button for returns --}}
+                                        <td class="pe-3 text-center">
+                                            <button type="button" class="btn btn-sm btn-light border-0 action-circle remove-row" data-row-id="{{ $rowId }}">
+                                                <i class="fas fa-trash text-danger"></i>
+                                            </button>
+                                        </td>
                                     </tr>
                                     @endforeach
                                     @endif
@@ -530,13 +533,6 @@
                 `;
                 $('#productTableBody').append(row);
             }
-
-            $(document).on('click', '.remove-row', function() {
-                const rowId = $(this).data('row-id');
-                $(`#${rowId}`).remove();
-                if($('#productTableBody tr').length === 0) $('.empty-placeholder').show();
-                updateTotals();
-            });
             @endif
 
             // --- Shared: quantity change handler ---
@@ -621,6 +617,24 @@
             if ($('#from_outlet').val()) {
                 $('#style_number').prop('disabled', false);
             }
+
+            $(document).on('click', '.remove-row', function() {
+                const rowId = $(this).data('row-id');
+                $(`#${rowId}`).remove();
+                if($('#productTableBody tr').length === 0 || $('#productTableBody tr:not(.empty-placeholder)').length === 0) {
+                    $('#productTableBody').html(`
+                        <tr class="empty-placeholder">
+                            <td colspan="10" class="text-center py-5">
+                                <div class="text-muted opacity-50">
+                                    <i class="fas fa-barcode fa-3x mb-3"></i>
+                                    <p class="fw-bold mb-0">Scan or select a style number to build the dispatch list.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                }
+                updateTotals();
+            });
 
             // Initialize totals on page load (important for pre-filled return rows)
             updateTotals();

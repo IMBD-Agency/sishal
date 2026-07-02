@@ -582,7 +582,7 @@ class PosController extends Controller
         if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'custom');
+        $reportType = $request->get('report_type', 'daily');
 
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -594,9 +594,8 @@ class PosController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            // Default to show all sales for custom to ensure visibility
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         // Optimized query with specific columns
@@ -754,7 +753,8 @@ class PosController extends Controller
                 })
                     ->orWhereHas('product', function ($prq) use ($search) {
                         $prq->where('name', 'LIKE', "%$search%")
-                            ->orWhere('style_number', 'LIKE', "%$search%");
+                            ->orWhere('style_number', 'LIKE', "%$search%")
+                            ->orWhere('sku', 'LIKE', "%$search%");
                     });
             });
         }
@@ -800,8 +800,12 @@ class PosController extends Controller
         ) {
 
             $query->whereHas('product', function ($q) use ($request) {
-                if ($request->filled('style_number'))
-                    $q->where('style_number', 'like', '%' . $request->style_number . '%');
+                if ($request->filled('style_number')) {
+                    $q->where(function ($subQ) use ($request) {
+                        $subQ->where('style_number', 'like', '%' . $request->style_number . '%')
+                             ->orWhere('sku', 'like', '%' . $request->style_number . '%');
+                    });
+                }
                 if ($request->filled('category_id'))
                     $q->where('category_id', $request->category_id);
                 if ($request->filled('brand_id'))
@@ -1747,8 +1751,8 @@ class PosController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PosItem::with([
@@ -2037,8 +2041,8 @@ class PosController extends Controller
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
-            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+            $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : \Carbon\Carbon::today()->startOfDay();
+            $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
         $query = \App\Models\PosItem::with([

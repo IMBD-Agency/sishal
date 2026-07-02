@@ -109,12 +109,27 @@ class DoubleEntryReportController extends Controller
 
         // Clone for summary BEFORE applying latest() order to avoid MySQL aggregate error
         $summaryQuery = (clone $query);
-        $ledgerEntries = $query->latest()->paginate(50)->withQueryString();
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100, 200]) ? $perPage : 50;
+
+        $ledgerEntries = $query->latest()->paginate($perPage)->withQueryString();
         
         $summary = $summaryQuery->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit, COUNT(*) as total_entries')->first();
         $totalDebits = $summary->total_debit ?? 0;
         $totalCredits = $summary->total_credit ?? 0;
         $totalEntries = $summary->total_entries ?? 0;
+
+        if ($request->ajax()) {
+            return response()->json([
+                'html'          => view('erp.doubleEntry.partials.ledger_rows', compact('ledgerEntries'))->render(),
+                'pagination'    => (string) $ledgerEntries->onEachSide(1)->links('vendor.pagination.bootstrap-5'),
+                'total_debits'  => number_format($totalDebits, 2),
+                'total_credits' => number_format($totalCredits, 2),
+                'total_entries' => $totalEntries,
+                'net'           => number_format(abs($totalDebits - $totalCredits), 2),
+                'net_type'      => ($totalDebits - $totalCredits) >= 0 ? 'Dr' : 'Cr',
+            ]);
+        }
 
         return view('erp.doubleEntry.ledgersummery', compact(
             'chartAccounts', 'ledgerEntries', 'totalDebits', 'totalCredits', 

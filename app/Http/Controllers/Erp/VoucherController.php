@@ -277,4 +277,113 @@ class VoucherController extends Controller
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
     }
+
+    private function buildFilteredQuery(Request $request)
+    {
+        $reportType = $request->get('report_type', 'daily');
+        $now = Carbon::now();
+
+        if ($reportType == 'monthly') {
+            $month = $request->input('month', date('n'));
+            $year  = $request->input('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endDate   = $startDate->copy()->endOfMonth();
+        } elseif ($reportType == 'yearly') {
+            $year  = $request->input('year', date('Y'));
+            $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
+            $endDate   = $startDate->copy()->endOfYear();
+        } else {
+            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : $now->copy()->startOfDay();
+            $endDate   = $request->filled('end_date')   ? Carbon::parse($request->end_date)->endOfDay()   : $now->copy()->endOfDay();
+        }
+
+        $query = Journal::with(['branch', 'customer', 'supplier', 'expenseAccount', 'creator', 'entries.chartOfAccount'])
+            ->whereBetween('entry_date', [$startDate, $endDate]);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $query->where('branch_id', $restrictedBranchId);
+        }
+        if ($request->filled('customer_id') && $request->customer_id != 'all') {
+            $query->where('customer_id', $request->customer_id);
+        }
+        if ($request->filled('supplier_id') && $request->supplier_id != 'all') {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+        if ($request->filled('voucher_type') && $request->voucher_type != 'all') {
+            $query->where('type', $request->voucher_type);
+        }
+        if ($request->filled('account_id') && $request->account_id != 'all') {
+            $query->where('expense_account_id', $request->account_id);
+        }
+
+        return $query;
+    }
+
+    public function exportExcel(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view vouchers')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $vouchers = $this->buildFilteredQuery($request)->latest()->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Header row
+        $headers = ['#', 'Voucher No', 'Date', 'Type', 'Account', 'Customer/Supplier', 'Branch', 'Amount', 'Paid', 'Created By'];
+        $sheet->fromArray([$headers], null, 'A1');
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+
+        $rowNum = 2;
+        $totalAmount = 0;
+        $totalPaid   = 0;
+        foreach ($vouchers as $i => $v) {
+            $party = optional($v->customer)->name ?? optional($v->supplier)->name ?? '—';
+            $row = [
+                $i + 1,
+                $v->voucher_no,
+                \Carbon\Carbon::parse($v->entry_date)->format('d/m/Y'),
+                $v->type ?? '—',
+                optional($v->expenseAccount)->name ?? '—',
+                $party,
+                optional($v->branch)->name ?? '—',
+                (float) $v->voucher_amount,
+                (float) $v->paid_amount,
+                optional($v->creator)->name ?? '—',
+            ];
+            $sheet->fromArray([$row], null, 'A' . $rowNum);
+            $totalAmount += $v->voucher_amount;
+            $totalPaid   += $v->paid_amount;
+            $rowNum++;
+        }
+
+        // Totals row
+        $sheet->fromArray([['', '', '', '', '', '', 'TOTAL', $totalAmount, $totalPaid, '']], null, 'A' . $rowNum);
+        $sheet->getStyle('A' . $rowNum . ':J' . $rowNum)->getFont()->setBold(true);
+        $sheet->getStyle('H2:I' . $rowNum)->getNumberFormat()->setFormatCode('#,##0.00');
+
+        $writer   = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'vouchers_' . date('Ymd_His') . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $writer->save('php://output');
+        exit;
+    }
+
+    public function exportPdf(Request $request)
+    {
+        if (!auth()->user()->hasPermissionTo('view vouchers')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $vouchers = $this->buildFilteredQuery($request)->latest()->get();
+        $totalAmount = $vouchers->sum('voucher_amount');
+        $totalPaid   = $vouchers->sum('paid_amount');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.vouchers.report-pdf', compact('vouchers', 'totalAmount', 'totalPaid'))
+            ->setPaper('a4', 'landscape');
+        return $pdf->download('vouchers_' . date('Y-m-d_His') . '.pdf');
+    }
 }
