@@ -48,8 +48,8 @@
                 <th class="text-end">Discount Amount</th>
                 <th class="text-end">Exchange Amount</th>
                 <th class="text-end">Refund</th>
-                <th class="text-end fw-bold">Gross Amount (with vat)</th>
-                <th class="text-end text-success">Net Amount (without vat)</th>
+                <th class="text-end fw-bold">Gross Amount</th>
+                <th class="text-end text-success">Net Amount (Final)</th>
                 <th class="text-end text-success fw-bold">Total Received Amount</th>
                 <th class="text-end text-danger fw-bold">Total Due Amount</th>
                 <th class="text-center">Option</th>
