@@ -197,14 +197,14 @@
                 <!-- Financial & Accounts Section -->
                 @php
                     $financialReports = [
-                        [
-                            'title' => 'Profit & Loss',
-                            'desc' => 'Comprehensive income vs. expenses statement.',
-                            'route' => 'reports.profit-loss',
-                            'icon' => 'fa-balance-scale',
-                            'color' => 'danger',
-                            'permission' => 'profit and loss'
-                        ],
+                        // [
+                        //     'title' => 'Profit & Loss',
+                        //     'desc' => 'Comprehensive income vs. expenses statement.',
+                        //     'route' => 'reports.profit-loss',
+                        //     'icon' => 'fa-balance-scale',
+                        //     'color' => 'danger',
+                        //     'permission' => 'profit and loss'
+                        // ],
                         [
                             'title' => 'Cash Profit Report',
                             'desc' => 'Collection-based realized profit analysis.',

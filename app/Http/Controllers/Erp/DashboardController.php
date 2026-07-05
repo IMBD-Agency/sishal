@@ -784,9 +784,18 @@ class DashboardController extends Controller
     private function getTodayExpenseStats()
     {
         $branchId = $this->getRestrictedBranchId();
+        
+        $expenseTypeIds = DB::table('chart_of_account_types')->where('name', 'Expense')->pluck('id');
+        $expenseAccountIds = DB::table('chart_of_accounts')
+            ->whereIn('type_id', $expenseTypeIds)
+            ->orWhereIn('parent_id', function($q) use ($expenseTypeIds) {
+                $q->from('chart_of_account_parents')->select('id')->whereIn('type_id', $expenseTypeIds);
+            })
+            ->pluck('id');
+
         $query = DB::table('journals')
             ->whereDate('entry_date', Carbon::today())
-            ->whereNotNull('expense_account_id');
+            ->whereIn('expense_account_id', $expenseAccountIds);
             
         if ($branchId) {
             $query->where('branch_id', $branchId);

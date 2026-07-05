@@ -178,6 +178,8 @@
                                         if($type->name == 'Expense') $concept = 'expense';
                                         elseif($type->name == 'Revenue') $concept = 'income';
                                         elseif($type->name == 'Asset') $concept = 'asset';
+                                        elseif($type->name == 'Liability') $concept = 'liability';
+                                        elseif($type->name == 'Equity') $concept = 'equity';
                                         
                                         if(!$concept || in_array($concept, $shownCats)) continue;
                                         $shownCats[] = $concept;
@@ -189,6 +191,10 @@
                                         <option value="{{ $type->id }}">Income (Money In)</option>
                                     @elseif($concept == 'asset')
                                         <option value="{{ $type->id }}">Cash / Bank Account (Wallet)</option>
+                                    @elseif($concept == 'liability')
+                                        <option value="{{ $type->id }}">Liability</option>
+                                    @elseif($concept == 'equity')
+                                        <option value="{{ $type->id }}">Equity (Capital)</option>
                                     @endif
                                 @endforeach
                             </select>

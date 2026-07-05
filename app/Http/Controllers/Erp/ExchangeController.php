@@ -365,6 +365,7 @@ class ExchangeController extends Controller
                         'payment_method' => $finAcc ? $finAcc->type : 'cash',
                         'reference' => 'Exchange ' . $exchangeNumber,
                         'note' => 'Extra payable received during exchange',
+                        'customer_id' => $originalSale->customer_id,
                     ]);
                 } elseif ($refundAmount > 0) {
                     // If it's a refund and we actually paid them cash
@@ -393,8 +394,41 @@ class ExchangeController extends Controller
             // =====================================================
             
             if ($extraPayable > 0 || $refundAmount > 0) {
-                $salesAccount = ChartOfAccount::where('name', 'like', '%Sales%')->first() ?? ChartOfAccount::first();
-                $returnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first() ?? $salesAccount;
+                $salesAccount = ChartOfAccount::where('name', 'Product Sales')
+                    ->orWhere('name', 'Sales')
+                    ->orWhere('name', 'like', '%Sales%')
+                    ->first() ?? ChartOfAccount::first();
+                
+                $returnAccount = ChartOfAccount::where('name', 'Sales Returns')
+                    ->orWhere('name', 'Sales Return')
+                    ->first();
+                if (!$returnAccount) {
+                    $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+                    $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+                    if (!$revenueSubType) {
+                        $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
+                    }
+                    $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+                    if (!$revenueParent) {
+                        $revenueParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Operating Revenue',
+                            'type_id' => $revenueType->id,
+                            'sub_type_id' => $revenueSubType->id,
+                            'code' => '4000',
+                            'created_by' => Auth::id()
+                        ]);
+                    }
+
+                    $returnAccount = ChartOfAccount::create([
+                        'name' => 'Sales Returns',
+                        'type_id' => $revenueType->id,
+                        'sub_type_id' => $revenueSubType->id,
+                        'parent_id' => $revenueParent->id,
+                        'code' => '40002',
+                        'status' => 'active',
+                        'created_by' => Auth::id()
+                    ]);
+                }
                 
                 $voucherNo = $exchangeNumber;
                 while (Journal::where('voucher_no', $voucherNo)->exists()) {
@@ -437,15 +471,62 @@ class ExchangeController extends Controller
                         'created_by'           => Auth::id(),
                         'updated_by'           => Auth::id(),
                     ]);
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $salesAccount->id,
-                        'debit'                => 0,
-                        'credit'               => $extraPayable,
-                        'memo'                 => 'Exchange Extra Sales Revenue',
-                        'created_by'           => Auth::id(),
-                        'updated_by'           => Auth::id(),
-                    ]);
+                    $deliveryChargeAmount = min($extraPayable, $deliveryCharge);
+                    $salesRevenueAmount = $extraPayable - $deliveryChargeAmount;
+
+                    if ($salesRevenueAmount > 0) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $salesAccount->id,
+                            'debit'                => 0,
+                            'credit'               => $salesRevenueAmount,
+                            'memo'                 => 'Exchange Extra Sales Revenue',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
+
+                    if ($deliveryChargeAmount > 0) {
+                        $deliveryExpenseAccount = ChartOfAccount::where('name', 'like', '%Delivery Expense%')->orWhere('name', 'like', '%Courier Expense%')->first();
+                        if (!$deliveryExpenseAccount) {
+                            $expenseType = \App\Models\ChartOfAccountType::where('name', 'Expense')->first() ?? \App\Models\ChartOfAccountType::find(5);
+                            $expenseSubType = \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->where('name', 'like', '%Operating%')->first() 
+                                ?? \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->first();
+                            if (!$expenseSubType) {
+                                $expenseSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Expenses', 'type_id' => $expenseType->id]);
+                            }
+                            $expenseParent = \App\Models\ChartOfAccountParent::where('type_id', $expenseType->id)->first();
+                            if (!$expenseParent) {
+                                $expenseParent = \App\Models\ChartOfAccountParent::create([
+                                    'name' => 'Operating Expenses Parent',
+                                    'type_id' => $expenseType->id,
+                                    'sub_type_id' => $expenseSubType->id,
+                                    'code' => '5000',
+                                    'created_by' => Auth::id()
+                                ]);
+                            }
+
+                            $deliveryExpenseAccount = ChartOfAccount::create([
+                                'name' => 'Delivery Expense',
+                                'type_id' => $expenseType->id,
+                                'sub_type_id' => $expenseSubType->id,
+                                'parent_id' => $expenseParent->id,
+                                'code' => '50005',
+                                'status' => 'active',
+                                'created_by' => Auth::id()
+                            ]);
+                        }
+
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $deliveryExpenseAccount->id,
+                            'debit'                => 0,
+                            'credit'               => $deliveryChargeAmount,
+                            'memo'                 => 'Delivery charge collected from Exchange',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
                 } elseif ($refundAmount > 0) {
                     // We refund customer (Payment)
                     // Debit: Sales Return (Difference)

@@ -215,7 +215,7 @@
                                     <th>Date</th>
                                     <th>Outlet</th>
                                     <th>Customer</th>
-                                    <th>Expense</th>
+                                    <th>Ledger Account</th>
                                     <th>Details</th>
                                     <th class="text-end">Voucher Amount</th>
                                     <th class="text-end">Paid Amount</th>

@@ -342,6 +342,7 @@ class PosController extends Controller
                     'payment_method' => $request->payment_method ?? 'cash',
                     'reference' => null,
                     'note' => $request->notes,
+                    'customer_id' => $pos->customer_id,
                 ]);
                 // Update invoice paid/due/status for upfront payment
                 $invoice->paid_amount = ($invoice->paid_amount ?? 0) + $request->paid_amount;
@@ -440,16 +441,59 @@ class PosController extends Controller
             ]);
 
             // CREDIT Sales (Net Amount - Revenue increases)
-            $netSalesAmount = $pos->total_amount - $pos->vat_amount;
+            $netSalesAmount = $pos->total_amount - $pos->vat_amount - $pos->delivery;
             JournalEntry::create([
                 'journal_id' => $journal->id,
                 'chart_of_account_id' => $salesAccount->id,
                 'debit' => 0,
                 'credit' => $netSalesAmount,
-                'memo' => 'Revenue from POS Sale (Net of Tax)',
+                'memo' => 'Revenue from POS Sale (Net of Tax & Delivery)',
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
             ]);
+
+            // CREDIT Delivery Expense (reduce expense)
+            if ($pos->delivery > 0) {
+                $deliveryExpenseAccount = ChartOfAccount::where('name', 'like', '%Delivery Expense%')->orWhere('name', 'like', '%Courier Expense%')->first();
+                if (!$deliveryExpenseAccount) {
+                    $expenseType = \App\Models\ChartOfAccountType::where('name', 'Expense')->first() ?? \App\Models\ChartOfAccountType::find(5);
+                    $expenseSubType = \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->where('name', 'like', '%Operating%')->first() 
+                        ?? \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->first();
+                    if (!$expenseSubType) {
+                        $expenseSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Expenses', 'type_id' => $expenseType->id]);
+                    }
+                    $expenseParent = \App\Models\ChartOfAccountParent::where('type_id', $expenseType->id)->first();
+                    if (!$expenseParent) {
+                        $expenseParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Operating Expenses Parent',
+                            'type_id' => $expenseType->id,
+                            'sub_type_id' => $expenseSubType->id,
+                            'code' => '5000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $deliveryExpenseAccount = ChartOfAccount::create([
+                        'name' => 'Delivery Expense',
+                        'type_id' => $expenseType->id,
+                        'sub_type_id' => $expenseSubType->id,
+                        'parent_id' => $expenseParent->id,
+                        'code' => '50005',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $deliveryExpenseAccount->id,
+                    'debit' => 0,
+                    'credit' => $pos->delivery,
+                    'memo' => 'Delivery charge collected from customer',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
 
             // CREDIT VAT Payable (Tax Amount - Liability increases)
             if ($pos->vat_amount > 0) {
@@ -1426,6 +1470,7 @@ class PosController extends Controller
         $payment->account_id = $request->account_id;
         $payment->payment_method = $request->payment_method;
         $payment->note = $request->note;
+        $payment->customer_id = $pos->customer_id;
         $payment->save();
         // Update invoice
         $invoice->paid_amount += $request->amount;
@@ -2465,6 +2510,7 @@ class PosController extends Controller
                         'account_id' => $account->id,
                         'payment_method' => $account->type ?? 'cash',
                         'note' => "Manual Sale Payment",
+                        'customer_id' => $pos->customer_id,
                     ]);
                 }
             }
@@ -2548,17 +2594,60 @@ class PosController extends Controller
                     'updated_by' => auth()->id(),
                 ]);
 
-                // Credit Sales (Net of Tax)
-                $netManualSales = $pos->total_amount - $pos->vat_amount;
+                // Credit Sales (Net of Tax & Delivery)
+                $netManualSales = $pos->total_amount - $pos->vat_amount - $pos->delivery;
                 JournalEntry::create([
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $salesAccount->id,
                     'debit' => 0,
                     'credit' => $netManualSales,
-                    'memo' => 'Revenue from Manual Sale (Net of Tax)',
+                    'memo' => 'Revenue from Manual Sale (Net of Tax & Delivery)',
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),
                 ]);
+
+                // CREDIT Delivery Expense (reduce expense)
+                if ($pos->delivery > 0) {
+                    $deliveryExpenseAccount = ChartOfAccount::where('name', 'like', '%Delivery Expense%')->orWhere('name', 'like', '%Courier Expense%')->first();
+                    if (!$deliveryExpenseAccount) {
+                        $expenseType = \App\Models\ChartOfAccountType::where('name', 'Expense')->first() ?? \App\Models\ChartOfAccountType::find(5);
+                        $expenseSubType = \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->where('name', 'like', '%Operating%')->first() 
+                            ?? \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->first();
+                        if (!$expenseSubType) {
+                            $expenseSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Expenses', 'type_id' => $expenseType->id]);
+                        }
+                        $expenseParent = \App\Models\ChartOfAccountParent::where('type_id', $expenseType->id)->first();
+                        if (!$expenseParent) {
+                            $expenseParent = \App\Models\ChartOfAccountParent::create([
+                                'name' => 'Operating Expenses Parent',
+                                'type_id' => $expenseType->id,
+                                'sub_type_id' => $expenseSubType->id,
+                                'code' => '5000',
+                                'created_by' => auth()->id()
+                            ]);
+                        }
+
+                        $deliveryExpenseAccount = ChartOfAccount::create([
+                            'name' => 'Delivery Expense',
+                            'type_id' => $expenseType->id,
+                            'sub_type_id' => $expenseSubType->id,
+                            'parent_id' => $expenseParent->id,
+                            'code' => '50005',
+                            'status' => 'active',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    JournalEntry::create([
+                        'journal_id' => $journal->id,
+                        'chart_of_account_id' => $deliveryExpenseAccount->id,
+                        'debit' => 0,
+                        'credit' => $pos->delivery,
+                        'memo' => 'Delivery charge collected from customer',
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
+                    ]);
+                }
 
                 // Credit VAT Payable
                 if ($pos->vat_amount > 0) {

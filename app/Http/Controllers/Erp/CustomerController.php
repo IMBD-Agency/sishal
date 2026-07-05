@@ -276,17 +276,85 @@ class CustomerController extends Controller
         $customer = Customer::findOrFail($id);
         $customerName = $customer->name;
         
-        $customer->delete();
+        \Illuminate\Support\Facades\DB::transaction(function() use ($customer) {
+            // 1. Delete payments
+            \App\Models\Payment::where('customer_id', $customer->id)->delete();
+            
+            // 2. Delete sale returns and their items
+            $saleReturns = \App\Models\SaleReturn::where('customer_id', $customer->id)->get();
+            foreach ($saleReturns as $sr) {
+                $sr->items()->delete();
+                $sr->delete();
+            }
+            
+            // 3. Delete POS sales and their items (and journals)
+            $posSales = \App\Models\Pos::where('customer_id', $customer->id)->get();
+            foreach ($posSales as $pos) {
+                $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+                $journal = \App\Models\Journal::where('voucher_no', 'like', $voucherNo . '%')
+                    ->orWhere('reference', $pos->sale_number)
+                    ->first();
+                if ($journal) {
+                    $journal->entries()->delete();
+                    $journal->delete();
+                }
+                $manualVoucherNo = 'SAL-M-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+                $manualJournal = \App\Models\Journal::where('voucher_no', $manualVoucherNo)->first();
+                if ($manualJournal) {
+                    $manualJournal->entries()->delete();
+                    $manualJournal->delete();
+                }
+                $pos->items()->delete();
+                $pos->delete();
+            }
+            
+            // 4. Delete invoices and their items (and journals)
+            $invoices = \App\Models\Invoice::where('customer_id', $customer->id)->get();
+            foreach ($invoices as $inv) {
+                if ($inv->pos_sale_id) {
+                    $voucherNo = 'SAL-M-' . str_pad($inv->pos_sale_id, 6, '0', STR_PAD_LEFT);
+                    $journal = \App\Models\Journal::where('voucher_no', $voucherNo)->first();
+                    if ($journal) {
+                        $journal->entries()->delete();
+                        $journal->delete();
+                    }
+                }
+                $inv->items()->delete();
+                $inv->delete();
+            }
+            
+            // 5. Delete customer balances
+            \App\Models\Balance::where('source_type', 'customer')->where('source_id', $customer->id)->delete();
+            
+            // 6. Delete journals and journal entries
+            $journals = \App\Models\Journal::where('customer_id', $customer->id)->get();
+            foreach ($journals as $journal) {
+                \App\Models\JournalEntry::where('journal_id', $journal->id)->delete();
+                $journal->delete();
+            }
+            
+            // 7. Delete online orders and their items
+            if ($customer->user_id) {
+                $orders = \App\Models\Order::where('created_by', $customer->user_id)->get();
+                foreach ($orders as $order) {
+                    $order->items()->delete();
+                    $order->delete();
+                }
+            }
+
+            // 8. Delete the customer
+            $customer->delete();
+        });
 
         if (request()->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Customer deleted successfully.',
+                'message' => 'Customer and all related ledger records deleted successfully.',
                 'redirect' => route('customers.list')
             ]);
         }
 
-        return redirect()->route('customers.list')->with('success', "Customer '{$customerName}' deleted successfully.");
+        return redirect()->route('customers.list')->with('success', "Customer '{$customerName}' and all related ledger records deleted successfully.");
     }
 
     public function makePremium($id)

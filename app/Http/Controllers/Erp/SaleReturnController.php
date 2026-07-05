@@ -823,7 +823,9 @@ class SaleReturnController extends Controller
                 // AUTO JOURNAL ENTRY (Double-Entry Accounting)
                 // =====================================================
                 if ($totalReturnAmount > 0) {
-                    $salesReturnAccount = ChartOfAccount::where('name', 'like', '%Return%')->first();
+                    $salesReturnAccount = ChartOfAccount::where('name', 'Sales Returns')
+                        ->orWhere('name', 'Sales Return')
+                        ->first();
                     if (!$salesReturnAccount) {
                         $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
                         $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();

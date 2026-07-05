@@ -486,40 +486,103 @@ class ReportController extends Controller
         foreach ($payments as $payment) {
             $saleAmount = 0;
             $costAmount = 0;
+            $delivery = 0;
             $reference = $payment->reference ?? '-';
 
             if ($payment->pos) {
                 $pos = $payment->pos;
                 $reference = $pos->invoice_number ?? ('POS-'.$pos->id);
-                $saleAmount = $pos->total_amount;
-                // Calculate Cost for this POS
+                $delivery = floatval($pos->delivery ?? 0);
+                
+                // Get returns for this POS
+                $returns = \App\Models\SaleReturn::where('pos_sale_id', $pos->id)
+                    ->whereIn('status', ['completed', 'approved', 'processed'])
+                    ->get();
+                $returnedAmount = $returns->sum(function($r) {
+                    return $r->items->sum('total_price');
+                });
+                
+                // Active sale amount is invoice total (or original POS total - returned amount)
+                $saleAmount = $pos->invoice ? floatval($pos->invoice->total_amount) : ($pos->total_amount - $returnedAmount);
+                
+                // Calculate original cost
                 $posCostQuery = PosItem::where('pos_sale_id', $pos->id)
                     ->join('products', 'pos_items.product_id', '=', 'products.id')
                     ->leftJoin('product_variations', 'pos_items.variation_id', '=', 'product_variations.id');
-                $costAmount = $posCostQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                $originalCost = $posCostQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                
+                // Calculate returned cost
+                $returnedCost = 0;
+                if ($returns->isNotEmpty()) {
+                    $returnedCost = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
+                        ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+                        ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id')
+                        ->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+                }
+                
+                $costAmount = max(0, $originalCost - $returnedCost);
             } elseif ($payment->invoice) {
                 $invoice = $payment->invoice;
                 $reference = $invoice->invoice_number ?? ('INV-'.$invoice->id);
                 // If the invoice is from a POS
                 if ($invoice->pos) {
                     $pos = $invoice->pos;
-                    $saleAmount = $pos->total_amount;
+                    $delivery = floatval($pos->delivery ?? 0);
+                    
+                    // Get returns for this POS
+                    $returns = \App\Models\SaleReturn::where('pos_sale_id', $pos->id)
+                        ->whereIn('status', ['completed', 'approved', 'processed'])
+                        ->get();
+                    $returnedAmount = $returns->sum(function($r) {
+                        return $r->items->sum('total_price');
+                    });
+                    
+                    $saleAmount = floatval($invoice->total_amount);
+                    
                     $posCostQuery = PosItem::where('pos_sale_id', $pos->id)
                         ->join('products', 'pos_items.product_id', '=', 'products.id')
                         ->leftJoin('product_variations', 'pos_items.variation_id', '=', 'product_variations.id');
-                    $costAmount = $posCostQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                    $originalCost = $posCostQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                    
+                    $returnedCost = 0;
+                    if ($returns->isNotEmpty()) {
+                        $returnedCost = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
+                            ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+                            ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id')
+                            ->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+                    }
+                    
+                    $costAmount = max(0, $originalCost - $returnedCost);
                 } elseif ($invoice->order) {
                     // It's from online order
                     $order = $invoice->order;
-                    $saleAmount = $order->total_amount;
+                    $delivery = floatval($order->delivery ?? 0);
+                    
+                    // Get returns for this order
+                    $returns = \App\Models\SaleReturn::where('invoice_id', $invoice->id)
+                        ->whereIn('status', ['completed', 'approved', 'processed'])
+                        ->get();
+                    
+                    $saleAmount = floatval($invoice->total_amount);
+                    
                     $orderCostQuery = OrderItem::where('order_id', $order->id)
                         ->join('products', 'order_items.product_id', '=', 'products.id')
                         ->leftJoin('product_variations', 'order_items.variation_id', '=', 'product_variations.id');
-                    $costAmount = $orderCostQuery->sum(\DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                    $originalCost = $orderCostQuery->sum(\DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+                    
+                    $returnedCost = 0;
+                    if ($returns->isNotEmpty()) {
+                        $returnedCost = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
+                            ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+                            ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id')
+                            ->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+                    }
+                    
+                    $costAmount = max(0, $originalCost - $returnedCost);
                 } else {
                     $saleAmount = $invoice->total_amount;
-                    // Generic invoice items? Assuming 0 cost if not linked to order/pos for now to avoid errors
                     $costAmount = 0;
+                    $delivery = 0;
                 }
             } else {
                 // Not tied to invoice/pos directly, but might be a loose customer due payment
@@ -528,22 +591,39 @@ class ReportController extends Controller
             }
 
             if ($saleAmount > 0) {
-                $invoiceProfit = $saleAmount - $costAmount;
-                $profitMargin = $invoiceProfit / $saleAmount;
+                $delivery = floatval($delivery);
                 
-                // If collected amount exceeds sale amount (shouldn't normally happen but just in case)
-                // we cap the margin calculation, or just calculate on actual payment
-                $cashProfit = $payment->amount * $profitMargin;
-                $estimatedCost = $payment->amount - $cashProfit;
+                // Calculate previous payments for this invoice to prevent double delivery charge deduction
+                $previousPaymentsSum = \App\Models\Payment::where('invoice_id', $payment->invoice_id)
+                    ->where('id', '<', $payment->id)
+                    ->sum('amount');
+                
+                $remainingDelivery = max(0, $delivery - $previousPaymentsSum);
+                $remainingActiveSale = max(0, $saleAmount - $previousPaymentsSum);
+                
+                // Active product revenue (Invoice total - Delivery charge)
+                $activeProductRevenue = max(0, $saleAmount - $delivery);
+                
+                // Profit margin on product revenue
+                $invoiceProfit = $activeProductRevenue - $costAmount;
+                $profitMargin = $activeProductRevenue > 0 ? ($invoiceProfit / $activeProductRevenue) : 0;
+                
+                // Cash profit
+                $effectivePayment = min($payment->amount, $remainingActiveSale);
+                $deductThisTime = min($effectivePayment, $remainingDelivery);
+                $paymentExcludingDelivery = max(0, $effectivePayment - $deductThisTime);
+                
+                $cashProfit = $paymentExcludingDelivery * $profitMargin;
+                $estimatedCost = $effectivePayment - $cashProfit;
 
-                $totalCollected += $payment->amount;
+                $totalCollected += $effectivePayment;
                 $totalEstimatedCost += $estimatedCost;
                 $totalCashProfit += $cashProfit;
 
                 $cashProfits->push((object)[
                     'date' => $payment->payment_date,
                     'reference' => $reference,
-                    'collection_amount' => $payment->amount,
+                    'collection_amount' => $effectivePayment,
                     'sale_amount' => $saleAmount,
                     'invoice_profit' => $invoiceProfit,
                     'profit_margin' => $profitMargin * 100, // percentage
@@ -632,15 +712,15 @@ class ReportController extends Controller
             // if ($returnTotal <= 0) continue;
 
             // $saleReturnCashRefund += $returnTotal;
-$returnCostQuery = \App\Models\SaleReturnItem::where('sale_return_id', $ret->id)
-    ->join('products', 'sale_return_items.product_id', '=', 'products.id')
-    ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id');
-$returnCost = $returnCostQuery->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
- 
-$returnTotal = $ret->items->sum('total_price');
-$returnProfit = $returnTotal - $returnCost; // Only subtract the profit portion
- 
-$saleReturnCashRefund += $returnProfit;
+            $returnCostQuery = \App\Models\SaleReturnItem::where('sale_return_id', $ret->id)
+                ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+                ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id');
+            $returnCost = $returnCostQuery->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+             
+            $returnTotal = $ret->items->sum('total_price');
+            $returnProfit = $returnTotal - $returnCost; // Only subtract the profit portion
+             
+            // $saleReturnCashRefund += $returnProfit; // Disabled to prevent double deduction as margin is calculated on active items
 
             $saleReturnDetails->push((object)[
                 'date'         => $ret->return_date,
@@ -847,7 +927,7 @@ $saleReturnCashRefund += $returnProfit;
         $debitVoucherDetails = $debitVoucherQuery
             ->select('chart_of_accounts.name', \DB::raw('SUM(journal_entries.debit) - SUM(journal_entries.credit) as amount'))
             ->groupBy('chart_of_accounts.name')
-            ->having('amount', '>', 0)
+            ->having('amount', '!=', 0)
             ->get();
             
         $debitVoucher = $debitVoucherDetails->sum('amount');
@@ -1081,7 +1161,7 @@ $saleReturnCashRefund += $returnProfit;
         $sheet->getStyle('A'.$row.':B'.$row)->getFont()->setBold(true);
         $row++;
         
-        $sheet->setCellValue('A'.$row, 'Sales Revenue'); $sheet->setCellValue('B'.$row, $data['salesAmount']); $row++;
+        $sheet->setCellValue('A'.$row, 'Sales Revenue'); $sheet->setCellValue('B'.$row, $data['operatingRevenue']); $row++;
         
         // Loop credit vouchers
         if($data['creditVoucherDetails']->isNotEmpty()){
@@ -1091,10 +1171,10 @@ $saleReturnCashRefund += $returnProfit;
                 $row++;
             }
         } else {
-             $sheet->setCellValue('A'.$row, 'Credit Vouchers'); $sheet->setCellValue('B'.$row, $data['creditVoucher']); $row++;
+             $sheet->setCellValue('A'.$row, 'Credit Vouchers'); $sheet->setCellValue('B'.$row, $data['operatingRevenue']); $row++;
         }
 
-        $sheet->setCellValue('A'.$row, 'Money Receipts'); $sheet->setCellValue('B'.$row, $data['moneyReceipt']); $row++;
+        $sheet->setCellValue('A'.$row, 'Money Receipts'); $sheet->setCellValue('B'.$row, $data['moneyReceiptAmount']); $row++;
         $sheet->setCellValue('A'.$row, 'Purchase Returns'); $sheet->setCellValue('B'.$row, $data['purchaseReturnAmount']); $row++;
         $sheet->setCellValue('A'.$row, 'Exchange Adjustments'); $sheet->setCellValue('B'.$row, $data['exchangeAmount']); $row++;
         $sheet->setCellValue('A'.$row, 'Transfers In'); $sheet->setCellValue('B'.$row, $data['senderTransferAmount']); $row++;

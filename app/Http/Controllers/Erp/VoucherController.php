@@ -77,7 +77,7 @@ class VoucherController extends Controller
         $customers = Customer::orderBy('name')->take(200)->get();
         $suppliers = Supplier::orderBy('name')->take(200)->get();
         $expenseAccounts = ChartOfAccount::whereHas('type', function($q) {
-            $q->whereIn('name', ['Expense', 'Revenue']);
+            $q->whereIn('name', ['Expense', 'Revenue', 'Liability', 'Equity']);
         })->take(200)->get();
 
         return view('erp.vouchers.index', compact('vouchers', 'startDate', 'endDate', 'customers', 'suppliers', 'expenseAccounts', 'reportType', 'totals'));
@@ -90,8 +90,8 @@ class VoucherController extends Controller
         }
         $voucherNo = 'V-' . date('Ymd') . '-' . str_pad(Journal::count() + 1, 4, '0', STR_PAD_LEFT);
         
-        // Fetch Expense/Revenue Accounts
-    $expenseTypeIds = ChartOfAccountType::whereIn('name', ['Expense', 'Revenue'])->pluck('id');
+        // Fetch Expense/Revenue/Liability/Equity Accounts
+    $expenseTypeIds = ChartOfAccountType::whereIn('name', ['Expense', 'Revenue', 'Liability', 'Equity'])->pluck('id');
     
     $expenseAccounts = ChartOfAccount::whereIn('type_id', $expenseTypeIds)
         ->orWhereHas('parent', function($q) use ($expenseTypeIds) {
