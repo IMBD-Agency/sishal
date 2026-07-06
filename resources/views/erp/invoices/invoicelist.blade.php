@@ -301,7 +301,9 @@
                     success: function(response) {
                         if (response.success) {
                             window.showToast('success', response.message);
-                            location.reload();
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1000);
                         } else {
                             window.showToast('error', response.message);
                         }

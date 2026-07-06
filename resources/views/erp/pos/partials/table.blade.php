@@ -302,13 +302,17 @@
                                     @endif
 
 
+
+
                                     <form action="{{ route('pos.delete', $sale->id) }}" method="POST" class="d-inline"
                                         onsubmit="return confirm('Delete Sale {{ $sale->sale_number }}? This will also delete its invoice and payments.')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger"
-                                            style="padding: 4px 8px; font-size: 0.75rem;">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                        @can('delete sales')
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                style="padding: 4px 8px; font-size: 0.75rem;">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        @endcan
                                     </form>
 
                                 </div>

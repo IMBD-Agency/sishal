@@ -239,6 +239,37 @@
             info: (msg) => Swal.fire({ icon: 'info', title: 'Note', text: msg, customClass: { popup: 'rounded-4' } })
         };
 
+        // 6. Global showToast Helper supporting both signatures: (message, type) and (type, message)
+        window.showToast = function(arg1, arg2) {
+            const validTypes = ['success', 'error', 'warning', 'info'];
+            let type = 'info';
+            let message = '';
+
+            if (validTypes.includes(arg1)) {
+                type = arg1;
+                message = arg2;
+            } else if (validTypes.includes(arg2)) {
+                type = arg2;
+                message = arg1;
+            } else {
+                message = arg1;
+                type = arg2 || 'info';
+            }
+
+            if (window.erpNotify && typeof window.erpNotify[type] === 'function') {
+                window.erpNotify[type](message);
+            } else {
+                Swal.fire({
+                    icon: type,
+                    title: type.charAt(0).toUpperCase() + type.slice(1),
+                    text: message,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-4' }
+                });
+            }
+        };
+
         // Smart Prefetching (Makes clicks feel instant)
         document.addEventListener('mouseover', (e) => {
             const link = e.target.closest('.nav-link');
