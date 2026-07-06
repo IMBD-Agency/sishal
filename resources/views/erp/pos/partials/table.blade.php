@@ -303,7 +303,6 @@
 
 
 
-
                                     <form action="{{ route('pos.delete', $sale->id) }}" method="POST" class="d-inline"
                                         onsubmit="return confirm('Delete Sale {{ $sale->sale_number }}? This will also delete its invoice and payments.')">
                                         @csrf @method('DELETE')
