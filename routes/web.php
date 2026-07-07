@@ -1028,7 +1028,6 @@ Route::get('/orphandatasolve', function () {
 
         // Delete all ledger and balance records
         DB::table('supplier_ledgers')->delete();
-        DB::table('customer_ledgers')->delete();
         DB::table('balances')->delete();
 
         // Delete payment logs
