@@ -63,25 +63,30 @@
                                     <div class="col-md-7">
                                         <div class="beneficiary-details p-4 rounded-4 bg-light border-0 shadow-sm">
                                             <div class="text-uppercase extra-small fw-bold text-muted mb-3 tracking-wider">Beneficiary Information</div>
-                                            <h4 class="fw-bold text-dark mb-1">{{ $supplierPayment->supplier->name }}</h4>
-                                            @if($supplierPayment->supplier->company_name)
-                                                <div class="fw-bold text-primary small mb-3">{{ $supplierPayment->supplier->company_name }}</div>
+                                            @if($supplierPayment->supplier)
+                                                <h4 class="fw-bold text-dark mb-1">{{ $supplierPayment->supplier->name }}</h4>
+                                                @if($supplierPayment->supplier->company_name)
+                                                    <div class="fw-bold text-primary small mb-3">{{ $supplierPayment->supplier->company_name }}</div>
+                                                @endif
+                                                
+                                                <div class="row g-3 mt-2">
+                                                    <div class="col-6">
+                                                        <div class="extra-small text-muted fw-bold text-uppercase">Contact Number</div>
+                                                        <div class="small fw-bold text-dark">{{ $supplierPayment->supplier->phone }}</div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="extra-small text-muted fw-bold text-uppercase">Email Address</div>
+                                                        <div class="small fw-bold text-dark">{{ $supplierPayment->supplier->email ?: 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="col-12 mt-3">
+                                                        <div class="extra-small text-muted fw-bold text-uppercase">Location</div>
+                                                        <div class="small fw-bold text-dark">{{ $supplierPayment->supplier->city ?? '-' }}, {{ $supplierPayment->supplier->country ?? '-' }}</div>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <h4 class="fw-bold text-dark mb-1">Deleted Supplier</h4>
+                                                <div class="small text-muted">The supplier associated with this payment has been deleted or cannot be found.</div>
                                             @endif
-                                            
-                                            <div class="row g-3 mt-2">
-                                                <div class="col-6">
-                                                    <div class="extra-small text-muted fw-bold text-uppercase">Contact Number</div>
-                                                    <div class="small fw-bold text-dark">{{ $supplierPayment->supplier->phone }}</div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="extra-small text-muted fw-bold text-uppercase">Email Address</div>
-                                                    <div class="small fw-bold text-dark">{{ $supplierPayment->supplier->email ?: 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-12 mt-3">
-                                                    <div class="extra-small text-muted fw-bold text-uppercase">Location</div>
-                                                    <div class="small fw-bold text-dark">{{ $supplierPayment->supplier->city ?? '-' }}, {{ $supplierPayment->supplier->country ?? '-' }}</div>
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                     <div class="col-md-5">

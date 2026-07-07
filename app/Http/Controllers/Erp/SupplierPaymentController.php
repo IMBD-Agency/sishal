@@ -165,7 +165,7 @@ class SupplierPaymentController extends Controller
 
             $sheet->setCellValue('A' . $dataRow, 'SP-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT));
             $sheet->setCellValue('B' . $dataRow, $payment->payment_date->format('d-m-Y'));
-            $sheet->setCellValue('C' . $dataRow, $payment->supplier->name ?? '-');
+            $sheet->setCellValue('C' . $dataRow, $payment->supplier?->name ?? '-');
             $sheet->setCellValue('D' . $dataRow, $balanceText);
             $sheet->setCellValue('E' . $dataRow, $payment->bill->bill_number ?? 'Advance');
             $sheet->setCellValue('F' . $dataRow, $payment->amount);
@@ -339,7 +339,7 @@ class SupplierPaymentController extends Controller
                         'voucher_no'     => $voucherNo,
                         'entry_date'     => $payment->payment_date,
                         'type'           => 'Payment',
-                        'description'    => 'Auto: Supplier Payment #' . $payment->id . ' to ' . ($payment->supplier->name ?? 'Supplier'),
+                        'description'    => 'Auto: Supplier Payment #' . $payment->id . ' to ' . ($payment->supplier?->name ?? 'Supplier'),
                         'supplier_id'    => $payment->supplier_id,
                         'branch_id'      => $payment->bill && $payment->bill->purchase ? ($payment->bill->purchase->location_id) : null,
                         'voucher_amount' => $payment->amount,
@@ -356,7 +356,7 @@ class SupplierPaymentController extends Controller
                         'financial_account_id' => null,
                         'debit'                => $payment->amount,
                         'credit'               => 0,
-                        'memo'                 => 'Payment to ' . ($payment->supplier->name ?? 'Supplier'),
+                        'memo'                 => 'Payment to ' . ($payment->supplier?->name ?? 'Supplier'),
                         'created_by'           => Auth::id(),
                         'updated_by'           => Auth::id(),
                     ]);

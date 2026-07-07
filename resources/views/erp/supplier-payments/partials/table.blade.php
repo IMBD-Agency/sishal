@@ -19,7 +19,7 @@
                     <div class="extra-small text-muted fw-bold">{{ $payment->payment_date->format('d M, Y') }}</div>
                 </td>
                 <td>
-                    <div class="fw-bold text-dark">{{ $payment->supplier->name }}</div>
+                    <div class="fw-bold text-dark">{{ $payment->supplier?->name ?? 'Deleted Supplier' }}</div>
                     <div class="extra-small text-muted">{{ $payment->creator->name ?? 'System' }}</div>
                 </td>
                 <td>
