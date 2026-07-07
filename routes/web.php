@@ -1012,9 +1012,51 @@ Route::get('/run-perm-fix', function() {
 //         return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
 //     }
 
-// });
+Route::get('/orphandatasolve', function () {
+    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+        abort(403, 'Unauthorized');
+    }
+    if (request('token') !== 'sisal_solve_2026') {
+        return 'Invalid token. Usage: /orphandatasolve?token=sisal_solve_2026';
+    }
 
+    DB::beginTransaction();
+    try {
+        // Delete related journals and journal entries
+        DB::table('journal_entries')->delete();
+        DB::table('journals')->delete();
 
+        // Delete all ledger and balance records
+        DB::table('supplier_ledgers')->delete();
+        DB::table('customer_ledgers')->delete();
+        DB::table('balances')->delete();
 
+        // Delete payment logs
+        DB::table('supplier_payments')->delete();
+        DB::table('payments')->delete();
+
+        // Delete any remaining orphan sales/purchases/returns
+        DB::table('pos_items')->delete();
+        DB::table('pos')->delete();
+        DB::table('order_items')->delete();
+        DB::table('orders')->delete();
+        DB::table('pos_exchange_items')->delete();
+        DB::table('pos_exchanges')->delete();
+        DB::table('sale_return_items')->delete();
+        DB::table('sale_returns')->delete();
+
+        DB::table('purchase_items')->delete();
+        DB::table('purchases')->delete();
+        DB::table('purchase_bills')->delete();
+        DB::table('purchase_return_items')->delete();
+        DB::table('purchase_returns')->delete();
+
+        DB::commit();
+        return '<h1>Orphan transactions and accounting data solved successfully! All cleared.</h1>';
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return '<h1>Cleanup failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
 
 require __DIR__ . '/auth.php';
