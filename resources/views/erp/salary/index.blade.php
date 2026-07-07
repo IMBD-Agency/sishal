@@ -301,28 +301,44 @@
                 });
 
                 function deletePayment(id) {
-                    if (confirm('Are you sure you want to delete this salary payment? This will also remove the associated journal entries.')) {
-                        $.ajax({
-                            url: "{{ url('erp/salary') }}/" + id,
-                            type: 'DELETE',
-                            data: {
-                                _token: "{{ csrf_token() }}"
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    $('#row-' + id).fadeOut(300, function () {
-                                        $(this).remove();
-                                    });
-                                    alert(response.message);
-                                } else {
-                                    alert('Error: ' + response.message);
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: 'Are you sure you want to delete this salary payment? This will also remove the associated journal entries.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: 'var(--primary-color)',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, Delete',
+                        cancelButtonText: 'Cancel',
+                        customClass: {
+                            popup: 'rounded-4 shadow-lg border-0',
+                            confirmButton: 'px-4 py-2 rounded-3 fw-bold',
+                            cancelButton: 'px-4 py-2 rounded-3 fw-bold'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.ajax({
+                                url: "{{ url('erp/salary') }}/" + id,
+                                type: 'DELETE',
+                                data: {
+                                    _token: "{{ csrf_token() }}"
+                                },
+                                success: function (response) {
+                                    if (response.success) {
+                                        $('#row-' + id).fadeOut(300, function () {
+                                            $(this).remove();
+                                        });
+                                        window.erpNotify.success(response.message);
+                                    } else {
+                                        window.erpNotify.error(response.message);
+                                    }
+                                },
+                                error: function (xhr) {
+                                    window.erpNotify.error('Error deleting salary payment.');
                                 }
-                            },
-                            error: function (xhr) {
-                                alert('Error deleting salary payment.');
-                            }
-                        });
-                    }
+                            });
+                        }
+                    });
                 }
             </script>
         @endpush
