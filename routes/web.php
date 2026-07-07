@@ -1011,6 +1011,81 @@ Route::get('/run-perm-fix', function() {
 //     } catch (\Exception $e) {
 //         return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
 //     }
+Route::get('/clearadjustments', function () {
+    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+        abort(403, 'Unauthorized');
+    }
+    if (request('token') !== 'sisal_solve_2026') {
+        return 'Invalid token. Usage: /clearadjustments?token=sisal_solve_2026';
+    }
+
+    DB::beginTransaction();
+    try {
+        $adjustments = \App\Models\StockAdjustment::with('items')->get();
+        $count = 0;
+
+        foreach ($adjustments as $adjustment) {
+            foreach ($adjustment->items as $item) {
+                // Calculate the difference this adjustment applied
+                $diff = $item->new_quantity - $item->old_quantity;
+
+                if ($item->variation_id) {
+                    // --- Variation stock ---
+                    if ($adjustment->branch_id) {
+                        $stock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                            ->where('branch_id', $adjustment->branch_id)
+                            ->whereNull('warehouse_id')
+                            ->first();
+                    } else {
+                        $stock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                            ->where('warehouse_id', $adjustment->warehouse_id)
+                            ->whereNull('branch_id')
+                            ->first();
+                    }
+
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $diff);
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
+                        $stock->save();
+                    }
+                } else {
+                    // --- Product-level stock ---
+                    if ($adjustment->branch_id) {
+                        $stock = \App\Models\BranchProductStock::where('product_id', $item->product_id)
+                            ->where('branch_id', $adjustment->branch_id)
+                            ->first();
+                    } else {
+                        $stock = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)
+                            ->where('warehouse_id', $adjustment->warehouse_id)
+                            ->first();
+                    }
+
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $diff);
+                        $stock->updated_by = auth()->id() ?? 1;
+                        $stock->last_updated_at = now();
+                        $stock->save();
+                    }
+                }
+
+                // Clear product cache
+                \App\Services\CacheService::clearProductCaches($item->product_id);
+            }
+
+            // Delete items and the adjustment record
+            $adjustment->items()->delete();
+            $adjustment->delete();
+            $count++;
+        }
+
+        DB::commit();
+        return "<h1>Successfully deleted {$count} stock adjustments and reverted their stocks!</h1>";
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return '<h1>Clear adjustments failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
 
 Route::get('/orphandatasolve', function () {
     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {

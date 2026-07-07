@@ -799,14 +799,61 @@ class PurchaseController extends Controller
         DB::beginTransaction();
         try {
             $purchase = Purchase::with(['items', 'bill'])->findOrFail($id);
-            // Delete related items
-            $purchase->items()->delete();
-            // Delete related bill
+
+            // 1. Revert stock quantity if the purchase was received
+            if ($purchase->status === 'received') {
+                $this->decreaseStock($purchase);
+            }
+
+            // 2. Delete related bills, payments, ledgers, journals
             if ($purchase->bill) {
+                $billId = $purchase->bill->id;
+
+                // Delete ledger entries of the bill
+                \App\Models\SupplierLedger::where('transactionable_type', \App\Models\PurchaseBill::class)
+                    ->where('transactionable_id', $billId)
+                    ->delete();
+
+                // Find associated payments
+                $payments = \App\Models\SupplierPayment::where('purchase_bill_id', $billId)->get();
+                foreach ($payments as $payment) {
+                    // Delete ledger entries of the payment
+                    \App\Models\SupplierLedger::where('transactionable_type', \App\Models\SupplierPayment::class)
+                        ->where('transactionable_id', $payment->id)
+                        ->delete();
+
+                    // Delete associated double-entry journal records
+                    $journalReference = $purchase->bill->bill_number ?? 'BILL-' . $billId;
+                    $journals = Journal::whereIn('reference', [$journalReference, 'PUR-' . $purchase->id])->get();
+                    foreach ($journals as $journal) {
+                        $journal->entries()->delete();
+                        $journal->delete();
+                    }
+
+                    // Delete payment itself
+                    $payment->delete();
+                }
+
+                // Delete the bill
                 $purchase->bill->delete();
             }
-            // Delete the purchase itself
+
+            // 3. Delete related items and the purchase record
+            $purchase->items()->delete();
             $purchase->delete();
+
+            // 4. Recalibrate supplier balance
+            if ($purchase->supplier_id) {
+                $supplier = \App\Models\Supplier::find($purchase->supplier_id);
+                if ($supplier) {
+                    $ledgerBalance = $supplier->ledgerEntries()->latest('id')->first()?->balance ?? 0;
+                    \App\Models\Balance::updateOrCreate(
+                        ['source_type' => 'supplier', 'source_id' => $supplier->id],
+                        ['balance' => $ledgerBalance, 'description' => 'Auto-synced after purchase deletion']
+                    );
+                }
+            }
+
             DB::commit();
             return redirect()->route('purchase.list')->with('success', 'Purchase and related data deleted successfully.');
         } catch (\Exception $e) {
@@ -930,6 +977,71 @@ class PurchaseController extends Controller
                     $stock->updated_by = auth()->id() ?? 1;
                     $stock->last_updated_at = now();
                     $stock->save();
+                }
+            }
+        }
+    }
+
+    private function decreaseStock(Purchase $purchase)
+    {
+        foreach ($purchase->items as $item) {
+            if ($item->variation_id) {
+                if ($purchase->ship_location_type === 'branch') {
+                    $stock = \App\Models\ProductVariationStock::where([
+                        'variation_id' => $item->variation_id,
+                        'branch_id' => $purchase->location_id,
+                    ])->first();
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $item->quantity);
+                        $stock->save();
+                    }
+
+                    $branchStock = \App\Models\BranchProductStock::where([
+                        'branch_id'  => $purchase->location_id,
+                        'product_id' => $item->product_id,
+                    ])->first();
+                    if ($branchStock) {
+                        $branchStock->quantity = max(0, $branchStock->quantity - $item->quantity);
+                        $branchStock->save();
+                    }
+                } elseif ($purchase->ship_location_type === 'warehouse') {
+                    $stock = \App\Models\ProductVariationStock::where([
+                        'variation_id' => $item->variation_id,
+                        'warehouse_id' => $purchase->location_id,
+                    ])->first();
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $item->quantity);
+                        $stock->save();
+                    }
+
+                    $warehouseStock = \App\Models\WarehouseProductStock::where([
+                        'warehouse_id' => $purchase->location_id,
+                        'product_id'   => $item->product_id,
+                    ])->first();
+                    if ($warehouseStock) {
+                        $warehouseStock->quantity = max(0, $warehouseStock->quantity - $item->quantity);
+                        $warehouseStock->save();
+                    }
+                }
+            } else {
+                if ($purchase->ship_location_type === 'branch') {
+                    $stock = \App\Models\BranchProductStock::where([
+                        'branch_id' => $purchase->location_id,
+                        'product_id' => $item->product_id,
+                    ])->first();
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $item->quantity);
+                        $stock->save();
+                    }
+                } elseif ($purchase->ship_location_type === 'warehouse') {
+                    $stock = \App\Models\WarehouseProductStock::where([
+                        'warehouse_id' => $purchase->location_id,
+                        'product_id' => $item->product_id,
+                    ])->first();
+                    if ($stock) {
+                        $stock->quantity = max(0, $stock->quantity - $item->quantity);
+                        $stock->save();
+                    }
                 }
             }
         }
