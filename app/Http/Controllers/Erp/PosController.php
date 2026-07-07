@@ -2231,7 +2231,11 @@ class PosController extends Controller
     private function restoreStock($productId, $variationId, $quantity, $branchId)
     {
         $product = Product::find($productId);
-        if ($product && $product->type === 'combo') {
+        if (!$product) {
+            return;
+        }
+
+        if ($product->type === 'combo') {
             foreach ($product->comboItems as $comboItem) {
                 $itemVariationId = $comboItem->variation_id;
                 $itemQuantity = $comboItem->quantity * $quantity;
@@ -2241,6 +2245,11 @@ class PosController extends Controller
         }
 
         if ($variationId) {
+            // Verify that the variation actually exists
+            if (!\App\Models\ProductVariation::where('id', $variationId)->exists()) {
+                return;
+            }
+
             // Handle variation stock restoration
             $vStock = ProductVariationStock::where('variation_id', $variationId)
                 ->where('branch_id', $branchId)

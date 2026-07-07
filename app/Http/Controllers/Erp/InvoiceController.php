@@ -1127,7 +1127,11 @@ class InvoiceController extends Controller
     private function restoreStock($productId, $variationId, $quantity, $branchId)
     {
         $product = \App\Models\Product::find($productId);
-        if ($product && $product->type === 'combo') {
+        if (!$product) {
+            return;
+        }
+
+        if ($product->type === 'combo') {
             foreach ($product->comboItems as $comboItem) {
                 $itemVariationId = $comboItem->variation_id;
                 $itemQuantity = $comboItem->quantity * $quantity;
@@ -1137,6 +1141,11 @@ class InvoiceController extends Controller
         }
 
         if ($variationId) {
+            // Verify that the variation actually exists
+            if (!\App\Models\ProductVariation::where('id', $variationId)->exists()) {
+                return;
+            }
+
             $vStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
                 ->where('branch_id', $branchId)
                 ->whereNull('warehouse_id')

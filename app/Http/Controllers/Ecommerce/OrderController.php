@@ -1340,8 +1340,16 @@ class OrderController extends Controller
             }
         }
 
+        $product = \App\Models\Product::find($productId);
+        if (!$product) {
+            return;
+        }
+
         // For products with variations, restore to variation-level stock
         if ($variationId) {
+            if (!\App\Models\ProductVariation::where('id', $variationId)->exists()) {
+                return;
+            }
             $variationStock = \App\Models\ProductVariationStock::firstOrCreate(
                 [
                     'variation_id' => $variationId,
