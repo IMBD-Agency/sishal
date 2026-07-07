@@ -638,16 +638,16 @@
                             },
                             success: function (res) {
                                 if (res.success) {
-                                    toastr.success(res.message);
+                                    showTransferToast('success', res.message);
                                     $('#filterForm').submit();
                                     $('#masterCheckbox').prop('checked', false);
                                 } else {
-                                    toastr.error(res.message);
+                                    showTransferToast('danger', res.message);
                                     $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
                                 }
                             },
                             error: function (err) {
-                                toastr.error('Internal server error while deleting.');
+                                showTransferToast('danger', 'Internal server error while deleting.');
                                 $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
                             },
                             complete: function () {
