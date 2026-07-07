@@ -230,10 +230,13 @@ class ProductVariationController extends Controller
                     // Upload Image if exists
                     $uploadedImagePath = null;
                     if ($request->hasFile("vars.$index.image")) {
-                        $image = $request->file("vars.$index.image");
-                        $imageName = time() . '_' . $index . '_' . $this->sanitizeFilename($image->getClientOriginalName());
-                        $image->move(public_path('uploads/products/variations'), $imageName);
-                        $uploadedImagePath = 'uploads/products/variations/' . $imageName;
+                        $imageName = time() . '_' . $index . '_' . $this->sanitizeFilename($request->file("vars.$index.image")->getClientOriginalName());
+                        $uploadedImagePath = \App\Services\ImageService::compressAndSave(
+                            file: $request->file("vars.$index.image"),
+                            directory: 'uploads/products/variations',
+                            filename: $imageName,
+                            cropSquare: true
+                        );
                     }
 
                     // Create Variation
@@ -450,8 +453,12 @@ class ProductVariationController extends Controller
                         'file_mime' => $image->getMimeType()
                     ]);
                     
-                    $image->move($uploadPath, $imageName);
-                    $uploadedImagePath = 'uploads/products/variations/' . $imageName;
+                    $uploadedImagePath = \App\Services\ImageService::compressAndSave(
+                        file: $image,
+                        directory: 'uploads/products/variations',
+                        filename: $imageName,
+                        cropSquare: true
+                    );
                     
                     \Log::info('Main image uploaded successfully', ['filename' => $imageName]);
                 } catch (\Exception $e) {
@@ -549,11 +556,16 @@ class ProductVariationController extends Controller
                                     'file_mime' => $galleryImage->getMimeType()
                                 ]);
                                 
-                                $galleryImage->move($uploadPath, $galleryName);
+                                $galleryPath = \App\Services\ImageService::compressAndSave(
+                                    file: $galleryImage,
+                                    directory: 'uploads/products/variations/gallery',
+                                    filename: $galleryName,
+                                    cropSquare: true
+                                );
                                 
                                 ProductVariationGallery::create([
                                     'variation_id' => $variation->id,
-                                    'image' => 'uploads/products/variations/gallery/' . $galleryName,
+                                    'image' => $galleryPath,
                                     'sort_order' => $index,
                                 ]);
                                 
@@ -666,11 +678,16 @@ class ProductVariationController extends Controller
                                 'file_mime' => $galleryImage->getMimeType()
                             ]);
                             
-                            $galleryImage->move($uploadPath, $galleryName);
+                            $galleryPath = \App\Services\ImageService::compressAndSave(
+                                file: $galleryImage,
+                                directory: 'uploads/products/variations/gallery',
+                                filename: $galleryName,
+                                cropSquare: true
+                            );
                             
                             ProductVariationGallery::create([
                                 'variation_id' => $variation->id,
-                                'image' => 'uploads/products/variations/gallery/' . $galleryName,
+                                'image' => $galleryPath,
                                 'sort_order' => $index,
                             ]);
                             
@@ -869,8 +886,12 @@ class ProductVariationController extends Controller
                 $imageName = time() . '_' . $sanitizedFilename;
                 
                 try {
-                    $image->move(public_path('uploads/products/variations'), $imageName);
-                    $variationData['image'] = 'uploads/products/variations/' . $imageName;
+                    $variationData['image'] = \App\Services\ImageService::compressAndSave(
+                        file: $image,
+                        directory: 'uploads/products/variations',
+                        filename: $imageName,
+                        cropSquare: true
+                    );
                 } catch (\Exception $e) {
                     \Log::error('Main image upload failed during update: ' . $e->getMessage());
                     throw new \Exception('Failed to upload main image: ' . $originalName);
@@ -951,11 +972,16 @@ class ProductVariationController extends Controller
                     $galleryName = time() . '_gallery_' . $index . '_' . $sanitizedFilename;
                     
                     try {
-                        $galleryImage->move(public_path('uploads/products/variations/gallery'), $galleryName);
+                        $galleryPath = \App\Services\ImageService::compressAndSave(
+                            file: $galleryImage,
+                            directory: 'uploads/products/variations/gallery',
+                            filename: $galleryName,
+                            cropSquare: true
+                        );
                         
                         ProductVariationGallery::create([
                             'variation_id' => $variation->id,
-                            'image' => 'uploads/products/variations/gallery/' . $galleryName,
+                            'image' => $galleryPath,
                             'sort_order' => $index,
                         ]);
                     } catch (\Exception $e) {

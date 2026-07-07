@@ -103,10 +103,10 @@ class ProductController extends Controller
         $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id']);
 
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('uploads/categories'), $imageName);
-            $data['image'] = 'uploads/categories/' . $imageName;
+            $data['image'] = \App\Services\ImageService::compressAndSave(
+                $request->file('image'),
+                'uploads/categories'
+            );
         }
 
         ProductServiceCategory::create($data);
@@ -150,10 +150,10 @@ class ProductController extends Controller
             if ($subcategory->image && file_exists(public_path($subcategory->image))) {
                 @unlink(public_path($subcategory->image));
             }
-            $image = $request->file('image');
-            $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('uploads/categories'), $imageName);
-            $data['image'] = 'uploads/categories/' . $imageName;
+            $data['image'] = \App\Services\ImageService::compressAndSave(
+                $request->file('image'),
+                'uploads/categories'
+            );
         }
 
         $subcategory->update($data);
@@ -191,10 +191,10 @@ class ProductController extends Controller
         $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id']);
 
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('uploads/categories'), $imageName);
-            $data['image'] = 'uploads/categories/' . $imageName;
+            $data['image'] = \App\Services\ImageService::compressAndSave(
+                $request->file('image'),
+                'uploads/categories'
+            );
         }
 
         ProductServiceCategory::create($data);
@@ -238,10 +238,10 @@ class ProductController extends Controller
             if ($category->image && file_exists(public_path($category->image))) {
                 @unlink(public_path($category->image));
             }
-            $image = $request->file('image');
-            $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('uploads/categories'), $imageName);
-            $data['image'] = 'uploads/categories/' . $imageName;
+            $data['image'] = \App\Services\ImageService::compressAndSave(
+                $request->file('image'),
+                'uploads/categories'
+            );
         }
 
         $category->update($data);
@@ -586,18 +586,21 @@ class ProductController extends Controller
             return \DB::transaction(function() use ($request, $data) {
                 // Handle main image upload
                 if ($request->hasFile('image')) {
-                    $image = $request->file('image');
-                    $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-                    $image->move(public_path('uploads/products'), $imageName);
-                    $data['image'] = 'uploads/products/' . $imageName;
+                    $data['image'] = \App\Services\ImageService::compressAndSave(
+                        file: $request->file('image'),
+                        directory: 'uploads/products',
+                        cropSquare: true
+                    );
                 }
 
                 // Handle size chart image upload
                 if ($request->hasFile('size_chart')) {
-                    $sizeChart = $request->file('size_chart');
-                    $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
-                    $sizeChart->move(public_path('uploads/products'), $sizeChartName);
-                    $data['size_chart'] = 'uploads/products/' . $sizeChartName;
+                    $sizeChartName = time().'_'.uniqid().'_sizechart.'.$request->file('size_chart')->getClientOriginalExtension();
+                    $data['size_chart'] = \App\Services\ImageService::compressAndSave(
+                        $request->file('size_chart'),
+                        'uploads/products',
+                        $sizeChartName
+                    );
                 }
 
                 $product = Product::create($data);
@@ -605,10 +608,13 @@ class ProductController extends Controller
                 // Handle gallery images upload
                 if ($request->hasFile('gallery')) {
                     foreach ($request->file('gallery') as $galleryImage) {
-                        $galleryImageName = time().'_'.uniqid().'.'.$galleryImage->getClientOriginalExtension();
-                        $galleryImage->move(public_path('uploads/products/gallery'), $galleryImageName);
+                        $galleryPath = \App\Services\ImageService::compressAndSave(
+                            file: $galleryImage,
+                            directory: 'uploads/products/gallery',
+                            cropSquare: true
+                        );
                         $product->galleries()->create([
-                            'image' => 'uploads/products/gallery/' . $galleryImageName
+                            'image' => $galleryPath
                         ]);
                     }
                 }
@@ -855,10 +861,11 @@ class ProductController extends Controller
                     if ($product->image && file_exists(public_path($product->image))) {
                         @unlink(public_path($product->image));
                     }
-                    $image = $request->file('image');
-                    $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-                    $image->move(public_path('uploads/products'), $imageName);
-                    $data['image'] = 'uploads/products/' . $imageName;
+                    $data['image'] = \App\Services\ImageService::compressAndSave(
+                        file: $request->file('image'),
+                        directory: 'uploads/products',
+                        cropSquare: true
+                    );
                 }
 
                 // Handle size chart image deletion/upload
@@ -873,10 +880,12 @@ class ProductController extends Controller
                     if ($product->size_chart && file_exists(public_path($product->size_chart))) {
                         @unlink(public_path($product->size_chart));
                     }
-                    $sizeChart = $request->file('size_chart');
-                    $sizeChartName = time().'_'.uniqid().'_sizechart.'.$sizeChart->getClientOriginalExtension();
-                    $sizeChart->move(public_path('uploads/products'), $sizeChartName);
-                    $data['size_chart'] = 'uploads/products/' . $sizeChartName;
+                    $sizeChartName = time().'_'.uniqid().'_sizechart.'.$request->file('size_chart')->getClientOriginalExtension();
+                    $data['size_chart'] = \App\Services\ImageService::compressAndSave(
+                        $request->file('size_chart'),
+                        'uploads/products',
+                        $sizeChartName
+                    );
                 }
 
                 $product->update($data);
@@ -884,10 +893,13 @@ class ProductController extends Controller
                 // Handle gallery images upload
                 if ($request->hasFile('gallery')) {
                     foreach ($request->file('gallery') as $galleryImage) {
-                        $galleryImageName = time().'_'.uniqid().'.'.$galleryImage->getClientOriginalExtension();
-                        $galleryImage->move(public_path('uploads/products/gallery'), $galleryImageName);
+                        $galleryPath = \App\Services\ImageService::compressAndSave(
+                            file: $galleryImage,
+                            directory: 'uploads/products/gallery',
+                            cropSquare: true
+                        );
                         $product->galleries()->create([
-                            'image' => 'uploads/products/gallery/' . $galleryImageName
+                            'image' => $galleryPath
                         ]);
                     }
                 }
@@ -980,11 +992,13 @@ class ProductController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ]);
         $product = Product::findOrFail($request->product_id);
-        $image = $request->file('image');
-        $imageName = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
-        $image->move(public_path('uploads/products/gallery'), $imageName);
+        $galleryPath = \App\Services\ImageService::compressAndSave(
+            file: $request->file('image'),
+            directory: 'uploads/products/gallery',
+            cropSquare: true
+        );
         $product->galleries()->create([
-            'image' => 'uploads/products/gallery/' . $imageName
+            'image' => $galleryPath
         ]);
         return response()->json(['success' => true, 'message' => 'Gallery image added successfully!']);
      }

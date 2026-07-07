@@ -127,10 +127,11 @@ class ComboProductController extends Controller
         // Handle Image Upload
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $image->move(public_path('uploads/products'), $imageName);
-            $imagePath = 'uploads/products/' . $imageName;
+            $imagePath = \App\Services\ImageService::compressAndSave(
+                file: $request->file('image'),
+                directory: 'uploads/products',
+                cropSquare: true
+            );
         }
 
         // Create combo product
