@@ -58,7 +58,12 @@ class VoucherController extends Controller
             $query->where('type', $request->voucher_type);
         }
         if ($request->filled('account_id') && $request->account_id != 'all') {
-            $query->where('expense_account_id', $request->account_id);
+            $query->where(function($q) use ($request) {
+                $q->where('expense_account_id', $request->account_id)
+                  ->orWhereHas('entries', function($q2) use ($request) {
+                      $q2->where('chart_of_account_id', $request->account_id);
+                  });
+            });
         }
 
         // Calculate Totals for all filtered results (not just current page)
@@ -314,7 +319,12 @@ class VoucherController extends Controller
             $query->where('type', $request->voucher_type);
         }
         if ($request->filled('account_id') && $request->account_id != 'all') {
-            $query->where('expense_account_id', $request->account_id);
+            $query->where(function($q) use ($request) {
+                $q->where('expense_account_id', $request->account_id)
+                  ->orWhereHas('entries', function($q2) use ($request) {
+                      $q2->where('chart_of_account_id', $request->account_id);
+                  });
+            });
         }
 
         return $query;

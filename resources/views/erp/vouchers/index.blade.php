@@ -124,16 +124,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Cost Type *</label>
-                                <select name="account_id" class="form-select select2">
-                                    <option value="all">All Cost Type</option>
-                                    @foreach($expenseAccounts as $acc)
-                                        <option value="{{ $acc->id }}" {{ request('account_id') == $acc->id ? 'selected' : '' }}>
-                                            {{ $acc->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Voucher Type
                                     *</label>
@@ -143,8 +134,6 @@
                                         Payment</option>
                                     <option value="Receipt" {{ request('voucher_type') == 'Receipt' ? 'selected' : '' }}>
                                         Receipt</option>
-                                    <option value="Contra" {{ request('voucher_type') == 'Contra' ? 'selected' : '' }}>Contra
-                                    </option>
                                     <option value="Journal" {{ request('voucher_type') == 'Journal' ? 'selected' : '' }}>
                                         Journal</option>
                                 </select>
