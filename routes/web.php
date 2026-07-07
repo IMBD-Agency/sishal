@@ -1175,11 +1175,43 @@ Route::get('/orphandatasolve', function () {
         DB::table('purchase_return_items')->delete();
         DB::table('purchase_returns')->delete();
 
+        // Reset all financial accounts balance to 0
+        DB::table('financial_accounts')->update(['balance' => 0]);
+
         DB::commit();
         return '<h1>Orphan transactions and accounting data solved successfully! All cleared.</h1>';
     } catch (\Exception $e) {
         DB::rollBack();
         return '<h1>Cleanup failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
+Route::get('/recalculate-balances-script', function () {
+    if (request('token') !== 'sisal_solve_2026') {
+        return 'Invalid token. Usage: /recalculate-balances-script?token=sisal_solve_2026';
+    }
+
+    try {
+        $accounts = \App\Models\FinancialAccount::all();
+        $output = "=== Recalculating Financial Account Balances ===\n\n";
+
+        foreach ($accounts as $account) {
+            $movement = \App\Models\JournalEntry::where('financial_account_id', $account->id)
+                ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                ->first();
+
+            $debit = (float) ($movement->d ?? 0.0);
+            $credit = (float) ($movement->c ?? 0.0);
+            $newBalance = $debit - $credit;
+
+            $account->update(['balance' => $newBalance]);
+
+            $output .= "Account #{$account->id} ({$account->provider_name} - {$account->account_number}): Set balance to {$newBalance} (Debit: {$debit}, Credit: {$credit})\n";
+        }
+
+        return '<pre>' . $output . "\n\nRecalculation complete!</pre>";
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
     }
 });
 
