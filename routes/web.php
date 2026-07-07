@@ -1011,6 +1011,27 @@ Route::get('/run-perm-fix', function() {
 //     } catch (\Exception $e) {
 //         return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
 //     }
+Route::get('/clearallcustomers', function () {
+    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+        abort(403, 'Unauthorized');
+    }
+    if (request('token') !== 'sisal_solve_2026') {
+        return 'Invalid token. Usage: /clearallcustomers?token=sisal_solve_2026';
+    }
+
+    DB::beginTransaction();
+    try {
+        // Delete all customers
+        DB::table('customers')->delete();
+
+        DB::commit();
+        return '<h1>All customers cleared successfully!</h1>';
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return '<h1>Clear customers failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 Route::get('/clearallstocks', function () {
     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
         abort(403, 'Unauthorized');
