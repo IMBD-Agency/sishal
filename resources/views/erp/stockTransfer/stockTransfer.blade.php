@@ -651,7 +651,7 @@
                                 $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
                             },
                             complete: function () {
-                                $('#bulkDeleteBtn').prop('disabled', false);
+                                $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
                                 toggleBulkActions();
                             }
                         });
