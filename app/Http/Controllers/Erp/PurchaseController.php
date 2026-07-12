@@ -61,6 +61,13 @@ class PurchaseController extends Controller
             ->selectRaw("SUM(quantity) as total_qty, SUM(total_price) as total_amount")
             ->first();
 
+        // Return totals (Return Qty, Return Value)
+        $filteredItemIds = clone $query;
+        $returnTotals = \DB::table('purchase_return_items')
+            ->whereIn('purchase_item_id', $filteredItemIds->select('id'))
+            ->selectRaw("SUM(returned_qty) as total_ret_qty, SUM(returned_qty * unit_price) as total_ret_amt")
+            ->first();
+
         // Sale-level totals (Discount, Paid, Due)
         $filteredPurchaseIds = clone $query;
         $purchaseTotals = \DB::table('purchase_bills')
@@ -71,6 +78,10 @@ class PurchaseController extends Controller
         $reportTotals = [
             'pur_qty'  => $itemTotals->total_qty ?? 0,
             'pur_amt'  => $itemTotals->total_amount ?? 0,
+            'ret_qty'  => $returnTotals->total_ret_qty ?? 0,
+            'ret_amt'  => $returnTotals->total_ret_amt ?? 0,
+            'act_qty'  => ($itemTotals->total_qty ?? 0) - ($returnTotals->total_ret_qty ?? 0),
+            'act_amt'  => ($itemTotals->total_amount ?? 0) - ($returnTotals->total_ret_amt ?? 0),
             'discount' => $purchaseTotals->total_discount ?? 0,
             'paid'     => $purchaseTotals->total_paid ?? 0,
             'due'      => $purchaseTotals->total_due ?? 0,
@@ -154,23 +165,52 @@ class PurchaseController extends Controller
         $query = \App\Models\PurchaseItem::with([
             'purchase.bill', 
             'purchase.supplier', 
+            'purchase.items.returnItems',
             'product.category', 
             'product.brand', 
             'product.season', 
             'product.gender',
+            'product.branchStock',
+            'product.warehouseStock',
             'variation.attributeValues.attribute',
+            'variation.stocks',
             'returnItems'
         ]);
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
         $items = $query->orderBy('created_at', 'desc')->get();
 
+        $branchesMap = \Illuminate\Support\Facades\Cache::remember('branches_map', 300, function() {
+            return \App\Models\Branch::pluck('name', 'id');
+        });
+        $warehousesMap = \Illuminate\Support\Facades\Cache::remember('warehouses_map', 300, function() {
+            return \App\Models\Warehouse::pluck('name', 'id');
+        });
+
         $headers = [
-            'SL', 'Invoice #', 'Date', 'Supplier', 'Warehouse', 'Category', 'Brand', 'Season', 'Gender', 
-            'Product', 'Style Ref', 'Color', 'Size', 
-            'Pur. Qty', 'Pur. Value', 'Ret. Qty', 'Ret. Value', 
-            'Act. Qty', 'Act. Value', 'Discount', 'Paid A/C', 'Due A/C', 'Status'
+            'SL', 'Inv #', 'Date', 'Supplier', 'Warehouse', 'Category', 'Brand', 'Season', 'Gender', 
+            'Product Name', 'Style #', 'Color', 'Size', 
+            'Pur. Qty', 'Inv. T. Qty', 'Pur. Value', 'Inv. T. Value', 
+            'Ret. Qty', 'Inv. T. Ret. Qty', 'Ret. Value', 'Inv. T. Ret. Value', 
+            'Act. Qty', 'Inv. T. Act. Qty', 'Act. Value', 'Inv. T. Act. Value', 
+            'Live Stock', 'Bill Disc.', 'Paid A/C', 'Due A/C', 'Status'
         ];
         $exportData[] = $headers;
+
+        $totPurQty = 0;
+        $totInvPurQty = 0;
+        $totPurAmt = 0;
+        $totInvPurAmt = 0;
+        $totRetQty = 0;
+        $totInvRetQty = 0;
+        $totRetAmt = 0;
+        $totInvRetAmt = 0;
+        $totActQty = 0;
+        $totInvActQty = 0;
+        $totActAmt = 0;
+        $totInvActAmt = 0;
+        $totDiscount = 0;
+        $totPaid = 0;
+        $totDue = 0;
 
         foreach ($items as $index => $item) {
             $purchase = $item->purchase;
@@ -192,17 +232,75 @@ class PurchaseController extends Controller
             }
 
             // Calculations
-            $retQty = $item->returnItems->sum('returned_qty');
-            $retAmt = $item->returnItems->sum('total_price');
-            $actQty = $item->quantity - $retQty;
-            $actAmt = $item->total_price - $retAmt;
+            $retQty = (float)$item->returnItems->sum('returned_qty');
+            $retAmt = (float)$item->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price);
+            $actQty = (float)($item->quantity - $retQty);
+            $actAmt = (float)($item->total_price - $retAmt);
+
+            $showInvoiceTotals = ($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id);
+            
+            $invPurQty = $purchase->items->sum('quantity');
+            $invPurAmt = $purchase->items->sum('total_price');
+            $invRetQty = $purchase->items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
+            $invRetAmt = $purchase->items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
+            $invActQty = $invPurQty - $invRetQty;
+            $invActAmt = $invPurAmt - $invRetAmt;
+
+            $discountVal = $showInvoiceTotals ? (float)($bill->discount_amount ?? 0) : 0.0;
+            $paidVal = $showInvoiceTotals ? (float)($bill->paid_amount ?? 0) : 0.0;
+            $dueVal = $showInvoiceTotals ? (float)($bill->due_amount ?? 0) : 0.0;
+
+            // Live Stock (Current Stock)
+            $currentStock = 0;
+            if ($product) {
+                if ($product->has_variations && $variation) {
+                    if ($purchase->ship_location_type === 'branch') {
+                        $currentStock = $variation->stocks->where('branch_id', $purchase->location_id)->sum('quantity');
+                    } else {
+                        $currentStock = $variation->stocks->where('warehouse_id', $purchase->location_id)->sum('quantity');
+                    }
+                } else {
+                    if ($purchase->ship_location_type === 'branch') {
+                        $currentStock = $product->branchStock->where('branch_id', $purchase->location_id)->sum('quantity');
+                    } else {
+                        $currentStock = $product->warehouseStock->where('warehouse_id', $purchase->location_id)->sum('quantity');
+                    }
+                }
+            }
+
+            $totPurQty += (float)$item->quantity;
+            $totPurAmt += (float)$item->total_price;
+            $totRetQty += $retQty;
+            $totRetAmt += $retAmt;
+            $totActQty += $actQty;
+            $totActAmt += $actAmt;
+
+            if ($showInvoiceTotals) {
+                $totInvPurQty += (float)$invPurQty;
+                $totInvPurAmt += (float)$invPurAmt;
+                $totInvRetQty += (float)$invRetQty;
+                $totInvRetAmt += (float)$invRetAmt;
+                $totInvActQty += (float)$invActQty;
+                $totInvActAmt += (float)$invActAmt;
+            }
+
+            $totDiscount += $discountVal;
+            $totPaid += $paidVal;
+            $totDue += $dueVal;
+
+            $locationName = '-';
+            if ($purchase->ship_location_type === 'branch') {
+                $locationName = $branchesMap[$purchase->location_id] ?? '-';
+            } elseif ($purchase->ship_location_type === 'warehouse') {
+                $locationName = $warehousesMap[$purchase->location_id] ?? '-';
+            }
 
             $row = [
                 $index + 1,
                 $bill->bill_number ?? 'P-'.$purchase->id,
                 $purchase->purchase_date,
                 $purchase->supplier->name ?? 'N/A',
-                $purchase->branch->name ?? ($purchase->warehouse->name ?? '-'),
+                $locationName,
                 $product->category->name ?? 'N/A',
                 $product->brand->name ?? 'N/A',
                 $product->season->name ?? 'N/A',
@@ -211,33 +309,69 @@ class PurchaseController extends Controller
                 $product->sku ?? $product->style_number ?? 'N/A',
                 $color,
                 $size,
-                number_format($item->quantity, 2),
-                number_format($item->total_price, 2),
-                number_format($retQty, 2),
-                number_format($retAmt, 2),
-                number_format($actQty, 2),
-                number_format($actAmt, 2),
-                number_format($bill->discount_amount ?? 0, 2),
-                number_format($bill->paid_amount ?? 0, 2),
-                number_format($bill->due_amount ?? 0, 2),
+                (float)$item->quantity,
+                $showInvoiceTotals ? (float)$invPurQty : '',
+                (float)$item->total_price,
+                $showInvoiceTotals ? (float)$invPurAmt : '',
+                $retQty,
+                $showInvoiceTotals ? (float)$invRetQty : '',
+                $retAmt,
+                $showInvoiceTotals ? (float)$invRetAmt : '',
+                $actQty,
+                $showInvoiceTotals ? (float)$invActQty : '',
+                $actAmt,
+                $showInvoiceTotals ? (float)$invActAmt : '',
+                (float)$currentStock,
+                $discountVal,
+                $paidVal,
+                $dueVal,
                 ucfirst($purchase->status)
             ];
             $exportData[] = $row;
         }
 
+        // Add Grand Total row at the end
+        $totalRow = [
+            'Total', '', '', '', '', '', '', '', '', '', '', '', '',
+            $totPurQty,
+            $totInvPurQty,
+            $totPurAmt,
+            $totInvPurAmt,
+            $totRetQty,
+            $totInvRetQty,
+            $totRetAmt,
+            $totInvRetAmt,
+            $totActQty,
+            $totInvActQty,
+            $totActAmt,
+            $totInvActAmt,
+            '',
+            $totDiscount,
+            $totPaid,
+            $totDue,
+            ''
+        ];
+        $exportData[] = $totalRow;
+
         $filename = 'purchase_audit_report_' . date('Y-m-d_His') . '.xlsx';
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        foreach ($exportData as $rowIndex => $rowData) {
-            foreach ($rowData as $colIndex => $value) {
-                $sheet->setCellValue(chr(65 + $colIndex) . ($rowIndex + 1), $value);
-            }
-        }
+        $sheet->fromArray($exportData, NULL, 'A1');
         
-        foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
+        foreach (range('A', $sheet->getHighestColumn()) as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
+        
+        $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->getFont()->setBold(true);
+
+        // Style the total row
+        $totalRowIndex = count($exportData);
+        $sheet->getStyle('A' . $totalRowIndex . ':' . $sheet->getHighestColumn() . $totalRowIndex)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $totalRowIndex . ':' . $sheet->getHighestColumn() . $totalRowIndex)
+            ->getBorders()->getTop()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle('A' . $totalRowIndex . ':' . $sheet->getHighestColumn() . $totalRowIndex)
+            ->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_DOUBLE);
         
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filePath = storage_path('app/public/' . $filename);

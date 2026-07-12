@@ -1011,131 +1011,132 @@ Route::get('/run-perm-fix', function() {
 //     } catch (\Exception $e) {
 //         return '<h1>Fix Failed</h1><br><pre>' . $e->getMessage() . '</pre>';
 //     }
-Route::get('/clearallcustomers', function () {
-    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
-        abort(403, 'Unauthorized');
-    }
-    if (request('token') !== 'sisal_solve_2026') {
-        return 'Invalid token. Usage: /clearallcustomers?token=sisal_solve_2026';
-    }
 
-    DB::beginTransaction();
-    try {
-        // Delete all customers
-        DB::table('customers')->delete();
+// Route::get('/clearallcustomers', function () {
+//     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+//         abort(403, 'Unauthorized');
+//     }
+//     if (request('token') !== 'sisal_solve_2026') {
+//         return 'Invalid token. Usage: /clearallcustomers?token=sisal_solve_2026';
+//     }
 
-        DB::commit();
-        return '<h1>All customers cleared successfully!</h1>';
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return '<h1>Clear customers failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+//     DB::beginTransaction();
+//     try {
+//         // Delete all customers
+//         DB::table('customers')->delete();
 
-Route::get('/clearallstocks', function () {
-    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
-        abort(403, 'Unauthorized');
-    }
-    if (request('token') !== 'sisal_solve_2026') {
-        return 'Invalid token. Usage: /clearallstocks?token=sisal_solve_2026';
-    }
+//         DB::commit();
+//         return '<h1>All customers cleared successfully!</h1>';
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+//         return '<h1>Clear customers failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
-    DB::beginTransaction();
-    try {
-        // Delete all stock records
-        DB::table('product_variation_stocks')->delete();
-        DB::table('branch_product_stocks')->delete();
-        DB::table('warehouse_product_stocks')->delete();
+// Route::get('/clearallstocks', function () {
+//     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+//         abort(403, 'Unauthorized');
+//     }
+//     if (request('token') !== 'sisal_solve_2026') {
+//         return 'Invalid token. Usage: /clearallstocks?token=sisal_solve_2026';
+//     }
 
-        // Clear cache for all products
-        $productIds = \App\Models\Product::pluck('id');
-        foreach ($productIds as $id) {
-            \App\Services\CacheService::clearProductCaches($id);
-        }
+//     DB::beginTransaction();
+//     try {
+//         // Delete all stock records
+//         DB::table('product_variation_stocks')->delete();
+//         DB::table('branch_product_stocks')->delete();
+//         DB::table('warehouse_product_stocks')->delete();
 
-        DB::commit();
-        return '<h1>All product variation, branch, and warehouse stocks reset to 0/deleted successfully! Cache cleared.</h1>';
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return '<h1>Stock reset failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+//         // Clear cache for all products
+//         $productIds = \App\Models\Product::pluck('id');
+//         foreach ($productIds as $id) {
+//             \App\Services\CacheService::clearProductCaches($id);
+//         }
 
-Route::get('/clearadjustments', function () {
-    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
-        abort(403, 'Unauthorized');
-    }
-    if (request('token') !== 'sisal_solve_2026') {
-        return 'Invalid token. Usage: /clearadjustments?token=sisal_solve_2026';
-    }
+//         DB::commit();
+//         return '<h1>All product variation, branch, and warehouse stocks reset to 0/deleted successfully! Cache cleared.</h1>';
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+//         return '<h1>Stock reset failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
-    DB::beginTransaction();
-    try {
-        $adjustments = \App\Models\StockAdjustment::with('items')->get();
-        $count = 0;
+// Route::get('/clearadjustments', function () {
+//     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+//         abort(403, 'Unauthorized');
+//     }
+//     if (request('token') !== 'sisal_solve_2026') {
+//         return 'Invalid token. Usage: /clearadjustments?token=sisal_solve_2026';
+//     }
 
-        foreach ($adjustments as $adjustment) {
-            foreach ($adjustment->items as $item) {
-                // Calculate the difference this adjustment applied
-                $diff = $item->new_quantity - $item->old_quantity;
+//     DB::beginTransaction();
+//     try {
+//         $adjustments = \App\Models\StockAdjustment::with('items')->get();
+//         $count = 0;
 
-                if ($item->variation_id) {
-                    // --- Variation stock ---
-                    if ($adjustment->branch_id) {
-                        $stock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
-                            ->where('branch_id', $adjustment->branch_id)
-                            ->whereNull('warehouse_id')
-                            ->first();
-                    } else {
-                        $stock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
-                            ->where('warehouse_id', $adjustment->warehouse_id)
-                            ->whereNull('branch_id')
-                            ->first();
-                    }
+//         foreach ($adjustments as $adjustment) {
+//             foreach ($adjustment->items as $item) {
+//                 // Calculate the difference this adjustment applied
+//                 $diff = $item->new_quantity - $item->old_quantity;
 
-                    if ($stock) {
-                        $stock->quantity = max(0, $stock->quantity - $diff);
-                        $stock->updated_by = auth()->id() ?? 1;
-                        $stock->last_updated_at = now();
-                        $stock->save();
-                    }
-                } else {
-                    // --- Product-level stock ---
-                    if ($adjustment->branch_id) {
-                        $stock = \App\Models\BranchProductStock::where('product_id', $item->product_id)
-                            ->where('branch_id', $adjustment->branch_id)
-                            ->first();
-                    } else {
-                        $stock = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)
-                            ->where('warehouse_id', $adjustment->warehouse_id)
-                            ->first();
-                    }
+//                 if ($item->variation_id) {
+//                     // --- Variation stock ---
+//                     if ($adjustment->branch_id) {
+//                         $stock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+//                             ->where('branch_id', $adjustment->branch_id)
+//                             ->whereNull('warehouse_id')
+//                             ->first();
+//                     } else {
+//                         $stock = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+//                             ->where('warehouse_id', $adjustment->warehouse_id)
+//                             ->whereNull('branch_id')
+//                             ->first();
+//                     }
 
-                    if ($stock) {
-                        $stock->quantity = max(0, $stock->quantity - $diff);
-                        $stock->updated_by = auth()->id() ?? 1;
-                        $stock->last_updated_at = now();
-                        $stock->save();
-                    }
-                }
+//                     if ($stock) {
+//                         $stock->quantity = max(0, $stock->quantity - $diff);
+//                         $stock->updated_by = auth()->id() ?? 1;
+//                         $stock->last_updated_at = now();
+//                         $stock->save();
+//                     }
+//                 } else {
+//                     // --- Product-level stock ---
+//                     if ($adjustment->branch_id) {
+//                         $stock = \App\Models\BranchProductStock::where('product_id', $item->product_id)
+//                             ->where('branch_id', $adjustment->branch_id)
+//                             ->first();
+//                     } else {
+//                         $stock = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)
+//                             ->where('warehouse_id', $adjustment->warehouse_id)
+//                             ->first();
+//                     }
 
-                // Clear product cache
-                \App\Services\CacheService::clearProductCaches($item->product_id);
-            }
+//                     if ($stock) {
+//                         $stock->quantity = max(0, $stock->quantity - $diff);
+//                         $stock->updated_by = auth()->id() ?? 1;
+//                         $stock->last_updated_at = now();
+//                         $stock->save();
+//                     }
+//                 }
 
-            // Delete items and the adjustment record
-            $adjustment->items()->delete();
-            $adjustment->delete();
-            $count++;
-        }
+//                 // Clear product cache
+//                 \App\Services\CacheService::clearProductCaches($item->product_id);
+//             }
 
-        DB::commit();
-        return "<h1>Successfully deleted {$count} stock adjustments and reverted their stocks!</h1>";
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return '<h1>Clear adjustments failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
-    }
-});
+//             // Delete items and the adjustment record
+//             $adjustment->items()->delete();
+//             $adjustment->delete();
+//             $count++;
+//         }
+
+//         DB::commit();
+//         return "<h1>Successfully deleted {$count} stock adjustments and reverted their stocks!</h1>";
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+//         return '<h1>Clear adjustments failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+//     }
+// });
 
 Route::get('/orphandatasolve', function () {
     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
@@ -1186,33 +1187,33 @@ Route::get('/orphandatasolve', function () {
     }
 });
 
-Route::get('/recalculate-balances-script', function () {
-    if (request('token') !== 'sisal_solve_2026') {
-        return 'Invalid token. Usage: /recalculate-balances-script?token=sisal_solve_2026';
-    }
+// Route::get('/recalculate-balances-script', function () {
+//     if (request('token') !== 'sisal_solve_2026') {
+//         return 'Invalid token. Usage: /recalculate-balances-script?token=sisal_solve_2026';
+//     }
 
-    try {
-        $accounts = \App\Models\FinancialAccount::all();
-        $output = "=== Recalculating Financial Account Balances ===\n\n";
+//     try {
+//         $accounts = \App\Models\FinancialAccount::all();
+//         $output = "=== Recalculating Financial Account Balances ===\n\n";
 
-        foreach ($accounts as $account) {
-            $movement = \App\Models\JournalEntry::where('financial_account_id', $account->id)
-                ->selectRaw('SUM(debit) as d, SUM(credit) as c')
-                ->first();
+//         foreach ($accounts as $account) {
+//             $movement = \App\Models\JournalEntry::where('financial_account_id', $account->id)
+//                 ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+//                 ->first();
 
-            $debit = (float) ($movement->d ?? 0.0);
-            $credit = (float) ($movement->c ?? 0.0);
-            $newBalance = $debit - $credit;
+//             $debit = (float) ($movement->d ?? 0.0);
+//             $credit = (float) ($movement->c ?? 0.0);
+//             $newBalance = $debit - $credit;
 
-            $account->update(['balance' => $newBalance]);
+//             $account->update(['balance' => $newBalance]);
 
-            $output .= "Account #{$account->id} ({$account->provider_name} - {$account->account_number}): Set balance to {$newBalance} (Debit: {$debit}, Credit: {$credit})\n";
-        }
+//             $output .= "Account #{$account->id} ({$account->provider_name} - {$account->account_number}): Set balance to {$newBalance} (Debit: {$debit}, Credit: {$credit})\n";
+//         }
 
-        return '<pre>' . $output . "\n\nRecalculation complete!</pre>";
-    } catch (\Exception $e) {
-        return 'Error: ' . $e->getMessage();
-    }
-});
+//         return '<pre>' . $output . "\n\nRecalculation complete!</pre>";
+//     } catch (\Exception $e) {
+//         return 'Error: ' . $e->getMessage();
+//     }
+// });
 
 require __DIR__ . '/auth.php';

@@ -670,6 +670,8 @@ $(document).ready(function() {
                                    value="${item.qty}" min="1" max="${item.maxStock}" 
                                    style="width: 45px; outline: none;"
                                    oninput="manualUpdateQty('${item.cartId}', this.value, this)"
+                                   onchange="manualUpdateQty('${item.cartId}', this.value, this)"
+                                   onblur="if(!this.value || parseFloat(this.value) <= 0) { renderCart(); }"
                                    onclick="this.select()" onfocus="this.select()">
                             <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', 1)"><i class="fas fa-plus"></i></button>
                         </div>
@@ -716,12 +718,16 @@ $(document).ready(function() {
                 if(input) input.value = newQty;
             }
             
-            if (isNaN(newQty) || newQty < 0) return; // Allow empty or partial typing
+            if (isNaN(newQty) || newQty <= 0) return; // Allow empty or partial typing
             
             item.qty = newQty;
             
             // Update row total without re-rendering entire cart
             $(`#item-total-${cartId}`).text((item.price * item.qty).toFixed(2));
+            
+            // Update cart count badge/header
+            let totalQty = cart.reduce((acc, item) => acc + item.qty, 0);
+            $('#cartCount').text(totalQty + (totalQty === 1 ? ' Item' : ' Items'));
             
             // Update totals summary
             calculateTotals();

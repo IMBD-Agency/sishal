@@ -401,6 +401,8 @@ $(document).ready(function() {
                                    value="${item.qty}" min="1" max="${item.maxStock}" 
                                    style="width: 45px; outline: none;"
                                    oninput="manualUpdateQty('${item.cartId}', this.value, this)"
+                                   onchange="manualUpdateQty('${item.cartId}', this.value, this)"
+                                   onblur="if(!this.value || parseFloat(this.value) <= 0) { renderCart(); }"
                                    onclick="this.select()" onfocus="this.select()">
                             <button type="button" class="qty-control border-0 shadow-sm" onclick="updateQty('${item.cartId}', 1)"><i class="fas fa-plus"></i></button>
                         </div>
@@ -437,7 +439,7 @@ $(document).ready(function() {
                 if(input) input.value = newQty;
             }
             
-            if (isNaN(newQty) || newQty < 0) return;
+            if (isNaN(newQty) || newQty <= 0) return;
             
             i.qty = newQty;
             

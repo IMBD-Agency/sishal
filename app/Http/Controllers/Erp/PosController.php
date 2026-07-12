@@ -690,9 +690,20 @@ class PosController extends Controller
                 SUM(pos.vat_amount) as total_vat,
                 SUM(pos.exchange_amount) as total_exchange,
                 SUM(pos.refund_amount) as total_refund,
-                SUM(pos.total_amount) as final_total,
+                SUM(invoices.total_amount) as final_total,
                 SUM(invoices.paid_amount) as total_paid,
                 SUM(invoices.due_amount) as total_due
+            ")
+            ->first();
+
+        // Query return totals for the filtered items
+        $filteredItemIds = clone $query;
+        $returnTotals = \DB::table('sale_return_items')
+            ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
+            ->whereIn('sale_return_items.sale_item_id', $filteredItemIds->select('pos_items.id'))
+            ->selectRaw("
+                SUM(CASE WHEN sale_returns.refund_type != 'exchange' THEN sale_return_items.returned_qty ELSE 0 END) as reg_ret_qty,
+                SUM(CASE WHEN sale_returns.refund_type = 'exchange' THEN sale_return_items.returned_qty ELSE 0 END) as exch_ret_qty
             ")
             ->first();
 
@@ -712,6 +723,9 @@ class PosController extends Controller
             'final_total' => $saleTotals->final_total ?? 0,
             'paid' => $saleTotals->total_paid ?? 0,
             'due' => $saleTotals->total_due ?? 0,
+            'reg_ret_qty' => $returnTotals->reg_ret_qty ?? 0,
+            'exch_ret_qty' => $returnTotals->exch_ret_qty ?? 0,
+            'act_qty' => $totalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0),
         ];
 
         $items = $query->orderBy('pos_items.pos_sale_id', 'desc')->orderBy('pos_items.sort_order')->paginate(500)->appends($request->all());
@@ -1872,6 +1886,9 @@ class PosController extends Controller
         $totalExchange = 0;
         $totalRefund = 0;
         $totalFinalTotal = 0;
+        $totalActualAmt = 0;
+        $totalRegRetQty = 0;
+        $totalExchRetQty = 0;
         $totalPaid = 0;
         $totalDue = 0;
 
@@ -2028,6 +2045,9 @@ class PosController extends Controller
                 $totalExchange += ($sale->exchange_amount ?? 0);
                 $totalRefund += ($sale->refund_amount ?? 0);
                 $totalFinalTotal += $i_GrossAmount;
+                $totalActualAmt += $i_ActualAmt;
+                $totalRegRetQty += $i_RegRetQty;
+                $totalExchRetQty += $i_ExchRetQty;
                 $totalPaid += ($invoice->paid_amount ?? 0);
                 $totalDue += ($invoice->due_amount ?? 0);
             }
@@ -2035,30 +2055,22 @@ class PosController extends Controller
 
         // Add footer row with totals
         // 38 columns total: A(0) to AL(37)
-        // Index: 0=Serial No, 1=Invoice, 2=Date, 3=Customer, 4=Branch, 5=Created By, 6=Category, 7=Brand, 8=Season, 9=Gender, 10=Product Name, 11=Style#, 12=Color, 13=Size, 14=Unit Price, 15=Sales Qty, 16=Total S-Qty, 17=Sales Amount, 18=Total Sales Amount, 19=Sales Return Qty, 20=Total SR-Qty, 21=Sales Return Amount, 22=Total Sales Return Amount, 23=Exchange Qty, 24=Total Exch-Qty, 25=Exchange Return Amount, 26=Total Exchange Return Amount, 27=Actual Sales Qty, 28=Total AS-Qty, 29=Delivery Charge Amount, 30=VAT Amount, 31=Discount Amount, 32=Exchange Amount, 33=Refund, 34=Net Amount, 35=Gross Amount, 36=Total Received Amount, 37=Total Due Amount
-        $footerData = array_fill(0, 16, ''); // First 16 columns (A-P)
-        $footerData[] = ''; // 16: Total S-Qty (Q) - empty
-        $footerData[] = $totalSellQty; // 17: Sales Amount (R) - show Sales Qty total
-        $footerData[] = ''; // 18: Total Sales Amount (S) - empty
-        $footerData[] = ''; // 19: Sales Return Qty (T) - empty
-        $footerData[] = ''; // 20: Total SR-Qty (U) - empty
-        $footerData[] = ''; // 21: Sales Return Amount (V) - empty
-        $footerData[] = ''; // 22: Total Sales Return Amount (W) - empty
-        $footerData[] = ''; // 23: Exchange Qty (X) - empty
-        $footerData[] = ''; // 24: Total Exch-Qty (Y) - empty
-        $footerData[] = ''; // 25: Exchange Return Amount (Z) - empty
-        $footerData[] = ''; // 26: Total Exchange Return Amount (AA) - empty
-        $footerData[] = ''; // 27: Actual Sales Qty (AB) - empty
-        $footerData[] = ''; // 28: Total AS-Qty (AC) - empty
-        $footerData[] = $totalDelivery; // 29: Delivery Charge Amount (AD)
-        $footerData[] = $totalVat; // 30: VAT Amount (AE)
-        $footerData[] = $totalDiscount; // 31: Discount Amount (AF)
-        $footerData[] = $totalExchange; // 32: Exchange Amount (AG)
-        $footerData[] = $totalRefund; // 33: Refund (AH)
-        $footerData[] = $totalGrossAmt + $totalVat + $totalDelivery; // 34: Net Amount (AI)
-        $footerData[] = $totalFinalTotal; // 35: Gross Amount (AJ)
-        $footerData[] = $totalPaid; // 36: Total Received Amount (AK)
-        $footerData[] = $totalDue; // 37: Total Due Amount (AL)
+        $footerData = array_fill(0, 38, '');
+        $footerData[0] = 'Total';
+        $footerData[15] = $totalSellQty; // Sales Qty
+        $footerData[17] = $totalGrossAmt; // Sales Amount
+        $footerData[20] = $totalRegRetQty; // Total SR-Qty (U)
+        $footerData[24] = $totalExchRetQty; // Total Exch-Qty (Y)
+        $footerData[28] = $totalSellQty - $totalRegRetQty - $totalExchRetQty; // Total AS-Qty (AC)
+        $footerData[29] = $totalDelivery; // Delivery Charge Amount
+        $footerData[30] = $totalVat; // VAT Amount
+        $footerData[31] = $totalDiscount; // Discount Amount
+        $footerData[32] = $totalExchange; // Exchange Amount
+        $footerData[33] = $totalRefund; // Refund
+        $footerData[34] = $totalFinalTotal; // Gross Amount (with vat)
+        $footerData[35] = $totalActualAmt; // Net Amount (without vat)
+        $footerData[36] = $totalPaid; // Total Received Amount
+        $footerData[37] = $totalDue; // Total Due Amount
 
         $sheet->fromArray([$footerData], NULL, 'A' . $rowNum);
         $sheet->getStyle('A' . $rowNum . ':AL' . $rowNum)->getFont()->setBold(true);

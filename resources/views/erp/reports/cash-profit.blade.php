@@ -118,14 +118,6 @@
                                                 <td class="ps-3 py-2 fw-semibold">Gross Cash Profit on Sales</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-success">Tk. {{ number_format($totalCashProfit, 2) }}</td>
                                             </tr>
-                                            @if(($exchangeProfitChange ?? 0) != 0)
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Net Profit from Exchanges</td>
-                                                <td class="pe-3 py-2 text-end fw-bold {{ $exchangeProfitChange > 0 ? 'text-success' : 'text-danger' }}">
-                                                    {{ $exchangeProfitChange > 0 ? '+' : '' }}Tk. {{ number_format($exchangeProfitChange, 2) }}
-                                                </td>
-                                            </tr>
-                                            @endif
 
                                             {{-- Other incomes (credit vouchers) --}}
                                             @if($creditVoucherDetails->isNotEmpty())
@@ -181,7 +173,7 @@
                                 <tr class="bg-light">
                                     <td class="p-3">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="fw-bold text-uppercase small text-dark">Total Cash Inflow
+                                            <span class="fw-bold text-uppercase small text-dark">Total Gross Cash Profit
                                                 @if(($totalOtherIncome ?? 0) > 0 || ($exchangeProfitChange ?? 0) != 0)
                                                 <small class="text-muted fw-normal">(incl. other items & exchanges)</small>
                                                 @endif

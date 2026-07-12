@@ -471,9 +471,11 @@
                     form.submit();
                 }
 
-                // Restore
-                form.action = originalAction;
-                form.target = originalTarget;
+                // Restore after submission is processed by the browser event loop
+                setTimeout(() => {
+                    form.action = originalAction;
+                    form.target = originalTarget;
+                }, 100);
             }
         </script>
     @endpush

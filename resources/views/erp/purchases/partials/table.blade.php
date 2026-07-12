@@ -1,3 +1,11 @@
+@php
+    $branchesMap = \Illuminate\Support\Facades\Cache::remember('branches_map', 300, function() {
+        return \App\Models\Branch::pluck('name', 'id');
+    });
+    $warehousesMap = \Illuminate\Support\Facades\Cache::remember('warehouses_map', 300, function() {
+        return \App\Models\Warehouse::pluck('name', 'id');
+    });
+@endphp
 <div class="table-responsive">
     <table class="table premium-table compact reporting-table mb-0" id="procurementTable">
         <thead>
@@ -67,6 +75,13 @@
                     
                     $invActQty = $invPurQty - $invRetQty;
                     $invActAmt = $invPurAmt - $invRetAmt;
+
+                    $locationName = '-';
+                    if ($purchase->ship_location_type === 'branch') {
+                        $locationName = $branchesMap[$purchase->location_id] ?? 'Unknown Branch';
+                    } elseif ($purchase->ship_location_type === 'warehouse') {
+                        $locationName = $warehousesMap[$purchase->location_id] ?? 'Unknown Warehouse';
+                    }
                 @endphp
                 <tr>
                     <td class="ps-3 text-muted">{{ $items->firstItem() + $index }}</td>
@@ -83,7 +98,7 @@
                         </div>
                     </td>
                     <td class="fw-bold">{{ optional($purchase->supplier)->name ?? '-' }}</td>
-                    <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ $purchase->warehouse->name ?? '-' }}</span></td>
+                    <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ $locationName }}</span></td>
                     <td class="text-center">{{ optional(optional($product)->category)->name ?? '-' }}</td>
                     <td>{{ optional(optional($product)->brand)->name ?? '-' }}</td>
                     <td>{{ optional(optional($product)->season)->name ?? '-' }}</td>
@@ -182,23 +197,73 @@
             @endforelse
         </tbody>
         <tfoot class="bg-light fw-bold">
+            @php
+                $pagePurQty = $items->sum('quantity');
+                $pagePurAmt = $items->sum('total_price');
+                $pageRetQty = $items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
+                $pageRetAmt = $items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
+                $pageActQty = $pagePurQty - $pageRetQty;
+                $pageActAmt = $pagePurAmt - $pageRetAmt;
+                
+                $pageInvPurQty = 0;
+                $pageInvPurAmt = 0;
+                $pageInvRetQty = 0;
+                $pageInvRetAmt = 0;
+                
+                foreach ($items as $idx => $item) {
+                    $showInvoiceTotals = ($idx == 0 || $items[$idx-1]->purchase_id != $item->purchase_id);
+                    if ($showInvoiceTotals) {
+                        $pageInvPurQty += $item->purchase->items->sum('quantity');
+                        $pageInvPurAmt += $item->purchase->items->sum('total_price');
+                        $pageInvRetQty += $item->purchase->items->sum(fn($pi) => $pi->returnItems->sum('returned_qty'));
+                        $pageInvRetAmt += $item->purchase->items->sum(fn($pi) => $pi->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
+                    }
+                }
+                
+                $pageInvActQty = $pageInvPurQty - $pageInvRetQty;
+                $pageInvActAmt = $pageInvPurAmt - $pageInvRetAmt;
+
+                $uniqueBills = $items->unique('purchase_id')->map(fn($i) => $i->purchase->bill);
+                $pageDiscount = $uniqueBills->sum('discount_amount');
+                $pagePaid = $uniqueBills->sum('paid_amount');
+                $pageDue = $uniqueBills->sum('due_amount');
+            @endphp
             <tr class="text-muted small border-top">
                 <td colspan="14" class="text-end">Page Subtotal</td>
-                <td class="text-center">{{ number_format($items->sum('quantity'), 2) }}</td>
+                <td class="text-center">{{ number_format($pagePurQty, 2) }}</td>
+                <td class="text-center bg-white">{{ number_format($pageInvPurQty, 2) }}</td>
+                <td class="text-end">{{ number_format($pagePurAmt, 2) }}৳</td>
+                <td class="text-end bg-white">{{ number_format($pageInvPurAmt, 2) }}৳</td>
+                <td class="text-center text-danger">{{ number_format($pageRetQty, 2) ?: '-' }}</td>
+                <td class="text-center text-danger bg-white">{{ number_format($pageInvRetQty, 2) ?: '-' }}</td>
+                <td class="text-end text-danger">{{ $pageRetQty ? number_format($pageRetAmt, 2).'৳' : '-' }}</td>
+                <td class="text-end text-danger bg-white">{{ $pageInvRetQty ? number_format($pageInvRetAmt, 2).'৳' : '-' }}</td>
+                <td class="text-center text-success">{{ number_format($pageActQty, 2) }}</td>
+                <td class="text-center text-success bg-white">{{ number_format($pageInvActQty, 2) }}</td>
+                <td class="text-end text-success">{{ number_format($pageActAmt, 2) }}৳</td>
+                <td class="text-end text-success bg-white">{{ number_format($pageInvActAmt, 2) }}৳</td>
                 <td class="bg-white"></td>
-                <td class="text-end">{{ number_format($items->sum('total_price'), 2) }}৳</td>
-                <td colspan="15"></td>
+                <td class="text-end text-warning">{{ number_format($pageDiscount, 2) }}৳</td>
+                <td class="text-end text-primary">{{ number_format($pagePaid, 2) }}৳</td>
+                <td class="text-end text-danger">{{ number_format($pageDue, 2) }}৳</td>
+                <td colspan="2"></td>
             </tr>
             <tr class="bg-soft-primary border-top-2">
                 <td colspan="14" class="text-end text-uppercase py-3">Grand Total (All Records)</td>
                 <td class="text-center py-3">{{ number_format($reportTotals['pur_qty'], 2) }}</td>
-                <td class="bg-light"></td>
+                <td class="text-center bg-light">{{ number_format($reportTotals['pur_qty'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['pur_amt'], 2) }}৳</td>
+                <td class="text-end bg-light">{{ number_format($reportTotals['pur_amt'], 2) }}৳</td>
+                <td class="text-center text-danger py-3">{{ number_format($reportTotals['ret_qty'] ?? 0, 2) ?: '-' }}</td>
+                <td class="text-center text-danger bg-light">{{ number_format($reportTotals['ret_qty'] ?? 0, 2) ?: '-' }}</td>
+                <td class="text-end text-danger py-3">{{ ($reportTotals['ret_qty'] ?? 0) ? number_format($reportTotals['ret_amt'] ?? 0, 2).'৳' : '-' }}</td>
+                <td class="text-end text-danger bg-light">{{ ($reportTotals['ret_qty'] ?? 0) ? number_format($reportTotals['ret_amt'] ?? 0, 2).'৳' : '-' }}</td>
+                <td class="text-center text-success py-3">{{ number_format($reportTotals['act_qty'] ?? 0, 2) }}</td>
+                <td class="text-center text-success bg-light">{{ number_format($reportTotals['act_qty'] ?? 0, 2) }}</td>
+                <td class="text-end text-success py-3">{{ number_format($reportTotals['act_amt'] ?? 0, 2) }}৳</td>
+                <td class="text-end text-success bg-light">{{ number_format($reportTotals['act_amt'] ?? 0, 2) }}৳</td>
                 <td class="bg-light"></td>
-                <td colspan="4" class="bg-light"></td>
-                <td colspan="4" class="bg-light"></td>
-                <td class="bg-light"></td>
-                <td class="text-end py-3">{{ number_format($reportTotals['discount'], 2) }}৳</td>
+                <td class="text-end text-warning py-3">{{ number_format($reportTotals['discount'], 2) }}৳</td>
                 <td class="text-end text-primary py-3">{{ number_format($reportTotals['paid'], 2) }}৳</td>
                 <td class="text-end text-danger py-3">{{ number_format($reportTotals['due'], 2) }}৳</td>
                 <td colspan="2"></td>

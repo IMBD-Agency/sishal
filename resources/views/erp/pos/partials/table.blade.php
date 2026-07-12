@@ -338,9 +338,21 @@
                 <td></td>
                 <!-- Total Sales Amount footer empty -->
 
-                <td colspan="8" class="bg-light"></td> <!-- Returns & Exchanges space -->
+                <!-- Returns -->
+                <td></td>
+                <td class="text-center text-danger">{{ $reportTotals['reg_ret_qty'] ?: '-' }}</td>
+                <td></td>
+                <td></td>
 
-                <td colspan="2" class="bg-light"></td> <!-- Actual Qty space -->
+                <!-- Exchanges -->
+                <td></td>
+                <td class="text-center text-warning">{{ $reportTotals['exch_ret_qty'] ?: '-' }}</td>
+                <td></td>
+                <td></td>
+
+                <!-- Actual Qty -->
+                <td></td>
+                <td class="text-center text-success fw-bold">{{ $reportTotals['act_qty'] }}</td>
 
                 <td class="text-end py-3">{{ number_format($reportTotals['delivery'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['vat_amt'], 2) }}</td>
