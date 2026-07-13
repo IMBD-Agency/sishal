@@ -107,7 +107,7 @@
                                                 <td class="ps-3 py-2 text-secondary fw-semibold" colspan="2"><small class="text-uppercase text-muted">Collection Income</small></td>
                                             </tr>
                                             <tr>
-                                                <td class="ps-3 py-2 text-secondary">Total Collection Amount</td>
+                                                <td class="ps-3 py-2 text-secondary">Current Sales Collection</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($totalCollected, 2) }}</td>
                                             </tr>
                                              <tr>

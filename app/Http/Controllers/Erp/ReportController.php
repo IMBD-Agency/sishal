@@ -593,12 +593,12 @@ class ReportController extends Controller
 
             $priorReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->where('return_date', '<', $startDate)->get();
             $priorRefunds = $priorReturns->sum(function($r) {
-                return in_array($r->refund_type, ['cash', 'bank']) ? $r->items->sum('total_price') : 0;
+                return in_array($r->refund_type, ['cash', 'bank', 'mobile']) ? $r->items->sum('total_price') : 0;
             });
 
             $currentReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->whereBetween('return_date', [$startDate, $endDate])->get();
             $currentRefunds = $currentReturns->sum(function($r) {
-                return in_array($r->refund_type, ['cash', 'bank']) ? $r->items->sum('total_price') : 0;
+                return in_array($r->refund_type, ['cash', 'bank', 'mobile']) ? $r->items->sum('total_price') : 0;
             });
 
             $priorExchangeRefunds = 0;
