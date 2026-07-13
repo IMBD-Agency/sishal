@@ -110,10 +110,10 @@
                                                 <td class="ps-3 py-2 text-secondary">Total Collection Amount</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($totalCollected, 2) }}</td>
                                             </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">↳ Less: Estimated Cost Portion</td>
-                                                <td class="pe-3 py-2 text-end text-warning">— Tk. {{ number_format($totalEstimatedCost, 2) }}</td>
-                                            </tr>
+                                             <tr>
+                                                 <td class="ps-3 py-2 text-secondary">↳ Less: Estimated Cost Portion</td>
+                                                 <td class="pe-3 py-2 text-end text-warning">— Tk. {{ number_format($totalEstimatedCost, 2) }}</td>
+                                             </tr>
                                             <tr>
                                                 <td class="ps-3 py-2 fw-semibold">Gross Cash Profit on Sales</td>
                                                 <td class="pe-3 py-2 text-end fw-bold text-success">Tk. {{ number_format($totalCashProfit, 2) }}</td>

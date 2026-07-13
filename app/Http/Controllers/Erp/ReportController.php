@@ -622,11 +622,10 @@ class ReportController extends Controller
             $refundProfitDeduction = ($currentRefunds + $currentExchangeRefunds) * $currentInfo['margin'];
             $priorCashAdjustment = $priorNetCash * ($currentInfo['margin'] - $priorInfo['margin']);
 
-            $totalCollected += $currentPayments;
-            $totalCashProfit += ($cashProfitOnPayments - $refundProfitDeduction);
-            $exchangeProfitChange += $priorCashAdjustment;
-
             $txCashProfit = $cashProfitOnPayments - $refundProfitDeduction + $priorCashAdjustment;
+
+            $totalCollected += $netCollectionForTx;
+            $totalCashProfit += $txCashProfit;
 
             $cashProfits->push((object)[
                 'date' => $tx['latest_date'],
@@ -650,7 +649,8 @@ class ReportController extends Controller
         }
 
         $cashProfits = $cashProfits->sortByDesc('date');
-        $totalEstimatedCost = $totalCollected - ($totalCashProfit + $exchangeProfitChange);
+        $totalEstimatedCost = $totalCollected - $totalCashProfit;
+        $exchangeProfitChange = 0;
         $saleReturnCashRefund = 0;
 
         // --- Calculate Operating Expenses ---
