@@ -618,14 +618,15 @@ class ReportController extends Controller
             $priorNetCash = $priorPayments - $priorRefunds - $priorExchangeRefunds;
 
             $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
-            $cashProfitOnNetCollection = $netCollectionForTx * $currentInfo['margin'];
+            $cashProfitOnPayments = $currentPayments * $currentInfo['margin'];
+            $refundProfitDeduction = ($currentRefunds + $currentExchangeRefunds) * $currentInfo['margin'];
             $priorCashAdjustment = $priorNetCash * ($currentInfo['margin'] - $priorInfo['margin']);
 
-            $totalCollected += $netCollectionForTx;
-            $totalCashProfit += $cashProfitOnNetCollection;
+            $totalCollected += $currentPayments;
+            $totalCashProfit += ($cashProfitOnPayments - $refundProfitDeduction);
             $exchangeProfitChange += $priorCashAdjustment;
 
-            $txCashProfit = $cashProfitOnNetCollection + $priorCashAdjustment;
+            $txCashProfit = $cashProfitOnPayments - $refundProfitDeduction + $priorCashAdjustment;
 
             $cashProfits->push((object)[
                 'date' => $tx['latest_date'],
