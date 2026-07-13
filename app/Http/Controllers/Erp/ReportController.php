@@ -617,17 +617,15 @@ class ReportController extends Controller
 
             $priorNetCash = $priorPayments - $priorRefunds - $priorExchangeRefunds;
 
-            $cashProfitOnPayments = $currentPayments * $currentInfo['margin'];
-            $refundProfitDeduction = ($currentRefunds + $currentExchangeRefunds) * $currentInfo['margin'];
+            $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
+            $cashProfitOnNetCollection = $netCollectionForTx * $currentInfo['margin'];
             $priorCashAdjustment = $priorNetCash * ($currentInfo['margin'] - $priorInfo['margin']);
 
-            $totalCollected += $currentPayments;
-            $totalCashProfit += $cashProfitOnPayments;
-            $saleReturnCashRefund += $refundProfitDeduction;
+            $totalCollected += $netCollectionForTx;
+            $totalCashProfit += $cashProfitOnNetCollection;
             $exchangeProfitChange += $priorCashAdjustment;
 
-            $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
-            $txCashProfit = $cashProfitOnPayments - $refundProfitDeduction + $priorCashAdjustment;
+            $txCashProfit = $cashProfitOnNetCollection + $priorCashAdjustment;
 
             $cashProfits->push((object)[
                 'date' => $tx['latest_date'],
@@ -651,7 +649,8 @@ class ReportController extends Controller
         }
 
         $cashProfits = $cashProfits->sortByDesc('date');
-        $totalEstimatedCost = $totalCollected - $totalCashProfit;
+        $totalEstimatedCost = $totalCollected - ($totalCashProfit + $exchangeProfitChange);
+        $saleReturnCashRefund = 0;
 
         // --- Calculate Operating Expenses ---
         $debitVoucherQuery = \App\Models\JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')

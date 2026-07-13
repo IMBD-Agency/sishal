@@ -156,17 +156,6 @@
                                                 <td class="ps-3 py-2 text-muted fst-italic" colspan="2">No operating expenses.</td>
                                             </tr>
                                             @endif
-
-                                            {{-- Sale Returns Breakdown --}}
-                                            @if(($saleReturnCashRefund ?? 0) > 0)
-                                            <tr class="table-light">
-                                                <td class="ps-3 py-2 text-secondary fw-semibold" colspan="2"><small class="text-uppercase text-muted">Sale Return Adjustments</small></td>
-                                            </tr>
-                                            <tr>
-                                                <td class="ps-3 py-2 text-secondary">Profit Deducted from Returns</td>
-                                                <td class="pe-3 py-2 text-end text-danger">Tk. {{ number_format($saleReturnCashRefund, 2) }}</td>
-                                            </tr>
-                                            @endif
                                         </table>
                                     </td>
                                 </tr>
@@ -183,12 +172,8 @@
                                     </td>
                                     <td class="p-3 border-start">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="fw-bold text-uppercase small text-dark">Total Outflow
-                                                @if(($saleReturnCashRefund ?? 0) > 0)
-                                                <small class="text-muted fw-normal">(incl. Tk. {{ number_format($saleReturnCashRefund, 2) }} returns)</small>
-                                                @endif
-                                            </span>
-                                            <span class="fw-bold fs-5 text-danger">Tk. {{ number_format($totalOperatingExpenses + ($saleReturnCashRefund ?? 0), 2) }}</span>
+                                            <span class="fw-bold text-uppercase small text-dark">Total Outflow</span>
+                                            <span class="fw-bold fs-5 text-danger">Tk. {{ number_format($totalOperatingExpenses, 2) }}</span>
                                         </div>
                                     </td>
                                 </tr>
