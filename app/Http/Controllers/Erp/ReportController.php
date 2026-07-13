@@ -618,11 +618,10 @@ class ReportController extends Controller
             $priorNetCash = $priorPayments - $priorRefunds - $priorExchangeRefunds;
 
             $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
-            $cashProfitOnPayments = $currentPayments * $currentInfo['margin'];
-            $refundProfitDeduction = ($currentRefunds + $currentExchangeRefunds) * $currentInfo['margin'];
+            $cashProfitOnNetCollection = $netCollectionForTx * $currentInfo['margin'];
             $priorCashAdjustment = $priorNetCash * ($currentInfo['margin'] - $priorInfo['margin']);
 
-            $txCashProfit = $cashProfitOnPayments - $refundProfitDeduction + $priorCashAdjustment;
+            $txCashProfit = $cashProfitOnNetCollection + $priorCashAdjustment;
 
             $totalCollected += $netCollectionForTx;
             $totalCashProfit += $txCashProfit;
