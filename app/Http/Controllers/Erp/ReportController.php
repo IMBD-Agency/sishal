@@ -618,8 +618,16 @@ class ReportController extends Controller
             $priorNetCash = $priorPayments - $priorRefunds - $priorExchangeRefunds;
 
             $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
-            $cashProfitOnNetCollection = $netCollectionForTx * $currentInfo['margin'];
-            $priorCashAdjustment = $priorNetCash * ($currentInfo['margin'] - $priorInfo['margin']);
+
+            $deliveryAmount = floatval($type === 'pos' ? ($model->delivery ?? 0) : (($model->order ?? null) ? $model->order->delivery : 0));
+            $cumulativeNetCashEnd = $priorNetCash + $netCollectionForTx;
+            $cumulativeProductCashEnd = max(0, $cumulativeNetCashEnd - $deliveryAmount);
+            $cumulativeProductCashStart = max(0, $priorNetCash - $deliveryAmount);
+            
+            $currentNetProductCollection = $cumulativeProductCashEnd - $cumulativeProductCashStart;
+            
+            $cashProfitOnNetCollection = $currentNetProductCollection * $currentInfo['margin'];
+            $priorCashAdjustment = $cumulativeProductCashStart * ($currentInfo['margin'] - $priorInfo['margin']);
 
             $txCashProfit = $cashProfitOnNetCollection + $priorCashAdjustment;
 
