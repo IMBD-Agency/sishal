@@ -707,6 +707,14 @@ class PosController extends Controller
             ")
             ->first();
 
+        $filteredPosIdsForExchange = clone $query;
+        $exchangeNewTotals = \DB::table('pos_exchange_items')
+            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchange->select('pos_items.pos_sale_id')->distinct())
+            ->where('pos_exchange_items.type', 'new')
+            ->where('pos_exchanges.status', 'completed')
+            ->sum('pos_exchange_items.quantity');
+
         $totalQty = $itemTotals->total_qty ?? 0;
         $totalAmount = $itemTotals->total_amount ?? 0;
 
@@ -725,7 +733,8 @@ class PosController extends Controller
             'due' => $saleTotals->total_due ?? 0,
             'reg_ret_qty' => $returnTotals->reg_ret_qty ?? 0,
             'exch_ret_qty' => $returnTotals->exch_ret_qty ?? 0,
-            'act_qty' => $totalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0),
+            'exch_new_qty' => $exchangeNewTotals,
+            'act_qty' => $totalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0) + $exchangeNewTotals,
         ];
 
         $items = $query->orderBy('pos_items.pos_sale_id', 'desc')->orderBy('pos_items.sort_order')->paginate(500)->appends($request->all());
@@ -1889,6 +1898,7 @@ class PosController extends Controller
         $totalActualAmt = 0;
         $totalRegRetQty = 0;
         $totalExchRetQty = 0;
+        $totalExchNewQty = 0;
         $totalPaid = 0;
         $totalDue = 0;
 
@@ -1923,7 +1933,15 @@ class PosController extends Controller
             $exchRetAmt = $exchRetItems->sum('total_price');
             $retQty = $regRetQty + $exchRetQty;
             $retAmt = $regRetAmt + $exchRetAmt;
-            $actualQty = $item->quantity - $retQty;
+            $itemExchNewQty = \App\Models\PosExchangeItem::where('type', 'new')
+                ->where('product_id', $item->product_id)
+                ->where('variation_id', $item->variation_id)
+                ->whereHas('exchange', function($q) use ($sale) {
+                    $q->where('original_pos_id', $sale->id)->where('status', 'completed');
+                })
+                ->sum('quantity');
+
+            $actualQty = $item->quantity - $retQty + $itemExchNewQty;
 
             // Invoice Level (Calculate once per sale)
             $invTotalQty = '';
@@ -1945,9 +1963,15 @@ class PosController extends Controller
                 $i_ExchRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('returned_qty'));
                 $i_ExchRetAmt = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('total_price'));
 
+                $i_ExchNewQty = \App\Models\PosExchangeItem::where('type', 'new')
+                    ->whereHas('exchange', function($q) use ($sale) {
+                        $q->where('original_pos_id', $sale->id)->where('status', 'completed');
+                    })
+                    ->sum('quantity');
+
                 $i_RetQty = $i_RegRetQty + $i_ExchRetQty;
                 $i_RetAmt = $i_RegRetAmt + $i_ExchRetAmt;
-                $i_ActualQty = $i_TotalQty - $i_RetQty;
+                $i_ActualQty = $i_TotalQty - $i_RetQty + $i_ExchNewQty;
 
                 // Calculate proportional returned VAT and discount
                 $i_ReturnedVat = 0;
@@ -2048,6 +2072,7 @@ class PosController extends Controller
                 $totalActualAmt += $i_ActualAmt;
                 $totalRegRetQty += $i_RegRetQty;
                 $totalExchRetQty += $i_ExchRetQty;
+                $totalExchNewQty += $i_ExchNewQty;
                 $totalPaid += ($invoice->paid_amount ?? 0);
                 $totalDue += ($invoice->due_amount ?? 0);
             }
@@ -2061,7 +2086,7 @@ class PosController extends Controller
         $footerData[17] = $totalGrossAmt; // Sales Amount
         $footerData[20] = $totalRegRetQty; // Total SR-Qty (U)
         $footerData[24] = $totalExchRetQty; // Total Exch-Qty (Y)
-        $footerData[28] = $totalSellQty - $totalRegRetQty - $totalExchRetQty; // Total AS-Qty (AC)
+        $footerData[28] = $totalSellQty - $totalRegRetQty - $totalExchRetQty + $totalExchNewQty; // Total AS-Qty (AC)
         $footerData[29] = $totalDelivery; // Delivery Charge Amount
         $footerData[30] = $totalVat; // VAT Amount
         $footerData[31] = $totalDiscount; // Discount Amount

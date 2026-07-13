@@ -90,8 +90,15 @@
                         $retAmt = $item->returnItems->sum('total_price');
 
                         $grossAmt = $item->quantity * $item->unit_price;
-                        $itemDiscount = $grossAmt - $item->total_price;
-                        $actualQty = $item->quantity - $retQty;
+                        $itemExchNewQty = \App\Models\PosExchangeItem::where('type', 'new')
+                            ->where('product_id', $item->product_id)
+                            ->where('variation_id', $item->variation_id)
+                            ->whereHas('exchange', function($q) use ($sale) {
+                                $q->where('original_pos_id', $sale->id)->where('status', 'completed');
+                            })
+                            ->sum('quantity');
+
+                        $actualQty = $item->quantity - $retQty + $itemExchNewQty;
                         $actualAmt = $item->total_price - $retAmt;
 
                         // Invoice level (calculated once per invoice change for efficiency)
@@ -105,9 +112,15 @@
                         $invExchRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('returned_qty'));
                         $invExchRetAmt = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('total_price'));
 
+                        $invExchNewQty = \App\Models\PosExchangeItem::where('type', 'new')
+                            ->whereHas('exchange', function($q) use ($sale) {
+                                $q->where('original_pos_id', $sale->id)->where('status', 'completed');
+                            })
+                            ->sum('quantity');
+
                         $invRetQty = $invRegRetQty + $invExchRetQty;
                         $invRetAmt = $invRegRetAmt + $invExchRetAmt;
-                        $invActualQty = $invTotalQty - $invRetQty;
+                        $invActualQty = $invTotalQty - $invRetQty + $invExchNewQty;
 
                         // Calculate proportional returned VAT and discount
                         $invReturnedVat = 0;
@@ -232,10 +245,19 @@
                             @endif
                         </td>
 
-                        <!-- Actual Qty -->
-                        <td class="text-center text-success fw-bold">{{ $actualQty }}</td>
                         <td class="text-center text-success fw-bold">
-                            @if($isFirst) <span>{{ $invActualQty }}</span> @endif
+                            {{ (int)$actualQty }}
+                            @if($itemExchNewQty > 0)
+                                <div class="text-muted fw-normal" style="font-size: 0.65rem;">(+{{ (int)$itemExchNewQty }} exch.)</div>
+                            @endif
+                        </td>
+                        <td class="text-center text-success fw-bold">
+                            @if($isFirst) 
+                                <span>{{ (int)$invActualQty }}</span> 
+                                @if($invExchNewQty > 0)
+                                    <div class="text-muted" style="font-size: 0.65rem;">(+{{ (int)$invExchNewQty }} exch.)</div>
+                                @endif
+                            @endif
                         </td>
 
                         <td class="text-end">
