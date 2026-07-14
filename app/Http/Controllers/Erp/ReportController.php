@@ -587,18 +587,20 @@ class ReportController extends Controller
 
             if ($type === 'pos') {
                 $returnsQuery = \App\Models\SaleReturn::where('pos_sale_id', $model->id);
+            } elseif ($type === 'order') {
+                $returnsQuery = \App\Models\OrderReturn::where('order_id', $model->id);
             } else {
                 $returnsQuery = \App\Models\SaleReturn::where('invoice_id', $model->invoice_id ?? $model->id);
             }
 
             $priorReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->where('return_date', '<', $startDate)->get();
             $priorRefunds = $priorReturns->sum(function($r) {
-                return $r->refund_type !== 'exchange' ? $r->items->sum('total_price') : 0;
+                return in_array($r->refund_type, ['cash', 'bank', 'mobile']) ? $r->items->sum('total_price') : 0;
             });
 
             $currentReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->whereBetween('return_date', [$startDate, $endDate])->get();
             $currentRefunds = $currentReturns->sum(function($r) {
-                return $r->refund_type !== 'exchange' ? $r->items->sum('total_price') : 0;
+                return in_array($r->refund_type, ['cash', 'bank', 'mobile']) ? $r->items->sum('total_price') : 0;
             });
 
             $priorExchangeRefunds = 0;
@@ -739,6 +741,8 @@ class ReportController extends Controller
         // 1. Get returns
         if ($type === 'pos') {
             $returnsQuery = \App\Models\SaleReturn::where('pos_sale_id', $model->id);
+        } elseif ($type === 'order') {
+            $returnsQuery = \App\Models\OrderReturn::where('order_id', $model->id);
         } else {
             $returnsQuery = \App\Models\SaleReturn::where('invoice_id', $model->invoice_id ?? $model->id);
         }
@@ -791,16 +795,28 @@ class ReportController extends Controller
                 ->join('products', 'order_items.product_id', '=', 'products.id')
                 ->leftJoin('product_variations', 'order_items.variation_id', '=', 'product_variations.id');
             $originalCost = $costQuery->sum(\DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+        } elseif ($type === 'invoice') {
+            $costQuery = \App\Models\InvoiceItem::where('invoice_id', $model->id)
+                ->join('products', 'invoice_items.product_id', '=', 'products.id')
+                ->leftJoin('product_variations', 'invoice_items.variation_id', '=', 'product_variations.id');
+            $originalCost = $costQuery->sum(\DB::raw('invoice_items.quantity * COALESCE(product_variations.cost, products.cost, 0)'));
         } else {
             $originalCost = 0;
         }
         
         $returnedCost = 0;
         if ($returns->isNotEmpty()) {
-            $returnedCost = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
-                ->join('products', 'sale_return_items.product_id', '=', 'products.id')
-                ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id')
-                ->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+            if ($type === 'order') {
+                $returnedCost = \App\Models\OrderReturnItem::whereIn('order_return_id', $returns->pluck('id'))
+                    ->join('products', 'order_return_items.product_id', '=', 'products.id')
+                    ->leftJoin('product_variations', 'order_return_items.variation_id', '=', 'product_variations.id')
+                    ->sum(\DB::raw('order_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+            } else {
+                $returnedCost = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
+                    ->join('products', 'sale_return_items.product_id', '=', 'products.id')
+                    ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id')
+                    ->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+            }
         }
         
         $costAmount = max(0, $originalCost - $returnedCost + $exchangeNewCost);
