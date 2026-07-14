@@ -85,12 +85,9 @@ class MoneyReceiptController extends Controller
         // Generate Receipt No: MR-YYYYMMDD-SEQU
         $receiptNo = $this->generateReceiptNumber();
 
-        $user = auth()->user();
         $bankAccounts = FinancialAccount::all();
-        if ($user && $user->employee && $user->employee->branch_id) {
-            $bankAccounts = $bankAccounts->where('branch_id', $user->employee->branch_id);
-        } else {
-            $bankAccounts = $bankAccounts->whereNull('branch_id');
+        if ($restrictedBranchId) {
+            $bankAccounts = $bankAccounts->where('branch_id', $restrictedBranchId);
         }
 
         // Get recent invoices for invoice-based selection
@@ -356,6 +353,9 @@ class MoneyReceiptController extends Controller
         }
         $customers = $customersQuery->orderBy('name')->take(200)->get();
         $bankAccounts = FinancialAccount::all();
+        if ($restrictedBranchId) {
+            $bankAccounts = $bankAccounts->where('branch_id', $restrictedBranchId);
+        }
         
         // Load invoices for the selected customer
         $invoices = Invoice::where('customer_id', $receipt->customer_id)
