@@ -132,7 +132,7 @@
 
                             <div class="col-md-4">
                                 <label class="form-label fw-bold small">Account Type *</label>
-                                <select name="payment_method" class="form-select select2-premium-42" required>
+                                <select name="payment_method" id="accountTypeSelect" class="form-select select2-premium-42" required>
                                     <option value="">Select One</option>
                                     <option value="Cash">Cash</option>
                                     <option value="Bank">Bank</option>
@@ -141,10 +141,12 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-bold small">Account No *</label>
-                                <select name="account_id" class="form-select select2-premium-42" required>
+                                <select name="account_id" id="accountIdSelect" class="form-select select2-premium-42" required>
                                     <option value="">Select One</option>
                                     @foreach($accounts as $acc)
-                                        <option value="{{ $acc->id }}">{{ $acc->name }} ({{ $acc->code }})</option>
+                                        <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                            {{ $acc->provider_name }} ({{ $acc->account_number }}) - {{ $acc->chartOfAccount->name ?? '' }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -259,6 +261,46 @@
                         e.preventDefault();
                     }
                 }
+            });
+
+            // Robust Select2 / Dropdown Filtering Logic
+            const $accountSelect = $('#accountIdSelect');
+            const allAccountOptions = $accountSelect.find('option').clone(); // Backup all options
+
+            $('#accountTypeSelect').on('change', function() {
+                const method = $(this).val();
+                
+                // Clear the current select
+                $accountSelect.empty();
+                
+                // Add the placeholder back
+                $accountSelect.append('<option value="">Select One</option>');
+
+                allAccountOptions.each(function() {
+                    const $opt = $(this);
+                    const type = $opt.data('type');
+                    const value = $opt.val();
+
+                    if (!value) return; // Skip original placeholder
+
+                    let shouldShow = false;
+                    if (!method) {
+                        shouldShow = true;
+                    } else if (method === 'Cash' && type === 'cash') {
+                        shouldShow = true;
+                    } else if (method === 'Bank' && type === 'bank') {
+                        shouldShow = true;
+                    } else if (method === 'Mobile Banking' && type === 'mobile') {
+                        shouldShow = true;
+                    }
+
+                    if (shouldShow) {
+                        $accountSelect.append($opt.clone());
+                    }
+                });
+
+                // Refresh Select2 to show new options
+                $accountSelect.val('').trigger('change.select2').trigger('change');
             });
         });
     </script>

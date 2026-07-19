@@ -96,38 +96,28 @@ class VoucherController extends Controller
         $voucherNo = 'V-' . date('Ymd') . '-' . str_pad(Journal::count() + 1, 4, '0', STR_PAD_LEFT);
         
         // Fetch Expense/Revenue/Liability/Equity Accounts
-    $expenseTypeIds = ChartOfAccountType::whereIn('name', ['Expense', 'Revenue', 'Liability', 'Equity'])->pluck('id');
-    
-    $expenseAccounts = ChartOfAccount::whereIn('type_id', $expenseTypeIds)
-        ->orWhereHas('parent', function($q) use ($expenseTypeIds) {
-            $q->whereIn('type_id', $expenseTypeIds);
-        })->get();
-    
-    // Fetch Asset Accounts (Cash/Bank) - Only from "Cash & Bank" parent group
-    $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
-
-    $paymentAccounts = ChartOfAccount::whereIn('type_id', $assetTypeIds)
-        ->whereHas('parent', function($q) {
-            $q->where('name', 'Cash & Bank');
-        })->get();
-
-    // Fallback: If still empty, try name-based
-    if($paymentAccounts->isEmpty()) {
-        $paymentAccounts = ChartOfAccount::where(function($q) {
-            $q->where('name', 'like', '%Cash%')
-              ->orWhere('name', 'like', '%Bank%')
-              ->orWhere('name', 'like', '%Wallet%');
-        })->get();
-    }
-
-    // Exclude Inter-branch accounts as per user requirement
-    $paymentAccounts = $paymentAccounts->filter(function($acc) {
-        return stripos($acc->name, 'Inter-branch') === false;
-    });
+        $expenseTypeIds = ChartOfAccountType::whereIn('name', ['Expense', 'Revenue', 'Liability', 'Equity'])->pluck('id');
+        
+        $expenseAccounts = ChartOfAccount::whereIn('type_id', $expenseTypeIds)
+            ->orWhereHas('parent', function($q) use ($expenseTypeIds) {
+                $q->whereIn('type_id', $expenseTypeIds);
+            })->get();
+        
+        // Fetch Financial Accounts with their corresponding ChartOfAccount
+        $financialAccountsQuery = FinancialAccount::with('chartOfAccount');
+        
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        if ($restrictedBranchId) {
+            $financialAccountsQuery->where(function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+        
+        $paymentAccounts = $financialAccountsQuery->get();
 
         $expenseTypeId = ChartOfAccountType::where('name', 'Expense')->first()->id ?? 15;
 
-        $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
         } else {
@@ -158,7 +148,7 @@ class VoucherController extends Controller
             'entry_date' => 'required|date',
             'voucher_no' => 'required|unique:journals,voucher_no',
             'expense_account_id' => 'required|exists:chart_of_accounts,id',
-            'account_id' => 'required|exists:chart_of_accounts,id',
+            'account_id' => 'required|exists:financial_accounts,id',
             'particulars' => 'required|array',
             'amounts' => 'required|array',
             'amounts.*' => 'required|numeric|min:0',
@@ -188,6 +178,9 @@ class VoucherController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
+            // Retrieve financial account
+            $finAcc = FinancialAccount::findOrFail($request->account_id);
+
             // Handle Entries based on Voucher Type
             if ($request->voucher_type == 'Receipt') {
                 // RECEIPTS: Money coming IN
@@ -210,11 +203,10 @@ class VoucherController extends Controller
                 }
 
                 // 2. Debit Entry (Cash/Bank) - Total Amount
-                $finAcc = FinancialAccount::where('account_id', $request->account_id)->first();
                 JournalEntry::create([
                     'journal_id' => $journal->id,
-                    'chart_of_account_id' => $request->account_id,
-                    'financial_account_id' => $finAcc ? $finAcc->id : null,
+                    'chart_of_account_id' => $finAcc->account_id,
+                    'financial_account_id' => $finAcc->id,
                     'debit' => $totalAmount,
                     'credit' => 0,
                     'memo' => 'Receipt from ' . ($journal->expenseAccount->name ?? 'Voucher'),
@@ -243,11 +235,10 @@ class VoucherController extends Controller
                 }
 
                 // 2. Credit Entry (Cash/Bank) - Total Amount
-                $finAcc = FinancialAccount::where('account_id', $request->account_id)->first();
                 JournalEntry::create([
                     'journal_id' => $journal->id,
-                    'chart_of_account_id' => $request->account_id,
-                    'financial_account_id' => $finAcc ? $finAcc->id : null,
+                    'chart_of_account_id' => $finAcc->account_id,
+                    'financial_account_id' => $finAcc->id,
                     'debit' => 0,
                     'credit' => $totalAmount,
                     'memo' => 'Payment for ' . ($journal->expenseAccount->name ?? 'Voucher'),

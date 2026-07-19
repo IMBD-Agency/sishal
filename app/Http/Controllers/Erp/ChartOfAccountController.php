@@ -105,10 +105,37 @@ class ChartOfAccountController extends Controller
 
         $account = ChartOfAccount::create($data);
         
+        // Auto-create FinancialAccount if it is an Asset
+        $assetType = ChartOfAccountType::where('name', 'Asset')->first();
+        $financialAccount = null;
+        if ($assetType && $account->type_id == $assetType->id) {
+            $user = auth()->user();
+            $branchId = ($user && !$user->hasRole('Super Admin')) ? $user->employee?->branch_id : null;
+            
+            $nameLower = strtolower($account->name);
+            $faType = 'cash';
+            if (str_contains($nameLower, 'bank')) {
+                $faType = 'bank';
+            } elseif (str_contains($nameLower, 'wallet') || str_contains($nameLower, 'bkash') || str_contains($nameLower, 'nagad')) {
+                $faType = 'mobile';
+            }
+            
+            $financialAccount = \App\Models\FinancialAccount::create([
+                'account_id' => $account->id,
+                'branch_id' => $branchId,
+                'type' => $faType,
+                'provider_name' => $account->name,
+                'account_number' => $account->code,
+                'currency' => 'BDT',
+                'balance' => 0
+            ]);
+        }
+        
         if ($request->ajax()) {
             return response()->json([
                 'success' => true, 
                 'data' => $account,
+                'financial_account' => $financialAccount,
                 'message' => 'Account created successfully'
             ]);
         }
@@ -134,10 +161,37 @@ class ChartOfAccountController extends Controller
 
         $account = ChartOfAccount::create($data);
         
+        // Auto-create FinancialAccount if it is an Asset
+        $assetType = ChartOfAccountType::where('name', 'Asset')->first();
+        $financialAccount = null;
+        if ($assetType && $account->type_id == $assetType->id) {
+            $user = auth()->user();
+            $branchId = ($user && !$user->hasRole('Super Admin')) ? $user->employee?->branch_id : null;
+            
+            $nameLower = strtolower($account->name);
+            $faType = 'cash';
+            if (str_contains($nameLower, 'bank')) {
+                $faType = 'bank';
+            } elseif (str_contains($nameLower, 'wallet') || str_contains($nameLower, 'bkash') || str_contains($nameLower, 'nagad')) {
+                $faType = 'mobile';
+            }
+            
+            $financialAccount = \App\Models\FinancialAccount::create([
+                'account_id' => $account->id,
+                'branch_id' => $branchId,
+                'type' => $faType,
+                'provider_name' => $account->name,
+                'account_number' => $account->code,
+                'currency' => 'BDT',
+                'balance' => 0
+            ]);
+        }
+        
         if ($request->ajax()) {
             return response()->json([
                 'success' => true, 
                 'data' => $account,
+                'financial_account' => $financialAccount,
                 'message' => 'Account created successfully'
             ]);
         }

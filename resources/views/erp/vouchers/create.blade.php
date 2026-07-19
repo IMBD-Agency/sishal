@@ -93,7 +93,9 @@
                                 <select name="account_id" class="form-select select2" required>
                                     <option value="">Select Source Account</option>
                                     @foreach($paymentAccounts as $pacc)
-                                        <option value="{{ $pacc->id }}">{{ $pacc->name }} - {{ $pacc->code }}</option>
+                                        <option value="{{ $pacc->id }}" data-type="{{ $pacc->type }}">
+                                            {{ $pacc->provider_name }} ({{ $pacc->account_number }}) - {{ $pacc->chartOfAccount->name ?? '' }}
+                                        </option>
                                     @endforeach
                                 </select>
                                 <div class="form-text small">
@@ -297,7 +299,7 @@
 
             // Robust Select2 Filtering Logic
             const $accountSelect = $('select[name="account_id"]');
-            const allAccountOptions = $accountSelect.find('option').clone(); // Backup all options
+            let allAccountOptions = $accountSelect.find('option').clone(); // Backup all options
 
             $('#accountTypeSelect').on('change', function() {
                 const method = $(this).val();
@@ -310,7 +312,7 @@
 
                 allAccountOptions.each(function() {
                     const $opt = $(this);
-                    const text = $opt.text().toLowerCase();
+                    const type = $opt.data('type');
                     const value = $opt.val();
 
                     if (!value) return; // Skip original placeholder
@@ -318,12 +320,12 @@
                     let shouldShow = false;
                     if (!method) {
                         shouldShow = true;
-                    } else if (method === 'Cash') {
-                        if (text.includes('cash')) shouldShow = true;
-                    } else if (method === 'Bank') {
-                        if (text.includes('bank')) shouldShow = true;
-                    } else if (method === 'Mobile Wallet') {
-                        if (text.includes('wallet') || text.includes('bkash') || text.includes('nagad')) shouldShow = true;
+                    } else if (method === 'Cash' && type === 'cash') {
+                        shouldShow = true;
+                    } else if (method === 'Bank' && type === 'bank') {
+                        shouldShow = true;
+                    } else if (method === 'Mobile Wallet' && type === 'mobile') {
+                        shouldShow = true;
                     }
 
                     if (shouldShow) {
@@ -350,16 +352,27 @@
                     data: form.serialize(),
                     success: function(response) {
                         if(response.success) {
-                            // Add new option to dropdown
-                            let newOption = new Option(response.data.name + ' (' + response.data.code + ')', response.data.id, true, true);
-                            
-                            // Determine target dropdown based on Type selection
+                            let newOption;
+                            let targetSelect;
                             let selectedTypeLabel = $('#modalTypeSelect option:selected').text();
-                            let targetSelect = selectedTypeLabel.includes('Wallet') 
-                                ? $('select[name="account_id"]') 
-                                : $('select[name="expense_account_id"]');
+                            
+                            if (selectedTypeLabel.includes('Wallet') && response.financial_account) {
+                                targetSelect = $('select[name="account_id"]');
+                                newOption = new Option(
+                                    response.financial_account.provider_name + ' (' + response.financial_account.account_number + ') - ' + response.data.name, 
+                                    response.financial_account.id, 
+                                    true, 
+                                    true
+                                );
+                                $(newOption).attr('data-type', response.financial_account.type);
+                                // Also update allAccountOptions backup
+                                allAccountOptions = allAccountOptions.add($(newOption).clone());
+                            } else {
+                                targetSelect = $('select[name="expense_account_id"]');
+                                newOption = new Option(response.data.name + ' (' + response.data.code + ')', response.data.id, true, true);
+                            }
 
-                            targetSelect.append(newOption).val(response.data.id).trigger('change');
+                            targetSelect.append(newOption).val($(newOption).val()).trigger('change');
                             
                             // Force Select2 to refresh if it exists
                             if (targetSelect.hasClass('select2-hidden-accessible')) {
@@ -370,8 +383,6 @@
                             form[0].reset();
                             updateParent(); // Reset parent logic
                             generateRandomCode(); // New code for next time
-                            
-                            // Optional: Toast message
                         }
                     },
                     error: function(xhr) {

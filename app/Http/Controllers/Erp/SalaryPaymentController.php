@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\Journal;
 use App\Models\JournalEntry;
 use App\Models\SalaryPayment;
+use App\Models\FinancialAccount;
 use App\Services\BonusCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -98,12 +99,16 @@ class SalaryPaymentController extends Controller
             $branches = Branch::all();
         }
         
-        // Fetch Asset Accounts (Cash/Bank)
-        $assetTypeIds = ChartOfAccountType::where('name', 'Asset')->pluck('id');
-        $accounts = ChartOfAccount::whereIn('type_id', $assetTypeIds)
-            ->orWhereHas('parent', function($q) use ($assetTypeIds) {
-                $q->whereIn('type_id', $assetTypeIds);
-            })->get();
+        // Fetch Financial Accounts with their corresponding ChartOfAccount
+        $financialAccountsQuery = FinancialAccount::with('chartOfAccount');
+        if ($restrictedBranchId) {
+            $financialAccountsQuery->where(function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+        
+        $accounts = $financialAccountsQuery->get();
 
         return view('erp.salary.create', compact('employees', 'branches', 'accounts'));
     }
@@ -119,10 +124,11 @@ class SalaryPaymentController extends Controller
             'year' => 'required',
             'paid_amount' => 'required|numeric|min:0.01',
             'payment_date' => 'required|date',
-            'account_id' => 'required|exists:chart_of_accounts,id',
+            'account_id' => 'required|exists:financial_accounts,id',
         ]);
 
         $employee = Employee::find($request->employee_id);
+        $finAcc = FinancialAccount::findOrFail($request->account_id);
 
         $salaryPayment = SalaryPayment::create([
             'employee_id' => $request->employee_id,
@@ -136,7 +142,7 @@ class SalaryPaymentController extends Controller
             'is_bonus_editable' => $request->boolean('is_bonus_editable', true),
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
-            'account_id' => $request->account_id,
+            'account_id' => $finAcc->account_id, // Store the ChartOfAccount ID
             'account_no' => $request->account_no,
             'note' => $request->note,
             'created_by' => auth()->id(),
@@ -184,10 +190,11 @@ class SalaryPaymentController extends Controller
                 // Credit Entry: Cash/Bank Account
                 JournalEntry::create([
                     'journal_id' => $journal->id,
-                    'chart_of_account_id' => $request->account_id, // The payment account (Cash/Bank)
+                    'chart_of_account_id' => $finAcc->account_id,
+                    'financial_account_id' => $finAcc->id,
                     'debit' => 0,
                     'credit' => $totalPaymentAmount,
-                    'memo' => 'Payment from ' . ChartOfAccount::find($request->account_id)->name,
+                    'memo' => 'Payment from ' . $finAcc->provider_name,
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),
                 ]);
