@@ -595,13 +595,33 @@ class ExchangeController extends Controller
     }
 
     private function generateSaleNumber() {
-        $last = Pos::latest('id')->first();
-        return 'EXC-' . str_pad(($last ? $last->id + 1 : 1), 6, '0', STR_PAD_LEFT);
+        $prefix = 'EXC-';
+        $last = Pos::where('sale_number', 'like', $prefix . '%')
+            ->orderByRaw('LENGTH(sale_number) DESC')
+            ->orderBy('sale_number', 'desc')
+            ->first();
+
+        $newSeq = 1;
+        if ($last) {
+            $numberPart = (int) str_replace($prefix, '', $last->sale_number);
+            $newSeq = $numberPart + 1;
+        }
+        return $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
     }
 
     private function generateInvoiceNumber() {
-        $last = Invoice::latest('id')->first();
-        return 'INV-EXC-' . str_pad(($last ? $last->id + 1 : 1), 6, '0', STR_PAD_LEFT);
+        $prefix = 'INV-EXC-';
+        $last = Invoice::where('invoice_number', 'like', $prefix . '%')
+            ->orderByRaw('LENGTH(invoice_number) DESC')
+            ->orderBy('invoice_number', 'desc')
+            ->first();
+
+        $newSeq = 1;
+        if ($last) {
+            $numberPart = (int) str_replace($prefix, '', $last->invoice_number);
+            $newSeq = $numberPart + 1;
+        }
+        return $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
     }
 
     private function applyFilters($query, Request $request, $startDate = null, $endDate = null)

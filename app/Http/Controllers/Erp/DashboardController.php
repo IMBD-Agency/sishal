@@ -897,6 +897,23 @@ class DashboardController extends Controller
         });
     }
 
+    public static function clearCache()
+    {
+        try {
+            $ranges = ['day', 'week', 'month', 'year'];
+            $branches = \App\Models\Branch::pluck('id')->toArray();
+            $branchIds = array_merge([0, null], $branches);
+            foreach ($branchIds as $bId) {
+                $b = $bId ?? 0;
+                foreach ($ranges as $r) {
+                    \Illuminate\Support\Facades\Cache::forget("dash_v1_{$b}_{$r}");
+                }
+            }
+        } catch (\Exception $e) {
+            // Ignore cache exception
+        }
+    }
+
     private function getRecentSalesDetailed()
     {
         $branchId = $this->getRestrictedBranchId();
@@ -910,7 +927,17 @@ class DashboardController extends Controller
         }
 
         return $query->get()->map(function($sale) {
-            $paid = DB::table('payments')->where('pos_id', $sale->id)->sum('amount');
+            $paid = DB::table('payments')
+                ->where(function($q) use ($sale) {
+                    $q->where('pos_id', $sale->id);
+                    if ($sale->invoice_id) {
+                        $q->orWhere('invoice_id', $sale->invoice_id);
+                    }
+                })
+                ->sum('amount');
+
+            $due = max(0, $sale->total_amount - $paid);
+
             return [
                 'invoice_no' => $sale->sale_number,
                 'challan_no' => $sale->challan_number ?? 'N/A',
@@ -918,7 +945,7 @@ class DashboardController extends Controller
                 'customer' => $sale->customer->name ?? 'Guest',
                 'total' => $sale->total_amount,
                 'paid' => $paid,
-                'due' => $sale->total_amount - $paid,
+                'due' => $due,
                 'status' => $sale->status
             ];
         });
@@ -967,37 +994,59 @@ class DashboardController extends Controller
         $branchId = $this->getRestrictedBranchId();
         $today = Carbon::today();
 
-        // Optimized Sales Query
+        // Today's Total Sales
         $salesQuery = DB::table('pos')->whereDate('sale_date', $today);
         if ($branchId) $salesQuery->where('branch_id', $branchId);
         $posSales = $salesQuery->sum('total_amount');
 
-        // Online Sales
         $onlineSales = 0;
         if (!$branchId) {
             $onlineSales = DB::table('orders')->whereDate('created_at', $today)->sum('total');
         }
         $totalSalesValue = $posSales + $onlineSales;
 
-        // Optimized Collection (Single query)
+        // Today's Total Collection (payments made today)
         $collectionQuery = DB::table('payments')->whereDate('payment_date', $today);
         if ($branchId) {
-            $collectionQuery->whereIn('pos_id', function($q) use ($branchId, $today) {
-                $q->from('pos')->select('id')->where('branch_id', $branchId)->whereDate('sale_date', $today);
+            $collectionQuery->where(function($q) use ($branchId) {
+                $q->whereIn('pos_id', function($sub) use ($branchId) {
+                    $sub->from('pos')->select('id')->where('branch_id', $branchId);
+                })
+                ->orWhereIn('invoice_id', function($sub) use ($branchId) {
+                    $sub->from('invoices')
+                        ->join('pos', 'invoices.id', '=', 'pos.invoice_id')
+                        ->select('invoices.id')
+                        ->where('pos.branch_id', $branchId);
+                })
+                ->orWhereIn('customer_id', function($sub) use ($branchId) {
+                    $sub->from('customers')->select('id')->where('branch_id', $branchId);
+                })
+                ->orWhereIn('account_id', function($sub) use ($branchId) {
+                    $sub->from('financial_accounts')->select('id')->where('branch_id', $branchId);
+                });
             });
         }
-        $totalCollection = $collectionQuery->sum('amount');
+        $totalCollection = $collectionQuery->sum('amount') ?? 0;
 
-        // Optimized Due Calculation (Single aggregate join instead of loop)
-        $dueQuery = DB::table('pos')
-            ->leftJoin('payments', 'pos.id', '=', 'payments.pos_id')
-            ->whereDate('pos.sale_date', $today)
-            ->selectRaw('SUM(pos.total_amount) as total_amt, SUM(COALESCE(payments.amount, 0)) as total_paid');
-            
-        if ($branchId) $dueQuery->where('pos.branch_id', $branchId);
-        
-        $dueData = $dueQuery->first();
-        $totalDue = ($dueData->total_amt ?? 0) - ($dueData->total_paid ?? 0);
+        // Today's Total Due (due remaining on today's POS sales)
+        $todayPosSales = DB::table('pos')->whereDate('sale_date', $today);
+        if ($branchId) $todayPosSales->where('branch_id', $branchId);
+        $posList = $todayPosSales->get(['id', 'invoice_id', 'total_amount']);
+
+        $totalDue = 0;
+        foreach ($posList as $posItem) {
+            $paidForSale = DB::table('payments')
+                ->where(function($q) use ($posItem) {
+                    $q->where('pos_id', $posItem->id);
+                    if ($posItem->invoice_id) {
+                        $q->orWhere('invoice_id', $posItem->invoice_id);
+                    }
+                })
+                ->sum('amount');
+
+            $dueForSale = max(0, $posItem->total_amount - $paidForSale);
+            $totalDue += $dueForSale;
+        }
 
         return [
             'total_sales' => number_format($totalSalesValue, 2),

@@ -211,6 +211,12 @@ class MoneyReceiptController extends Controller
             $payment = new Payment();
             $payment->customer_id = $request->customer_id;
             $payment->invoice_id = $request->invoice_id; // Can be null (Advance/account payment)
+            if ($request->invoice_id) {
+                $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
+                if ($pos) {
+                    $payment->pos_id = $pos->id;
+                }
+            }
             $payment->payment_date = $request->payment_date;
             $payment->amount = $request->amount;
             $payment->payment_method = $request->payment_method ?? 'cash';
@@ -330,6 +336,7 @@ class MoneyReceiptController extends Controller
             }
             // =====================================================
 
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             DB::commit();
             return redirect()->route('money-receipt.index')->with('success', "Money Receipt created successfully. Receipt No: $receiptNo");
 
@@ -426,6 +433,12 @@ class MoneyReceiptController extends Controller
             // 2. Apply New Changes
             $payment->customer_id = $request->customer_id;
             $payment->invoice_id = $request->invoice_id;
+            if ($request->invoice_id) {
+                $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
+                if ($pos) {
+                    $payment->pos_id = $pos->id;
+                }
+            }
             $payment->payment_date = $request->payment_date;
             $payment->amount = $request->amount;
             $payment->payment_method = $request->payment_method;
@@ -509,6 +522,7 @@ class MoneyReceiptController extends Controller
                 ]);
             }
 
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             DB::commit();
             return redirect()->route('money-receipt.index')->with('success', "Money Receipt updated successfully.");
 
@@ -579,6 +593,7 @@ class MoneyReceiptController extends Controller
 
             $payment->delete();
 
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             DB::commit();
             return redirect()->route('money-receipt.index')->with('success', 'Money Receipt deleted successfully.');
 

@@ -603,6 +603,7 @@ class PosController extends Controller
             }
             // =====================================================
 
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             DB::commit();
 
             // Send Sale Confirmation Email
@@ -2155,12 +2156,24 @@ class PosController extends Controller
 
     private function generateSaleNumber()
     {
-        $nextId = (Pos::max('id') ?? 0) + 1;
-        $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        $prefix = 'POS-';
+        $lastPos = Pos::where('sale_number', 'like', $prefix . '%')
+            ->orderByRaw('LENGTH(sale_number) DESC')
+            ->orderBy('sale_number', 'desc')
+            ->first();
+
+        if ($lastPos) {
+            $numberPart = (int) str_replace($prefix, '', $lastPos->sale_number);
+            $newSeq = $numberPart + 1;
+        } else {
+            $newSeq = 1;
+        }
+
+        $number = $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
 
         while (Pos::where('sale_number', $number)->exists()) {
-            $nextId++;
-            $number = 'POS-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+            $newSeq++;
+            $number = $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
         }
 
         return $number;
@@ -2168,12 +2181,24 @@ class PosController extends Controller
 
     private function generateManualSaleNumber()
     {
-        $nextId = (Pos::max('id') ?? 0) + 1;
-        $number = 'MAN-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        $prefix = 'MAN-';
+        $lastPos = Pos::where('sale_number', 'like', $prefix . '%')
+            ->orderByRaw('LENGTH(sale_number) DESC')
+            ->orderBy('sale_number', 'desc')
+            ->first();
+
+        if ($lastPos) {
+            $numberPart = (int) str_replace($prefix, '', $lastPos->sale_number);
+            $newSeq = $numberPart + 1;
+        } else {
+            $newSeq = 1;
+        }
+
+        $number = $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
 
         while (Pos::where('sale_number', $number)->exists()) {
-            $nextId++;
-            $number = 'MAN-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+            $newSeq++;
+            $number = $prefix . str_pad($newSeq, 6, '0', STR_PAD_LEFT);
         }
 
         return $number;
