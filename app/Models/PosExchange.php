@@ -30,7 +30,7 @@ class PosExchange extends Model
 
     public function account()
     {
-        return $this->belongsTo(Account::class, 'account_id');
+        return $this->belongsTo(FinancialAccount::class, 'account_id');
     }
 
     public function items()

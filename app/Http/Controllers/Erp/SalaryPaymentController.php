@@ -122,10 +122,20 @@ class SalaryPaymentController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'month' => 'required',
             'year' => 'required',
-            'paid_amount' => 'required|numeric|min:0.01',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'bonus_amount' => 'nullable|numeric|min:0',
+            'festival_bonus_amount' => 'nullable|numeric|min:0',
             'payment_date' => 'required|date',
             'account_id' => 'required|exists:financial_accounts,id',
         ]);
+
+        $paidAmount = floatval($request->paid_amount ?? 0);
+        $bonusAmount = floatval($request->bonus_amount ?? 0);
+        $festivalBonusAmount = floatval($request->festival_bonus_amount ?? 0);
+
+        if (($paidAmount + $bonusAmount + $festivalBonusAmount) <= 0) {
+            return back()->withErrors(['paid_amount' => 'Please enter an amount for Main Salary Paid, Target Bonus, or Festival Bonus.'])->withInput();
+        }
 
         $employee = Employee::find($request->employee_id);
         $finAcc = FinancialAccount::findOrFail($request->account_id);

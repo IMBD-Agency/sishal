@@ -68,24 +68,127 @@
                 </div>
             </div>
 
-            <!-- Net Result -->
-            <div class="mb-4 p-4 border rounded text-center shadow-sm {{ ($netCashProfit ?? 0) >= 0 ? 'bg-success text-white' : 'bg-danger text-white' }}">
-                <h6 class="text-uppercase fw-bold mb-1 opacity-75">Net Cash Profit</h6>
-                <h1 class="fw-bold mb-0">Tk. {{ number_format($netCashProfit ?? 0, 2) }}</h1>
-                <p class="mb-0 fw-bold small mt-2">Gross Cash Profit - Operating Expenses</p>
-            </div>
             
-            @if($totalDue > 0)
-            <div class="alert alert-info border-0 shadow-sm mb-4">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-info-circle fs-4 me-3"></i>
-                    <div>
-                        <h6 class="fw-bold mb-0">Total Due Generated: Tk. {{ number_format($totalDue, 2) }}</h6>
-                        <small>Uncollected invoice amounts generated during this period.</small>
+            @if(($totalPurchaseAmount ?? 0) > 0 || ($totalSupplierDue ?? 0) > 0 || ($totalDue ?? 0) > 0)
+            <!-- Activity & Liability Summary Cards -->
+            <div class="row g-3 mb-4">
+                @if(($totalPurchaseAmount ?? 0) > 0)
+                <div class="col-md-{{ (($totalSupplierDue ?? 0) > 0 && ($totalDue ?? 0) > 0) ? '4' : ((($totalSupplierDue ?? 0) > 0 || ($totalDue ?? 0) > 0) ? '6' : '12') }}">
+                    <div class="card border-0 bg-secondary bg-opacity-10 border-start border-secondary border-4 shadow-sm h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-secondary bg-opacity-25 p-2 me-3 text-secondary">
+                                    <i class="fas fa-boxes fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="text-uppercase small fw-bold text-muted d-block">Total Purchase Value</span>
+                                    <h5 class="fw-bold mb-0 text-dark">Tk. {{ number_format($totalPurchaseAmount, 2) }}</h5>
+                                    <small class="text-muted" style="font-size: 7.5pt;">*Total inventory purchase bills created in this period.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if(($totalSupplierDue ?? 0) > 0)
+                <div class="col-md-{{ (($totalPurchaseAmount ?? 0) > 0 && ($totalDue ?? 0) > 0) ? '4' : ((($totalPurchaseAmount ?? 0) > 0 || ($totalDue ?? 0) > 0) ? '6' : '12') }}">
+                    <div class="card border-0 bg-warning bg-opacity-10 border-start border-warning border-4 shadow-sm h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-warning bg-opacity-25 p-2 me-3 text-warning">
+                                    <i class="fas fa-truck-loading fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="text-uppercase small fw-bold text-muted d-block">Supplier Purchase Due (Payable)</span>
+                                    <h5 class="fw-bold mb-0 text-dark">Tk. {{ number_format($totalSupplierDue, 2) }}</h5>
+                                    <small class="text-muted" style="font-size: 7.5pt;">*Pending purchase liability for this period. Profit accounts for COGS.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if(($totalDue ?? 0) > 0)
+                <div class="col-md-{{ (($totalPurchaseAmount ?? 0) > 0 && ($totalSupplierDue ?? 0) > 0) ? '4' : ((($totalPurchaseAmount ?? 0) > 0 || ($totalSupplierDue ?? 0) > 0) ? '6' : '12') }}">
+                    <div class="card border-0 bg-info bg-opacity-10 border-start border-info border-4 shadow-sm h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-info bg-opacity-25 p-2 me-3 text-info">
+                                    <i class="fas fa-hand-holding-usd fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="text-uppercase small fw-bold text-muted d-block">Customer Invoice Due (Receivable)</span>
+                                    <h5 class="fw-bold mb-0 text-dark">Tk. {{ number_format($totalDue, 2) }}</h5>
+                                    <small class="text-muted" style="font-size: 7.5pt;">*Uncollected invoice amounts generated during this period.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+            </div>
+            @endif
+            <!-- Collection Channel Breakdown (Cash, Bank, Mobile MFS) -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 bg-success bg-opacity-10 border-start border-success border-4 shadow-sm h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-success bg-opacity-25 p-2 me-3 text-success">
+                                    <i class="fas fa-money-bill-wave fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="text-uppercase small fw-bold text-muted d-block">Cash Book Movement</span>
+                                    <h5 class="fw-bold mb-0 {{ ($cashCollection ?? 0) < 0 ? 'text-danger' : 'text-dark' }}">
+                                        {{ ($cashCollection ?? 0) < 0 ? '- Tk. ' . number_format(abs($cashCollection), 2) : 'Tk. ' . number_format($cashCollection ?? 0, 2) }}
+                                    </h5>
+                                    <small class="text-muted" style="font-size: 7.5pt;">*Net cash book movement (Debit - Credit)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card border-0 bg-primary bg-opacity-10 border-start border-primary border-4 shadow-sm h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary bg-opacity-25 p-2 me-3 text-primary">
+                                    <i class="fas fa-university fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="text-uppercase small fw-bold text-muted d-block">Bank Book Movement</span>
+                                    <h5 class="fw-bold mb-0 {{ ($bankCollection ?? 0) < 0 ? 'text-danger' : 'text-dark' }}">
+                                        {{ ($bankCollection ?? 0) < 0 ? '- Tk. ' . number_format(abs($bankCollection), 2) : 'Tk. ' . number_format($bankCollection ?? 0, 2) }}
+                                    </h5>
+                                    <small class="text-muted" style="font-size: 7.5pt;">*Net bank & card movement (Debit - Credit)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card border-0 border-start border-4 shadow-sm h-100" style="background-color: #f3e8ff; border-left-color: #9333ea !important;">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle p-2 me-3 text-white" style="background-color: #9333ea;">
+                                    <i class="fas fa-mobile-alt fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="text-uppercase small fw-bold text-muted d-block">Mobile Book Movement (MFS)</span>
+                                    <h5 class="fw-bold mb-0 {{ ($mobileCollection ?? 0) < 0 ? 'text-danger' : 'text-dark' }}">
+                                        {{ ($mobileCollection ?? 0) < 0 ? '- Tk. ' . number_format(abs($mobileCollection), 2) : 'Tk. ' . number_format($mobileCollection ?? 0, 2) }}
+                                    </h5>
+                                    <small class="text-muted" style="font-size: 7.5pt;">*Net bKash, Nagad, Rocket (Debit - Credit)</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            @endif
 
             <!-- Left/Right Summary Table -->
             <div class="card border shadow-sm mb-4">
@@ -107,9 +210,34 @@
                                                 <td class="ps-3 py-2 text-secondary fw-semibold" colspan="2"><small class="text-uppercase text-muted">Collection Income</small></td>
                                             </tr>
                                             <tr>
-                                                <td class="ps-3 py-2 text-secondary">Current Sales Collection</td>
-                                                <td class="pe-3 py-2 text-end fw-bold text-dark">Tk. {{ number_format($totalCollected, 2) }}</td>
+                                                <td class="ps-3 py-2 text-dark fw-bold">Current Sales Collection (Net)</td>
+                                                <td class="pe-3 py-2 text-end fw-bold text-dark fs-6">Tk. {{ number_format($totalCollected, 2) }}</td>
                                             </tr>
+                                            @if(($totalGrossPayments ?? 0) > 0 || ($totalReturnRefunds ?? 0) > 0 || ($totalExchangeRefunds ?? 0) > 0)
+                                            <tr>
+                                                <td class="ps-4 py-1 text-secondary small">↳ Gross Sales Payment Collected</td>
+                                                <td class="pe-3 py-1 text-end text-secondary small">Tk. {{ number_format($totalGrossPayments ?? 0, 2) }}</td>
+                                            </tr>
+                                            @if(($totalReturnRefunds ?? 0) > 0)
+                                            <tr>
+                                                <td class="ps-4 py-1 text-danger small">↳ Less: Sale Returns Cash Refunded</td>
+                                                <td class="pe-3 py-1 text-end text-danger small">- Tk. {{ number_format($totalReturnRefunds, 2) }}</td>
+                                            </tr>
+                                            @endif
+                                            @if(($totalExchangeRefunds ?? 0) > 0)
+                                            <tr>
+                                                <td class="ps-4 py-1 text-warning small">↳ Less: POS Exchange Cash Refunded</td>
+                                                <td class="pe-3 py-1 text-end text-warning small">- Tk. {{ number_format($totalExchangeRefunds, 2) }}</td>
+                                            </tr>
+                                            @elseif(($totalExchangeCount ?? 0) > 0)
+                                            <tr>
+                                                <td class="ps-4 py-1 text-warning small">
+                                                    ↳ POS Exchange Adjusted <small class="text-muted">({{ $totalExchangeCount }} exchange(s) processed)</small>
+                                                </td>
+                                                <td class="pe-3 py-1 text-end text-muted small">Tk. 0.00</td>
+                                            </tr>
+                                            @endif
+                                            @endif
                                              <tr>
                                                  <td class="ps-3 py-2 text-secondary">↳ Less: Estimated Cost Portion</td>
                                                  <td class="pe-3 py-2 text-end text-warning">— Tk. {{ number_format($totalEstimatedCost, 2) }}</td>
@@ -181,6 +309,13 @@
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <!-- Net Result (Final Summary Banner) -->
+            <div class="mb-4 p-4 border rounded text-center shadow-sm {{ ($netCashProfit ?? 0) >= 0 ? 'bg-success text-white' : 'bg-danger text-white' }}">
+                <h6 class="text-uppercase fw-bold mb-1 opacity-75">Net Cash Profit</h6>
+                <h1 class="fw-bold mb-0">Tk. {{ number_format($netCashProfit ?? 0, 2) }}</h1>
+                <p class="mb-0 fw-bold small mt-2">Gross Cash Profit - Operating Expenses</p>
             </div>
 
             <!-- Sale Returns Breakdown Table -->

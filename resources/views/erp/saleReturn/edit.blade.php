@@ -146,9 +146,17 @@
                                             <tr class="product-row" data-index="{{ $i }}">
                                                 <td class="ps-4">
                                                     <select name="items[{{ $i }}][product_id]" class="form-select product-select" required>
+                                                        <option value="">Select Product</option>
                                                         @foreach($products as $product)
-                                                            <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                                                            <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>
+                                                                {{ $product->name }} {{ $product->style_number || $product->sku ? '(#'.($product->style_number ?? $product->sku).')' : '' }}
+                                                            </option>
                                                         @endforeach
+                                                        @if($item->product && !$products->contains('id', $item->product_id))
+                                                            <option value="{{ $item->product_id }}" selected>
+                                                                {{ $item->product->name }} {{ $item->product->style_number || $item->product->sku ? '(#'.($item->product->style_number ?? $item->product->sku).')' : '' }}
+                                                            </option>
+                                                        @endif
                                                     </select>
                                                     <div class="variation-wrapper mt-2" style="display:none;" data-product-id="{{ $item->product_id }}" data-variation-id="{{ $item->variation_id ?? '' }}">
                                                         <select name="items[{{ $i }}][variation_id]" class="form-select variation-select small py-1">

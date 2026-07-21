@@ -465,7 +465,7 @@ class ReportController extends Controller
         $branchId = $restrictedBranchId ?: $request->get('branch_id');
 
         // Fetch payments, returns, and exchanges in the current period to identify active transactions
-        $paymentsQuery = \App\Models\Payment::with(['pos', 'invoice'])
+        $paymentsQuery = \App\Models\Payment::with(['pos', 'invoice', 'account'])
             ->whereBetween('payment_date', [$startDate, $endDate])
             ->whereIn('payment_for', ['invoice', 'pos', 'pos_sale', 'advance_payment', 'customer_due', 'manual_receipt']);
 
@@ -489,7 +489,7 @@ class ReportController extends Controller
         }
         $returns = $returnsQuery->get();
 
-        $exchangesQuery = \App\Models\PosExchange::with(['originalPos'])
+        $exchangesQuery = \App\Models\PosExchange::with(['originalPos', 'account'])
             ->whereBetween('exchange_date', [$startDate, $endDate])
             ->where('status', 'completed');
 
@@ -559,6 +559,9 @@ class ReportController extends Controller
         $totalCollected = 0;
         $totalEstimatedCost = 0;
         $totalCashProfit = 0;
+        $totalGrossPayments = 0;
+        $totalReturnRefunds = 0;
+        $totalExchangeRefunds = 0;
         $saleReturnCashRefund = 0;
         $exchangeProfitChange = 0;
         $saleReturnDetails = collect();
@@ -632,6 +635,10 @@ class ReportController extends Controller
             $priorCashAdjustment = $cumulativeProductCashStart * ($currentInfo['margin'] - $priorInfo['margin']);
 
             $txCashProfit = $cashProfitOnNetCollection + $priorCashAdjustment;
+
+            $totalGrossPayments += $currentPayments;
+            $totalReturnRefunds += $currentRefunds;
+            $totalExchangeRefunds += $currentExchangeRefunds;
 
             $totalCollected += $netCollectionForTx;
             $totalCashProfit += $txCashProfit;
@@ -715,22 +722,75 @@ class ReportController extends Controller
 
         $netCashProfit = ($totalCashProfit + $totalOtherIncome + $exchangeProfitChange) - ($totalOperatingExpenses + $saleReturnCashRefund);
 
-        // --- Calculate Total Due generated in this period ---
+        // --- Calculate Total Customer Due generated in this period ---
         $dueQuery = \App\Models\Invoice::whereBetween('issue_date', [$startDate, $endDate]);
         if ($branchId) {
-            $dueQuery->whereHas('pos', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
+            $dueQuery->where(function($q) use ($branchId) {
+                $q->whereHas('pos', function($pq) use ($branchId) {
+                    $pq->where('branch_id', $branchId);
+                })
+                ->orWhereHas('customer', function($cq) use ($branchId) {
+                    $cq->where('branch_id', $branchId);
+                })
+                ->orWhereHas('payments', function($payq) use ($branchId) {
+                    $payq->whereHas('account', function($accq) use ($branchId) {
+                        $accq->where('branch_id', $branchId);
+                    });
+                });
             });
         }
         $totalDue = $dueQuery->sum('due_amount');
 
+        // --- Calculate Total Purchase Value and Supplier Due (Accounts Payable) generated in this period ---
+        $supplierDueQuery = \App\Models\PurchaseBill::whereBetween('bill_date', [$startDate, $endDate]);
+        if ($branchId) {
+            $supplierDueQuery->whereHas('purchase', function($q) use ($branchId) {
+                $q->where('ship_location_type', 'branch')->where('location_id', $branchId);
+            });
+        }
+        $totalPurchaseAmount = $supplierDueQuery->sum('total_amount');
+        $totalSupplierDue = $supplierDueQuery->sum('due_amount');
+
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
+
+        // --- Calculate Channel Breakdown (Cash Book, Bank Book, Mobile Book) matching Financial Book reports 100% ---
+        $getChannelCollection = function($type) use ($startDate, $endDate, $branchId) {
+            $accountIds = \App\Models\FinancialAccount::where('type', $type)
+                ->when($branchId, function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                })
+                ->pluck('id');
+
+            if ($accountIds->isEmpty()) {
+                return 0;
+            }
+
+            $movement = \App\Models\JournalEntry::whereIn('financial_account_id', $accountIds)
+                ->whereHas('journal', function($q) use ($startDate, $endDate) {
+                    $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
+                })
+                ->selectRaw('SUM(debit) as total_debit, SUM(credit) as total_credit')
+                ->first();
+
+            return floatval(($movement->total_debit ?? 0) - ($movement->total_credit ?? 0));
+        };
+
+        $cashCollection = $getChannelCollection(\App\Models\FinancialAccount::TYPE_CASH);
+        $bankCollection = $getChannelCollection(\App\Models\FinancialAccount::TYPE_BANK);
+        $mobileCollection = $getChannelCollection(\App\Models\FinancialAccount::TYPE_MOBILE);
+
+        $totalExchangeCount = $exchanges->count();
+        $totalExchangeReturnVal = $exchanges->sum('total_return_amount');
+        $totalExchangeNewVal = $exchanges->sum('total_new_amount');
 
         return view('erp.reports.cash-profit', compact(
             'cashProfits', 'startDate', 'endDate', 'reportType', 'branches', 'branchId',
             'totalCollected', 'totalEstimatedCost', 'totalCashProfit', 'totalOtherIncome', 'creditVoucherDetails',
             'totalOperatingExpenses', 'debitVoucherDetails', 'employeePayment',
-            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'totalDue', 'exchangeProfitChange'
+            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'totalDue', 'totalSupplierDue', 'totalPurchaseAmount', 'exchangeProfitChange',
+            'totalGrossPayments', 'totalReturnRefunds', 'totalExchangeRefunds',
+            'totalExchangeCount', 'totalExchangeReturnVal', 'totalExchangeNewVal',
+            'cashCollection', 'bankCollection', 'mobileCollection'
         ));
     }
 
@@ -769,7 +829,7 @@ class ReportController extends Controller
             foreach ($exchanges as $exchange) {
                 foreach ($exchange->items as $item) {
                     if ($item->type == 'new') {
-                        $cost = $item->variation ? $item->variation->cost : ($item->product ? $item->product->cost : 0);
+                        $cost = $item->product ? $item->product->calculateCost($item->variation_id) : 0;
                         $exchangeNewCost += $item->quantity * $cost;
                     }
                 }
@@ -784,38 +844,63 @@ class ReportController extends Controller
         $delivery = floatval($type === 'pos' ? ($model->delivery ?? 0) : (($model->order ?? null) ? $model->order->delivery : 0));
         $activeProductRevenue = max(0, $activeSaleAmount - $delivery);
         
-        // 5. Cost
+        // 5. Cost (filter parent items only to prevent double counting combo child items)
+        $originalCost = 0;
         if ($type === 'pos') {
-            $costQuery = \App\Models\PosItem::where('pos_sale_id', $model->id)
-                ->join('products', 'pos_items.product_id', '=', 'products.id')
-                ->leftJoin('product_variations', 'pos_items.variation_id', '=', 'product_variations.id');
-            $originalCost = $costQuery->sum(\DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
+            $items = \App\Models\PosItem::where('pos_sale_id', $model->id)
+                ->whereNull('parent_item_id')
+                ->with(['product', 'variation'])
+                ->get();
+            foreach ($items as $item) {
+                $unitCost = (float) ($item->unit_cost ?? 0);
+                if ($unitCost <= 0 && $item->product) {
+                    $unitCost = $item->product->calculateCost($item->variation_id);
+                }
+                $originalCost += $item->quantity * $unitCost;
+            }
         } elseif ($type === 'order') {
-            $costQuery = \App\Models\OrderItem::where('order_id', $model->id)
-                ->join('products', 'order_items.product_id', '=', 'products.id')
-                ->leftJoin('product_variations', 'order_items.variation_id', '=', 'product_variations.id');
-            $originalCost = $costQuery->sum(\DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+            $items = \App\Models\OrderItem::where('order_id', $model->id)
+                ->whereNull('parent_item_id')
+                ->with(['product', 'variation'])
+                ->get();
+            foreach ($items as $item) {
+                $unitCost = (float) ($item->unit_cost ?? 0);
+                if ($unitCost <= 0 && $item->product) {
+                    $unitCost = $item->product->calculateCost($item->variation_id);
+                }
+                $originalCost += $item->quantity * $unitCost;
+            }
         } elseif ($type === 'invoice') {
-            $costQuery = \App\Models\InvoiceItem::where('invoice_id', $model->id)
-                ->join('products', 'invoice_items.product_id', '=', 'products.id')
-                ->leftJoin('product_variations', 'invoice_items.variation_id', '=', 'product_variations.id');
-            $originalCost = $costQuery->sum(\DB::raw('invoice_items.quantity * COALESCE(product_variations.cost, products.cost, 0)'));
-        } else {
-            $originalCost = 0;
+            $items = \App\Models\InvoiceItem::where('invoice_id', $model->id)
+                ->with(['product', 'variation'])
+                ->get();
+            foreach ($items as $item) {
+                $unitCost = 0;
+                if ($item->product) {
+                    $unitCost = $item->product->calculateCost($item->variation_id);
+                }
+                $originalCost += $item->quantity * $unitCost;
+            }
         }
         
         $returnedCost = 0;
         if ($returns->isNotEmpty()) {
             if ($type === 'order') {
-                $returnedCost = \App\Models\OrderReturnItem::whereIn('order_return_id', $returns->pluck('id'))
-                    ->join('products', 'order_return_items.product_id', '=', 'products.id')
-                    ->leftJoin('product_variations', 'order_return_items.variation_id', '=', 'product_variations.id')
-                    ->sum(\DB::raw('order_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+                $returnItems = \App\Models\OrderReturnItem::whereIn('order_return_id', $returns->pluck('id'))
+                    ->with(['product', 'variation'])
+                    ->get();
+                foreach ($returnItems as $rItem) {
+                    $unitCost = $rItem->product ? $rItem->product->calculateCost($rItem->variation_id) : 0;
+                    $returnedCost += $rItem->returned_qty * $unitCost;
+                }
             } else {
-                $returnedCost = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
-                    ->join('products', 'sale_return_items.product_id', '=', 'products.id')
-                    ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id')
-                    ->sum(\DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+                $returnItems = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
+                    ->with(['product', 'variation'])
+                    ->get();
+                foreach ($returnItems as $rItem) {
+                    $unitCost = $rItem->product ? $rItem->product->calculateCost($rItem->variation_id) : 0;
+                    $returnedCost += $rItem->returned_qty * $unitCost;
+                }
             }
         }
         
@@ -926,32 +1011,55 @@ class ReportController extends Controller
 
         // --- EXPENSE SIDE ---
 
-        // 1. Cost of Goods Sold
-        $posCostQuery = PosItem::whereHas('pos', function($q) use ($startDate, $endDate, $branchId) {
+        // 1. Cost of Goods Sold (filter parent items only to prevent double counting combo child items)
+        $posItemsForCost = PosItem::whereHas('pos', function($q) use ($startDate, $endDate, $branchId) {
                 $q->whereBetween('sale_date', [$startDate, $endDate]);
                 if ($branchId) $q->where('branch_id', $branchId);
             })
-            ->join('products', 'pos_items.product_id', '=', 'products.id')
-            ->leftJoin('product_variations', 'pos_items.variation_id', '=', 'product_variations.id');
-        $posCost = $posCostQuery->sum(DB::raw('pos_items.quantity * COALESCE(pos_items.unit_cost, product_variations.cost, products.cost, 0)'));
-            
-        $onlineCost = OrderItem::whereHas('order', function($q) use ($startDate, $endDate) {
+            ->whereNull('parent_item_id')
+            ->with(['product', 'variation'])
+            ->get();
+
+        $posCost = 0;
+        foreach ($posItemsForCost as $item) {
+            $unitCost = (float) ($item->unit_cost ?? 0);
+            if ($unitCost <= 0 && $item->product) {
+                $unitCost = $item->product->calculateCost($item->variation_id);
+            }
+            $posCost += $item->quantity * $unitCost;
+        }
+
+        $onlineItemsForCost = OrderItem::whereHas('order', function($q) use ($startDate, $endDate) {
                 $q->whereBetween('created_at', [$startDate, $endDate])->where('status', '!=', 'cancelled');
             })
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->leftJoin('product_variations', 'order_items.variation_id', '=', 'product_variations.id')
-            ->sum(DB::raw('order_items.quantity * COALESCE(order_items.unit_cost, product_variations.cost, products.cost, 0)'));
+            ->whereNull('parent_item_id')
+            ->with(['product', 'variation'])
+            ->get();
 
-        $exchangeCostQuery = \App\Models\PosExchangeItem::where('pos_exchange_items.type', 'new')
+        $onlineCost = 0;
+        foreach ($onlineItemsForCost as $item) {
+            $unitCost = (float) ($item->unit_cost ?? 0);
+            if ($unitCost <= 0 && $item->product) {
+                $unitCost = $item->product->calculateCost($item->variation_id);
+            }
+            $onlineCost += $item->quantity * $unitCost;
+        }
+
+        $exchangeItemsForCost = \App\Models\PosExchangeItem::where('pos_exchange_items.type', 'new')
             ->whereHas('exchange', function($q) use ($startDate, $endDate, $branchId) {
                 $q->whereBetween('exchange_date', [$startDate, $endDate]);
                 if ($branchId) $q->where('branch_id', $branchId);
             })
-            ->join('products', 'pos_exchange_items.product_id', '=', 'products.id')
-            ->leftJoin('product_variations', 'pos_exchange_items.variation_id', '=', 'product_variations.id');
-        $exchangeCost = $exchangeCostQuery->sum(DB::raw('pos_exchange_items.quantity * COALESCE(product_variations.cost, products.cost, 0)'));
+            ->with(['product', 'variation'])
+            ->get();
 
-        $returnCostQuery = \App\Models\SaleReturnItem::whereHas('saleReturn', function($q) use ($startDate, $endDate, $branchId) {
+        $exchangeCost = 0;
+        foreach ($exchangeItemsForCost as $item) {
+            $unitCost = $item->product ? $item->product->calculateCost($item->variation_id) : 0;
+            $exchangeCost += $item->quantity * $unitCost;
+        }
+
+        $returnItemsForCost = \App\Models\SaleReturnItem::whereHas('saleReturn', function($q) use ($startDate, $endDate, $branchId) {
                 $q->whereBetween('return_date', [$startDate, $endDate]);
                 $q->whereIn('status', ['completed', 'approved', 'processed']);
                 if ($branchId) {
@@ -960,9 +1068,14 @@ class ReportController extends Controller
                     });
                 }
             })
-            ->join('products', 'sale_return_items.product_id', '=', 'products.id')
-            ->leftJoin('product_variations', 'sale_return_items.variation_id', '=', 'product_variations.id');
-        $returnCost = $returnCostQuery->sum(DB::raw('sale_return_items.returned_qty * COALESCE(product_variations.cost, products.cost, 0)'));
+            ->with(['product', 'variation'])
+            ->get();
+
+        $returnCost = 0;
+        foreach ($returnItemsForCost as $item) {
+            $unitCost = $item->product ? $item->product->calculateCost($item->variation_id) : 0;
+            $returnCost += $item->returned_qty * $unitCost;
+        }
             
         $cogsAmount = $posCost + $onlineCost + $exchangeCost - $returnCost;
 
@@ -1066,7 +1179,10 @@ class ReportController extends Controller
     {
         $reportType = $request->get('report_type', 'daily');
         
-        if ($reportType == 'monthly') {
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $startDate = Carbon::parse($request->start_date)->startOfDay();
+            $endDate = Carbon::parse($request->end_date)->endOfDay();
+        } elseif ($reportType == 'monthly') {
             $month = $request->get('month', Carbon::now()->month);
             $year = $request->get('year', Carbon::now()->year);
             $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
@@ -1076,8 +1192,8 @@ class ReportController extends Controller
             $startDate = Carbon::createFromDate($year, 1, 1)->startOfYear();
             $endDate = $startDate->copy()->endOfYear();
         } else {
-            $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::now()->startOfDay();
-            $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::now()->endOfDay();
+            $startDate = Carbon::now()->startOfDay();
+            $endDate = Carbon::now()->endOfDay();
         }
 
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -1089,56 +1205,34 @@ class ReportController extends Controller
         }
         
         $accounts = $query->get()->map(function($account) use ($startDate, $endDate, $branchId) {
-            // Current total balance for consolidated view reference
-            $currentTotalBalance = $account->balance;
+            // 1. Calculate opening balance before the start date
+            $openingMovement = JournalEntry::where('financial_account_id', $account->id)
+                ->whereHas('journal', function($q) use ($startDate, $branchId) {
+                    $q->where('entry_date', '<', $startDate->toDateString());
+                    if ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    }
+                })
+                ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                ->first();
+            
+            $opening = ($openingMovement->d ?? 0) - ($openingMovement->c ?? 0);
 
-            if ($branchId) {
-                // BRANCH SPECIFIC LOGIC
-                // 1. Calculate balance before the period (Opening)
-                $openingMovement = JournalEntry::where('financial_account_id', $account->id)
-                    ->whereHas('journal', function($q) use ($startDate) {
-                        $q->where('entry_date', '<', $startDate->toDateString());
-                    })
-                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
-                    ->first();
-                
-                $opening = ($openingMovement->d ?? 0) - ($openingMovement->c ?? 0);
+            // 2. Calculate balance during the period (Movements)
+            $periodMovement = JournalEntry::where('financial_account_id', $account->id)
+                ->whereHas('journal', function($q) use ($startDate, $endDate, $branchId) {
+                    $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
+                    if ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    }
+                })
+                ->selectRaw('SUM(debit) as d, SUM(credit) as c')
+                ->first();
 
-                // 2. Calculate balance during the period (Movements)
-                $periodMovement = JournalEntry::where('financial_account_id', $account->id)
-                    ->whereHas('journal', function($q) use ($startDate, $endDate) {
-                        $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
-                    })
-                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
-                    ->first();
-
-                $account->opening = $opening;
-                $account->debit = $periodMovement->d ?? 0;
-                $account->credit = $periodMovement->c ?? 0;
-                $account->closing = $opening + $account->debit - $account->credit;
-            } else {
-                // CONSOLIDATED LOGIC (Working backwards from current total balance)
-                $futureMovement = JournalEntry::where('financial_account_id', $account->id)
-                    ->whereHas('journal', function($q) use ($startDate) {
-                        $q->where('entry_date', '>=', $startDate->toDateString());
-                    })
-                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
-                    ->first();
-
-                $opening = $currentTotalBalance - ($futureMovement->d ?? 0) + ($futureMovement->c ?? 0);
-
-                $periodMovement = JournalEntry::where('financial_account_id', $account->id)
-                    ->whereHas('journal', function($q) use ($startDate, $endDate) {
-                        $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
-                    })
-                    ->selectRaw('SUM(debit) as d, SUM(credit) as c')
-                    ->first();
-
-                $account->opening = $opening;
-                $account->debit = $periodMovement->d ?? 0;
-                $account->credit = $periodMovement->c ?? 0;
-                $account->closing = $opening + $account->debit - $account->credit;
-            }
+            $account->opening = $opening;
+            $account->debit = $periodMovement->d ?? 0;
+            $account->credit = $periodMovement->c ?? 0;
+            $account->closing = $opening + $account->debit - $account->credit;
 
             return $account;
         });

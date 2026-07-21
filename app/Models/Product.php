@@ -559,6 +559,34 @@ class Product extends Model
     }
 
     /**
+     * Calculate cost of product or combo product
+     */
+    public function calculateCost($variationId = null): float
+    {
+        if ($variationId) {
+            $variation = \App\Models\ProductVariation::find($variationId);
+            if ($variation && $variation->cost > 0) {
+                return (float) $variation->cost;
+            }
+        }
+
+        if ($this->isCombo()) {
+            $comboCost = 0;
+            if (!$this->relationLoaded('comboItems')) {
+                $this->load('comboItems.product');
+            }
+            foreach ($this->comboItems as $item) {
+                if ($item->product) {
+                    $comboCost += $item->product->calculateCost($item->variation_id) * $item->quantity;
+                }
+            }
+            return (float) $comboCost;
+        }
+
+        return (float) ($this->cost ?? 0);
+    }
+
+    /**
      * Calculate the dynamic stock of this combo product
      */
     public function getComboStock($branchId = null)

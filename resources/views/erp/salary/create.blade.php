@@ -67,9 +67,9 @@
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold small text-primary">Amount Paid *</label>
+                                <label class="form-label fw-bold small text-primary">Salary Paid Amount (Main)</label>
                                 <div class="input-group">
-                                    <input type="number" step="0.01" name="paid_amount" id="paid_amount" class="form-control border-primary" required placeholder="0.00">
+                                    <input type="number" step="0.01" name="paid_amount" id="paid_amount" class="form-control border-primary" value="0" placeholder="0.00">
                                     <span class="input-group-text bg-primary text-white border-primary">৳</span>
                                 </div>
                                 <div id="due_hint" class="small text-danger mt-1 fw-bold"></div>
@@ -253,11 +253,20 @@
             }
             
             $('#salaryForm').on('submit', function(e) {
-                let paid = parseFloat($('#paid_amount').val());
+                let paid = parseFloat($('#paid_amount').val()) || 0;
+                let bonus = parseFloat($('#bonus_amount').val()) || 0;
+                let festBonus = parseFloat($('#festival_bonus_amount').val()) || 0;
+                let totalPaid = paid + bonus + festBonus;
+
+                if (totalPaid <= 0) {
+                    alert('Please enter an amount for Salary Paid, Target Bonus, or Festival Bonus.');
+                    e.preventDefault();
+                    return false;
+                }
+
                 let due = parseFloat($('#total_salary').val()) - parseFloat($('#previous_paid').val());
-                
-                if(paid > due + 0.01) { // 0.01 buffer for float issues
-                    if(!confirm('Paid amount exceeds current due. Do you want to continue?')) {
+                if (paid > due + 0.01) { // 0.01 buffer for float issues
+                    if (!confirm('Main salary paid amount exceeds current salary due. Do you want to continue?')) {
                         e.preventDefault();
                     }
                 }

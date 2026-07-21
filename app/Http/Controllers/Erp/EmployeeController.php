@@ -37,8 +37,12 @@ class EmployeeController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
         $employees = $query->orderBy('id', 'desc')->paginate(10)->appends($request->except('page'));
-        return view('erp.employees.employeelist', compact('employees'));
+        $branches = Branch::all();
+        return view('erp.employees.employeelist', compact('employees', 'branches'));
     }
 
     /**

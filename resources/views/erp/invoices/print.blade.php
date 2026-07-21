@@ -230,12 +230,23 @@
             </thead>
             <tbody>
                 @foreach ($invoice->items as $item)
-                @if(@$item->product->type == 'product')
+                @if($item->parent_item_id !== null) @continue @endif
+                @php
+                    $isCombo = @$item->product && $item->product->isCombo();
+                    $comboOriginalVal = $isCombo ? ($item->product->combo_original_price * $item->quantity) : 0;
+                    $comboSavings = $isCombo ? max(0, $comboOriginalVal - $item->total_price) : 0;
+                @endphp
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td style="text-align:left;">
                         {{ @$item->product->name }}
-                        @if($item->variation)
+                        @if($isCombo)
+                            <br><small style="color: #28a745; font-weight: bold;">[Combo Offer Package]</small>
+                            <br><small style="color: #555;">Regular Value: {{ number_format($comboOriginalVal, 2) }} Tk</small>
+                            @if($comboSavings > 0)
+                                <br><small style="color: #d32f2f;">(Combo Savings: {{ number_format($comboSavings, 2) }} Tk)</small>
+                            @endif
+                        @elseif($item->variation)
                             <br><small style="color: #666;">Variation: {{ $item->variation->name ?? '-' }}</small>
                         @endif
                     </td>
@@ -248,18 +259,29 @@
                     </td>
                     <td>{{ number_format($item->quantity, 0) }}</td>
                     <td>PCS</td>
-                    <td>{{ @$item->unit_price }} Tk</td>
+                    <td>
+                        @if($isCombo)
+                            {{ number_format($item->unit_price, 2) }} Tk
+                            <br><small style="color: #666;">(Combo Price)</small>
+                        @else
+                            {{ number_format($item->unit_price, 2) }} Tk
+                        @endif
+                    </td>
                     @php
-                        $originalPrice = @$item->product->discount ?? @$item->product->price;
-                        $unitPrice = @$item->unit_price;
-                        $discountPercent = ($originalPrice && $originalPrice > 0 && $unitPrice < $originalPrice)
-                            ? number_format((($originalPrice - $unitPrice) / $originalPrice) * 100, 2)
-                            : '0.00';
+                        if ($isCombo) {
+                            $discountDisplay = 'Combo Offer';
+                        } else {
+                            $originalPrice = @$item->product->price ?? @$item->unit_price;
+                            $unitPrice = @$item->unit_price;
+                            $discountPercent = ($originalPrice && $originalPrice > 0 && $unitPrice < $originalPrice)
+                                ? number_format((($originalPrice - $unitPrice) / $originalPrice) * 100, 2) . '%'
+                                : '0.00%';
+                            $discountDisplay = $discountPercent;
+                        }
                     @endphp
-                    <td>{{ $discountPercent }}%</td>
-                    <td>{{ @$item->total_price }} Tk</td>
+                    <td>{{ $discountDisplay }}</td>
+                    <td>{{ number_format($item->total_price, 2) }} Tk</td>
                 </tr>
-                @endif
                 @endforeach
             </tbody>
         </table>

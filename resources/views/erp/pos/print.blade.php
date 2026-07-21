@@ -219,14 +219,24 @@
             </thead>
             <tbody>
                 @foreach ($pos->items as $item)
+                @if($item->parent_item_id !== null) @continue @endif
                 @php
+                    $isCombo = $item->product && $item->product->isCombo();
+                    $comboOriginalVal = $isCombo ? ($item->product->combo_original_price * $item->quantity) : 0;
+                    $comboSavings = $isCombo ? max(0, $comboOriginalVal - $item->total_price) : 0;
                     $itemRegRetQty = $item->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange')->sum('returned_qty');
                     $itemExchRetQty = $item->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('returned_qty');
                 @endphp
                 <tr>
                     <td class="text-left">
                         {{ $item->product->name }} <small>#{{ $item->product->style_number ?? $item->product->sku }}</small>
-                        @if($item->variation)
+                        @if($isCombo)
+                            <span class="item-sku" style="color: #2e7d32; font-weight: bold;">[COMBO OFFER PACKAGE]</span>
+                            <span class="item-sku">Regular Value: ৳{{ number_format($comboOriginalVal, 1) }}</span>
+                            @if($comboSavings > 0)
+                                <span class="item-sku" style="color: #c62828;">(Combo Savings: ৳{{ number_format($comboSavings, 1) }})</span>
+                            @endif
+                        @elseif($item->variation)
                             @php
                                 $vals = [];
                                 foreach($item->variation->attributeValues as $val) {
@@ -234,6 +244,9 @@
                                 }
                                 echo '<span class="item-sku">[' . implode(', ', $vals) . ']</span>';
                             @endphp
+                        @endif
+                        @if(!$isCombo && $item->product && $item->product->price > $item->unit_price)
+                            <span class="item-sku">Reg. Price: ৳{{ number_format($item->product->price, 1) }} | Disc. Price: ৳{{ number_format($item->unit_price, 1) }}</span>
                         @endif
                         <span class="item-sku">SKU: {{ $item->product->sku }}</span>
                         @if($itemRegRetQty > 0)
@@ -244,7 +257,14 @@
                         @endif
                     </td>
                     <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
-                    <td><span class="currency-symbol">৳</span>{{ number_format($item->unit_price, 1) }}</td>
+                    <td>
+                        @if($isCombo)
+                            <span class="currency-symbol">৳</span>{{ number_format($item->unit_price, 1) }}
+                            <small class="item-sku" style="font-size: 6pt;">(Combo Price)</small>
+                        @else
+                            <span class="currency-symbol">৳</span>{{ number_format($item->unit_price, 1) }}
+                        @endif
+                    </td>
                     <td>
                         @php
                             $itemVat = $item->total_price * ($pos->vat_rate / 100);

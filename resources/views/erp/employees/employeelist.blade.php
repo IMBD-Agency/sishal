@@ -41,14 +41,23 @@
                     <form method="GET" action="" id="filterForm">
                         <div class="row g-3 align-items-end">
                             <div class="col-md-3">
+                                <label class="form-label small fw-bold text-uppercase text-muted">Branch</label>
+                                <select class="form-select" name="branch_id">
+                                    <option value="">All Branches</option>
+                                    @foreach($branches ?? [] as $b)
+                                        <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label small fw-bold text-uppercase text-muted">Mobile Number</label>
                                 <input type="text" class="form-control" name="phone" placeholder="e.g. 017..." value="{{ request('phone') }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-uppercase text-muted">Department/Designation</label>
                                 <input type="text" class="form-control" name="designation" placeholder="e.g. Manager" value="{{ request('designation') }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-uppercase text-muted">Access Status</label>
                                 <select class="form-select" name="status">
                                     <option value="">All Personnel</option>
@@ -56,7 +65,7 @@
                                     <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive Members</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 d-flex gap-2">
+                            <div class="col-md-2 d-flex gap-2">
                                 <button class="btn btn-create-premium flex-grow-1" type="submit">
                                     <i class="fas fa-filter me-2"></i>Filter
                                 </button>

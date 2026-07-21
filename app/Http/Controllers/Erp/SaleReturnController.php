@@ -524,7 +524,16 @@ class SaleReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $saleReturn = SaleReturn::with(['items', 'employee.user', 'customer', 'posSale', 'branch', 'warehouse'])->findOrFail($id);
+        $saleReturn = SaleReturn::with([
+            'items.product',
+            'items.variation.attributeValues.attribute',
+            'employee.user',
+            'customer',
+            'posSale',
+            'branch',
+            'warehouse'
+        ])->findOrFail($id);
+
         $restrictedBranchId = $this->getRestrictedBranchId();
         $customersQuery = Customer::query();
         if ($restrictedBranchId) {
@@ -535,10 +544,10 @@ class SaleReturnController extends Controller
         $branches = Branch::where('status', 'active')->get();
         $warehouses = Warehouse::all();
 
-        // These are not needed for the edit view if it uses AJAX search
         $posSales = collect();
         $invoices = collect();
-        $products = collect();
+        $products = \App\Models\Product::orderBy('name')->get();
+
         return view('erp.saleReturn.edit', compact('saleReturn', 'customers', 'posSales', 'invoices', 'products', 'branches', 'warehouses'));
     }
 
