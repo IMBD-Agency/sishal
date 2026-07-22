@@ -22,7 +22,7 @@ class EmployeeController extends Controller
         if (!auth()->user()->hasPermissionTo('view employees')) {
             abort(403, 'Unauthorized action.');
         }
-        $query = Employee::with('user','balance','branch');
+        $query = Employee::with('user.roles', 'balance', 'branch');
         if ($request->filled('name')) {
             $query->whereHas('user', function($q) use ($request) {
                 $q->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $request->name . '%']);
@@ -91,8 +91,8 @@ class EmployeeController extends Controller
         $user->email      = $email;
         $user->password   = $request->password;
         $user->is_admin   = 1;
-        $user->assignRole($request->role);
         $user->save();
+        $user->assignRole($request->role);
 
         $employee = new Employee();
         $employee->user_id = $user->id;
@@ -176,11 +176,7 @@ class EmployeeController extends Controller
             'password' => 'nullable|string|min:6|confirmed',
         ]);
         $user = $employee->user;
-        // Remove existing role if user has any
-        if ($user->roles->first()) {
-            $user->removeRole($user->roles->first()->name);
-        }
-        $user->assignRole($validated['role']);
+        $user->syncRoles($validated['role']);
         $user->first_name = $validated['first_name'];
         $user->last_name = $validated['last_name'];
         

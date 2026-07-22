@@ -140,9 +140,12 @@
                                             @endif
                                         </td>
                                         <td class="text-center">
-                                            <span class="category-tag">
-                                                {{ $employee->designation ?? 'Personnel' }}
-                                            </span>
+                                            <div class="d-flex flex-column align-items-center">
+                                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 mb-1" style="font-size: 0.75rem;">
+                                                    {{ $employee->user->roles->first()->name ?? 'No Role' }}
+                                                </span>
+                                                <small class="text-muted" style="font-size: 0.75rem;">{{ $employee->designation ?? 'No Designation' }}</small>
+                                            </div>
                                         </td>
                                         <td class="text-center">
                                             @php

