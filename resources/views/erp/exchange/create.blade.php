@@ -211,7 +211,7 @@
                                                     <select name="account_id" id="account_id" class="form-select shadow-sm">
                                                         <option value="">Select Account</option>
                                                         @foreach(\App\Models\FinancialAccount::all() as $acc)
-                                                            <option value="{{ $acc->id }}">{{ $acc->provider_name }} ({{ ucfirst($acc->type) }})</option>
+                                                            <option value="{{ $acc->id }}" data-branch-id="{{ $acc->branch_id ?? '' }}">{{ $acc->provider_name }} ({{ ucfirst($acc->type) }})</option>
                                                         @endforeach
                                                     </select>
                                                 </div>
@@ -310,7 +310,40 @@
             const $returnItemsBody = $('#returnItemsTable tbody');
             const $newItemsBody = $('#newItemsTable tbody');
             const currentBranch = {{ $branchId ?? 'null' }};
-let saleBranchId = null;
+            let saleBranchId = null;
+
+            // Save original payment accounts options for dynamic filtering
+            const $accountSelect = $('#account_id');
+            const originalAccountsHtml = $accountSelect.html();
+
+            function filterPaymentAccounts(branchId) {
+                const targetBranchId = branchId || currentBranch;
+                const currentValue = $accountSelect.val();
+
+                // Restore all options first
+                $accountSelect.html(originalAccountsHtml);
+
+                if (targetBranchId) {
+                    $accountSelect.find('option').each(function() {
+                        const optionBranchId = $(this).attr('data-branch-id');
+                        if ($(this).val() === "") {
+                            return;
+                        }
+                        if (optionBranchId && optionBranchId != targetBranchId) {
+                            $(this).remove();
+                        }
+                    });
+                }
+                
+                if ($accountSelect.find(`option[value="${currentValue}"]`).length) {
+                    $accountSelect.val(currentValue);
+                } else {
+                    $accountSelect.val('');
+                }
+            }
+
+            // Run initial filter on page load
+            filterPaymentAccounts(null);
 
             // Focus invoice search on load
             $invoiceInput.focus();
@@ -413,6 +446,10 @@ let saleBranchId = null;
                 $('#original_pos_id').val(data.id);
                 $('#customer_display').val(data.customer_name + ' (' + data.customer_phone + ')');
                 saleBranchId = data.branch_id; // Store the original sale's branch
+                
+                // Filter payment accounts branch-wise based on invoice branch
+                filterPaymentAccounts(saleBranchId);
+
                 $returnItemsBody.empty();
                 
                 originalDiscountRatio = data.sub_total > 0 ? (data.discount / data.sub_total) : 0;

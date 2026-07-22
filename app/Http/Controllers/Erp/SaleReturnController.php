@@ -473,33 +473,43 @@ class SaleReturnController extends Controller
         }
 
         $data = $request->except(['items', 'status']);
-        $data['status'] = 'pending';
-        $saleReturn = SaleReturn::create($data);
+        $data['status'] = 'processed';
 
-        foreach ($request->items as $item) {
-            $returnedQty = $item['returned_qty'] ?? 0;
-            if ($returnedQty <= 0)
-                continue;
+        DB::beginTransaction();
+        try {
+            $saleReturn = SaleReturn::create($data);
 
-            // Use net_unit_price to account for original item discount
-            $netUnitPrice = $item['net_unit_price'] ?? $item['unit_price'];
-            $returnItem = \App\Models\SaleReturnItem::create([
-                'sale_return_id' => $saleReturn->id,
-                'sale_item_id' => $item['sale_item_id'] ?? null,
-                'product_id' => $item['product_id'],
-                'variation_id' => ($item['variation_id'] === 'null' || !$item['variation_id']) ? null : $item['variation_id'],
-                'returned_qty' => $returnedQty,
-                'unit_price' => $item['unit_price'],
-                'total_price' => $returnedQty * $netUnitPrice,
-                'reason' => $item['reason'] ?? null,
-            ]);
+            foreach ($request->items as $item) {
+                $returnedQty = $item['returned_qty'] ?? 0;
+                if ($returnedQty <= 0)
+                    continue;
 
-            if ($saleReturn->status === 'processed') {
-                $this->addStockForReturnItem($saleReturn, $returnItem);
+                // Use net_unit_price to account for original item discount
+                $netUnitPrice = $item['net_unit_price'] ?? $item['unit_price'];
+                \App\Models\SaleReturnItem::create([
+                    'sale_return_id' => $saleReturn->id,
+                    'sale_item_id' => $item['sale_item_id'] ?? null,
+                    'product_id' => $item['product_id'],
+                    'variation_id' => ($item['variation_id'] === 'null' || !$item['variation_id']) ? null : $item['variation_id'],
+                    'returned_qty' => $returnedQty,
+                    'unit_price' => $item['unit_price'],
+                    'total_price' => $returnedQty * $netUnitPrice,
+                    'reason' => $item['reason'] ?? null,
+                ]);
             }
-        }
 
-        return redirect()->route('saleReturn.list')->with('success', 'Sale return created successfully.');
+            // Load items relationship so processReturn gets them correctly
+            $saleReturn->load('items');
+
+            // Process return immediately (adjust stock, invoice, accounting journals)
+            $this->processReturn($saleReturn);
+
+            DB::commit();
+            return redirect()->route('saleReturn.list')->with('success', 'Sale return created and processed successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Failed to create and process sale return: ' . $e->getMessage());
+        }
     }
 
     public function show($id)
@@ -751,227 +761,7 @@ class SaleReturnController extends Controller
 
             // If status is being processed, adjust stock (add returned qty)
             if ($newStatus === 'processed') {
-                foreach ($saleReturn->items as $item) {
-                    $this->addStockForReturnItem($saleReturn, $item);
-                }
-
-                // =====================================================
-                // UPDATE INVOICE DUE AMOUNT (deduct returned amount + proportional VAT + proportional discount)
-                // =====================================================
-                $totalReturnAmount = $saleReturn->items->sum('total_price');
-
-                // Get original POS for VAT and discount calculation
-                $posSale = null;
-                if ($saleReturn->pos_sale_id) {
-                    $posSale = \App\Models\Pos::with('invoice')->find($saleReturn->pos_sale_id);
-                } elseif ($saleReturn->invoice_id) {
-                    $posSale = \App\Models\Pos::where('invoice_id', $saleReturn->invoice_id)->with('invoice')->first();
-                }
-
-                // Calculate proportional VAT and discount per returned item
-                $totalReturnedVat = 0;
-                $totalReturnedDiscount = 0;
-
-                if ($posSale) {
-                    // Calculate original invoice gross amount (sum of all items at unit price)
-                    $originalItems = \App\Models\PosItem::where('pos_sale_id', $posSale->id)->get();
-                    $originalGrossTotal = $originalItems->sum(fn($i) => $i->quantity * $i->unit_price);
-
-                    if ($originalGrossTotal > 0) {
-                        foreach ($saleReturn->items as $returnItem) {
-                            $originalItem = \App\Models\PosItem::find($returnItem->sale_item_id);
-                            if ($originalItem) {
-                                // Calculate this item's gross amount (original full quantity)
-                                $itemGross = $originalItem->quantity * $originalItem->unit_price;
-                                // Calculate proportion of this item in original invoice
-                                $itemProportion = $itemGross / $originalGrossTotal;
-                                // Calculate proportion of returned quantity vs original quantity
-                                $qtyProportion = $returnItem->returned_qty / $originalItem->quantity;
-                                // Calculate proportional VAT for this returned item (accounting for partial quantity)
-                                $itemVat = round($itemProportion * $qtyProportion * ($posSale->vat_amount ?? 0), 2);
-                                // Calculate proportional discount for this returned item (accounting for partial quantity)
-                                $itemDiscount = round($itemProportion * $qtyProportion * ($posSale->discount ?? 0), 2);
-
-                                $totalReturnedVat += $itemVat;
-                                $totalReturnedDiscount += $itemDiscount;
-                            }
-                        }
-                    }
-                }
-
-                $totalDeduction = $totalReturnAmount + $totalReturnedVat;
-                // Note: totalReturnedDiscount is already included in totalReturnAmount (net_unit_price), so don't add it again
-
-                // Find the linked invoice via invoice_id or pos_sale_id
-                $invoiceToUpdate = null;
-                if ($saleReturn->invoice_id) {
-                    $invoiceToUpdate = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
-                } elseif ($posSale && $posSale->invoice_id) {
-                    $invoiceToUpdate = Invoice::lockForUpdate()->find($posSale->invoice_id);
-                }
-
-                if ($invoiceToUpdate && $totalDeduction > 0) {
-                    $invoiceToUpdate->total_amount = max(0, $invoiceToUpdate->total_amount - $totalDeduction);
-                    $invoiceToUpdate->due_amount = max(0, $invoiceToUpdate->total_amount - $invoiceToUpdate->paid_amount);
-                    if ($invoiceToUpdate->paid_amount >= $invoiceToUpdate->total_amount) {
-                        $invoiceToUpdate->status = 'paid';
-                        $invoiceToUpdate->due_amount = 0;
-                    } elseif ($invoiceToUpdate->paid_amount > 0) {
-                        $invoiceToUpdate->status = 'partial';
-                    } else {
-                        $invoiceToUpdate->status = 'unpaid';
-                    }
-                    $invoiceToUpdate->save();
-                }
-
-                // Do NOT modify pos fields - keep them as original sale snapshot
-                // Net Amount is tracked via invoice->total_amount which is already updated above
-                // =====================================================
-
-                // =====================================================
-                // AUTO JOURNAL ENTRY (Double-Entry Accounting)
-                // =====================================================
-                if ($totalReturnAmount > 0) {
-                    $salesReturnAccount = ChartOfAccount::where('name', 'Sales Returns')
-                        ->orWhere('name', 'Sales Return')
-                        ->first();
-                    if (!$salesReturnAccount) {
-                        $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
-                        $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
-                        if (!$revenueSubType) {
-                            $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
-                        }
-                        $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
-                        if (!$revenueParent) {
-                            $revenueParent = \App\Models\ChartOfAccountParent::create([
-                                'name' => 'Operating Revenue',
-                                'type_id' => $revenueType->id,
-                                'sub_type_id' => $revenueSubType->id,
-                                'code' => '4000',
-                                'created_by' => auth()->id()
-                            ]);
-                        }
-
-                        $salesReturnAccount = ChartOfAccount::create([
-                            'name' => 'Sales Returns',
-                            'type_id' => $revenueType->id,
-                            'sub_type_id' => $revenueSubType->id,
-                            'parent_id' => $revenueParent->id,
-                            'code' => '40002',
-                            'status' => 'active',
-                            'created_by' => auth()->id()
-                        ]);
-                    }
-
-                    $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
-                    while (Journal::where('voucher_no', $voucherNo)->exists()) {
-                        $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
-                    }
-
-                    $journal = Journal::create([
-                        'voucher_no' => $voucherNo,
-                        'entry_date' => $saleReturn->return_date,
-                        'type' => 'Payment',
-                        'description' => 'Sale Return #' . $saleReturn->id . ($saleReturn->reason ? ' - ' . $saleReturn->reason : ''),
-                        'customer_id' => $saleReturn->customer_id,
-                        'branch_id' => $saleReturn->return_to_type == 'branch' ? $saleReturn->return_to_id : null,
-                        'voucher_amount' => $totalDeduction,
-                        'paid_amount' => in_array($saleReturn->refund_type, ['cash', 'bank']) ? $totalDeduction : 0,
-                        'reference' => 'SR-' . $saleReturn->id,
-                        'created_by' => auth()->id(),
-                        'updated_by' => auth()->id(),
-                    ]);
-
-                    // DEBIT Sales Return account (Revenue decreases by item amount)
-                    JournalEntry::create([
-                        'journal_id' => $journal->id,
-                        'chart_of_account_id' => $salesReturnAccount->id,
-                        'debit' => $totalReturnAmount,
-                        'credit' => 0,
-                        'memo' => 'Sale Return processed (excl. VAT)',
-                        'created_by' => auth()->id(),
-                        'updated_by' => auth()->id(),
-                    ]);
-
-                    // DEBIT VAT Payable (reverse collected VAT on returned items)
-                    if ($totalReturnedVat > 0) {
-                        $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')
-                            ->orWhere('name', 'like', '%Tax Payable%')
-                            ->first();
-                        if ($vatAccount) {
-                            JournalEntry::create([
-                                'journal_id' => $journal->id,
-                                'chart_of_account_id' => $vatAccount->id,
-                                'debit' => $totalReturnedVat,
-                                'credit' => 0,
-                                'memo' => 'VAT reversal on returned items',
-                                'created_by' => auth()->id(),
-                                'updated_by' => auth()->id(),
-                            ]);
-                        }
-                    }
-
-                    if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
-                        // CREDIT Cash/Bank (Asset decreases) — full refund including VAT
-                        $financialAccount = FinancialAccount::find($saleReturn->account_id);
-                        if (!$financialAccount) {
-                            $financialAccount = FinancialAccount::where('type', $saleReturn->refund_type)->first();
-                        }
-
-                        if ($financialAccount && $financialAccount->account_id) {
-                            JournalEntry::create([
-                                'journal_id' => $journal->id,
-                                'chart_of_account_id' => $financialAccount->account_id,
-                                'financial_account_id' => $financialAccount->id,
-                                'debit' => 0,
-                                'credit' => $totalDeduction,
-                                'memo' => 'Refund via ' . $financialAccount->provider_name . ' (incl. VAT)',
-                                'created_by' => auth()->id(),
-                                'updated_by' => auth()->id(),
-                            ]);
-                        }
-                    } else {
-                        // CREDIT Accounts Receivable (Asset decreases)
-                        $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
-                        if (!$arAccount) {
-                            $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
-                            $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
-                            if (!$assetSubType) {
-                                $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
-                            }
-                            $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
-                            if (!$assetParent) {
-                                $assetParent = \App\Models\ChartOfAccountParent::create([
-                                    'name' => 'Accounts Receivable Parent',
-                                    'type_id' => $assetType->id,
-                                    'sub_type_id' => $assetSubType->id,
-                                    'code' => '1000',
-                                    'created_by' => auth()->id()
-                                ]);
-                            }
-
-                            $arAccount = ChartOfAccount::create([
-                                'name' => 'Accounts Receivable',
-                                'type_id' => $assetType->id,
-                                'sub_type_id' => $assetSubType->id,
-                                'parent_id' => $assetParent->id,
-                                'code' => '10002',
-                                'status' => 'active',
-                                'created_by' => auth()->id()
-                            ]);
-                        }
-                        JournalEntry::create([
-                            'journal_id' => $journal->id,
-                            'chart_of_account_id' => $arAccount->id,
-                            'debit' => 0,
-                            'credit' => $totalDeduction,
-                            'memo' => 'Return credit to customer balance (incl. VAT)',
-                            'created_by' => auth()->id(),
-                            'updated_by' => auth()->id(),
-                        ]);
-                    }
-                }
-                // =====================================================
+                $this->processReturn($saleReturn);
             }
 
             DB::commit();
@@ -998,6 +788,230 @@ class SaleReturnController extends Controller
                 'message' => 'Failed to update sale return status.',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Process all side-effects of a finalized (processed) sale return.
+     * Including stock adjustments, invoice updates, and journal entries.
+     */
+    private function processReturn(SaleReturn $saleReturn)
+    {
+        foreach ($saleReturn->items as $item) {
+            $this->addStockForReturnItem($saleReturn, $item);
+        }
+
+        // =====================================================
+        // UPDATE INVOICE DUE AMOUNT (deduct returned amount + proportional VAT + proportional discount)
+        // =====================================================
+        $totalReturnAmount = $saleReturn->items->sum('total_price');
+
+        // Get original POS for VAT and discount calculation
+        $posSale = null;
+        if ($saleReturn->pos_sale_id) {
+            $posSale = \App\Models\Pos::with('invoice')->find($saleReturn->pos_sale_id);
+        } elseif ($saleReturn->invoice_id) {
+            $posSale = \App\Models\Pos::where('invoice_id', $saleReturn->invoice_id)->with('invoice')->first();
+        }
+
+        // Calculate proportional VAT and discount per returned item
+        $totalReturnedVat = 0;
+        $totalReturnedDiscount = 0;
+
+        if ($posSale) {
+            // Calculate original invoice gross amount (sum of all items at unit price)
+            $originalItems = \App\Models\PosItem::where('pos_sale_id', $posSale->id)->get();
+            $originalGrossTotal = $originalItems->sum(fn($i) => $i->quantity * $i->unit_price);
+
+            if ($originalGrossTotal > 0) {
+                foreach ($saleReturn->items as $returnItem) {
+                    $originalItem = \App\Models\PosItem::find($returnItem->sale_item_id);
+                    if ($originalItem) {
+                        // Calculate this item's gross amount (original full quantity)
+                        $itemGross = $originalItem->quantity * $originalItem->unit_price;
+                        // Calculate proportion of this item in original invoice
+                        $itemProportion = $itemGross / $originalGrossTotal;
+                        // Calculate proportion of returned quantity vs original quantity
+                        $qtyProportion = $returnItem->returned_qty / $originalItem->quantity;
+                        // Calculate proportional VAT for this returned item (accounting for partial quantity)
+                        $itemVat = round($itemProportion * $qtyProportion * ($posSale->vat_amount ?? 0), 2);
+                        // Calculate proportional discount for this returned item (accounting for partial quantity)
+                        $itemDiscount = round($itemProportion * $qtyProportion * ($posSale->discount ?? 0), 2);
+
+                        $totalReturnedVat += $itemVat;
+                        $totalReturnedDiscount += $itemDiscount;
+                    }
+                }
+            }
+        }
+
+        $totalDeduction = $totalReturnAmount + $totalReturnedVat;
+        // Note: totalReturnedDiscount is already included in totalReturnAmount (net_unit_price), so don't add it again
+
+        // Find the linked invoice via invoice_id or pos_sale_id
+        $invoiceToUpdate = null;
+        if ($saleReturn->invoice_id) {
+            $invoiceToUpdate = Invoice::lockForUpdate()->find($saleReturn->invoice_id);
+        } elseif ($posSale && $posSale->invoice_id) {
+            $invoiceToUpdate = Invoice::lockForUpdate()->find($posSale->invoice_id);
+        }
+
+        if ($invoiceToUpdate && $totalDeduction > 0) {
+            $invoiceToUpdate->total_amount = max(0, $invoiceToUpdate->total_amount - $totalDeduction);
+            $invoiceToUpdate->due_amount = max(0, $invoiceToUpdate->total_amount - $invoiceToUpdate->paid_amount);
+            if ($invoiceToUpdate->paid_amount >= $invoiceToUpdate->total_amount) {
+                $invoiceToUpdate->status = 'paid';
+                $invoiceToUpdate->due_amount = 0;
+            } elseif ($invoiceToUpdate->paid_amount > 0) {
+                $invoiceToUpdate->status = 'partial';
+            } else {
+                $invoiceToUpdate->status = 'unpaid';
+            }
+            $invoiceToUpdate->save();
+        }
+
+        // =====================================================
+        // AUTO JOURNAL ENTRY (Double-Entry Accounting)
+        // =====================================================
+        if ($totalReturnAmount > 0) {
+            $salesReturnAccount = ChartOfAccount::where('name', 'Sales Returns')
+                ->orWhere('name', 'Sales Return')
+                ->first();
+            if (!$salesReturnAccount) {
+                $revenueType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+                $revenueSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revenueType->id)->first();
+                if (!$revenueSubType) {
+                    $revenueSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Sales Revenue', 'type_id' => $revenueType->id]);
+                }
+                $revenueParent = \App\Models\ChartOfAccountParent::where('type_id', $revenueType->id)->first();
+                if (!$revenueParent) {
+                    $revenueParent = \App\Models\ChartOfAccountParent::create([
+                        'name' => 'Operating Revenue',
+                        'type_id' => $revenueType->id,
+                        'sub_type_id' => $revenueSubType->id,
+                        'code' => '4000',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                $salesReturnAccount = ChartOfAccount::create([
+                    'name' => 'Sales Returns',
+                    'type_id' => $revenueType->id,
+                    'sub_type_id' => $revenueSubType->id,
+                    'parent_id' => $revenueParent->id,
+                    'code' => '40002',
+                    'status' => 'active',
+                    'created_by' => auth()->id()
+                ]);
+            }
+
+            $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
+            while (Journal::where('voucher_no', $voucherNo)->exists()) {
+                $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
+            }
+
+            $journal = Journal::create([
+                'voucher_no' => $voucherNo,
+                'entry_date' => $saleReturn->return_date,
+                'type' => 'Payment',
+                'description' => 'Sale Return #' . $saleReturn->id . ($saleReturn->reason ? ' - ' . $saleReturn->reason : ''),
+                'customer_id' => $saleReturn->customer_id,
+                'branch_id' => $saleReturn->return_to_type == 'branch' ? $saleReturn->return_to_id : null,
+                'voucher_amount' => $totalDeduction,
+                'paid_amount' => in_array($saleReturn->refund_type, ['cash', 'bank']) ? $totalDeduction : 0,
+                'reference' => 'SR-' . $saleReturn->id,
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
+            ]);
+
+            // DEBIT Sales Return account (Revenue decreases by item amount)
+            JournalEntry::create([
+                'journal_id' => $journal->id,
+                'chart_of_account_id' => $salesReturnAccount->id,
+                'debit' => $totalReturnAmount,
+                'credit' => 0,
+                'memo' => 'Sale Return processed (excl. VAT)',
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
+            ]);
+
+            // DEBIT VAT Payable (reverse collected VAT on returned items)
+            if ($totalReturnedVat > 0) {
+                $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')
+                    ->orWhere('name', 'like', '%Tax Payable%')
+                    ->first();
+                if ($vatAccount) {
+                    JournalEntry::create([
+                        'journal_id' => $journal->id,
+                        'chart_of_account_id' => $vatAccount->id,
+                        'debit' => $totalReturnedVat,
+                        'credit' => 0,
+                        'memo' => 'VAT reversal on returned items',
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
+                    ]);
+                }
+            }
+
+            if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
+                // CREDIT Cash/Bank (Asset decreases) — full refund including VAT
+                $financialAccount = FinancialAccount::find($saleReturn->account_id);
+                if (!$financialAccount) {
+                    $financialAccount = FinancialAccount::where('type', $saleReturn->refund_type)->first();
+                }
+
+                if ($financialAccount && $financialAccount->account_id) {
+                    JournalEntry::create([
+                        'journal_id' => $journal->id,
+                        'chart_of_account_id' => $financialAccount->account_id,
+                        'financial_account_id' => $financialAccount->id,
+                        'debit' => 0,
+                        'credit' => $totalDeduction,
+                        'memo' => 'Refund via ' . $financialAccount->provider_name . ' (incl. VAT)',
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
+                    ]);
+                }
+            } else {
+                // CREDIT Accounts Receivable (Asset decreases)
+                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                if (!$arAccount) {
+                    $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+                    $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
+                    if (!$assetSubType) {
+                        $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
+                    }
+                    $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
+                    if (!$assetParent) {
+                        $assetParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Accounts Receivable Parent',
+                            'type_id' => $assetType->id,
+                            'sub_type_id' => $assetSubType->id,
+                            'code' => '1000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $arAccount = ChartOfAccount::create([
+                        'name' => 'Accounts Receivable',
+                        'type_id' => $assetType->id,
+                        'sub_type_id' => $assetSubType->id,
+                        'parent_id' => $assetParent->id,
+                        'code' => '10002',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $arAccount->id,
+                    'debit' => 0,
+                    'credit' => $totalDeduction,
+                    'memo' => 'Return credit to customer balance (incl. VAT)',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
         }
     }
 

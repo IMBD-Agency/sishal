@@ -263,6 +263,8 @@ function addSelectedProduct() {
     const productPrice = parseFloat(data.variation ? (data.variation.price || data.product.price) : data.product.price) || 0;
     const availableStock = data.variation ? data.variation.stock : data.product.stock;
 
+    const styleNumber = data.product.style_number || '';
+
     if (availableStock < 1) {
         alert('This product is out of stock in the selected branch(es)');
         return;
@@ -278,6 +280,7 @@ function addSelectedProduct() {
         product_id: productId,
         variation_id: variationId,
         product_name: productName,
+        style_number: styleNumber,
         regular_price: productPrice,
         quantity: 1,
         combo_price: productPrice,
@@ -307,6 +310,7 @@ function renderSelectedProducts() {
                 <input type="hidden" name="items[${index}][product_id]" value="${product.product_id}">
                 ${product.variation_id ? `<input type="hidden" name="items[${index}][variation_id]" value="${product.variation_id}">` : ''}
                 <strong>${product.product_name}</strong><br>
+                ${product.style_number ? `<small class="text-muted">Style No: ${product.style_number}</small><br>` : ''}
                 <small class="text-muted">Regular: ৳${product.regular_price.toFixed(2)}</small><br>
                 <small>${stockWarning}</small>
             </td>

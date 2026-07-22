@@ -994,6 +994,12 @@ class PosController extends Controller
 
         $pos = Pos::with(['items', 'invoice.items', 'invoice.payments', 'payments'])->findOrFail($id);
 
+        // Check if there are any returns associated with this POS sale
+        $hasReturns = \App\Models\SaleReturn::where('pos_sale_id', $pos->id)->exists();
+        if ($hasReturns) {
+            return redirect()->back()->with('error', 'Cannot delete this sale because it has associated returns. Please delete the return records first.');
+        }
+
         DB::beginTransaction();
         try {
             // 1. Restore stock for all sold items
@@ -1076,6 +1082,12 @@ class PosController extends Controller
         $ids = $request->input('ids');
         if (empty($ids) || !is_array($ids)) {
             return response()->json(['success' => false, 'message' => 'No sales selected.']);
+        }
+
+        // Check if any of the selected sales has associated returns
+        $hasReturns = \App\Models\SaleReturn::whereIn('pos_sale_id', $ids)->exists();
+        if ($hasReturns) {
+            return response()->json(['success' => false, 'message' => 'One or more selected sales have associated returns. Please delete the returns first.']);
         }
 
         DB::beginTransaction();

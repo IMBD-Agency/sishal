@@ -193,6 +193,9 @@
                                 <tr>
                                     <td>
                                         {{ $item->product->name }}
+                                        @if($item->product->style_number)
+                                            <br><small class="text-muted">Style No: {{ $item->product->style_number }}</small>
+                                        @endif
                                         @if($item->variation)
                                             <br><small class="text-muted">{{ $item->variation->name }}</small>
                                         @endif

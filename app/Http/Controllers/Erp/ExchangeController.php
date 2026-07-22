@@ -185,11 +185,20 @@ class ExchangeController extends Controller
             'return_items' => 'required|array',
             'new_items' => 'required|array',
             'exchange_date' => 'required|date',
+            'account_id' => 'nullable|exists:financial_accounts,id',
         ]);
 
         DB::beginTransaction();
         try {
             $originalSale = Pos::findOrFail($request->original_pos_id);
+
+            // Validate that selected account matches the invoice's branch (or is global)
+            if ($request->account_id) {
+                $account = FinancialAccount::find($request->account_id);
+                if ($account && $account->branch_id && $account->branch_id != $originalSale->branch_id) {
+                    throw new \Exception('The selected payment account does not belong to the invoice\'s branch.');
+                }
+            }
             
             // Generate Exchange Number
             $lastExchange = \App\Models\PosExchange::latest('id')->first();
