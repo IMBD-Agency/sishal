@@ -1092,6 +1092,17 @@ class PurchaseController extends Controller
     private function increaseStock(Purchase $purchase)
     {
         foreach ($purchase->items as $item) {
+            $netUnitPrice = ($item->discount > 0 && $item->quantity > 0) 
+                ? round(($item->total_price - $item->discount) / $item->quantity, 2) 
+                : $item->unit_price;
+
+            if ($item->variation_id) {
+                \App\Models\ProductVariation::where('id', $item->variation_id)->update(['cost' => $netUnitPrice]);
+            }
+            if ($item->product_id) {
+                \App\Models\Product::where('id', $item->product_id)->update(['cost' => $netUnitPrice]);
+            }
+
             if ($item->variation_id) {
                 // Update detailed variation stock
                 if ($purchase->ship_location_type === 'branch') {
