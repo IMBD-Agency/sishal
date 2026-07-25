@@ -645,6 +645,7 @@ class PosController extends Controller
 
         // Optimized query with specific columns
         $query = \App\Models\PosItem::select('pos_items.*')
+            ->whereNull('pos_items.parent_item_id')
             ->with([
                 'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,refund_amount,invoice_id,status',
                 'pos.originalPos:id,sale_number',
@@ -662,6 +663,8 @@ class PosController extends Controller
                 'product.season:id,name',
                 'product.gender:id,name',
                 'variation.attributeValues.attribute',
+                'childItems.product:id,name',
+                'childItems.variation.attributeValues',
                 'returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
                 'returnItems.saleReturn:id,refund_type,status'
             ]);
@@ -672,7 +675,7 @@ class PosController extends Controller
         $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
             ->mergeBindings($query->getQuery())
             ->selectRaw("
-                SUM(CASE WHEN EXISTS (SELECT 1 FROM products WHERE products.id = sub.product_id AND products.type = 'combo') THEN 0 ELSE quantity END) as total_qty, 
+                SUM(quantity) as total_qty, 
                 SUM(quantity * unit_price) as gross_amount,
                 SUM(total_price) as total_amount,
                 SUM((quantity * unit_price) - total_price) as item_discount

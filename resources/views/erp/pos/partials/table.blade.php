@@ -197,6 +197,14 @@
                             @if($product?->type === 'combo')
                                 <span class="badge bg-info bg-opacity-10 text-info border-0 ms-1"
                                     style="font-size: 0.6rem;">COMBO</span>
+                                @if($item->childItems && $item->childItems->count() > 0)
+                                    <div class="small text-muted fw-normal mt-1" style="font-size: 0.725rem; line-height: 1.3;">
+                                        <i class="fas fa-box-open me-1 text-info"></i>
+                                        @foreach($item->childItems as $child)
+                                            <span>{{ $child->product->name ?? 'Item' }} ({{ (int)$child->quantity }}){{ !$loop->last ? ', ' : '' }}</span>
+                                        @endforeach
+                                    </div>
+                                @endif
                             @endif
                         </td>
                         <td>{{ $product->style_number ?? $product->sku ?? '-' }}</td>
