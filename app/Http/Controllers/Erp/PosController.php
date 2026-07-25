@@ -1839,18 +1839,20 @@ class PosController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
-        $query = \App\Models\PosItem::with([
-            'pos.customer',
-            'pos.invoice',
-            'pos.branch',
-            'pos.soldBy',
-            'product.category',
-            'product.brand',
-            'product.season',
-            'product.gender',
-            'variation.attributeValues.attribute',
-            'returnItems'
-        ]);
+        $query = \App\Models\PosItem::select('pos_items.*')
+            ->whereNull('pos_items.parent_item_id')
+            ->with([
+                'pos.customer',
+                'pos.invoice',
+                'pos.branch',
+                'pos.soldBy',
+                'product.category',
+                'product.brand',
+                'product.season',
+                'product.gender',
+                'variation.attributeValues.attribute',
+                'returnItems'
+            ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
         $items = $query->orderBy('sort_order')->get();
@@ -1969,8 +1971,8 @@ class PosController extends Controller
             $invActualAmt = '';
 
             if ($isFirst) {
-                $invItems = $sale->items;
-                $i_TotalQty = $invItems->sum(fn($i) => ($i->product?->type === 'combo') ? 0 : $i->quantity);
+                $invItems = $sale->items->whereNull('parent_item_id');
+                $i_TotalQty = $invItems->sum('quantity');
                 $i_GrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
 
                 $i_RegRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange')->sum('returned_qty'));
@@ -2143,18 +2145,20 @@ class PosController extends Controller
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : \Carbon\Carbon::today()->endOfDay();
         }
 
-        $query = \App\Models\PosItem::with([
-            'pos.customer',
-            'pos.invoice',
-            'pos.branch',
-            'pos.soldBy',
-            'product.category',
-            'product.brand',
-            'product.season',
-            'product.gender',
-            'variation.attributeValues.attribute',
-            'returnItems'
-        ]);
+        $query = \App\Models\PosItem::select('pos_items.*')
+            ->whereNull('pos_items.parent_item_id')
+            ->with([
+                'pos.customer',
+                'pos.invoice',
+                'pos.branch',
+                'pos.soldBy',
+                'product.category',
+                'product.brand',
+                'product.season',
+                'product.gender',
+                'variation.attributeValues.attribute',
+                'returnItems'
+            ]);
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
         $items = $query->orderBy('sort_order')->get();

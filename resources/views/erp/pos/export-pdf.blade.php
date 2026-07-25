@@ -99,7 +99,7 @@
                     $invPaid = '-'; $invDue = '-';
 
                     if ($isFirst) {
-                        $invItems = $sale->items;
+                        $invItems = $sale->items->whereNull('parent_item_id');
                         $i_TotalQty = $invItems->sum('quantity');
                         $i_GrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
                         $i_RetQty = $invItems->sum(fn($i) => $i->returnItems->sum('returned_qty'));
