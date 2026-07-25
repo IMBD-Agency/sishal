@@ -549,8 +549,9 @@ class PurchaseController extends Controller
     
         try {
             // Calculate subtotal
+            $itemsList = array_values($request->items ?? []);
             $subTotal = 0;
-            foreach ($request->items as $item) {
+            foreach ($itemsList as $item) {
                 $subTotal += $item['quantity'] * $item['unit_price'];
             }
     
@@ -584,9 +585,9 @@ class PurchaseController extends Controller
             // Add Purchase Items with proportional item-wise discount distribution
             $itemsToInsert = [];
             $totalAllocatedDiscount = 0;
-            $itemCount = count($request->items);
+            $itemCount = count($itemsList);
 
-            foreach ($request->items as $index => $item) {
+            foreach ($itemsList as $index => $item) {
                 $lineTotal = (float)($item['quantity'] * $item['unit_price']);
                 $itemDiscount = 0;
 
@@ -876,8 +877,9 @@ class PurchaseController extends Controller
             }
 
             // Calculate subtotal
+            $itemsList = array_values($request->items ?? []);
             $subTotal = 0;
-            foreach ($request->items as $item) {
+            foreach ($itemsList as $item) {
                 $subTotal += $item['quantity'] * $item['unit_price'];
             }
     
@@ -898,9 +900,9 @@ class PurchaseController extends Controller
 
             // Add new items with proportional item-wise discount distribution
             $totalAllocatedDiscount = 0;
-            $itemCount = count($request->items);
+            $itemCount = count($itemsList);
 
-            foreach ($request->items as $index => $item) {
+            foreach ($itemsList as $index => $item) {
                 $lineTotal = (float)($item['quantity'] * $item['unit_price']);
                 $itemDiscount = 0;
 
