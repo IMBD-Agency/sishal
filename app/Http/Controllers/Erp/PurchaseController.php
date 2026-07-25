@@ -600,10 +600,21 @@ class PurchaseController extends Controller
                     }
                 }
 
+                $netUnitPrice = ($itemDiscount > 0 && $item['quantity'] > 0) 
+                    ? round(($lineTotal - $itemDiscount) / $item['quantity'], 2) 
+                    : (float) $item['unit_price'];
+
+                $varId = !empty($item['variation_id']) ? $item['variation_id'] : null;
+                if ($varId) {
+                    \App\Models\ProductVariation::where('id', $varId)->update(['cost' => $netUnitPrice]);
+                } else {
+                    \App\Models\Product::where('id', $item['product_id'])->update(['cost' => $netUnitPrice]);
+                }
+
                 $itemsToInsert[] = [
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
-                    'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
+                    'variation_id' => $varId,
                     'quantity'     => $item['quantity'],
                     'unit_price'   => $item['unit_price'],
                     'discount'     => $itemDiscount,
@@ -915,9 +926,20 @@ class PurchaseController extends Controller
                     }
                 }
 
+                $netUnitPrice = ($itemDiscount > 0 && $item['quantity'] > 0) 
+                    ? round(($lineTotal - $itemDiscount) / $item['quantity'], 2) 
+                    : (float) $item['unit_price'];
+
+                $varId = !empty($item['variation_id']) ? $item['variation_id'] : null;
+                if ($varId) {
+                    \App\Models\ProductVariation::where('id', $varId)->update(['cost' => $netUnitPrice]);
+                } else {
+                    \App\Models\Product::where('id', $item['product_id'])->update(['cost' => $netUnitPrice]);
+                }
+
                 $purchase->items()->create([
                     'product_id'   => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
+                    'variation_id' => $varId,
                     'quantity'     => $item['quantity'],
                     'unit_price'   => $item['unit_price'],
                     'discount'     => $itemDiscount,

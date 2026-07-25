@@ -505,6 +505,14 @@
                 form.action = originalAction;
                 form.target = originalTarget;
             }
+
+            // Initialize Tooltips for Combo Breakdown badges
+            $(document).ready(function() {
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            });
         </script>
     @endpush
 @endsection

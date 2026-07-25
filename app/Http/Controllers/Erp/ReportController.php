@@ -335,7 +335,9 @@ class ReportController extends Controller
             $item->invoice = $item->pos->invoice_number;
             $item->customer_name = $item->pos->customer->name ?? 'Walk-in';
             $item->created_by_name = $item->pos->soldBy->name ?? ($item->pos->employee->user->name ?? 'Admin');
-            $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
+            $item->unit_cost = ($item->product && $item->product->isCombo()) 
+                ? $item->product->calculateCost($item->variation_id) 
+                : ($item->unit_cost ?? ($item->product->cost ?? 0));
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
             $item->item_discount = ($item->quantity * $item->unit_price) - $item->total_price;
@@ -348,7 +350,9 @@ class ReportController extends Controller
             $item->invoice = '#' . $item->order->id;
             $item->customer_name = $item->order->customer->name ?? ($item->order->first_name . ' ' . $item->order->last_name);
             $item->created_by_name = $item->order->employee->user->name ?? 'Website';
-            $item->unit_cost = $item->unit_cost ?? ($item->product->cost ?? 0);
+            $item->unit_cost = ($item->product && $item->product->isCombo()) 
+                ? $item->product->calculateCost($item->variation_id) 
+                : ($item->unit_cost ?? ($item->product->cost ?? 0));
             $item->total_cost = $item->quantity * $item->unit_cost;
             $item->profit = $item->total_price - $item->total_cost;
             $item->item_discount = ($item->quantity * $item->unit_price) - $item->total_price;
@@ -853,7 +857,7 @@ class ReportController extends Controller
                 ->get();
             foreach ($items as $item) {
                 $unitCost = (float) ($item->unit_cost ?? 0);
-                if ($unitCost <= 0 && $item->product) {
+                if ($item->product && ($unitCost <= 0 || $item->product->isCombo())) {
                     $unitCost = $item->product->calculateCost($item->variation_id);
                 }
                 $originalCost += $item->quantity * $unitCost;
@@ -865,7 +869,7 @@ class ReportController extends Controller
                 ->get();
             foreach ($items as $item) {
                 $unitCost = (float) ($item->unit_cost ?? 0);
-                if ($unitCost <= 0 && $item->product) {
+                if ($item->product && ($unitCost <= 0 || $item->product->isCombo())) {
                     $unitCost = $item->product->calculateCost($item->variation_id);
                 }
                 $originalCost += $item->quantity * $unitCost;
