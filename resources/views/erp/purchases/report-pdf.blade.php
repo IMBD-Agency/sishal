@@ -52,18 +52,19 @@
                 <th width="7.5%">Inv #</th>
                 <th width="10%">Supplier</th>
                 <th width="8%">Warehouse</th>
-                <th width="5%">Cat.</th>
-                <th width="5%">Brand</th>
-                <th width="15%">Product</th>
-                <th width="8%">Style</th>
+                <th width="4%">Cat.</th>
+                <th width="4%">Brand</th>
+                <th width="14%">Product</th>
+                <th width="7%">Style</th>
                 <th width="4%">Clr</th>
                 <th width="4%">Size</th>
-                <th width="5%">P.Qty</th>
-                <th width="7%">P.Val</th>
-                <th width="5%">R.Qty</th>
-                <th width="7%">R.Val</th>
-                <th width="5%">A.Qty</th>
-                <th width="7%">A.Val</th>
+                <th width="4%">P.Qty</th>
+                <th width="6.5%">P.Val</th>
+                <th width="5.5%">Disc.</th>
+                <th width="4.5%">R.Qty</th>
+                <th width="6.5%">R.Val</th>
+                <th width="4.5%">A.Qty</th>
+                <th width="6.5%">A.Val</th>
                 <th width="5%">Status</th>
             </tr>
         </thead>
@@ -90,7 +91,8 @@
                     $retQty = $item->returnItems->sum('returned_qty');
                     $retAmt = $item->returnItems->sum('total_price');
                     $actQty = $item->quantity - $retQty;
-                    $actAmt = $item->total_price - $retAmt;
+                    $itemDiscount = $item->discount ?? 0;
+                    $actAmt = ($item->total_price - $itemDiscount) - $retAmt;
 
                     $statusClass = match($purchase->status) {
                         'received' => 'bg-success',
@@ -111,6 +113,7 @@
                     <td class="text-center">{{ $size }}</td>
                     <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
                     <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
+                    <td class="text-end text-warning">{{ ($item->discount ?? 0) > 0 ? number_format($item->discount, 2) : '-' }}</td>
                     <td class="text-center text-danger">{{ number_format($retQty, 0) }}</td>
                     <td class="text-end text-danger">{{ number_format($retAmt, 2) }}</td>
                     <td class="text-center fw-bold text-success">{{ number_format($actQty, 0) }}</td>

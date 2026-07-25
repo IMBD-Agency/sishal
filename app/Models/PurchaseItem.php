@@ -38,4 +38,19 @@ class PurchaseItem extends Model
     {
         return $this->hasMany(PurchaseReturnItem::class, 'purchase_item_id');
     }
+
+    public function getDiscountAttribute($value)
+    {
+        return (float) ($value ?? 0);
+    }
+
+    public function getNetTotalPriceAttribute()
+    {
+        return (float) ($this->total_price - $this->discount);
+    }
+
+    public function getNetUnitPriceAttribute()
+    {
+        return $this->quantity > 0 ? (float) ($this->net_total_price / $this->quantity) : 0;
+    }
 }

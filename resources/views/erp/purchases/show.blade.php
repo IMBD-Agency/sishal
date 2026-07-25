@@ -147,7 +147,12 @@
                                     <th>Description & Specifications</th>
                                     <th class="text-center">Quantity</th>
                                     <th class="text-end">Unit Price</th>
-                                    <th class="text-end pe-4">Subtotal</th>
+                                    @if(($purchase->items->sum('discount') ?? 0) > 0)
+                                        <th class="text-end text-warning">Item Disc.</th>
+                                        <th class="text-end pe-4">Net Total</th>
+                                    @else
+                                        <th class="text-end pe-4">Subtotal</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody>
@@ -164,25 +169,31 @@
                                         </td>
                                         <td class="text-center fw-bold text-dark">{{ $item->quantity }}</td>
                                         <td class="text-end text-muted">৳{{ number_format($item->unit_price, 2) }}</td>
-                                        <td class="text-end pe-4 fw-bold text-success">৳{{ number_format($item->total_price, 2) }}</td>
+                                        @if(($purchase->items->sum('discount') ?? 0) > 0)
+                                            <td class="text-end text-danger small">-৳{{ number_format($item->discount, 2) }}</td>
+                                            <td class="text-end pe-4 fw-bold text-success">৳{{ number_format($item->net_total_price, 2) }}</td>
+                                        @else
+                                            <td class="text-end pe-4 fw-bold text-success">৳{{ number_format($item->total_price, 2) }}</td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>
                             <tfoot class="bg-light border-top-0">
+                                @php $colSpan = ($purchase->items->sum('discount') ?? 0) > 0 ? 5 : 4; @endphp
                                 <tr>
-                                    <td colspan="4" class="text-end py-2 fw-bold text-muted text-uppercase small">Subtotal</td>
+                                    <td colspan="{{ $colSpan }}" class="text-end py-2 fw-bold text-muted text-uppercase small">Subtotal</td>
                                     <td class="text-end pe-4 py-2 fw-bold text-dark">৳{{ number_format(($purchase->bill?->sub_total ?? $purchase->items->sum('total_price')), 2) }}</td>
                                 </tr>
                                 @if(isset($purchase->bill) && ($purchase->bill->discount_amount ?? 0) > 0)
                                 <tr>
-                                    <td colspan="4" class="text-end py-2 fw-bold text-muted text-uppercase small">
+                                    <td colspan="{{ $colSpan }}" class="text-end py-2 fw-bold text-muted text-uppercase small">
                                         Discount {{ $purchase->bill->discount_type == 'percent' ? '('.$purchase->bill->discount_value.'%)' : '' }}
                                     </td>
                                     <td class="text-end pe-4 py-2 fw-bold text-danger">-৳{{ number_format($purchase->bill->discount_amount, 2) }}</td>
                                 </tr>
                                 @endif
                                 <tr>
-                                    <td colspan="4" class="text-end py-3 fw-bold text-muted text-uppercase small">Grand Total</td>
+                                    <td colspan="{{ $colSpan }}" class="text-end py-3 fw-bold text-muted text-uppercase small">Grand Total</td>
                                     <td class="text-end pe-4 py-3 fw-bold fs-4 text-primary">৳{{ number_format(($purchase->bill?->total_amount ?? $purchase->items->sum('total_price')), 2) }}</td>
                                 </tr>
                             </tfoot>

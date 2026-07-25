@@ -81,7 +81,7 @@ class PurchaseController extends Controller
             'ret_qty'  => $returnTotals->total_ret_qty ?? 0,
             'ret_amt'  => $returnTotals->total_ret_amt ?? 0,
             'act_qty'  => ($itemTotals->total_qty ?? 0) - ($returnTotals->total_ret_qty ?? 0),
-            'act_amt'  => ($itemTotals->total_amount ?? 0) - ($returnTotals->total_ret_amt ?? 0),
+            'act_amt'  => ($itemTotals->total_amount ?? 0) - ($purchaseTotals->total_discount ?? 0) - ($returnTotals->total_ret_amt ?? 0),
             'discount' => $purchaseTotals->total_discount ?? 0,
             'paid'     => $purchaseTotals->total_paid ?? 0,
             'due'      => $purchaseTotals->total_due ?? 0,
@@ -189,7 +189,7 @@ class PurchaseController extends Controller
         $headers = [
             'SL', 'Inv #', 'Date', 'Supplier', 'Warehouse', 'Category', 'Brand', 'Season', 'Gender', 
             'Product Name', 'Style #', 'Color', 'Size', 
-            'Pur. Qty', 'Inv. T. Qty', 'Pur. Value', 'Inv. T. Value', 
+            'Pur. Qty', 'Inv. T. Qty', 'Pur. Value', 'Inv. T. Value', 'Item Disc.',
             'Ret. Qty', 'Inv. T. Ret. Qty', 'Ret. Value', 'Inv. T. Ret. Value', 
             'Act. Qty', 'Inv. T. Act. Qty', 'Act. Value', 'Inv. T. Act. Value', 
             'Live Stock', 'Bill Disc.', 'Paid A/C', 'Due A/C', 'Status'
@@ -200,6 +200,7 @@ class PurchaseController extends Controller
         $totInvPurQty = 0;
         $totPurAmt = 0;
         $totInvPurAmt = 0;
+        $totItemDisc = 0;
         $totRetQty = 0;
         $totInvRetQty = 0;
         $totRetAmt = 0;
@@ -235,7 +236,8 @@ class PurchaseController extends Controller
             $retQty = (float)$item->returnItems->sum('returned_qty');
             $retAmt = (float)$item->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price);
             $actQty = (float)($item->quantity - $retQty);
-            $actAmt = (float)($item->total_price - $retAmt);
+            $itemDiscount = (float)($item->discount ?? 0);
+            $actAmt = (float)($item->total_price - $itemDiscount - $retAmt);
 
             $showInvoiceTotals = ($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id);
             
@@ -243,8 +245,9 @@ class PurchaseController extends Controller
             $invPurAmt = $purchase->items->sum('total_price');
             $invRetQty = $purchase->items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
             $invRetAmt = $purchase->items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
+            $invDiscount = (float)($bill->discount_amount ?? 0);
             $invActQty = $invPurQty - $invRetQty;
-            $invActAmt = $invPurAmt - $invRetAmt;
+            $invActAmt = $invPurAmt - $invDiscount - $invRetAmt;
 
             $discountVal = $showInvoiceTotals ? (float)($bill->discount_amount ?? 0) : 0.0;
             $paidVal = $showInvoiceTotals ? (float)($bill->paid_amount ?? 0) : 0.0;
@@ -270,6 +273,7 @@ class PurchaseController extends Controller
 
             $totPurQty += (float)$item->quantity;
             $totPurAmt += (float)$item->total_price;
+            $totItemDisc += (float)($item->discount ?? 0);
             $totRetQty += $retQty;
             $totRetAmt += $retAmt;
             $totActQty += $actQty;
@@ -313,6 +317,7 @@ class PurchaseController extends Controller
                 $showInvoiceTotals ? (float)$invPurQty : '',
                 (float)$item->total_price,
                 $showInvoiceTotals ? (float)$invPurAmt : '',
+                (float)($item->discount ?? 0),
                 $retQty,
                 $showInvoiceTotals ? (float)$invRetQty : '',
                 $retAmt,
@@ -337,6 +342,7 @@ class PurchaseController extends Controller
             $totInvPurQty,
             $totPurAmt,
             $totInvPurAmt,
+            $totItemDisc,
             $totRetQty,
             $totInvRetQty,
             $totRetAmt,
@@ -575,17 +581,33 @@ class PurchaseController extends Controller
                 'notes'               => $request->notes,
             ]);
     
-            // Add Purchase Items (Bulk Insert version for better performance)
+            // Add Purchase Items with proportional item-wise discount distribution
             $itemsToInsert = [];
+            $totalAllocatedDiscount = 0;
+            $itemCount = count($request->items);
+
             foreach ($request->items as $index => $item) {
+                $lineTotal = (float)($item['quantity'] * $item['unit_price']);
+                $itemDiscount = 0;
+
+                if ($discountAmount > 0 && $subTotal > 0) {
+                    if ($index === $itemCount - 1) {
+                        $itemDiscount = max(0, round($discountAmount - $totalAllocatedDiscount, 2));
+                    } else {
+                        $itemDiscount = round(($lineTotal / $subTotal) * $discountAmount, 2);
+                        $totalAllocatedDiscount += $itemDiscount;
+                    }
+                }
+
                 $itemsToInsert[] = [
                     'purchase_id'  => $purchase->id,
                     'product_id'   => $item['product_id'],
                     'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
                     'quantity'     => $item['quantity'],
                     'unit_price'   => $item['unit_price'],
-                    'total_price'  => $item['quantity'] * $item['unit_price'],
-                    'description'     => $item['description'] ?? null,
+                    'discount'     => $itemDiscount,
+                    'total_price'  => $lineTotal,
+                    'description'  => $item['description'] ?? null,
                     'sort_order'   => $index,
                     'created_at'   => now(),
                     'updated_at'   => now(),
@@ -853,20 +875,6 @@ class PurchaseController extends Controller
                 $this->increaseStock($purchase);
             }
 
-            // Remove old items
-            $purchase->items()->delete();
-            // Add new items
-            foreach ($request->items as $index => $item) {
-                $purchase->items()->create([
-                    'product_id'   => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
-                    'quantity'     => $item['quantity'],
-                    'unit_price'   => $item['unit_price'],
-                    'total_price'  => $item['quantity'] * $item['unit_price'],
-                    'description'  => $item['description'] ?? null,
-                    'sort_order'   => $index,
-                ]);
-            }
             // Calculate subtotal
             $subTotal = 0;
             foreach ($request->items as $item) {
@@ -884,6 +892,38 @@ class PurchaseController extends Controller
             }
     
             $totalAmount = max(0, $subTotal - $discountAmount);
+
+            // Remove old items
+            $purchase->items()->delete();
+
+            // Add new items with proportional item-wise discount distribution
+            $totalAllocatedDiscount = 0;
+            $itemCount = count($request->items);
+
+            foreach ($request->items as $index => $item) {
+                $lineTotal = (float)($item['quantity'] * $item['unit_price']);
+                $itemDiscount = 0;
+
+                if ($discountAmount > 0 && $subTotal > 0) {
+                    if ($index === $itemCount - 1) {
+                        $itemDiscount = max(0, round($discountAmount - $totalAllocatedDiscount, 2));
+                    } else {
+                        $itemDiscount = round(($lineTotal / $subTotal) * $discountAmount, 2);
+                        $totalAllocatedDiscount += $itemDiscount;
+                    }
+                }
+
+                $purchase->items()->create([
+                    'product_id'   => $item['product_id'],
+                    'variation_id' => $item['variation_id'] ?? null,
+                    'quantity'     => $item['quantity'],
+                    'unit_price'   => $item['unit_price'],
+                    'discount'     => $itemDiscount,
+                    'total_price'  => $lineTotal,
+                    'description'  => $item['description'] ?? null,
+                    'sort_order'   => $index,
+                ]);
+            }
 
             // Update bill if exists
             if ($purchase->bill) {

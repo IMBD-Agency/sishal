@@ -28,6 +28,7 @@
                 <th class="text-center bg-light">Inv. T. Qty</th>
                 <th class="text-end">Pur. Value</th>
                 <th class="text-end bg-light">Inv. T. Value</th>
+                <th class="text-end text-warning">Item Disc.</th>
                 <th class="text-center text-danger">Ret. Qty</th>
                 <th class="text-center text-danger bg-light">Inv. T. Ret. Qty</th>
                 <th class="text-end text-danger">Ret. Value</th>
@@ -64,7 +65,8 @@
                     $retQty = $item->returnItems->sum('returned_qty');
                     $retAmt = $item->returnItems->sum(function($ri) { return $ri->returned_qty * $ri->unit_price; });
                     $actualQty = $item->quantity - $retQty;
-                    $actualAmt = $item->total_price - $retAmt;
+                    $itemDiscount = $item->discount ?? 0;
+                    $actualAmt = ($item->total_price - $itemDiscount) - $retAmt;
 
                     $showInvoiceTotals = ($index == 0 || $items[$index-1]->purchase_id != $item->purchase_id);
                     // For performance, we pre-calculate these or use the models
@@ -72,9 +74,10 @@
                     $invPurAmt = $purchase->items->sum('total_price');
                     $invRetQty = $purchase->items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
                     $invRetAmt = $purchase->items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
+                    $invDiscount = $bill->discount_amount ?? 0;
                     
                     $invActQty = $invPurQty - $invRetQty;
-                    $invActAmt = $invPurAmt - $invRetAmt;
+                    $invActAmt = ($invPurAmt - $invDiscount) - $invRetAmt;
 
                     $locationName = '-';
                     if ($purchase->ship_location_type === 'branch') {
@@ -112,6 +115,7 @@
                     <td class="text-center fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invPurQty, 2) }} @else - @endif</td>
                     <td class="text-end">{{ number_format($item->total_price, 2) }}৳</td>
                     <td class="text-end fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invPurAmt, 2) }}৳ @else - @endif</td>
+                    <td class="text-end text-warning fw-bold">{{ ($item->discount ?? 0) > 0 ? number_format($item->discount, 2).'৳' : '-' }}</td>
                     
                     <td class="text-center text-danger">{{ number_format($retQty, 2) ?: '-' }}</td>
                     <td class="text-center text-danger fw-bold bg-light">@if($showInvoiceTotals) {{ number_format($invRetQty, 2) }} @else - @endif</td>
@@ -198,12 +202,18 @@
         </tbody>
         <tfoot class="bg-light fw-bold">
             @php
+                $uniqueBills = $items->unique('purchase_id')->map(fn($i) => $i->purchase->bill);
+                $pageDiscount = $uniqueBills->sum('discount_amount');
+                $pagePaid = $uniqueBills->sum('paid_amount');
+                $pageDue = $uniqueBills->sum('due_amount');
+
                 $pagePurQty = $items->sum('quantity');
                 $pagePurAmt = $items->sum('total_price');
+                $pageItemDisc = $pageDiscount;
                 $pageRetQty = $items->sum(fn($i) => $i->returnItems->sum('returned_qty'));
                 $pageRetAmt = $items->sum(fn($i) => $i->returnItems->sum(fn($ri) => $ri->returned_qty * $ri->unit_price));
                 $pageActQty = $pagePurQty - $pageRetQty;
-                $pageActAmt = $pagePurAmt - $pageRetAmt;
+                $pageActAmt = ($pagePurAmt - $pageItemDisc) - $pageRetAmt;
                 
                 $pageInvPurQty = 0;
                 $pageInvPurAmt = 0;
@@ -221,12 +231,7 @@
                 }
                 
                 $pageInvActQty = $pageInvPurQty - $pageInvRetQty;
-                $pageInvActAmt = $pageInvPurAmt - $pageInvRetAmt;
-
-                $uniqueBills = $items->unique('purchase_id')->map(fn($i) => $i->purchase->bill);
-                $pageDiscount = $uniqueBills->sum('discount_amount');
-                $pagePaid = $uniqueBills->sum('paid_amount');
-                $pageDue = $uniqueBills->sum('due_amount');
+                $pageInvActAmt = ($pageInvPurAmt - $pageDiscount) - $pageInvRetAmt;
             @endphp
             <tr class="text-muted small border-top">
                 <td colspan="14" class="text-end">Page Subtotal</td>
@@ -234,6 +239,7 @@
                 <td class="text-center bg-white">{{ number_format($pageInvPurQty, 2) }}</td>
                 <td class="text-end">{{ number_format($pagePurAmt, 2) }}৳</td>
                 <td class="text-end bg-white">{{ number_format($pageInvPurAmt, 2) }}৳</td>
+                <td class="text-end text-warning">{{ number_format($pageItemDisc, 2) }}৳</td>
                 <td class="text-center text-danger">{{ number_format($pageRetQty, 2) ?: '-' }}</td>
                 <td class="text-center text-danger bg-white">{{ number_format($pageInvRetQty, 2) ?: '-' }}</td>
                 <td class="text-end text-danger">{{ $pageRetQty ? number_format($pageRetAmt, 2).'৳' : '-' }}</td>
@@ -254,6 +260,7 @@
                 <td class="text-center bg-light">{{ number_format($reportTotals['pur_qty'], 2) }}</td>
                 <td class="text-end py-3">{{ number_format($reportTotals['pur_amt'], 2) }}৳</td>
                 <td class="text-end bg-light">{{ number_format($reportTotals['pur_amt'], 2) }}৳</td>
+                <td class="text-end text-warning py-3">{{ number_format($reportTotals['discount'], 2) }}৳</td>
                 <td class="text-center text-danger py-3">{{ number_format($reportTotals['ret_qty'] ?? 0, 2) ?: '-' }}</td>
                 <td class="text-center text-danger bg-light">{{ number_format($reportTotals['ret_qty'] ?? 0, 2) ?: '-' }}</td>
                 <td class="text-end text-danger py-3">{{ ($reportTotals['ret_qty'] ?? 0) ? number_format($reportTotals['ret_amt'] ?? 0, 2).'৳' : '-' }}</td>

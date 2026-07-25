@@ -406,7 +406,7 @@ class PurchaseReturnController extends Controller
                             'variation_id' => $item->variation_id,
                             'variation_name' => optional($item->variation)->name ?? 'Standard',
                             'quantity' => $item->quantity,
-                            'unit_price' => $item->unit_price,
+                            'unit_price' => ($item->discount > 0 && $item->quantity > 0) ? round(($item->total_price - $item->discount) / $item->quantity, 2) : $item->unit_price,
                             'color' => $color,
                             'size' => $size,
                             'image' => optional($item->product)->image ? asset($item->product->image) : asset('static/default-product.jpg'),

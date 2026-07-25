@@ -102,8 +102,8 @@
                         $actualAmt = $item->total_price - $retAmt;
 
                         // Invoice level (calculated once per invoice change for efficiency)
-                        $invItems = $sale->items;
-                        $invTotalQty = $invItems->sum(fn($i) => ($i->product?->type === 'combo') ? 0 : $i->quantity);
+                        $invItems = $sale->items->whereNull('parent_item_id');
+                        $invTotalQty = $invItems->sum('quantity');
                         $invGrossAmt = $invItems->sum(fn($i) => $i->quantity * $i->unit_price);
 
                         $invRegRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') !== 'exchange')->sum('returned_qty'));
