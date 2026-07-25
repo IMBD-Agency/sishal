@@ -1098,8 +1098,7 @@ class PurchaseController extends Controller
 
             if ($item->variation_id) {
                 \App\Models\ProductVariation::where('id', $item->variation_id)->update(['cost' => $netUnitPrice]);
-            }
-            if ($item->product_id) {
+            } else {
                 \App\Models\Product::where('id', $item->product_id)->update(['cost' => $netUnitPrice]);
             }
 
