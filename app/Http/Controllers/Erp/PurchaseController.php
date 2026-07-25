@@ -600,16 +600,7 @@ class PurchaseController extends Controller
                     }
                 }
 
-                $netUnitPrice = ($itemDiscount > 0 && $item['quantity'] > 0) 
-                    ? round(($lineTotal - $itemDiscount) / $item['quantity'], 2) 
-                    : (float) $item['unit_price'];
-
                 $varId = !empty($item['variation_id']) ? $item['variation_id'] : null;
-                if ($varId) {
-                    \App\Models\ProductVariation::where('id', $varId)->update(['cost' => $netUnitPrice]);
-                } else {
-                    \App\Models\Product::where('id', $item['product_id'])->update(['cost' => $netUnitPrice]);
-                }
 
                 $itemsToInsert[] = [
                     'purchase_id'  => $purchase->id,
@@ -926,16 +917,7 @@ class PurchaseController extends Controller
                     }
                 }
 
-                $netUnitPrice = ($itemDiscount > 0 && $item['quantity'] > 0) 
-                    ? round(($lineTotal - $itemDiscount) / $item['quantity'], 2) 
-                    : (float) $item['unit_price'];
-
                 $varId = !empty($item['variation_id']) ? $item['variation_id'] : null;
-                if ($varId) {
-                    \App\Models\ProductVariation::where('id', $varId)->update(['cost' => $netUnitPrice]);
-                } else {
-                    \App\Models\Product::where('id', $item['product_id'])->update(['cost' => $netUnitPrice]);
-                }
 
                 $purchase->items()->create([
                     'product_id'   => $item['product_id'],
@@ -1114,16 +1096,6 @@ class PurchaseController extends Controller
     private function increaseStock(Purchase $purchase)
     {
         foreach ($purchase->items as $item) {
-            $netUnitPrice = ($item->discount > 0 && $item->quantity > 0) 
-                ? round(($item->total_price - $item->discount) / $item->quantity, 2) 
-                : $item->unit_price;
-
-            if ($item->variation_id) {
-                \App\Models\ProductVariation::where('id', $item->variation_id)->update(['cost' => $netUnitPrice]);
-            } else {
-                \App\Models\Product::where('id', $item->product_id)->update(['cost' => $netUnitPrice]);
-            }
-
             if ($item->variation_id) {
                 // Update detailed variation stock
                 if ($purchase->ship_location_type === 'branch') {

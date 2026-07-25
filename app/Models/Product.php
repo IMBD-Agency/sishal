@@ -564,6 +564,15 @@ class Product extends Model
     public function calculateCost($variationId = null): float
     {
         if ($variationId) {
+            $latestPur = \App\Models\PurchaseItem::where('variation_id', $variationId)
+                ->latest('id')
+                ->first();
+            if ($latestPur) {
+                return $latestPur->quantity > 0 
+                    ? (float) round(($latestPur->total_price - $latestPur->discount) / $latestPur->quantity, 2)
+                    : (float) $latestPur->unit_price;
+            }
+
             $variation = \App\Models\ProductVariation::find($variationId);
             if ($variation && $variation->cost > 0) {
                 return (float) $variation->cost;
@@ -581,6 +590,17 @@ class Product extends Model
                 }
             }
             return (float) $comboCost;
+        }
+
+        // Check if a purchase item exists for this product
+        $latestPur = \App\Models\PurchaseItem::where('product_id', $this->id)
+            ->whereNull('variation_id')
+            ->latest('id')
+            ->first();
+        if ($latestPur) {
+            return $latestPur->quantity > 0 
+                ? (float) round(($latestPur->total_price - $latestPur->discount) / $latestPur->quantity, 2)
+                : (float) $latestPur->unit_price;
         }
 
         return (float) ($this->cost ?? 0);
