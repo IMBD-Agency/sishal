@@ -30,11 +30,11 @@
                         <i class="fas fa-arrow-left me-2"></i>Back
                     </a>
                     @if(in_array($requisition->status, ['pending', 'partially_fulfilled']))
-                        @can('process requisitions')
+                        @canany(['process requisitions', 'manage requisitions'])
                         <button class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#fulfillModal">
                             <i class="fas fa-check-double me-2"></i>PROCESS REQUEST
                         </button>
-                        @endcan
+                        @endcanany
                     @endif
                     @if($requisition->status === 'pending')
                         @can('manage requisitions')

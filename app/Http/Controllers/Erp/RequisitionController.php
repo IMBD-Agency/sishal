@@ -441,7 +441,7 @@ class RequisitionController extends Controller
      */
     public function fulfill(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('process requisitions')) {
+        if (!auth()->user()->hasPermissionTo('process requisitions') && !auth()->user()->hasPermissionTo('manage requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $requisition = Requisition::with('items.product', 'items.variation')->findOrFail($id);
