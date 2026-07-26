@@ -135,7 +135,7 @@ class RequisitionController extends Controller
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branches = Branch::where('status', 'active')->get();
-        $warehouses = Warehouse::all();
+        $warehouses = Branch::withoutGlobalScope('active')->where('is_warehouse', true)->where('status', 'active')->get();
         $products = Product::where('status', 'active')->get();
 
         return view('erp.requisition.create', compact('branches', 'warehouses', 'products', 'restrictedBranchId'));
@@ -147,7 +147,7 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
-            'warehouse_id' => 'required|exists:warehouses,id',
+            'warehouse_id' => 'required|exists:branches,id',
             'requisition_date' => 'required|date',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -236,7 +236,7 @@ class RequisitionController extends Controller
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         $branches   = Branch::where('status', 'active')->get();
-        $warehouses = Warehouse::all();
+        $warehouses = Branch::withoutGlobalScope('active')->where('is_warehouse', true)->where('status', 'active')->get();
 
         return view('erp.requisition.edit', compact('requisition', 'branches', 'warehouses', 'restrictedBranchId'));
     }
@@ -254,7 +254,7 @@ class RequisitionController extends Controller
         }
 
         $request->validate([
-            'warehouse_id'      => 'required|exists:warehouses,id',
+            'warehouse_id'      => 'required|exists:branches,id',
             'requisition_date'  => 'required|date',
             'items'             => 'required|array|min:1',
             'items.*.product_id'   => 'required|exists:products,id',
@@ -488,7 +488,7 @@ class RequisitionController extends Controller
                         : $reqItem->product->cost;
 
                     StockTransfer::create([
-                        'from_type'            => 'warehouse',
+                        'from_type'            => 'branch',
                         'from_id'              => $requisition->warehouse_id,
                         'to_type'              => 'branch',
                         'to_id'                => $requisition->branch_id,

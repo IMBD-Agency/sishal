@@ -23,7 +23,7 @@ class Requisition extends Model
 
     public function warehouse()
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->belongsTo(Branch::class, 'warehouse_id');
     }
 
     public function creator()

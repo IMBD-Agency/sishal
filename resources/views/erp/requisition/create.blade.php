@@ -75,12 +75,20 @@
 
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-2">Request To (Warehouse) <span class="text-danger">*</span></label>
-                                        <select name="warehouse_id" class="form-select shadow-none select2-basic" required>
-                                            <option value="">Select Warehouse</option>
-                                            @foreach($warehouses as $warehouse)
-                                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        @if($warehouses->isEmpty())
+                                            <div class="alert alert-warning py-2 mb-0 small fw-bold border-0 shadow-sm">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                No branch warehouse found. Please <a href="{{ route('branches.index') }}" class="alert-link">mark a branch as warehouse</a> first.
+                                            </div>
+                                            <input type="hidden" name="warehouse_id" value="">
+                                        @else
+                                            <select name="warehouse_id" class="form-select shadow-none select2-basic" required>
+                                                <option value="">Select Warehouse</option>
+                                                @foreach($warehouses as $warehouse)
+                                                    <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        @endif
                                     </div>
 
                                     <div class="col-md-12">
