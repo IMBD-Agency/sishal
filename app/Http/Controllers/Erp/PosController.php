@@ -695,8 +695,8 @@ class PosController extends Controller
                 SUM(pos.exchange_amount) as total_exchange,
                 SUM(pos.refund_amount) as total_refund,
                 SUM(invoices.total_amount) as final_total,
-                SUM(invoices.paid_amount) as total_paid,
-                SUM(invoices.due_amount) as total_due
+                SUM(LEAST(invoices.paid_amount, invoices.total_amount)) as total_paid,
+                SUM(GREATEST(0, invoices.total_amount - LEAST(invoices.paid_amount, invoices.total_amount))) as total_due
             ")
             ->first();
 

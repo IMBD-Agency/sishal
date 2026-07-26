@@ -148,6 +148,8 @@
                         $invGrossAmount = $invGrossAmt + ($sale->vat_amount ?? 0) + $sale->delivery;
                         // Net Amount: always use invoice->total_amount (correctly reduced on return processing)
                         $invActualAmt = $invoice ? floatval($invoice->total_amount ?? 0) : max(0, $invGrossAmount - $invRetAmt);
+                        $invDisplayPaidAmount = $invoice ? min(floatval($invoice->paid_amount ?? 0), $invActualAmt) : 0;
+                        $invDisplayDueAmount = max(0, $invActualAmt - $invDisplayPaidAmount);
                     @endphp
                     <tr>
                         <!-- @if(auth()->user()->hasRole('Super Admin') || auth()->user()->can('delete sales')) -->
@@ -283,10 +285,10 @@
                             @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
                         </td>
                         <td class="text-end text-success fw-bold">
-                            @if($isFirst) {{ number_format($invoice->paid_amount ?? 0, 2) }} @endif
+                            @if($isFirst) {{ number_format($invDisplayPaidAmount, 2) }} @endif
                         </td>
                         <td class="text-end text-danger fw-bold">
-                            @if($isFirst) {{ number_format($invoice->due_amount ?? 0, 2) }} @endif
+                            @if($isFirst) {{ number_format($invDisplayDueAmount, 2) }} @endif
                         </td>
                         <td class="text-center">
                             @if($isFirst)
