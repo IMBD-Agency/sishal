@@ -702,10 +702,18 @@ class SaleReturnController extends Controller
                     $invoiceToRestore->save();
                 }
 
-                // Delete associated Journal entries
+                // Delete associated Journal entries and restore financial account balances
                 $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT);
-                $journal = Journal::where('voucher_no', $voucherNo)->first();
+                $journal = Journal::where('voucher_no', $voucherNo)->with('entries')->first();
                 if ($journal) {
+                    foreach ($journal->entries as $entry) {
+                        if ($entry->financial_account_id && $entry->credit > 0) {
+                            $fa = FinancialAccount::find($entry->financial_account_id);
+                            if ($fa) {
+                                $fa->increment('balance', $entry->credit);
+                            }
+                        }
+                    }
                     $journal->entries()->delete();
                     $journal->delete();
                 }
@@ -910,13 +918,23 @@ class SaleReturnController extends Controller
                 $voucherNo = 'SRT-' . str_pad($saleReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
             }
 
+            // Determine branch for journal & financial account lookup
+            $journalBranchId = null;
+            if ($saleReturn->return_to_type == 'branch' && $saleReturn->return_to_id) {
+                $journalBranchId = $saleReturn->return_to_id;
+            } elseif ($posSale && $posSale->branch_id) {
+                $journalBranchId = $posSale->branch_id;
+            } elseif ($saleReturn->branch_id) {
+                $journalBranchId = $saleReturn->branch_id;
+            }
+
             $journal = Journal::create([
                 'voucher_no' => $voucherNo,
                 'entry_date' => $saleReturn->return_date,
                 'type' => 'Payment',
                 'description' => 'Sale Return #' . $saleReturn->id . ($saleReturn->reason ? ' - ' . $saleReturn->reason : ''),
                 'customer_id' => $saleReturn->customer_id,
-                'branch_id' => $saleReturn->return_to_type == 'branch' ? $saleReturn->return_to_id : null,
+                'branch_id' => $journalBranchId,
                 'voucher_amount' => $totalDeduction,
                 'paid_amount' => in_array($saleReturn->refund_type, ['cash', 'bank']) ? $totalDeduction : 0,
                 'reference' => 'SR-' . $saleReturn->id,
@@ -955,19 +973,45 @@ class SaleReturnController extends Controller
 
             if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
                 // CREDIT Cash/Bank (Asset decreases) — full refund including VAT
-                $financialAccount = FinancialAccount::find($saleReturn->account_id);
-                if (!$financialAccount) {
-                    $financialAccount = FinancialAccount::where('type', $saleReturn->refund_type)->first();
+                $financialAccount = null;
+                if ($saleReturn->account_id) {
+                    $financialAccount = FinancialAccount::find($saleReturn->account_id);
                 }
 
-                if ($financialAccount && $financialAccount->account_id) {
+                if (!$financialAccount) {
+                    $faQuery = FinancialAccount::where('type', $saleReturn->refund_type);
+                    if ($journalBranchId) {
+                        $faBranchQuery = clone $faQuery;
+                        $financialAccount = $faBranchQuery->where('branch_id', $journalBranchId)->first();
+                    }
+                    if (!$financialAccount) {
+                        $financialAccount = $faQuery->first();
+                    }
+                }
+
+                $chartAccountId = $financialAccount?->account_id;
+                if (!$chartAccountId) {
+                    if ($saleReturn->refund_type === 'cash') {
+                        $cashCoA = ChartOfAccount::where('name', 'like', '%Cash%')->first();
+                        $chartAccountId = $cashCoA?->id;
+                    } else {
+                        $bankCoA = ChartOfAccount::where('name', 'like', '%Bank%')->first();
+                        $chartAccountId = $bankCoA?->id;
+                    }
+                }
+
+                if ($financialAccount) {
+                    $financialAccount->decrement('balance', $totalDeduction);
+                }
+
+                if ($chartAccountId) {
                     JournalEntry::create([
                         'journal_id' => $journal->id,
-                        'chart_of_account_id' => $financialAccount->account_id,
-                        'financial_account_id' => $financialAccount->id,
+                        'chart_of_account_id' => $chartAccountId,
+                        'financial_account_id' => $financialAccount ? $financialAccount->id : null,
                         'debit' => 0,
                         'credit' => $totalDeduction,
-                        'memo' => 'Refund via ' . $financialAccount->provider_name . ' (incl. VAT)',
+                        'memo' => 'Refund via ' . ($financialAccount ? $financialAccount->provider_name : ucfirst($saleReturn->refund_type)) . ' (incl. VAT)',
                         'created_by' => auth()->id(),
                         'updated_by' => auth()->id(),
                     ]);

@@ -91,8 +91,7 @@
                     $retQty = $item->returnItems->sum('returned_qty');
                     $retAmt = $item->returnItems->sum('total_price');
                     $actQty = $item->quantity - $retQty;
-                    $itemDiscount = $item->discount ?? 0;
-                    $actAmt = ($item->total_price - $itemDiscount) - $retAmt;
+                    $actAmt = $item->total_price - $retAmt;
 
                     $statusClass = match($purchase->status) {
                         'received' => 'bg-success',
@@ -131,3 +130,6 @@
     </div>
 </body>
 </html>
+
+
+

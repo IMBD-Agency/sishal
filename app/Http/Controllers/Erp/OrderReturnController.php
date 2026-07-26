@@ -409,14 +409,71 @@ class OrderReturnController extends Controller
                 // --- ACCOUNTING INTEGRATION ---
                 $totalRefund = $orderReturn->items->sum('total_price');
 
-                // 1. Deduct from Financial Account (Cash/Bank)
+                // 1. Deduct from Financial Account (Cash/Bank/Mobile) & Create Journal Entry
                 if (in_array($orderReturn->refund_type, ['cash', 'bank', 'mobile'])) {
+                    $account = null;
                     if ($orderReturn->account_id) {
                         $account = \App\Models\FinancialAccount::find($orderReturn->account_id);
-                        if ($account) {
-                            $account->decrement('balance', $totalRefund);
-                            \Log::info("Refund Accounting: Deducted {$totalRefund} from Account ID {$account->id}");
+                    }
+                    if (!$account) {
+                        $account = \App\Models\FinancialAccount::where('type', $orderReturn->refund_type)->first();
+                    }
+
+                    if ($account) {
+                        $account->decrement('balance', $totalRefund);
+                        \Log::info("Refund Accounting: Deducted {$totalRefund} from Account ID {$account->id}");
+                    }
+
+                    // Create Journal Entry for Cash Book & Double Entry Reports
+                    $salesReturnCoA = \App\Models\ChartOfAccount::where('name', 'Sales Returns')->orWhere('name', 'Sales Return')->first();
+                    $chartAccountId = $account?->account_id;
+                    if (!$chartAccountId) {
+                        $cashCoA = \App\Models\ChartOfAccount::where('name', 'like', '%Cash%')->first();
+                        $chartAccountId = $cashCoA?->id;
+                    }
+
+                    if ($totalRefund > 0 && $salesReturnCoA && $chartAccountId) {
+                        $voucherNo = 'ORT-' . str_pad($orderReturn->id, 6, '0', STR_PAD_LEFT);
+                        while (\App\Models\Journal::where('voucher_no', $voucherNo)->exists()) {
+                            $voucherNo = 'ORT-' . str_pad($orderReturn->id, 6, '0', STR_PAD_LEFT) . '-' . rand(10, 99);
                         }
+
+                        $journal = \App\Models\Journal::create([
+                            'voucher_no'     => $voucherNo,
+                            'entry_date'     => $orderReturn->return_date ?? now()->toDateString(),
+                            'type'           => 'Payment',
+                            'description'    => 'Order Return #' . $orderReturn->id,
+                            'customer_id'    => $orderReturn->customer_id,
+                            'branch_id'      => $orderReturn->return_to_type === 'branch' ? $orderReturn->return_to_id : null,
+                            'voucher_amount' => $totalRefund,
+                            'paid_amount'    => $totalRefund,
+                            'reference'      => 'OR-' . $orderReturn->id,
+                            'created_by'     => auth()->id(),
+                            'updated_by'     => auth()->id(),
+                        ]);
+
+                        // Debit Sales Returns
+                        \App\Models\JournalEntry::create([
+                            'journal_id'          => $journal->id,
+                            'chart_of_account_id' => $salesReturnCoA->id,
+                            'debit'               => $totalRefund,
+                            'credit'              => 0,
+                            'memo'                => 'Order Return processed',
+                            'created_by'          => auth()->id(),
+                            'updated_by'          => auth()->id(),
+                        ]);
+
+                        // Credit Cash/Bank Account
+                        \App\Models\JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $chartAccountId,
+                            'financial_account_id' => $account ? $account->id : null,
+                            'debit'                => 0,
+                            'credit'               => $totalRefund,
+                            'memo'                 => 'Refund via ' . ($account ? $account->provider_name : ucfirst($orderReturn->refund_type)),
+                            'created_by'           => auth()->id(),
+                            'updated_by'           => auth()->id(),
+                        ]);
                     }
                 } 
                 // 2. Add to Customer Balance (Store Credit)

@@ -460,10 +460,19 @@ class ExchangeController extends Controller
 
                 // Determine the Cash/Bank account to hit
                 $financialAccount = FinancialAccount::find($request->account_id);
+                if (!$financialAccount) {
+                    $financialAccount = FinancialAccount::where('type', 'cash')
+                        ->when($posExchange->branch_id, fn($q, $bId) => $q->where('branch_id', $bId))
+                        ->first() ?? FinancialAccount::where('type', 'cash')->first();
+                }
                 $cashBankAccountId = $financialAccount ? $financialAccount->account_id : null;
                 if (!$cashBankAccountId) {
                     $cashAcc = ChartOfAccount::where('name', 'like', '%Cash%')->first();
                     $cashBankAccountId = $cashAcc ? $cashAcc->id : 1;
+                }
+
+                if ($refundAmount > 0 && $financialAccount) {
+                    $financialAccount->decrement('balance', $refundAmount);
                 }
 
                 if ($extraPayable > 0) {
