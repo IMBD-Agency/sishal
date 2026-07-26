@@ -178,7 +178,7 @@
             </div>
         @endcan
 
-        @can('view transfers')
+        @canany(['view fund transfers', 'view transfers'])
             <div class="nav-item">
                 <a href="{{ route('transfers.index') }}"
                     class="nav-link {{ request()->is('erp/fund-transfers*') ? ' active' : '' }}">
@@ -186,7 +186,7 @@
                     <span>Fund Transfer</span>
                 </a>
             </div>
-        @endcan
+        @endcanany
 
         @can('view requisitions')
             <div class="nav-item">

@@ -21,7 +21,7 @@ class TransferController extends Controller
 {
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view transfers')) {
+        if (!auth()->user()->hasPermissionTo('view fund transfers') && !auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -125,7 +125,7 @@ class TransferController extends Controller
 
     public function exportExcel(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view transfers')) {
+        if (!auth()->user()->hasPermissionTo('view fund transfers') && !auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -197,7 +197,7 @@ class TransferController extends Controller
 
     public function exportPdf(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view transfers')) {
+        if (!auth()->user()->hasPermissionTo('view fund transfers') && !auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -238,7 +238,7 @@ class TransferController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('create transfers')) {
+        if (!auth()->user()->hasPermissionTo('create fund transfers') && !auth()->user()->hasPermissionTo('create transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -289,7 +289,7 @@ class TransferController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create transfers')) {
+        if (!auth()->user()->hasPermissionTo('create fund transfers') && !auth()->user()->hasPermissionTo('create transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -430,7 +430,7 @@ class TransferController extends Controller
 
     public function show(Transfer $transfer)
     {
-        if (!auth()->user()->hasPermissionTo('view transfers')) {
+        if (!auth()->user()->hasPermissionTo('view fund transfers') && !auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -439,7 +439,7 @@ class TransferController extends Controller
 
     public function destroy(Transfer $transfer)
     {
-        if (!auth()->user()->hasPermissionTo('delete transfers')) {
+        if (!auth()->user()->hasPermissionTo('delete fund transfers') && !auth()->user()->hasPermissionTo('delete transfers')) {
             abort(403, 'Unauthorized action.');
         }
 
