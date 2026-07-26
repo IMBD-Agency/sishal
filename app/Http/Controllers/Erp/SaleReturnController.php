@@ -690,6 +690,9 @@ class SaleReturnController extends Controller
                 }
                 if ($invoiceToRestore && $totalRestoration > 0) {
                     $invoiceToRestore->total_amount += $totalRestoration;
+                    if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
+                        $invoiceToRestore->paid_amount += $totalRestoration;
+                    }
                     $invoiceToRestore->due_amount = max(0, $invoiceToRestore->total_amount - $invoiceToRestore->paid_amount);
                     if ($invoiceToRestore->paid_amount >= $invoiceToRestore->total_amount) {
                         $invoiceToRestore->status = 'paid';
@@ -866,6 +869,9 @@ class SaleReturnController extends Controller
 
         if ($invoiceToUpdate && $totalDeduction > 0) {
             $invoiceToUpdate->total_amount = max(0, $invoiceToUpdate->total_amount - $totalDeduction);
+            if (in_array($saleReturn->refund_type, ['cash', 'bank'])) {
+                $invoiceToUpdate->paid_amount = max(0, $invoiceToUpdate->paid_amount - $totalDeduction);
+            }
             $invoiceToUpdate->due_amount = max(0, $invoiceToUpdate->total_amount - $invoiceToUpdate->paid_amount);
             if ($invoiceToUpdate->paid_amount >= $invoiceToUpdate->total_amount) {
                 $invoiceToUpdate->status = 'paid';
