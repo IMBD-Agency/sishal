@@ -126,18 +126,28 @@
                                     <tbody>
                                         @foreach($requisition->items as $item)
                                             @php
-                                                // Check warehouse stock
+                                                // Check warehouse stock (checking both branch_id for Branch Warehouses and warehouse_id)
                                                 $stock = 0;
                                                 if ($item->variation_id) {
                                                     $vs = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
-                                                        ->where('warehouse_id', $requisition->warehouse_id)
+                                                        ->where(function($q) use ($requisition) {
+                                                            $q->where('branch_id', $requisition->warehouse_id)
+                                                              ->orWhere('warehouse_id', $requisition->warehouse_id);
+                                                        })
                                                         ->first();
                                                     $stock = $vs ? $vs->quantity : 0;
                                                 } else {
-                                                    $ws = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)
-                                                        ->where('warehouse_id', $requisition->warehouse_id)
+                                                    $bs = \App\Models\BranchProductStock::where('product_id', $item->product_id)
+                                                        ->where('branch_id', $requisition->warehouse_id)
                                                         ->first();
-                                                    $stock = $ws ? $ws->quantity : 0;
+                                                    if ($bs) {
+                                                        $stock = $bs->quantity;
+                                                    } else {
+                                                        $ws = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)
+                                                            ->where('warehouse_id', $requisition->warehouse_id)
+                                                            ->first();
+                                                        $stock = $ws ? $ws->quantity : 0;
+                                                    }
                                                 }
 
                                                 $img = null;
@@ -236,11 +246,25 @@
                                                 $pending = $item->quantity - $item->fulfilled_quantity;
                                                 $stock = 0;
                                                 if ($item->variation_id) {
-                                                    $vs = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)->where('warehouse_id', $requisition->warehouse_id)->first();
+                                                    $vs = \App\Models\ProductVariationStock::where('variation_id', $item->variation_id)
+                                                        ->where(function($q) use ($requisition) {
+                                                            $q->where('branch_id', $requisition->warehouse_id)
+                                                              ->orWhere('warehouse_id', $requisition->warehouse_id);
+                                                        })
+                                                        ->first();
                                                     $stock = $vs ? $vs->quantity : 0;
                                                 } else {
-                                                    $ws = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)->where('warehouse_id', $requisition->warehouse_id)->first();
-                                                    $stock = $ws ? $ws->quantity : 0;
+                                                    $bs = \App\Models\BranchProductStock::where('product_id', $item->product_id)
+                                                        ->where('branch_id', $requisition->warehouse_id)
+                                                        ->first();
+                                                    if ($bs) {
+                                                        $stock = $bs->quantity;
+                                                    } else {
+                                                        $ws = \App\Models\WarehouseProductStock::where('product_id', $item->product_id)
+                                                            ->where('warehouse_id', $requisition->warehouse_id)
+                                                            ->first();
+                                                        $stock = $ws ? $ws->quantity : 0;
+                                                    }
                                                 }
                                                 $suggestTransfer = $stock > 0;
                                             @endphp
