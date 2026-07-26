@@ -261,31 +261,27 @@ class TransferController extends Controller
 
         $fromAccounts = $fromAccountsQuery->get();
 
-        // TO ACCOUNTS: Main/Central accounts AND Warehouse accounts - destination for branch transfers
-        // These include accounts where branch_id is NULL (admin-controlled central accounts)
-        // AND accounts where warehouse_id is set (warehouse accounts)
+        // TO ACCOUNTS: Main/Central accounts, Warehouse accounts, AND Branch Warehouse accounts
         $toAccountsQuery = FinancialAccount::with(['branch', 'warehouse'])
             ->where(function($q) {
                 $q->whereNull('branch_id') // Main/central accounts
-                  ->orWhereNotNull('warehouse_id'); // OR warehouse accounts
+                  ->orWhereNotNull('warehouse_id') // Warehouse accounts
+                  ->orWhereHas('branch', function($bq) {
+                      $bq->where('is_warehouse', true);
+                  }); // Branch warehouse accounts
             })
             ->orderBy('type')
             ->orderBy('provider_name');
-
-        // Super admin sees all central and warehouse accounts
-        // Branch users see all central and warehouse accounts too
-        // because branches can send money to warehouse accounts
 
         $toAccounts = $toAccountsQuery->get();
 
         // Get branches and warehouses for location filter
         if ($restrictedBranchId) {
             $branches = Branch::where('id', $restrictedBranchId)->get();
-            $branchWarehouseId = Branch::where('id', $restrictedBranchId)->value('warehouse_id');
-            $warehouses = Warehouse::whereIn('id', array_filter([$branchWarehouseId]))->get();
+            $warehouses = Branch::withoutGlobalScope('active')->where('is_warehouse', true)->where('status', 'active')->get();
         } else {
             $branches = Branch::orderBy('name')->get();
-            $warehouses = Warehouse::orderBy('name')->get();
+            $warehouses = Branch::withoutGlobalScope('active')->where('is_warehouse', true)->where('status', 'active')->get();
         }
 
         return view('erp.transfers.create', compact('fromAccounts', 'toAccounts', 'branches', 'warehouses'));
@@ -310,17 +306,18 @@ class TransferController extends Controller
         $user = auth()->user();
 
         // Security check: Verify user has access to both accounts
-        $fromAccount = FinancialAccount::find($request->from_financial_account_id);
-        $toAccount = FinancialAccount::find($request->to_financial_account_id);
+        $fromAccount = FinancialAccount::with('branch')->find($request->from_financial_account_id);
+        $toAccount = FinancialAccount::with('branch')->find($request->to_financial_account_id);
 
         // Verify accounts are of correct type
         // FROM must be a branch account (since branches send money to warehouse/center)
         if (!$fromAccount->branch_id) {
-            abort(403, 'Source account must be a branch account.');
+            return back()->with('error', 'Source account must be a branch account.');
         }
-        // TO must be a main/central account OR a warehouse account (not another branch account)
-        if ($toAccount->branch_id && !$toAccount->warehouse_id) {
-            abort(403, 'Destination account must be a main/central account or warehouse account (not another branch account).');
+        // TO must be a main/central account, warehouse account, or branch warehouse account
+        $isToBranchWarehouse = $toAccount->branch && $toAccount->branch->is_warehouse;
+        if ($toAccount->branch_id && !$toAccount->warehouse_id && !$isToBranchWarehouse) {
+            return back()->with('error', 'Destination account must be a main/central account or warehouse account (branch marked as warehouse).');
         }
 
         if ($restrictedBranchId) {
@@ -507,12 +504,14 @@ class TransferController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        $accounts = $query->get()->map(function($account) {
+        $accounts = $query->with(['branch', 'warehouse'])->get()->map(function($account) {
             $location = '';
             if ($account->branch_id) {
-                $location = $account->branch->name ?? 'Branch';
+                $location = ($account->branch && $account->branch->is_warehouse ? 'Branch Warehouse: ' : 'Branch: ') . ($account->branch->name ?? '');
             } elseif ($account->warehouse_id) {
-                $location = $account->warehouse->name ?? 'Warehouse';
+                $location = 'Warehouse: ' . ($account->warehouse->name ?? '');
+            } else {
+                $location = 'Main / Central Account';
             }
 
             return [

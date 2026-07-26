@@ -61,8 +61,13 @@
                                         @foreach($fromAccounts as $account)
                                             @php
                                                 $location = '';
-                                                if($account->branch_id) $location = $account->branch->name ?? 'Branch';
-                                                elseif($account->warehouse_id) $location = $account->warehouse->name ?? 'Warehouse';
+                                                if($account->branch_id) {
+                                                    $location = ($account->branch && $account->branch->is_warehouse ? 'Branch Warehouse: ' : 'Branch: ') . ($account->branch->name ?? '');
+                                                } elseif($account->warehouse_id) {
+                                                    $location = 'Warehouse: ' . ($account->warehouse->name ?? '');
+                                                } else {
+                                                    $location = 'Main / Central Account';
+                                                }
                                             @endphp
                                             <option value="{{ $account->id }}" data-balance="{{ $account->balance }}">
                                                 {{ $account->provider_name }} - {{ $account->account_number }} 
@@ -92,8 +97,13 @@
                                         @foreach($toAccounts as $account)
                                             @php
                                                 $location = '';
-                                                if($account->branch_id) $location = $account->branch->name ?? 'Branch';
-                                                elseif($account->warehouse_id) $location = $account->warehouse->name ?? 'Warehouse';
+                                                if($account->branch_id) {
+                                                    $location = ($account->branch && $account->branch->is_warehouse ? 'Branch Warehouse: ' : 'Branch: ') . ($account->branch->name ?? '');
+                                                } elseif($account->warehouse_id) {
+                                                    $location = 'Warehouse: ' . ($account->warehouse->name ?? '');
+                                                } else {
+                                                    $location = 'Main / Central Account';
+                                                }
                                             @endphp
                                             <option value="{{ $account->id }}">
                                                 {{ $account->provider_name }} - {{ $account->account_number }} 
