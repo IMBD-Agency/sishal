@@ -48,6 +48,32 @@
         </div>
 
         <div class="container-fluid px-4 py-4">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4 fw-bold" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4 fw-bold" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4 fw-bold" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Please check errors below:
+                    <ul class="mb-0 mt-2">
+                        @foreach($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
             <div class="row g-4">
                 <!-- Info Column -->
                 <div class="col-lg-4">
@@ -233,10 +259,11 @@
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Product</th>
+                                        <th>Style No</th>
                                         <th class="text-center">Pending Qty</th>
                                         <th class="text-center">Warehouse Stock</th>
-                                        <th style="width: 150px;">Fulfill Via</th>
-                                        <th style="width: 120px;">Qty to Process</th>
+                                        <th style="width: 160px;">Fulfill Via</th>
+                                        <th style="width: 150px;">Qty to Process</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -267,6 +294,7 @@
                                                     }
                                                 }
                                                 $suggestTransfer = $stock > 0;
+                                                $styleNo = optional($item->product)->style_number ?? optional($item->product)->sku ?? '—';
                                             @endphp
                                             <tr>
                                                 <td>
@@ -289,32 +317,40 @@
                                                         @endif
                                                     </div>
                                                 </td>
+                                                <td>
+                                                    <span class="text-pink fw-bold">{{ $styleNo }}</span>
+                                                </td>
                                                 <td class="text-center fw-bold">{{ $pending }}</td>
                                                 <td class="text-center">
                                                     <span class="badge {{ $stock > 0 ? 'bg-success' : 'bg-danger' }}">{{ $stock }}</span>
                                                 </td>
                                                 <td>
-                                                    @if($stock > 0)
-                                                        <select name="items[{{ $item->id }}][type]" class="form-select form-select-sm shadow-none">
+                                                    <select name="items[{{ $item->id }}][type]" 
+                                                            class="form-select form-select-sm shadow-none fulfill-type-select {{ $stock > 0 ? '' : 'border-danger text-danger' }}"
+                                                            data-item-id="{{ $item->id }}"
+                                                            data-pending="{{ (int)$pending }}"
+                                                            data-stock="{{ (int)$stock }}">
+                                                        @if($stock > 0)
                                                             <option value="transfer" selected>Stock Transfer</option>
                                                             <option value="skip">Skip</option>
-                                                        </select>
-                                                    @else
-                                                        <select name="items[{{ $item->id }}][type]" class="form-select form-select-sm shadow-none border-danger text-danger">
+                                                        @else
                                                             <option value="skip" selected>Skip</option>
                                                             <option value="transfer">Stock Transfer</option>
-                                                        </select>
-                                                    @endif
+                                                        @endif
+                                                    </select>
                                                 </td>
                                                 <td>
-                                                    @if($stock > 0)
-                                                        <input type="number" name="items[{{ $item->id }}][qty]" class="form-control form-control-sm" value="{{ (int) min($pending, $stock) }}" max="{{ (int) $pending }}" min="1" step="1">
-                                                    @else
-                                                        <div class="d-flex align-items-center gap-1">
-                                                            <input type="number" name="items[{{ $item->id }}][qty]" class="form-control form-control-sm" value="0" max="{{ (int) $pending }}" min="0" step="1" disabled>
-                                                            <span class="badge bg-danger text-white" style="font-size:0.65rem; white-space:nowrap;" title="Purchase manually from supplier">
-                                                                <i class="fas fa-shopping-cart me-1"></i>Buy Manually
-                                                            </span>
+                                                    <input type="number" 
+                                                           id="qty_input_{{ $item->id }}" 
+                                                           name="items[{{ $item->id }}][qty]" 
+                                                           class="form-control form-control-sm fulfill-qty-input" 
+                                                           value="{{ $stock > 0 ? (int) min($pending, $stock) : 0 }}" 
+                                                           max="{{ (int) $pending }}" 
+                                                           min="0" 
+                                                           step="1">
+                                                    @if($stock <= 0)
+                                                        <div class="small text-danger mt-1 opacity-75" style="font-size:0.7rem;">
+                                                            <i class="fas fa-exclamation-circle me-1"></i>No stock in warehouse
                                                         </div>
                                                     @endif
                                                 </td>
@@ -335,3 +371,26 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        $(document).ready(function() {
+            $('.fulfill-type-select').on('change', function() {
+                const itemId = $(this).data('item-id');
+                const pending = parseInt($(this).data('pending')) || 0;
+                const stock = parseInt($(this).data('stock')) || 0;
+                const qtyInput = $('#qty_input_' + itemId);
+                const val = $(this).val();
+
+                if (val === 'skip') {
+                    qtyInput.val(0);
+                } else if (val === 'transfer') {
+                    const defaultQty = stock > 0 ? Math.min(pending, stock) : pending;
+                    if (parseInt(qtyInput.val()) <= 0) {
+                        qtyInput.val(defaultQty);
+                    }
+                }
+            });
+        });
+    </script>
+@endpush

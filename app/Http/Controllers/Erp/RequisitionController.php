@@ -470,7 +470,7 @@ class RequisitionController extends Controller
         $request->validate([
             'items'        => 'required|array',
             'items.*.type' => 'required|in:transfer,skip',
-            'items.*.qty'  => 'required|integer|min:0',
+            'items.*.qty'  => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -478,12 +478,15 @@ class RequisitionController extends Controller
             $transferItems = [];
 
             foreach ($request->items as $itemId => $data) {
-                if ($data['type'] === 'skip' || (int)$data['qty'] <= 0) continue;
+                if (($data['type'] ?? '') === 'skip') continue;
+                $qty = isset($data['qty']) ? (int)$data['qty'] : 0;
+                if ($qty <= 0) continue;
 
-                $reqItem = RequisitionItem::findOrFail($itemId);
+                $reqItem = RequisitionItem::find($itemId);
+                if (!$reqItem || $reqItem->requisition_id != $requisition->id) continue;
 
                 $pending      = $reqItem->quantity - $reqItem->fulfilled_quantity;
-                $qtyToFulfill = min((int)$data['qty'], $pending);
+                $qtyToFulfill = min($qty, $pending);
 
                 if ($qtyToFulfill <= 0) continue;
 
@@ -530,16 +533,8 @@ class RequisitionController extends Controller
                 }
             }
 
-            // Update requisition status
-            $requisition->refresh();
-            $allFulfilled = $anyFulfilled = false;
-            foreach ($requisition->items as $item) {
-                if ($item->fulfilled_quantity >= $item->quantity) {
-                    $anyFulfilled = true;
-                } else {
-                    if ($item->fulfilled_quantity > 0) $anyFulfilled = true;
-                }
-            }
+            // Reload fresh relation to update status accurately based on DB values
+            $requisition = $requisition->fresh(['items']);
             $allFulfilled = $requisition->items->every(fn($i) => $i->fulfilled_quantity >= $i->quantity);
             $anyFulfilled = $requisition->items->some(fn($i)  => $i->fulfilled_quantity > 0);
 
@@ -550,7 +545,12 @@ class RequisitionController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('requisition.show', $id)->with('success', 'Stock transfer initiated successfully.');
+
+            $msg = !empty($transferItems)
+                ? 'Stock transfer initiated successfully.'
+                : 'Requisition saved (no items were transferred).';
+
+            return redirect()->route('requisition.show', $id)->with('success', $msg);
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Fulfillment failed: ' . $e->getMessage());
