@@ -259,7 +259,7 @@
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Product</th>
-                                        <th>Style No</th>
+                                        <th>Style</th>
                                         <th class="text-center">Pending Qty</th>
                                         <th class="text-center">Warehouse Stock</th>
                                         <th style="width: 160px;">Fulfill Via</th>
