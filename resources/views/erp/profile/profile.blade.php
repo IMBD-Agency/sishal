@@ -3,7 +3,7 @@
 @section('title', 'Profile Settings')
 
 @push('styles')
-<!-- Profile styles are now in public/erp.css -->
+<!-- Profile styles are loaded from public/erp.css -->
 @endpush
 
 @section('body')
@@ -11,36 +11,52 @@
 <div class="main-content" id="mainContent">
     @include('erp.components.header')
     <div class="container-fluid py-4">
-        <!-- Simple Profile Header -->
-        <div class="profile-header">
+        <!-- Modern Cover Header -->
+        <div class="profile-cover-banner">
             <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center">
-                        <img src="{{ Auth::user()->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->first_name . ' ' . Auth::user()->last_name) . '&background=198754&color=fff&size=80' }}" 
-                             alt="Profile Avatar" class="profile-avatar me-3">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center gap-4 flex-wrap flex-sm-nowrap">
+                        <div class="profile-avatar-wrapper">
+                            <img src="{{ Auth::user()->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->first_name . ' ' . Auth::user()->last_name) . '&background=198754&color=fff&size=100' }}" 
+                                 alt="Profile Avatar" class="profile-avatar">
+                            <span class="profile-status-badge" title="Active Account"></span>
+                        </div>
                         <div>
-                            <h3 class="mb-1">{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h3>
-                            <p class="mb-1 text-muted-simple">{{ Auth::user()->email }} @if(Auth::user()->employee) | <span class="fw-bold">{{ Auth::user()->employee->designation }}</span> @endif</p>
-                            <small class="text-muted-simple">Member since {{ Auth::user()->created_at->format('M Y') }}</small>
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <h3 class="mb-0 text-white fw-bold">{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h3>
+                                <span class="badge bg-white text-success px-3 py-1 rounded-pill fw-semibold shadow-sm">
+                                    <i class="fas fa-shield-halved me-1"></i>{{ Auth::user()->roles->first()->name ?? 'User' }}
+                                </span>
+                            </div>
+                            <p class="mb-2 text-white-50 fs-6">
+                                <i class="far fa-envelope me-1 text-white-50"></i> {{ Auth::user()->email }} 
+                                @if(Auth::user()->employee) 
+                                    <span class="mx-2 opacity-50">|</span> 
+                                    <i class="fas fa-briefcase me-1 text-white-50"></i> <span class="fw-semibold text-white">{{ Auth::user()->employee->designation }}</span> 
+                                @endif
+                            </p>
+                            <div class="d-flex align-items-center gap-3 text-white-50 small">
+                                <span><i class="far fa-calendar-alt me-1"></i> Member since {{ Auth::user()->created_at->format('M Y') }}</span>
+                                <span><i class="fas fa-circle me-1 text-success" style="font-size: 8px;"></i> System Online</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4 text-md-end mt-2 mt-md-0">
-                    <small class="text-muted-simple">Last active {{ Auth::user()->last_login_at?->diffForHumans() ?? 'Never' }}</small>
                 </div>
             </div>
         </div>
 
-        <div class="row">
-            <!-- Profile Information -->
+        <div class="row g-4">
+            <!-- Left Column: Forms -->
             <div class="col-lg-8">
+                <!-- Profile Information -->
                 <div class="card-simple">
                     <div class="card-header-simple">
-                        Profile Information
+                        <span><i class="fas fa-user-gear text-success me-2"></i> Profile Information</span>
+                        <span class="badge bg-light text-muted fw-normal fs-7">Basic Account Details</span>
                     </div>
                     <div class="card-body-simple">
                         @if (session('status'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm" role="alert">
                                 <i class="fas fa-check-circle me-2"></i>{{ session('status') }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
@@ -50,62 +66,74 @@
                             @csrf
                             @method('PUT')
                             
-                            <div class="row">
+                            <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="first_name" class="form-label-simple">First Name</label>
-                                        <input type="text" 
-                                               class="form-control-simple @error('first_name') is-invalid @enderror" 
-                                               id="first_name" 
-                                               name="first_name" 
-                                               value="{{ old('first_name', Auth::user()->first_name) }}" 
-                                               required
-                                               maxlength="50">
+                                        <div class="input-group-modern">
+                                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                            <input type="text" 
+                                                   class="form-control-simple @error('first_name') is-invalid @enderror" 
+                                                   id="first_name" 
+                                                   name="first_name" 
+                                                   value="{{ old('first_name', Auth::user()->first_name) }}" 
+                                                   required
+                                                   maxlength="50"
+                                                   placeholder="First Name">
+                                        </div>
                                         @error('first_name')
-                                            <div class="invalid-feedback">{{ $message }}</div>
+                                            <div class="invalid-feedback d-block mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="last_name" class="form-label-simple">Last Name</label>
-                                        <input type="text" 
-                                               class="form-control-simple @error('last_name') is-invalid @enderror" 
-                                               id="last_name" 
-                                               name="last_name" 
-                                               value="{{ old('last_name', Auth::user()->last_name) }}" 
-                                               required
-                                               maxlength="50">
+                                        <div class="input-group-modern">
+                                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                            <input type="text" 
+                                                   class="form-control-simple @error('last_name') is-invalid @enderror" 
+                                                   id="last_name" 
+                                                   name="last_name" 
+                                                   value="{{ old('last_name', Auth::user()->last_name) }}" 
+                                                   required
+                                                   maxlength="50"
+                                                   placeholder="Last Name">
+                                        </div>
                                         @error('last_name')
-                                            <div class="invalid-feedback">{{ $message }}</div>
+                                            <div class="invalid-feedback d-block mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="mb-3">
+                            <div class="mb-4">
                                 <label for="email" class="form-label-simple">Email Address</label>
-                                <input type="email" 
-                                       class="form-control-simple @error('email') is-invalid @enderror" 
-                                       id="email" 
-                                       name="email" 
-                                       value="{{ old('email', Auth::user()->email) }}" 
-                                       required
-                                       {{ str_ends_with(Auth::user()->email, '@staff.internal') ? 'readonly' : '' }}>
+                                <div class="input-group-modern">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" 
+                                           class="form-control-simple @error('email') is-invalid @enderror" 
+                                           id="email" 
+                                           name="email" 
+                                           value="{{ old('email', Auth::user()->email) }}" 
+                                           required
+                                           placeholder="Email Address"
+                                           {{ str_ends_with(Auth::user()->email, '@staff.internal') ? 'readonly' : '' }}>
+                                </div>
                                 @if(str_ends_with(Auth::user()->email, '@staff.internal'))
-                                    <small class="text-muted-simple">Internal staff email cannot be changed.</small>
+                                    <div class="mt-1 text-muted-simple"><i class="fas fa-info-circle text-info me-1"></i> Internal staff email cannot be modified.</div>
                                 @endif
                                 @error('email')
-                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback d-block mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             
-                            <div class="d-flex justify-content-between align-items-center pt-2">
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
                                 <button type="submit" class="btn-simple">
-                                    Update Profile
+                                    <i class="fas fa-save me-1"></i> Update Profile
                                 </button>
                                 <button type="button" class="btn-outline-simple" onclick="resetForm()">
-                                    Reset Changes
+                                    <i class="fas fa-rotate-left me-1"></i> Reset Changes
                                 </button>
                             </div>
                         </form>
@@ -115,11 +143,12 @@
                 <!-- Change Password -->
                 <div class="card-simple">
                     <div class="card-header-simple">
-                        Change Password
+                        <span><i class="fas fa-shield-alt text-success me-2"></i> Security & Password</span>
+                        <span class="badge bg-light text-muted fw-normal fs-7">Credentials</span>
                     </div>
                     <div class="card-body-simple">
                         @if (session('password_status'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm" role="alert">
                                 <i class="fas fa-check-circle me-2"></i>{{ session('password_status') }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
@@ -131,80 +160,153 @@
                             
                             <div class="mb-3">
                                 <label for="current_password" class="form-label-simple">Current Password</label>
-                                <input type="password" 
-                                       class="form-control-simple @error('current_password') is-invalid @enderror" 
-                                       id="current_password" 
-                                       name="current_password" 
-                                       required>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-lock"></i></span>
+                                    <input type="password" 
+                                           class="form-control form-control-simple border-start-0 @error('current_password') is-invalid @enderror" 
+                                           id="current_password" 
+                                           name="current_password" 
+                                           placeholder="Enter current password"
+                                           required>
+                                    <button type="button" class="btn btn-outline-secondary border-start-0 text-muted" onclick="togglePassword('current_password')">
+                                        <i class="fas fa-eye" id="current_password_icon"></i>
+                                    </button>
+                                </div>
                                 @error('current_password')
-                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback d-block mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             
                             <div class="mb-3">
                                 <label for="password" class="form-label-simple">New Password</label>
-                                <input type="password" 
-                                       class="form-control-simple @error('password') is-invalid @enderror" 
-                                       id="password" 
-                                       name="password" 
-                                       required
-                                       minlength="8"
-                                       oninput="checkPasswordStrength(this.value)">
-                                <div class="password-strength" id="passwordStrength"></div>
-                                <small class="text-muted-simple">
-                                    Password must be at least 8 characters.
-                                </small>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-key"></i></span>
+                                    <input type="password" 
+                                           class="form-control form-control-simple border-start-0 @error('password') is-invalid @enderror" 
+                                           id="password" 
+                                           name="password" 
+                                           required
+                                           minlength="8"
+                                           placeholder="At least 8 characters"
+                                           oninput="checkPasswordStrength(this.value)">
+                                    <button type="button" class="btn btn-outline-secondary border-start-0 text-muted" onclick="togglePassword('password')">
+                                        <i class="fas fa-eye" id="password_icon"></i>
+                                    </button>
+                                </div>
+                                <div class="password-strength-container">
+                                    <div class="password-strength" id="passwordStrength"></div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <small class="text-muted-simple">
+                                        Must contain uppercase, lowercase, numbers, and symbols.
+                                    </small>
+                                    <small id="strengthText" class="fw-semibold text-muted-simple"></small>
+                                </div>
                                 @error('password')
-                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback d-block mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
                             
-                            <div class="mb-3">
+                            <div class="mb-4">
                                 <label for="password_confirmation" class="form-label-simple">Confirm New Password</label>
-                                <input type="password" 
-                                       class="form-control-simple" 
-                                       id="password_confirmation" 
-                                       name="password_confirmation" 
-                                       required
-                                       oninput="checkPasswordMatch()">
-                                <div id="passwordMatch" class="text-muted-simple"></div>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-check-double"></i></span>
+                                    <input type="password" 
+                                           class="form-control form-control-simple border-start-0" 
+                                           id="password_confirmation" 
+                                           name="password_confirmation" 
+                                           placeholder="Re-enter new password"
+                                           required
+                                           oninput="checkPasswordMatch()">
+                                    <button type="button" class="btn btn-outline-secondary border-start-0 text-muted" onclick="togglePassword('password_confirmation')">
+                                        <i class="fas fa-eye" id="password_confirmation_icon"></i>
+                                    </button>
+                                </div>
+                                <div id="passwordMatch" class="mt-1 text-muted-simple"></div>
                             </div>
                             
-                            <button type="submit" class="btn-simple" id="changePasswordBtn" disabled>
-                                Change Password
-                            </button>
+                            <div class="pt-2 border-top">
+                                <button type="submit" class="btn-simple" id="changePasswordBtn" disabled>
+                                    <i class="fas fa-lock me-1"></i> Change Password
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <!-- Sidebar Information -->
+            <!-- Right Column: Sidebar Info -->
             <div class="col-lg-4">
-                <!-- Account Activity -->
+                <!-- Account Overview -->
                 <div class="card-simple">
                     <div class="card-header-simple">
-                        Account Information
+                        <span><i class="fas fa-id-card text-success me-2"></i> Account Details</span>
                     </div>
                     <div class="card-body-simple">
                         <div class="activity-item-simple">
-                            <small class="text-muted-simple">System Role</small>
-                            <div class="fw-semibold">{{ Auth::user()->roles->first()->name ?? 'N/A' }}</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="info-icon-badge bg-success-subtle text-success">
+                                    <i class="fas fa-user-shield"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted-simple mb-0">System Role</div>
+                                    <div class="fw-bold text-dark fs-6">{{ Auth::user()->roles->first()->name ?? 'User' }}</div>
+                                </div>
+                            </div>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
                         </div>
+
                         @if(Auth::user()->employee)
                         <div class="activity-item-simple">
-                            <small class="text-muted-simple">Designation</small>
-                            <div class="fw-semibold">{{ Auth::user()->employee->designation ?? 'N/A' }}</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="info-icon-badge bg-primary-subtle text-primary">
+                                    <i class="fas fa-user-tag"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted-simple mb-0">Designation</div>
+                                    <div class="fw-bold text-dark fs-6">{{ Auth::user()->employee->designation ?? 'N/A' }}</div>
+                                </div>
+                            </div>
                         </div>
+
                         <div class="activity-item-simple">
-                            <small class="text-muted-simple">Assigned Branch</small>
-                            <div class="fw-semibold">{{ Auth::user()->employee->branch->name ?? 'Global' }}</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="info-icon-badge bg-info-subtle text-info">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted-simple mb-0">Assigned Branch</div>
+                                    <div class="fw-bold text-dark fs-6">{{ Auth::user()->employee->branch->name ?? 'Global' }}</div>
+                                </div>
+                            </div>
                         </div>
                         @endif
-                        <hr>
+
                         <div class="activity-item-simple">
-                            <small class="text-muted-simple">Account created</small>
-                            <div class="fw-semibold">{{ Auth::user()->created_at->format('M d, Y') }}</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="info-icon-badge bg-warning-subtle text-warning">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted-simple mb-0">Account Created</div>
+                                    <div class="fw-bold text-dark fs-6">{{ Auth::user()->created_at->format('M d, Y') }}</div>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Quick Help / Support Card -->
+                <div class="card-simple bg-light border-0">
+                    <div class="card-body-simple text-center py-4">
+                        <div class="mb-3">
+                            <i class="fas fa-shield-cat fa-2x text-success"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Need Security Help?</h6>
+                        <p class="text-muted-simple small mb-3">If you notice suspicious activity or need account privileges changed, please contact system administration.</p>
+                        <a href="mailto:admin@sisalfashion.com" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                            <i class="fas fa-headset me-1"></i> Contact Admin
+                        </a>
                     </div>
                 </div>
             </div>
@@ -233,7 +335,7 @@ function togglePassword(fieldId) {
 // Password strength checker
 function checkPasswordStrength(password) {
     const strengthBar = document.getElementById('passwordStrength');
-    const btn = document.getElementById('changePasswordBtn');
+    const strengthText = document.getElementById('strengthText');
     
     let strength = 0;
     if (password.length >= 8) strength++;
@@ -244,12 +346,18 @@ function checkPasswordStrength(password) {
     
     strengthBar.className = 'password-strength';
     
-    if (strength < 3) {
+    if (password.length === 0) {
+        strengthBar.style.width = '0%';
+        if (strengthText) strengthText.textContent = '';
+    } else if (strength < 3) {
         strengthBar.classList.add('strength-weak');
+        if (strengthText) { strengthText.textContent = 'Weak'; strengthText.className = 'fw-semibold text-danger'; }
     } else if (strength < 5) {
         strengthBar.classList.add('strength-medium');
+        if (strengthText) { strengthText.textContent = 'Medium'; strengthText.className = 'fw-semibold text-warning'; }
     } else {
         strengthBar.classList.add('strength-strong');
+        if (strengthText) { strengthText.textContent = 'Strong'; strengthText.className = 'fw-semibold text-success'; }
     }
     
     checkPasswordMatch();
@@ -269,10 +377,10 @@ function checkPasswordMatch() {
     }
     
     if (password === confirm) {
-        matchDiv.innerHTML = '<span class="text-success"><i class="fas fa-check me-1"></i>Passwords match</span>';
+        matchDiv.innerHTML = '<span class="text-success small fw-semibold"><i class="fas fa-check-circle me-1"></i>Passwords match</span>';
         btn.disabled = password.length < 8;
     } else {
-        matchDiv.innerHTML = '<span class="text-danger"><i class="fas fa-times me-1"></i>Passwords do not match</span>';
+        matchDiv.innerHTML = '<span class="text-danger small fw-semibold"><i class="fas fa-times-circle me-1"></i>Passwords do not match</span>';
         btn.disabled = true;
     }
 }
@@ -280,17 +388,19 @@ function checkPasswordMatch() {
 // Reset form
 function resetForm() {
     document.getElementById('profileForm').reset();
+    if (window.showToast) {
+        window.showToast('Profile form reset', 'info');
+    }
 }
-
-// Avatar upload (placeholder - requires backend implementation)
-// Avatar upload handlers were removed to avoid errors until backend support is added
 
 // Auto-dismiss alerts after 5 seconds
 setTimeout(function() {
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(function(alert) {
-        const bsAlert = new bootstrap.Alert(alert);
-        bsAlert.close();
+        if (window.bootstrap && bootstrap.Alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
     });
 }, 5000);
 </script>

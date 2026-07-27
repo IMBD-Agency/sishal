@@ -27,9 +27,16 @@ class RequisitionController extends Controller
         $query = Requisition::with(['branch', 'warehouse', 'creator']);
 
         if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
+            $query->where(function ($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhere('warehouse_id', $restrictedBranchId);
+            });
         } elseif ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
+            $branchId = $request->branch_id;
+            $query->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhere('warehouse_id', $branchId);
+            });
         }
 
         if ($request->filled('status')) {
@@ -66,9 +73,16 @@ class RequisitionController extends Controller
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
+            $query->where(function ($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhere('warehouse_id', $restrictedBranchId);
+            });
         } elseif ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
+            $branchId = $request->branch_id;
+            $query->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhere('warehouse_id', $branchId);
+            });
         }
 
         if ($request->filled('status')) $query->where('status', $request->status);
@@ -113,9 +127,16 @@ class RequisitionController extends Controller
 
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
+            $query->where(function ($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhere('warehouse_id', $restrictedBranchId);
+            });
         } elseif ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
+            $branchId = $request->branch_id;
+            $query->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhere('warehouse_id', $branchId);
+            });
         }
 
         if ($request->filled('status')) $query->where('status', $request->status);
