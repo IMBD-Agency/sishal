@@ -1159,6 +1159,8 @@ class PurchaseController extends Controller
                     $stock->save();
                 }
             }
+
+            \App\Services\CacheService::clearProductCaches($item->product_id);
         }
     }
 
@@ -1224,6 +1226,8 @@ class PurchaseController extends Controller
                     }
                 }
             }
+
+            \App\Services\CacheService::clearProductCaches($item->product_id);
         }
     }
 }
