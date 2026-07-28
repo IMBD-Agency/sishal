@@ -11,8 +11,17 @@ class ProductServiceCategory extends Model
 
     protected $sanitizable = ['name', 'description'];
     protected $fillable = [
-        'name', 'slug', 'description', 'image', 'status', 'parent_id'
+        'name', 'slug', 'description', 'image', 'status', 'parent_id', 'show_in_ecommerce'
     ];
+
+    protected $casts = [
+        'show_in_ecommerce' => 'boolean',
+    ];
+
+    public function scopeForEcommerce($query)
+    {
+        return $query->where('show_in_ecommerce', true);
+    }
 
     public function parent()
     {

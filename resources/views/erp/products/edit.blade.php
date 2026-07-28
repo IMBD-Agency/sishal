@@ -162,6 +162,7 @@
                                 <label class="form-check-label fw-bold small text-uppercase cursor-pointer" for="show_in_ecommerce">
                                     Show Online
                                 </label>
+                                <input type="hidden" name="show_in_ecommerce" value="0">
                                 <input class="form-check-input ms-0" type="checkbox" id="show_in_ecommerce" name="show_in_ecommerce" value="1" {{ old('show_in_ecommerce', $product->show_in_ecommerce) ? 'checked' : '' }} style="width: 2.5rem; height: 1.25rem; cursor: pointer;">
                             </div>
                             

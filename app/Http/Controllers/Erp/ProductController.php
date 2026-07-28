@@ -97,10 +97,14 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
+            'show_in_ecommerce' => 'nullable|boolean',
             'parent_id' => 'required|exists:product_service_categories,id',
         ]);
 
-        $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id']);
+        $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id', 'show_in_ecommerce']);
+        if (!isset($data['show_in_ecommerce'])) {
+            $data['show_in_ecommerce'] = true;
+        }
 
         if ($request->hasFile('image')) {
             $data['image'] = \App\Services\ImageService::compressAndSave(
@@ -125,6 +129,10 @@ class ProductController extends Controller
             $subcategory->update(['status' => $request->status]);
             return response()->json(['success' => true]);
         }
+        if ($request->ajax() && $request->has('show_in_ecommerce')) {
+            $subcategory->update(['show_in_ecommerce' => $request->boolean('show_in_ecommerce')]);
+            return response()->json(['success' => true]);
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => [
@@ -137,10 +145,11 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
+            'show_in_ecommerce' => 'nullable|boolean',
             'parent_id' => 'required|exists:product_service_categories,id',
         ]);
 
-        $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id']);
+        $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id', 'show_in_ecommerce']);
 
         if ((int)$data['parent_id'] === (int)$subcategory->id) {
             return redirect()->back()->withErrors(['parent_id' => 'A subcategory cannot be its own parent.'])->withInput();
@@ -185,10 +194,14 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
+            'show_in_ecommerce' => 'nullable|boolean',
             'parent_id' => 'nullable|exists:product_service_categories,id',
         ]);
 
-        $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id']);
+        $data = $request->only(['name', 'slug', 'description', 'status', 'parent_id', 'show_in_ecommerce']);
+        if (!isset($data['show_in_ecommerce'])) {
+            $data['show_in_ecommerce'] = true;
+        }
 
         if ($request->hasFile('image')) {
             $data['image'] = \App\Services\ImageService::compressAndSave(
@@ -222,6 +235,11 @@ class ProductController extends Controller
             }
             return response()->json(['success' => true]);
         }
+        if ($request->ajax() && $request->has('show_in_ecommerce')) {
+            $category->update(['show_in_ecommerce' => $request->boolean('show_in_ecommerce')]);
+            \App\Services\CacheService::clearCategoryCaches();
+            return response()->json(['success' => true]);
+        }
         
         $request->validate([
             'name' => 'required|string|max:255',
@@ -229,9 +247,10 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             'status' => 'nullable|in:active,inactive',
+            'show_in_ecommerce' => 'nullable|boolean',
         ]);
 
-        $data = $request->only(['name', 'slug', 'description', 'status']);
+        $data = $request->only(['name', 'slug', 'description', 'status', 'show_in_ecommerce']);
 
         if ($request->hasFile('image')) {
             // Delete old image if exists
@@ -571,7 +590,7 @@ class ProductController extends Controller
         $data['type'] = 'product'; // Always set type to product
         $data['has_variations'] = $request->boolean('has_variations');
         $data['manage_stock'] = $request->boolean('manage_stock');
-        $data['show_in_ecommerce'] = $request->has('show_in_ecommerce') ? $request->boolean('show_in_ecommerce') : true;
+        $data['show_in_ecommerce'] = $request->boolean('show_in_ecommerce');
         
         // Handle meta_keywords array - convert to JSON string for storage
         if ($request->has('meta_keywords') && is_array($request->meta_keywords)) {

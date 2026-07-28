@@ -18,9 +18,10 @@ class PageController extends Controller
     private function getSidebarCategories()
     {
         return ProductServiceCategory::where('status', 'active')
+            ->where('show_in_ecommerce', 1)
             ->whereNull('parent_id')
             ->with(['children' => function($q) {
-                $q->where('status', 'active');
+                $q->where('status', 'active')->where('show_in_ecommerce', 1);
             }])
             ->get();
     }
@@ -58,6 +59,7 @@ class PageController extends Controller
         $categories = $this->getSidebarCategories();
 
         $featuredCategories = ProductServiceCategory::where('status', 'active')
+            ->where('show_in_ecommerce', 1)
             ->whereNull('parent_id')
             ->get();
 
@@ -80,8 +82,11 @@ class PageController extends Controller
     public function categories()
     {
         $categories = ProductServiceCategory::where('status', 'active')
+            ->where('show_in_ecommerce', 1)
             ->whereNull('parent_id')
-            ->with('children')
+            ->with(['children' => function($q) {
+                $q->where('status', 'active')->where('show_in_ecommerce', 1);
+            }])
             ->get();
             
         $pageTitle = 'All Categories';

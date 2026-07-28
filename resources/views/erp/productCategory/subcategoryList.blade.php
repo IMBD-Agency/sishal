@@ -105,9 +105,10 @@
                             <tr>
                                 <th style="width: 80px;">SL</th>
                                 <th style="width: 100px;">Icon</th>
-                                <th style="width: 250px;">Parent Domain</th>
+                                <th style="width: 200px;">Parent Domain</th>
                                 <th>Subnode Profile</th>
                                 <th>Identifier</th>
+                                <th>Target Channel</th>
                                 <th>Live Sync</th>
                                 <th class="text-end">Action</th>
                             </tr>
@@ -140,6 +141,17 @@
                                         <code class="bg-light px-2 py-1 rounded text-primary" style="font-size: 0.8rem;">/{{ $subcategory->slug }}</code>
                                     </td>
                                     <td>
+                                        @if($subcategory->show_in_ecommerce ?? true)
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                                <i class="fas fa-globe me-1"></i>E-Commerce & POS
+                                            </span>
+                                        @else
+                                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                                <i class="fas fa-store me-1"></i>POS / Branch Only
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <div class="d-flex align-items-center gap-3">
                                             <span class="status-pill {{ $subcategory->status == 'active' ? 'status-active' : 'status-inactive' }}">
                                                 <i class="fas {{ $subcategory->status == 'active' ? 'fa-check-circle' : 'fa-times-circle' }}"></i>
@@ -167,7 +179,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-5">
+                                    <td colspan="8" class="text-center py-5">
                                         <div class="py-5 text-muted">
                                             <i class="fas fa-project-diagram fa-3x mb-3 text-light"></i>
                                             <h5>The Hierarchy is Quiet</h5>
@@ -228,6 +240,14 @@
                         <div class="mb-4">
                             <label class="form-label">Operational Notes</label>
                             <textarea class="form-control" name="description" rows="2">{{ $subcategory->description }}</textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Target Channel / Visibility</label>
+                            <select class="form-select" name="show_in_ecommerce">
+                                <option value="1" @if($subcategory->show_in_ecommerce ?? true) selected @endif>E-Commerce & POS (Show in Website Navigation)</option>
+                                <option value="0" @if(!($subcategory->show_in_ecommerce ?? true)) selected @endif>POS / Branch Only (Hide from Website Navigation)</option>
+                            </select>
+                            <small class="text-muted d-block mt-1"><i class="fas fa-info-circle me-1"></i>Select "POS / Branch Only" if you want this subcategory for internal product creation/POS without showing it on the website.</small>
                         </div>
                         <div class="mb-4">
                             <label class="form-label">Visual Instance</label>
@@ -294,6 +314,14 @@
                     <div class="mb-4">
                         <label class="form-label">Description</label>
                         <textarea class="form-control" name="description" rows="2" placeholder="Describe the node's scope..."></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Target Channel / Visibility</label>
+                        <select class="form-select" name="show_in_ecommerce">
+                            <option value="1" selected>E-Commerce & POS (Show in Website Navigation)</option>
+                            <option value="0">POS / Branch Only (Hide from Website Navigation)</option>
+                        </select>
+                        <small class="text-muted d-block mt-1"><i class="fas fa-info-circle me-1"></i>Select "POS / Branch Only" if you want this subcategory for internal product creation/POS without showing it on the website.</small>
                     </div>
                     <div class="mb-4">
                         <label class="form-label">Representative Image</label>

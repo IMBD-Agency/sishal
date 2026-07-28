@@ -76,8 +76,9 @@ class AppServiceProvider extends ServiceProvider
         try {
             $navCategories = ProductServiceCategory::whereNull('parent_id')
                 ->where('status', 'active')
+                ->where('show_in_ecommerce', 1)
                 ->with(['children' => function($q) {
-                    $q->where('status', 'active')->orderBy('name');
+                    $q->where('status', 'active')->where('show_in_ecommerce', 1)->orderBy('name');
                 }])
                 ->orderBy('name')
                 ->get();

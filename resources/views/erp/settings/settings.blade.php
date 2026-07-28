@@ -704,6 +704,20 @@
                 realSourceIdInput.value = this.value;
             });
 
+            const settingsForm = document.getElementById('settingsForm');
+            if (settingsForm) {
+                settingsForm.addEventListener('submit', function() {
+                    const type = sourceTypeSelect.value;
+                    if (type === 'warehouse') {
+                        realSourceIdInput.value = warehouseSelect.value;
+                    } else if (type === 'branch') {
+                        realSourceIdInput.value = branchSelect.value;
+                    } else {
+                        realSourceIdInput.value = '';
+                    }
+                });
+            }
+
             // Init on load
             updateEcommerceSourceVisibility();
         }

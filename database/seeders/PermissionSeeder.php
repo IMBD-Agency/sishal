@@ -224,6 +224,7 @@ class PermissionSeeder extends Seeder
 
             // App Settings
             ['name' => 'view settings', 'category' => 'App Settings'],
+            ['name' => 'manage settings', 'category' => 'App Settings'],
 
             //custom page
             ['name' => 'view additional pages', 'category' => 'custom page'],
