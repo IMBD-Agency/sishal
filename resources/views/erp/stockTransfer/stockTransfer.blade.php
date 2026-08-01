@@ -7,6 +7,66 @@
     <div class="main-content" id="mainContent">
         @include('erp.components.header')
 
+        <style>
+            /* Premium Sticky Header & Horizontal Scroll Fix */
+            .premium-card {
+                overflow: hidden !important;
+                border: 1px solid #edf2f7;
+            }
+
+            .table-responsive {
+                max-height: 80vh;
+                overflow: auto !important;
+                position: relative;
+                background: #fff;
+            }
+
+            #transferTable {
+                border-collapse: separate;
+                border-spacing: 0;
+                width: 100%;
+            }
+
+            #transferTable thead th {
+                position: sticky;
+                top: 0;
+                background-color: #2d5a4c !important;
+                color: #fff !important;
+                z-index: 1000 !important;
+                border-bottom: 2px solid #3d6a5c !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                padding-top: 12px !important;
+                padding-bottom: 12px !important;
+            }
+
+            #transferTable tbody tr:not(.table-warning) td {
+                background-color: #fff;
+            }
+
+            #transferTable tbody tr.table-warning td {
+                background-color: #fff3cd !important;
+            }
+
+            /* Custom Slim Scrollbar */
+            .table-responsive::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+
+            .table-responsive::-webkit-scrollbar-track {
+                background: #f1f5f9;
+            }
+
+            .table-responsive::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 4px;
+            }
+
+            .table-responsive::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+        </style>
+
         <!-- Premium Header -->
         <div class="glass-header">
             <div class="row align-items-center">
