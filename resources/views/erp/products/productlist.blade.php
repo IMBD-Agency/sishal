@@ -129,19 +129,19 @@
                             </div>
 
                             <div class="row g-3">
-                                <div class="col-md-2 date-range-field">
+                                <div class="col-md-2 date-range-field" style="{{ $reportType == 'daily' ? '' : 'display: none;' }}">
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start
                                         Date</label>
                                     <input type="date" name="start_date" class="form-control"
-                                        value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                                        value="{{ ($reportType == 'daily' && request('start_date')) ? request('start_date') : \Carbon\Carbon::today()->toDateString() }}">
                                 </div>
-                                <div class="col-md-2 date-range-field">
+                                <div class="col-md-2 date-range-field" style="{{ $reportType == 'daily' ? '' : 'display: none;' }}">
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
                                     <input type="date" name="end_date" class="form-control"
-                                        value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                                        value="{{ ($reportType == 'daily' && request('end_date')) ? request('end_date') : \Carbon\Carbon::today()->toDateString() }}">
                                 </div>
 
-                                <div class="col-md-2 month-field" style="display: none;">
+                                <div class="col-md-2 month-field" style="{{ $reportType == 'monthly' ? '' : 'display: none;' }}">
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">Month</label>
                                     <select name="month" class="form-select select2-simple">
                                         @foreach(range(1, 12) as $m)
@@ -150,7 +150,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-2 year-field" style="display: none;">
+                                <div class="col-md-2 year-field" style="{{ $reportType == 'yearly' ? '' : 'display: none;' }}">
                                     <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
                                     <select name="year" class="form-select select2-simple">
                                         @foreach(range(date('Y'), date('Y') - 5) as $y)
@@ -276,7 +276,16 @@
                 }
 
                 toggleReportFields();
-                $('.report-type-radio').on('change', toggleReportFields);
+                $('.report-type-radio').on('change', function () {
+                    toggleReportFields();
+                    if ($(this).val() === 'daily') {
+                        const today = new Date().toISOString().split('T')[0];
+                        if (!$('input[name="start_date"]').val()) {
+                            $('input[name="start_date"]').val(today);
+                            $('input[name="end_date"]').val(today);
+                        }
+                    }
+                });
 
                 function refreshProducts(url = null) {
                     const form = $('#filterForm');

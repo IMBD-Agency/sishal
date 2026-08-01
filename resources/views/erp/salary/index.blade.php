@@ -59,13 +59,13 @@
                             <div class="d-flex gap-4 mb-3">
                                 <div class="form-check">
                                     <input class="form-check-input filter-radio" type="radio" name="report_type"
-                                        id="monthlyReport" value="monthly" checked>
+                                        id="monthlyReport" value="monthly" {{ $reportType == 'monthly' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small" for="monthlyReport">Monthly
                                         Reports</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input filter-radio" type="radio" name="report_type"
-                                        id="yearlyReport" value="yearly">
+                                        id="yearlyReport" value="yearly" {{ $reportType == 'yearly' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small" for="yearlyReport">Yearly Reports</label>
                                 </div>
                             </div>
@@ -85,9 +85,9 @@
                                         </select>
                                     </div>
                                 @endif
-                                <div class="col-md-{{ count($branches) > 0 ? '2' : '3' }}" id="monthCol">
+                                <div class="col-md-{{ count($branches) > 0 ? '2' : '3' }} {{ $reportType == 'yearly' ? 'opacity-50' : '' }}" id="monthCol">
                                     <label class="form-label-small">Select Month *</label>
-                                    <select name="month" class="form-select form-select-sm filter-select">
+                                    <select name="month" class="form-select form-select-sm filter-select" {{ $reportType == 'yearly' ? 'disabled' : '' }}>
                                         <option>Select One</option>
                                         @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $m)
                                             <option value="{{ $m }}" {{ request('month', date('F')) == $m ? 'selected' : '' }}>

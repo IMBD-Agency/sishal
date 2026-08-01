@@ -118,7 +118,7 @@ class TransferController extends Controller
             $branches = Branch::orderBy('name')->get();
         }
 
-        $reportType = $request->get('report_type_active', 'daily');
+        $reportType = $request->get('report_type_active', 'yearly');
 
         return view('erp.transfers.index', compact('transfers', 'accounts', 'totalTransfers', 'branches', 'startDate', 'endDate', 'reportType'));
     }
@@ -528,23 +528,19 @@ class TransferController extends Controller
 
     private function applyDateFilters($query, Request $request, &$startDate = null, &$endDate = null)
     {
-        $reportType = $request->get('report_type_active', 'daily');
+        $reportType = $request->get('report_type_active', 'yearly');
 
         if ($reportType === 'daily') {
             $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : \Carbon\Carbon::today();
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : \Carbon\Carbon::today();
             $query->whereBetween('transfer_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
         } elseif ($reportType === 'monthly') {
-            if ($request->filled('month')) {
-                $query->whereMonth('transfer_date', $request->month);
-            }
-            if ($request->filled('year')) {
-                $query->whereYear('transfer_date', $request->year);
-            }
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('transfer_date', $month)->whereYear('transfer_date', $year);
         } elseif ($reportType === 'yearly') {
-            if ($request->filled('year')) {
-                $query->whereYear('transfer_date', $request->year);
-            }
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('transfer_date', $year);
         }
     }
 }

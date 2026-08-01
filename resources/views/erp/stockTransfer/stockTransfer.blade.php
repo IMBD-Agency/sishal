@@ -111,20 +111,19 @@
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Date From</label>
                                 <input type="date" name="date_from" class="form-control shadow-none"
-                                    value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                                    value="{{ ($reportType == 'daily' && request('date_from')) ? request('date_from') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Date To</label>
                                 <input type="date" name="date_to" class="form-control shadow-none"
-                                    value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                                    value="{{ ($reportType == 'daily' && request('date_to')) ? request('date_to') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
 
                             <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
                                 <select name="month" class="form-select shadow-none">
-                                    <option value="">All Months</option>
                                     @for($m = 1; $m <= 12; $m++)
-                                        <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>
+                                        <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>
                                             {{ date('F', mktime(0, 0, 0, $m, 1)) }}
                                         </option>
                                     @endfor
@@ -134,9 +133,8 @@
                             <div class="col-md-2 year-field {{ !in_array($reportType, ['monthly', 'yearly']) ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
                                 <select name="year" class="form-select shadow-none">
-                                    <option value="">All Years</option>
                                     @for($y = date('Y'); $y >= date('Y') - 5; $y--)
-                                        <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                        <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endfor
                                 </select>
                             </div>
@@ -558,14 +556,14 @@
                 $('#resetFilters').on('click', function () {
                     $('#filterForm')[0].reset();
                     $('input[name="view_mode"]').val('');
-                    $('.report-type-radio[value="daily"]').prop('checked', true);
+                    $('.report-type-radio[value="yearly"]').prop('checked', true);
                     
                     const today = new Date().toISOString().split('T')[0];
                     $('input[name="date_from"]').val(today);
                     $('input[name="date_to"]').val(today);
                     
-                    $('.date-range-field').removeClass('d-none').show();
-                    $('.month-field, .year-field').addClass('d-none').hide();
+                    $('.year-field').removeClass('d-none').show();
+                    $('.date-range-field, .month-field').addClass('d-none').hide();
                     
                     const formData = $('#filterForm').serialize();
                     loadTransfers("{{ route('stocktransfer.list') }}", formData);
@@ -664,6 +662,11 @@
                     if (val === 'daily') {
                         $('.date-range-field').removeClass('d-none').show();
                         $('.month-field, .year-field').addClass('d-none').hide();
+                        const today = new Date().toISOString().split('T')[0];
+                        if (!$('input[name="date_from"]').val()) {
+                            $('input[name="date_from"]').val(today);
+                            $('input[name="date_to"]').val(today);
+                        }
                     } else if (val === 'monthly') {
                         $('.month-field, .year-field').removeClass('d-none').show();
                         $('.date-range-field').addClass('d-none').hide();

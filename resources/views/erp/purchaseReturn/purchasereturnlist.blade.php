@@ -72,15 +72,15 @@
                         </div>
                     </div>
                     <div class="row g-3">
-                        <div class="col-md-2 date-group daily-group">
+                        <div class="col-md-2 date-group daily-group" style="{{ $reportType == 'daily' ? '' : 'display: none;' }}">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date</label>
-                            <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                            <input type="date" name="start_date" class="form-control" value="{{ ($reportType == 'daily' && request('start_date')) ? request('start_date') : \Carbon\Carbon::today()->toDateString() }}">
                         </div>
-                        <div class="col-md-2 date-group daily-group">
+                        <div class="col-md-2 date-group daily-group" style="{{ $reportType == 'daily' ? '' : 'display: none;' }}">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
-                            <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                            <input type="date" name="end_date" class="form-control" value="{{ ($reportType == 'daily' && request('end_date')) ? request('end_date') : \Carbon\Carbon::today()->toDateString() }}">
                         </div>
-                        <div class="col-md-2 date-group monthly-group" style="display: none;">
+                        <div class="col-md-2 date-group monthly-group" style="{{ $reportType == 'monthly' ? '' : 'display: none;' }}">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-2">Month</label>
                             <select name="month" class="form-select select2-setup">
                                 @foreach(range(1, 12) as $m)
@@ -88,7 +88,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
+                        <div class="col-md-2 date-group monthly-group yearly-group" style="{{ ($reportType == 'monthly' || $reportType == 'yearly') ? '' : 'display: none;' }}">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-2">Year</label>
                             <select name="year" class="form-select select2-setup">
                                 @foreach(range(date('Y'), date('Y') - 5) as $y)
@@ -244,6 +244,31 @@
     <script>
         $(document).ready(function() {
 
+            function toggleDateGroups() {
+                const type = $('.filter-type-radio:checked').val();
+                $('.daily-group, .monthly-group, .yearly-group').hide();
+
+                if (type === 'daily') {
+                    $('.daily-group').show();
+                } else if (type === 'monthly') {
+                    $('.monthly-group, .yearly-group').show();
+                } else if (type === 'yearly') {
+                    $('.yearly-group').show();
+                }
+            }
+
+            toggleDateGroups();
+            $('.filter-type-radio').on('change', function () {
+                toggleDateGroups();
+                if ($(this).val() === 'daily') {
+                    const today = new Date().toISOString().split('T')[0];
+                    if (!$('input[name="start_date"]').val()) {
+                        $('input[name="start_date"]').val(today);
+                        $('input[name="end_date"]').val(today);
+                    }
+                }
+            });
+
             // AJAX Filtering Logic
             function fetchReturnsData(url = null) {
                 const form = $('#filterForm');
@@ -272,8 +297,6 @@
                 fetchReturnsData();
             });
 
-
-
             // Intercept Pagination Clicks
             $(document).on('click', '.pagination a', function (e) {
                 e.preventDefault();
@@ -296,7 +319,7 @@
                 $('input[name="start_date"]').val(today);
                 $('input[name="end_date"]').val(today);
 
-                $('#dailyReport').prop('checked', true).trigger('change');
+                $('#yearlyReport').prop('checked', true).trigger('change');
                 fetchReturnsData("{{ route('purchaseReturn.list') }}");
             });
 

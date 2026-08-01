@@ -106,19 +106,18 @@
                         <div class="row g-3">
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">From Date</label>
-                                <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                                <input type="date" name="start_date" class="form-control" value="{{ ($reportType == 'daily' && request('start_date')) ? request('start_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">To Date</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ ($reportType == 'daily' && request('end_date')) ? request('end_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
 
                             <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Month</label>
                                 <select name="month" class="form-select">
-                                    <option value="">All Months</option>
                                     @for($m = 1; $m <= 12; $m++)
-                                        <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>
+                                        <option value="{{ $m }}" {{ request('month', date('n')) == $m ? 'selected' : '' }}>
                                             {{ date('F', mktime(0, 0, 0, $m, 1)) }}
                                         </option>
                                     @endfor
@@ -128,9 +127,8 @@
                             <div class="col-md-2 year-field {{ !in_array($reportType, ['monthly', 'yearly']) ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Year</label>
                                 <select name="year" class="form-select">
-                                    <option value="">All Years</option>
                                     @for($y = date('Y'); $y >= date('Y') - 5; $y--)
-                                        <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                        <option value="{{ $y }}" {{ request('year', date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
                                     @endfor
                                 </select>
                             </div>
@@ -205,6 +203,11 @@
             if (val === 'daily') {
                 $('.date-range-field').removeClass('d-none').show();
                 $('.month-field, .year-field').addClass('d-none').hide();
+                const today = new Date().toISOString().split('T')[0];
+                if (!$('input[name="start_date"]').val()) {
+                    $('input[name="start_date"]').val(today);
+                    $('input[name="end_date"]').val(today);
+                }
             } else if (val === 'monthly') {
                 $('.month-field, .year-field').removeClass('d-none').show();
                 $('.date-range-field').addClass('d-none').hide();
@@ -239,16 +242,16 @@
             $('#filterForm')[0].reset();
             $('.select2-simple').val('').trigger('change.select2');
 
-            // Reset report type radio to daily
-            $('#dailyReport').prop('checked', true);
+            // Reset report type radio to yearly
+            $('#yearlyReport').prop('checked', true);
 
             // Set inputs back to today
             const today = new Date().toISOString().split('T')[0];
             $('input[name="start_date"]').val(today);
             $('input[name="end_date"]').val(today);
 
-            $('.date-range-field').removeClass('d-none').show();
-            $('.month-field, .year-field').addClass('d-none').hide();
+            $('.year-field').removeClass('d-none').show();
+            $('.date-range-field, .month-field').addClass('d-none').hide();
 
             fetchData();
         });

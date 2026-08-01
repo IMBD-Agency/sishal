@@ -110,7 +110,7 @@
                         <div class="d-flex gap-4 mb-3">
                             <div class="form-check">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                    id="dailyReport" value="daily" {{ request('report_type', 'daily') == 'daily' ? 'checked' : '' }}>
+                                    id="dailyReport" value="daily" {{ request('report_type', 'yearly') == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily
                                     Reports</label>
                             </div>
@@ -122,26 +122,26 @@
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                    id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
+                                    id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly
                                     Reports</label>
                             </div>
                         </div>
                         <div class="row g-3">
-                            <div class="col-md-2 date-group daily-group">
+                            <div class="col-md-2 date-group daily-group" style="{{ $reportType == 'daily' ? '' : 'display: none;' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date
                                     Registry</label>
                                 <input type="date" name="start_date" class="form-control shadow-none"
-                                    value="{{ (request('report_type', 'daily') == 'daily' && $startDate) ? $startDate->toDateString() : '' }}">
+                                    value="{{ ($reportType == 'daily' && request('start_date')) ? request('start_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
-                            <div class="col-md-2 date-group daily-group">
+                            <div class="col-md-2 date-group daily-group" style="{{ $reportType == 'daily' ? '' : 'display: none;' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date
                                     Registry</label>
                                 <input type="date" name="end_date" class="form-control shadow-none"
-                                    value="{{ (request('report_type', 'daily') == 'daily' && $endDate) ? $endDate->toDateString() : '' }}">
+                                    value="{{ ($reportType == 'daily' && request('end_date')) ? request('end_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
 
-                            <div class="col-md-2 date-group monthly-group" style="display: none;">
+                            <div class="col-md-2 date-group monthly-group" style="{{ $reportType == 'monthly' ? '' : 'display: none;' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Month</label>
                                 <select name="month" class="form-select select2-setup shadow-none">
                                     @foreach(range(1, 12) as $m)
@@ -150,7 +150,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-2 date-group monthly-group yearly-group" style="display: none;">
+                            <div class="col-md-2 date-group monthly-group yearly-group" style="{{ ($reportType == 'monthly' || $reportType == 'yearly') ? '' : 'display: none;' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Fiscal Year</label>
                                 <select name="year" class="form-select select2-setup shadow-none">
                                     @foreach(range(date('Y'), date('Y') - 5) as $y)
@@ -362,6 +362,13 @@
                 }
                 reportRadios.forEach(radio => radio.addEventListener('change', () => {
                     toggleDateGroups();
+                    if (radio.value === 'daily') {
+                        const today = new Date().toISOString().split('T')[0];
+                        if (!$('input[name="start_date"]').val()) {
+                            $('input[name="start_date"]').val(today);
+                            $('input[name="end_date"]').val(today);
+                        }
+                    }
                 }));
                 toggleDateGroups();
 
@@ -398,7 +405,7 @@
                     $('input[name="start_date"]').val(today);
                     $('input[name="end_date"]').val(today);
 
-                    $('#dailyReport').prop('checked', true).trigger('change');
+                    $('#yearlyReport').prop('checked', true).trigger('change');
                     fetchPurchasesData("{{ route('purchase.list') }}");
                 });
 

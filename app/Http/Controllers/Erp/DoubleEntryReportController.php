@@ -21,7 +21,7 @@ class DoubleEntryReportController extends Controller
         
         $query = JournalEntry::with(['journal', 'chartOfAccount']);
 
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         $now = Carbon::now();
 
         if ($reportType == 'monthly') {

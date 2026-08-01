@@ -113,12 +113,12 @@
                             <!-- Daily Range -->
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">Start Date</label>
-                                <input type="date" name="start_date" class="form-control" value="{{ $startDate ? $startDate->toDateString() : '' }}">
+                                <input type="date" name="start_date" class="form-control" value="{{ ($reportType == 'daily' && request('start_date')) ? request('start_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
 
                             <div class="col-md-2 date-range-field {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2">End Date</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ $endDate ? $endDate->toDateString() : '' }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ ($reportType == 'daily' && request('end_date')) ? request('end_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
 
                             <div class="col-md-2 month-field {{ $reportType != 'monthly' ? 'd-none' : '' }}">
@@ -322,6 +322,11 @@
                 if(val === 'daily') {
                     $('.date-range-field').removeClass('d-none').show();
                     $('.month-field, .year-field').addClass('d-none').hide();
+                    const today = new Date().toISOString().split('T')[0];
+                    if (!$('input[name="start_date"]').val()) {
+                        $('input[name="start_date"]').val(today);
+                        $('input[name="end_date"]').val(today);
+                    }
                 } else if(val === 'monthly') {
                     $('.month-field, .year-field').removeClass('d-none').show();
                     $('.date-range-field').addClass('d-none').hide();
@@ -348,8 +353,8 @@
                 $('.select2-setup').val('all').trigger('change');
                 
                 // Special case for specific radio default
-                $('#dailyReport').prop('checked', true).trigger('change');
-                $('#report_type_hidden').val('daily');
+                $('#yearlyReport').prop('checked', true).trigger('change');
+                $('#report_type_hidden').val('yearly');
 
                 const today = new Date().toISOString().split('T')[0];
                 $('input[name="start_date"]').val(today);

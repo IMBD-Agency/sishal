@@ -29,7 +29,9 @@ class SalaryPaymentController extends Controller
             $query->where('branch_id', $restrictedBranchId);
         }
 
-        if ($request->filled('month') && $request->month != 'Select One') {
+        $reportType = $request->get('report_type', 'yearly');
+
+        if ($reportType === 'monthly' && $request->filled('month') && $request->month != 'Select One') {
             $query->where('month', $request->month);
         }
         if ($request->filled('year') && $request->year != 'Select One') {
@@ -63,7 +65,7 @@ class SalaryPaymentController extends Controller
                 $q->whereIn('type_id', $assetTypeIds);
             })->get();
 
-        return view('erp.salary.index', compact('payments', 'employees', 'branches', 'accounts'));
+        return view('erp.salary.index', compact('payments', 'employees', 'branches', 'accounts', 'reportType'));
     }
 
     protected function getRestrictedBranchId()
@@ -354,7 +356,9 @@ class SalaryPaymentController extends Controller
             $query->where('branch_id', $restrictedBranchId);
         }
 
-        if ($request->filled('month') && $request->month != 'Select One') {
+        $reportType = $request->get('report_type', 'yearly');
+
+        if ($reportType === 'monthly' && $request->filled('month') && $request->month != 'Select One') {
             $query->where('month', $request->month);
         }
         if ($request->filled('year') && $request->year != 'Select One') {
@@ -429,7 +433,9 @@ class SalaryPaymentController extends Controller
             $query->where('branch_id', $restrictedBranchId);
         }
 
-        if ($request->filled('month') && $request->month != 'Select One') {
+        $reportType = $request->get('report_type', 'yearly');
+
+        if ($reportType === 'monthly' && $request->filled('month') && $request->month != 'Select One') {
             $query->where('month', $request->month);
         }
         if ($request->filled('year') && $request->year != 'Select One') {

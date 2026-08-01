@@ -41,32 +41,32 @@
                         <!-- Report Type Radios -->
                         <div class="d-flex gap-4 mb-3">
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ ($reportType ?? 'daily') == 'daily' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="dailyReport" value="daily" {{ request('report_type', 'yearly') == 'daily' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily Report</label>
                             </div>
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ ($reportType ?? 'daily') == 'monthly' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly</label>
                             </div>
                             <div class="form-check custom-radio">
-                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ ($reportType ?? 'daily') == 'yearly' ? 'checked' : '' }}>
+                                <input class="form-check-input report-type-radio" type="radio" name="report_type" id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly</label>
                             </div>
                         </div>
 
                         <div class="row g-2 align-items-end">
                             <!-- Field Blocks (Daily, Monthly, Yearly) -->
-                            <div class="col-md-2 report-field daily-group">
+                            <div class="col-md-2 report-field daily-group {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') ?: $startDate->format('Y-m-d') }}">
+                                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ ($reportType == 'daily' && request('start_date')) ? request('start_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
-                            <div class="col-md-2 report-field daily-group">
+                            <div class="col-md-2 report-field daily-group {{ $reportType != 'daily' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') ?: $endDate->format('Y-m-d') }}">
+                                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ ($reportType == 'daily' && request('end_date')) ? request('end_date') : \Carbon\Carbon::today()->toDateString() }}">
                             </div>
 
                             <!-- Monthly Fields -->
-                            <div class="col-md-2 report-field monthly-group d-none">
+                            <div class="col-md-2 report-field monthly-group {{ $reportType != 'monthly' ? 'd-none' : '' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Month</label>
                                 <select name="month" class="form-select form-select-sm select2-simple">
                                     @foreach(range(1, 12) as $m)
@@ -76,7 +76,7 @@
                             </div>
 
                             <!-- Yearly Fields -->
-                            <div class="col-md-2 report-field monthly-group yearly-group d-none">
+                            <div class="col-md-2 report-field monthly-group yearly-group {{ ($reportType == 'monthly' || $reportType == 'yearly') ? '' : 'd-none' }}">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Year</label>
                                 <select name="year" class="form-select form-select-sm select2-simple">
                                     @foreach(range(date('Y'), date('Y') - 10) as $y)
@@ -292,11 +292,20 @@
 
             // Report type toggle
             function toggleDateGroups() {
-                const type = $('.report-type-radio:checked').val() || 'daily';
+                const type = $('.report-type-radio:checked').val() || 'yearly';
                 $('.report-field').addClass('d-none');
-                if (type === 'daily')        $('.daily-group').removeClass('d-none');
-                else if (type === 'monthly') $('.monthly-group').removeClass('d-none');
-                else if (type === 'yearly')  $('.yearly-group').removeClass('d-none');
+                if (type === 'daily') {
+                    $('.daily-group').removeClass('d-none');
+                    const today = new Date().toISOString().split('T')[0];
+                    if (!$('input[name="start_date"]').val()) {
+                        $('input[name="start_date"]').val(today);
+                        $('input[name="end_date"]').val(today);
+                    }
+                } else if (type === 'monthly') {
+                    $('.monthly-group').removeClass('d-none');
+                } else if (type === 'yearly') {
+                    $('.yearly-group').removeClass('d-none');
+                }
             }
             $('.report-type-radio').on('change', toggleDateGroups);
             toggleDateGroups();
@@ -345,7 +354,7 @@
             // Reset → AJAX
             $('#resetBtn').on('click', function() {
                 $('#filterForm')[0].reset();
-                $('#dailyReport').prop('checked', true);
+                $('#yearlyReport').prop('checked', true);
                 toggleDateGroups();
                 const today = new Date().toISOString().split('T')[0];
                 $('input[name="start_date"]').val(today);

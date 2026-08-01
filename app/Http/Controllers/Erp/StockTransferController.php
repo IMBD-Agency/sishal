@@ -78,7 +78,7 @@ class StockTransferController extends Controller
             'variation_id', 'product_id', 'quick_filter', 'view_mode',
         ]);
 
-        $reportType = $request->get('report_type_active', 'daily');
+        $reportType = $request->get('report_type_active', 'yearly');
 
         return view('erp.stockTransfer.stockTransfer', compact(
             'transfers', 'branches', 'warehouses', 'statuses', 'filters',
@@ -223,23 +223,19 @@ class StockTransferController extends Controller
             $query->where('status', $request->status);
         }
 
-        $reportType = $request->get('report_type_active', 'daily');
+        $reportType = $request->get('report_type_active', 'yearly');
 
         if ($reportType === 'daily') {
             $startDate = $request->filled('date_from') ? \Carbon\Carbon::parse($request->date_from) : \Carbon\Carbon::today();
             $endDate = $request->filled('date_to') ? \Carbon\Carbon::parse($request->date_to) : \Carbon\Carbon::today();
             $query->whereBetween('requested_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
         } elseif ($reportType === 'monthly') {
-            if ($request->filled('month')) {
-                $query->whereMonth('requested_at', $request->month);
-            }
-            if ($request->filled('year')) {
-                $query->whereYear('requested_at', $request->year);
-            }
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('requested_at', $month)->whereYear('requested_at', $year);
         } elseif ($reportType === 'yearly') {
-            if ($request->filled('year')) {
-                $query->whereYear('requested_at', $request->year);
-            }
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('requested_at', $year);
         }
 
         if ($request->filled('quick_filter')) {

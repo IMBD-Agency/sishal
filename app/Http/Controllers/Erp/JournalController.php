@@ -355,7 +355,7 @@ class JournalController extends Controller
     {
         $query = Journal::with(['entries.chartOfAccount', 'entries.financialAccount', 'creator', 'branch']);
 
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         $now = \Carbon\Carbon::now();
 
         if ($reportType === 'monthly') {

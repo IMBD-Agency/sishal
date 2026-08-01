@@ -60,7 +60,7 @@ class MoneyReceiptController extends Controller
         } else {
             $branches = \App\Models\Branch::all();
         }
-        $reportType = $request->input('report_type', 'daily');
+        $reportType = $request->input('report_type', 'yearly');
         $startDate = null;
         $endDate = null;
         if ($reportType === 'daily') {
@@ -643,7 +643,7 @@ class MoneyReceiptController extends Controller
             });
         }
 
-        $type = $request->input('report_type', 'daily');
+        $type = $request->input('report_type', 'yearly');
         if ($type === 'daily') {
             $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : Carbon::today()->startOfDay();
             $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : Carbon::today()->endOfDay();

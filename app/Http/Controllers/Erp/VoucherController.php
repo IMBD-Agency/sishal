@@ -23,7 +23,7 @@ class VoucherController extends Controller
         if (!auth()->user()->hasPermissionTo('view vouchers')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         $now = Carbon::now();
 
         if ($reportType == 'monthly') {
@@ -278,7 +278,7 @@ class VoucherController extends Controller
 
     private function buildFilteredQuery(Request $request)
     {
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         $now = Carbon::now();
 
         if ($reportType == 'monthly') {

@@ -58,7 +58,7 @@ class RequisitionController extends Controller
             return view('erp.requisition.partials.table', compact('requisitions'));
         }
 
-        $reportType = $request->get('report_type_active', 'daily');
+        $reportType = $request->get('report_type_active', 'yearly');
         $branches = Branch::where('status', 'active')->get();
         return view('erp.requisition.index', compact('requisitions', 'restrictedBranchId', 'branches', 'startDate', 'endDate', 'reportType'));
     }
@@ -559,23 +559,19 @@ class RequisitionController extends Controller
 
     private function applyDateFilters($query, Request $request, &$startDate = null, &$endDate = null)
     {
-        $reportType = $request->get('report_type_active', 'daily');
+        $reportType = $request->get('report_type_active', 'yearly');
 
         if ($reportType === 'daily') {
             $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : \Carbon\Carbon::today();
             $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : \Carbon\Carbon::today();
             $query->whereBetween('requisition_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
         } elseif ($reportType === 'monthly') {
-            if ($request->filled('month')) {
-                $query->whereMonth('requisition_date', $request->month);
-            }
-            if ($request->filled('year')) {
-                $query->whereYear('requisition_date', $request->year);
-            }
+            $month = $request->get('month', date('m'));
+            $year = $request->get('year', date('Y'));
+            $query->whereMonth('requisition_date', $month)->whereYear('requisition_date', $year);
         } elseif ($reportType === 'yearly') {
-            if ($request->filled('year')) {
-                $query->whereYear('requisition_date', $request->year);
-            }
+            $year = $request->get('year', date('Y'));
+            $query->whereYear('requisition_date', $year);
         }
     }
 }

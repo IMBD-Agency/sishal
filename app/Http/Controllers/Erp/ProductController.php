@@ -301,7 +301,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         if (auth()->user()->hasPermissionTo('view products')) {
-            $reportType = $request->get('report_type', 'daily');
+            $reportType = $request->get('report_type', 'yearly');
             $restrictedBranchId = $this->getRestrictedBranchId();
             $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
             $selectedWarehouseId = $request->warehouse_id;
@@ -457,7 +457,7 @@ class ProductController extends Controller
 
     private function buildProductQuery(Request $request)
     {
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         $restrictedBranchId = $this->getRestrictedBranchId();
         $selectedBranchId = $restrictedBranchId ?: $request->branch_id;
         $selectedWarehouseId = $request->warehouse_id;

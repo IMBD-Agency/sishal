@@ -1241,7 +1241,7 @@ class StockController extends Controller
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);
 
         // Reports Filter logic (applied to parent adjustment)
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         $startDate = null;
         $endDate = null;
         if ($reportType == 'monthly') {
@@ -1565,7 +1565,7 @@ class StockController extends Controller
     {
         $query = \App\Models\StockAdjustmentItem::with(['adjustment.branch', 'adjustment.creator', 'product.category', 'product.brand', 'product.season', 'product.gender', 'variation']);
 
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('n'));
             $year = $request->get('year', date('Y'));

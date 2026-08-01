@@ -35,7 +35,7 @@ class PurchaseReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -100,7 +100,7 @@ class PurchaseReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
             $year = $request->get('year', date('Y'));
@@ -217,7 +217,7 @@ class PurchaseReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('view purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
             $year = $request->get('year', date('Y'));

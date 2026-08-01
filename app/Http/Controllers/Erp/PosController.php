@@ -627,7 +627,7 @@ class PosController extends Controller
         if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
 
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -1827,7 +1827,7 @@ class PosController extends Controller
         if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType == 'monthly') {
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
             $endDate = $startDate->copy()->endOfMonth();
@@ -2133,7 +2133,7 @@ class PosController extends Controller
         if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'daily');
+        $reportType = $request->get('report_type', 'yearly');
         if ($reportType == 'monthly') {
             $startDate = \Carbon\Carbon::createFromDate($request->get('year', date('Y')), $request->get('month', date('m')), 1)->startOfMonth();
             $endDate = $startDate->copy()->endOfMonth();
