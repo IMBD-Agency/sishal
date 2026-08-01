@@ -37,7 +37,7 @@
                 position: sticky;
                 top: 0;
                 /* Sticks to the top of .table-responsive */
-                z-index: 1000 !important;
+                z-index: 100 !important;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
                 /* Subtle depth shadow */
                 padding-top: 12px !important;

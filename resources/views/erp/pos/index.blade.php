@@ -40,7 +40,7 @@
                 /* Sticks to the top of .table-responsive */
                 background-color: #2d5a4c !important;
                 color: #fff !important;
-                z-index: 1000 !important;
+                z-index: 100 !important;
                 border-bottom: 2px solid #3d6a5c !important;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
                 /* Subtle depth shadow */

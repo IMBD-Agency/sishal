@@ -13,7 +13,7 @@
             .table-responsive { max-height: 80vh; overflow: auto !important; position: relative; background: #fff; }
             #returnTable { border-collapse: separate; border-spacing: 0; width: 100%; }
             #returnTable thead th { 
-                position: sticky; top: 0; z-index: 1000 !important; 
+                position: sticky; top: 0; z-index: 100 !important; 
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
                 padding-top: 12px !important; padding-bottom: 12px !important;
                 background-color: #f8f9fa;
