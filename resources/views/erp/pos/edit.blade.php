@@ -390,7 +390,14 @@ $(document).ready(function() {
                     <td class="ps-2 py-3">
                         <div class="fw-bold text-dark mb-0">${item.name}</div>
                         <div class="d-flex align-items-center gap-2 mt-1">
-                            <span class="badge bg-success bg-opacity-10 text-success border-0 extra-small">${item.price.toFixed(2)}৳</span>
+                            <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price">
+                                <span class="text-success fw-bold extra-small me-1">৳</span>
+                                <input type="number" step="any" min="0" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
+                                       value="${item.price}" style="width: 70px; font-size: 0.78rem; outline: none; box-shadow: none;"
+                                       oninput="manualUpdatePrice('${item.cartId}', this.value)"
+                                       onchange="manualUpdatePrice('${item.cartId}', this.value)"
+                                       onclick="this.select()" onfocus="this.select()">
+                            </div>
                             <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.maxStock}</span>
                         </div>
                     </td>
@@ -418,6 +425,17 @@ $(document).ready(function() {
         });
         calculateTotals();
     }
+
+    window.manualUpdatePrice = (id, val) => {
+        let i = cart.find(c => c.cartId === id);
+        if(i) {
+            let newPrice = parseFloat(val);
+            if(isNaN(newPrice) || newPrice < 0) newPrice = 0;
+            i.price = newPrice;
+            $(`#item-total-${id}`).text((i.price * i.qty).toFixed(2));
+            calculateTotals();
+        }
+    };
     window.updateQty = (id, d) => { 
         let i = cart.find(c => c.cartId === id); 
         if(i) { 
