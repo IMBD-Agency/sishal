@@ -112,6 +112,7 @@ class StockTransferController extends Controller
             'product.gender',
             'variation.combinations.attribute', 
             'variation.combinations.attributeValue',
+            'variation.attributeValues.attribute',
             'fromBranch', 
             'fromWarehouse', 
             'toBranch', 
@@ -509,10 +510,27 @@ class StockTransferController extends Controller
         if (!auth()->user()->hasPermissionTo('view transfers')) {
             abort(403, 'Unauthorized action.');
         }
-        $transfer = StockTransfer::with(['product.category', 'variation'])->findOrFail($id);
+
+        $withRelations = [
+            'product.category',
+            'product.brand',
+            'product.season',
+            'product.gender',
+            'variation.combinations.attribute',
+            'variation.combinations.attributeValue',
+            'variation.attributeValues.attribute',
+            'fromBranch',
+            'fromWarehouse',
+            'toBranch',
+            'toWarehouse',
+            'requestedPerson',
+            'approvedPerson'
+        ];
+
+        $transfer = StockTransfer::with($withRelations)->findOrFail($id);
         
         if ($transfer->invoice_number) {
-            $transfers = StockTransfer::with(['product.category', 'variation'])
+            $transfers = StockTransfer::with($withRelations)
                 ->where('invoice_number', $transfer->invoice_number)
                 ->get();
         } else {

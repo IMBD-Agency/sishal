@@ -37,13 +37,26 @@
 
                     $color = '-';
                     $size = '-';
-                    if ($variation && $variation->attributeValues) {
-                        foreach ($variation->attributeValues as $val) {
-                            $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color))
-                                $color = $val->value;
-                            elseif (str_contains($attrName, 'size'))
-                                $size = $val->value;
+                    if ($variation) {
+                        if ($variation->combinations && $variation->combinations->count()) {
+                            foreach ($variation->combinations as $combo) {
+                                $attrName = strtolower(trim($combo->attribute->name ?? ''));
+                                $val = $combo->attributeValue->value ?? '';
+                                if ($val !== '') {
+                                    if (str_contains($attrName, 'size')) $size = $val;
+                                    elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($combo->attribute) && $combo->attribute->is_color)) $color = $val;
+                                }
+                            }
+                        }
+                        if ($size === '-' && $color === '-' && $variation->attributeValues && $variation->attributeValues->count()) {
+                            foreach ($variation->attributeValues as $val) {
+                                $attrName = strtolower(trim($val->attribute->name ?? ''));
+                                if (str_contains($attrName, 'size')) $size = $val->value;
+                                elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
+                            }
+                        }
+                        if ($size === '-' && $color === '-' && $variation->name && $variation->name !== 'Standard') {
+                            $size = $variation->name;
                         }
                     }
                 @endphp

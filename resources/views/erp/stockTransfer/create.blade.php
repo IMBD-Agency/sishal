@@ -248,11 +248,26 @@
                                         
                                         // Get size/color from variation combinations
                                         $size = '-'; $color = '-';
-                                        if ($variation && $variation->combinations) {
-                                            foreach($variation->combinations as $combo) {
-                                                $attrName = strtolower($combo->attribute->name ?? '');
-                                                if (in_array($attrName, ['color','colour'])) $color = $combo->attributeValue->value ?? '-';
-                                                if (in_array($attrName, ['size','sizes'])) $size = $combo->attributeValue->value ?? '-';
+                                        if ($variation) {
+                                            if ($variation->combinations && $variation->combinations->count()) {
+                                                foreach($variation->combinations as $combo) {
+                                                    $attrName = strtolower(trim($combo->attribute->name ?? ''));
+                                                    $val = $combo->attributeValue->value ?? '';
+                                                    if ($val !== '') {
+                                                        if (str_contains($attrName, 'size')) $size = $val;
+                                                        elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($combo->attribute) && $combo->attribute->is_color)) $color = $val;
+                                                    }
+                                                }
+                                            }
+                                            if ($size === '-' && $color === '-' && $variation->attributeValues && $variation->attributeValues->count()) {
+                                                foreach($variation->attributeValues as $val) {
+                                                    $attrName = strtolower(trim($val->attribute->name ?? ''));
+                                                    if (str_contains($attrName, 'size')) $size = $val->value;
+                                                    elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
+                                                }
+                                            }
+                                            if ($size === '-' && $color === '-' && $variation->name && $variation->name !== 'Standard') {
+                                                $size = $variation->name;
                                             }
                                         }
 

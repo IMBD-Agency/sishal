@@ -158,17 +158,63 @@
                                         <td>
                                             @if($item->variation)
                                                 @php
-                                                    $color = null; $size = null;
-                                                    if($item->variation->combinations) {
-                                                        foreach($item->variation->combinations as $combo) {
-                                                            $name = strtolower($combo->attribute->name ?? '');
-                                                            if(in_array($name, ['color','colour'])) $color = $combo->attributeValue->value ?? '';
-                                                            if(in_array($name, ['size','sizes'])) $size = $combo->attributeValue->value ?? '';
+                                                    $color = null; 
+                                                    $size = null;
+                                                    $otherAttrs = [];
+
+                                                    // 1. Extract from combinations
+                                                    if ($item->variation->combinations && $item->variation->combinations->count()) {
+                                                        foreach ($item->variation->combinations as $combo) {
+                                                            $attrName = strtolower(trim($combo->attribute->name ?? ''));
+                                                            $val = $combo->attributeValue->value ?? '';
+                                                            if ($val !== '') {
+                                                                if (str_contains($attrName, 'size')) {
+                                                                    $size = $val;
+                                                                } elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($combo->attribute) && $combo->attribute->is_color)) {
+                                                                    $color = $val;
+                                                                } else {
+                                                                    $otherAttrs[] = $val;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 2. Extract from attributeValues if not found yet
+                                                    if (!$size && !$color && empty($otherAttrs) && $item->variation->attributeValues && $item->variation->attributeValues->count()) {
+                                                        foreach ($item->variation->attributeValues as $val) {
+                                                            $attrName = strtolower(trim($val->attribute->name ?? ''));
+                                                            if (str_contains($attrName, 'size')) {
+                                                                $size = $val->value;
+                                                            } elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($val->attribute) && $val->attribute->is_color)) {
+                                                                $color = $val->value;
+                                                            } else {
+                                                                $otherAttrs[] = $val->value;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 3. Fallback to variation name or SKU if no combinations found
+                                                    if (!$size && !$color && empty($otherAttrs)) {
+                                                        if ($item->variation->name && $item->variation->name !== 'Standard') {
+                                                            $otherAttrs[] = $item->variation->name;
+                                                        } elseif ($item->variation->sku) {
+                                                            $otherAttrs[] = $item->variation->sku;
                                                         }
                                                     }
                                                 @endphp
-                                                <span class="badge bg-light text-dark border me-1 small">{{ $size ?? '-' }}</span>
-                                                <span class="badge bg-light text-dark border small">{{ $color ?? '-' }}</span>
+
+                                                @if($size)
+                                                    <span class="badge bg-light text-dark border me-1 small">{{ $size }}</span>
+                                                @endif
+                                                @if($color)
+                                                    <span class="badge bg-light text-dark border me-1 small">{{ $color }}</span>
+                                                @endif
+                                                @foreach($otherAttrs as $other)
+                                                    <span class="badge bg-light text-dark border me-1 small">{{ $other }}</span>
+                                                @endforeach
+                                                @if(!$size && !$color && empty($otherAttrs))
+                                                    <span class="badge bg-light text-dark border small">-</span>
+                                                @endif
                                             @else
                                                 <span class="text-muted small">Standard</span>
                                             @endif
@@ -449,17 +495,63 @@
                                             <td>
                                                 @if($item->variation)
                                                     @php
-                                                        $color = null; $size = null;
-                                                        if($item->variation->combinations) {
-                                                            foreach($item->variation->combinations as $combo) {
-                                                                $name = strtolower($combo->attribute->name ?? '');
-                                                                if(in_array($name, ['color','colour'])) $color = $combo->attributeValue->value ?? '';
-                                                                if(in_array($name, ['size','sizes'])) $size = $combo->attributeValue->value ?? '';
+                                                        $color = null; 
+                                                        $size = null;
+                                                        $otherAttrs = [];
+
+                                                        // 1. Extract from combinations
+                                                        if ($item->variation->combinations && $item->variation->combinations->count()) {
+                                                            foreach ($item->variation->combinations as $combo) {
+                                                                $attrName = strtolower(trim($combo->attribute->name ?? ''));
+                                                                $val = $combo->attributeValue->value ?? '';
+                                                                if ($val !== '') {
+                                                                    if (str_contains($attrName, 'size')) {
+                                                                        $size = $val;
+                                                                    } elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($combo->attribute) && $combo->attribute->is_color)) {
+                                                                        $color = $val;
+                                                                    } else {
+                                                                        $otherAttrs[] = $val;
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 2. Extract from attributeValues if not found yet
+                                                        if (!$size && !$color && empty($otherAttrs) && $item->variation->attributeValues && $item->variation->attributeValues->count()) {
+                                                            foreach ($item->variation->attributeValues as $val) {
+                                                                $attrName = strtolower(trim($val->attribute->name ?? ''));
+                                                                if (str_contains($attrName, 'size')) {
+                                                                    $size = $val->value;
+                                                                } elseif (str_contains($attrName, 'color') || str_contains($attrName, 'colour') || (isset($val->attribute) && $val->attribute->is_color)) {
+                                                                    $color = $val->value;
+                                                                } else {
+                                                                    $otherAttrs[] = $val->value;
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 3. Fallback to variation name or SKU if no combinations found
+                                                        if (!$size && !$color && empty($otherAttrs)) {
+                                                            if ($item->variation->name && $item->variation->name !== 'Standard') {
+                                                                $otherAttrs[] = $item->variation->name;
+                                                            } elseif ($item->variation->sku) {
+                                                                $otherAttrs[] = $item->variation->sku;
                                                             }
                                                         }
                                                     @endphp
-                                                    <span class="badge bg-light text-dark border me-1 small">{{ $size ?? '-' }}</span>
-                                                    <span class="badge bg-light text-dark border small">{{ $color ?? '-' }}</span>
+
+                                                    @if($size)
+                                                        <span class="badge bg-light text-dark border me-1 small">{{ $size }}</span>
+                                                    @endif
+                                                    @if($color)
+                                                        <span class="badge bg-light text-dark border me-1 small">{{ $color }}</span>
+                                                    @endif
+                                                    @foreach($otherAttrs as $other)
+                                                        <span class="badge bg-light text-dark border me-1 small">{{ $other }}</span>
+                                                    @endforeach
+                                                    @if(!$size && !$color && empty($otherAttrs))
+                                                        <span class="badge bg-light text-dark border small">-</span>
+                                                    @endif
                                                 @else
                                                     <span class="text-muted small">Standard</span>
                                                 @endif
