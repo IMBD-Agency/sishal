@@ -48,9 +48,11 @@
                         </div>
                         <div class="col-md-3">
                             <select name="branch_id" class="form-select">
-                                <option value="">All Branches</option>
+                                @if(!$userBranchId)
+                                    <option value="">All Branches</option>
+                                @endif
                                 @foreach($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                                    <option value="{{ $branch->id }}" {{ ($selectedBranchId ?? request('branch_id')) == $branch->id ? 'selected' : '' }}>
                                         {{ $branch->name }}
                                     </option>
                                 @endforeach
@@ -125,8 +127,7 @@
                                         </td>
                                         <td>
                                             @php
-                                                $userBranchId = auth()->user()->hasRole('Super Admin') ? null : (auth()->user()->employee ? auth()->user()->employee->branch_id : null);
-                                                $branchId = request('branch_id') ?: $userBranchId;
+                                                $branchId = $selectedBranchId ?? request('branch_id') ?? $userBranchId;
                                                 $stock = $combo->getComboStock($branchId);
                                             @endphp
                                             @if($stock <= 0)

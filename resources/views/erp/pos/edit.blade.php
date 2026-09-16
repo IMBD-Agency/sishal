@@ -113,8 +113,8 @@
                 <!-- 2. Cart Items -->
                 <div class="cart-table-container p-3">
                     <div class="cart-header d-flex justify-content-between mb-2">
-                        <span class="fw-bold text-muted small">Items List</span>
-                        <span id="cartCount" class="badge bg-secondary">0 Items</span>
+                        <span>Items List</span>
+                        <span id="cartCount">0 Items</span>
                     </div>
                     <table class="table table-hover mb-0 cart-table">
                         <tbody id="cartTableBody">

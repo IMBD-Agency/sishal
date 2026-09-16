@@ -259,13 +259,43 @@ $(document).ready(function() {
         minimumInputLength: 1,
     });
 
+    let currentBranchId = $('#branchSelect').val();
+
+    $('#branchSelect').on('change', function() {
+        const newBranchId = $(this).val();
+        if (cartItems.length > 0) {
+            Swal.fire({
+                title: 'Change Branch?',
+                text: 'Changing the branch will clear your current cart items to ensure stock accuracy for the new branch.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--primary-color)',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, Change Branch',
+                cancelButtonText: 'Keep Current Cart'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    cartItems = [];
+                    renderCart();
+                    currentBranchId = newBranchId;
+                    $('#styleNumberSelect').val(null).trigger('change');
+                } else {
+                    $('#branchSelect').val(currentBranchId);
+                }
+            });
+        } else {
+            currentBranchId = newBranchId;
+            $('#styleNumberSelect').val(null).trigger('change');
+        }
+    });
+
     $('#styleNumberSelect').select2({
         theme: 'bootstrap-5', width: '100%', placeholder: 'Click to see products or type to search...',
         ajax: {
             url: "{{ route('products.search.style') }}", dataType: 'json', delay: 250,
             data: p => ({ q: p.term || '', branch_id: $('#branchSelect').val() }),
             processResults: data => ({ results: data.results.map(p => ({ id: p.id, text: p.text, product: p })) }),
-            cache: true
+            cache: false
         },
         minimumInputLength: 0
     }).on('select2:select', function(e) {

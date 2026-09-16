@@ -21,6 +21,10 @@ class ComboProductController extends Controller
         if (!auth()->user()->hasPermissionTo('view combos')) {
             abort(403, 'Unauthorized action.');
         }
+        $user = auth()->user();
+        $userBranchId = $this->getUserBranchId();
+        $selectedBranchId = $userBranchId ?: $request->branch_id;
+
         $query = Product::where('type', 'combo')
             ->with(['comboItems.product.branchStock', 'comboItems.variation.stocks', 'branch']);
             
@@ -32,14 +36,21 @@ class ComboProductController extends Controller
             });
         }
         
-        if ($request->branch_id) {
-            $query->where('branch_id', $request->branch_id);
+        if ($selectedBranchId) {
+            $query->where(function($q) use ($selectedBranchId) {
+                $q->where('branch_id', $selectedBranchId)->orWhereNull('branch_id');
+            });
         }
 
         $combos = $query->orderBy('id', 'desc')->paginate(20);
-        $branches = Branch::where('status', 'active')->get();
+        
+        $branches = Branch::where('status', 'active');
+        if ($userBranchId) {
+            $branches = $branches->where('id', $userBranchId);
+        }
+        $branches = $branches->get();
 
-        return view('erp.combo-products.list', compact('combos', 'branches'));
+        return view('erp.combo-products.list', compact('combos', 'branches', 'userBranchId', 'selectedBranchId'));
     }
 
     /**

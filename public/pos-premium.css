@@ -162,3 +162,21 @@
     border-radius: 12px;
     margin-bottom: 15px;
 }
+
+.cart-header {
+    background: #f1f5f9;
+    color: #1e293b;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    border: 1px solid #e2e8f0;
+}
+
+.cart-header span,
+.cart-header #cartCount {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+}
