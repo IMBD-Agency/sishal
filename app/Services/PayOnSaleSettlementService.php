@@ -16,7 +16,12 @@ use App\Models\FinancialAccount;
 use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\JournalEntry;
-use App\Models\Balance;
+use App\Models\Product;
+use App\Models\ComboProduct;
+use App\Models\PosExchangeItem;
+use App\Models\PosExchange;
+use App\Models\SaleReturn;
+use App\Models\OrderReturn;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -48,11 +53,14 @@ class PayOnSaleSettlementService
                 $q->where('supplier_id', $supplierId);
             });
 
-        if ($startDate) {
-            $purchaseItemsQuery->whereHas('purchase', fn($q) => $q->whereDate('created_at', '>=', $startDate));
-        }
         if ($endDate) {
-            $purchaseItemsQuery->whereHas('purchase', fn($q) => $q->whereDate('created_at', '<=', $endDate));
+            $endDateStr = is_string($endDate) ? $endDate : \Carbon\Carbon::parse($endDate)->format('Y-m-d');
+            $purchaseItemsQuery->whereHas('purchase', function ($q) use ($endDateStr) {
+                $q->where(function ($sq) use ($endDateStr) {
+                    $sq->whereDate('purchase_date', '<=', $endDateStr)
+                        ->orWhere(fn($ssq) => $ssq->whereNull('purchase_date')->whereDate('created_at', '<=', $endDateStr));
+                });
+            });
         }
 
         $purchaseItems = $purchaseItemsQuery->get();
@@ -100,35 +108,6 @@ class PayOnSaleSettlementService
             $productId   = $data['product_id'];
             $variationId = $data['variation_id'];
 
-            // POS Sales & Returns
-            $posSoldQuery = PosItem::where('product_id', $productId);
-            if ($variationId) {
-                $posSoldQuery->where('variation_id', $variationId);
-            }
-            $posSoldQty = (float) $posSoldQuery->sum('quantity');
-
-            $posReturnQuery = SaleReturnItem::where('product_id', $productId);
-            if ($variationId) {
-                $posReturnQuery->where('variation_id', $variationId);
-            }
-            $posReturnQty = (float) $posReturnQuery->sum('returned_qty');
-            $netPosSoldQty = max(0, $posSoldQty - $posReturnQty);
-
-            // Online Sales & Returns (excluding cancelled orders)
-            $onlineSoldQuery = OrderItem::where('product_id', $productId)
-                ->whereHas('order', fn($q) => $q->where('status', '!=', 'cancelled'));
-            if ($variationId) {
-                $onlineSoldQuery->where('variation_id', $variationId);
-            }
-            $onlineSoldQty = (float) $onlineSoldQuery->sum('quantity');
-
-            $orderReturnQuery = OrderReturnItem::where('product_id', $productId);
-            if ($variationId) {
-                $orderReturnQuery->where('variation_id', $variationId);
-            }
-            $orderReturnQty = (float) $orderReturnQuery->sum('returned_qty');
-            $netOnlineSoldQty = max(0, $onlineSoldQty - $orderReturnQty);
-
             // Deduct purchase returns for this product/variation
             $returnedQuery = PurchaseReturnItem::where('product_id', $productId);
             if ($variationId) {
@@ -138,9 +117,11 @@ class PayOnSaleSettlementService
 
             $netPurchasedQty = max(0, $data['purchased_qty'] - $returnedQty);
 
-            $soldQty = $netPosSoldQty + $netOnlineSoldQty;
+            // Accurately calculate sold quantity across POS, Online, Combos, Exchanges & Returns
+            $rawSoldQty = $this->getProductNetSoldQuantity($productId, $variationId, $startDate, $endDate);
+
             // Cap sold quantity at net purchased quantity for consignment accounting accuracy
-            $soldQty = min($soldQty, $netPurchasedQty);
+            $soldQty = min($rawSoldQty, $netPurchasedQty);
             $inStockQty = max(0, $netPurchasedQty - $soldQty);
 
             $avgUnitCost = $data['purchased_qty'] > 0 ? ($data['total_cost'] / $data['purchased_qty']) : $data['latest_unit_cost'];
@@ -250,26 +231,7 @@ class PayOnSaleSettlementService
                 $productId   = $group['product_id'];
                 $variationId = $group['variation_id'];
 
-                // POS Sales & Returns
-                $posSold = (float) PosItem::where('product_id', $productId)
-                    ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
-                    ->sum('quantity');
-                $posReturn = (float) SaleReturnItem::where('product_id', $productId)
-                    ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
-                    ->sum('returned_qty');
-                $netPos = max(0, $posSold - $posReturn);
-
-                // Online Sales & Returns
-                $onlineSold = (float) OrderItem::where('product_id', $productId)
-                    ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
-                    ->whereHas('order', fn($q) => $q->where('status', '!=', 'cancelled'))
-                    ->sum('quantity');
-                $orderReturn = (float) OrderReturnItem::where('product_id', $productId)
-                    ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
-                    ->sum('returned_qty');
-                $netOnline = max(0, $onlineSold - $orderReturn);
-
-                $remSold = $netPos + $netOnline;
+                $remSold = $this->getProductNetSoldQuantity($productId, $variationId);
 
                 foreach ($group['items'] as $pi) {
                     if ($remSold <= 0) break;
@@ -491,5 +453,173 @@ class PayOnSaleSettlementService
                 'updated_by'           => $userId,
             ]);
         }
+    }
+
+    /**
+     * Calculate net sold quantity for a product / variation across POS, Online Orders, Combos, Exchanges, and Returns.
+     *
+     * @param int $productId
+     * @param int|null $variationId
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @return float
+     */
+    public function getProductNetSoldQuantity($productId, $variationId = null, $startDate = null, $endDate = null)
+    {
+        $startDateStr = $startDate ? (\Carbon\Carbon::parse($startDate)->format('Y-m-d')) : null;
+        $endDateStr   = $endDate ? (\Carbon\Carbon::parse($endDate)->format('Y-m-d')) : null;
+
+        $product = Product::find($productId);
+        $isCombo = $product && $product->type === 'combo';
+
+        // -------------------------------------------------------------
+        // 1. POS SALES
+        // -------------------------------------------------------------
+        // A. Direct POS items (Single items or combo child items or combo parent rows)
+        $posDirectQuery = PosItem::where('product_id', $productId)
+            ->whereHas('pos', function ($q) use ($startDateStr, $endDateStr) {
+                $q->where('status', '!=', 'cancelled');
+                if ($startDateStr) $q->whereDate('sale_date', '>=', $startDateStr);
+                if ($endDateStr)   $q->whereDate('sale_date', '<=', $endDateStr);
+            });
+
+        if ($variationId) {
+            $posDirectQuery->where('variation_id', $variationId);
+        }
+
+        if ($isCombo) {
+            // For a combo product itself, only count parent rows to avoid double counting
+            $posDirectQuery->whereNull('parent_item_id');
+        }
+
+        $posDirectQty = (float) $posDirectQuery->sum('quantity');
+
+        // B. Extra combo sales in POS where child rows were NOT created in pos_items
+        $comboPosExtraQty = 0;
+        if (!$isCombo) {
+            $comboMappings = ComboProduct::where('product_id', $productId);
+            if ($variationId) {
+                $comboMappings->where(function ($q) use ($variationId) {
+                    $q->where('variation_id', $variationId)->orWhereNull('variation_id');
+                });
+            }
+            $comboMappings = $comboMappings->get();
+
+            foreach ($comboMappings as $cm) {
+                $comboParentItems = PosItem::where('product_id', $cm->combo_product_id)
+                    ->whereNull('parent_item_id')
+                    ->whereDoesntHave('childItems')
+                    ->whereHas('pos', function ($q) use ($startDateStr, $endDateStr) {
+                        $q->where('status', '!=', 'cancelled');
+                        if ($startDateStr) $q->whereDate('sale_date', '>=', $startDateStr);
+                        if ($endDateStr)   $q->whereDate('sale_date', '<=', $endDateStr);
+                    })
+                    ->sum('quantity');
+
+                $comboPosExtraQty += ((float) $comboParentItems * (float) $cm->quantity);
+            }
+        }
+
+        // C. POS Exchanges (New items handed out = Sold, Returned items handed in = Returned)
+        $posExchangeNewQuery = PosExchangeItem::where('product_id', $productId)
+            ->where('type', 'new')
+            ->whereHas('posExchange', function ($q) use ($startDateStr, $endDateStr) {
+                $q->where('status', 'completed');
+                if ($startDateStr) $q->whereDate('exchange_date', '>=', $startDateStr);
+                if ($endDateStr)   $q->whereDate('exchange_date', '<=', $endDateStr);
+            });
+        if ($variationId) {
+            $posExchangeNewQuery->where('variation_id', $variationId);
+        }
+        $posExchangeNewQty = (float) $posExchangeNewQuery->sum('quantity');
+
+        $posExchangeRetQuery = PosExchangeItem::where('product_id', $productId)
+            ->where('type', 'returned')
+            ->whereHas('posExchange', function ($q) use ($startDateStr, $endDateStr) {
+                $q->where('status', 'completed');
+                if ($startDateStr) $q->whereDate('exchange_date', '>=', $startDateStr);
+                if ($endDateStr)   $q->whereDate('exchange_date', '<=', $endDateStr);
+            });
+        if ($variationId) {
+            $posExchangeRetQuery->where('variation_id', $variationId);
+        }
+        $posExchangeRetQty = (float) $posExchangeRetQuery->sum('quantity');
+
+        // D. POS Sale Returns
+        $posReturnQuery = SaleReturnItem::where('product_id', $productId)
+            ->whereHas('saleReturn', function ($q) use ($startDateStr, $endDateStr) {
+                $q->where('status', '!=', 'rejected');
+                if ($startDateStr) $q->whereDate('return_date', '>=', $startDateStr);
+                if ($endDateStr)   $q->whereDate('return_date', '<=', $endDateStr);
+            });
+        if ($variationId) {
+            $posReturnQuery->where('variation_id', $variationId);
+        }
+        $posReturnQty = (float) $posReturnQuery->sum('returned_qty');
+
+        $netPosSoldQty = max(0, ($posDirectQty + $comboPosExtraQty + $posExchangeNewQty) - ($posReturnQty + $posExchangeRetQty));
+
+        // -------------------------------------------------------------
+        // 2. ONLINE ORDERS
+        // -------------------------------------------------------------
+        // A. Direct Order items (single items or combo child items)
+        $onlineDirectQuery = OrderItem::where('product_id', $productId)
+            ->whereHas('order', function ($q) use ($startDateStr, $endDateStr) {
+                $q->where('status', '!=', 'cancelled');
+                if ($startDateStr) $q->whereDate('created_at', '>=', $startDateStr);
+                if ($endDateStr)   $q->whereDate('created_at', '<=', $endDateStr);
+            });
+
+        if ($variationId) {
+            $onlineDirectQuery->where('variation_id', $variationId);
+        }
+
+        if ($isCombo) {
+            $onlineDirectQuery->whereNull('parent_item_id');
+        }
+
+        $onlineDirectQty = (float) $onlineDirectQuery->sum('quantity');
+
+        // B. Online combo orders where child rows were NOT created in order_items (e.g. standard ecommerce orders)
+        $comboOnlineExtraQty = 0;
+        if (!$isCombo) {
+            $comboMappings = ComboProduct::where('product_id', $productId);
+            if ($variationId) {
+                $comboMappings->where(function ($q) use ($variationId) {
+                    $q->where('variation_id', $variationId)->orWhereNull('variation_id');
+                });
+            }
+            $comboMappings = $comboMappings->get();
+
+            foreach ($comboMappings as $cm) {
+                $comboOrderItems = OrderItem::where('product_id', $cm->combo_product_id)
+                    ->whereNull('parent_item_id')
+                    ->whereDoesntHave('childItems')
+                    ->whereHas('order', function ($q) use ($startDateStr, $endDateStr) {
+                        $q->where('status', '!=', 'cancelled');
+                        if ($startDateStr) $q->whereDate('created_at', '>=', $startDateStr);
+                        if ($endDateStr)   $q->whereDate('created_at', '<=', $endDateStr);
+                    })
+                    ->sum('quantity');
+
+                $comboOnlineExtraQty += ((float) $comboOrderItems * (float) $cm->quantity);
+            }
+        }
+
+        // C. Online Order Returns
+        $orderReturnQuery = OrderReturnItem::where('product_id', $productId)
+            ->whereHas('orderReturn', function ($q) use ($startDateStr, $endDateStr) {
+                $q->where('status', '!=', 'rejected');
+                if ($startDateStr) $q->whereDate('return_date', '>=', $startDateStr);
+                if ($endDateStr)   $q->whereDate('return_date', '<=', $endDateStr);
+            });
+        if ($variationId) {
+            $orderReturnQuery->where('variation_id', $variationId);
+        }
+        $orderReturnQty = (float) $orderReturnQuery->sum('returned_qty');
+
+        $netOnlineSoldQty = max(0, ($onlineDirectQty + $comboOnlineExtraQty) - $orderReturnQty);
+
+        return $netPosSoldQty + $netOnlineSoldQty;
     }
 }

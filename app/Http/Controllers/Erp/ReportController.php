@@ -1634,15 +1634,15 @@ class ReportController extends Controller
         if ($branchId) $posQuery->where('branch_id', $branchId);
         if ($startDate) $posQuery->where('sale_date', '>=', $startDate->toDateString());
         if ($endDate) $posQuery->where('sale_date', '<=', $endDate->toDateString());
-        $posSales = $posQuery->with('branch')->get()->map(fn($p) => [
+        $posSales = $posQuery->with(['branch', 'invoice'])->get()->map(fn($p) => [
             'date' => $p->sale_date,
             'type' => 'POS Sale',
-            'reference' => $p->invoice_number,
+            'reference' => $p->invoice?->invoice_number ?? $p->sale_number,
             'debit' => $p->total_amount + $p->exchange_amount,
             'credit' => 0,
             'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Debit)" : "POS Transaction",
             // Info wise details
-            'invoice' => $p->invoice_number,
+            'invoice' => $p->invoice?->invoice_number ?? $p->sale_number,
             'challan' => $p->challan_number ?? '-',
             'branch' => $p->branch->name ?? '-',
             'total' => $p->total_amount,

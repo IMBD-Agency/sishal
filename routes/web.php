@@ -1079,6 +1079,103 @@ Route::get('/clearallstocks', function () {
     }
 });
 
+Route::get('/clearallsales', function () {
+    if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
+        abort(403, 'Unauthorized');
+    }
+    if (request('token') !== 'sisal_solve_2026') {
+        return 'Invalid token. Usage: /clearallsales?token=sisal_solve_2026';
+    }
+
+    DB::beginTransaction();
+    try {
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+
+        // 1. Delete POS, POS Items, and POS Exchanges
+        if (\Illuminate\Support\Facades\Schema::hasTable('pos_items')) {
+            DB::table('pos_items')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('pos_exchange_items')) {
+            DB::table('pos_exchange_items')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('pos_exchanges')) {
+            DB::table('pos_exchanges')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('pos')) {
+            DB::table('pos')->truncate();
+        }
+
+        // 2. Delete Sale Returns and Return Items
+        if (\Illuminate\Support\Facades\Schema::hasTable('sale_return_items')) {
+            DB::table('sale_return_items')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('sale_returns')) {
+            DB::table('sale_returns')->truncate();
+        }
+
+        // 3. Delete Invoices and Invoice Items
+        if (\Illuminate\Support\Facades\Schema::hasTable('invoice_items')) {
+            DB::table('invoice_items')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('invoice_payments')) {
+            DB::table('invoice_payments')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('invoices')) {
+            DB::table('invoices')->truncate();
+        }
+
+        // 4. Delete Customer Payments & Money Receipts
+        if (\Illuminate\Support\Facades\Schema::hasTable('payments')) {
+            DB::table('payments')->truncate();
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('money_receipts')) {
+            DB::table('money_receipts')->truncate();
+        }
+
+        // 5. Delete Customer Balances (from Balance table)
+        if (\Illuminate\Support\Facades\Schema::hasTable('balances')) {
+            DB::table('balances')->where('source_type', 'customer')->delete();
+        }
+
+        // 6. Delete Sales Accounting Journals
+        if (\Illuminate\Support\Facades\Schema::hasTable('journals')) {
+            $saleJournalIds = DB::table('journals')
+                ->where('voucher_no', 'like', 'SAL%')
+                ->orWhere('voucher_no', 'like', 'INV%')
+                ->orWhere('reference', 'like', 'SAL%')
+                ->orWhere('reference', 'like', 'INV%')
+                ->orWhere('type', 'Sale')
+                ->pluck('id');
+
+            if ($saleJournalIds->isNotEmpty()) {
+                if (\Illuminate\Support\Facades\Schema::hasTable('journal_entries')) {
+                    DB::table('journal_entries')->whereIn('journal_id', $saleJournalIds)->delete();
+                }
+                DB::table('journals')->whereIn('id', $saleJournalIds)->delete();
+            }
+        }
+
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+
+        DB::commit();
+
+        return '<div style="font-family: Arial, sans-serif; padding: 40px; text-align: center; max-width: 600px; margin: 50px auto; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h1 style="color: #16a34a; margin-bottom: 12px;">✅ All Sales, Invoices & Customer Dues Cleared!</h1>
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">
+                All POS sales, invoices, customer payments, sale returns, exchanges, and customer balances have been completely reset to 0.
+            </p>
+            <div style="margin-top: 25px;">
+                <a href="/erp/reports/customer-summary" style="display: inline-block; padding: 10px 22px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">View Customer Summary</a>
+                <a href="/erp/pos/list" style="display: inline-block; padding: 10px 22px; background: #4b5563; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold;">View POS List</a>
+            </div>
+        </div>';
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+        DB::rollBack();
+        return '<h1>Clear sales failed!</h1><br><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 // Route::get('/clearadjustments', function () {
 //     if (!auth()->check() || !(auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18)) {
 //         abort(403, 'Unauthorized');
