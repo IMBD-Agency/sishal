@@ -1607,6 +1607,8 @@ class ProductController extends Controller
                              'sku' => $v->sku ?? (($product->style_number ?? $product->sku) . '-' . $v->id),
                              'stock' => $stock ? $stock->quantity : 0
                          ];
+                    })->filter(function($v) {
+                        return $v['stock'] > 0;
                     })->values()
                 ];
             } else {
@@ -1641,9 +1643,13 @@ class ProductController extends Controller
             }
         });
 
+        $filteredItems = $products->getCollection()->filter(function($p) {
+            return ($p['total_stock'] ?? 0) > 0;
+        })->values();
+
         // Return paginated response with meta
         return response()->json([
-            'data' => $products->items(),
+            'data' => $filteredItems,
             'current_page' => $products->currentPage(),
             'last_page' => $products->lastPage(),
             'per_page' => $products->perPage(),
@@ -1677,24 +1683,24 @@ class ProductController extends Controller
             });
         }
 
-        // Filter: only show products that belong to the selected branch / warehouse (even if stock is 0)
+        // Filter: only show products that have available stock (> 0) in the selected branch / warehouse
         if ($branchId) {
             $query->where(function($sq) use ($branchId) {
                 $sq->whereHas('branchStock', function($bs) use ($branchId) {
-                    $bs->where('branch_id', $branchId);
+                    $bs->where('branch_id', $branchId)->where('quantity', '>', 0);
                 })
                 ->orWhereHas('variations.stocks', function($vs) use ($branchId) {
-                    $vs->where('branch_id', $branchId)->whereNull('warehouse_id');
+                    $vs->where('branch_id', $branchId)->whereNull('warehouse_id')->where('quantity', '>', 0);
                 })
                 ->orWhere('type', 'combo');
             });
         } elseif ($warehouseId) {
             $query->where(function($sq) use ($warehouseId) {
                 $sq->whereHas('warehouseStocks', function($ws) use ($warehouseId) {
-                    $ws->where('warehouse_id', $warehouseId);
+                    $ws->where('warehouse_id', $warehouseId)->where('quantity', '>', 0);
                 })
                 ->orWhereHas('variations.stocks', function($vs) use ($warehouseId) {
-                    $vs->where('warehouse_id', $warehouseId)->whereNull('branch_id');
+                    $vs->where('warehouse_id', $warehouseId)->whereNull('branch_id')->where('quantity', '>', 0);
                 })
                 ->orWhere('type', 'combo');
             });
@@ -1702,15 +1708,15 @@ class ProductController extends Controller
 
         $products = $query->with(['variations.stocks' => function($s) use ($branchId, $warehouseId) {
             if ($branchId) { 
-                $s->where('branch_id', $branchId)->whereNull('warehouse_id'); 
+                $s->where('branch_id', $branchId)->whereNull('warehouse_id')->where('quantity', '>', 0); 
             } elseif ($warehouseId) {
-                $s->where('warehouse_id', $warehouseId)->whereNull('branch_id');
+                $s->where('warehouse_id', $warehouseId)->whereNull('branch_id')->where('quantity', '>', 0);
             }
         }])
         ->with(['branchStock' => function($s) use ($branchId) {
-            if ($branchId) { $s->where('branch_id', $branchId); }
+            if ($branchId) { $s->where('branch_id', $branchId)->where('quantity', '>', 0); }
         }, 'warehouseStocks' => function($s) use ($warehouseId) {
-            if ($warehouseId) { $s->where('warehouse_id', $warehouseId); }
+            if ($warehouseId) { $s->where('warehouse_id', $warehouseId)->where('quantity', '>', 0); }
         }, 'comboItems'])
         ->orderBy('id', 'desc')
         ->limit(30)->get();
@@ -1775,6 +1781,27 @@ class ProductController extends Controller
                 });
             }
 
+            $inStockVariations = $product->variations->map(function($v) use ($branchId, $warehouseId) {
+                $vStock = 0;
+                if ($branchId) {
+                    $vStock = (float)($v->stocks->where('branch_id', $branchId)->whereNull('warehouse_id')->sum('quantity') ?? 0);
+                } elseif ($warehouseId) {
+                    $vStock = (float)($v->stocks->where('warehouse_id', $warehouseId)->whereNull('branch_id')->sum('quantity') ?? 0);
+                } else {
+                    $vStock = (float)($v->stocks->sum('quantity') ?? 0);
+                }
+                return [
+                    'id' => $v->id,
+                    'name' => $v->name,
+                    'sku' => $v->sku,
+                    'stock' => $vStock,
+                    'price' => (float)($v->price ?: 0),
+                    'wholesale_price' => (float)($v->wholesale_price ?: 0)
+                ];
+            })->filter(function($v) {
+                return $v['stock'] > 0;
+            })->values();
+
             return [
                 'id' => $product->id, 
                 'name' => $product->name,
@@ -1786,26 +1813,11 @@ class ProductController extends Controller
                 'has_variations' => (bool)$product->has_variations,
                 'sku' => $product->sku,
                 'style_number' => $product->style_number,
-                'variations' => $product->variations->map(function($v) use ($branchId, $warehouseId) {
-                    $vStock = 0;
-                    if ($branchId) {
-                        $vStock = (float)($v->stocks->where('branch_id', $branchId)->whereNull('warehouse_id')->sum('quantity') ?? 0);
-                    } elseif ($warehouseId) {
-                        $vStock = (float)($v->stocks->where('warehouse_id', $warehouseId)->whereNull('branch_id')->sum('quantity') ?? 0);
-                    } else {
-                        $vStock = (float)($v->stocks->sum('quantity') ?? 0);
-                    }
-                    return [
-                        'id' => $v->id,
-                        'name' => $v->name,
-                        'sku' => $v->sku,
-                        'stock' => $vStock,
-                        'price' => (float)($v->price ?: 0),
-                        'wholesale_price' => (float)($v->wholesale_price ?: 0)
-                    ];
-                })
+                'variations' => $inStockVariations
             ];
-        });
+        })->filter(function($item) {
+            return $item['stock'] > 0;
+        })->values();
         
         return response()->json(['results' => $results]);
     }
