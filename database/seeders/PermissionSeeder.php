@@ -76,7 +76,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'view payments', 'category' => 'Supplier Pay'],
             ['name' => 'create payments', 'category' => 'Supplier Pay'],
             ['name' => 'delete payments', 'category' => 'Supplier Pay'],
-            ['name' => 'manage payments', 'category' => 'Supplier Pay'],
+            ['name' => 'pay on sale', 'category' => 'Supplier Pay'],
 
             // POS
             ['name' => 'use pos', 'category' => 'POS'],

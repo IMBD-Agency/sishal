@@ -31,7 +31,7 @@ class PayOnSaleSettlementService
     /**
      * Get Pay-On-Sale (Consignment) summary for a supplier
      */
-    public function getSupplierPayOnSaleSummary($supplierId, $startDate = null, $endDate = null)
+    public function getSupplierPayOnSaleSummary($supplierId, $startDate = null, $endDate = null, $search = null)
     {
         if (!$supplierId) {
             return [
@@ -94,6 +94,16 @@ class PayOnSaleSettlementService
             $grouped[$key]['total_cost']    += ($item->quantity * $item->unit_price);
             $grouped[$key]['latest_unit_cost'] = $item->unit_price;
             $grouped[$key]['purchase_items'][] = $item;
+        }
+
+        // Apply Product / SKU / Style Search filter if provided
+        if ($search && trim($search) !== '') {
+            $sTerm = strtolower(trim($search));
+            $grouped = array_filter($grouped, function ($data) use ($sTerm) {
+                return str_contains(strtolower($data['product_name'] ?? ''), $sTerm)
+                    || str_contains(strtolower($data['sku'] ?? ''), $sTerm)
+                    || str_contains(strtolower($data['style_number'] ?? ''), $sTerm);
+            });
         }
 
         $items = [];

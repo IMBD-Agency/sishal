@@ -244,7 +244,7 @@ class SupplierPaymentController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage payments')) {
+        if (!auth()->user()->hasPermissionTo('create payments')) {
             abort(403, 'Unauthorized action.');
         }
         $suppliers = Supplier::all();
@@ -254,7 +254,7 @@ class SupplierPaymentController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage payments')) {
+        if (!auth()->user()->hasPermissionTo('create payments')) {
             abort(403, 'Unauthorized action.');
         }
         
@@ -540,20 +540,21 @@ class SupplierPaymentController extends Controller
     /**
      * Display Pay-on-Sale Settlement View
      */
-    public function payOnSale(Request $request, PayOnSaleSettlementService $service)
+     public function payOnSale(Request $request, PayOnSaleSettlementService $service)
     {
-        if (!auth()->user()->hasPermissionTo('view payments')) {
+        if (!auth()->user()->hasPermissionTo('pay on sale')) {
             abort(403, 'Unauthorized action.');
         }
 
         $supplierId = $request->get('supplier_id');
         $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
         $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        $search = $request->get('search');
 
         $suppliers = Supplier::orderBy('name')->get();
         $accounts = FinancialAccount::withCurrentBalance()->orderBy('type')->orderBy('provider_name')->get();
 
-        $summary = $service->getSupplierPayOnSaleSummary($supplierId, $startDate, $endDate);
+        $summary = $service->getSupplierPayOnSaleSummary($supplierId, $startDate, $endDate, $search);
 
         return view('erp.supplier-payments.pay-on-sale', compact(
             'suppliers',
@@ -568,11 +569,16 @@ class SupplierPaymentController extends Controller
      */
     public function getPayOnSaleSummary(Request $request, PayOnSaleSettlementService $service)
     {
+        if (!auth()->user()->hasPermissionTo('pay on sale')) {
+            return response()->json(['message' => 'Unauthorized action.'], 403);
+        }
+
         $supplierId = $request->get('supplier_id');
         $startDate = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
         $endDate = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+        $search = $request->get('search');
 
-        $summary = $service->getSupplierPayOnSaleSummary($supplierId, $startDate, $endDate);
+        $summary = $service->getSupplierPayOnSaleSummary($supplierId, $startDate, $endDate, $search);
         return response()->json($summary);
     }
 
@@ -581,7 +587,7 @@ class SupplierPaymentController extends Controller
      */
     public function storePayOnSale(Request $request, PayOnSaleSettlementService $service)
     {
-        if (!auth()->user()->hasPermissionTo('create payments')) {
+        if (!auth()->user()->hasPermissionTo('pay on sale')) {
             abort(403, 'Unauthorized action.');
         }
 

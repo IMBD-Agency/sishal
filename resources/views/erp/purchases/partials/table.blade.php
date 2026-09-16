@@ -178,11 +178,11 @@
                                 </a>
                             @endif
 
-                            @if(auth()->user()->hasPermissionTo('manage payments'))
+                            @can('create payments')
                                 <a href="{{ route('supplier-payments.create', ['supplier_id' => $purchase->supplier_id, 'bill_id' => $bill->id ?? '']) }}" class="action-circle bg-light border-0" title="Record Payment">
                                     <i class="fas fa-money-bill-wave text-success"></i>
                                 </a>
-                            @endif
+                            @endcan
 
                             @if(auth()->user()->hasPermissionTo('delete purchases'))
                                 <button type="button" class="action-circle bg-light border-0 delete-purchase" data-id="{{ $purchase->id }}" title="Delete Purchase">
