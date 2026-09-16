@@ -13,6 +13,11 @@ class PosExchangeItem extends Model
         return $this->belongsTo(PosExchange::class, 'pos_exchange_id');
     }
 
+    public function posExchange()
+    {
+        return $this->belongsTo(PosExchange::class, 'pos_exchange_id');
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

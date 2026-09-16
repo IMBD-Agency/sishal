@@ -523,7 +523,7 @@ class PayOnSaleSettlementService
         // C. POS Exchanges (New items handed out = Sold, Returned items handed in = Returned)
         $posExchangeNewQuery = PosExchangeItem::where('product_id', $productId)
             ->where('type', 'new')
-            ->whereHas('posExchange', function ($q) use ($startDateStr, $endDateStr) {
+            ->whereHas('exchange', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', 'completed');
                 if ($startDateStr) $q->whereDate('exchange_date', '>=', $startDateStr);
                 if ($endDateStr)   $q->whereDate('exchange_date', '<=', $endDateStr);
@@ -535,7 +535,7 @@ class PayOnSaleSettlementService
 
         $posExchangeRetQuery = PosExchangeItem::where('product_id', $productId)
             ->where('type', 'returned')
-            ->whereHas('posExchange', function ($q) use ($startDateStr, $endDateStr) {
+            ->whereHas('exchange', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', 'completed');
                 if ($startDateStr) $q->whereDate('exchange_date', '>=', $startDateStr);
                 if ($endDateStr)   $q->whereDate('exchange_date', '<=', $endDateStr);
