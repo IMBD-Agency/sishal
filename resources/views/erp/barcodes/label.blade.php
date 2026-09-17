@@ -113,7 +113,7 @@
             max-width: 38mm;
             max-height: 25mm;
             overflow: hidden;
-            padding: 1.0mm 1.5mm 0.8mm 1.5mm;
+            padding: 0.8mm 1.5mm 0.6mm 1.5mm;
             background-color: #ffffff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             display: flex;
@@ -125,7 +125,7 @@
 
         .product-title {
             width: 100%;
-            font-size: 7.5pt;
+            font-size: 6.8pt;
             font-weight: 800;
             color: #000000;
             line-height: 1.1;
@@ -136,9 +136,9 @@
         }
 
         .product-variant {
-            font-size: 6pt;
+            font-size: 5.5pt;
             font-weight: 700;
-            color: #333;
+            color: #222;
             line-height: 1;
             margin-top: 0.2mm;
         }
@@ -149,12 +149,12 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 0.4mm 0;
+            margin: 0.2mm 0;
         }
 
         .barcode-image-box {
-            width: 96%;
-            height: 11.5mm; /* Taller barcode for superior 1D optical scanner readability */
+            width: 95%;
+            height: 8.8mm; /* Perfectly proportioned to leave space for price and name */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -163,7 +163,7 @@
         .barcode-image-box img {
             width: 100%;
             height: 100%;
-            object-fit: fill; /* Stretch barcode height to fill container without changing horizontal bar ratios */
+            object-fit: fill;
             image-rendering: -webkit-optimize-contrast;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
@@ -171,23 +171,23 @@
         }
 
         .sku-code {
-            font-size: 7.5pt;
-            font-weight: 900;
+            font-size: 6.5pt;
+            font-weight: 800;
             font-family: 'Courier New', Courier, monospace;
             color: #000000;
-            letter-spacing: 0.4px;
+            letter-spacing: 0.3px;
             line-height: 1;
-            margin-top: 0.6mm;
+            margin-top: 0.3mm;
         }
 
         .price-tag {
             width: 95%;
-            border-top: 0.35mm solid #000000;
-            font-size: 9.5pt;
+            border-top: 0.3mm solid #000000;
+            font-size: 8.5pt;
             font-weight: 900;
             color: #000000;
             line-height: 1.1;
-            padding-top: 0.4mm;
+            padding-top: 0.3mm;
             letter-spacing: -0.2px;
         }
     </style>
