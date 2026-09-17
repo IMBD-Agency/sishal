@@ -144,11 +144,15 @@ class PermissionSeeder extends Seeder
 
             // Sales Target
             ['name' => 'view sales targets', 'category' => 'Sales Target'],
-            ['name' => 'manage sales targets', 'category' => 'Sales Target'],
+            ['name' => 'create sales targets', 'category' => 'Sales Target'],
+            ['name' => 'edit sales targets', 'category' => 'Sales Target'],
+            ['name' => 'delete sales targets', 'category' => 'Sales Target'],
 
             // Salary Increment
             ['name' => 'view salary increments', 'category' => 'Salary Increment'],
-            ['name' => 'manage salary increments', 'category' => 'Salary Increment'],
+            ['name' => 'create salary increments', 'category' => 'Salary Increment'],
+            ['name' => 'edit salary increments', 'category' => 'Salary Increment'],
+            ['name' => 'delete salary increments', 'category' => 'Salary Increment'],
 
             // Reports Center
             ['name' => 'view reports', 'category' => 'Reports Center'],

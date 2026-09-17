@@ -51,7 +51,7 @@ class SalaryIncrementController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage salary increments')) {
+        if (!auth()->user()->hasPermissionTo('create salary increments')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -69,7 +69,7 @@ class SalaryIncrementController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary increments')) {
+        if (!auth()->user()->hasPermissionTo('create salary increments')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -110,7 +110,7 @@ class SalaryIncrementController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary increments')) {
+        if (!auth()->user()->hasPermissionTo('edit salary increments')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -128,7 +128,7 @@ class SalaryIncrementController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary increments')) {
+        if (!auth()->user()->hasPermissionTo('edit salary increments')) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -266,12 +266,14 @@
                     <div class="row mt-5">
                         <div class="col-12">
                             <div class="d-flex gap-2">
+                                @can('edit sales targets')
                                 <a href="{{ route('sales-targets.edit', $target->id) }}" class="btn btn-warning px-4 py-2 fw-bold text-dark">
                                     <i class="fas fa-edit me-2"></i>Edit Target
                                 </a>
                                 <a href="javascript:void(0)" class="btn btn-success px-4 py-2 fw-bold" onclick="updateAchievement({{ $target->id }}, {{ $target->achieved_quantity }})">
                                     <i class="fas fa-chart-line me-2"></i>Update Achievement
                                 </a>
+                                @endcan
                                 <a href="{{ route('sales-targets.index') }}" class="btn btn-secondary px-4 py-2 fw-bold">
                                     <i class="fas fa-arrow-left me-2"></i>Back to List
                                 </a>

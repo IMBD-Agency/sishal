@@ -13,11 +13,13 @@
                 <h1 class="h3 mb-0 text-gray-800 fw-bold">Branch Sales Targets</h1>
                 <p class="text-muted mb-0 small">Manage and track monthly sales targets, branch incentives, and commissions for branches.</p>
             </div>
+            @can('create sales targets')
             <div class="col-auto">
                 <a href="{{ route('sales-targets.create') }}" class="btn btn-create-premium shadow-sm">
                     <i class="fas fa-plus me-2"></i>Create Branch Target
                 </a>
             </div>
+            @endcan
         </div>
 
         <div class="row">
@@ -171,18 +173,24 @@
                                         </td>
                                         <td class="align-middle">
                                             <div class="btn-group btn-group-sm">
+                                                @can('view sales targets')
                                                 <a href="{{ route('sales-targets.show', $target->id) }}" class="btn btn-outline-primary" title="View details">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
+                                                @endcan
+                                                @can('edit sales targets')
                                                 <a href="{{ route('sales-targets.edit', $target->id) }}" class="btn btn-outline-warning" title="Edit target">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 <button type="button" class="btn btn-outline-success" onclick="updateAchievement({{ $target->id }}, {{ $target->achieved_quantity }})" title="Update sales volume">
                                                     <i class="fas fa-chart-line"></i>
                                                 </button>
+                                                @endcan
+                                                @can('delete sales targets')
                                                 <button type="button" class="btn btn-outline-danger" onclick="deleteTarget({{ $target->id }})" title="Delete target">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
+                                                @endcan
                                             </div>
                                         </td>
                                     </tr>

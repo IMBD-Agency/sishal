@@ -38,9 +38,11 @@
                                 </a></li>
                             </ul>
                         </div>
+                        @can('create salary increments')
                         <a href="{{ route('salary-increments.create') }}" class="btn btn-create-premium shadow-sm">
                             <i class="fas fa-arrow-up me-2"></i>Apply Increment
                         </a>
+                        @endcan
                     </div>
                 </div>
             </div>
@@ -183,12 +185,16 @@
                                         </td>
                                         <td class="align-middle">
                                             <div class="btn-group btn-group-sm">
-                                                <a href="{{ route('salary-increments.show', $employee->id) }}" class="btn btn-outline-primary">
+                                                @can('view salary increments')
+                                                <a href="{{ route('salary-increments.show', $employee->id) }}" class="btn btn-outline-primary" title="View details">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <a href="{{ route('salary-increments.edit', $employee->id) }}" class="btn btn-outline-warning">
+                                                @endcan
+                                                @can('edit salary increments')
+                                                <a href="{{ route('salary-increments.edit', $employee->id) }}" class="btn btn-outline-warning" title="Edit increment">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
+                                                @endcan
                                             </div>
                                         </td>
                                     </tr>

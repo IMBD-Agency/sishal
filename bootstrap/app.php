@@ -37,6 +37,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
             return back()->withErrors(['image' => 'The uploaded file is too large. Please upload a smaller file. (Max limit usually around 2-8MB depending on server config)']);
         });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Method not allowed.'], 405);
+            }
+            if (config('app.debug')) {
+                return null; // Allows Laravel Ignition to show full debug info in local development
+            }
+            return response()->view('errors.405', ['exception' => $e], 405);
+        });
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Process queued jobs every minute

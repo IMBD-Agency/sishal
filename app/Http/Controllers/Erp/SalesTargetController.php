@@ -73,7 +73,7 @@ class SalesTargetController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage sales targets')) {
+        if (!auth()->user()->hasPermissionTo('create sales targets')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -89,7 +89,7 @@ class SalesTargetController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales targets')) {
+        if (!auth()->user()->hasPermissionTo('create sales targets')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -158,7 +158,7 @@ class SalesTargetController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales targets')) {
+        if (!auth()->user()->hasPermissionTo('edit sales targets')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -176,7 +176,7 @@ class SalesTargetController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales targets')) {
+        if (!auth()->user()->hasPermissionTo('edit sales targets')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -230,7 +230,7 @@ class SalesTargetController extends Controller
 
     public function updateAchievement(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales targets')) {
+        if (!auth()->user()->hasPermissionTo('edit sales targets')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -253,7 +253,7 @@ class SalesTargetController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage sales targets')) {
+        if (!auth()->user()->hasPermissionTo('delete sales targets')) {
             abort(403, 'Unauthorized action.');
         }
 
