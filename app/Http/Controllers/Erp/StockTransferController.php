@@ -46,8 +46,9 @@ class StockTransferController extends Controller
         $totalQuantity = (clone $query)->sum('quantity');
         $totalValue    = (clone $query)->sum('total_price');
 
-        // Itemized listing (ungrouped) to show product details (latest first)
-        $transfers = $query->orderBy('id', 'desc')
+        // Itemized listing (ungrouped) with latest invoices first, and items in original sequence
+        $transfers = $query->orderBy('invoice_number', 'desc')
+            ->orderBy('id', 'asc')
             ->paginate(100);
 
         if ($request->ajax()) {
@@ -289,7 +290,7 @@ class StockTransferController extends Controller
             $query->where('type', '!=', 'return');
         }
 
-        $transfers = $query->orderBy('id', 'desc')->get();
+        $transfers = $query->orderBy('invoice_number', 'desc')->orderBy('id', 'asc')->get();
         $headers = ['Invoice No', 'Date', 'Source', 'Destination', 'Category', 'Brand', 'Season', 'Gender', 'Product Name', 'Style #', 'Color', 'Size', 'Qty', 'Requested By', 'Status'];
         
         $exportData = [];
@@ -371,7 +372,7 @@ class StockTransferController extends Controller
             $query->where('type', '!=', 'return');
         }
 
-        $transfers = $query->orderBy('id', 'desc')->get();
+        $transfers = $query->orderBy('invoice_number', 'desc')->orderBy('id', 'asc')->get();
         $filename = 'stock_transfer_detailed_' . date('Y-m-d_H-i-s') . '.pdf';
         
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.stockTransfer.report-pdf', [
