@@ -189,6 +189,11 @@ class Product extends Model
         return $this->hasMany(StockTransfer::class, 'product_id');
     }
 
+    public function posExchangeItems()
+    {
+        return $this->hasMany(PosExchangeItem::class, 'product_id');
+    }
+
     public function reviews()
     {
         return $this->hasMany(Review::class);

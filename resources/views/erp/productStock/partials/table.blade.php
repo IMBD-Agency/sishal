@@ -95,6 +95,15 @@
                 $agg['tt'][$k_to] = ($agg['tt'][$k_to] ?? 0) + $m->quantity;
             }
         }
+        foreach($product->posExchangeItems ?? [] as $m) {
+            if($m->posExchange && $m->posExchange->status === 'completed') {
+                $k = ($m->variation_id ?: 0) . '_branch_' . $m->posExchange->branch_id;
+                if ($m->type === 'new') {
+                    $agg['et'][$k] = ($agg['et'][$k] ?? 0) + $m->quantity;
+                    $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+                }
+            }
+        }
 
         $isProductSummary = (request('group_by') === 'product');
 

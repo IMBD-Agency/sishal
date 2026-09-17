@@ -117,6 +117,13 @@ class StockController extends Controller
                 if ($endDate)
                     $q->whereDate('created_at', '<=', $endDate);
             },
+            'posExchangeItems' => function ($q) use ($startDate, $endDate) {
+                if ($startDate)
+                    $q->whereDate('created_at', '>=', $startDate);
+                if ($endDate)
+                    $q->whereDate('created_at', '<=', $endDate);
+                $q->with('posExchange');
+            },
             'branchStock.branch',
             'warehouseStock.warehouse',
             'variationStocks.branch',
@@ -319,6 +326,15 @@ class StockController extends Controller
                     if ($m->status == 'delivered') {
                         $k_to = ($m->variation_id ?: 0) . '_' . $m->to_type . '_' . $m->to_id;
                         $agg['tt'][$k_to] = ($agg['tt'][$k_to] ?? 0) + $m->quantity;
+                    }
+                }
+                foreach ($prod->posExchangeItems ?? [] as $m) {
+                    if ($m->posExchange && $m->posExchange->status === 'completed') {
+                        $k = ($m->variation_id ?: 0) . '_branch_' . $m->posExchange->branch_id;
+                        if ($m->type === 'new') {
+                            $agg['et'][$k] = ($agg['et'][$k] ?? 0) + $m->quantity;
+                            $agg['rev'][$k] = ($agg['rev'][$k] ?? 0) + $m->total_price;
+                        }
                     }
                 }
                 $prod->agg = $agg;
@@ -739,6 +755,26 @@ class StockController extends Controller
                         }
                     });
                 }
+            },
+            'posExchangeItems' => function ($q) use ($request, $selectedBranchId, $selectedWarehouseId, $restrictedBranchId) {
+                if ($request->filled('start_date'))
+                    $q->whereDate('created_at', '>=', $request->start_date);
+                if ($request->filled('end_date'))
+                    $q->whereDate('created_at', '<=', $request->end_date);
+
+                $activeBranch = $selectedBranchId ?: $restrictedBranchId;
+                if ($activeBranch) {
+                    $q->whereHas('posExchange', function ($sq) use ($activeBranch) {
+                        $sq->where('branch_id', $activeBranch)->where('status', 'completed');
+                    });
+                } elseif ($selectedWarehouseId) {
+                    $q->whereRaw('1=0');
+                } else {
+                    $q->whereHas('posExchange', function ($sq) {
+                        $sq->where('status', 'completed');
+                    });
+                }
+                $q->with('posExchange');
             }
         ]);
 
