@@ -18,10 +18,10 @@
                 </div>
                 <div class="d-flex gap-2">
                     @if(isset($supplier))
-                        <a href="{{ route('reports.supplier.ledger', ['id' => $supplier->id, 'export' => 'excel', 'report_type' => $reportType, 'start_date' => request('start_date'), 'end_date' => request('end_date')]) }}" class="btn btn-outline-success btn-sm">
+                        <a href="{{ route('reports.supplier.ledger', array_merge(request()->query(), ['id' => $supplier->id, 'export' => 'excel'])) }}" class="btn btn-outline-success btn-sm">
                             <i class="fas fa-file-excel me-1"></i> Excel
                         </a>
-                        <a href="{{ route('reports.supplier.ledger', ['id' => $supplier->id, 'export' => 'pdf', 'report_type' => $reportType, 'start_date' => request('start_date'), 'end_date' => request('end_date')]) }}" class="btn btn-outline-danger btn-sm">
+                        <a href="{{ route('reports.supplier.ledger', array_merge(request()->query(), ['id' => $supplier->id, 'export' => 'pdf'])) }}" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-file-pdf me-1"></i> PDF
                         </a>
                     @endif
