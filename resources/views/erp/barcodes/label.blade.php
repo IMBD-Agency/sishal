@@ -5,21 +5,71 @@
     <title>Barcode Label - {{ $sku }}</title>
     <style>
         @page {
-            margin: 0;
-            size: 38mm 25mm;
+            margin: 0 !important;
+            size: 38mm 25mm; /* Standard 1.50" x 1.00" barcode thermal sticker */
         }
         
         * {
             box-sizing: border-box;
-            -webkit-print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
 
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Arial', sans-serif;
-            background-color: #e9ecef;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #e2e8f0;
             color: #000;
+        }
+
+        .no-print-area {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 20px;
+            border-bottom: 3px solid #10b981;
+            text-align: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .no-print-area h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .guide-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 16px;
+            max-width: 600px;
+            margin: 12px auto;
+            text-align: left;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .guide-box strong {
+            color: #fbbf24;
+        }
+
+        .btn-print {
+            padding: 10px 28px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transition: transform 0.1s ease;
+        }
+
+        .btn-print:hover {
+            background: #059669;
+            transform: scale(1.02);
         }
 
         .print-container {
@@ -31,162 +81,162 @@
             padding: 20px;
         }
 
-        .no-print-area {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-bottom: 2px solid #dee2e6;
-            text-align: center;
-        }
-
         @media print {
-            body {
-                background-color: white;
+            html, body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 38mm !important;
+                height: 25mm !important;
             }
             .no-print-area {
                 display: none !important;
             }
             .print-container {
-                display: block;
-                padding: 0;
-                gap: 0;
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                gap: 0 !important;
             }
             .label-page {
                 box-shadow: none !important;
                 margin: 0 !important;
+                border: none !important;
                 page-break-after: always;
+                page-break-inside: avoid;
             }
         }
 
         .label-page {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center; /* Guarantee perfect vertical centering */
             width: 38mm;
             height: 25mm;
+            max-width: 38mm;
+            max-height: 25mm;
             overflow: hidden;
-            padding: 1mm;
-            position: relative;
-            background-color: white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            padding: 1.0mm 1.5mm 0.8mm 1.5mm;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
         }
 
-        .barcode-section {
+        .product-title {
+            width: 100%;
+            font-size: 7.5pt;
+            font-weight: 800;
+            color: #000000;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-transform: uppercase;
+        }
+
+        .product-variant {
+            font-size: 6pt;
+            font-weight: 700;
+            color: #333;
+            line-height: 1;
+            margin-top: 0.2mm;
+        }
+
+        .barcode-wrapper {
             width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            margin: 0.4mm 0;
         }
 
-        .barcode-svg-container {
-            width: 85%; /* Stay in a shape - don't fill whole width */
-            height: 7.5mm;
+        .barcode-image-box {
+            width: 96%;
+            height: 11.5mm; /* Taller barcode for superior 1D optical scanner readability */
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .barcode-svg-container img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .sku-under-barcode {
-            font-size: 8pt;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            margin-top: 0.5mm;
-            margin-bottom: 0.5mm;
-            letter-spacing: 0.3px;
-        }
-
-        .info-section {
+        .barcode-image-box img {
             width: 100%;
-            padding: 0 1.5mm;
-            text-align: center;
-            line-height: 1.1;
+            height: 100%;
+            object-fit: fill; /* Stretch barcode height to fill container without changing horizontal bar ratios */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            shape-rendering: crispEdges;
         }
 
-        .detail-line {
+        .sku-code {
             font-size: 7.5pt;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin-bottom: 0.1mm;
-            white-space: normal;
-        }
-
-        .product-name-footer {
-            font-size: 7.5pt;
-            color: #111;
-            margin-top: 0.5mm;
-            font-weight: bold;
-            display: -webkit-box;
-            -webkit-line-clamp: 2; /* Allow 2 lines */
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.1;
-        }
-
-        .price-section {
-            border-top: 0.3mm solid #000;
-            width: 90%;
-            margin-top: 0.5mm;
-            padding-top: 0.5mm;
-            font-size: 10pt;
             font-weight: 900;
-            text-align: center;
+            font-family: 'Courier New', Courier, monospace;
+            color: #000000;
+            letter-spacing: 0.4px;
+            line-height: 1;
+            margin-top: 0.6mm;
         }
-        
-        .btn {
-            padding: 10px 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 14px;
+
+        .price-tag {
+            width: 95%;
+            border-top: 0.35mm solid #000000;
+            font-size: 9.5pt;
+            font-weight: 900;
+            color: #000000;
+            line-height: 1.1;
+            padding-top: 0.4mm;
+            letter-spacing: -0.2px;
         }
     </style>
 </head>
 <body>
     <div class="no-print-area">
-        <h4 style="margin-bottom: 10px;">{{ $quantity }} Labels for {{ $sku }}</h4>
-        <button class="btn" onclick="window.print()">Print Labels</button>
+        <h3>{{ $quantity }} Label(s) ready for {{ $sku }}</h3>
+        
+        <div class="guide-box">
+            <strong>⚠️ থার্মাল প্রিন্টারে পারফেক্ট স্ক্যানের জন্য Chrome Print সেটিংস:</strong>
+            <ul style="margin: 6px 0 0 0; padding-left: 20px;">
+                <li><strong>Margins:</strong> অবশ্যই <strong>"None"</strong> সিলেক্ট করবেন (Default রাখা যাবে না)।</li>
+                <li><strong>Paper size:</strong> <strong>"38mm x 25mm"</strong> বা <strong>"1.50 x 1.00 inch"</strong> দিন।</li>
+                <li><strong>Headers and footers:</strong> আনচেক (খালি) রাখবেন।</li>
+            </ul>
+        </div>
+
+        <button class="btn-print" onclick="window.print()">
+            🖨️ Print Labels Now
+        </button>
     </div>
 
     <div class="print-container">
         @for ($i = 0; $i < $quantity; $i++)
-        <div class="label-page" style="padding: 1.8mm 2mm 1.2mm 2mm; display: flex; flex-direction: column; align-items: center;">
-            <!-- 1. Product Name (Top) -->
-            <div class="info-section" style="width: 100%; text-align: center;">
-                <div class="product-name-footer" style="margin-bottom: 0.8mm; line-height: 1;">{{ $name }}</div>
-                @if($color)
-                    <div class="detail-line" style="font-size: 6pt; margin-top: -0.3mm;">{{ $color }}</div>
+        <div class="label-page">
+            <!-- 1. Product Name -->
+            <div style="width: 100%;">
+                <div class="product-title" title="{{ $name }}">{{ $name }}</div>
+                @if($color || $size)
+                    <div class="product-variant">
+                        {{ $color ? $color : '' }} {{ ($color && $size) ? '|' : '' }} {{ $size ? 'Size: '.$size : '' }}
+                    </div>
                 @endif
             </div>
 
-            <!-- 2. Barcode Section (Middle) -->
-            <div class="barcode-section" style="margin-top: 0.8mm; margin-bottom: 0.3mm; width: 100%; text-align: center;">
-                <div class="barcode-svg-container" style="height: 7.5mm;">
+            <!-- 2. Optimized Crisp Barcode + SKU -->
+            <div class="barcode-wrapper">
+                <div class="barcode-image-box">
                     <img src="{{ $barcodeBase64 }}" alt="Barcode">
                 </div>
-                <div class="sku-under-barcode" style="margin-top: 0.6mm; line-height: 1;">{{ strtoupper($sku) }}</div>
+                <div class="sku-code">{{ strtoupper($sku) }}</div>
             </div>
 
-            <!-- 3. Price Section (Bottom) -->
-            <div class="price-section" style="margin-top: auto; width: 100%; padding-bottom: 0.5mm;">
+            <!-- 3. Price Tag -->
+            <div class="price-tag">
                 MRP: ৳{{ number_format($price, 2) }}
             </div>
         </div>
         @endfor
     </div>
-
-    <script>
-        // Optional: auto trigger print
-        // window.onload = function() { window.print(); }
-    </script>
 </body>
 </html>

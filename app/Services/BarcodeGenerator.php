@@ -119,15 +119,22 @@ class BarcodeGenerator
         // Add stop code
         $pattern .= $stopCode;
 
-        // Generate SVG
-        $svgWidth = strlen($pattern) * $width;
-        $svg = '<svg viewBox="0 0 ' . $svgWidth . ' ' . $height
-             . '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">';
+        // 10 modules quiet zone (standard requirement for optical scanners)
+        $quietZone = 10;
+        $totalModules = strlen($pattern) + ($quietZone * 2);
+        $svgWidth = $totalModules * $width;
 
-        $x = 0;
+        // Generate Crisp SVG
+        $svg = '<svg viewBox="0 0 ' . $svgWidth . ' ' . $height
+             . '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="image-rendering: pixelated; shape-rendering: crispEdges;">';
+
+        // Crisp white background
+        $svg .= '<rect width="' . $svgWidth . '" height="' . $height . '" fill="#ffffff"/>';
+
+        $x = $quietZone * $width;
         for ($i = 0; $i < strlen($pattern); $i++) {
             if ($pattern[$i] === '1') {
-                $svg .= '<rect x="' . $x . '" y="0" width="' . $width . '" height="' . $height . '" fill="black"/>';
+                $svg .= '<rect x="' . $x . '" y="0" width="' . $width . '" height="' . $height . '" fill="#000000"/>';
             }
             $x += $width;
         }

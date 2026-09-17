@@ -6,7 +6,7 @@
     <title>Barcode Labels - {{ $sku }}</title>
     <style>
         @page {
-            size: 108pt 71pt; /* Approx 38mm x 25mm */
+            size: 108pt 71pt; /* Exact 38mm x 25mm */
             margin: 0;
         }
         
@@ -27,20 +27,39 @@
         .label-page {
             width: 38mm;
             height: 25mm;
-            padding: 1mm;
+            padding: 1.0mm 1.5mm 0.8mm 1.5mm;
             text-align: center;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             position: relative;
             page-break-after: always;
         }
 
+        .product-brief {
+            font-size: 7pt;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-variant {
+            font-size: 5.5pt;
+            font-weight: bold;
+            color: #444;
+            line-height: 1;
+            margin-top: 0.5pt;
+        }
+
         .barcode-container {
             width: 100%;
             text-align: center;
-            margin-bottom: 1pt;
+            margin: 1pt 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -48,8 +67,8 @@
         }
 
         .barcode-img-box {
-            width: 85%;
-            height: 22pt;
+            width: 96%;
+            height: 32pt; /* Taller barcode lines for instant scanner reading */
             margin: 0 auto;
         }
 
@@ -59,62 +78,41 @@
         }
 
         .sku-text {
-            font-size: 7.5pt;
-            font-weight: bold;
-            font-family: 'Courier', monospace;
-            margin-top: 2pt;
-            margin-bottom: 2pt;
-            text-align: center;
-        }
-
-        .details-section {
-            margin-top: 1pt;
-            line-height: 1.1;
-        }
-
-        .detail-item {
             font-size: 7pt;
             font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .product-brief {
-            font-size: 7.5pt;
-            font-weight: bold;
-            color: #111;
-            max-height: 16pt; /* roughly 2 lines depending on line-height */
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            font-family: 'Courier', monospace;
+            letter-spacing: 0.5pt;
             margin-top: 1pt;
+            text-align: center;
+            line-height: 1;
         }
 
         .price-line {
-            border-top: 1pt solid #000;
-            width: 90%;
-            margin: 3pt auto 0;
-            padding-top: 2pt;
-            font-size: 10pt;
+            border-top: 0.8pt solid #000;
+            width: 95%;
+            margin: 1pt auto 0;
+            padding-top: 1pt;
+            font-size: 9pt;
             font-weight: bold;
             text-align: center;
+            line-height: 1.1;
         }
     </style>
 </head>
 <body>
     @for ($i = 0; $i < $quantity; $i++)
         <div class="label-page">
-            <div class="details-section">
+            <div style="width: 100%;">
                 <div class="product-brief">{{ $name }}</div>
-                @if($color)
-                    <div class="detail-item" style="font-size: 6pt; margin-top: 1pt;">
-                        {{ $color }}
+                @if($color || $size)
+                    <div class="product-variant">
+                        {{ $color ? $color : '' }} {{ ($color && $size) ? '|' : '' }} {{ $size ? 'Size: '.$size : '' }}
                     </div>
                 @endif
             </div>
 
-            <div class="barcode-container" style="margin-top: 2pt;">
-                <div class="barcode-img-box" style="height: 24pt;">
+            <div class="barcode-container">
+                <div class="barcode-img-box">
                     <img src="{{ $barcodeBase64 }}" alt="Barcode">
                 </div>
                 <div class="sku-text">{{ strtoupper($sku) }}</div>
