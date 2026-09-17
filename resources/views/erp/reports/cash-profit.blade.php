@@ -68,9 +68,10 @@
                 </div>
             </div>
 
-            
+
+            {{-- 
             @if(($totalPurchaseAmount ?? 0) > 0 || ($totalSupplierDue ?? 0) > 0 || ($totalDue ?? 0) > 0)
-            <!-- Activity & Liability Summary Cards -->
+            <!-- Activity & Liability Summary Cards (Uncomment if needed in future) -->
             <div class="row g-3 mb-4">
                 @if(($totalPurchaseAmount ?? 0) > 0)
                 <div class="col-md-{{ (($totalSupplierDue ?? 0) > 0 && ($totalDue ?? 0) > 0) ? '4' : ((($totalSupplierDue ?? 0) > 0 || ($totalDue ?? 0) > 0) ? '6' : '12') }}">
@@ -130,6 +131,8 @@
                 @endif
             </div>
             @endif
+            --}}
+
             <!-- Collection Channel Breakdown (Cash, Bank, Mobile MFS) -->
             <div class="row g-3 mb-4">
                 <div class="col-md-4">

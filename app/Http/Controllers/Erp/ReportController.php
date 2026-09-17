@@ -726,7 +726,8 @@ class ReportController extends Controller
 
         $netCashProfit = ($totalCashProfit + $totalOtherIncome + $exchangeProfitChange) - ($totalOperatingExpenses + $saleReturnCashRefund);
 
-        // --- Calculate Total Customer Due generated in this period ---
+        // --- Optional Summary Queries (Commented out for performance; uncomment if needed in future) ---
+        /*
         $dueQuery = \App\Models\Invoice::whereBetween('issue_date', [$startDate, $endDate]);
         if ($branchId) {
             $dueQuery->where(function($q) use ($branchId) {
@@ -745,7 +746,6 @@ class ReportController extends Controller
         }
         $totalDue = $dueQuery->sum('due_amount');
 
-        // --- Calculate Total Purchase Value and Supplier Due (Accounts Payable) generated in this period ---
         $supplierDueQuery = \App\Models\PurchaseBill::whereBetween('bill_date', [$startDate, $endDate]);
         if ($branchId) {
             $supplierDueQuery->whereHas('purchase', function($q) use ($branchId) {
@@ -754,6 +754,7 @@ class ReportController extends Controller
         }
         $totalPurchaseAmount = $supplierDueQuery->sum('total_amount');
         $totalSupplierDue = $supplierDueQuery->sum('due_amount');
+        */
 
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
 
@@ -791,7 +792,7 @@ class ReportController extends Controller
             'cashProfits', 'startDate', 'endDate', 'reportType', 'branches', 'branchId',
             'totalCollected', 'totalEstimatedCost', 'totalCashProfit', 'totalOtherIncome', 'creditVoucherDetails',
             'totalOperatingExpenses', 'debitVoucherDetails', 'employeePayment',
-            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'totalDue', 'totalSupplierDue', 'totalPurchaseAmount', 'exchangeProfitChange',
+            'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'exchangeProfitChange',
             'totalGrossPayments', 'totalReturnRefunds', 'totalExchangeRefunds',
             'totalExchangeCount', 'totalExchangeReturnVal', 'totalExchangeNewVal',
             'cashCollection', 'bankCollection', 'mobileCollection'
