@@ -237,7 +237,11 @@
                     url: '{{ route('products.search.style') }}',
                     dataType: 'json',
                     delay: 250,
-                    data: (params) => ({ q: params.term }),
+                    data: (params) => ({
+                        q: params.term,
+                        allow_zero_stock: 1,
+                        exclude_combo: 1
+                    }),
                     processResults: (data) => ({ results: data.results }),
                     cache: true
                 }

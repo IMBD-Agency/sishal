@@ -112,7 +112,11 @@
                     dataType: 'json',
                     delay: 250,
                     data: function(params) {
-                        return { q: params.term };
+                        return { 
+                            q: params.term,
+                            allow_zero_stock: 1,
+                            exclude_combo: 1
+                        };
                     },
                     processResults: function(data) {
                         return {
