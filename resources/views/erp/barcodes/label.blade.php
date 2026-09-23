@@ -155,26 +155,23 @@
         .barcode-image-box {
             width: 100%;
             max-width: 35mm;
-            height: 8.5mm;
+            height: 9mm;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            background: #ffffff;
         }
 
-        .barcode-image-box svg {
-            max-width: 100%;
-            height: 8.5mm;
+        .barcode-canvas {
             display: block;
-            shape-rendering: crispEdges !important;
-        }
-
-        .barcode-image-box img {
-            max-width: 100%;
-            height: 8.5mm;
-            object-fit: contain;
+            max-width: 35mm;
+            max-height: 9mm;
+            width: auto;
+            height: auto;
+            image-rendering: -webkit-optimize-contrast;
             image-rendering: pixelated;
-            shape-rendering: crispEdges;
+            image-rendering: crisp-edges;
         }
 
         .sku-code {
@@ -198,7 +195,7 @@
             letter-spacing: -0.2px;
         }
     </style>
-    <!-- JsBarcode for Ultra-Crisp Thermal 1D Optical Barcode Decoding -->
+    <!-- JsBarcode Native Canvas Engine -->
     <script src="{{ asset('js/JsBarcode.all.min.js') }}"></script>
     <script>
         if (typeof JsBarcode === 'undefined') {
@@ -211,9 +208,10 @@
         <h3>{{ $quantity }} Label(s) ready for {{ $sku }}</h3>
         
         <div class="guide-box">
-            <strong>⚠️ থার্মাল প্রিন্টারে পারফেক্ট স্ক্যানের জন্য Chrome Print সেটিংস:</strong>
+            <strong>⚠️ থার্মাল প্রিন্টারে নিখুঁত স্ক্যান ও নো-স্ট্রেচিং সেটিংস:</strong>
             <ul style="margin: 6px 0 0 0; padding-left: 20px;">
-                <li><strong>Margins:</strong> অবশ্যই <strong>"None"</strong> সিলেক্ট করবেন (Default রাখা যাবে না)।</li>
+                <li><strong>Scale:</strong> অবশ্যই <strong>"Custom: 100"</strong> সিলেক্ট করবেন (Default রাখা যাবে না)।</li>
+                <li><strong>Margins:</strong> <strong>"None"</strong> সিলেক্ট করবেন।</li>
                 <li><strong>Paper size:</strong> <strong>"38mm x 25mm"</strong> বা <strong>"1.50 x 1.00 inch"</strong> দিন।</li>
                 <li><strong>Headers and footers:</strong> আনচেক (খালি) রাখবেন।</li>
             </ul>
@@ -237,10 +235,10 @@
                 @endif
             </div>
 
-            <!-- 2. Pure Vector High-Contrast Code 128 Barcode + SKU -->
+            <!-- 2. Pixel-Perfect 1-Bit Monochrome Native Canvas Barcode -->
             <div class="barcode-wrapper">
                 <div class="barcode-image-box">
-                    <svg class="barcode-svg" data-barcode="{{ $sku }}" shape-rendering="crispEdges"></svg>
+                    <canvas class="barcode-canvas" data-barcode="{{ trim($sku) }}"></canvas>
                 </div>
                 <div class="sku-code">{{ strtoupper($sku) }}</div>
             </div>
@@ -255,31 +253,34 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            renderBarcodes();
+            renderPixelPerfectBarcodes();
         });
 
-        function renderBarcodes() {
-            if (typeof JsBarcode !== 'undefined') {
-                document.querySelectorAll('.barcode-svg').forEach(function (svgEl) {
-                    var code = svgEl.getAttribute('data-barcode');
-                    if (code) {
-                        try {
-                            JsBarcode(svgEl, code, {
-                                format: "CODE128",
-                                width: 1.35,
-                                height: 36,
-                                displayValue: false,
-                                margin: 4,
-                                background: "#ffffff",
-                                lineColor: "#000000"
-                            });
-                            svgEl.setAttribute('shape-rendering', 'crispEdges');
-                        } catch (e) {
-                            console.error("JsBarcode generation failed:", e);
-                        }
-                    }
-                });
+        function renderPixelPerfectBarcodes() {
+            if (typeof JsBarcode === 'undefined') {
+                setTimeout(renderPixelPerfectBarcodes, 50);
+                return;
             }
+
+            document.querySelectorAll('.barcode-canvas').forEach(function (canvasEl) {
+                var rawCode = canvasEl.getAttribute('data-barcode');
+                if (!rawCode) return;
+
+                // Code 128 Auto format with exact 2-dot module width and high contrast
+                try {
+                    JsBarcode(canvasEl, rawCode, {
+                        format: "CODE128",
+                        width: 1.4,          // Exact optimal thermal module width
+                        height: 40,          // Canvas vertical height
+                        displayValue: false, // Text is rendered via native Courier font below
+                        margin: 6,           // Standard 10-module optical quiet zone on borders
+                        background: "#ffffff",
+                        lineColor: "#000000"
+                    });
+                } catch (err) {
+                    console.error("Barcode rendering error for [" + rawCode + "]:", err);
+                }
+            });
         }
     </script>
 </body>
