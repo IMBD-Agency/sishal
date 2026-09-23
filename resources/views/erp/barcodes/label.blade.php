@@ -153,23 +153,28 @@
         }
 
         .barcode-image-box {
-            width: auto;
+            width: 100%;
             max-width: 35mm;
             height: 8.5mm;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+        }
+
+        .barcode-image-box svg {
+            max-width: 100%;
+            height: 8.5mm;
+            display: block;
+            shape-rendering: crispEdges !important;
         }
 
         .barcode-image-box img {
             max-width: 100%;
             height: 8.5mm;
             object-fit: contain;
-            image-rendering: -webkit-optimize-contrast;
             image-rendering: pixelated;
-            image-rendering: crisp-edges;
             shape-rendering: crispEdges;
-            filter: contrast(200%);
         }
 
         .sku-code {
@@ -193,6 +198,13 @@
             letter-spacing: -0.2px;
         }
     </style>
+    <!-- JsBarcode for Ultra-Crisp Thermal 1D Optical Barcode Decoding -->
+    <script src="{{ asset('js/JsBarcode.all.min.js') }}"></script>
+    <script>
+        if (typeof JsBarcode === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>');
+        }
+    </script>
 </head>
 <body>
     <div class="no-print-area">
@@ -225,10 +237,10 @@
                 @endif
             </div>
 
-            <!-- 2. Optimized Crisp Barcode + SKU -->
+            <!-- 2. Pure Vector High-Contrast Code 128 Barcode + SKU -->
             <div class="barcode-wrapper">
                 <div class="barcode-image-box">
-                    <img src="{{ $barcodeBase64 }}" alt="Barcode">
+                    <svg class="barcode-svg" data-barcode="{{ $sku }}" shape-rendering="crispEdges"></svg>
                 </div>
                 <div class="sku-code">{{ strtoupper($sku) }}</div>
             </div>
@@ -240,5 +252,35 @@
         </div>
         @endfor
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            renderBarcodes();
+        });
+
+        function renderBarcodes() {
+            if (typeof JsBarcode !== 'undefined') {
+                document.querySelectorAll('.barcode-svg').forEach(function (svgEl) {
+                    var code = svgEl.getAttribute('data-barcode');
+                    if (code) {
+                        try {
+                            JsBarcode(svgEl, code, {
+                                format: "CODE128",
+                                width: 1.35,
+                                height: 36,
+                                displayValue: false,
+                                margin: 4,
+                                background: "#ffffff",
+                                lineColor: "#000000"
+                            });
+                            svgEl.setAttribute('shape-rendering', 'crispEdges');
+                        } catch (e) {
+                            console.error("JsBarcode generation failed:", e);
+                        }
+                    }
+                });
+            }
+        }
+    </script>
 </body>
 </html>
