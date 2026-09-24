@@ -1209,14 +1209,11 @@ class ReportController extends Controller
             $query->where('branch_id', $branchId);
         }
         
-        $accounts = $query->get()->map(function($account) use ($startDate, $endDate, $branchId) {
+        $accounts = $query->get()->map(function($account) use ($startDate, $endDate) {
             // 1. Calculate opening balance before the start date
             $openingMovement = JournalEntry::where('financial_account_id', $account->id)
-                ->whereHas('journal', function($q) use ($startDate, $branchId) {
+                ->whereHas('journal', function($q) use ($startDate) {
                     $q->where('entry_date', '<', $startDate->toDateString());
-                    if ($branchId) {
-                        $q->where('branch_id', $branchId);
-                    }
                 })
                 ->selectRaw('SUM(debit) as d, SUM(credit) as c')
                 ->first();
@@ -1225,11 +1222,8 @@ class ReportController extends Controller
 
             // 2. Calculate balance during the period (Movements)
             $periodMovement = JournalEntry::where('financial_account_id', $account->id)
-                ->whereHas('journal', function($q) use ($startDate, $endDate, $branchId) {
+                ->whereHas('journal', function($q) use ($startDate, $endDate) {
                     $q->whereBetween('entry_date', [$startDate->toDateString(), $endDate->toDateString()]);
-                    if ($branchId) {
-                        $q->where('branch_id', $branchId);
-                    }
                 })
                 ->selectRaw('SUM(debit) as d, SUM(credit) as c')
                 ->first();

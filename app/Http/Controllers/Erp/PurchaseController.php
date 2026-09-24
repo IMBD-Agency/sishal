@@ -1002,10 +1002,17 @@ class PurchaseController extends Controller
         if (!auth()->user()->hasPermissionTo('delete purchases')) {
             abort(403, 'Unauthorized action.');
         }
+
+        $purchase = Purchase::with(['items', 'bill'])->findOrFail($id);
+
+        // Check if there are any purchase returns associated with this purchase
+        $hasReturns = \App\Models\PurchaseReturn::where('purchase_id', $purchase->id)->exists();
+        if ($hasReturns) {
+            return back()->withErrors(['error' => 'Cannot delete this purchase because it has associated purchase returns. Please delete the purchase return records first.']);
+        }
+
         DB::beginTransaction();
         try {
-            $purchase = Purchase::with(['items', 'bill'])->findOrFail($id);
-
             // 1. Revert stock quantity if the purchase was received
             if ($purchase->status === 'received') {
                 $this->decreaseStock($purchase);

@@ -1042,6 +1042,18 @@ class PurchaseReturnController extends Controller
                             'quantity' => -$returnedQty
                         ]);
                     }
+
+                    // Also mirror into BranchProductStock
+                    $bStock = BranchProductStock::where('branch_id', $returnFromId)->where('product_id', $productId)->first();
+                    if ($bStock) {
+                        $bStock->decrement('quantity', $returnedQty);
+                    } else {
+                        BranchProductStock::create([
+                            'branch_id' => $returnFromId,
+                            'product_id' => $productId,
+                            'quantity' => -$returnedQty
+                        ]);
+                    }
                 } else {
                     $stock = BranchProductStock::where('branch_id', $returnFromId)
                         ->where('product_id', $productId)
@@ -1072,6 +1084,18 @@ class PurchaseReturnController extends Controller
                         \App\Models\ProductVariationStock::create([
                             'variation_id' => $variationId,
                             'warehouse_id' => $returnFromId,
+                            'quantity' => -$returnedQty
+                        ]);
+                    }
+
+                    // Also mirror into WarehouseProductStock
+                    $wStock = WarehouseProductStock::where('warehouse_id', $returnFromId)->where('product_id', $productId)->first();
+                    if ($wStock) {
+                        $wStock->decrement('quantity', $returnedQty);
+                    } else {
+                        WarehouseProductStock::create([
+                            'warehouse_id' => $returnFromId,
+                            'product_id' => $productId,
                             'quantity' => -$returnedQty
                         ]);
                     }
@@ -1113,6 +1137,8 @@ class PurchaseReturnController extends Controller
             default:
                 throw new \Exception("Invalid return_from_type: {$returnFromType}");
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
     }
 
     public function delete($id)
@@ -1129,6 +1155,22 @@ class PurchaseReturnController extends Controller
             if ($purchaseReturn->status === 'processed') {
                 foreach ($purchaseReturn->items as $item) {
                     $this->reverseStockForReturnItem($item);
+                }
+
+                // Restore PurchaseBill due_amount if it was adjusted
+                if ($purchaseReturn->purchase_id) {
+                    $purchase = Purchase::with('bill')->find($purchaseReturn->purchase_id);
+                    if ($purchase && $purchase->bill) {
+                        $totalReturnAmount = $purchaseReturn->items->sum('total_price');
+                        $bill = $purchase->bill;
+                        $bill->due_amount = min($bill->total_amount - $bill->paid_amount, $bill->due_amount + $totalReturnAmount);
+                        if ($bill->due_amount > 0 && $bill->paid_amount > 0) {
+                            $bill->status = 'partial';
+                        } elseif ($bill->due_amount > 0 && $bill->paid_amount == 0) {
+                            $bill->status = 'unpaid';
+                        }
+                        $bill->save();
+                    }
                 }
 
                 // Delete Associated Journal & Entries
@@ -1168,6 +1210,10 @@ class PurchaseReturnController extends Controller
                         ->whereNull('warehouse_id')
                         ->first();
                     if ($stock) $stock->increment('quantity', $returnedQty);
+
+                    // Sync into BranchProductStock
+                    $bStock = BranchProductStock::where('branch_id', $returnFromId)->where('product_id', $productId)->first();
+                    if ($bStock) $bStock->increment('quantity', $returnedQty);
                 } else {
                     $stock = BranchProductStock::where('branch_id', $returnFromId)
                         ->where('product_id', $productId)
@@ -1183,6 +1229,10 @@ class PurchaseReturnController extends Controller
                         ->whereNull('branch_id')
                         ->first();
                     if ($stock) $stock->increment('quantity', $returnedQty);
+
+                    // Sync into WarehouseProductStock
+                    $wStock = WarehouseProductStock::where('warehouse_id', $returnFromId)->where('product_id', $productId)->first();
+                    if ($wStock) $wStock->increment('quantity', $returnedQty);
                 } else {
                     $stock = WarehouseProductStock::where('warehouse_id', $returnFromId)
                         ->where('product_id', $productId)
@@ -1198,6 +1248,8 @@ class PurchaseReturnController extends Controller
                 if ($stock) $stock->increment('quantity', $returnedQty);
                 break;
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
     }
 
     public function getStockByType(Request $request, $productId, $fromId)

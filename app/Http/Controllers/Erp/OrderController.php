@@ -689,6 +689,85 @@ class OrderController extends Controller
         }
         $invoice->save();
 
+        // Update FinancialAccount balance
+        $finAcc = null;
+        if ($request->account_id) {
+            $finAcc = \App\Models\FinancialAccount::find($request->account_id);
+        } else {
+            $type = $request->payment_method ?? 'cash';
+            $finAcc = \App\Models\FinancialAccount::where('type', $type)->first();
+        }
+
+        if ($finAcc) {
+            $finAcc->balance += $request->amount;
+            $finAcc->save();
+        }
+
+        // Double-entry Journal for the order payment
+        $receivableAccount = \App\Models\ChartOfAccount::where('name', 'like', '%Receivable%')->orWhere('name', 'like', '%Customer Due%')->first();
+        if (!$receivableAccount) {
+            $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+            $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType?->id)->first();
+            $receivableAccount = \App\Models\ChartOfAccount::firstOrCreate(
+                ['name' => 'Accounts Receivable'],
+                [
+                    'type_id' => $assetType?->id ?? 1,
+                    'sub_type_id' => $assetSubType?->id,
+                    'code' => '10002',
+                    'status' => 'active',
+                    'created_by' => auth()->id() ?? 1,
+                ]
+            );
+        }
+
+        $paymentChartAccountId = $finAcc?->account_id;
+        if (!$paymentChartAccountId) {
+            $type = $request->payment_method ?? ($finAcc?->type ?? 'cash');
+            $paymentCoa = \App\Models\ChartOfAccount::where('name', 'like', "%{$type}%")->first()
+                ?? \App\Models\ChartOfAccount::where('name', 'like', '%Cash%')->first()
+                ?? \App\Models\ChartOfAccount::where('name', 'like', '%Bank%')->first();
+            $paymentChartAccountId = $paymentCoa?->id ?? $receivableAccount->id;
+        }
+
+        $voucherNo = 'REC-ORD-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+        $journal = \App\Models\Journal::create([
+            'voucher_no' => $voucherNo,
+            'entry_date' => now()->toDateString(),
+            'type' => 'Receipt',
+            'description' => 'Payment for Online Order #' . $order->order_number,
+            'customer_id' => $order->customer_id ?? $invoice->customer_id,
+            'branch_id' => null,
+            'voucher_amount' => $request->amount,
+            'paid_amount' => $request->amount,
+            'reference' => $order->order_number,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // DEBIT: Financial Account
+        \App\Models\JournalEntry::create([
+            'journal_id' => $journal->id,
+            'chart_of_account_id' => $paymentChartAccountId,
+            'financial_account_id' => $finAcc?->id,
+            'debit' => $request->amount,
+            'credit' => 0,
+            'memo' => 'Payment received via ' . ($finAcc->provider_name ?? $request->payment_method),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // CREDIT: Accounts Receivable
+        \App\Models\JournalEntry::create([
+            'journal_id' => $journal->id,
+            'chart_of_account_id' => $receivableAccount->id,
+            'financial_account_id' => null,
+            'debit' => 0,
+            'credit' => $request->amount,
+            'memo' => 'Receivable cleared for Order #' . $order->order_number,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
         // If invoice is fully paid, mark ecommerce order as approved
         if ($invoice->status === 'paid' && $order && $order->status !== 'approved') {
             $order->status = 'approved';

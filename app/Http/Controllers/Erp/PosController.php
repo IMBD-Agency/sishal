@@ -543,20 +543,34 @@ class PosController extends Controller
                     $financialAccount = FinancialAccount::find($request->account_id);
                 } else {
                     $type = $request->payment_method ?? 'cash';
-                    $financialAccount = FinancialAccount::where('type', $type)->first();
+                    $financialAccount = FinancialAccount::where('type', $type)
+                        ->where('branch_id', $pos->branch_id)
+                        ->first() 
+                        ?? FinancialAccount::where('type', $type)->first();
                 }
 
-                if ($financialAccount && $financialAccount->account_id) {
-                    JournalEntry::create([
-                        'journal_id' => $journal->id,
-                        'chart_of_account_id' => $financialAccount->account_id,
-                        'financial_account_id' => $financialAccount->id,
-                        'debit' => $request->paid_amount,
-                        'credit' => 0,
-                        'memo' => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
-                        'created_by' => auth()->id(),
-                        'updated_by' => auth()->id(),
-                    ]);
+                if ($financialAccount) {
+                    $paymentChartAccountId = $financialAccount->account_id;
+                    if (!$paymentChartAccountId) {
+                        $type = $financialAccount->type ?? 'cash';
+                        $paymentCoa = ChartOfAccount::where('name', 'like', "%{$type}%")->first()
+                            ?? ChartOfAccount::where('name', 'like', '%Cash%')->first()
+                            ?? ChartOfAccount::where('name', 'like', '%Bank%')->first();
+                        $paymentChartAccountId = $paymentCoa?->id;
+                    }
+
+                    if ($paymentChartAccountId) {
+                        JournalEntry::create([
+                            'journal_id' => $journal->id,
+                            'chart_of_account_id' => $paymentChartAccountId,
+                            'financial_account_id' => $financialAccount->id,
+                            'debit' => $request->paid_amount,
+                            'credit' => 0,
+                            'memo' => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
+                        ]);
+                    }
                 }
             }
 
@@ -1036,10 +1050,14 @@ class PosController extends Controller
 
         $pos = Pos::with(['items', 'invoice.items', 'invoice.payments', 'payments'])->findOrFail($id);
 
-        // Check if there are any returns associated with this POS sale
+        // Check if there are any returns or exchanges associated with this POS sale
         $hasReturns = \App\Models\SaleReturn::where('pos_sale_id', $pos->id)->exists();
-        if ($hasReturns) {
-            return redirect()->back()->with('error', 'Cannot delete this sale because it has associated returns. Please delete the return records first.');
+        $hasExchanges = \App\Models\PosExchange::where('original_pos_id', $pos->id)->exists();
+        if ($hasReturns || $hasExchanges) {
+            $reasons = [];
+            if ($hasExchanges) $reasons[] = 'exchanges';
+            if ($hasReturns) $reasons[] = 'returns';
+            return redirect()->back()->with('error', 'Cannot delete this sale because it has associated ' . implode(' and ', $reasons) . '. Please delete the ' . implode('/', $reasons) . ' records first.');
         }
 
         DB::beginTransaction();
@@ -1126,10 +1144,11 @@ class PosController extends Controller
             return response()->json(['success' => false, 'message' => 'No sales selected.']);
         }
 
-        // Check if any of the selected sales has associated returns
+        // Check if any of the selected sales has associated returns or exchanges
         $hasReturns = \App\Models\SaleReturn::whereIn('pos_sale_id', $ids)->exists();
-        if ($hasReturns) {
-            return response()->json(['success' => false, 'message' => 'One or more selected sales have associated returns. Please delete the returns first.']);
+        $hasExchanges = \App\Models\PosExchange::whereIn('original_pos_id', $ids)->exists();
+        if ($hasReturns || $hasExchanges) {
+            return response()->json(['success' => false, 'message' => 'One or more selected sales have associated returns or exchanges. Please delete the exchange/return records first.']);
         }
 
         DB::beginTransaction();
@@ -1572,6 +1591,86 @@ class PosController extends Controller
         }
         $invoice->save();
 
+
+        // Update FinancialAccount balance
+        $finAcc = null;
+        if ($request->account_id) {
+            $finAcc = FinancialAccount::find($request->account_id);
+        } else {
+            $type = $request->payment_method ?? 'cash';
+            $finAcc = FinancialAccount::where('type', $type)->where('branch_id', $pos->branch_id)->first() 
+                ?? FinancialAccount::where('type', $type)->first();
+        }
+
+        if ($finAcc) {
+            $finAcc->balance += $request->amount;
+            $finAcc->save();
+        }
+
+        // Create Double-Entry Accounting Journal for this due payment
+        $receivableAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->orWhere('name', 'like', '%Customer Due%')->first();
+        if (!$receivableAccount) {
+            $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+            $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType?->id)->first();
+            $receivableAccount = ChartOfAccount::firstOrCreate(
+                ['name' => 'Accounts Receivable'],
+                [
+                    'type_id' => $assetType?->id ?? 1,
+                    'sub_type_id' => $assetSubType?->id,
+                    'code' => '10002',
+                    'status' => 'active',
+                    'created_by' => auth()->id() ?? 1,
+                ]
+            );
+        }
+
+        $paymentChartAccountId = $finAcc?->account_id;
+        if (!$paymentChartAccountId) {
+            $type = $request->payment_method ?? ($finAcc?->type ?? 'cash');
+            $paymentCoa = ChartOfAccount::where('name', 'like', "%{$type}%")->first()
+                ?? ChartOfAccount::where('name', 'like', '%Cash%')->first()
+                ?? ChartOfAccount::where('name', 'like', '%Bank%')->first();
+            $paymentChartAccountId = $paymentCoa?->id ?? $receivableAccount->id;
+        }
+
+        $voucherNo = 'REC-POS-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+        $journal = Journal::create([
+            'voucher_no' => $voucherNo,
+            'entry_date' => now()->toDateString(),
+            'type' => 'Receipt',
+            'description' => 'Due payment for Sale #' . $pos->sale_number,
+            'customer_id' => $pos->customer_id,
+            'branch_id' => $pos->branch_id,
+            'voucher_amount' => $request->amount,
+            'paid_amount' => $request->amount,
+            'reference' => $pos->sale_number,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // DEBIT: Financial Account (Cash/Bank increases)
+        JournalEntry::create([
+            'journal_id' => $journal->id,
+            'chart_of_account_id' => $paymentChartAccountId,
+            'financial_account_id' => $finAcc?->id,
+            'debit' => $request->amount,
+            'credit' => 0,
+            'memo' => 'Due payment received via ' . ($finAcc->provider_name ?? $request->payment_method),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // CREDIT: Accounts Receivable (Asset decreases)
+        JournalEntry::create([
+            'journal_id' => $journal->id,
+            'chart_of_account_id' => $receivableAccount->id,
+            'financial_account_id' => null,
+            'debit' => 0,
+            'credit' => $request->amount,
+            'memo' => 'Customer due cleared for Sale #' . $pos->sale_number,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
 
         if ($request->payment_method == 'cash' && $pos->customer_id) {
             $balance = Balance::where('source_type', 'customer')->where('source_id', $pos->customer_id)->first();
@@ -2461,6 +2560,25 @@ class PosController extends Controller
                     'last_updated_at' => now(),
                 ]);
             }
+
+            // Also mirror into branch product stock to keep product-level stock in sync
+            $branchStock = BranchProductStock::where('branch_id', $branchId)
+                ->where('product_id', $productId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($branchStock) {
+                $branchStock->quantity += $quantity;
+                $branchStock->save();
+            } else {
+                BranchProductStock::create([
+                    'branch_id' => $branchId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
         } else {
             // Handle regular product stock restoration
             $branchStock = BranchProductStock::where('branch_id', $branchId)
@@ -2482,6 +2600,8 @@ class PosController extends Controller
                 ]);
             }
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
     }
 
     public function manualSaleCreate()
@@ -2867,17 +2987,28 @@ class PosController extends Controller
                 // Debit Bank/Cash
                 if ($request->paid_amount > 0 && $request->account_id) {
                     $finAcc = FinancialAccount::find($request->account_id);
-                    if ($finAcc && $finAcc->account_id) {
-                        JournalEntry::create([
-                            'journal_id' => $journal->id,
-                            'chart_of_account_id' => $finAcc->account_id,
-                            'financial_account_id' => $finAcc->id,
-                            'debit' => $request->paid_amount,
-                            'credit' => 0,
-                            'memo' => 'Payment received for Manual Sale',
-                            'created_by' => auth()->id(),
-                            'updated_by' => auth()->id(),
-                        ]);
+                    if ($finAcc) {
+                        $paymentChartAccountId = $finAcc->account_id;
+                        if (!$paymentChartAccountId) {
+                            $type = $finAcc->type ?? 'cash';
+                            $paymentCoa = ChartOfAccount::where('name', 'like', "%{$type}%")->first()
+                                ?? ChartOfAccount::where('name', 'like', '%Cash%')->first()
+                                ?? ChartOfAccount::where('name', 'like', '%Bank%')->first();
+                            $paymentChartAccountId = $paymentCoa?->id;
+                        }
+
+                        if ($paymentChartAccountId) {
+                            JournalEntry::create([
+                                'journal_id' => $journal->id,
+                                'chart_of_account_id' => $paymentChartAccountId,
+                                'financial_account_id' => $finAcc->id,
+                                'debit' => $request->paid_amount,
+                                'credit' => 0,
+                                'memo' => 'Payment received for Manual Sale',
+                                'created_by' => auth()->id(),
+                                'updated_by' => auth()->id(),
+                            ]);
+                        }
                     }
                 }
 

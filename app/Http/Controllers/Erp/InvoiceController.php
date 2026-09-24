@@ -488,6 +488,89 @@ class InvoiceController extends Controller
         }
         $invoice->save();
 
+        // Update FinancialAccount balance
+        $finAcc = null;
+        if ($request->account_id) {
+            $finAcc = \App\Models\FinancialAccount::find($request->account_id);
+        } else {
+            $type = $request->payment_method ?? 'cash';
+            $branchId = $invoice->pos?->branch_id ?? null;
+            $finAcc = \App\Models\FinancialAccount::where('type', $type)
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+                ->first() 
+                ?? \App\Models\FinancialAccount::where('type', $type)->first();
+        }
+
+        if ($finAcc) {
+            $finAcc->balance += $request->amount;
+            $finAcc->save();
+        }
+
+        // Double-entry Journal for the invoice payment
+        $receivableAccount = \App\Models\ChartOfAccount::where('name', 'like', '%Receivable%')->orWhere('name', 'like', '%Customer Due%')->first();
+        if (!$receivableAccount) {
+            $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+            $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType?->id)->first();
+            $receivableAccount = \App\Models\ChartOfAccount::firstOrCreate(
+                ['name' => 'Accounts Receivable'],
+                [
+                    'type_id' => $assetType?->id ?? 1,
+                    'sub_type_id' => $assetSubType?->id,
+                    'code' => '10002',
+                    'status' => 'active',
+                    'created_by' => auth()->id() ?? 1,
+                ]
+            );
+        }
+
+        $paymentChartAccountId = $finAcc?->account_id;
+        if (!$paymentChartAccountId) {
+            $type = $request->payment_method ?? ($finAcc?->type ?? 'cash');
+            $paymentCoa = \App\Models\ChartOfAccount::where('name', 'like', "%{$type}%")->first()
+                ?? \App\Models\ChartOfAccount::where('name', 'like', '%Cash%')->first()
+                ?? \App\Models\ChartOfAccount::where('name', 'like', '%Bank%')->first();
+            $paymentChartAccountId = $paymentCoa?->id ?? $receivableAccount->id;
+        }
+
+        $voucherNo = 'REC-INV-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+        $journal = \App\Models\Journal::create([
+            'voucher_no' => $voucherNo,
+            'entry_date' => now()->toDateString(),
+            'type' => 'Receipt',
+            'description' => 'Payment for Invoice #' . $invoice->invoice_number,
+            'customer_id' => $invoice->customer_id,
+            'branch_id' => $invoice->pos?->branch_id,
+            'voucher_amount' => $request->amount,
+            'paid_amount' => $request->amount,
+            'reference' => $invoice->invoice_number,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // DEBIT: Financial Account
+        \App\Models\JournalEntry::create([
+            'journal_id' => $journal->id,
+            'chart_of_account_id' => $paymentChartAccountId,
+            'financial_account_id' => $finAcc?->id,
+            'debit' => $request->amount,
+            'credit' => 0,
+            'memo' => 'Payment received via ' . ($finAcc->provider_name ?? $request->payment_method),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // CREDIT: Accounts Receivable
+        \App\Models\JournalEntry::create([
+            'journal_id' => $journal->id,
+            'chart_of_account_id' => $receivableAccount->id,
+            'financial_account_id' => null,
+            'debit' => 0,
+            'credit' => $request->amount,
+            'memo' => 'Receivable cleared for Invoice #' . $invoice->invoice_number,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
         return response()->json(['success' => true, 'message' => 'Payment added successfully.']);
     }
 
@@ -997,6 +1080,16 @@ class InvoiceController extends Controller
         if ($invoice->pos) {
             $pos = $invoice->pos;
             
+            // Check for associated returns or exchanges
+            $hasReturns = \App\Models\SaleReturn::where('pos_sale_id', $pos->id)->exists();
+            $hasExchanges = \App\Models\PosExchange::where('original_pos_id', $pos->id)->exists();
+            if ($hasReturns || $hasExchanges) {
+                $reasons = [];
+                if ($hasExchanges) $reasons[] = 'exchanges';
+                if ($hasReturns) $reasons[] = 'returns';
+                throw new \Exception('Cannot delete invoice because linked sale #' . $pos->sale_number . ' has associated ' . implode(' and ', $reasons) . '. Please delete them first.');
+            }
+
             // Restore stock for all sold items
             foreach ($pos->items as $item) {
                 if ($item->parent_item_id === null) {
@@ -1165,6 +1258,25 @@ class InvoiceController extends Controller
                     'last_updated_at' => now(),
                 ]);
             }
+
+            // Also mirror into branch product stock
+            $branchStock = \App\Models\BranchProductStock::where('branch_id', $branchId)
+                ->where('product_id', $productId)
+                ->lockForUpdate()
+                ->first();
+            
+            if ($branchStock) {
+                $branchStock->quantity += $quantity;
+                $branchStock->save();
+            } else {
+                \App\Models\BranchProductStock::create([
+                    'branch_id' => $branchId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'updated_by' => auth()->id() ?? 1,
+                    'last_updated_at' => now(),
+                ]);
+            }
         } else {
             $branchStock = \App\Models\BranchProductStock::where('branch_id', $branchId)
                 ->where('product_id', $productId)
@@ -1184,6 +1296,8 @@ class InvoiceController extends Controller
                 ]);
             }
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
     }
 
     /**

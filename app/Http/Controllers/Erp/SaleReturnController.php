@@ -1125,6 +1125,19 @@ class SaleReturnController extends Controller
                             'updated_by' => auth()->id()
                         ]);
                     }
+
+                    // Also mirror into BranchProductStock
+                    $bStock = \App\Models\BranchProductStock::where('branch_id', $toId)->where('product_id', $productId)->first();
+                    if ($bStock) {
+                        $bStock->increment('quantity', $qty);
+                    } else {
+                        \App\Models\BranchProductStock::create([
+                            'branch_id' => $toId,
+                            'product_id' => $productId,
+                            'quantity' => $qty,
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
                 } else {
                     $stock = \App\Models\BranchProductStock::where('branch_id', $toId)
                         ->where('product_id', $productId)
@@ -1153,6 +1166,19 @@ class SaleReturnController extends Controller
                         \App\Models\ProductVariationStock::create([
                             'variation_id' => $variationId,
                             'warehouse_id' => $toId,
+                            'quantity' => $qty,
+                            'updated_by' => auth()->id()
+                        ]);
+                    }
+
+                    // Also mirror into WarehouseProductStock
+                    $wStock = \App\Models\WarehouseProductStock::where('warehouse_id', $toId)->where('product_id', $productId)->first();
+                    if ($wStock) {
+                        $wStock->increment('quantity', $qty);
+                    } else {
+                        \App\Models\WarehouseProductStock::create([
+                            'warehouse_id' => $toId,
+                            'product_id' => $productId,
                             'quantity' => $qty,
                             'updated_by' => auth()->id()
                         ]);
@@ -1191,6 +1217,8 @@ class SaleReturnController extends Controller
             default:
                 throw new \Exception("Invalid return_to_type: {$toType}");
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
     }
 
     private function removeStockForReturnItem($saleReturn, $item)
@@ -1226,6 +1254,12 @@ class SaleReturnController extends Controller
                     if ($stock) {
                         $stock->decrement('quantity', $qty);
                     }
+
+                    // Also decrement from BranchProductStock
+                    $bStock = \App\Models\BranchProductStock::where('branch_id', $toId)->where('product_id', $productId)->first();
+                    if ($bStock) {
+                        $bStock->decrement('quantity', $qty);
+                    }
                 } else {
                     $stock = \App\Models\BranchProductStock::where('branch_id', $toId)
                         ->where('product_id', $productId)
@@ -1243,6 +1277,12 @@ class SaleReturnController extends Controller
                         ->first();
                     if ($stock) {
                         $stock->decrement('quantity', $qty);
+                    }
+
+                    // Also decrement from WarehouseProductStock
+                    $wStock = \App\Models\WarehouseProductStock::where('warehouse_id', $toId)->where('product_id', $productId)->first();
+                    if ($wStock) {
+                        $wStock->decrement('quantity', $qty);
                     }
                 } else {
                     $stock = \App\Models\WarehouseProductStock::where('warehouse_id', $toId)
@@ -1262,5 +1302,7 @@ class SaleReturnController extends Controller
                 }
                 break;
         }
+
+        \App\Services\CacheService::clearProductCaches($productId);
     }
 }
