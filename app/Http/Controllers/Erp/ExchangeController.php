@@ -1017,7 +1017,15 @@ class ExchangeController extends Controller
                 // 3. Rollback Invoice updates (if extra payable was applied)
                 if ($originalSale->invoice && $posExchange->extra_payable > 0) {
                     $invoice = $originalSale->invoice;
+                    $invoice->total_amount = max(0, $invoice->total_amount - $posExchange->extra_payable);
                     $invoice->paid_amount = max(0, $invoice->paid_amount - $posExchange->extra_payable);
+                    $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                    $invoice->save();
+                } elseif ($originalSale->invoice && $posExchange->refund_amount > 0) {
+                    // Rollback for refund case
+                    $invoice = $originalSale->invoice;
+                    $invoice->total_amount = max(0, $invoice->total_amount + $posExchange->refund_amount);
+                    $invoice->paid_amount = max(0, $invoice->paid_amount + $posExchange->refund_amount);
                     $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
                     $invoice->save();
                 }
