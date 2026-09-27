@@ -2852,47 +2852,109 @@ class PosController extends Controller
 
             // 3. STAGE 3: PROCESS ITEMS AND DEDUCT STOCK
             foreach ($request->items as $index => $item) {
-                $result = $this->deductStock(
-                    $item['product_id'],
-                    $item['variation_id'] ?? null,
-                    $item['quantity'],
-                    $request->branch_id
-                );
-
-                if (!$result['success']) {
-                    throw new \Exception($result['message']);
-                }
+                $product = Product::with('comboItems')->find($item['product_id']);
 
                 // Calculate Net Total for Item
                 $itemOriginalTotal = floatval($item['quantity'] * $item['unit_price']);
                 $allocatedDiscount = round($itemOriginalTotal * $discountRatio, 2);
                 $itemNetTotal = $itemOriginalTotal - $allocatedDiscount;
 
-                // Save POS Item
-                $product = Product::find($item['product_id']);
-                PosItem::create([
-                    'pos_sale_id' => $pos->id,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'unit_cost' => $this->calculateItemCost($product, $item['variation_id'] ?? null),
-                    'total_price' => $itemNetTotal,
-                    'current_position_type' => 'branch',
-                    'current_position_id' => $request->branch_id,
-                    'sort_order' => $index
-                ]);
+                if ($product && $product->isCombo()) {
+                    // --- COMBO PRODUCT ---
 
-                // Create Invoice Item
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $item['product_id'],
-                    'variation_id' => $item['variation_id'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'discount' => $allocatedDiscount,
-                    'total_price' => $itemNetTotal,
-                ]);
+                    // Create parent POS item for the combo
+                    $parentItem = PosItem::create([
+                        'pos_sale_id' => $pos->id,
+                        'product_id'  => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity'    => $item['quantity'],
+                        'unit_price'  => $item['unit_price'],
+                        'unit_cost'   => $this->calculateItemCost($product, $item['variation_id'] ?? null),
+                        'total_price' => $itemNetTotal,
+                        'current_position_type' => 'branch',
+                        'current_position_id'   => $request->branch_id,
+                        'sort_order'  => $index
+                    ]);
+
+                    // Create invoice item for combo (parent)
+                    InvoiceItem::create([
+                        'invoice_id'  => $invoice->id,
+                        'product_id'  => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity'    => $item['quantity'],
+                        'unit_price'  => $item['unit_price'],
+                        'discount'    => $allocatedDiscount,
+                        'total_price' => $itemNetTotal,
+                    ]);
+
+                    // Loop combo child items — deduct stock + create child PosItem rows
+                    $comboItems = $product->comboItems()->with(['product', 'variation'])->get();
+                    foreach ($comboItems as $comboItem) {
+                        $childQty = $comboItem->quantity * $item['quantity'];
+
+                        $result = $this->deductStock(
+                            $comboItem->product_id,
+                            $comboItem->variation_id,
+                            $childQty,
+                            $request->branch_id
+                        );
+
+                        if (!$result['success']) {
+                            throw new \Exception($result['message']);
+                        }
+
+                        // Child row (price = 0, linked to parent via parent_item_id)
+                        PosItem::create([
+                            'parent_item_id' => $parentItem->id,
+                            'pos_sale_id'    => $pos->id,
+                            'product_id'     => $comboItem->product_id,
+                            'variation_id'   => $comboItem->variation_id,
+                            'quantity'       => $childQty,
+                            'unit_price'     => 0,
+                            'unit_cost'      => $this->calculateItemCost($comboItem->product, $comboItem->variation_id),
+                            'total_price'    => 0,
+                            'current_position_type' => 'branch',
+                            'current_position_id'   => $request->branch_id,
+                            'sort_order'     => $index
+                        ]);
+                    }
+                } else {
+                    // --- REGULAR PRODUCT ---
+
+                    $result = $this->deductStock(
+                        $item['product_id'],
+                        $item['variation_id'] ?? null,
+                        $item['quantity'],
+                        $request->branch_id
+                    );
+
+                    if (!$result['success']) {
+                        throw new \Exception($result['message']);
+                    }
+
+                    PosItem::create([
+                        'pos_sale_id'  => $pos->id,
+                        'product_id'   => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity'     => $item['quantity'],
+                        'unit_price'   => $item['unit_price'],
+                        'unit_cost'    => $this->calculateItemCost($product, $item['variation_id'] ?? null),
+                        'total_price'  => $itemNetTotal,
+                        'current_position_type' => 'branch',
+                        'current_position_id'   => $request->branch_id,
+                        'sort_order'   => $index
+                    ]);
+
+                    InvoiceItem::create([
+                        'invoice_id'   => $invoice->id,
+                        'product_id'   => $item['product_id'],
+                        'variation_id' => $item['variation_id'] ?? null,
+                        'quantity'     => $item['quantity'],
+                        'unit_price'   => $item['unit_price'],
+                        'discount'     => $allocatedDiscount,
+                        'total_price'  => $itemNetTotal,
+                    ]);
+                }
             }
 
             // --- DOUBLE ENTRY ACCOUNTING ---
