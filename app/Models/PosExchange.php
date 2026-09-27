@@ -7,6 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 class PosExchange extends Model
 {
     protected $guarded = ['id'];
+    
+    protected $casts = [
+        'total_return_amount' => 'decimal:2',
+        'total_new_amount' => 'decimal:2',
+        'delivery_charge' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'extra_payable' => 'decimal:2',
+        'refund_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+    ];
 
     public function originalPos()
     {

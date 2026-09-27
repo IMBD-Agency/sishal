@@ -199,6 +199,30 @@ class ExchangeController extends Controller
                     throw new \Exception('The selected payment account does not belong to the invoice\'s branch.');
                 }
             }
+
+            // Validate stock availability for new items
+            foreach ($request->new_items as $item) {
+                if ($item['qty'] > 0) {
+                    $variationId = ($item['variation_id'] == 'null' || $item['variation_id'] == '') ? null : $item['variation_id'];
+                    $stock = \App\Models\BranchProductStock::where('product_id', $item['product_id'])
+                        ->where('branch_id', $originalSale->branch_id)
+                        ->first();
+                    
+                    $availableQty = $stock ? $stock->quantity : 0;
+                    
+                    if ($variationId) {
+                        $vStock = \App\Models\ProductVariationStock::where('variation_id', $variationId)
+                            ->where('branch_id', $originalSale->branch_id)
+                            ->first();
+                        $availableQty = $vStock ? $vStock->quantity : 0;
+                    }
+                    
+                    if ($availableQty < $item['qty']) {
+                        $productName = \App\Models\Product::find($item['product_id'])->name ?? 'Unknown Product';
+                        throw new \Exception("Insufficient stock for product: {$productName}. Available: {$availableQty}, Required: {$item['qty']}");
+                    }
+                }
+            }
             
             // Generate Exchange Number
             $lastExchange = \App\Models\PosExchange::latest('id')->first();
@@ -310,6 +334,7 @@ class ExchangeController extends Controller
 
             $extraPayable = max(0, $netNewAmount - $totalReturnAmount);
             $refundAmount = max(0, $totalReturnAmount - $netNewAmount);
+            $actualPaid = floatval($request->paid_amount ?? 0);
 
             // Determine Exchange Type
             if ($totalReturnAmount == $subTotalNew && $extraPayable == 0 && $refundAmount == 0) {
@@ -327,6 +352,7 @@ class ExchangeController extends Controller
                 'discount_amount'     => $globalDiscount,
                 'extra_payable'       => $extraPayable,
                 'refund_amount'       => $refundAmount,
+                'paid_amount'         => $actualPaid,
                 'account_id'          => $request->account_id,
                 'payment_method'      => $request->account_id ? 'account' : 'cash',
             ]);
@@ -1018,8 +1044,20 @@ class ExchangeController extends Controller
                 if ($originalSale->invoice && $posExchange->extra_payable > 0) {
                     $invoice = $originalSale->invoice;
                     $invoice->total_amount = max(0, $invoice->total_amount - $posExchange->extra_payable);
-                    $invoice->paid_amount = max(0, $invoice->paid_amount - $posExchange->extra_payable);
+                    // Only deduct paid_amount if customer actually paid (not just due)
+                    $invoice->paid_amount = max(0, $invoice->paid_amount - ($posExchange->paid_amount ?? 0));
                     $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                    
+                    // Recalculate invoice status
+                    if ($invoice->paid_amount >= $invoice->total_amount) {
+                        $invoice->status = 'paid';
+                        $invoice->due_amount = 0;
+                    } elseif ($invoice->paid_amount > 0) {
+                        $invoice->status = 'partial';
+                    } else {
+                        $invoice->status = 'unpaid';
+                    }
+                    
                     $invoice->save();
                 } elseif ($originalSale->invoice && $posExchange->refund_amount > 0) {
                     // Rollback for refund case
@@ -1027,6 +1065,17 @@ class ExchangeController extends Controller
                     $invoice->total_amount = max(0, $invoice->total_amount + $posExchange->refund_amount);
                     $invoice->paid_amount = max(0, $invoice->paid_amount + $posExchange->refund_amount);
                     $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                    
+                    // Recalculate invoice status
+                    if ($invoice->paid_amount >= $invoice->total_amount) {
+                        $invoice->status = 'paid';
+                        $invoice->due_amount = 0;
+                    } elseif ($invoice->paid_amount > 0) {
+                        $invoice->status = 'partial';
+                    } else {
+                        $invoice->status = 'unpaid';
+                    }
+                    
                     $invoice->save();
                 }
             }
@@ -1038,7 +1087,21 @@ class ExchangeController extends Controller
                 $journal->delete();
             }
 
-            // 5. Delete associated SaleReturn and SaleReturnItems
+            // 5. Delete associated Payment record
+            $payment = \App\Models\Payment::where('reference', 'Exchange ' . $posExchange->exchange_number)->first();
+            if ($payment) {
+                // Reverse financial account balance
+                if ($payment->account_id) {
+                    $financialAccount = FinancialAccount::find($payment->account_id);
+                    if ($financialAccount) {
+                        $financialAccount->balance -= $payment->amount;
+                        $financialAccount->save();
+                    }
+                }
+                $payment->delete();
+            }
+
+            // 6. Delete associated SaleReturn and SaleReturnItems
             $saleReturn = \App\Models\SaleReturn::where('reason', 'Exchange ' . $posExchange->exchange_number)->first();
             if ($saleReturn) {
                 $saleReturn->items()->delete();

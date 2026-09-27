@@ -84,8 +84,8 @@
                             <td class="text-end font-monospace">{{ $isFirst ? number_format($exchange->total_new_amount, 2) : '' }}</td>
                             <td class="text-end font-monospace">{{ $isFirst ? number_format($exchange->refund_amount, 2) : '' }}</td>
                             <td class="text-end font-monospace">{{ $isFirst ? number_format($exchange->discount_amount, 2) : '' }}</td>
-                            <td class="text-end font-monospace">{{ $isFirst ? number_format($exchange->extra_payable, 2) : '' }}</td>
-                            <td class="text-end font-monospace">{{ $isFirst ? '0.00' : '' }}</td>
+                            <td class="text-end font-monospace">{{ $isFirst ? number_format($exchange->paid_amount ?? 0, 2) : '' }}</td>
+                            <td class="text-end font-monospace">{{ $isFirst ? number_format(max(0, ($exchange->extra_payable ?? 0) - ($exchange->paid_amount ?? 0)), 2) : '' }}</td>
                             <td class="text-center">
                                 <div class="d-flex gap-1 justify-content-center">
                                     <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm" title="View Details">
