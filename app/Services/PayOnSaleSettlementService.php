@@ -555,10 +555,11 @@ class PayOnSaleSettlementService
         }
         $posExchangeRetQty = (float) $posExchangeRetQuery->sum('quantity');
 
-        // D. POS Sale Returns
+        // D. POS Sale Returns (exclude returns created from exchanges to avoid double counting)
         $posReturnQuery = SaleReturnItem::where('product_id', $productId)
             ->whereHas('saleReturn', function ($q) use ($startDateStr, $endDateStr) {
-                $q->where('status', '!=', 'rejected');
+                $q->where('status', '!=', 'rejected')
+                  ->where('refund_type', '!=', 'exchange'); // Exclude exchange returns
                 if ($startDateStr) $q->whereDate('return_date', '>=', $startDateStr);
                 if ($endDateStr)   $q->whereDate('return_date', '<=', $endDateStr);
             });
