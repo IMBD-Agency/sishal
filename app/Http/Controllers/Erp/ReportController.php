@@ -1558,14 +1558,19 @@ class ReportController extends Controller
         }
 
         $customerId = $id ?: $request->get('customer_id');
-        $customers = Customer::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $branchId = $restrictedBranchId ?: $request->get('branch_id');
+        
+        $customersQuery = Customer::orderBy('name');
+        if ($branchId) {
+            $customersQuery->where('branch_id', $branchId);
+        }
+        $customers = $customersQuery->get();
+        
         $reportType = $request->get('report_type', 'all');
         $viewType = $request->get('view_type', 'debit_credit'); // 'debit_credit' or 'info_wise'
         $startDate = null;
         $endDate = null;
-        
-        $restrictedBranchId = $this->getRestrictedBranchId();
-        $branchId = $restrictedBranchId ?: $request->get('branch_id');
 
         if (!$customerId) {
             $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
