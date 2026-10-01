@@ -292,6 +292,102 @@
             </tbody>
         </table>
 
+        <!-- Adjustment Details (Returns & Exchanges) -->
+        @if((isset($saleReturns) && $saleReturns->count() > 0) || (isset($exchanges) && $exchanges->count() > 0))
+        <div style="margin-top: 2.5mm; margin-bottom: 2mm; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 1.5mm 0;">
+            @if(isset($saleReturns))
+                @foreach($saleReturns as $return)
+                    <table style="width: 100%; font-size: 8pt; border-collapse: collapse; margin-bottom: 1mm;">
+                        @foreach($return->items as $rItem)
+                            @php
+                                $srStyle = $rItem->product?->style_number ?? $rItem->product?->sku ?? '';
+                                $srVarVals = [];
+                                if ($rItem->variation && $rItem->variation->attributeValues) {
+                                    foreach($rItem->variation->attributeValues as $val) {
+                                        $srVarVals[] = $val->value;
+                                    }
+                                }
+                                $srVarStr = count($srVarVals) > 0 ? ' [' . implode(', ', $srVarVals) . ']' : '';
+                            @endphp
+                            <tr class="adjustment-row">
+                                <td style="text-align: left; padding: 0.5mm 0;">
+                                    • {{ $rItem->product->name ?? 'Unknown' }}
+                                    @if($srStyle)
+                                        <small style="color: #555;">#{{ $srStyle }}</small>
+                                    @endif
+                                    @if($srVarStr)
+                                        <small style="color: #666;">{{ $srVarStr }}</small>
+                                    @endif
+                                    x{{ number_format($rItem->returned_qty, 0) }}
+                                </td>
+                                <td class="refund-amount" style="text-align: right; padding: 0.5mm 0;">-৳{{ number_format($rItem->total_price, 1) }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
+                @endforeach
+            @endif
+
+            @if(isset($exchanges))
+                @foreach($exchanges as $exchange)
+                    <table style="width: 100%; font-size: 8pt; border-collapse: collapse; margin-bottom: 1mm;">
+                        {{-- Returned Items --}}
+                        @foreach($exchange->returnedItems as $rItem)
+                            @php
+                                $rStyle = $rItem->product?->style_number ?? $rItem->product?->sku ?? '';
+                                $rVarVals = [];
+                                if ($rItem->variation && $rItem->variation->attributeValues) {
+                                    foreach($rItem->variation->attributeValues as $val) {
+                                        $rVarVals[] = $val->value;
+                                    }
+                                }
+                                $rVarStr = count($rVarVals) > 0 ? ' [' . implode(', ', $rVarVals) . ']' : '';
+                            @endphp
+                            <tr class="adjustment-row">
+                                <td style="text-align: left; color: #d32f2f; padding: 0.5mm 0;">
+                                    ↳ {{ $rItem->product->name ?? 'Unknown' }}
+                                    @if($rStyle)
+                                        <small style="color: #555;">#{{ $rStyle }}</small>
+                                    @endif
+                                    @if($rVarStr)
+                                        <small style="color: #666;">{{ $rVarStr }}</small>
+                                    @endif
+                                    x{{ number_format($rItem->quantity, 0) }}
+                                </td>
+                                <td style="text-align: right; color: #d32f2f; padding: 0.5mm 0;">-৳{{ number_format($rItem->total_price, 1) }}</td>
+                            </tr>
+                        @endforeach
+                        {{-- New Items --}}
+                        @foreach($exchange->newItems as $nItem)
+                            @php
+                                $nStyle = $nItem->product?->style_number ?? $nItem->product?->sku ?? '';
+                                $nVarVals = [];
+                                if ($nItem->variation && $nItem->variation->attributeValues) {
+                                    foreach($nItem->variation->attributeValues as $val) {
+                                        $nVarVals[] = $val->value;
+                                    }
+                                }
+                                $nVarStr = count($nVarVals) > 0 ? ' [' . implode(', ', $nVarVals) . ']' : '';
+                            @endphp
+                            <tr class="adjustment-row">
+                                <td style="text-align: left; color: #2e7d32; padding: 0.5mm 0;">
+                                    + {{ $nItem->product->name ?? 'Unknown' }}
+                                    @if($nStyle)
+                                        <small style="color: #555;">#{{ $nStyle }}</small>
+                                    @endif
+                                    @if($nVarStr)
+                                        <small style="color: #666;">{{ $nVarStr }}</small>
+                                    @endif
+                                    x{{ number_format($nItem->quantity, 0) }}
+                                </td>
+                                <td style="text-align: right; color: #2e7d32; padding: 0.5mm 0;">+৳{{ number_format($nItem->total_price, 1) }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
+                @endforeach
+            @endif
+        </div>
+        @endif
+
         <!-- Summary Table -->
         <table class="summary-table">
             @php
@@ -421,55 +517,6 @@
             </tr>
             @endif
         </table>
-
-        <!-- Adjustment History (Returns & Exchanges) -->
-        @if((isset($saleReturns) && $saleReturns->count() > 0) || (isset($exchanges) && $exchanges->count() > 0))
-        <div style="margin-top: 4mm; border-top: 1px dashed #000; padding-top: 2mm;">
-            <span class="bold" style="font-size: 8pt; display: block; text-transform: uppercase; margin-bottom: 1.5mm;">Adjustment History:</span>
-            
-            @if(isset($saleReturns))
-                @foreach($saleReturns as $return)
-                    <div style="font-size: 8pt; margin-bottom: 1.5mm;">
-                        <span class="bold">Return #SR-{{ str_pad($return->id, 5, '0', STR_PAD_LEFT) }}</span> 
-                        <span style="font-size: 7pt; color: #555;">({{ \Carbon\Carbon::parse($return->return_date)->format('d-m-Y') }})</span>
-                        <table style="width: 100%; font-size: 8pt; margin-top: 0.5mm; border-collapse: collapse;">
-                            @foreach($return->items as $rItem)
-                                <tr class="adjustment-row">
-                                    <td style="text-align: left; padding: 0.5mm 0;">• {{ $rItem->product->name }} x{{ number_format($rItem->returned_qty, 0) }}</td>
-                                    <td class="refund-amount" style="text-align: right; padding: 0.5mm 0;">-৳{{ number_format($rItem->total_price, 1) }}</td>
-                                </tr>
-                            @endforeach
-                        </table>
-                    </div>
-                @endforeach
-            @endif
-
-            @if(isset($exchanges))
-                @foreach($exchanges as $exchange)
-                    <div style="font-size: 8pt; margin-bottom: 1.5mm;">
-                        <span class="bold">Exchange {{ $exchange->exchange_number }}</span>
-                        <span style="font-size: 7pt; color: #555;">({{ \Carbon\Carbon::parse($exchange->exchange_date)->format('d-m-Y') }})</span>
-                        <table style="width: 100%; font-size: 8pt; margin-top: 0.5mm; border-collapse: collapse;">
-                            {{-- Returned Items --}}
-                            @foreach($exchange->returnedItems as $rItem)
-                                <tr class="adjustment-row">
-                                    <td style="text-align: left; color: #d32f2f; padding: 0.5mm 0;">↳ {{ $rItem->product->name }} x{{ number_format($rItem->quantity, 0) }}</td>
-                                    <td style="text-align: right; color: #d32f2f; padding: 0.5mm 0;">-৳{{ number_format($rItem->total_price, 1) }}</td>
-                                </tr>
-                            @endforeach
-                            {{-- New Items --}}
-                            @foreach($exchange->newItems as $nItem)
-                                <tr class="adjustment-row">
-                                    <td style="text-align: left; color: #2e7d32; padding: 0.5mm 0;">+ {{ $nItem->product->name }} x{{ number_format($nItem->quantity, 0) }}</td>
-                                    <td style="text-align: right; color: #2e7d32; padding: 0.5mm 0;">+৳{{ number_format($nItem->total_price, 1) }}</td>
-                                </tr>
-                            @endforeach
-                        </table>
-                    </div>
-                @endforeach
-            @endif
-        </div>
-        @endif
 
         <!-- Footer -->
         <div class="footer text-center">

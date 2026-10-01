@@ -1419,9 +1419,11 @@ class PosController extends Controller
             ->get();
 
         // Load exchanges for this POS sale
-        $exchanges = \App\Models\PosExchange::with(['items.product', 'items.variation.attributeValues.attribute', 'returnedItems.product', 'newItems.product'])
-            ->where('original_pos_id', $pos->id)
-            ->get();
+        $exchanges = \App\Models\PosExchange::with([
+            'items.product', 'items.variation.attributeValues.attribute',
+            'returnedItems.product', 'returnedItems.variation.attributeValues.attribute',
+            'newItems.product', 'newItems.variation.attributeValues.attribute'
+        ])->where('original_pos_id', $pos->id)->get();
 
         $template = InvoiceTemplate::where('is_default', 1)->first();
         $general_settings = GeneralSetting::first();
