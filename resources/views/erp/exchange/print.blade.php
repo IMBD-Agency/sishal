@@ -246,6 +246,22 @@
 
     {{-- Financial Summary --}}
     <table class="summary-table">
+        @php
+            $totalRetQty = $returnedItems->sum('quantity');
+            $totalNewQty = $newItems->sum('quantity');
+        @endphp
+        @if($totalRetQty > 0)
+        <tr>
+            <td class="summary-label">Total Returned Qty</td>
+            <td class="summary-value">{{ (fmod($totalRetQty, 1) == 0) ? number_format($totalRetQty, 0) : number_format($totalRetQty, 2) }}</td>
+        </tr>
+        @endif
+        @if($totalNewQty > 0)
+        <tr>
+            <td class="summary-label">Total New Qty</td>
+            <td class="summary-value">{{ (fmod($totalNewQty, 1) == 0) ? number_format($totalNewQty, 0) : number_format($totalNewQty, 2) }}</td>
+        </tr>
+        @endif
         <tr>
             <td class="summary-label">Returned Value</td>
             <td class="summary-value">{{ number_format($exchange->total_return_amount, 2) }}</td>

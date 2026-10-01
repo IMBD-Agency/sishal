@@ -295,6 +295,8 @@
         <!-- Summary Table -->
         <table class="summary-table">
             @php
+                // Calculate total quantity of items
+                $totalQuantity = $pos->items->filter(fn($i) => is_null($i->parent_item_id))->sum('quantity');
                 // Calculate original gross from items (sum of quantity * unit_price)
                 $originalGross = $pos->items->sum(fn($i) => $i->quantity * $i->unit_price);
                 // Use VAT from pos if available, otherwise from invoice tax (avoid double counting)
@@ -302,6 +304,10 @@
                 $originalTotal = $originalGross - ($totalPosDiscount ?? 0) + ($pos->delivery ?? 0) + $vatAmount - ($pos->exchange_amount ?? 0);
                 $returnAdjustment = $pos->invoice ? (($pos->total_amount ?? 0) - ($pos->invoice->total_amount ?? 0)) : 0;
             @endphp
+            <tr>
+                <td class="summary-label">Total Quantity</td>
+                <td class="summary-value">{{ (fmod($totalQuantity, 1) == 0) ? number_format($totalQuantity, 0) : number_format($totalQuantity, 2) }}</td>
+            </tr>
             <tr>
                 <td class="summary-label">Sub Total</td>
                 <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->sub_total ?? 0, 2) }}</td>

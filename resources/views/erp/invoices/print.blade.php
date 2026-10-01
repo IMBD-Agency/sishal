@@ -289,8 +289,10 @@
         @php
             $totalInvoiceDiscount = $invoice->discount_apply ?? 0;
             $pos = $invoice->pos;
+            $totalInvoiceQty = $invoice->items ? $invoice->items->whereNull('parent_item_id')->sum('quantity') : 0;
         @endphp
         <table class="summary-table">
+            <tr><td>TOTAL QUANTITY :</td><td>{{ (fmod($totalInvoiceQty, 1) == 0) ? number_format($totalInvoiceQty, 0) : number_format($totalInvoiceQty, 2) }}</td></tr>
             <tr><td>SUB TOTAL :</td><td>{{ number_format($invoice->subtotal ?? 0, 2) }} Tk</td></tr>
             @if($totalInvoiceDiscount > 0)
                 <tr><td>DIS. AMOUNT :</td><td>{{ number_format($totalInvoiceDiscount, 2) }} Tk</td></tr>
