@@ -19,7 +19,7 @@ class SeasonController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -33,7 +33,7 @@ class SeasonController extends Controller
 
     public function update(Request $request, Season $season)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -47,7 +47,7 @@ class SeasonController extends Controller
 
     public function destroy(Season $season)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('delete products')) {
             abort(403, 'Unauthorized action.');
         }
         $season->delete();

@@ -23,7 +23,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'create branches', 'category' => 'Branches'],
             ['name' => 'edit branches', 'category' => 'Branches'],
             ['name' => 'delete branches', 'category' => 'Branches'],
-            ['name' => 'manage branches', 'category' => 'Branches'],
 
             // Warehouses
             ['name' => 'view warehouses', 'category' => 'Warehouses'],
@@ -37,7 +36,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'create products', 'category' => 'Products'],
             ['name' => 'edit products', 'category' => 'Products'],
             ['name' => 'delete products', 'category' => 'Products'],
-            ['name' => 'manage products', 'category' => 'Products'],
 
 
 
@@ -56,14 +54,12 @@ class PermissionSeeder extends Seeder
             ['name' => 'create purchases', 'category' => 'Purchase'],
             ['name' => 'edit purchases', 'category' => 'Purchase'],
             ['name' => 'delete purchases', 'category' => 'Purchase'],
-            ['name' => 'manage purchases', 'category' => 'Purchase'],
 
             // Purchase Return
             ['name' => 'view purchase returns', 'category' => 'Purchase Return'],
             ['name' => 'create purchase returns', 'category' => 'Purchase Return'],
             ['name' => 'edit purchase returns', 'category' => 'Purchase Return'],
             ['name' => 'delete purchase returns', 'category' => 'Purchase Return'],
-            ['name' => 'manage purchase returns', 'category' => 'Purchase Return'],
 
             // Suppliers
             ['name' => 'view suppliers', 'category' => 'Suppliers'],

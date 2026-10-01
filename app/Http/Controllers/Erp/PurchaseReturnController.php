@@ -888,7 +888,7 @@ class PurchaseReturnController extends Controller
 
     public function updateReturnStatus(Request $request, $returnId)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('edit purchase returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([

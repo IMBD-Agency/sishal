@@ -76,7 +76,7 @@ class BarcodeController extends Controller
      */
     public function generateProductBarcode($productId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -105,7 +105,7 @@ class BarcodeController extends Controller
      */
     public function generateVariationBarcode($productId, $variationId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -145,7 +145,7 @@ class BarcodeController extends Controller
      */
     public function generateBulkBarcodes(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -183,7 +183,7 @@ class BarcodeController extends Controller
      */
     public function printBarcodeLabel($productId, $variationId = null)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -232,7 +232,7 @@ class BarcodeController extends Controller
      */
     public function downloadBarcodePDF($productId, $variationId = null)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -320,7 +320,7 @@ class BarcodeController extends Controller
      */
     public function generateComboBarcode($comboId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $combo = Product::where('type', 'combo')->findOrFail($comboId);
@@ -345,7 +345,7 @@ class BarcodeController extends Controller
      */
     public function printComboBarcodeLabel($comboId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $combo = Product::where('type', 'combo')->findOrFail($comboId);
@@ -369,7 +369,7 @@ class BarcodeController extends Controller
      */
     public function downloadComboBarcodePDF($comboId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('view products')) {
             abort(403, 'Unauthorized action.');
         }
         $combo = Product::where('type', 'combo')->findOrFail($comboId);

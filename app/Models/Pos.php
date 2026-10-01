@@ -67,4 +67,14 @@ class Pos extends Model
     {
         return $this->belongsTo(\App\Models\Pos::class, 'original_pos_id');
     }
+
+    public function exchanges()
+    {
+        return $this->hasMany(\App\Models\PosExchange::class, 'original_pos_id');
+    }
+
+    public function saleReturns()
+    {
+        return $this->hasMany(\App\Models\SaleReturn::class, 'pos_sale_id');
+    }
 }

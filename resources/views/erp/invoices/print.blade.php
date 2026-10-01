@@ -305,11 +305,26 @@
                 <tr><td>DELIVERY :</td><td>{{ number_format($pos->delivery, 2) }} Tk</td></tr>
             @endif
             
-            @if(optional($pos)->exchange_amount > 0)
-                <tr><td>EXCHANGE CREDIT :</td><td>{{ number_format($pos->exchange_amount, 2) }} Tk</td></tr>
+            @php
+                $posExchanges = $pos ? ($pos->exchanges ?? collect()) : collect();
+                $invExchReturn = $posExchanges->sum(function($ex) {
+                    return $ex->total_return_amount > 0 ? (float)$ex->total_return_amount : (float)$ex->returnedItems->sum('total_price');
+                });
+                $invExchNew = $posExchanges->sum(function($ex) {
+                    return $ex->total_new_amount > 0 ? (float)$ex->total_new_amount : (float)$ex->newItems->sum('total_price');
+                });
+                if ($invExchNew == 0 && optional($pos)->exchange_amount > 0) {
+                    $invExchNew = (float)$pos->exchange_amount;
+                }
+            @endphp
+            @if($invExchReturn > 0)
+                <tr><td>EXCHANGE RETURN :</td><td style="color: #d32f2f;">-{{ number_format($invExchReturn, 2) }} Tk</td></tr>
+            @endif
+            @if($invExchNew > 0)
+                <tr><td>EXCHANGE NEW ITEM :</td><td style="color: #28a745;">+{{ number_format($invExchNew, 2) }} Tk</td></tr>
             @endif
             @if(optional($pos)->refund_amount > 0)
-                <tr><td>REFUNDED :</td><td>{{ number_format($pos->refund_amount, 2) }} Tk</td></tr>
+                <tr><td>REFUNDED :</td><td style="color: #d32f2f;">-{{ number_format($pos->refund_amount, 2) }} Tk</td></tr>
             @endif
             <tr><td>NET BILL :</td><td>{{ number_format($invoice->total_amount ?? 0, 2) }} Tk</td></tr>
             <tr><td>ADVANCE :</td><td>{{ number_format($invoice->paid_amount ?? 0, 2) }} Tk</td></tr>

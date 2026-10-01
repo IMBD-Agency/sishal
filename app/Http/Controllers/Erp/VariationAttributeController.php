@@ -28,7 +28,7 @@ class VariationAttributeController extends Controller
      */
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         return view('erp.variation-attributes.create');
@@ -39,7 +39,7 @@ class VariationAttributeController extends Controller
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -108,7 +108,7 @@ class VariationAttributeController extends Controller
      */
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = VariationAttribute::with('values')->findOrFail($id);
@@ -120,7 +120,7 @@ class VariationAttributeController extends Controller
      */
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = VariationAttribute::findOrFail($id);
@@ -209,7 +209,7 @@ class VariationAttributeController extends Controller
      */
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('delete products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = VariationAttribute::with('values')->findOrFail($id);
@@ -238,7 +238,7 @@ class VariationAttributeController extends Controller
      */
     public function toggleStatus($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = VariationAttribute::findOrFail($id);

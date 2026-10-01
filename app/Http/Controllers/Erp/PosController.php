@@ -1419,7 +1419,7 @@ class PosController extends Controller
             ->get();
 
         // Load exchanges for this POS sale
-        $exchanges = \App\Models\PosExchange::with(['items.product', 'items.variation.attributeValues.attribute'])
+        $exchanges = \App\Models\PosExchange::with(['items.product', 'items.variation.attributeValues.attribute', 'returnedItems.product', 'newItems.product'])
             ->where('original_pos_id', $pos->id)
             ->get();
 

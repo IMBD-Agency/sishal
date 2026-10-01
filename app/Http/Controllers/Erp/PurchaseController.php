@@ -531,7 +531,7 @@ class PurchaseController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage purchases')) {
+        if (!auth()->user()->hasPermissionTo('create purchases')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();

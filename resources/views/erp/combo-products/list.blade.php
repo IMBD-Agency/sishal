@@ -159,7 +159,7 @@
                                                     <i class="fas fa-cog me-2"></i>Manage
                                                 </a>
                                             @endcan
-                                            @can('manage products')
+                                            @can('view products')
                                                 <a href="{{ route('barcodes.index') }}?combo_id={{ $combo->id }}"
                                                     class="btn btn-sm btn-outline-secondary me-1" title="Generate Barcode">
                                                     <i class="fas fa-barcode"></i>

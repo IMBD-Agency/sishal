@@ -172,7 +172,7 @@
                                 </a>
                             @endif
 
-                            @if(auth()->user()->hasPermissionTo('manage products'))
+                            @if(auth()->user()->hasPermissionTo('view products'))
                                 <a href="{{ route('barcodes.index', ['style_no' => optional($product)->sku ?? optional($product)->style_number ?? '']) }}" class="action-circle bg-light border-0" title="Generate Barcodes">
                                     <i class="fas fa-barcode text-info"></i>
                                 </a>

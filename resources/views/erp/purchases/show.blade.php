@@ -67,7 +67,7 @@
                         <button onclick="window.print()" class="btn btn-dark shadow-sm px-4 rounded-pill no-print">
                             <i class="fas fa-print me-2"></i>Print Invoice
                         </button>
-                        @can('edit purchase')
+                        @can('edit purchases')
                         <a href="{{ route('purchase.edit', $purchase->id) }}" class="btn btn-outline-primary px-4 rounded-pill">
                             <i class="fas fa-edit me-2"></i>Edit
                         </a>

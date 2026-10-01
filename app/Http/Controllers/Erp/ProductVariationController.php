@@ -197,7 +197,7 @@ class ProductVariationController extends Controller
      */
     public function create($productId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -213,7 +213,7 @@ class ProductVariationController extends Controller
      */
     public function store(Request $request, $productId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -769,7 +769,7 @@ class ProductVariationController extends Controller
      */
     public function edit($productId, $variationId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -787,7 +787,7 @@ class ProductVariationController extends Controller
      */
     public function update(Request $request, $productId, $variationId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $product = Product::findOrFail($productId);
@@ -1017,7 +1017,7 @@ class ProductVariationController extends Controller
      */
     public function destroy($productId, $variationId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('delete products')) {
             abort(403, 'Unauthorized action.');
         }
         $variation = ProductVariation::findOrFail($variationId);
@@ -1078,7 +1078,7 @@ class ProductVariationController extends Controller
      */
     public function toggleStatus($productId, $variationId)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $variation = ProductVariation::findOrFail($variationId);

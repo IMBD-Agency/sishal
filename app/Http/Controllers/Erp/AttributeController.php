@@ -19,7 +19,7 @@ class AttributeController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         return view('erp.attributes.create');
@@ -27,7 +27,7 @@ class AttributeController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('create products')) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -54,7 +54,7 @@ class AttributeController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = Attribute::findOrFail($id);
@@ -63,7 +63,7 @@ class AttributeController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('edit products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = Attribute::findOrFail($id);
@@ -85,7 +85,7 @@ class AttributeController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage products')) {
+        if (!auth()->user()->hasPermissionTo('delete products')) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = Attribute::findOrFail($id);

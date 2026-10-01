@@ -37,23 +37,17 @@ class WarehouseBranchTest extends TestCase
         $this->adminUser->save();
 
         // Create the required permissions
-        Permission::firstOrCreate(['name' => 'manage branches', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'create branches', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'edit branches', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'view branches', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'manage transfers', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'manage purchases', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'create purchases', 'guard_name' => 'web']);
 
         // Assign permission to admin user (check first to avoid duplicates)
-        if (!$this->adminUser->hasPermissionTo('manage branches')) {
-            $this->adminUser->givePermissionTo('manage branches');
-        }
-        if (!$this->adminUser->hasPermissionTo('manage transfers')) {
-            $this->adminUser->givePermissionTo('manage transfers');
-        }
-        if (!$this->adminUser->hasPermissionTo('manage purchases')) {
-            $this->adminUser->givePermissionTo('manage purchases');
-        }
-        if (!$this->adminUser->hasPermissionTo('create purchases')) {
-            $this->adminUser->givePermissionTo('create purchases');
+        foreach (['create branches', 'edit branches', 'view branches', 'manage transfers', 'create purchases'] as $perm) {
+            if (!$this->adminUser->hasPermissionTo($perm)) {
+                $this->adminUser->givePermissionTo($perm);
+            }
         }
     }
 

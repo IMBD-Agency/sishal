@@ -79,10 +79,12 @@
                                                         class="fas fa-trash fa-xs"></i></button>
                                             </form>
                                         @endcan
-                                        @can('manage products')
+                                        @can('edit products')
                                             <a href="{{ route('erp.products.variations.index', $product->id) }}"
                                                 class="btn btn-secondary btn-xs text-white" title="Variations"><i
                                                     class="fas fa-layer-group fa-xs"></i></a>
+                                        @endcan
+                                        @can('view products')
                                             <a href="{{ route('barcodes.index') }}?style_no={{ $product->style_number ?? $product->sku }}"
                                                 class="btn btn-warning btn-xs text-white" title="Barcode"><i
                                                     class="fas fa-barcode fa-xs"></i></a>

@@ -301,15 +301,34 @@
                 $originalGross = $pos->items->sum(fn($i) => $i->quantity * $i->unit_price);
                 // Use VAT from pos if available, otherwise from invoice tax (avoid double counting)
                 $vatAmount = $pos->vat_amount ?? $pos->invoice->tax ?? 0;
-                $originalTotal = $originalGross - ($totalPosDiscount ?? 0) + ($pos->delivery ?? 0) + $vatAmount - ($pos->exchange_amount ?? 0);
-                $returnAdjustment = $pos->invoice ? (($pos->total_amount ?? 0) - ($pos->invoice->total_amount ?? 0)) : 0;
+                
+                // Exchanges calculations
+                $allExchanges = (isset($exchanges) && $exchanges->count() > 0) ? $exchanges : ($pos->exchanges ?? collect());
+                $totalExchangeReturn = $allExchanges->sum(function($ex) {
+                    return $ex->total_return_amount > 0 ? (float)$ex->total_return_amount : (float)$ex->returnedItems->sum('total_price');
+                });
+                $totalExchangeNew = $allExchanges->sum(function($ex) {
+                    return $ex->total_new_amount > 0 ? (float)$ex->total_new_amount : (float)$ex->newItems->sum('total_price');
+                });
+                $hasExchanges = ($totalExchangeReturn > 0 || $totalExchangeNew > 0 || $allExchanges->count() > 0 || ($pos->exchange_amount ?? 0) > 0);
+                if ($hasExchanges && $totalExchangeNew == 0 && ($pos->exchange_amount ?? 0) > 0) {
+                    $totalExchangeNew = (float)$pos->exchange_amount;
+                }
+                $exchangeDiff = $totalExchangeNew - $totalExchangeReturn;
+
+                // Sale returns (non-exchange) calculations
+                $allSaleReturns = (isset($saleReturns) && $saleReturns->count() > 0) ? $saleReturns : ($pos->saleReturns ?? collect());
+                $nonExchangeReturns = $allSaleReturns->filter(fn($sr) => ($sr->refund_type ?? '') !== 'exchange');
+                $totalSaleReturnAmount = $nonExchangeReturns->sum(function($sr) {
+                    return $sr->items ? (float)$sr->items->sum('total_price') : 0;
+                });
             @endphp
             <tr>
                 <td class="summary-label">Total Quantity</td>
                 <td class="summary-value">{{ (fmod($totalQuantity, 1) == 0) ? number_format($totalQuantity, 0) : number_format($totalQuantity, 2) }}</td>
             </tr>
             <tr>
-                <td class="summary-label">Sub Total</td>
+                <td class="summary-label">{{ $hasExchanges ? 'Sub Total (Original Sale)' : 'Sub Total' }}</td>
                 <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->sub_total ?? 0, 2) }}</td>
             </tr>
 
@@ -347,27 +366,38 @@
             </tr>
             @endif
 
-            @if(($pos->exchange_amount ?? 0) > 0)
-            <tr>
-                <td class="summary-label">Exchange Credit</td>
-                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($pos->exchange_amount, 2) }}</td>
-            </tr>
+            @if($hasExchanges)
+                @if($totalExchangeReturn > 0)
+                <tr>
+                    <td class="summary-label">Less: Exchanged Item Return</td>
+                    <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalExchangeReturn, 2) }}</td>
+                </tr>
+                @endif
+                @if($totalExchangeNew > 0)
+                <tr>
+                    <td class="summary-label">Add: New Exchanged Item</td>
+                    <td class="summary-value" style="color: #2e7d32;">+<span class="currency-symbol">৳</span>{{ number_format($totalExchangeNew, 2) }}</td>
+                </tr>
+                @endif
+                @if($exchangeDiff != 0)
+                <tr style="border-top: 1px dotted #bbb;">
+                    <td class="summary-label bold">{{ $exchangeDiff > 0 ? 'Exchange Balance / Due' : 'Exchange Refund' }}</td>
+                    <td class="summary-value bold" style="color: {{ $exchangeDiff > 0 ? '#2e7d32' : '#d32f2f' }};">
+                        {{ $exchangeDiff > 0 ? '+' : '-' }}<span class="currency-symbol">৳</span>{{ number_format(abs($exchangeDiff), 2) }}
+                    </td>
+                </tr>
+                @endif
             @endif
 
-            <tr class="total-row">
-                <td class="summary-label bold" style="font-size: 10pt;">Original Total</td>
-                <td class="summary-value bold" style="font-size: 11pt;"><span class="currency-symbol">৳</span>{{ number_format($originalTotal, 2) }}</td>
-            </tr>
-
-            @if($returnAdjustment > 0)
+            @if($totalSaleReturnAmount > 0)
             <tr>
                 <td class="summary-label">Less Return</td>
-                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($returnAdjustment, 2) }}</td>
+                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalSaleReturnAmount, 2) }}</td>
             </tr>
             @endif
 
             <tr class="total-row">
-                <td class="summary-label bold" style="font-size: 10pt;">NET PAYABLE</td>
+                <td class="summary-label bold" style="font-size: 10pt;">FINAL NET PAYABLE</td>
                 <td class="summary-value bold" style="font-size: 12pt;"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->total_amount ?? $pos->total_amount, 2) }}</td>
             </tr>
             <tr style="border-top: 1px solid #eee;">
