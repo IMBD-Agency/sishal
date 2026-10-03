@@ -159,7 +159,7 @@
                                 <label class="terminal-section-title d-block mb-1">Shipping</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-shipping-fast"></i></span>
-                                    <input type="number" class="form-control border-start-0 text-end fw-bold" id="deliveryInput" name="delivery" value="{{ $pos->delivery }}">
+                                    <input type="number" step="any" class="form-control border-start-0 text-end fw-bold" id="deliveryInput" name="delivery" value="{{ $pos->delivery }}">
                                 </div>
                             </div>
                         </div>
@@ -215,7 +215,7 @@
                                  <label class="terminal-section-title h-auto m-0">Paid (৳)</label>
                                  <button class="btn btn-link btn-sm p-0 text-success text-decoration-none extra-small fw-bold" type="button" onclick="setExactAmount()">EXACT</button>
                              </div>
-                             <input type="number" class="form-control form-control-sm text-end fw-bold" id="paidAmountInput" name="paid_amount" value="{{ $pos->invoice->paid_amount ?? 0 }}">
+                             <input type="number" step="any" class="form-control form-control-sm text-end fw-bold" id="paidAmountInput" name="paid_amount" value="{{ $pos->invoice->paid_amount ?? 0 }}">
                              <div class="d-flex justify-content-between border-top pt-1 mt-1" id="changeRow">
                                 <span class="terminal-section-title m-0" id="changeLabel" style="font-size: 0.7rem;">Due Amount</span>
                                 <span class="fw-bold text-danger" id="changeDisplay" style="font-size: 0.9rem;">0.00</span>
@@ -482,7 +482,7 @@ $(document).ready(function() {
         let del = parseFloat($('#deliveryInput').val()) || 0;
         let vatRate = parseFloat($('#vatInput').val()) || 0;
         let vatAmount = (sub - disc) * (vatRate / 100);
-        let final = Math.round((sub + del + vatAmount) - disc);
+        let final = (sub + del + vatAmount) - disc;
 
         $('#subtotalDisplay').text(sub.toFixed(2) + '৳');
         $('#discountRow').toggle(disc > 0);
@@ -498,16 +498,16 @@ $(document).ready(function() {
             $('#hiddenVatAmount').val(0);
         }
 
-        $('#finalTotalDisplay').text(final);
+        $('#finalTotalDisplay').text(final.toFixed(2));
         $('#cartCount').text(cart.length + ' Items');
 
         // Due / Change calculation
-        let paid = Math.round(parseFloat($('#paidAmountInput').val()) || 0);
+        let paid = parseFloat($('#paidAmountInput').val()) || 0;
         let change = paid - final;
         
-        if(change >= 0) {
+        if(change >= -0.0001) {
             $('#changeLabel').text('Change').removeClass('text-danger').addClass('text-success');
-            $('#changeDisplay').text(change.toFixed(2) + '৳').removeClass('text-danger').addClass('text-success');
+            $('#changeDisplay').text(Math.max(0, change).toFixed(2) + '৳').removeClass('text-danger').addClass('text-success');
         } else {
             $('#changeLabel').text('Due Amount').addClass('text-danger');
             $('#changeDisplay').text('Due: ' + Math.abs(change).toFixed(2) + '৳').removeClass('text-success').addClass('text-danger');
