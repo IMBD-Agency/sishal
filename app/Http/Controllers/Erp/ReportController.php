@@ -566,6 +566,9 @@ class ReportController extends Controller
         $totalGrossPayments = 0;
         $totalReturnRefunds = 0;
         $totalExchangeRefunds = 0;
+        $totalDeliveryCollected = 0;
+        $totalVatCollected = 0;
+        $totalProductCollected = 0;
         $saleReturnCashRefund = 0;
         $exchangeProfitChange = 0;
         $saleReturnDetails = collect();
@@ -593,22 +596,46 @@ class ReportController extends Controller
             $currentPayments = (clone $paymentsQuery)->whereBetween('payment_date', [$startDate, $endDate])->sum('amount');
 
             if ($type === 'pos') {
+                $model = $model->fresh() ?? $model;
+                $vatRate = ($model->vat_rate > 0) ? ($model->vat_rate / 100) : ((($model->sub_total - $model->discount) > 0) ? ($model->vat_amount / ($model->sub_total - $model->discount)) : 0);
                 $returnsQuery = \App\Models\SaleReturn::where('pos_sale_id', $model->id);
             } elseif ($type === 'order') {
+                $model = $model->fresh() ?? $model;
+                $vatRate = 0;
                 $returnsQuery = \App\Models\OrderReturn::where('order_id', $model->id);
             } else {
+                $model = $model->fresh() ?? $model;
+                $sub = floatval($model->subtotal ?? $model->total_amount ?? 0);
+                $vatRate = ($sub > 0 && ($model->tax ?? 0) > 0) ? (floatval($model->tax) / $sub) : 0;
                 $returnsQuery = \App\Models\SaleReturn::where('invoice_id', $model->invoice_id ?? $model->id);
             }
 
+            $calcRefundAmount = function($retList) use ($vatRate) {
+                return $retList->sum(function($r) use ($vatRate) {
+                    if (!in_array($r->refund_type, ['cash', 'bank', 'mobile'])) {
+                        return 0;
+                    }
+                    $baseAmt = $r->items->sum('total_price');
+                    $retVat = round($baseAmt * $vatRate, 2);
+                    return $baseAmt + $retVat;
+                });
+            };
+
             $priorReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->where('return_date', '<', $startDate)->get();
-            $priorRefunds = $priorReturns->sum(function($r) {
-                return in_array($r->refund_type, ['cash', 'bank', 'mobile']) ? $r->items->sum('total_price') : 0;
-            });
+            $priorRefunds = $calcRefundAmount($priorReturns);
 
             $currentReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->whereBetween('return_date', [$startDate, $endDate])->get();
-            $currentRefunds = $currentReturns->sum(function($r) {
-                return in_array($r->refund_type, ['cash', 'bank', 'mobile']) ? $r->items->sum('total_price') : 0;
-            });
+            $currentRefunds = $calcRefundAmount($currentReturns);
+
+            // Calculate regular return VAT to adjust VAT liability (since exchange already updates pos.vat_amount)
+            $allCompletedReturns = (clone $returnsQuery)->whereIn('status', ['completed', 'approved', 'processed'])->get();
+            $regularReturnVatTotal = 0;
+            foreach ($allCompletedReturns as $ret) {
+                if (($ret->refund_type ?? 'none') !== 'exchange') {
+                    $baseAmt = $ret->items->sum('total_price');
+                    $regularReturnVatTotal += round($baseAmt * $vatRate, 2);
+                }
+            }
 
             $priorExchangeRefunds = 0;
             $currentExchangeRefunds = 0;
@@ -629,9 +656,13 @@ class ReportController extends Controller
             $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
 
             $deliveryAmount = floatval($type === 'pos' ? ($model->delivery ?? 0) : (($model->order ?? null) ? $model->order->delivery : 0));
+            $rawVatAmount = floatval($type === 'pos' ? ($model->vat_amount ?? 0) : (($model->invoice ?? null) ? ($model->invoice->tax ?? 0) : 0));
+            $vatAmount = max(0, $rawVatAmount - $regularReturnVatTotal);
+            $nonProductAmount = $deliveryAmount + $vatAmount;
+
             $cumulativeNetCashEnd = $priorNetCash + $netCollectionForTx;
-            $cumulativeProductCashEnd = max(0, $cumulativeNetCashEnd - $deliveryAmount);
-            $cumulativeProductCashStart = max(0, $priorNetCash - $deliveryAmount);
+            $cumulativeProductCashEnd = max(0, $cumulativeNetCashEnd - $nonProductAmount);
+            $cumulativeProductCashStart = max(0, $priorNetCash - $nonProductAmount);
             
             $currentNetProductCollection = $cumulativeProductCashEnd - $cumulativeProductCashStart;
             
@@ -643,6 +674,9 @@ class ReportController extends Controller
             $totalGrossPayments += $currentPayments;
             $totalReturnRefunds += $currentRefunds;
             $totalExchangeRefunds += $currentExchangeRefunds;
+            $totalDeliveryCollected += min($deliveryAmount, max(0, $netCollectionForTx));
+            $totalVatCollected += min($vatAmount, max(0, $netCollectionForTx - $deliveryAmount));
+            $totalProductCollected += $currentNetProductCollection;
 
             $totalCollected += $netCollectionForTx;
             $totalCashProfit += $txCashProfit;
@@ -654,22 +688,24 @@ class ReportController extends Controller
                 'sale_amount' => $currentInfo['sale_amount'],
                 'invoice_profit' => $currentInfo['revenue'] - $currentInfo['cost'],
                 'profit_margin' => $currentInfo['margin'] * 100,
-                'estimated_cost' => $netCollectionForTx - $txCashProfit,
+                'estimated_cost' => max(0, $currentNetProductCollection - $txCashProfit),
                 'cash_profit' => $txCashProfit
             ]);
 
             foreach ($currentReturns as $ret) {
+                $baseRetAmt = $ret->items->sum('total_price');
+                $retVat = round($baseRetAmt * $vatRate, 2);
                 $saleReturnDetails->push((object)[
                     'date'         => $ret->return_date,
                     'reference'    => $reference,
                     'refund_type'  => $ret->refund_type ?? 'none',
-                    'return_amount'=> $ret->items->sum('total_price'),
+                    'return_amount'=> in_array($ret->refund_type, ['cash', 'bank', 'mobile']) ? ($baseRetAmt + $retVat) : $baseRetAmt,
                 ]);
             }
         }
 
         $cashProfits = $cashProfits->sortByDesc('date');
-        $totalEstimatedCost = $totalCollected - $totalCashProfit;
+        $totalEstimatedCost = max(0, $totalProductCollected - $totalCashProfit);
         $exchangeProfitChange = 0;
         $saleReturnCashRefund = 0;
 
@@ -794,6 +830,7 @@ class ReportController extends Controller
             'totalOperatingExpenses', 'debitVoucherDetails', 'employeePayment',
             'saleReturnCashRefund', 'saleReturnDetails', 'netCashProfit', 'exchangeProfitChange',
             'totalGrossPayments', 'totalReturnRefunds', 'totalExchangeRefunds',
+            'totalDeliveryCollected', 'totalVatCollected', 'totalProductCollected',
             'totalExchangeCount', 'totalExchangeReturnVal', 'totalExchangeNewVal',
             'cashCollection', 'bankCollection', 'mobileCollection'
         ));
@@ -803,7 +840,7 @@ class ReportController extends Controller
     {
         $operator = $isBefore ? '<' : '<=';
         
-        // 1. Get returns
+        // 1. Get returns for this model
         if ($type === 'pos') {
             $returnsQuery = \App\Models\SaleReturn::where('pos_sale_id', $model->id);
         } elseif ($type === 'order') {
@@ -813,14 +850,79 @@ class ReportController extends Controller
         }
         $returns = $returnsQuery->whereIn('status', ['completed', 'approved', 'processed'])
             ->where('return_date', $operator, $dateLimit)
+            ->with('items')
             ->get();
             
-        $returnedAmount = $returns->sum(function($r) {
-            return $r->items->sum('total_price');
-        });
+        // Map of returned quantities per sale_item_id
+        $returnedQtyMap = [];
+        foreach ($returns as $ret) {
+            foreach ($ret->items as $rItem) {
+                $itemId = $rItem->sale_item_id ?? $rItem->order_item_id ?? $rItem->id;
+                $returnedQtyMap[$itemId] = ($returnedQtyMap[$itemId] ?? 0) + $rItem->returned_qty;
+            }
+        }
         
-        // 2. Get exchanges (only for POS)
-        $exchangeNewAmount = 0;
+        // 2. Active original items revenue and cost
+        $activeOriginalRevenue = 0;
+        $activeOriginalCost = 0;
+        
+        if ($type === 'pos') {
+            $items = \App\Models\PosItem::where('pos_sale_id', $model->id)
+                ->whereNull('parent_item_id')
+                ->with(['product', 'variation'])
+                ->get();
+            foreach ($items as $item) {
+                $retQty = $returnedQtyMap[$item->id] ?? 0;
+                $actQty = max(0, $item->quantity - $retQty);
+                
+                $netUnitPrice = $item->quantity > 0 ? ($item->total_price / $item->quantity) : 0;
+                $activeOriginalRevenue += $actQty * $netUnitPrice;
+                
+                $unitCost = (float) ($item->unit_cost ?? 0);
+                if ($item->product && ($unitCost <= 0 || $item->product->isCombo())) {
+                    $unitCost = $item->product->calculateCost($item->variation_id);
+                }
+                $activeOriginalCost += $actQty * $unitCost;
+            }
+        } elseif ($type === 'order') {
+            $items = \App\Models\OrderItem::where('order_id', $model->id)
+                ->whereNull('parent_item_id')
+                ->with(['product', 'variation'])
+                ->get();
+            foreach ($items as $item) {
+                $retQty = $returnedQtyMap[$item->id] ?? 0;
+                $actQty = max(0, $item->quantity - $retQty);
+                
+                $netUnitPrice = $item->quantity > 0 ? ($item->total_price / $item->quantity) : 0;
+                $activeOriginalRevenue += $actQty * $netUnitPrice;
+                
+                $unitCost = (float) ($item->unit_cost ?? 0);
+                if ($item->product && ($unitCost <= 0 || $item->product->isCombo())) {
+                    $unitCost = $item->product->calculateCost($item->variation_id);
+                }
+                $activeOriginalCost += $actQty * $unitCost;
+            }
+        } elseif ($type === 'invoice') {
+            $items = \App\Models\InvoiceItem::where('invoice_id', $model->id)
+                ->with(['product', 'variation'])
+                ->get();
+            foreach ($items as $item) {
+                $retQty = $returnedQtyMap[$item->id] ?? 0;
+                $actQty = max(0, $item->quantity - $retQty);
+                
+                $netUnitPrice = $item->quantity > 0 ? ($item->total_price / $item->quantity) : 0;
+                $activeOriginalRevenue += $actQty * $netUnitPrice;
+                
+                $unitCost = 0;
+                if ($item->product) {
+                    $unitCost = $item->product->calculateCost($item->variation_id);
+                }
+                $activeOriginalCost += $actQty * $unitCost;
+            }
+        }
+        
+        // 3. Exchange new items (revenue and cost)
+        $exchangeNewRevenue = 0;
         $exchangeNewCost = 0;
         if ($type === 'pos') {
             $exchanges = \App\Models\PosExchange::with(['items.product', 'items.variation'])
@@ -829,11 +931,10 @@ class ReportController extends Controller
                 ->where('exchange_date', $operator, $dateLimit)
                 ->get();
                 
-            $exchangeNewAmount = $exchanges->sum('total_new_amount');
-            
             foreach ($exchanges as $exchange) {
                 foreach ($exchange->items as $item) {
                     if ($item->type == 'new') {
+                        $exchangeNewRevenue += floatval($item->total_price);
                         $cost = $item->product ? $item->product->calculateCost($item->variation_id) : 0;
                         $exchangeNewCost += $item->quantity * $cost;
                     }
@@ -841,77 +942,15 @@ class ReportController extends Controller
             }
         }
         
-        // 3. Active Sale Amount
-        $originalSaleAmount = floatval($type === 'pos' ? $model->total_amount : ($model->total_amount ?? 0));
-        $activeSaleAmount = max(0, $originalSaleAmount - $returnedAmount + $exchangeNewAmount);
+        // Total active product revenue and cost
+        $activeProductRevenue = $activeOriginalRevenue + $exchangeNewRevenue;
+        $costAmount = $activeOriginalCost + $exchangeNewCost;
         
-        // 4. Delivery
         $delivery = floatval($type === 'pos' ? ($model->delivery ?? 0) : (($model->order ?? null) ? $model->order->delivery : 0));
-        $activeProductRevenue = max(0, $activeSaleAmount - $delivery);
+        $vatAmount = floatval($type === 'pos' ? ($model->vat_amount ?? 0) : (($model->invoice ?? null) ? ($model->invoice->tax ?? 0) : 0));
+        $activeSaleAmount = $activeProductRevenue + $delivery + $vatAmount;
         
-        // 5. Cost (filter parent items only to prevent double counting combo child items)
-        $originalCost = 0;
-        if ($type === 'pos') {
-            $items = \App\Models\PosItem::where('pos_sale_id', $model->id)
-                ->whereNull('parent_item_id')
-                ->with(['product', 'variation'])
-                ->get();
-            foreach ($items as $item) {
-                $unitCost = (float) ($item->unit_cost ?? 0);
-                if ($item->product && ($unitCost <= 0 || $item->product->isCombo())) {
-                    $unitCost = $item->product->calculateCost($item->variation_id);
-                }
-                $originalCost += $item->quantity * $unitCost;
-            }
-        } elseif ($type === 'order') {
-            $items = \App\Models\OrderItem::where('order_id', $model->id)
-                ->whereNull('parent_item_id')
-                ->with(['product', 'variation'])
-                ->get();
-            foreach ($items as $item) {
-                $unitCost = (float) ($item->unit_cost ?? 0);
-                if ($item->product && ($unitCost <= 0 || $item->product->isCombo())) {
-                    $unitCost = $item->product->calculateCost($item->variation_id);
-                }
-                $originalCost += $item->quantity * $unitCost;
-            }
-        } elseif ($type === 'invoice') {
-            $items = \App\Models\InvoiceItem::where('invoice_id', $model->id)
-                ->with(['product', 'variation'])
-                ->get();
-            foreach ($items as $item) {
-                $unitCost = 0;
-                if ($item->product) {
-                    $unitCost = $item->product->calculateCost($item->variation_id);
-                }
-                $originalCost += $item->quantity * $unitCost;
-            }
-        }
-        
-        $returnedCost = 0;
-        if ($returns->isNotEmpty()) {
-            if ($type === 'order') {
-                $returnItems = \App\Models\OrderReturnItem::whereIn('order_return_id', $returns->pluck('id'))
-                    ->with(['product', 'variation'])
-                    ->get();
-                foreach ($returnItems as $rItem) {
-                    $unitCost = $rItem->product ? $rItem->product->calculateCost($rItem->variation_id) : 0;
-                    $returnedCost += $rItem->returned_qty * $unitCost;
-                }
-            } else {
-                $returnItems = \App\Models\SaleReturnItem::whereIn('sale_return_id', $returns->pluck('id'))
-                    ->with(['product', 'variation'])
-                    ->get();
-                foreach ($returnItems as $rItem) {
-                    $unitCost = $rItem->product ? $rItem->product->calculateCost($rItem->variation_id) : 0;
-                    $returnedCost += $rItem->returned_qty * $unitCost;
-                }
-            }
-        }
-        
-        $costAmount = max(0, $originalCost - $returnedCost + $exchangeNewCost);
-        
-        $invoiceProfit = $activeProductRevenue - $costAmount;
+        $invoiceProfit = max(0, $activeProductRevenue - $costAmount);
         $profitMargin = $activeProductRevenue > 0 ? ($invoiceProfit / $activeProductRevenue) : 0;
         
         return [

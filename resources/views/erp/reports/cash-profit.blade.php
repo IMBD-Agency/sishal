@@ -241,8 +241,20 @@
                                             </tr>
                                             @endif
                                             @endif
+                                            @if(($totalVatCollected ?? 0) > 0)
+                                            <tr>
+                                                <td class="ps-4 py-1 text-secondary small">↳ Less: VAT Collected (Liability)</td>
+                                                <td class="pe-3 py-1 text-end text-muted small">- Tk. {{ number_format($totalVatCollected, 2) }}</td>
+                                            </tr>
+                                            @endif
+                                            @if(($totalDeliveryCollected ?? 0) > 0)
+                                            <tr>
+                                                <td class="ps-4 py-1 text-secondary small">↳ Less: Delivery Charge Collected</td>
+                                                <td class="pe-3 py-1 text-end text-muted small">- Tk. {{ number_format($totalDeliveryCollected, 2) }}</td>
+                                            </tr>
+                                            @endif
                                              <tr>
-                                                 <td class="ps-3 py-2 text-secondary">↳ Less: Estimated Cost Portion</td>
+                                                 <td class="ps-3 py-2 text-secondary">↳ Less: Product Cost (COGS)</td>
                                                  <td class="pe-3 py-2 text-end text-warning">— Tk. {{ number_format($totalEstimatedCost, 2) }}</td>
                                              </tr>
                                             <tr>

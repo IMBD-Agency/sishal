@@ -276,6 +276,12 @@
             <td class="summary-value">{{ number_format($exchange->discount_amount, 2) }}</td>
         </tr>
         @endif
+        @if($exchange->vat_amount > 0)
+        <tr>
+            <td class="summary-label">VAT (+)</td>
+            <td class="summary-value">{{ number_format($exchange->vat_amount, 2) }}</td>
+        </tr>
+        @endif
         @if($exchange->delivery_charge > 0)
         <tr>
             <td class="summary-label">Delivery (+)</td>

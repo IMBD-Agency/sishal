@@ -26,7 +26,7 @@ class SuperAdminDashboardController extends Controller
         
         foreach ($branches as $bId) {
             foreach ($ranges as $r) {
-                Cache::forget("super_admin_dash_v29_{$bId}_{$r}");
+                Cache::forget("super_admin_dash_v30_{$bId}_{$r}");
             }
         }
     }
@@ -72,7 +72,7 @@ class SuperAdminDashboardController extends Controller
      */
     private function fetchDashboardData($selectedBranchId, $dateRange, $branches)
     {
-        $cacheKey = "super_admin_dash_v29_{$selectedBranchId}_{$dateRange}";
+        $cacheKey = "super_admin_dash_v30_{$selectedBranchId}_{$dateRange}";
 
         return Cache::remember($cacheKey, 180, function () use ($selectedBranchId, $dateRange, $branches) {
             $monthsWindow = $this->getMonthsArrayForRange($dateRange);
@@ -171,15 +171,16 @@ class SuperAdminDashboardController extends Controller
             $activeBranches = $branches->where('id', (int)$selectedBranchId);
         }
 
-        // 1. Today Net POS Sales Amount (from Invoices - Single Source of Truth matching Sale List)
-        $todayPosAggregates = DB::table('pos')
-            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+        // 1. Today Net POS Sales Amount & Qty (Pure Product Revenue: Gross Items + Exchange Items - Return Items)
+        $todayPosAggregates = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->whereDate('pos.sale_date', $today)
             ->where('pos.status', '!=', 'cancelled')
+            ->whereNull('pos_items.parent_item_id')
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('pos.branch_id, COALESCE(SUM(invoices.total_amount), 0) as today_amount')
+            ->selectRaw('pos.branch_id, COALESCE(SUM(pos_items.total_price), 0) as today_amount')
             ->groupBy('pos.branch_id')
             ->pluck('today_amount', 'pos.branch_id');
 
@@ -202,7 +203,7 @@ class SuperAdminDashboardController extends Controller
             ->groupBy('pos.branch_id')
             ->pluck('today_qty', 'pos.branch_id');
 
-        // 1c. Today POS Exchanges (New Items Added)
+        // 1c. Today POS Exchanges (New Items Added: Qty & Amount)
         $todayExchangeAggregates = DB::table('pos_exchange_items')
             ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
             ->whereDate('pos_exchanges.exchange_date', $today)
@@ -211,11 +212,12 @@ class SuperAdminDashboardController extends Controller
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos_exchanges.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('pos_exchanges.branch_id, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty')
+            ->selectRaw('pos_exchanges.branch_id, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_amount')
             ->groupBy('pos_exchanges.branch_id')
-            ->pluck('exch_qty', 'pos_exchanges.branch_id');
+            ->get()
+            ->keyBy('branch_id');
 
-        // 1d. Today Sale Returns
+        // 1d. Today Sale Returns (Qty & Amount)
         $todayReturnAggregates = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
@@ -232,20 +234,22 @@ class SuperAdminDashboardController extends Controller
                     })->orWhere('sale_returns.return_to_id', (int)$selectedBranchId);
                 });
             })
-            ->selectRaw('COALESCE(CASE WHEN sale_returns.return_to_type = "branch" THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id) as branch_id, COALESCE(SUM(sale_return_items.returned_qty), 0) as ret_qty')
+            ->selectRaw('COALESCE(CASE WHEN sale_returns.return_to_type = "branch" THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id) as branch_id, COALESCE(SUM(sale_return_items.returned_qty), 0) as ret_qty, COALESCE(SUM(sale_return_items.total_price), 0) as ret_amount')
             ->groupBy(DB::raw('COALESCE(CASE WHEN sale_returns.return_to_type = "branch" THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id)'))
-            ->pluck('ret_qty', 'branch_id');
+            ->get()
+            ->keyBy('branch_id');
 
-        // 2. Period Net POS Sales Amount (from Invoices matching Sale List)
-        $periodPosAggregates = DB::table('pos')
-            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+        // 2. Period Net POS Sales Amount (Pure Product Revenue: Gross Items + Exchange Items - Return Items)
+        $periodPosAggregates = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.sale_date', '>=', $startBound)
             ->where('pos.sale_date', '<=', $endBound)
             ->where('pos.status', '!=', 'cancelled')
+            ->whereNull('pos_items.parent_item_id')
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('pos.branch_id, COALESCE(SUM(invoices.total_amount), 0) as month_amount')
+            ->selectRaw('pos.branch_id, COALESCE(SUM(pos_items.total_price), 0) as month_amount')
             ->groupBy('pos.branch_id')
             ->pluck('month_amount', 'pos.branch_id');
 
@@ -269,7 +273,7 @@ class SuperAdminDashboardController extends Controller
             ->groupBy('pos.branch_id')
             ->pluck('month_qty', 'pos.branch_id');
 
-        // 2c. Period POS Exchanges (New Items Added)
+        // 2c. Period POS Exchanges (New Items Added: Qty & Amount)
         $periodExchangeAggregates = DB::table('pos_exchange_items')
             ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
             ->where('pos_exchanges.exchange_date', '>=', $startBound)
@@ -279,11 +283,12 @@ class SuperAdminDashboardController extends Controller
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos_exchanges.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('pos_exchanges.branch_id, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty')
+            ->selectRaw('pos_exchanges.branch_id, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_amount')
             ->groupBy('pos_exchanges.branch_id')
-            ->pluck('exch_qty', 'pos_exchanges.branch_id');
+            ->get()
+            ->keyBy('branch_id');
 
-        // 2d. Period Sale Returns
+        // 2d. Period Sale Returns (Qty & Amount)
         $periodReturnAggregates = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
@@ -301,9 +306,10 @@ class SuperAdminDashboardController extends Controller
                     })->orWhere('sale_returns.return_to_id', (int)$selectedBranchId);
                 });
             })
-            ->selectRaw('COALESCE(CASE WHEN sale_returns.return_to_type = "branch" THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id) as branch_id, COALESCE(SUM(sale_return_items.returned_qty), 0) as ret_qty')
+            ->selectRaw('COALESCE(CASE WHEN sale_returns.return_to_type = "branch" THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id) as branch_id, COALESCE(SUM(sale_return_items.returned_qty), 0) as ret_qty, COALESCE(SUM(sale_return_items.total_price), 0) as ret_amount')
             ->groupBy(DB::raw('COALESCE(CASE WHEN sale_returns.return_to_type = "branch" THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id)'))
-            ->pluck('ret_qty', 'branch_id');
+            ->get()
+            ->keyBy('branch_id');
 
         $result = [];
         $totalTodayQty = 0;
@@ -312,17 +318,33 @@ class SuperAdminDashboardController extends Controller
         $totalMonthAmount = 0;
 
         foreach ($activeBranches as $b) {
-            $todayAmount = (float) ($todayPosAggregates->get($b->id) ?? 0);
+            $todayGrossAmount = (float) ($todayPosAggregates->get($b->id) ?? 0);
             $grossTodayQty = (float) ($todayPosQtyAggregates->get($b->id) ?? 0);
-            $todayExchQty = (float) ($todayExchangeAggregates->get($b->id) ?? 0);
-            $todayRetQty = (float) ($todayReturnAggregates->get($b->id) ?? 0);
-            $todayQty = max(0, ($grossTodayQty + $todayExchQty) - $todayRetQty);
+            
+            $todayExch = $todayExchangeAggregates->get($b->id);
+            $todayExchQty = (float) ($todayExch->exch_qty ?? 0);
+            $todayExchAmt = (float) ($todayExch->exch_amount ?? 0);
+            
+            $todayRet = $todayReturnAggregates->get($b->id);
+            $todayRetQty = (float) ($todayRet->ret_qty ?? 0);
+            $todayRetAmt = (float) ($todayRet->ret_amount ?? 0);
 
-            $monthAmount = (float) ($periodPosAggregates->get($b->id) ?? 0);
+            $todayQty = max(0, ($grossTodayQty + $todayExchQty) - $todayRetQty);
+            $todayAmount = max(0, ($todayGrossAmount + $todayExchAmt) - $todayRetAmt);
+
+            $periodGrossAmount = (float) ($periodPosAggregates->get($b->id) ?? 0);
             $grossMonthQty = (float) ($periodPosQtyAggregates->get($b->id) ?? 0);
-            $periodExchQty = (float) ($periodExchangeAggregates->get($b->id) ?? 0);
-            $periodRetQty = (float) ($periodReturnAggregates->get($b->id) ?? 0);
+            
+            $periodExch = $periodExchangeAggregates->get($b->id);
+            $periodExchQty = (float) ($periodExch->exch_qty ?? 0);
+            $periodExchAmt = (float) ($periodExch->exch_amount ?? 0);
+
+            $periodRet = $periodReturnAggregates->get($b->id);
+            $periodRetQty = (float) ($periodRet->ret_qty ?? 0);
+            $periodRetAmt = (float) ($periodRet->ret_amount ?? 0);
+
             $monthQty = max(0, ($grossMonthQty + $periodExchQty) - $periodRetQty);
+            $monthAmount = max(0, ($periodGrossAmount + $periodExchAmt) - $periodRetAmt);
 
             $totalTodayQty += $todayQty;
             $totalTodayAmount += $todayAmount;
@@ -358,16 +380,17 @@ class SuperAdminDashboardController extends Controller
         $startDate = Carbon::now()->subDays(5)->startOfDay()->format('Y-m-d H:i:s');
         $endDate = Carbon::now()->endOfDay()->format('Y-m-d H:i:s');
 
-        // Daily Net POS sales amount from Invoices
-        $dailyPosAmount = DB::table('pos')
-            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+        // Daily Net POS item sales amount (Gross Items + Exchanges - Returns)
+        $dailyPosAmount = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.sale_date', '>=', $startDate)
             ->where('pos.sale_date', '<=', $endDate)
             ->where('pos.status', '!=', 'cancelled')
+            ->whereNull('pos_items.parent_item_id')
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('DATE(pos.sale_date) as sale_day, COALESCE(SUM(invoices.total_amount), 0) as total_amount')
+            ->selectRaw('DATE(pos.sale_date) as sale_day, COALESCE(SUM(pos_items.total_price), 0) as total_amount')
             ->groupBy(DB::raw('DATE(pos.sale_date)'))
             ->pluck('total_amount', 'sale_day');
 
@@ -391,7 +414,7 @@ class SuperAdminDashboardController extends Controller
             ->groupBy(DB::raw('DATE(pos.sale_date)'))
             ->pluck('total_qty', 'sale_day');
 
-        // Daily POS Exchanges (New Items)
+        // Daily POS Exchanges (New Items: Qty & Amount)
         $dailyExchanges = DB::table('pos_exchange_items')
             ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
             ->where('pos_exchanges.exchange_date', '>=', $startDate)
@@ -401,11 +424,12 @@ class SuperAdminDashboardController extends Controller
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos_exchanges.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('DATE(pos_exchanges.exchange_date) as exch_day, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty')
+            ->selectRaw('DATE(pos_exchanges.exchange_date) as exch_day, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_amount')
             ->groupBy(DB::raw('DATE(pos_exchanges.exchange_date)'))
-            ->pluck('exch_qty', 'exch_day');
+            ->get()
+            ->keyBy('exch_day');
 
-        // Daily sale returns
+        // Daily sale returns (Qty & Amount)
         $dailyReturns = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
@@ -423,9 +447,10 @@ class SuperAdminDashboardController extends Controller
                     })->orWhere('sale_returns.return_to_id', (int)$selectedBranchId);
                 });
             })
-            ->selectRaw('DATE(sale_returns.return_date) as return_day, COALESCE(SUM(sale_return_items.returned_qty), 0) as ret_qty')
+            ->selectRaw('DATE(sale_returns.return_date) as return_day, COALESCE(SUM(sale_return_items.returned_qty), 0) as ret_qty, COALESCE(SUM(sale_return_items.total_price), 0) as ret_amount')
             ->groupBy(DB::raw('DATE(sale_returns.return_date)'))
-            ->pluck('ret_qty', 'return_day');
+            ->get()
+            ->keyBy('return_day');
 
         $labels = [];
         $amounts = [];
@@ -436,12 +461,20 @@ class SuperAdminDashboardController extends Controller
             $dayKey = $dateObj->toDateString();
             $labels[] = $dateObj->format('D (d M)');
 
-            $netAmt = (float) ($dailyPosAmount->get($dayKey) ?? 0);
-            $grossQty = (float) ($dailyPosQty->get($dayKey) ?? 0);
-            $exchQty = (float) ($dailyExchanges->get($dayKey) ?? 0);
-            $retQty = (float) ($dailyReturns->get($dayKey) ?? 0);
+            $grossAmt = (float) ($dailyPosAmount->get($dayKey) ?? 0);
+            $exch = $dailyExchanges->get($dayKey);
+            $exchQty = (float) ($exch->exch_qty ?? 0);
+            $exchAmt = (float) ($exch->exch_amount ?? 0);
 
-            $amounts[] = max(0, $netAmt);
+            $ret = $dailyReturns->get($dayKey);
+            $retQty = (float) ($ret->ret_qty ?? 0);
+            $retAmt = (float) ($ret->ret_amount ?? 0);
+
+            $grossQty = (float) ($dailyPosQty->get($dayKey) ?? 0);
+
+            $netAmt = max(0, ($grossAmt + $exchAmt) - $retAmt);
+
+            $amounts[] = $netAmt;
             $quantities[] = (int) max(0, ($grossQty + $exchQty) - $retQty);
         }
 
@@ -638,18 +671,53 @@ class SuperAdminDashboardController extends Controller
             ->get()
             ->groupBy('branch_id');
 
-        // 2. Branch Total Sales Value for the range from Invoices (Single Source of Truth)
-        $branchSalesValues = DB::table('pos')
-            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+        // 2. Branch Total Sales Value for the range (Pure Product Revenue: Gross + Exchanges - Returns)
+        $branchGrossSalesValues = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.sale_date', '>=', $startDate)
             ->where('pos.sale_date', '<=', $endDate)
             ->where('pos.status', '!=', 'cancelled')
+            ->whereNull('pos_items.parent_item_id')
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw("pos.branch_id, COALESCE(SUM(invoices.total_amount), 0) as total_value")
+            ->selectRaw("pos.branch_id, COALESCE(SUM(pos_items.total_price), 0) as gross_value")
             ->groupBy('pos.branch_id')
-            ->pluck('total_value', 'pos.branch_id');
+            ->pluck('gross_value', 'pos.branch_id');
+
+        $branchExchangeSalesValues = DB::table('pos_exchange_items')
+            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+            ->where('pos_exchanges.exchange_date', '>=', $startDate)
+            ->where('pos_exchanges.exchange_date', '<=', $endDate)
+            ->where('pos_exchanges.status', 'completed')
+            ->where('pos_exchange_items.type', 'new')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('pos_exchanges.branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw("pos_exchanges.branch_id, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_value")
+            ->groupBy('pos_exchanges.branch_id')
+            ->pluck('exch_value', 'branch_id');
+
+        $branchReturnSalesValues = DB::table('sale_returns')
+            ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
+            ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
+            ->where('sale_returns.return_date', '>=', $startDate)
+            ->where('sale_returns.return_date', '<=', $endDate)
+            ->where('sale_returns.status', '!=', 'rejected')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where(function($sq) use ($selectedBranchId) {
+                    $sq->where(function($bSq) use ($selectedBranchId) {
+                        $bSq->where('sale_returns.return_to_type', 'branch')
+                            ->where('sale_returns.return_to_id', (int)$selectedBranchId);
+                    })->orWhere(function($pSq) use ($selectedBranchId) {
+                        $pSq->whereNull('sale_returns.return_to_type')
+                            ->where('pos.branch_id', (int)$selectedBranchId);
+                    })->orWhere('sale_returns.return_to_id', (int)$selectedBranchId);
+                });
+            })
+            ->selectRaw("COALESCE(CASE WHEN sale_returns.return_to_type = 'branch' THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id) as branch_id, COALESCE(SUM(sale_return_items.total_price), 0) as return_value")
+            ->groupBy(DB::raw("COALESCE(CASE WHEN sale_returns.return_to_type = 'branch' THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id)"))
+            ->pluck('return_value', 'branch_id');
 
         // 3. Branch Total POS COGS for the range (Physical items cost)
         $branchCogsValues = DB::table('pos')
@@ -741,7 +809,10 @@ class SuperAdminDashboardController extends Controller
                 $monthGrandTotals[$mIdx] += $netQty;
             }
 
-            $netValue = (float) ($branchSalesValues->get($b->id) ?? 0);
+            $grossVal = (float) ($branchGrossSalesValues->get($b->id) ?? 0);
+            $exchVal = (float) ($branchExchangeSalesValues->get($b->id) ?? 0);
+            $retVal = (float) ($branchReturnSalesValues->get($b->id) ?? 0);
+            $netValue = max(0, ($grossVal + $exchVal) - $retVal);
 
             $grossCogs = (float) ($branchCogsValues->get($b->id) ?? 0);
             $exchCogs = (float) ($branchExchangeCogsValues->get($b->id) ?? 0);
@@ -790,18 +861,53 @@ class SuperAdminDashboardController extends Controller
         $startDate = $months[0]['start'];
         $endDate = $months[count($months) - 1]['end'];
 
-        // 1. Monthly Net POS Sales Amount from Invoices (Single Source of Truth)
-        $salesAmountAggregates = DB::table('pos')
-            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+        // 1. Monthly Net POS Item Sales Amount (Pure Product Revenue: Gross Items + Exchange Items - Return Items)
+        $salesAmountAggregates = DB::table('pos_items')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.sale_date', '>=', $startDate)
             ->where('pos.sale_date', '<=', $endDate)
             ->where('pos.status', '!=', 'cancelled')
+            ->whereNull('pos_items.parent_item_id')
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw("DATE_FORMAT(pos.sale_date, '%Y-%m') as ym_code, COALESCE(SUM(invoices.total_amount), 0) as month_amount")
+            ->selectRaw("DATE_FORMAT(pos.sale_date, '%Y-%m') as ym_code, COALESCE(SUM(pos_items.total_price), 0) as month_amount")
             ->groupBy(DB::raw("DATE_FORMAT(pos.sale_date, '%Y-%m')"))
             ->pluck('month_amount', 'ym_code');
+
+        $exchangeAmountAggregates = DB::table('pos_exchange_items')
+            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+            ->where('pos_exchanges.exchange_date', '>=', $startDate)
+            ->where('pos_exchanges.exchange_date', '<=', $endDate)
+            ->where('pos_exchanges.status', 'completed')
+            ->where('pos_exchange_items.type', 'new')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('pos_exchanges.branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw("DATE_FORMAT(pos_exchanges.exchange_date, '%Y-%m') as ym_code, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_amount")
+            ->groupBy(DB::raw("DATE_FORMAT(pos_exchanges.exchange_date, '%Y-%m')"))
+            ->pluck('exch_amount', 'ym_code');
+
+        $returnAmountAggregates = DB::table('sale_returns')
+            ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
+            ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
+            ->where('sale_returns.return_date', '>=', $startDate)
+            ->where('sale_returns.return_date', '<=', $endDate)
+            ->where('sale_returns.status', '!=', 'rejected')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where(function($sq) use ($selectedBranchId) {
+                    $sq->where(function($bSq) use ($selectedBranchId) {
+                        $bSq->where('sale_returns.return_to_type', 'branch')
+                            ->where('sale_returns.return_to_id', (int)$selectedBranchId);
+                    })->orWhere(function($pSq) use ($selectedBranchId) {
+                        $pSq->whereNull('sale_returns.return_to_type')
+                            ->where('pos.branch_id', (int)$selectedBranchId);
+                    })->orWhere('sale_returns.return_to_id', (int)$selectedBranchId);
+                });
+            })
+            ->selectRaw("DATE_FORMAT(sale_returns.return_date, '%Y-%m') as ym_code, COALESCE(SUM(sale_return_items.total_price), 0) as return_amount")
+            ->groupBy(DB::raw("DATE_FORMAT(sale_returns.return_date, '%Y-%m')"))
+            ->pluck('return_amount', 'ym_code');
 
         // 2. Gross POS Sales Qty per month (Physical pieces: single items + combo child items)
         $salesQtyAggregates = DB::table('pos_items')
@@ -951,7 +1057,12 @@ class SuperAdminDashboardController extends Controller
             
             $grossQty = (float) ($salesQtyAggregates->get($ymKey) ?? 0);
             $exchQty = (float) ($exchangeQtyAggregates->get($ymKey) ?? 0);
-            $netAmt = (float) ($salesAmountAggregates->get($ymKey) ?? 0);
+            
+            $grossAmt = (float) ($salesAmountAggregates->get($ymKey) ?? 0);
+            $exchAmt = (float) ($exchangeAmountAggregates->get($ymKey) ?? 0);
+            $retAmt = (float) ($returnAmountAggregates->get($ymKey) ?? 0);
+            $netAmt = max(0, ($grossAmt + $exchAmt) - $retAmt);
+
             $grossCogs = (float) ($cogsAggregates->get($ymKey) ?? 0);
             $exchCogs = (float) ($exchangeCogsAggregates->get($ymKey) ?? 0);
 

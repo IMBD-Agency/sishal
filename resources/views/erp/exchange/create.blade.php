@@ -61,6 +61,8 @@
             <form id="exchangeForm" action="{{ route('exchange.store') }}" method="POST" style="display: none;">
                 @csrf
                 <input type="hidden" name="original_pos_id" id="original_pos_id">
+                <input type="hidden" name="vat_rate" id="vat_rate" value="0">
+                <input type="hidden" name="vat_amount" id="vat_amount" value="0">
                 
                 <div class="row g-4">
                     <!-- Left: Metadata -->
@@ -75,6 +77,14 @@
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold text-muted text-uppercase">Exchange Date</label>
                                         <input type="date" name="exchange_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold text-muted text-uppercase">Original Invoice Info</label>
+                                        <div class="d-flex align-items-center gap-2 mt-1">
+                                            <span class="badge bg-secondary p-2" id="invoiceSubtotalBadge">Subtotal: ৳0.00</span>
+                                            <span class="badge bg-warning text-dark p-2" id="invoiceDiscountBadge">Disc: 0%</span>
+                                            <span class="badge bg-info text-dark p-2" id="invoiceVatBadge">VAT: 0%</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -95,13 +105,13 @@
                                                 <th class="py-3 ps-3">Item Details</th>
                                                 <th class="text-center py-3">Action</th>
                                                 <th class="text-center py-3" style="width: 120px;">Ret Qty</th>
-                                                <th class="text-end py-3 pe-3">Subtotal</th>
+                                                <th class="text-end py-3 pe-3">Credit (Net+VAT)</th>
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
                                         <tfoot class="bg-light">
                                             <tr class="fw-bold">
-                                                <td colspan="3" class="text-end text-uppercase small py-3">Total Return Value</td>
+                                                <td colspan="3" class="text-end text-uppercase small py-3">Total Return Credit</td>
                                                 <td id="totalReturnValue" class="text-end text-danger py-3 pe-3">0.00</td>
                                             </tr>
                                         </tfoot>
@@ -179,6 +189,11 @@
                                                 </div>
                                             </div>
 
+                                            <div class="d-flex justify-content-between align-items-center mb-2" id="summaryVatRow">
+                                                <span class="text-muted small fw-bold">VAT (<span id="summaryVatRateLabel">0</span>%):</span>
+                                                <span class="fw-bold text-info" id="summaryVatAmount">(+) 0.00</span>
+                                            </div>
+
                                             <div class="d-flex justify-content-between mb-3">
                                                 <span class="text-muted small fw-bold">DELIVERY:</span>
                                                 <div class="input-group input-group-sm" style="width: 100px;">
@@ -211,7 +226,7 @@
                                                     <select name="account_id" id="account_id" class="form-select shadow-sm">
                                                         <option value="">Select Account</option>
                                                         @foreach(\App\Models\FinancialAccount::all() as $acc)
-                                                            <option value="{{ $acc->id }}" data-branch-id="{{ $acc->branch_id ?? '' }}">{{ $acc->provider_name }} ({{ ucfirst($acc->type) }})</option>
+                                                             <option value="{{ $acc->id }}" data-branch-id="{{ $acc->branch_id ?? '' }}">{{ $acc->provider_name }} ({{ ucfirst($acc->type) }})</option>
                                                         @endforeach
                                                     </select>
                                                 </div>
@@ -441,6 +456,7 @@
             });
 
             let originalDiscountRatio = 0;
+            let originalVatRate = 0;
 
             function populateExchange(data) {
                 $('#original_pos_id').val(data.id);
@@ -452,7 +468,17 @@
 
                 $returnItemsBody.empty();
                 
-                originalDiscountRatio = data.sub_total > 0 ? (data.discount / data.sub_total) : 0;
+                originalDiscountRatio = (parseFloat(data.sub_total) > 0) ? (parseFloat(data.discount || 0) / parseFloat(data.sub_total)) : 0;
+                originalVatRate = parseFloat(data.vat_rate) || 0;
+                if (originalVatRate === 0 && parseFloat(data.vat_amount) > 0 && (parseFloat(data.sub_total) - parseFloat(data.discount)) > 0) {
+                    originalVatRate = (parseFloat(data.vat_amount) / (parseFloat(data.sub_total) - parseFloat(data.discount))) * 100;
+                }
+
+                $('#vat_rate').val(originalVatRate);
+                $('#invoiceSubtotalBadge').text('Subtotal: ৳' + parseFloat(data.sub_total || 0).toFixed(2));
+                $('#invoiceDiscountBadge').text('Disc: ' + (originalDiscountRatio * 100).toFixed(1) + '%');
+                $('#invoiceVatBadge').text('VAT: ' + originalVatRate.toFixed(1) + '%');
+                $('#summaryVatRateLabel').text(originalVatRate.toFixed(1));
 
                 data.items.forEach((item, index) => {
                     const row = `
@@ -487,7 +513,7 @@
                             </td>
                             <td class="text-end pe-3 align-middle">
                                 <div class="row-return-total fw-bold">0.00</div>
-                                <div class="text-xs text-danger row-return-discount" style="font-size: 0.7rem;"></div>
+                                <div class="text-xs row-return-discount" style="font-size: 0.7rem;"></div>
                             </td>
                         </tr>
                     `;
@@ -518,15 +544,20 @@
 
                 const grossTotal = qty * unitPrice;
                 const discountDeduction = grossTotal * originalDiscountRatio;
-                const netCredit = grossTotal - discountDeduction;
+                const netBase = grossTotal - discountDeduction;
+                const vatCredit = netBase * (originalVatRate / 100);
+                const netCreditWithVat = netBase + vatCredit;
 
-                $row.find('.row-return-total').text(netCredit.toFixed(2)).data('net', netCredit);
+                $row.find('.row-return-total').text(netCreditWithVat.toFixed(2)).data('net', netCreditWithVat).data('base', netBase).data('vat', vatCredit);
 
+                let discVatText = [];
                 if (discountDeduction > 0) {
-                    $row.find('.row-return-discount').text('-' + discountDeduction.toFixed(2) + ' (Disc.)');
-                } else {
-                    $row.find('.row-return-discount').text('');
+                    discVatText.push('<span class="text-danger">-' + discountDeduction.toFixed(2) + ' (Disc)</span>');
                 }
+                if (vatCredit > 0) {
+                    discVatText.push('<span class="text-info">+' + vatCredit.toFixed(2) + ' (VAT)</span>');
+                }
+                $row.find('.row-return-discount').html(discVatText.join(' '));
 
                 calculateAll();
             });
@@ -832,8 +863,13 @@
                     discountAmount = discountVal;
                 }
 
-                // Logic: Net = (Purchase + Delivery) - Return - Discount
-                const net = (totalPurchase + delivery) - totalReturn - discountAmount;
+                const newTaxableBase = Math.max(0, totalPurchase - discountAmount);
+                const newVatAmount = (newTaxableBase * (originalVatRate / 100));
+                $('#summaryVatAmount').text('(+) ' + newVatAmount.toFixed(2));
+                $('#vat_amount').val(newVatAmount.toFixed(2));
+
+                // Logic: Net = (Taxable New + New VAT + Delivery) - Total Return (including Return VAT)
+                const net = (newTaxableBase + newVatAmount + delivery) - totalReturn;
                 
                 // Update UI Display
                 $('#totalReturnValue').text(totalReturn.toFixed(2));

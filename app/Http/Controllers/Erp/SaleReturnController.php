@@ -850,26 +850,19 @@ class SaleReturnController extends Controller
             $originalItems = \App\Models\PosItem::where('pos_sale_id', $posSale->id)->get();
             $originalGrossTotal = $originalItems->sum(fn($i) => $i->quantity * $i->unit_price);
 
-            if ($originalGrossTotal > 0) {
+                $vatRate = ($posSale->vat_rate > 0) ? ($posSale->vat_rate / 100) : ((($posSale->sub_total - $posSale->discount) > 0) ? ($posSale->vat_amount / ($posSale->sub_total - $posSale->discount)) : 0);
                 foreach ($saleReturn->items as $returnItem) {
                     $originalItem = \App\Models\PosItem::find($returnItem->sale_item_id);
                     if ($originalItem) {
-                        // Calculate this item's gross amount (original full quantity)
-                        $itemGross = $originalItem->quantity * $originalItem->unit_price;
-                        // Calculate proportion of this item in original invoice
-                        $itemProportion = $itemGross / $originalGrossTotal;
-                        // Calculate proportion of returned quantity vs original quantity
-                        $qtyProportion = $returnItem->returned_qty / $originalItem->quantity;
-                        // Calculate proportional VAT for this returned item (accounting for partial quantity)
-                        $itemVat = round($itemProportion * $qtyProportion * ($posSale->vat_amount ?? 0), 2);
-                        // Calculate proportional discount for this returned item (accounting for partial quantity)
-                        $itemDiscount = round($itemProportion * $qtyProportion * ($posSale->discount ?? 0), 2);
+                        $netUnitPrice = $originalItem->quantity > 0 ? ($originalItem->total_price / $originalItem->quantity) : $originalItem->unit_price;
+                        $unitDiscount = max(0, $originalItem->unit_price - $netUnitPrice);
+                        $itemVat = round($returnItem->returned_qty * $netUnitPrice * $vatRate, 2);
+                        $itemDiscount = round($returnItem->returned_qty * $unitDiscount, 2);
 
                         $totalReturnedVat += $itemVat;
                         $totalReturnedDiscount += $itemDiscount;
                     }
                 }
-            }
         }
 
         $totalDeduction = $totalReturnAmount + $totalReturnedVat;

@@ -661,7 +661,7 @@ class PosController extends Controller
         $query = \App\Models\PosItem::select('pos_items.*')
             ->whereNull('pos_items.parent_item_id')
             ->with([
-                'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_amount,total_amount,exchange_amount,refund_amount,invoice_id,status',
+                'pos:id,sale_number,original_pos_id,customer_id,branch_id,sold_by,sale_date,delivery,discount,vat_rate,vat_amount,sub_total,total_amount,exchange_amount,refund_amount,invoice_id,status',
                 'pos.originalPos:id,sale_number',
                 'pos.customer:id,name',
                 'pos.invoice:id,total_amount,paid_amount,due_amount',
@@ -735,6 +735,54 @@ class PosController extends Controller
             ->where('pos_exchanges.status', 'completed')
             ->sum('pos_exchange_items.quantity');
 
+        // Query return discount for filtered items using the exact item discount difference
+        $filteredItemIdsForDiscount = clone $query;
+        $returnDiscountTotal = (float) (\DB::table('sale_return_items')
+            ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
+            ->join('pos_items', 'sale_return_items.sale_item_id', '=', 'pos_items.id')
+            ->whereIn('sale_return_items.sale_item_id', $filteredItemIdsForDiscount->select('pos_items.id'))
+            ->whereIn('sale_returns.status', ['processed', 'completed'])
+            ->selectRaw("
+                SUM(
+                    CASE 
+                        WHEN pos_items.quantity > 0 THEN 
+                            ((pos_items.quantity * pos_items.unit_price) - pos_items.total_price) * (sale_return_items.returned_qty / pos_items.quantity)
+                        ELSE 0 
+                    END
+                ) as returned_discount
+            ")
+            ->value('returned_discount') ?? 0);
+
+        $grossItemDiscountTotal = (float) ($itemTotals->item_discount ?? ($saleTotals->total_discount ?? 0));
+        $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal);
+
+        // Query return VAT for filtered items (only regular returns, as exchange already updates pos.vat_amount directly)
+        $filteredItemIdsForVat = clone $query;
+        $returnVatTotal = (float) (\DB::table('sale_return_items')
+            ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
+            ->join('pos_items', 'sale_return_items.sale_item_id', '=', 'pos_items.id')
+            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
+            ->whereIn('sale_return_items.sale_item_id', $filteredItemIdsForVat->select('pos_items.id'))
+            ->where('sale_returns.refund_type', '!=', 'exchange')
+            ->whereIn('sale_returns.status', ['processed', 'completed'])
+            ->selectRaw("
+                SUM(
+                    CASE 
+                        WHEN pos_items.quantity > 0 THEN 
+                            (sale_return_items.returned_qty * (pos_items.total_price / pos_items.quantity)) * 
+                            (CASE 
+                                WHEN pos.vat_rate > 0 THEN (pos.vat_rate / 100) 
+                                WHEN (pos.sub_total - pos.discount) > 0 THEN (pos.vat_amount / (pos.sub_total - pos.discount))
+                                ELSE 0 
+                            END)
+                        ELSE 0 
+                    END
+                ) as returned_vat
+            ")
+            ->value('returned_vat') ?? 0);
+
+        $netVatTotal = max(0, ($saleTotals->total_vat ?? 0) - $returnVatTotal);
+
         $totalQty = $itemTotals->total_qty ?? 0;
         $totalAmount = $itemTotals->total_amount ?? 0;
 
@@ -766,8 +814,8 @@ class PosController extends Controller
             'gross_amt' => $itemTotals->gross_amount ?? 0,
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
-            'discount' => $saleTotals->total_discount ?? 0,
-            'vat_amt' => $saleTotals->total_vat ?? 0,
+            'discount' => $netDiscountTotal,
+            'vat_amt' => $netVatTotal,
             'exchange' => $saleTotals->total_exchange ?? 0,
             'refund' => $saleTotals->total_refund ?? 0,
             'final_total' => $saleTotals->final_total ?? 0,

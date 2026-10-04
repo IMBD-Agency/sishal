@@ -168,8 +168,11 @@ class ExchangeController extends Controller
                 'customer_name' => $sale?->customer?->name ?? 'Walk-in',
                 'customer_phone' => $sale?->customer?->phone ?? '-',
                 'branch_id' => $sale?->branch_id,
-                'discount' => $sale?->discount,
-                'sub_total' => $sale?->sub_total,
+                'discount' => $sale?->discount ?? 0,
+                'sub_total' => $sale?->sub_total ?? 0,
+                'vat_rate' => $sale?->vat_rate ?? 0,
+                'vat_amount' => $sale?->vat_amount ?? 0,
+                'total_amount' => $sale?->total_amount ?? 0,
                 'items' => $items
             ]
         ]);
@@ -239,7 +242,13 @@ class ExchangeController extends Controller
             ]);
 
             $totalReturnAmount = 0;
-            $originalDiscountRatio = $originalSale->sub_total > 0 ? ($originalSale->discount / $originalSale->sub_total) : 0;
+            $totalReturnNetBase = 0;
+            $totalReturnVat = 0;
+
+            $originalVatRate = floatval($request->vat_rate ?? $originalSale->vat_rate ?? 0);
+            if ($originalVatRate == 0 && ($originalSale->vat_amount ?? 0) > 0 && ($originalSale->sub_total - $originalSale->discount) > 0) {
+                $originalVatRate = round((($originalSale->vat_amount / ($originalSale->sub_total - $originalSale->discount)) * 100), 2);
+            }
 
             // 1. Process Returns
             foreach ($request->return_items as $item) {
@@ -249,10 +258,12 @@ class ExchangeController extends Controller
 
                     $variationId = ($item['variation_id'] == 'null' || $item['variation_id'] == '') ? null : $item['variation_id'];
                     
-                    $unitPrice = $item['unit_price'];
-                    $itemDiscount = $unitPrice * $originalDiscountRatio;
-                    $actualReturnPrice = $unitPrice - $itemDiscount;
-                    $totalReturnItemAmount = $item['qty'] * $actualReturnPrice;
+                    $unitPrice = $posItem->unit_price;
+                    $actualReturnPrice = $posItem->quantity > 0 ? ($posItem->total_price / $posItem->quantity) : $unitPrice; // Exact net unit price
+                    $itemDiscount = max(0, $unitPrice - $actualReturnPrice);
+                    $itemVat = round($actualReturnPrice * ($originalVatRate / 100), 2);
+                    $actualReturnPriceWithVat = $actualReturnPrice + $itemVat; // Full credit incl. VAT
+                    $totalReturnItemAmount = $item['qty'] * $actualReturnPriceWithVat;
 
                     \App\Models\PosExchangeItem::create([
                         'pos_exchange_id' => $posExchange->id,
@@ -260,7 +271,7 @@ class ExchangeController extends Controller
                         'product_id'      => $item['product_id'],
                         'variation_id'    => $variationId,
                         'quantity'        => $item['qty'],
-                        'unit_price'      => $actualReturnPrice,
+                        'unit_price'      => $actualReturnPriceWithVat,
                         'total_price'     => $totalReturnItemAmount,
                     ]);
 
@@ -288,10 +299,12 @@ class ExchangeController extends Controller
                         'variation_id'   => $variationId,
                         'returned_qty'   => $item['qty'],
                         'unit_price'     => $actualReturnPrice,
-                        'total_price'    => $totalReturnItemAmount,
+                        'total_price'    => $item['qty'] * $actualReturnPrice,
                     ]);
 
                     $totalReturnAmount += $totalReturnItemAmount;
+                    $totalReturnNetBase += ($item['qty'] * $actualReturnPrice);
+                    $totalReturnVat += ($item['qty'] * $itemVat);
 
                     // Restore Stock
                     $this->restoreStock($item['product_id'], $variationId, $item['qty'], $originalSale->branch_id);
@@ -328,16 +341,18 @@ class ExchangeController extends Controller
                 $this->deductStock($item['product_id'], $variationId, $item['qty'], $originalSale->branch_id);
             }
             
-            $globalDiscount = $request->discount ?? 0;
-            $deliveryCharge = $request->delivery ?? 0;
-            $netNewAmount = ($subTotalNew + $deliveryCharge) - $globalDiscount;
+            $globalDiscount = floatval($request->discount ?? 0);
+            $deliveryCharge = floatval($request->delivery ?? 0);
+            $newTaxableBase = max(0, $subTotalNew - $globalDiscount);
+            $newVatAmount = round($newTaxableBase * ($originalVatRate / 100), 2);
+            $netNewAmount = ($newTaxableBase + $newVatAmount) + $deliveryCharge;
 
             $extraPayable = max(0, $netNewAmount - $totalReturnAmount);
             $refundAmount = max(0, $totalReturnAmount - $netNewAmount);
             $actualPaid = floatval($request->paid_amount ?? 0);
 
             // Determine Exchange Type
-            if ($totalReturnAmount == $subTotalNew && $extraPayable == 0 && $refundAmount == 0) {
+            if ($totalReturnAmount == $netNewAmount && $extraPayable == 0 && $refundAmount == 0) {
                 $posExchange->exchange_type = 'variation_exchange';
             } elseif ($extraPayable > 0 || $refundAmount > 0) {
                 $posExchange->exchange_type = 'price_adjustment';
@@ -350,6 +365,7 @@ class ExchangeController extends Controller
                 'total_new_amount'    => $subTotalNew,
                 'delivery_charge'     => $deliveryCharge,
                 'discount_amount'     => $globalDiscount,
+                'vat_amount'          => $newVatAmount,
                 'extra_payable'       => $extraPayable,
                 'refund_amount'       => $refundAmount,
                 'paid_amount'         => $actualPaid,
@@ -357,21 +373,27 @@ class ExchangeController extends Controller
                 'payment_method'      => $request->account_id ? 'account' : 'cash',
             ]);
 
-            // Update Original POS Sale to reflect new totals
+            // Update Original POS Sale to reflect new totals & VAT
+            $netVatDiff = $newVatAmount - $totalReturnVat;
+            $netBaseDiff = $subTotalNew - $totalReturnNetBase;
+            $netTotalDiff = $netNewAmount - $totalReturnAmount;
+
             $originalSale->exchange_amount = ($originalSale->exchange_amount ?? 0) + $subTotalNew;
             $originalSale->refund_amount = ($originalSale->refund_amount ?? 0) + $refundAmount;
+            $originalSale->vat_amount = max(0, ($originalSale->vat_amount ?? 0) + $netVatDiff);
+            $originalSale->sub_total = max(0, ($originalSale->sub_total ?? 0) + $netBaseDiff);
+            $originalSale->total_amount = max(0, ($originalSale->total_amount ?? 0) + $netTotalDiff);
             $originalSale->save();
             
             // Update Invoice totals and payments
             if ($originalSale->invoice) {
                 $invoice = $originalSale->invoice;
                 
-                // Net change: new items - returned items
-                $netChange = $subTotalNew - $totalReturnAmount;
-                $invoice->total_amount = max(0, $invoice->total_amount + $netChange);
+                $invoice->tax = max(0, ($invoice->tax ?? 0) + $netVatDiff);
+                $invoice->subtotal = max(0, ($invoice->subtotal ?? 0) + $netBaseDiff);
+                $invoice->total_amount = max(0, $invoice->total_amount + $netTotalDiff);
                 
                 // If there's an extra payable and the customer paid some of it
-                $actualPaid = floatval($request->paid_amount ?? 0);
                 if ($extraPayable > 0 && $actualPaid > 0) {
                     $invoice->paid_amount += $actualPaid;
                     
@@ -1036,34 +1058,47 @@ class ExchangeController extends Controller
             // 2. Rollback original POS Sale changes
             $originalSale = $posExchange->originalPos;
             if ($originalSale) {
-                $originalSale->exchange_amount = max(0, ($originalSale->exchange_amount ?? 0) - $posExchange->total_new_amount);
+                $totalReturnAmount = $posExchange->total_return_amount;
+                $subTotalNew = $posExchange->total_new_amount;
+                $globalDiscount = $posExchange->discount_amount ?? 0;
+                $deliveryCharge = $posExchange->delivery_charge ?? 0;
+                $newVatAmount = $posExchange->vat_amount ?? 0;
+                $netNewAmount = max(0, $subTotalNew - $globalDiscount) + $newVatAmount + $deliveryCharge;
+                
+                $originalVatRate = floatval($originalSale->vat_rate ?? 0);
+                if ($originalVatRate == 0 && ($originalSale->vat_amount ?? 0) > 0 && ($originalSale->sub_total - $originalSale->discount) > 0) {
+                    $originalVatRate = (($originalSale->vat_amount / ($originalSale->sub_total - $originalSale->discount)) * 100);
+                }
+
+                $vatMultiplier = 1 + ($originalVatRate / 100);
+                $totalReturnNetBase = $vatMultiplier > 0 ? round($totalReturnAmount / $vatMultiplier, 2) : $totalReturnAmount;
+                $totalReturnVat = $totalReturnAmount - $totalReturnNetBase;
+
+                $netVatDiff = $newVatAmount - $totalReturnVat;
+                $netBaseDiff = $subTotalNew - $totalReturnNetBase;
+                $netTotalDiff = $netNewAmount - $totalReturnAmount;
+
+                $originalSale->exchange_amount = max(0, ($originalSale->exchange_amount ?? 0) - $subTotalNew);
                 $originalSale->refund_amount = max(0, ($originalSale->refund_amount ?? 0) - $posExchange->refund_amount);
+                $originalSale->vat_amount = max(0, ($originalSale->vat_amount ?? 0) - $netVatDiff);
+                $originalSale->sub_total = max(0, ($originalSale->sub_total ?? 0) - $netBaseDiff);
+                $originalSale->total_amount = max(0, ($originalSale->total_amount ?? 0) - $netTotalDiff);
                 $originalSale->save();
 
-                // 3. Rollback Invoice updates (if extra payable was applied)
-                if ($originalSale->invoice && $posExchange->extra_payable > 0) {
+                // 3. Rollback Invoice updates
+                if ($originalSale->invoice) {
                     $invoice = $originalSale->invoice;
-                    $invoice->total_amount = max(0, $invoice->total_amount - $posExchange->extra_payable);
-                    // Only deduct paid_amount if customer actually paid (not just due)
-                    $invoice->paid_amount = max(0, $invoice->paid_amount - ($posExchange->paid_amount ?? 0));
-                    $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                    $invoice->tax = max(0, ($invoice->tax ?? 0) - $netVatDiff);
+                    $invoice->subtotal = max(0, ($invoice->subtotal ?? 0) - $netBaseDiff);
+                    $invoice->total_amount = max(0, $invoice->total_amount - $netTotalDiff);
                     
-                    // Recalculate invoice status
-                    if ($invoice->paid_amount >= $invoice->total_amount) {
-                        $invoice->status = 'paid';
-                        $invoice->due_amount = 0;
-                    } elseif ($invoice->paid_amount > 0) {
-                        $invoice->status = 'partial';
-                    } else {
-                        $invoice->status = 'unpaid';
+                    if ($posExchange->extra_payable > 0) {
+                        $invoice->paid_amount = max(0, $invoice->paid_amount - ($posExchange->paid_amount ?? 0));
+                    } elseif ($posExchange->refund_amount > 0) {
+                        if (in_array($posExchange->payment_method, ['cash', 'bank'])) {
+                            $invoice->paid_amount = max(0, $invoice->paid_amount + $posExchange->refund_amount);
+                        }
                     }
-                    
-                    $invoice->save();
-                } elseif ($originalSale->invoice && $posExchange->refund_amount > 0) {
-                    // Rollback for refund case
-                    $invoice = $originalSale->invoice;
-                    $invoice->total_amount = max(0, $invoice->total_amount + $posExchange->refund_amount);
-                    $invoice->paid_amount = max(0, $invoice->paid_amount + $posExchange->refund_amount);
                     $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
                     
                     // Recalculate invoice status

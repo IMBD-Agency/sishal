@@ -100,6 +100,12 @@
                                         <span class="text-danger">-{{ number_format($exchange->discount_amount, 2) }}৳</span>
                                     </div>
                                 @endif
+                                @if($exchange->vat_amount > 0)
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">VAT</span>
+                                        <span class="text-info">+{{ number_format($exchange->vat_amount, 2) }}৳</span>
+                                    </div>
+                                @endif
                                 @if($exchange->delivery_charge > 0)
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Delivery</span>

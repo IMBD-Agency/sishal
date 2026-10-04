@@ -49,7 +49,7 @@
                 <th class="text-end">Discount Amount</th>
                 <th class="text-end">Exchange Amount</th>
                 <th class="text-end">Refund</th>
-                <th class="text-end fw-bold">Gross Amount</th>
+                <th class="text-end fw-bold">Item Net Amount</th>
                 <th class="text-end text-success">Net Amount (Final)</th>
                 <th class="text-end text-success fw-bold">Total Received Amount</th>
                 <th class="text-end text-danger fw-bold">Total Due Amount</th>
@@ -139,18 +139,20 @@
                         $invRetAmt = $invRegRetAmt + $invExchRetAmt;
                         $invActualQty = $invPhysicalQty - $invRetQty + $invExchNewQty;
 
-                        // Calculate proportional returned VAT and discount
+                        // Calculate proportional returned VAT and discount based on item rate
                         $invReturnedVat = 0;
                         $invReturnedDiscount = 0;
-                        if ($invGrossAmt > 0) {
-                            foreach ($invItems as $invItem) {
-                                foreach ($invItem->returnItems as $returnItem) {
-                                    if (($returnItem->saleReturn?->status ?? '') === 'processed') {
-                                        $itemGross = $invItem->quantity * $invItem->unit_price;
-                                        $itemProportion = $itemGross / $invGrossAmt;
-                                        $qtyProportion = $returnItem->returned_qty / $invItem->quantity;
-                                        $invReturnedVat += round($itemProportion * $qtyProportion * ($sale->vat_amount ?? 0), 2);
-                                        $invReturnedDiscount += round($itemProportion * $qtyProportion * ($sale->discount ?? 0), 2);
+                        $saleVatRate = ($sale->vat_rate > 0) ? ($sale->vat_rate / 100) : ((($sale->sub_total - $sale->discount) > 0) ? ($sale->vat_amount / ($sale->sub_total - $sale->discount)) : 0);
+
+                        foreach ($invItems as $invItem) {
+                            foreach ($invItem->returnItems as $returnItem) {
+                                if (in_array($returnItem->saleReturn?->status ?? '', ['processed', 'completed']) && ($returnItem->saleReturn?->refund_type ?? '') !== 'exchange') {
+                                    if ($invItem->quantity > 0) {
+                                        $itemNetUnit = $invItem->total_price / $invItem->quantity;
+                                        $invReturnedVat += round($returnItem->returned_qty * $itemNetUnit * $saleVatRate, 2);
+
+                                        $itemDiscUnit = (($invItem->quantity * $invItem->unit_price) - $invItem->total_price) / $invItem->quantity;
+                                        $invReturnedDiscount += round($returnItem->returned_qty * $itemDiscUnit, 2);
                                     }
                                 }
                             }
@@ -159,6 +161,47 @@
                         // Net VAT and Discount after returns
                         $invNetVat = max(0, ($sale->vat_amount ?? 0) - $invReturnedVat);
                         $invNetDiscount = max(0, ($sale->discount ?? 0) - $invReturnedDiscount);
+
+                        // Individual Item Proportional Discount calculation
+                        $itemGrossAmt = $item->quantity * $item->unit_price;
+                        $itemOriginalDiscount = max(0, $itemGrossAmt - $item->total_price);
+
+                        // Deduct any returned discount on this specific item
+                        $itemReturnedDiscount = 0;
+                        if ($item->quantity > 0) {
+                            foreach ($item->returnItems as $ri) {
+                                if (in_array($ri->saleReturn?->status ?? '', ['processed', 'completed'])) {
+                                    $qtyRatio = $ri->returned_qty / $item->quantity;
+                                    $itemReturnedDiscount += round($itemOriginalDiscount * $qtyRatio, 2);
+                                }
+                            }
+                        }
+                        $itemNetDiscount = max(0, $itemOriginalDiscount - $itemReturnedDiscount);
+
+                        // Individual Item Net Final Amount (Price - Discount + VAT after returns)
+                        $itemActQty = max(0, $item->quantity - $retQty);
+                        $itemNetUnitPrice = $item->quantity > 0 ? ($item->total_price / $item->quantity) : 0;
+                        $itemNetBase = $itemActQty * $itemNetUnitPrice;
+                        $itemNetVat = round($itemNetBase * $saleVatRate, 2);
+
+                        // If this item was exchanged, attribute incoming replacement item(s) net amount
+                        $itemExchNewAmt = 0;
+                        if ($exchRetQty > 0 && ($invExchRetQty ?? 0) > 0) {
+                            $invExchNewNetTotal = 0;
+                            $exchNewItems = \App\Models\PosExchangeItem::where('type', 'new')
+                                ->whereHas('exchange', function($q) use ($sale) {
+                                    $q->where('original_pos_id', $sale->id)->where('status', 'completed');
+                                })
+                                ->get();
+                            foreach ($exchNewItems as $eni) {
+                                $eniVat = round($eni->total_price * $saleVatRate, 2);
+                                $invExchNewNetTotal += ($eni->total_price + $eniVat);
+                            }
+                            $exchShare = $exchRetQty / $invExchRetQty;
+                            $itemExchNewAmt = round($invExchNewNetTotal * $exchShare, 2);
+                        }
+
+                        $itemNetFinalAmt = $itemNetBase + $itemNetVat + $itemExchNewAmt;
 
                         // Real-world Gross Amount: Original invoice total before any returns/discounts
                         // Gross = Original Gross (qty × unit_price) + Original VAT + Delivery
@@ -305,7 +348,7 @@
                             @if($isFirst) {{ number_format($invNetVat, 2) }} @endif
                         </td>
                         <td class="text-end text-danger">
-                            @if($isFirst) {{ number_format($invNetDiscount, 2) }} @endif
+                            {{ number_format($itemNetDiscount, 2) }}
                         </td>
                         <td class="text-end">
                             @if($isFirst) {{ number_format($sale->exchange_amount ?? 0, 2) }} @endif
@@ -315,7 +358,7 @@
                         </td>
 
                         <td class="text-end fw-bold">
-                            @if($isFirst) {{ number_format($invGrossAmount, 2) }} @endif
+                            {{ number_format($itemNetFinalAmt, 2) }}
                         </td>
                         <td class="text-end fw-bold text-success">
                             @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
@@ -445,7 +488,7 @@
                 <td class="text-end fw-bold">{{ number_format($reportTotals['exchange'], 2) }}</td>
                 <td class="text-end fw-bold text-danger">{{ number_format($reportTotals['refund'], 2) }}</td>
 
-                <td class="text-end fw-bold">{{ number_format($reportTotals['gross_amt'] + $reportTotals['vat_amt'] + $reportTotals['delivery'], 2) }}</td>
+                <td class="text-end fw-bold">{{ number_format(max(0, ($reportTotals['sell_amt'] ?? 0) - ($reportTotals['reg_ret_amt'] ?? 0) - ($reportTotals['exch_ret_amt'] ?? 0) + ($reportTotals['exchange'] ?? 0) + ($reportTotals['vat_amt'] ?? 0)), 2) }}</td>
 
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>
