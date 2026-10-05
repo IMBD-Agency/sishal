@@ -40,11 +40,11 @@
                         <td class="text-center">
                             <span class="badge bg-light text-dark border px-2 py-1">{{ number_format($bw['today_qty']) }} pcs</span>
                         </td>
-                        <td class="text-end fw-bold text-dark">৳{{ number_format($bw['today_amount']) }}</td>
+                        <td class="text-end fw-bold text-dark">৳{{ number_format($bw['today_amount'], 2) }}</td>
                         <td class="text-center">
                             <span class="badge bg-light text-dark border px-2 py-1">{{ number_format($bw['month_qty']) }} pcs</span>
                         </td>
-                        <td class="text-end fw-bold text-success">৳{{ number_format($bw['month_amount']) }}</td>
+                        <td class="text-end fw-bold text-success">৳{{ number_format($bw['month_amount'], 2) }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -52,9 +52,9 @@
                     <tr>
                         <td>TOTAL</td>
                         <td class="text-center">{{ number_format($todaySalesBranchWise['total']['today_qty']) }} pcs</td>
-                        <td class="text-end text-primary">৳{{ number_format($todaySalesBranchWise['total']['today_amount']) }}</td>
+                        <td class="text-end text-primary">৳{{ number_format($todaySalesBranchWise['total']['today_amount'], 2) }}</td>
                         <td class="text-center">{{ number_format($todaySalesBranchWise['total']['month_qty']) }} pcs</td>
-                        <td class="text-end text-success">৳{{ number_format($todaySalesBranchWise['total']['month_amount']) }}</td>
+                        <td class="text-end text-success">৳{{ number_format($todaySalesBranchWise['total']['month_amount'], 2) }}</td>
                     </tr>
                 </tfoot>
             </table>

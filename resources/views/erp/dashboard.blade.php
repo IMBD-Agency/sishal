@@ -444,9 +444,19 @@
                                 <td class="text-center text-success fw-semibold">৳{{ number_format($sale['paid'], 2) }}</td>
                                 <td class="text-center text-danger fw-semibold">৳{{ number_format($sale['due'], 2) }}</td>
                                 <td class="text-center pe-3">
-                                    <span class="badge @if($sale['status'] == 'delivered') bg-success-subtle text-success border border-success-subtle @else bg-primary-subtle text-primary border border-primary-subtle @endif px-2 py-1">
-                                        {{ ucfirst($sale['status']) }}
-                                    </span>
+                                    @if($sale['status'] == 'paid')
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="fas fa-check-circle me-1"></i> Paid
+                                        </span>
+                                    @elseif($sale['status'] == 'partial')
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                            <i class="fas fa-adjust me-1"></i> Partial
+                                        </span>
+                                    @else
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                            <i class="fas fa-clock me-1"></i> Unpaid
+                                        </span>
+                                    @endif
                                 </td>
                             </tr>
                             @empty

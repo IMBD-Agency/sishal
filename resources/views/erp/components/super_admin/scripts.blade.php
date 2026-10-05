@@ -150,7 +150,11 @@
     }
 
     function formatNumber(num) {
-        return new Intl.NumberFormat().format(num);
+        return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(num || 0);
+    }
+
+    function formatCurrency(num) {
+        return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num || 0);
     }
 
     function triggerAjaxFilter() {
@@ -207,11 +211,11 @@
                     <td class="text-center">
                         <span class="badge bg-light text-dark border px-2 py-1">${formatNumber(bw.today_qty)} pcs</span>
                     </td>
-                    <td class="text-end fw-bold text-dark">৳${formatNumber(bw.today_amount)}</td>
+                    <td class="text-end fw-bold text-dark">৳${formatCurrency(bw.today_amount)}</td>
                     <td class="text-center">
                         <span class="badge bg-light text-dark border px-2 py-1">${formatNumber(bw.month_qty)} pcs</span>
                     </td>
-                    <td class="text-end fw-bold text-success">৳${formatNumber(bw.month_amount)}</td>
+                    <td class="text-end fw-bold text-success">৳${formatCurrency(bw.month_amount)}</td>
                 </tr>`;
             });
             document.getElementById('todaySalesTableBody').innerHTML = tbodyHtml;
@@ -221,9 +225,9 @@
             <tr>
                 <td>TOTAL</td>
                 <td class="text-center">${formatNumber(t.today_qty)} pcs</td>
-                <td class="text-end text-primary">৳${formatNumber(t.today_amount)}</td>
+                <td class="text-end text-primary">৳${formatCurrency(t.today_amount)}</td>
                 <td class="text-center">${formatNumber(t.month_qty)} pcs</td>
-                <td class="text-end text-success">৳${formatNumber(t.month_amount)}</td>
+                <td class="text-end text-success">৳${formatCurrency(t.month_amount)}</td>
             </tr>`;
         }
 
@@ -254,7 +258,7 @@
                         <span class="badge bg-light text-dark border px-2 py-1"><i class="fas fa-code-branch me-1 text-primary"></i>${tp.branch}</span>
                     </td>
                     <td class="text-center fw-semibold">${formatNumber(tp.sold_qty)} pcs</td>
-                    <td class="text-end fw-bold text-dark">৳${formatNumber(tp.sales_amount)}</td>
+                    <td class="text-end fw-bold text-dark">৳${formatCurrency(tp.sales_amount)}</td>
                 </tr>`;
             });
             document.getElementById('topSellingTableBody').innerHTML = tpBody;
@@ -280,8 +284,8 @@
                 });
                 const pctClass = r.profit_pct >= 25 ? 'bg-success-subtle text-success border border-success-subtle' : (r.profit_pct >= 10 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle');
                 mBody += `<td class="text-end fw-bold text-dark">${formatNumber(r.year_total)} pcs</td>`;
-                mBody += `<td class="text-end fw-bold text-primary">৳${formatNumber(r.total_value)}</td>`;
-                mBody += `<td class="text-end fw-bold text-success">৳${formatNumber(r.total_profit)}</td>`;
+                mBody += `<td class="text-end fw-bold text-primary">৳${formatCurrency(r.total_value)}</td>`;
+                mBody += `<td class="text-end fw-bold text-success">৳${formatCurrency(r.total_profit)}</td>`;
                 mBody += `<td class="text-end fw-bold"><span class="badge ${pctClass} px-2 py-1">${r.profit_pct}%</span></td></tr>`;
             });
             document.getElementById('branchStatementBody').innerHTML = mBody;
@@ -291,8 +295,8 @@
                 mFoot += `<td class="text-end text-dark">${formatNumber(tv)} pcs</td>`;
             });
             mFoot += `<td class="text-end text-dark fw-bold">${formatNumber(data.branchSalesStatement.totals.year_total)} pcs</td>`;
-            mFoot += `<td class="text-end text-primary fw-bold fs-6">৳${formatNumber(data.branchSalesStatement.totals.total_value)}</td>`;
-            mFoot += `<td class="text-end text-success fw-bold fs-6">৳${formatNumber(data.branchSalesStatement.totals.total_profit)}</td>`;
+            mFoot += `<td class="text-end text-primary fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_value)}</td>`;
+            mFoot += `<td class="text-end text-success fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_profit)}</td>`;
             mFoot += `<td class="text-end fw-bold fs-6"><span class="badge bg-primary px-2 py-1">${data.branchSalesStatement.totals.profit_pct}%</span></td></tr>`;
             document.getElementById('branchStatementFoot').innerHTML = mFoot;
         }
@@ -322,14 +326,14 @@
                     if (row.format === 'qty') {
                         gBody += `<td class="text-end"><span class="fw-semibold text-secondary">${formatNumber(val)} pcs</span></td>`;
                     } else if (row.format === 'currency') {
-                        gBody += `<td class="text-end">৳${formatNumber(val)}</td>`;
+                        gBody += `<td class="text-end">৳${formatCurrency(val)}</td>`;
                     } else if (row.format === 'currency_expense') {
-                        gBody += `<td class="text-end"><span class="text-danger fw-semibold">৳${formatNumber(val)}</span></td>`;
+                        gBody += `<td class="text-end"><span class="text-danger fw-semibold">৳${formatCurrency(val)}</span></td>`;
                     } else if (row.format === 'currency_highlight') {
-                        gBody += `<td class="text-end"><span class="text-primary fw-bold">৳${formatNumber(val)}</span></td>`;
+                        gBody += `<td class="text-end"><span class="text-primary fw-bold">৳${formatCurrency(val)}</span></td>`;
                     } else if (row.format === 'currency_net') {
                         const netClass = val >= 0 ? 'amount-positive' : 'amount-negative';
-                        gBody += `<td class="text-end"><span class="${netClass} fw-bold">৳${formatNumber(val)}</span></td>`;
+                        gBody += `<td class="text-end"><span class="${netClass} fw-bold">৳${formatCurrency(val)}</span></td>`;
                     } else if (row.format === 'percent') {
                         const pillClass = val >= 25 ? 'profit-pill-high' : (val >= 10 ? 'profit-pill-mid' : 'profit-pill-low');
                         gBody += `<td class="text-end"><span class="profit-pill ${pillClass}">${val}%</span></td>`;
@@ -339,14 +343,14 @@
                 if (row.format === 'qty') {
                     gBody += `<td class="text-end fw-bold text-dark">${formatNumber(row.year_total)} pcs</td>`;
                 } else if (row.format === 'currency') {
-                    gBody += `<td class="text-end fw-bold">৳${formatNumber(row.year_total)}</td>`;
+                    gBody += `<td class="text-end fw-bold">৳${formatCurrency(row.year_total)}</td>`;
                 } else if (row.format === 'currency_expense') {
-                    gBody += `<td class="text-end fw-bold text-danger">৳${formatNumber(row.year_total)}</td>`;
+                    gBody += `<td class="text-end fw-bold text-danger">৳${formatCurrency(row.year_total)}</td>`;
                 } else if (row.format === 'currency_highlight') {
-                    gBody += `<td class="text-end fw-bold text-primary">৳${formatNumber(row.year_total)}</td>`;
+                    gBody += `<td class="text-end fw-bold text-primary">৳${formatCurrency(row.year_total)}</td>`;
                 } else if (row.format === 'currency_net') {
                     const netClass = row.year_total >= 0 ? 'amount-positive' : 'amount-negative';
-                    gBody += `<td class="text-end fw-bold"><span class="${netClass} fs-6">৳${formatNumber(row.year_total)}</span></td>`;
+                    gBody += `<td class="text-end fw-bold"><span class="${netClass} fs-6">৳${formatCurrency(row.year_total)}</span></td>`;
                 } else if (row.format === 'percent') {
                     const pillClass = row.year_total >= 25 ? 'profit-pill-high' : (row.year_total >= 10 ? 'profit-pill-mid' : 'profit-pill-low');
                     gBody += `<td class="text-end fw-bold"><span class="profit-pill ${pillClass} fs-6">${row.year_total}%</span></td>`;
@@ -371,17 +375,17 @@
                 const rowLabel = bRow.branch || bRow.category || '';
                 eBody += `<tr><td class="fw-bold text-dark"><i class="fas fa-building text-danger me-2 opacity-75"></i>${rowLabel}</td>`;
                 bRow.months.forEach(mv => {
-                    eBody += `<td class="text-end">৳${formatNumber(mv)}</td>`;
+                    eBody += `<td class="text-end">৳${formatCurrency(mv)}</td>`;
                 });
-                eBody += `<td class="text-end fw-bold text-danger">৳${formatNumber(bRow.year_total)}</td></tr>`;
+                eBody += `<td class="text-end fw-bold text-danger">৳${formatCurrency(bRow.year_total)}</td></tr>`;
             });
             document.getElementById('expenseStatementBody').innerHTML = eBody;
 
             let eFoot = '<tr><td>TOTAL EXPENSE</td>';
             data.expenseStatement.total.months.forEach(tv => {
-                eFoot += `<td class="text-end text-danger fw-bold">৳${formatNumber(tv)}</td>`;
+                eFoot += `<td class="text-end text-danger fw-bold">৳${formatCurrency(tv)}</td>`;
             });
-            eFoot += `<td class="text-end text-danger fs-6 fw-extrabold">৳${formatNumber(data.expenseStatement.total.year_total)}</td></tr>`;
+            eFoot += `<td class="text-end text-danger fs-6 fw-extrabold">৳${formatCurrency(data.expenseStatement.total.year_total)}</td></tr>`;
             document.getElementById('expenseStatementFoot').innerHTML = eFoot;
         }
     }

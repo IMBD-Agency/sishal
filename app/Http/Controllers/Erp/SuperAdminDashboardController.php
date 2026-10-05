@@ -26,7 +26,7 @@ class SuperAdminDashboardController extends Controller
         
         foreach ($branches as $bId) {
             foreach ($ranges as $r) {
-                Cache::forget("super_admin_dash_v30_{$bId}_{$r}");
+                Cache::forget("super_admin_dash_v35_{$bId}_{$r}");
             }
         }
     }
@@ -72,7 +72,7 @@ class SuperAdminDashboardController extends Controller
      */
     private function fetchDashboardData($selectedBranchId, $dateRange, $branches)
     {
-        $cacheKey = "super_admin_dash_v30_{$selectedBranchId}_{$dateRange}";
+        $cacheKey = "super_admin_dash_v35_{$selectedBranchId}_{$dateRange}";
 
         return Cache::remember($cacheKey, 180, function () use ($selectedBranchId, $dateRange, $branches) {
             $monthsWindow = $this->getMonthsArrayForRange($dateRange);
@@ -81,8 +81,8 @@ class SuperAdminDashboardController extends Controller
                 'todaySalesBranchWise' => $this->getTodaySalesBranchWise($branches, $selectedBranchId, $dateRange),
                 'sixDaysSalesChart' => $this->getSixDaysSalesChart($selectedBranchId),
                 'topSellingProducts' => $this->getTopSellingProducts($selectedBranchId, $dateRange),
-                'branchSalesStatement' => $this->getBranchSalesStatement($branches, $selectedBranchId, $monthsWindow),
-                'grossSalesStatement' => $this->getGrossSalesStatement($selectedBranchId, $monthsWindow),
+                'branchSalesStatement' => $this->getBranchSalesStatement($branches, $selectedBranchId, $monthsWindow, $dateRange),
+                'grossSalesStatement' => $this->getGrossSalesStatement($selectedBranchId, $monthsWindow, $dateRange),
                 'expenseStatement' => $this->getExpenseStatement($branches, $selectedBranchId, $monthsWindow),
             ];
         });
@@ -601,7 +601,7 @@ class SuperAdminDashboardController extends Controller
     /**
      * Section 4: Branch Sales Statement (Dynamic Month Columns, Unified with Invoices & Returns)
      */
-    private function getBranchSalesStatement($branches, $selectedBranchId, $months)
+    private function getBranchSalesStatement($branches, $selectedBranchId, $months, $dateRange = 'this_month')
     {
         $monthHeadings = array_column($months, 'label');
         $activeBranches = $branches;
@@ -777,6 +777,12 @@ class SuperAdminDashboardController extends Controller
             ->groupBy(DB::raw("COALESCE(CASE WHEN sale_returns.return_to_type = 'branch' THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id)"))
             ->pluck('return_cogs', 'branch_id');
 
+        // Cash-Basis Profit Calculations
+        $profitStartDate = $dateRange === 'today' ? Carbon::today()->startOfDay()->format('Y-m-d H:i:s') : $startDate;
+        $profitEndDate = $dateRange === 'today' ? Carbon::today()->endOfDay()->format('Y-m-d H:i:s') : $endDate;
+        $cashProfitData = $this->calculateCashProfitData($profitStartDate, $profitEndDate, $selectedBranchId);
+        $branchCashProfits = $cashProfitData['branch_profit'];
+
         $statementRows = [];
         $monthGrandTotals = array_fill(0, count($months), 0);
         $totalYearGrandTotal = 0;
@@ -814,23 +820,20 @@ class SuperAdminDashboardController extends Controller
             $retVal = (float) ($branchReturnSalesValues->get($b->id) ?? 0);
             $netValue = max(0, ($grossVal + $exchVal) - $retVal);
 
-            $grossCogs = (float) ($branchCogsValues->get($b->id) ?? 0);
-            $exchCogs = (float) ($branchExchangeCogsValues->get($b->id) ?? 0);
-            $returnCogs = (float) ($branchReturnCogsValues->get($b->id) ?? 0);
-            $netCogs = max(0, ($grossCogs + $exchCogs) - $returnCogs);
-
-            $totalProfit = $netValue - $netCogs;
-            $profitPct = $netValue > 0 ? round(($totalProfit / $netValue) * 100, 2) : 0;
+            $branchCp = $branchCashProfits[$b->id] ?? null;
+            $cashVal = (float) ($branchCp['collection'] ?? 0);
+            $totalProfit = (float) ($branchCp['cash_profit'] ?? 0);
+            $profitPct = $cashVal > 0 ? round(($totalProfit / $cashVal) * 100, 2) : 0;
 
             $totalYearGrandTotal += $yearTotal;
-            $totalGrandValue += $netValue;
+            $totalGrandValue += $cashVal;
             $totalGrandProfit += $totalProfit;
 
             $statementRows[] = [
                 'branch' => $b->name,
                 'months' => $monthValues,
                 'year_total' => $yearTotal,
-                'total_value' => $netValue,
+                'total_value' => $cashVal,
                 'total_profit' => $totalProfit,
                 'profit_pct' => $profitPct
             ];
@@ -854,7 +857,7 @@ class SuperAdminDashboardController extends Controller
     /**
      * Section 5: Gross Sales Statement (Dynamic Month Columns, Unified with Invoices & Returns)
      */
-    private function getGrossSalesStatement($selectedBranchId, $months)
+    private function getGrossSalesStatement($selectedBranchId, $months, $dateRange = 'this_month')
     {
         $monthHeadings = array_column($months, 'label');
 
@@ -1043,6 +1046,12 @@ class SuperAdminDashboardController extends Controller
             ->groupBy(DB::raw("DATE_FORMAT(journals.entry_date, '%Y-%m')"))
             ->pluck('total_expense', 'ym_code');
 
+        // Cash-Basis Profit Calculations
+        $profitStartDate = $dateRange === 'today' ? Carbon::today()->startOfDay()->format('Y-m-d H:i:s') : $startDate;
+        $profitEndDate = $dateRange === 'today' ? Carbon::today()->endOfDay()->format('Y-m-d H:i:s') : $endDate;
+        $cashProfitData = $this->calculateCashProfitData($profitStartDate, $profitEndDate, $selectedBranchId);
+        $monthlyCashProfits = $cashProfitData['monthly_profit'];
+
         $salesQtys = [];
         $salesAmounts = [];
         $cogsAmounts = [];
@@ -1063,25 +1072,24 @@ class SuperAdminDashboardController extends Controller
             $retAmt = (float) ($returnAmountAggregates->get($ymKey) ?? 0);
             $netAmt = max(0, ($grossAmt + $exchAmt) - $retAmt);
 
-            $grossCogs = (float) ($cogsAggregates->get($ymKey) ?? 0);
-            $exchCogs = (float) ($exchangeCogsAggregates->get($ymKey) ?? 0);
-
             $retAgg = $monthlyReturnAggregates->get($ymKey);
             $retQty = (float) ($retAgg->ret_qty ?? 0);
-            $retCogs = (float) ($monthlyReturnCogsAggregates->get($ymKey) ?? 0);
 
             $netQty = max(0, ($grossQty + $exchQty) - $retQty);
-            $netCogs = max(0, ($grossCogs + $exchCogs) - $retCogs);
 
-            $gp = $netAmt - $netCogs;
-            $gpPct = $netAmt > 0 ? round(($gp / $netAmt) * 100, 2) : 0;
+            $mCp = $monthlyCashProfits[$ymKey] ?? null;
+            $cashAmt = (float) ($mCp['collection'] ?? 0);
+            $gp = (float) ($mCp['cash_profit'] ?? 0);
+            $netCogs = (float) ($mCp['cogs'] ?? 0);
+
+            $gpPct = $cashAmt > 0 ? round(($gp / $cashAmt) * 100, 2) : 0;
 
             $exp = max(0, (float) ($expenseAggregates->get($ymKey) ?? 0));
             $np = $gp - $exp;
-            $npPct = $netAmt > 0 ? round(($np / $netAmt) * 100, 2) : 0;
+            $npPct = $cashAmt > 0 ? round(($np / $cashAmt) * 100, 2) : 0;
 
             $salesQtys[] = $netQty;
-            $salesAmounts[] = $netAmt;
+            $salesAmounts[] = $cashAmt;
             $cogsAmounts[] = $netCogs;
             $grossProfits[] = $gp;
             $grossProfitPcts[] = $gpPct;
@@ -1093,7 +1101,7 @@ class SuperAdminDashboardController extends Controller
         $totalQty = array_sum($salesQtys);
         $totalSalesAmt = array_sum($salesAmounts);
         $totalCogsAmt = array_sum($cogsAmounts);
-        $totalGrossProfit = $totalSalesAmt - $totalCogsAmt;
+        $totalGrossProfit = array_sum($grossProfits);
         $totalGrossProfitPct = $totalSalesAmt > 0 ? round(($totalGrossProfit / $totalSalesAmt) * 100, 2) : 0;
         $totalExpense = array_sum($operatingExpenses);
         $totalNetProfit = $totalGrossProfit - $totalExpense;
@@ -1242,4 +1250,13 @@ class SuperAdminDashboardController extends Controller
             ]
         ];
     }
+
+    /**
+     * Calculate Cash-Basis Profit & Loss data (delegated to CashProfitService)
+     */
+    private function calculateCashProfitData($startDate, $endDate, $selectedBranchId = 'all'): array
+    {
+        return app(\App\Services\CashProfitService::class)->calculateCashProfitData($startDate, $endDate, $selectedBranchId);
+    }
 }
+

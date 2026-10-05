@@ -15,6 +15,17 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public static function clearCache()
+    {
+        $ranges = ['week', 'day', 'month', 'year', 'this_month', 'today'];
+        $branches = \App\Models\Branch::pluck('id')->push(0)->toArray();
+        foreach ($branches as $bId) {
+            foreach ($ranges as $r) {
+                \Illuminate\Support\Facades\Cache::forget("dash_v9_{$bId}_{$r}");
+            }
+        }
+    }
+
     public function index(Request $request)
     {
         if (!auth()->user()->hasPermissionTo('view dashboard')) {
@@ -25,7 +36,7 @@ class DashboardController extends Controller
         $branchId = $this->getRestrictedBranchId() ?? 0;
         
         // Cache dashboard for 5 minutes (300 seconds)
-        $cacheKey = "dash_v7_{$branchId}_{$dateRange}";
+        $cacheKey = "dash_v9_{$branchId}_{$dateRange}";
         
         $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function() use ($dateRange) {
             $startDate = $this->getStartDate($dateRange);
@@ -1069,25 +1080,6 @@ class DashboardController extends Controller
         });
     }
 
-    public static function clearCache()
-    {
-        try {
-            $ranges = ['day', 'week', 'month', 'year'];
-            $branches = \App\Models\Branch::pluck('id')->toArray();
-            $branchIds = array_merge([0, null], $branches);
-            foreach ($branchIds as $bId) {
-                $b = $bId ?? 0;
-                foreach ($ranges as $r) {
-                    \Illuminate\Support\Facades\Cache::forget("dash_v2_{$b}_{$r}");
-                    \Illuminate\Support\Facades\Cache::forget("dash_v3_{$b}_{$r}");
-                    \Illuminate\Support\Facades\Cache::forget("dash_v4_{$b}_{$r}");
-                }
-            }
-        } catch (\Exception $e) {
-            // Ignore cache exception
-        }
-    }
-
     private function getRecentSalesDetailed()
     {
         $branchId = $this->getRestrictedBranchId();
@@ -1102,22 +1094,30 @@ class DashboardController extends Controller
 
         return $query->get()->map(function($sale) {
             $invoice = $sale->invoice;
-            $total = $invoice ? (float)$invoice->total_amount : (float)$sale->total_amount;
-            $paid = $invoice ? min((float)$invoice->paid_amount, $total) : 0;
+            $total = (float) ($invoice ? $invoice->total_amount : $sale->total_amount);
             
-            if (!$invoice) {
-                $grossPaid = (float) DB::table('payments')
-                    ->where(function($q) use ($sale) {
-                        $q->where('pos_id', $sale->id);
-                        if ($sale->invoice_id) {
-                            $q->orWhere('invoice_id', $sale->invoice_id);
-                        }
-                    })
-                    ->sum('amount');
-                $paid = min($grossPaid, $total);
+            $grossPaid = (float) DB::table('payments')
+                ->where(function($q) use ($sale) {
+                    $q->where('pos_id', $sale->id);
+                    if ($sale->invoice_id) {
+                        $q->orWhere('invoice_id', $sale->invoice_id);
+                    }
+                })
+                ->sum('amount');
+
+            $paid = min($grossPaid, $total);
+            if ($paid == 0 && $invoice && $invoice->paid_amount > 0) {
+                $paid = min((float)$invoice->paid_amount, $total);
             }
 
             $due = max(0, $total - $paid);
+
+            $paymentStatus = 'unpaid';
+            if ($due <= 0 && $paid > 0) {
+                $paymentStatus = 'paid';
+            } elseif ($paid > 0 && $due > 0) {
+                $paymentStatus = 'partial';
+            }
 
             return [
                 'invoice_no' => $sale->sale_number,
@@ -1127,7 +1127,8 @@ class DashboardController extends Controller
                 'total' => $total,
                 'paid' => $paid,
                 'due' => $due,
-                'status' => $sale->status
+                'status' => $paymentStatus,
+                'delivery_status' => $sale->status
             ];
         });
     }
