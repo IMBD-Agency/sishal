@@ -58,7 +58,7 @@
                             </div>
                             <div class="form-check custom-radio">
                                 <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                    id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                    id="monthlyReport" value="monthly" {{ request('report_type', 'yearly') == 'monthly' ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly
                                     Reports</label>
                             </div>
@@ -124,7 +124,6 @@
                                 </select>
                             </div>
 
-
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Voucher Type
                                     *</label>
@@ -141,12 +140,32 @@
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Account
                                     *</label>
-                                <select name="account_id" class="form-select select2">
-                                    <option value="all">All Account</option>
-                                    @foreach($expenseAccounts as $acc)
-                                        <option value="{{ $acc->id }}" {{ request('account_id') == $acc->id ? 'selected' : '' }}>
-                                            {{ $acc->name }}</option>
-                                    @endforeach
+                                <select name="account_id" id="accountSelect" class="form-select select2">
+                                    <option value="all">All Accounts</option>
+                                    @php
+                                        $specialAccounts = $expenseAccounts->filter(function($a) {
+                                            return preg_match('/vat|tax|delivery|courier/i', $a->name);
+                                        });
+                                        $otherAccounts = $expenseAccounts->reject(function($a) {
+                                            return preg_match('/vat|tax|delivery|courier/i', $a->name);
+                                        });
+                                    @endphp
+                                    @if($specialAccounts->isNotEmpty())
+                                        <optgroup label=" VAT & Delivery ">
+                                            @foreach($specialAccounts as $acc)
+                                                <option value="{{ $acc->id }}" {{ request('account_id') == $acc->id ? 'selected' : '' }}>
+                                                    {{ $acc->name }}
+                                                </option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
+                                    <optgroup label="Other Ledger Accounts">
+                                        @foreach($otherAccounts as $acc)
+                                            <option value="{{ $acc->id }}" {{ request('account_id') == $acc->id ? 'selected' : '' }}>
+                                                {{ $acc->name }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>
@@ -206,20 +225,25 @@
                                     <th>Customer</th>
                                     <th>Ledger Account</th>
                                     <th>Details</th>
-                                    <th class="text-end">Voucher Amount</th>
+                                    <th class="text-end" id="amountColumnHeader">
+                                        {{ isset($selectedAccount) && $selectedAccount ? $selectedAccount->name . ' Amount' : 'Voucher Amount' }}
+                                    </th>
                                     <th class="text-end">Paid Amount</th>
                                     <th>Account</th>
                                     <th class="text-center pe-3">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="tableBody">
-                                @include('erp.vouchers.table_rows', ['vouchers' => $vouchers])
+                                @include('erp.vouchers.table_rows', ['vouchers' => $vouchers, 'selectedAccount' => $selectedAccount ?? null])
                             </tbody>
                             <tfoot class="bg-light">
                                 <tr>
-                                    <td colspan="8" class="text-end fw-bold">Grand Total (Filtered)</td>
-                                    <td class="text-end fw-bold text-dark" id="totalVoucherAmount">
-                                        {{ number_format($totals->total_voucher ?? 0, 2) }}৳</td>
+                                    <td colspan="8" class="text-end fw-bold" id="grandTotalLabel">
+                                        {{ isset($selectedAccount) && $selectedAccount ? 'Total ' . $selectedAccount->name . ' (Filtered)' : 'Grand Total (Filtered)' }}
+                                    </td>
+                                    <td class="text-end fw-bold {{ isset($selectedAccount) && $selectedAccount ? 'text-primary' : 'text-dark' }}" id="totalVoucherAmount">
+                                        {{ isset($selectedAccount) && $selectedAccount ? number_format($totalAccountAmount ?? 0, 2) : number_format($totals->total_voucher ?? 0, 2) }}৳
+                                    </td>
                                     <td class="text-end fw-bold text-success" id="totalPaidAmount">
                                         {{ number_format($totals->total_paid ?? 0, 2) }}৳</td>
                                     <td colspan="2"></td>
@@ -282,12 +306,10 @@
         </style>
     @endpush
 
-
-
     @push('scripts')
         <script>
             $(document).ready(function () {
-                // Live Search Helper local (or can trigger AJAX if configured)
+                // Live Search Helper local
                 $("#voucherSearch").on("keyup", function () {
                     var value = $(this).val().toLowerCase();
                     $("#voucherTable tbody tr").filter(function () {
@@ -348,14 +370,6 @@
                     fetchData(url);
                 });
 
-                // Listen for changes on select elements to trigger fetching automatically
-                // Removed auto-fetch to only filter on 'Filter' button click per user request
-                // $('.select2, select[name="voucher_type"]').on('change', function(e) {
-                //     if($(this).attr('name') !== 'month' && $(this).attr('name') !== 'year') {
-                //         fetchData();
-                //     }
-                // });
-
                 function fetchData(url = null) {
                     let form = $('#filterForm');
                     let targetUrl = url ? url : form.attr('action');
@@ -372,7 +386,16 @@
                         success: function (response) {
                             $('#tableBody').css('opacity', '1').html(response.html);
                             $('#paginationContainer').html(response.pagination);
-                            $('#totalVoucherAmount').text(response.total_voucher + '৳');
+                            
+                            if (response.is_account_filtered) {
+                                $('#amountColumnHeader').text(response.account_name + ' Amount');
+                                $('#grandTotalLabel').text('Total ' + response.account_name + ' (Filtered)');
+                                $('#totalVoucherAmount').removeClass('text-dark').addClass('text-primary').text(response.total_voucher + '৳');
+                            } else {
+                                $('#amountColumnHeader').text('Voucher Amount');
+                                $('#grandTotalLabel').text('Grand Total (Filtered)');
+                                $('#totalVoucherAmount').removeClass('text-primary').addClass('text-dark').text(response.total_voucher + '৳');
+                            }
                             $('#totalPaidAmount').text(response.total_paid + '৳');
                         },
                         error: function (xhr) {

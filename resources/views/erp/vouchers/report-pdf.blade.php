@@ -33,7 +33,7 @@
                 <th>Account</th>
                 <th>Party</th>
                 <th>Branch</th>
-                <th class="text-right">Amount</th>
+                <th class="text-right">{{ isset($selectedAccount) && $selectedAccount ? $selectedAccount->name . ' Amount' : 'Amount' }}</th>
                 <th class="text-right">Paid</th>
                 <th>Created By</th>
             </tr>
@@ -48,6 +48,26 @@
                     'Contra'  => 'badge-contra',
                     'Journal' => 'badge-journal',
                 ][$v->type] ?? '';
+
+                $rowAmount = $v->voucher_amount;
+                if (isset($selectedAccount) && $selectedAccount) {
+                    $matchingEntries = $v->entries->where('chart_of_account_id', $selectedAccount->id);
+                    $selectedTypeName = strtolower($selectedAccount->type->name ?? '');
+                    $isCreditNormal = in_array($selectedTypeName, ['liability', 'revenue', 'equity']) 
+                        || stripos($selectedAccount->name, 'vat') !== false 
+                        || stripos($selectedAccount->name, 'tax') !== false 
+                        || stripos($selectedAccount->name, 'sales') !== false
+                        || stripos($selectedAccount->name, 'delivery') !== false
+                        || stripos($selectedAccount->name, 'courier') !== false;
+
+                    if ($matchingEntries->isNotEmpty()) {
+                        $c = (float) $matchingEntries->sum('credit');
+                        $d = (float) $matchingEntries->sum('debit');
+                        $rowAmount = $isCreditNormal ? ($c - $d) : ($d - $c);
+                    } elseif ($v->expense_account_id == $selectedAccount->id) {
+                        $rowAmount = $v->voucher_amount;
+                    }
+                }
             @endphp
             <tr>
                 <td>{{ $i + 1 }}</td>
@@ -57,13 +77,13 @@
                 <td>{{ optional($v->expenseAccount)->name ?? '—' }}</td>
                 <td>{{ $party }}</td>
                 <td>{{ optional($v->branch)->name ?? '—' }}</td>
-                <td class="text-right">{{ number_format($v->voucher_amount, 2) }}</td>
+                <td class="text-right">{{ number_format($rowAmount, 2) }}</td>
                 <td class="text-right">{{ number_format($v->paid_amount, 2) }}</td>
                 <td>{{ optional($v->creator)->name ?? '—' }}</td>
             </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="7" class="text-right">GRAND TOTAL</td>
+                <td colspan="7" class="text-right">{{ isset($selectedAccount) && $selectedAccount ? 'TOTAL (' . strtoupper($selectedAccount->name) . ')' : 'GRAND TOTAL' }}</td>
                 <td class="text-right">{{ number_format($totalAmount, 2) }}</td>
                 <td class="text-right">{{ number_format($totalPaid, 2) }}</td>
                 <td></td>

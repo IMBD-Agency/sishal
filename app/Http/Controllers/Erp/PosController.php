@@ -708,9 +708,9 @@ class PosController extends Controller
                 SUM(pos.vat_amount) as total_vat,
                 SUM(pos.exchange_amount) as total_exchange,
                 SUM(pos.refund_amount) as total_refund,
-                SUM(invoices.total_amount) as final_total,
-                SUM(LEAST(invoices.paid_amount, invoices.total_amount)) as total_paid,
-                SUM(GREATEST(0, invoices.total_amount - LEAST(invoices.paid_amount, invoices.total_amount))) as total_due
+                SUM(GREATEST(0, invoices.total_amount - pos.delivery)) as final_total,
+                SUM(LEAST(GREATEST(0, invoices.paid_amount - pos.delivery), GREATEST(0, invoices.total_amount - pos.delivery))) as total_paid,
+                SUM(GREATEST(0, (invoices.total_amount - pos.delivery) - LEAST(GREATEST(0, invoices.paid_amount - pos.delivery), GREATEST(0, invoices.total_amount - pos.delivery)))) as total_due
             ")
             ->first();
 
@@ -1074,7 +1074,7 @@ class PosController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $pos = Pos::with(['customer', 'branch', 'items.product', 'items.variation.attributeValues.attribute'])->findOrFail($id);
+        $pos = Pos::with(['customer', 'branch', 'items.product', 'items.variation.attributeValues.attribute', 'payments', 'invoice.payments'])->findOrFail($id);
 
         // Only allow editing if status is pending or delivered (not cancelled)
         if ($pos->status === 'cancelled') {
@@ -1383,29 +1383,86 @@ class PosController extends Controller
                 $invoice = $pos->invoice; // assign the related invoice model
                 $tax = $pos->vat_amount;
 
-                // Handle financial transaction for payment increase
-                $oldPaidAmount = $invoice->getOriginal('paid_amount') ?? 0;
-                $newPaidAmount = $request->paid_amount ?? $oldPaidAmount;
-                $paymentDifference = $newPaidAmount - $oldPaidAmount;
+                $newPaidAmount = floatval($request->paid_amount ?? 0);
 
-                if ($paymentDifference > 0 && $request->account_id) {
-                    $account = FinancialAccount::find($request->account_id);
-                    if ($account) {
-                        $account->balance += $paymentDifference;
-                        $account->save();
+                // Identify target financial account
+                $targetAccountId = $request->account_id;
+                $targetFinAcc = null;
+                if ($targetAccountId) {
+                    $targetFinAcc = FinancialAccount::find($targetAccountId);
+                } else {
+                    $type = $request->payment_method ?? 'cash';
+                    $targetFinAcc = FinancialAccount::where('type', $type)->where('branch_id', $pos->branch_id)->first()
+                        ?? FinancialAccount::where('type', $type)->first();
+                }
+
+                // Find existing primary POS payment record
+                $existingPayment = Payment::where('pos_id', $pos->id)->first()
+                    ?? Payment::where('invoice_id', $invoice->id)->first();
+
+                if ($existingPayment) {
+                    $oldPaidAmount = floatval($existingPayment->amount ?? 0);
+                    $oldAccountId = $existingPayment->account_id;
+
+                    // Reverse old payment from old account
+                    if ($oldAccountId && $oldPaidAmount > 0) {
+                        $oldAccount = FinancialAccount::find($oldAccountId);
+                        if ($oldAccount) {
+                            $oldAccount->balance = max(0, $oldAccount->balance - $oldPaidAmount);
+                            $oldAccount->save();
+                        }
                     }
+
+                    // Apply new payment to target account
+                    if ($newPaidAmount > 0) {
+                        if ($targetFinAcc) {
+                            $targetFinAcc->balance += $newPaidAmount;
+                            $targetFinAcc->save();
+                        }
+
+                        $existingPayment->update([
+                            'pos_id' => $pos->id,
+                            'invoice_id' => $invoice->id,
+                            'amount' => $newPaidAmount,
+                            'account_id' => $targetFinAcc ? $targetFinAcc->id : $targetAccountId,
+                            'payment_method' => $request->payment_method ?? $existingPayment->payment_method ?? 'cash',
+                            'customer_id' => $pos->customer_id,
+                            'note' => $request->notes,
+                        ]);
+                    } else {
+                        $existingPayment->delete();
+                    }
+                } elseif ($newPaidAmount > 0) {
+                    // Create new payment record if none existed previously
+                    if ($targetFinAcc) {
+                        $targetFinAcc->balance += $newPaidAmount;
+                        $targetFinAcc->save();
+                    }
+
+                    Payment::create([
+                        'payment_for' => 'pos',
+                        'pos_id' => $pos->id,
+                        'invoice_id' => $invoice->id,
+                        'payment_date' => $pos->sale_date ?? now()->toDateString(),
+                        'amount' => $newPaidAmount,
+                        'account_id' => $targetFinAcc ? $targetFinAcc->id : $targetAccountId,
+                        'payment_method' => $request->payment_method ?? 'cash',
+                        'reference' => null,
+                        'note' => $request->notes,
+                        'customer_id' => $pos->customer_id,
+                    ]);
                 }
 
                 $invoice->tax = $tax;
                 $invoice->subtotal = $pos->sub_total;
                 $invoice->discount_apply = $pos->discount;
                 $invoice->total_amount = $pos->total_amount;
-
+                $invoice->customer_id = $pos->customer_id;
                 $invoice->paid_amount = $newPaidAmount;
                 $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
 
                 // Update invoice status based on payment
-                if ($invoice->paid_amount >= $invoice->total_amount) {
+                if ($invoice->paid_amount >= $invoice->total_amount && $invoice->total_amount > 0) {
                     $invoice->status = 'paid';
                     $invoice->due_amount = 0;
                 } elseif ($invoice->paid_amount > 0) {
@@ -1436,6 +1493,231 @@ class PosController extends Controller
                 }
             }
 
+            // =====================================================
+            // DOUBLE-ENTRY ACCOUNTING: Update Journal & Journal Entries
+            // =====================================================
+            $voucherNo = 'SAL-' . str_pad($pos->id, 6, '0', STR_PAD_LEFT);
+            $journal = Journal::where('voucher_no', 'like', $voucherNo . '%')
+                ->orWhere('reference', $pos->sale_number)
+                ->first();
+
+            if ($journal) {
+                $journal->entries()->delete();
+            } else {
+                $journal = new Journal();
+                $journal->voucher_no = $voucherNo;
+                $journal->created_by = auth()->id() ?? $pos->sold_by;
+            }
+
+            $journal->branch_id = $pos->branch_id;
+            $journal->entry_date = $pos->sale_date ?? now()->toDateString();
+            $journal->type = 'Receipt';
+            $journal->customer_id = $pos->customer_id;
+            $journal->voucher_amount = $pos->total_amount;
+            $journal->paid_amount = $newPaidAmount;
+            $journal->reference = $pos->sale_number;
+            $journal->description = 'POS Sale #' . $pos->sale_number . ($pos->customer ? (' (' . $pos->customer->name . ')') : '');
+            $journal->updated_by = auth()->id() ?? $pos->sold_by;
+            $journal->save();
+
+            // 1. CREDIT Sales Revenue (Net of Tax & Delivery: sub_total - discount)
+            $netRevenue = $pos->sub_total - $pos->discount;
+            if ($netRevenue > 0) {
+                $salesRevenueAccount = ChartOfAccount::where('name', 'like', '%Sales Revenue%')->orWhere('name', 'like', '%Sales Income%')->first();
+                if (!$salesRevenueAccount) {
+                    $revType = \App\Models\ChartOfAccountType::where('name', 'Revenue')->first() ?? \App\Models\ChartOfAccountType::find(4);
+                    $revSubType = \App\Models\ChartOfAccountSubType::where('type_id', $revType->id)->first();
+                    if (!$revSubType) {
+                        $revSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Revenue', 'type_id' => $revType->id]);
+                    }
+                    $revParent = \App\Models\ChartOfAccountParent::where('type_id', $revType->id)->first();
+                    if (!$revParent) {
+                        $revParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Sales Revenue Parent',
+                            'type_id' => $revType->id,
+                            'sub_type_id' => $revSubType->id,
+                            'code' => '4000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $salesRevenueAccount = ChartOfAccount::create([
+                        'name' => 'Sales Revenue',
+                        'type_id' => $revType->id,
+                        'sub_type_id' => $revSubType->id,
+                        'parent_id' => $revParent->id,
+                        'code' => '40001',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $salesRevenueAccount->id,
+                    'debit' => 0,
+                    'credit' => $netRevenue,
+                    'memo' => 'Revenue from POS Sale (Net of Tax & Delivery)',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+
+            // 2. CREDIT Delivery Expense (reduce expense) or Delivery Income
+            if ($pos->delivery > 0) {
+                $deliveryExpenseAccount = ChartOfAccount::where('name', 'like', '%Delivery Expense%')->orWhere('name', 'like', '%Courier Expense%')->first();
+                if (!$deliveryExpenseAccount) {
+                    $expenseType = \App\Models\ChartOfAccountType::where('name', 'Expense')->first() ?? \App\Models\ChartOfAccountType::find(5);
+                    $expenseSubType = \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->where('name', 'like', '%Operating%')->first() 
+                        ?? \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->first();
+                    if (!$expenseSubType) {
+                        $expenseSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Expenses', 'type_id' => $expenseType->id]);
+                    }
+                    $expenseParent = \App\Models\ChartOfAccountParent::where('type_id', $expenseType->id)->first();
+                    if (!$expenseParent) {
+                        $expenseParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Operating Expenses Parent',
+                            'type_id' => $expenseType->id,
+                            'sub_type_id' => $expenseSubType->id,
+                            'code' => '5000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $deliveryExpenseAccount = ChartOfAccount::create([
+                        'name' => 'Delivery Expense',
+                        'type_id' => $expenseType->id,
+                        'sub_type_id' => $expenseSubType->id,
+                        'parent_id' => $expenseParent->id,
+                        'code' => '50005',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $deliveryExpenseAccount->id,
+                    'debit' => 0,
+                    'credit' => $pos->delivery,
+                    'memo' => 'Delivery charge collected from customer',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+
+            // 3. CREDIT VAT Payable (Tax Amount - Liability increases)
+            if ($pos->vat_amount > 0) {
+                $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')->orWhere('name', 'like', '%Tax Payable%')->first();
+                if (!$vatAccount) {
+                    $liabType = \App\Models\ChartOfAccountType::where('name', 'Liability')->first() ?? \App\Models\ChartOfAccountType::find(2);
+                    $liabSubType = \App\Models\ChartOfAccountSubType::where('type_id', $liabType->id)->first();
+                    if (!$liabSubType) {
+                        $liabSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Liabilities', 'type_id' => $liabType->id]);
+                    }
+                    $liabParent = \App\Models\ChartOfAccountParent::where('type_id', $liabType->id)->first();
+                    if (!$liabParent) {
+                        $liabParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Tax Liabilities',
+                            'type_id' => $liabType->id,
+                            'sub_type_id' => $liabSubType->id,
+                            'code' => '2000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+                    $vatAccount = ChartOfAccount::create([
+                        'name' => 'VAT Payable',
+                        'type_id' => $liabType->id,
+                        'sub_type_id' => $liabSubType->id,
+                        'parent_id' => $liabParent->id,
+                        'code' => '20001',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $vatAccount->id,
+                    'debit' => 0,
+                    'credit' => $pos->vat_amount,
+                    'memo' => 'VAT collected from POS Sale',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+
+            // 4. DEBIT Cash/Bank (Paid Amount - Asset increases)
+            if ($newPaidAmount > 0) {
+                if ($targetFinAcc) {
+                    $paymentChartAccountId = $targetFinAcc->account_id;
+                    if (!$paymentChartAccountId) {
+                        $type = $targetFinAcc->type ?? 'cash';
+                        $paymentCoa = ChartOfAccount::where('name', 'like', "%{$type}%")->first()
+                            ?? ChartOfAccount::where('name', 'like', '%Cash%')->first()
+                            ?? ChartOfAccount::where('name', 'like', '%Bank%')->first();
+                        $paymentChartAccountId = $paymentCoa?->id;
+                    }
+
+                    if ($paymentChartAccountId) {
+                        JournalEntry::create([
+                            'journal_id' => $journal->id,
+                            'chart_of_account_id' => $paymentChartAccountId,
+                            'financial_account_id' => $targetFinAcc->id,
+                            'debit' => $newPaidAmount,
+                            'credit' => 0,
+                            'memo' => 'Payment received via ' . ($targetFinAcc->provider_name ?? 'Cash/Bank'),
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
+                        ]);
+                    }
+                }
+            }
+
+            // 5. DEBIT Accounts Receivable (Due Amount - Asset increases)
+            $dueAmount = max(0, $pos->total_amount - $newPaidAmount);
+            if ($dueAmount > 0) {
+                $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                if (!$arAccount) {
+                    $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first() ?? \App\Models\ChartOfAccountType::find(1);
+                    $assetSubType = \App\Models\ChartOfAccountSubType::where('type_id', $assetType->id)->first();
+                    if (!$assetSubType) {
+                        $assetSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Current Assets', 'type_id' => $assetType->id]);
+                    }
+                    $assetParent = \App\Models\ChartOfAccountParent::where('type_id', $assetType->id)->first();
+                    if (!$assetParent) {
+                        $assetParent = \App\Models\ChartOfAccountParent::create([
+                            'name' => 'Accounts Receivable Parent',
+                            'type_id' => $assetType->id,
+                            'sub_type_id' => $assetSubType->id,
+                            'code' => '1000',
+                            'created_by' => auth()->id()
+                        ]);
+                    }
+
+                    $arAccount = ChartOfAccount::create([
+                        'name' => 'Accounts Receivable',
+                        'type_id' => $assetType->id,
+                        'sub_type_id' => $assetSubType->id,
+                        'parent_id' => $assetParent->id,
+                        'code' => '10002',
+                        'status' => 'active',
+                        'created_by' => auth()->id()
+                    ]);
+                }
+                JournalEntry::create([
+                    'journal_id' => $journal->id,
+                    'chart_of_account_id' => $arAccount->id,
+                    'debit' => $dueAmount,
+                    'credit' => 0,
+                    'memo' => 'Due amount from customer',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
+            // =====================================================
+
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Sale updated successfully.', 'sale_id' => $pos->id]);
         } catch (\Exception $e) {

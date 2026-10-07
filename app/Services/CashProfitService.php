@@ -234,10 +234,10 @@ class CashProfitService
             $nonProductAmount = $deliveryAmount + $vatAmount;
 
             $cumulativeNetCashEnd = $priorNetCash + $netCollectionForTx;
-            $cumulativeProductCashEnd = max(0, $cumulativeNetCashEnd - $nonProductAmount);
-            $cumulativeProductCashStart = max(0, $priorNetCash - $nonProductAmount);
+            $cumulativeProductCashEnd = min($currentInfo['revenue'], max(0, $cumulativeNetCashEnd));
+            $cumulativeProductCashStart = min($priorInfo['revenue'], max(0, $priorNetCash));
             
-            $currentNetProductCollection = $cumulativeProductCashEnd - $cumulativeProductCashStart;
+            $currentNetProductCollection = max(0, $cumulativeProductCashEnd - $cumulativeProductCashStart);
             
             $cashProfitOnNetCollection = $currentNetProductCollection * $currentInfo['margin'];
             $priorCashAdjustment = $cumulativeProductCashStart * ($currentInfo['margin'] - $priorInfo['margin']);
@@ -281,9 +281,8 @@ class CashProfitService
             // Totals for detailed reports
             $totalGrossPayments += $currentPayments;
             $totalReturnRefunds += $currentRefunds;
-            $totalExchangeRefunds += $currentExchangeRefunds;
-            $totalDeliveryCollected += min($deliveryAmount, max(0, $netCollectionForTx));
-            $totalVatCollected += min($vatAmount, max(0, $netCollectionForTx - $deliveryAmount));
+            $totalDeliveryCollected += min($deliveryAmount, max(0, $netCollectionForTx - $currentNetProductCollection));
+            $totalVatCollected += min($vatAmount, max(0, $netCollectionForTx - $currentNetProductCollection - $deliveryAmount));
             $totalProductCollected += $currentNetProductCollection;
             $totalCollected += $netCollectionForTx;
             $totalCashProfit += $txCashProfit;

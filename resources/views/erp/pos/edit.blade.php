@@ -187,22 +187,31 @@
                             </div>
                         </div>
 
+                        @php
+                            $primaryPayment = $pos->payments->first() ?? $pos->invoice?->payments->first();
+                            $savedPaymentMethod = strtolower($primaryPayment?->payment_method ?? $pos->account_type ?? 'cash');
+                            if (!in_array($savedPaymentMethod, ['cash', 'bank', 'mobile'])) {
+                                $savedPaymentMethod = 'cash';
+                            }
+                            $savedAccountId = $primaryPayment?->account_id ?? $pos->account_number ?? null;
+                        @endphp
+
                         <!-- Payment & Account -->
                         <div class="row g-2 mb-3">
                             <div class="col-12">
                                 <div class="btn-group btn-group-sm w-100 payment-method-toggle" role="group">
-                                    <input type="radio" class="btn-check" name="payment_method" id="payCash" value="cash" checked autocomplete="off">
+                                    <input type="radio" class="btn-check" name="payment_method" id="payCash" value="cash" {{ $savedPaymentMethod === 'cash' ? 'checked' : '' }} autocomplete="off">
                                     <label class="btn btn-outline-secondary" for="payCash">Cash</label>
-                                    <input type="radio" class="btn-check" name="payment_method" id="payMobile" value="mobile" autocomplete="off">
+                                    <input type="radio" class="btn-check" name="payment_method" id="payMobile" value="mobile" {{ $savedPaymentMethod === 'mobile' ? 'checked' : '' }} autocomplete="off">
                                     <label class="btn btn-outline-secondary" for="payMobile">Mobile</label>
-                                    <input type="radio" class="btn-check" name="payment_method" id="payBank" value="bank" autocomplete="off">
+                                    <input type="radio" class="btn-check" name="payment_method" id="payBank" value="bank" {{ $savedPaymentMethod === 'bank' ? 'checked' : '' }} autocomplete="off">
                                     <label class="btn btn-outline-secondary" for="payBank">Bank</label>
                                 </div>
                             </div>
                             <div class="col-12">
-                                <select class="form-select form-select-sm fw-bold" id="accountSelect" name="account_id">
+                                <select class="form-select form-select-sm fw-bold" id="accountSelect" name="account_id" data-saved-account="{{ $savedAccountId }}">
                                      @foreach($bankAccounts as $acc)
-                                         <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                         <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" {{ $savedAccountId == $acc->id ? 'selected' : '' }} style="{{ $acc->type === $savedPaymentMethod ? '' : 'display:none;' }}">
                                              {{ $acc->provider_name }} ({{ $acc->mobile_number ?? $acc->account_number ?? '...' }})
                                          </option>
                                      @endforeach
@@ -266,6 +275,11 @@ $(document).ready(function() {
                     ->whereNull('warehouse_id')
                     ->first();
                 $stock = $vStock ? ($vStock->available_quantity ?? ($vStock->quantity - ($vStock->reserved_quantity ?? 0))) : 0;
+            } elseif ($item->product && $item->product->has_variations && $item->product->variations->isNotEmpty()) {
+                $stock = \App\Models\ProductVariationStock::where('branch_id', $pos->branch_id)
+                    ->whereIn('variation_id', $item->product->variations->pluck('id'))
+                    ->whereNull('warehouse_id')
+                    ->sum('quantity');
             } else {
                 $bStock = \App\Models\BranchProductStock::where('product_id', $item->product_id)
                     ->where('branch_id', $pos->branch_id)
@@ -275,12 +289,15 @@ $(document).ready(function() {
 
             $productName = $item->product->name ?? ('Deleted Product #' . $item->product_id);
             $variationName = $item->variation ? (' - ' . ($item->variation->name ?? '')) : '';
+            $styleNo = $item->variation ? ($item->variation->sku ?? $item->product?->style_number) : ($item->product?->style_number ?? $item->product?->sku);
 
             return [
-                'cartId'          => $item->variation_id ? ($item->product_id.'-'.$item->variation_id) : $item->product_id,
+                'cartId'          => (string)($item->variation_id ? ($item->product_id.'-'.$item->variation_id) : $item->product_id),
                 'productId'       => $item->product_id,
+                'variationId'     => $item->variation_id,
                 'variation_id'    => $item->variation_id,
                 'name'            => $productName . $variationName,
+                'styleNo'         => $styleNo,
                 'price'           => (float)$item->unit_price,
                 'mrp_price'       => (float)($item->variation_id
                     ? ($item->variation->discount ?? $item->variation->price ?? $item->unit_price)
@@ -289,6 +306,7 @@ $(document).ready(function() {
                     ? ($item->variation->wholesale_price ?? $item->product->wholesale_price ?? $item->unit_price)
                     : ($item->product->wholesale_price ?? $item->unit_price)),
                 'qty'             => (float)$item->quantity,
+                'stock'           => (float)$stock,
                 'maxStock'        => (float)$stock + (float)$item->quantity
             ];
         });
@@ -360,9 +378,9 @@ $(document).ready(function() {
 
     function addToCart(product, variation = null, maxStock = 999) {
         let cartId = variation ? `${product.id}-${variation.id}` : `${product.id}`;
-        let existing = cart.find(c => c.cartId === cartId);
+        let existing = cart.find(c => String(c.cartId) === String(cartId));
         if(existing) {
-            if(existing.qty + 1 > maxStock) return alert('Stock Limit Reached');
+            if(existing.qty + 1 > existing.maxStock) return alert('Stock Limit Reached');
             existing.qty++;
         } else {
             let mrp = variation ? (variation.discount || variation.price || product.discount || product.price) : (product.discount || product.price);
@@ -370,12 +388,18 @@ $(document).ready(function() {
             let currentPrice = $('input[name="saleType"]:checked').val() === 'Wholesale' ? wholesale : mrp;
 
             cart.push({
-                cartId, productId: product.id, variationId: variation?.id || null,
+                cartId: String(cartId),
+                productId: product.id,
+                variationId: variation?.id || null,
+                variation_id: variation?.id || null,
                 name: product.name + (variation ? ` - ${variation.name}` : ''),
+                styleNo: variation ? (variation.sku || product.style_number) : (product.style_number || product.sku),
                 price: parseFloat(currentPrice),
                 mrp_price: parseFloat(mrp),
                 wholesale_price: parseFloat(wholesale),
-                qty: 1, maxStock: maxStock
+                qty: 1,
+                stock: parseFloat(maxStock),
+                maxStock: parseFloat(maxStock)
             });
         }
         renderCart();
@@ -383,13 +407,17 @@ $(document).ready(function() {
 
     function renderCart() {
         const tbody = $('#cartTableBody').empty();
-        if(!cart.length) { tbody.html('<tr><td colspan="4" class="text-center py-5 text-muted">Cart empty</td></tr>'); calculateTotals(); return; }
+        if(!cart.length) { 
+            tbody.html('<tr><td colspan="4" class="text-center py-5 text-muted">Cart empty</td></tr>'); 
+            calculateTotals(); 
+            return; 
+        }
         cart.forEach(item => {
             tbody.append(`
                 <tr class="align-middle border-bottom">
                     <td class="ps-2 py-3">
                         <div class="fw-bold text-dark mb-0">${item.name}</div>
-                        <div class="d-flex align-items-center gap-2 mt-1">
+                        <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
                             <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price">
                                 <span class="text-success fw-bold extra-small me-1">৳</span>
                                 <input type="number" step="any" min="0" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
@@ -398,7 +426,8 @@ $(document).ready(function() {
                                        onchange="manualUpdatePrice('${item.cartId}', this.value)"
                                        onclick="this.select()" onfocus="this.select()">
                             </div>
-                            <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.maxStock}</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.stock ?? item.maxStock}</span>
+                            ${item.styleNo ? `<span class="badge bg-info bg-opacity-10 text-info border-0 extra-small">Style: ${item.styleNo}</span>` : ''}
                         </div>
                     </td>
                     <td class="text-center px-0">
@@ -426,8 +455,8 @@ $(document).ready(function() {
         calculateTotals();
     }
 
-    window.manualUpdatePrice = (id, val) => {
-        let i = cart.find(c => c.cartId === id);
+    window.manualUpdatePrice = function(id, val) {
+        let i = cart.find(c => String(c.cartId) === String(id));
         if(i) {
             let newPrice = parseFloat(val);
             if(isNaN(newPrice) || newPrice < 0) newPrice = 0;
@@ -436,18 +465,20 @@ $(document).ready(function() {
             calculateTotals();
         }
     };
-    window.updateQty = (id, d) => { 
-        let i = cart.find(c => c.cartId === id); 
+
+    window.updateQty = function(id, d) { 
+        let i = cart.find(c => String(c.cartId) === String(id)); 
         if(i) { 
             let newQty = i.qty + d;
-            if(d > 0 && newQty > i.maxStock) return alert('Stock Limit Reached');
+            if(d > 0 && newQty > i.maxStock) return alert('Stock Limit Reached! Only ' + i.maxStock + ' available.');
             i.qty = newQty;
             if(i.qty <= 0) removeFromCart(id); 
             else renderCart(); 
         } 
     };
-    window.manualUpdateQty = (id, val, input) => {
-        let i = cart.find(c => c.cartId === id);
+
+    window.manualUpdateQty = function(id, val, input) {
+        let i = cart.find(c => String(c.cartId) === String(id));
         if(i) {
             let newQty = parseFloat(val);
             
@@ -460,17 +491,14 @@ $(document).ready(function() {
             if (isNaN(newQty) || newQty <= 0) return;
             
             i.qty = newQty;
-            
-            // Update row total
             $(`#item-total-${id}`).text((i.price * i.qty).toFixed(2));
-            
-            // Update totals
             calculateTotals();
         }
     };
-    window.removeFromCart = (id) => { 
+
+    window.removeFromCart = function(id) { 
         if(confirm('Remove this item?')) {
-            cart = cart.filter(c => c.cartId !== id); 
+            cart = cart.filter(c => String(c.cartId) !== String(id)); 
             renderCart(); 
         }
     };
@@ -479,9 +507,13 @@ $(document).ready(function() {
         let sub = cart.reduce((a, i) => a + (i.price * i.qty), 0);
         let discStr = $('#discountInput').val() || '0';
         let disc = discStr.includes('%') ? (sub * parseFloat(discStr)/100) : parseFloat(discStr);
+        if (isNaN(disc) || disc < 0) disc = 0;
         let del = parseFloat($('#deliveryInput').val()) || 0;
+        if (isNaN(del) || del < 0) del = 0;
         let vatRate = parseFloat($('#vatInput').val()) || 0;
+        if (isNaN(vatRate) || vatRate < 0) vatRate = 0;
         let vatAmount = (sub - disc) * (vatRate / 100);
+        if (isNaN(vatAmount) || vatAmount < 0) vatAmount = 0;
         let final = (sub + del + vatAmount) - disc;
 
         $('#subtotalDisplay').text(sub.toFixed(2) + '৳');
@@ -499,7 +531,8 @@ $(document).ready(function() {
         }
 
         $('#finalTotalDisplay').text(final.toFixed(2));
-        $('#cartCount').text(cart.length + ' Items');
+        let totalItems = cart.reduce((acc, i) => acc + (parseFloat(i.qty) || 0), 0);
+        $('#cartCount').text(totalItems + (totalItems === 1 ? ' Item' : ' Items'));
 
         // Due / Change calculation
         let paid = parseFloat($('#paidAmountInput').val()) || 0;
@@ -509,7 +542,7 @@ $(document).ready(function() {
             $('#changeLabel').text('Change').removeClass('text-danger').addClass('text-success');
             $('#changeDisplay').text(Math.max(0, change).toFixed(2) + '৳').removeClass('text-danger').addClass('text-success');
         } else {
-            $('#changeLabel').text('Due Amount').addClass('text-danger');
+            $('#changeLabel').text('Due Amount').removeClass('text-success').addClass('text-danger');
             $('#changeDisplay').text('Due: ' + Math.abs(change).toFixed(2) + '৳').removeClass('text-success').addClass('text-danger');
         }
     }
@@ -534,15 +567,35 @@ $(document).ready(function() {
         loadProducts();
         renderCart();
     });
-    $('#discountInput, #deliveryInput, #vatInput, #paidAmountInput').on('input', calculateTotals);
-    $('input[name="payment_method"]').change(function() {
-        let type = $(this).val();
-        $('#accountSelect option').each(function() { $(this).toggle($(this).data('type') == type); });
-        $('#accountSelect option:visible:first').prop('selected', true);
-    }).trigger('change');
 
-    window.setExactAmount = () => {
-        $('#paidAmountInput').val($('#finalTotalDisplay').text()).trigger('input');
+    // Event listeners for recalculating totals on discount, delivery, vat, paid input
+    $('#discountInput, #deliveryInput, #vatInput, #paidAmountInput').on('input change keyup', calculateTotals);
+
+    let initialSavedAccountId = $('#accountSelect').data('saved-account');
+    function filterAccounts() {
+        let selectedType = $('input[name="payment_method"]:checked').val() || 'cash';
+        $('#accountSelect option').each(function() {
+            let isTypeMatch = $(this).data('type') === selectedType;
+            $(this).toggle(isTypeMatch);
+        });
+        
+        let matchingSaved = $('#accountSelect option[value="' + initialSavedAccountId + '"]:visible');
+        if (matchingSaved.length) {
+            matchingSaved.prop('selected', true);
+        } else {
+            $('#accountSelect option:visible:first').prop('selected', true);
+        }
+    }
+
+    $('input[name="payment_method"]').on('change', function() {
+        filterAccounts();
+    });
+
+    filterAccounts();
+
+    window.setExactAmount = function() {
+        $('#paidAmountInput').val($('#finalTotalDisplay').text());
+        calculateTotals();
     };
 
     $('#posForm').submit(function(e) {
@@ -564,13 +617,19 @@ $(document).ready(function() {
             account_id: $('#accountSelect').val(),
             vat_rate: parseFloat($('#vatInput').val()) || 0,
             vat_amount: parseFloat($('#hiddenVatAmount').val()) || 0,
-            items: cart.map(i => ({ product_id: i.productId, variation_id: i.variationId, quantity: i.qty, unit_price: i.price }))
+            items: cart.map(i => ({ product_id: i.productId, variation_id: i.variationId || i.variation_id, quantity: i.qty, unit_price: i.price }))
         };
 
         $.ajax({
             url: $(this).attr('action'), method: 'POST', data: data,
             success: (res) => res.success ? (alert('Updated!'), location.href="{{ route('pos.show', $pos->id) }}") : alert(res.message),
-            error: (xhr) => alert('Error updating')
+            error: (xhr) => {
+                let msg = xhr.responseJSON?.message;
+                if (!msg && xhr.responseJSON?.errors) {
+                    msg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                }
+                alert(msg || 'Error updating');
+            }
         }).always(() => $btn.prop('disabled', false).text('UPDATE SALE'));
     });
 });

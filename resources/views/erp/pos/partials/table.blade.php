@@ -206,10 +206,11 @@
                         // Real-world Gross Amount: Original invoice total before any returns/discounts
                         // Gross = Original Gross (qty × unit_price) + Original VAT + Delivery
                         $invGrossAmount = $invGrossAmt + ($sale->vat_amount ?? 0) + $sale->delivery;
-                        // Net Amount: always use invoice->total_amount (correctly reduced on return processing)
+                        // Net Amount: always use invoice->total_amount (correctly reduced on return processing), excluding delivery charge
                         $invActualAmt = $invoice ? floatval($invoice->total_amount ?? 0) : max(0, $invGrossAmount - $invRetAmt);
-                        $invDisplayPaidAmount = $invoice ? min(floatval($invoice->paid_amount ?? 0), $invActualAmt) : 0;
-                        $invDisplayDueAmount = max(0, $invActualAmt - $invDisplayPaidAmount);
+                        $invNetFinalAmt = max(0, $invActualAmt - ($sale->delivery ?? 0));
+                        $invDisplayPaidAmount = $invoice ? min(max(0, floatval($invoice->paid_amount ?? 0) - ($sale->delivery ?? 0)), $invNetFinalAmt) : 0;
+                        $invDisplayDueAmount = max(0, $invNetFinalAmt - $invDisplayPaidAmount);
                     @endphp
                     <tr>
                         <!-- @if(auth()->user()->hasRole('Super Admin') || auth()->user()->can('delete sales')) -->
@@ -361,7 +362,7 @@
                             {{ number_format($itemNetFinalAmt, 2) }}
                         </td>
                         <td class="text-end fw-bold text-success">
-                            @if($isFirst) {{ number_format($invActualAmt, 2) }} @endif
+                            @if($isFirst) {{ number_format($invNetFinalAmt, 2) }} @endif
                         </td>
                         <td class="text-end text-success fw-bold">
                             @if($isFirst) {{ number_format($invDisplayPaidAmount, 2) }} @endif

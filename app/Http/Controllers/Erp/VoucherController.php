@@ -57,7 +57,9 @@ class VoucherController extends Controller
         if ($request->filled('voucher_type') && $request->voucher_type != 'all') {
             $query->where('type', $request->voucher_type);
         }
+        $selectedAccount = null;
         if ($request->filled('account_id') && $request->account_id != 'all') {
+            $selectedAccount = ChartOfAccount::find($request->account_id);
             $query->where(function($q) use ($request) {
                 $q->where('expense_account_id', $request->account_id)
                   ->orWhereHas('entries', function($q2) use ($request) {
@@ -68,13 +70,60 @@ class VoucherController extends Controller
 
         // Calculate Totals for all filtered results (not just current page)
         $totals = (clone $query)->selectRaw('SUM(voucher_amount) as total_voucher, SUM(paid_amount) as total_paid')->first();
+        
+        $totalAccountAmount = 0;
+        if ($selectedAccount) {
+            $journalIds = (clone $query)->pluck('id');
+            
+            $selectedTypeName = strtolower($selectedAccount->type->name ?? '');
+            $isCreditNormal = in_array($selectedTypeName, ['liability', 'revenue', 'equity']) 
+                || stripos($selectedAccount->name, 'vat') !== false 
+                || stripos($selectedAccount->name, 'tax') !== false 
+                || stripos($selectedAccount->name, 'sales') !== false
+                || stripos($selectedAccount->name, 'delivery') !== false
+                || stripos($selectedAccount->name, 'courier') !== false;
+
+            if ($isCreditNormal) {
+                $entriesSum = DB::table('journal_entries')
+                    ->whereIn('journal_id', $journalIds)
+                    ->where('chart_of_account_id', $selectedAccount->id)
+                    ->selectRaw('SUM(credit - debit) as total')
+                    ->value('total') ?? 0;
+            } else {
+                $entriesSum = DB::table('journal_entries')
+                    ->whereIn('journal_id', $journalIds)
+                    ->where('chart_of_account_id', $selectedAccount->id)
+                    ->selectRaw('SUM(debit - credit) as total')
+                    ->value('total') ?? 0;
+            }
+            
+            $simpleVouchersSum = DB::table('journals')
+                ->whereIn('id', $journalIds)
+                ->where('expense_account_id', $selectedAccount->id)
+                ->whereNotExists(function($sq) use ($selectedAccount) {
+                    $sq->select(DB::raw(1))
+                       ->from('journal_entries')
+                       ->whereColumn('journal_entries.journal_id', 'journals.id')
+                       ->where('journal_entries.chart_of_account_id', $selectedAccount->id);
+                })
+                ->sum('voucher_amount') ?? 0;
+            
+            $totalAccountAmount = floatval($entriesSum) + floatval($simpleVouchersSum);
+        }
+
         $vouchers = $query->latest()->paginate(50)->withQueryString();
 
         if ($request->ajax()) {
+            $totalVoucherFormatted = $selectedAccount
+                ? number_format($totalAccountAmount, 2)
+                : number_format(optional($totals)->total_voucher ?? 0, 2);
+
             return response()->json([
-                'html' => view('erp.vouchers.table_rows', compact('vouchers'))->render(),
-                'total_voucher' => number_format(optional($totals)->total_voucher ?? 0, 2),
+                'html' => view('erp.vouchers.table_rows', compact('vouchers', 'selectedAccount'))->render(),
+                'total_voucher' => $totalVoucherFormatted,
                 'total_paid' => number_format(optional($totals)->total_paid ?? 0, 2),
+                'is_account_filtered' => (bool)$selectedAccount,
+                'account_name' => $selectedAccount ? $selectedAccount->name : '',
                 'pagination' => (string) $vouchers->links('vendor.pagination.bootstrap-5')
             ]);
         }
@@ -83,9 +132,14 @@ class VoucherController extends Controller
         $suppliers = Supplier::orderBy('name')->take(200)->get();
         $expenseAccounts = ChartOfAccount::whereHas('type', function($q) {
             $q->whereIn('name', ['Expense', 'Revenue', 'Liability', 'Equity']);
-        })->take(200)->get();
+        })->orWhere('name', 'like', '%VAT%')
+          ->orWhere('name', 'like', '%Tax%')
+          ->orWhere('name', 'like', '%Delivery%')
+          ->orWhere('name', 'like', '%Courier%')
+          ->orderBy('name')
+          ->get();
 
-        return view('erp.vouchers.index', compact('vouchers', 'startDate', 'endDate', 'customers', 'suppliers', 'expenseAccounts', 'reportType', 'totals'));
+        return view('erp.vouchers.index', compact('vouchers', 'startDate', 'endDate', 'customers', 'suppliers', 'expenseAccounts', 'reportType', 'totals', 'selectedAccount', 'totalAccountAmount'));
     }
 
     public function create()
@@ -329,21 +383,44 @@ class VoucherController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        $selectedAccount = null;
+        if ($request->filled('account_id') && $request->account_id != 'all') {
+            $selectedAccount = ChartOfAccount::find($request->account_id);
+        }
+
         $vouchers = $this->buildFilteredQuery($request)->latest()->get();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
         // Header row
-        $headers = ['#', 'Voucher No', 'Date', 'Type', 'Account', 'Customer/Supplier', 'Branch', 'Amount', 'Paid', 'Created By'];
+        $amountHeader = $selectedAccount ? ($selectedAccount->name . ' Amount') : 'Amount';
+        $headers = ['#', 'Voucher No', 'Date', 'Type', 'Account', 'Customer/Supplier', 'Branch', $amountHeader, 'Paid', 'Created By'];
         $sheet->fromArray([$headers], null, 'A1');
         $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+
+        $selectedTypeName = $selectedAccount ? strtolower($selectedAccount->type->name ?? '') : '';
+        $isCreditNormal = in_array($selectedTypeName, ['liability', 'revenue', 'equity']) 
+            || ($selectedAccount && (stripos($selectedAccount->name, 'vat') !== false || stripos($selectedAccount->name, 'tax') !== false || stripos($selectedAccount->name, 'sales') !== false || stripos($selectedAccount->name, 'delivery') !== false || stripos($selectedAccount->name, 'courier') !== false));
 
         $rowNum = 2;
         $totalAmount = 0;
         $totalPaid   = 0;
         foreach ($vouchers as $i => $v) {
             $party = optional($v->customer)->name ?? optional($v->supplier)->name ?? '—';
+            
+            $rowAmount = (float) $v->voucher_amount;
+            if ($selectedAccount) {
+                $matchingEntries = $v->entries->where('chart_of_account_id', $selectedAccount->id);
+                if ($matchingEntries->isNotEmpty()) {
+                    $c = (float) $matchingEntries->sum('credit');
+                    $d = (float) $matchingEntries->sum('debit');
+                    $rowAmount = $isCreditNormal ? ($c - $d) : ($d - $c);
+                } elseif ($v->expense_account_id == $selectedAccount->id) {
+                    $rowAmount = (float) $v->voucher_amount;
+                }
+            }
+
             $row = [
                 $i + 1,
                 $v->voucher_no,
@@ -352,13 +429,13 @@ class VoucherController extends Controller
                 optional($v->expenseAccount)->name ?? '—',
                 $party,
                 optional($v->branch)->name ?? '—',
-                (float) $v->voucher_amount,
+                $rowAmount,
                 (float) $v->paid_amount,
                 optional($v->creator)->name ?? '—',
             ];
             $sheet->fromArray([$row], null, 'A' . $rowNum);
-            $totalAmount += $v->voucher_amount;
-            $totalPaid   += $v->paid_amount;
+            $totalAmount += $rowAmount;
+            $totalPaid   += (float) $v->paid_amount;
             $rowNum++;
         }
 
@@ -381,11 +458,36 @@ class VoucherController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $vouchers = $this->buildFilteredQuery($request)->latest()->get();
-        $totalAmount = $vouchers->sum('voucher_amount');
-        $totalPaid   = $vouchers->sum('paid_amount');
+        $selectedAccount = null;
+        if ($request->filled('account_id') && $request->account_id != 'all') {
+            $selectedAccount = ChartOfAccount::find($request->account_id);
+        }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.vouchers.report-pdf', compact('vouchers', 'totalAmount', 'totalPaid'))
+        $vouchers = $this->buildFilteredQuery($request)->latest()->get();
+
+        $selectedTypeName = $selectedAccount ? strtolower($selectedAccount->type->name ?? '') : '';
+        $isCreditNormal = in_array($selectedTypeName, ['liability', 'revenue', 'equity']) 
+            || ($selectedAccount && (stripos($selectedAccount->name, 'vat') !== false || stripos($selectedAccount->name, 'tax') !== false || stripos($selectedAccount->name, 'sales') !== false || stripos($selectedAccount->name, 'delivery') !== false || stripos($selectedAccount->name, 'courier') !== false));
+        
+        $totalAmount = 0;
+        $totalPaid   = 0;
+        foreach ($vouchers as $v) {
+            $rowAmount = (float) $v->voucher_amount;
+            if ($selectedAccount) {
+                $matchingEntries = $v->entries->where('chart_of_account_id', $selectedAccount->id);
+                if ($matchingEntries->isNotEmpty()) {
+                    $c = (float) $matchingEntries->sum('credit');
+                    $d = (float) $matchingEntries->sum('debit');
+                    $rowAmount = $isCreditNormal ? ($c - $d) : ($d - $c);
+                } elseif ($v->expense_account_id == $selectedAccount->id) {
+                    $rowAmount = (float) $v->voucher_amount;
+                }
+            }
+            $totalAmount += $rowAmount;
+            $totalPaid   += (float) $v->paid_amount;
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.vouchers.report-pdf', compact('vouchers', 'totalAmount', 'totalPaid', 'selectedAccount'))
             ->setPaper('a4', 'landscape');
         return $pdf->download('vouchers_' . date('Y-m-d_His') . '.pdf');
     }

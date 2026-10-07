@@ -538,7 +538,8 @@ class ExchangeController extends Controller
                         'updated_by'           => Auth::id(),
                     ]);
                     $deliveryChargeAmount = min($extraPayable, $deliveryCharge);
-                    $salesRevenueAmount = $extraPayable - $deliveryChargeAmount;
+                    $vatDiffAmount = max(0, $netVatDiff ?? 0);
+                    $salesRevenueAmount = max(0, $extraPayable - $deliveryChargeAmount - $vatDiffAmount);
 
                     if ($salesRevenueAmount > 0) {
                         JournalEntry::create([
@@ -550,6 +551,21 @@ class ExchangeController extends Controller
                             'created_by'           => Auth::id(),
                             'updated_by'           => Auth::id(),
                         ]);
+                    }
+
+                    if ($vatDiffAmount > 0) {
+                        $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')->orWhere('name', 'like', '%Tax Payable%')->first();
+                        if ($vatAccount) {
+                            JournalEntry::create([
+                                'journal_id'           => $journal->id,
+                                'chart_of_account_id'  => $vatAccount->id,
+                                'debit'                => 0,
+                                'credit'               => $vatDiffAmount,
+                                'memo'                 => 'VAT on Exchange',
+                                'created_by'           => Auth::id(),
+                                'updated_by'           => Auth::id(),
+                            ]);
+                        }
                     }
 
                     if ($deliveryChargeAmount > 0) {
@@ -596,16 +612,38 @@ class ExchangeController extends Controller
                 } elseif ($refundAmount > 0) {
                     // We refund customer (Payment)
                     // Debit: Sales Return (Difference)
+                    // Debit: VAT Payable (if vat reduced)
                     // Credit: Cash/Bank
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $returnAccount->id,
-                        'debit'                => $refundAmount,
-                        'credit'               => 0,
-                        'memo'                 => 'Exchange Refund',
-                        'created_by'           => Auth::id(),
-                        'updated_by'           => Auth::id(),
-                    ]);
+                    $vatRefundAmount = ($netVatDiff < 0) ? abs($netVatDiff) : 0;
+                    $salesReturnAmount = max(0, $refundAmount - $vatRefundAmount);
+
+                    if ($salesReturnAmount > 0) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $returnAccount->id,
+                            'debit'                => $salesReturnAmount,
+                            'credit'               => 0,
+                            'memo'                 => 'Exchange Refund',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
+
+                    if ($vatRefundAmount > 0) {
+                        $vatAccount = ChartOfAccount::where('name', 'like', '%VAT%')->orWhere('name', 'like', '%Tax Payable%')->first();
+                        if ($vatAccount) {
+                            JournalEntry::create([
+                                'journal_id'           => $journal->id,
+                                'chart_of_account_id'  => $vatAccount->id,
+                                'debit'                => $vatRefundAmount,
+                                'credit'               => 0,
+                                'memo'                 => 'VAT reduction on Exchange',
+                                'created_by'           => Auth::id(),
+                                'updated_by'           => Auth::id(),
+                            ]);
+                        }
+                    }
+
                     JournalEntry::create([
                         'journal_id'           => $journal->id,
                         'chart_of_account_id'  => $cashBankAccountId,
