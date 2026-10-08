@@ -182,12 +182,14 @@
                         $itemActQty = max(0, $item->quantity - $retQty);
                         $itemNetUnitPrice = $item->quantity > 0 ? ($item->total_price / $item->quantity) : 0;
                         $itemNetBase = $itemActQty * $itemNetUnitPrice;
-                        $itemNetVat = round($itemNetBase * $saleVatRate, 2);
+                        $itemRemainingVat = round($itemNetBase * $saleVatRate, 2);
 
-                        // If this item was exchanged, attribute incoming replacement item(s) net amount
+                        // If this item was exchanged, attribute incoming replacement item(s) net amount & VAT
                         $itemExchNewAmt = 0;
+                        $itemExchNewVat = 0;
                         if ($exchRetQty > 0 && ($invExchRetQty ?? 0) > 0) {
                             $invExchNewNetTotal = 0;
+                            $invExchNewVatTotal = 0;
                             $exchNewItems = \App\Models\PosExchangeItem::where('type', 'new')
                                 ->whereHas('exchange', function($q) use ($sale) {
                                     $q->where('original_pos_id', $sale->id)->where('status', 'completed');
@@ -195,13 +197,16 @@
                                 ->get();
                             foreach ($exchNewItems as $eni) {
                                 $eniVat = round($eni->total_price * $saleVatRate, 2);
+                                $invExchNewVatTotal += $eniVat;
                                 $invExchNewNetTotal += ($eni->total_price + $eniVat);
                             }
                             $exchShare = $exchRetQty / $invExchRetQty;
                             $itemExchNewAmt = round($invExchNewNetTotal * $exchShare, 2);
+                            $itemExchNewVat = round($invExchNewVatTotal * $exchShare, 2);
                         }
 
-                        $itemNetFinalAmt = $itemNetBase + $itemNetVat + $itemExchNewAmt;
+                        $itemNetVat = $itemRemainingVat + $itemExchNewVat;
+                        $itemNetFinalAmt = $itemNetBase + $itemRemainingVat + $itemExchNewAmt;
 
                         // Real-world Gross Amount: Original invoice total before any returns/discounts
                         // Gross = Original Gross (qty × unit_price) + Original VAT + Delivery
@@ -346,7 +351,7 @@
                             @if($isFirst) {{ number_format($sale->delivery, 2) }} @endif
                         </td>
                         <td class="text-end">
-                            @if($isFirst) {{ number_format($invNetVat, 2) }} @endif
+                            {{ number_format($itemNetVat, 2) }}
                         </td>
                         <td class="text-end text-danger">
                             {{ number_format($itemNetDiscount, 2) }}
