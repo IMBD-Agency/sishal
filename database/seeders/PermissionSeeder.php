@@ -116,7 +116,9 @@ class PermissionSeeder extends Seeder
 
             // Requisition
             ['name' => 'view requisitions', 'category' => 'Requisition'],
-            ['name' => 'manage requisitions', 'category' => 'Requisition'],
+            ['name' => 'create requisitions', 'category' => 'Requisition'],
+            ['name' => 'edit requisitions', 'category' => 'Requisition'],
+            ['name' => 'delete requisitions', 'category' => 'Requisition'],
             ['name' => 'process requisitions', 'category' => 'Requisition'],
 
             // Vouchers

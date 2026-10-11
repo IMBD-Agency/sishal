@@ -151,7 +151,7 @@ class RequisitionController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage requisitions')) {
+        if (!auth()->user()->hasPermissionTo('create requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -164,7 +164,7 @@ class RequisitionController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage requisitions')) {
+        if (!auth()->user()->hasPermissionTo('create requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -242,7 +242,7 @@ class RequisitionController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage requisitions')) {
+        if (!auth()->user()->hasPermissionTo('edit requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $requisition = Requisition::with([
@@ -265,7 +265,7 @@ class RequisitionController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage requisitions')) {
+        if (!auth()->user()->hasPermissionTo('edit requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $requisition = Requisition::findOrFail($id);
@@ -314,7 +314,7 @@ class RequisitionController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage requisitions')) {
+        if (!auth()->user()->hasPermissionTo('delete requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $requisition = Requisition::with('items')->findOrFail($id);
@@ -463,7 +463,7 @@ class RequisitionController extends Controller
      */
     public function fulfill(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('process requisitions') && !auth()->user()->hasPermissionTo('manage requisitions')) {
+        if (!auth()->user()->hasPermissionTo('process requisitions')) {
             abort(403, 'Unauthorized action.');
         }
         $requisition = Requisition::with('items.product', 'items.variation')->findOrFail($id);

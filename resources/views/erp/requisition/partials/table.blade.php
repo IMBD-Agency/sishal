@@ -58,7 +58,14 @@
                             <a href="{{ route('requisition.show', $req->id) }}" class="btn btn-sm btn-light border action-circle shadow-none" title="View Details">
                                 <i class="fas fa-eye text-primary"></i>
                             </a>
-                            @can('manage requisitions')
+                            @if($req->status === 'pending')
+                                @can('edit requisitions')
+                                    <a href="{{ route('requisition.edit', $req->id) }}" class="btn btn-sm btn-light border action-circle shadow-none" title="Edit">
+                                        <i class="fas fa-edit text-warning"></i>
+                                    </a>
+                                @endcan
+                            @endif
+                            @can('delete requisitions')
                                 <form action="{{ route('requisition.destroy', $req->id) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ $req->status === 'pending' ? 'Delete this requisition?' : 'WARNING: This requisition is ' . strtoupper(str_replace('_', ' ', $req->status)) . '. Deleting it will reverse all associated stock transfers and restore inventory. Are you sure you want to proceed?' }}')">
                                     @csrf
                                     @method('DELETE')

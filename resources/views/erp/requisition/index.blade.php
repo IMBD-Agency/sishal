@@ -25,7 +25,7 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
-                    @can('manage requisitions')
+                    @can('create requisitions')
                     <a href="{{ route('requisition.create') }}" class="btn btn-create-premium px-4 shadow-sm">
                         <i class="fas fa-plus-circle me-2"></i>Create New Request
                     </a>

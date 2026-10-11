@@ -30,14 +30,14 @@
                         <i class="fas fa-arrow-left me-2"></i>Back
                     </a>
                     @if(in_array($requisition->status, ['pending', 'partially_fulfilled']))
-                        @canany(['process requisitions', 'manage requisitions'])
+                        @can('process requisitions')
                         <button class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#fulfillModal">
                             <i class="fas fa-check-double me-2"></i>PROCESS REQUEST
                         </button>
-                        @endcanany
+                        @endcan
                     @endif
                     @if($requisition->status === 'pending')
-                        @can('manage requisitions')
+                        @can('edit requisitions')
                             <a href="{{ route('requisition.edit', $requisition->id) }}" class="btn btn-warning fw-bold shadow-sm">
                                 <i class="fas fa-edit me-2"></i>EDIT
                             </a>
