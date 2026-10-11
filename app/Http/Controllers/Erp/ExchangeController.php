@@ -341,8 +341,17 @@ class ExchangeController extends Controller
                 $this->deductStock($item['product_id'], $variationId, $item['qty'], $originalSale->branch_id);
             }
             
-            $globalDiscount = floatval($request->discount ?? 0);
+            $discountInput = floatval($request->discount ?? 0);
+            $discountType = $request->discount_type ?? 'fixed';
             $deliveryCharge = floatval($request->delivery ?? 0);
+
+            // If percent discount, convert to actual amount based on subTotalNew
+            if ($discountType === 'percent') {
+                $globalDiscount = ($subTotalNew * $discountInput) / 100;
+            } else {
+                $globalDiscount = $discountInput;
+            }
+
             $newTaxableBase = max(0, $subTotalNew - $globalDiscount);
             $newVatAmount = round($newTaxableBase * ($originalVatRate / 100), 2);
             $netNewAmount = ($newTaxableBase + $newVatAmount) + $deliveryCharge;

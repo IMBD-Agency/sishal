@@ -327,23 +327,28 @@ class PosController extends Controller
                     $finAcc = FinancialAccount::where('type', $type)->first();
                 }
 
-                if ($finAcc) {
-                    $finAcc->balance += $request->paid_amount;
+                $deliveryCharge = floatval($pos->delivery ?? 0);
+                $accountPaidAmount = max(0, $request->paid_amount - $deliveryCharge);
+
+                if ($finAcc && $accountPaidAmount > 0) {
+                    $finAcc->balance += $accountPaidAmount;
                     $finAcc->save();
                 }
 
-                Payment::create([
-                    'payment_for' => 'pos',
-                    'pos_id' => $pos->id,
-                    'invoice_id' => $invoice->id,
-                    'payment_date' => now()->toDateString(),
-                    'amount' => $request->paid_amount,
-                    'account_id' => $finAcc ? $finAcc->id : $request->account_id,
-                    'payment_method' => $request->payment_method ?? 'cash',
-                    'reference' => null,
-                    'note' => $request->notes,
-                    'customer_id' => $pos->customer_id,
-                ]);
+                if ($accountPaidAmount > 0) {
+                    Payment::create([
+                        'payment_for' => 'pos',
+                        'pos_id' => $pos->id,
+                        'invoice_id' => $invoice->id,
+                        'payment_date' => now()->toDateString(),
+                        'amount' => $accountPaidAmount,
+                        'account_id' => $finAcc ? $finAcc->id : $request->account_id,
+                        'payment_method' => $request->payment_method ?? 'cash',
+                        'reference' => null,
+                        'note' => $request->notes,
+                        'customer_id' => $pos->customer_id,
+                    ]);
+                }
                 // Update invoice paid/due/status for upfront payment
                 $invoice->paid_amount = ($invoice->paid_amount ?? 0) + $request->paid_amount;
                 $invoice->due_amount = max(0, ($invoice->total_amount ?? 0) - $invoice->paid_amount);
@@ -452,48 +457,12 @@ class PosController extends Controller
                 'updated_by' => auth()->id(),
             ]);
 
-            // CREDIT Delivery Expense (reduce expense)
+            // Note: Delivery charge is collected outside company cash/accounts, so it does not credit company books
+            /*
             if ($pos->delivery > 0) {
-                $deliveryExpenseAccount = ChartOfAccount::where('name', 'like', '%Delivery Expense%')->orWhere('name', 'like', '%Courier Expense%')->first();
-                if (!$deliveryExpenseAccount) {
-                    $expenseType = \App\Models\ChartOfAccountType::where('name', 'Expense')->first() ?? \App\Models\ChartOfAccountType::find(5);
-                    $expenseSubType = \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->where('name', 'like', '%Operating%')->first() 
-                        ?? \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->first();
-                    if (!$expenseSubType) {
-                        $expenseSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Expenses', 'type_id' => $expenseType->id]);
-                    }
-                    $expenseParent = \App\Models\ChartOfAccountParent::where('type_id', $expenseType->id)->first();
-                    if (!$expenseParent) {
-                        $expenseParent = \App\Models\ChartOfAccountParent::create([
-                            'name' => 'Operating Expenses Parent',
-                            'type_id' => $expenseType->id,
-                            'sub_type_id' => $expenseSubType->id,
-                            'code' => '5000',
-                            'created_by' => auth()->id()
-                        ]);
-                    }
-
-                    $deliveryExpenseAccount = ChartOfAccount::create([
-                        'name' => 'Delivery Expense',
-                        'type_id' => $expenseType->id,
-                        'sub_type_id' => $expenseSubType->id,
-                        'parent_id' => $expenseParent->id,
-                        'code' => '50005',
-                        'status' => 'active',
-                        'created_by' => auth()->id()
-                    ]);
-                }
-
-                JournalEntry::create([
-                    'journal_id' => $journal->id,
-                    'chart_of_account_id' => $deliveryExpenseAccount->id,
-                    'debit' => 0,
-                    'credit' => $pos->delivery,
-                    'memo' => 'Delivery charge collected from customer',
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
-                ]);
+                ... (Delivery Expense credit omitted)
             }
+            */
 
             // CREDIT VAT Payable (Tax Amount - Liability increases)
             if ($pos->vat_amount > 0) {
@@ -536,8 +505,11 @@ class PosController extends Controller
                 ]);
             }
 
-            // DEBIT Cash/Bank (Paid Amount - Asset increases)
-            if ($request->paid_amount > 0) {
+            // DEBIT Cash/Bank (Paid Amount excluding delivery charge - Asset increases)
+            $deliveryCharge = floatval($pos->delivery ?? 0);
+            $accountPaidAmount = max(0, $request->paid_amount - $deliveryCharge);
+
+            if ($accountPaidAmount > 0) {
                 $financialAccount = null;
                 if ($request->account_id) {
                     $financialAccount = FinancialAccount::find($request->account_id);
@@ -564,7 +536,7 @@ class PosController extends Controller
                             'journal_id' => $journal->id,
                             'chart_of_account_id' => $paymentChartAccountId,
                             'financial_account_id' => $financialAccount->id,
-                            'debit' => $request->paid_amount,
+                            'debit' => $accountPaidAmount,
                             'credit' => 0,
                             'memo' => 'Payment received via ' . ($financialAccount->provider_name ?? 'Cash/Bank'),
                             'created_by' => auth()->id(),
@@ -574,8 +546,8 @@ class PosController extends Controller
                 }
             }
 
-            // DEBIT Accounts Receivable (Due Amount - Asset increases)
-            $dueAmount = $pos->total_amount - $request->paid_amount;
+            // DEBIT Accounts Receivable (Product Due Amount - Asset increases)
+            $dueAmount = max(0, ($pos->total_amount - $deliveryCharge) - $accountPaidAmount);
             if ($dueAmount > 0) {
                 $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
                 if (!$arAccount) {
@@ -1401,10 +1373,11 @@ class PosController extends Controller
                     ?? Payment::where('invoice_id', $invoice->id)->first();
 
                 if ($existingPayment) {
+                    // Old payment amount already excludes delivery (saved that way in store)
                     $oldPaidAmount = floatval($existingPayment->amount ?? 0);
                     $oldAccountId = $existingPayment->account_id;
 
-                    // Reverse old payment from old account
+                    // Reverse old payment from old account (old amount already had delivery excluded)
                     if ($oldAccountId && $oldPaidAmount > 0) {
                         $oldAccount = FinancialAccount::find($oldAccountId);
                         if ($oldAccount) {
@@ -1413,17 +1386,21 @@ class PosController extends Controller
                         }
                     }
 
-                    // Apply new payment to target account
-                    if ($newPaidAmount > 0) {
+                    // Use 'delivery' field (not 'delivery_charge') to match the request field name
+                    $newDelivery = floatval($request->delivery ?? 0);
+                    $newAccountPaid = max(0, $newPaidAmount - $newDelivery);
+
+                    // Apply new payment to target account (excluding delivery)
+                    if ($newAccountPaid > 0) {
                         if ($targetFinAcc) {
-                            $targetFinAcc->balance += $newPaidAmount;
+                            $targetFinAcc->balance += $newAccountPaid;
                             $targetFinAcc->save();
                         }
 
                         $existingPayment->update([
                             'pos_id' => $pos->id,
                             'invoice_id' => $invoice->id,
-                            'amount' => $newPaidAmount,
+                            'amount' => $newAccountPaid,
                             'account_id' => $targetFinAcc ? $targetFinAcc->id : $targetAccountId,
                             'payment_method' => $request->payment_method ?? $existingPayment->payment_method ?? 'cash',
                             'customer_id' => $pos->customer_id,
@@ -1433,24 +1410,30 @@ class PosController extends Controller
                         $existingPayment->delete();
                     }
                 } elseif ($newPaidAmount > 0) {
-                    // Create new payment record if none existed previously
-                    if ($targetFinAcc) {
-                        $targetFinAcc->balance += $newPaidAmount;
+                    // Use 'delivery' field (not 'delivery_charge') to match the request field name
+                    $newDelivery = floatval($request->delivery ?? 0);
+                    $newAccountPaid = max(0, $newPaidAmount - $newDelivery);
+
+                    // Create new payment record if none existed previously (excluding delivery)
+                    if ($newAccountPaid > 0 && $targetFinAcc) {
+                        $targetFinAcc->balance += $newAccountPaid;
                         $targetFinAcc->save();
                     }
 
-                    Payment::create([
-                        'payment_for' => 'pos',
-                        'pos_id' => $pos->id,
-                        'invoice_id' => $invoice->id,
-                        'payment_date' => $pos->sale_date ?? now()->toDateString(),
-                        'amount' => $newPaidAmount,
-                        'account_id' => $targetFinAcc ? $targetFinAcc->id : $targetAccountId,
-                        'payment_method' => $request->payment_method ?? 'cash',
-                        'reference' => null,
-                        'note' => $request->notes,
-                        'customer_id' => $pos->customer_id,
-                    ]);
+                    if ($newAccountPaid > 0) {
+                        Payment::create([
+                            'payment_for' => 'pos',
+                            'pos_id' => $pos->id,
+                            'invoice_id' => $invoice->id,
+                            'payment_date' => $pos->sale_date ?? now()->toDateString(),
+                            'amount' => $newAccountPaid,
+                            'account_id' => $targetFinAcc ? $targetFinAcc->id : $targetAccountId,
+                            'payment_method' => $request->payment_method ?? 'cash',
+                            'reference' => null,
+                            'note' => $request->notes,
+                            'customer_id' => $pos->customer_id,
+                        ]);
+                    }
                 }
 
                 $invoice->tax = $tax;
@@ -1563,48 +1546,12 @@ class PosController extends Controller
                 ]);
             }
 
-            // 2. CREDIT Delivery Expense (reduce expense) or Delivery Income
+            // Note: Delivery charge is collected outside company cash/accounts, so it does not credit company books
+            /*
             if ($pos->delivery > 0) {
-                $deliveryExpenseAccount = ChartOfAccount::where('name', 'like', '%Delivery Expense%')->orWhere('name', 'like', '%Courier Expense%')->first();
-                if (!$deliveryExpenseAccount) {
-                    $expenseType = \App\Models\ChartOfAccountType::where('name', 'Expense')->first() ?? \App\Models\ChartOfAccountType::find(5);
-                    $expenseSubType = \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->where('name', 'like', '%Operating%')->first() 
-                        ?? \App\Models\ChartOfAccountSubType::where('type_id', $expenseType->id)->first();
-                    if (!$expenseSubType) {
-                        $expenseSubType = \App\Models\ChartOfAccountSubType::create(['name' => 'Operating Expenses', 'type_id' => $expenseType->id]);
-                    }
-                    $expenseParent = \App\Models\ChartOfAccountParent::where('type_id', $expenseType->id)->first();
-                    if (!$expenseParent) {
-                        $expenseParent = \App\Models\ChartOfAccountParent::create([
-                            'name' => 'Operating Expenses Parent',
-                            'type_id' => $expenseType->id,
-                            'sub_type_id' => $expenseSubType->id,
-                            'code' => '5000',
-                            'created_by' => auth()->id()
-                        ]);
-                    }
-
-                    $deliveryExpenseAccount = ChartOfAccount::create([
-                        'name' => 'Delivery Expense',
-                        'type_id' => $expenseType->id,
-                        'sub_type_id' => $expenseSubType->id,
-                        'parent_id' => $expenseParent->id,
-                        'code' => '50005',
-                        'status' => 'active',
-                        'created_by' => auth()->id()
-                    ]);
-                }
-
-                JournalEntry::create([
-                    'journal_id' => $journal->id,
-                    'chart_of_account_id' => $deliveryExpenseAccount->id,
-                    'debit' => 0,
-                    'credit' => $pos->delivery,
-                    'memo' => 'Delivery charge collected from customer',
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
-                ]);
+                ... (Delivery Expense credit omitted)
             }
+            */
 
             // 3. CREDIT VAT Payable (Tax Amount - Liability increases)
             if ($pos->vat_amount > 0) {
@@ -1647,8 +1594,12 @@ class PosController extends Controller
                 ]);
             }
 
-            // 4. DEBIT Cash/Bank (Paid Amount - Asset increases)
-            if ($newPaidAmount > 0) {
+            // 4. DEBIT Cash/Bank (Paid Amount excluding delivery charge - Asset increases)
+            // Use 'delivery' field (not 'delivery_charge') to match the request field name
+            $newDelivery = floatval($request->delivery ?? 0);
+            $newAccountPaid = max(0, $newPaidAmount - $newDelivery);
+
+            if ($newAccountPaid > 0) {
                 if ($targetFinAcc) {
                     $paymentChartAccountId = $targetFinAcc->account_id;
                     if (!$paymentChartAccountId) {
@@ -1664,7 +1615,7 @@ class PosController extends Controller
                             'journal_id' => $journal->id,
                             'chart_of_account_id' => $paymentChartAccountId,
                             'financial_account_id' => $targetFinAcc->id,
-                            'debit' => $newPaidAmount,
+                            'debit' => $newAccountPaid,
                             'credit' => 0,
                             'memo' => 'Payment received via ' . ($targetFinAcc->provider_name ?? 'Cash/Bank'),
                             'created_by' => auth()->id(),
@@ -1674,8 +1625,8 @@ class PosController extends Controller
                 }
             }
 
-            // 5. DEBIT Accounts Receivable (Due Amount - Asset increases)
-            $dueAmount = max(0, $pos->total_amount - $newPaidAmount);
+            // 5. DEBIT Accounts Receivable (Product due amount - Asset increases)
+            $dueAmount = max(0, ($pos->total_amount - $newDelivery) - $newAccountPaid);
             if ($dueAmount > 0) {
                 $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
                 if (!$arAccount) {
@@ -3255,11 +3206,14 @@ class PosController extends Controller
             $pos->invoice_id = $invoice->id;
             $pos->save();
 
-            // Handle Financials
-            if ($request->paid_amount > 0 && $request->account_id) {
+            // Handle Financials (Excluding delivery charge from company accounts/collection)
+            $deliveryCharge = floatval($pos->delivery ?? 0);
+            $accountPaidAmount = max(0, $request->paid_amount - $deliveryCharge);
+
+            if ($accountPaidAmount > 0 && $request->account_id) {
                 $account = FinancialAccount::find($request->account_id);
                 if ($account) {
-                    $account->balance += $request->paid_amount;
+                    $account->balance += $accountPaidAmount;
                     $account->save();
 
                     // Create Payment Record
@@ -3268,7 +3222,7 @@ class PosController extends Controller
                         'pos_id' => $pos->id,
                         'invoice_id' => $invoice->id,
                         'payment_date' => $pos->sale_date,
-                        'amount' => $request->paid_amount,
+                        'amount' => $accountPaidAmount,
                         'account_id' => $account->id,
                         'payment_method' => $account->type ?? 'cash',
                         'note' => "Manual Sale Payment",
@@ -3489,8 +3443,11 @@ class PosController extends Controller
                     }
                 }
 
-                // Debit Bank/Cash
-                if ($request->paid_amount > 0 && $request->account_id) {
+                // Debit Bank/Cash (excluding delivery charge)
+                $deliveryCharge = floatval($pos->delivery ?? 0);
+                $accountPaidAmount = max(0, $request->paid_amount - $deliveryCharge);
+
+                if ($accountPaidAmount > 0 && $request->account_id) {
                     $finAcc = FinancialAccount::find($request->account_id);
                     if ($finAcc) {
                         $paymentChartAccountId = $finAcc->account_id;
@@ -3507,7 +3464,7 @@ class PosController extends Controller
                                 'journal_id' => $journal->id,
                                 'chart_of_account_id' => $paymentChartAccountId,
                                 'financial_account_id' => $finAcc->id,
-                                'debit' => $request->paid_amount,
+                                'debit' => $accountPaidAmount,
                                 'credit' => 0,
                                 'memo' => 'Payment received for Manual Sale',
                                 'created_by' => auth()->id(),
@@ -3517,8 +3474,8 @@ class PosController extends Controller
                     }
                 }
 
-                // Debit Accounts Receivable
-                $dueAmt = $pos->total_amount - $request->paid_amount;
+                // Debit Accounts Receivable (Product due amount)
+                $dueAmt = max(0, ($pos->total_amount - $deliveryCharge) - $accountPaidAmount);
                 if ($dueAmt > 0) {
                     $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
                     if ($arAccount) {

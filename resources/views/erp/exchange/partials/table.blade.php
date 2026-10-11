@@ -56,8 +56,8 @@
                                 $tExchange += $exchange->total_new_amount;
                                 $tRefund += $exchange->refund_amount;
                                 $tDiscount += $exchange->discount_amount;
-                                $tPaid += $exchange->extra_payable;
-                                $tDue += 0;
+                                $tPaid += ($exchange->paid_amount ?? 0);
+                                $tDue += max(0, ($exchange->extra_payable ?? 0) - ($exchange->paid_amount ?? 0));
                             }
                         @endphp
                         <tr>

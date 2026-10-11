@@ -655,7 +655,8 @@ class ReportController extends Controller
 
             $netCollectionForTx = $currentPayments - $currentRefunds - $currentExchangeRefunds;
 
-            $deliveryAmount = floatval($type === 'pos' ? ($model->delivery ?? 0) : (($model->order ?? null) ? $model->order->delivery : 0));
+            // Note: For POS sales, delivery charge is handled externally and excluded from cash/payment collection
+            $deliveryAmount = floatval($type === 'pos' ? 0 : (($model->order ?? null) ? $model->order->delivery : 0));
             $rawVatAmount = floatval($type === 'pos' ? ($model->vat_amount ?? 0) : (($model->invoice ?? null) ? ($model->invoice->tax ?? 0) : 0));
             $vatAmount = max(0, $rawVatAmount - $regularReturnVatTotal);
             $nonProductAmount = $deliveryAmount + $vatAmount;

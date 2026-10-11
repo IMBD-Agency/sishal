@@ -136,7 +136,8 @@
                                                 <th class="py-3 ps-3">Product</th>
                                                 <th class="text-center py-3" style="width: 120px;">Qty</th>
                                                 <th class="text-end py-3" style="width: 140px;">Price</th>
-                                                <th class="text-end py-3" style="width: 100px;">Disc</th>
+                                                {{-- Item Discount (Hidden by default; remove d-none if needed later) --}}
+                                                <th class="text-end py-3 d-none" style="width: 100px;">Disc</th>
                                                 <th class="text-end py-3">Total</th>
                                                 <th style="width: 50px;"></th>
                                             </tr>
@@ -798,7 +799,8 @@
                         <td class="align-middle text-end py-3">
                             <input type="number" name="new_items[${index}][unit_price]" class="form-control form-control-sm text-end new-price" value="${price}" style="width: 100px; margin-left: auto;">
                         </td>
-                        <td class="align-middle text-end py-3">
+                        {{-- Item Discount (Hidden by default; remove d-none if needed later) --}}
+                        <td class="align-middle text-end py-3 d-none">
                             <input type="text" name="new_items[${index}][discount]" class="form-control form-control-sm text-end new-item-discount" value="0" style="width: 80px; margin-left: auto;">
                         </td>
                         <td class="text-end fw-bold align-middle py-3 row-new-total">${price}</td>

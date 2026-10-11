@@ -1105,12 +1105,15 @@ class DashboardController extends Controller
                 })
                 ->sum('amount');
 
-            $paid = min($grossPaid, $total);
+            $delivery = (float) ($sale->delivery ?? 0);
+            $netTotal = max(0, $total - $delivery);
+
+            $paid = min($grossPaid, $netTotal > 0 ? $netTotal : $total);
             if ($paid == 0 && $invoice && $invoice->paid_amount > 0) {
-                $paid = min((float)$invoice->paid_amount, $total);
+                $paid = min((float)$invoice->paid_amount, $netTotal > 0 ? $netTotal : $total);
             }
 
-            $due = max(0, $total - $paid);
+            $due = max(0, $netTotal - $paid);
 
             $paymentStatus = 'unpaid';
             if ($due <= 0 && $paid > 0) {
@@ -1347,18 +1350,21 @@ class DashboardController extends Controller
 
         $totalCollection = max(0, $totalGrossCollection - $todayReturnRefunds - $todayExchangeRefunds);
 
-        // 3. Today's Total Due (Optimized single-query due calculation on today's active POS sales)
+        // 3. Today's Total Due
+        // Note: payments.amount excludes delivery charge, so subtract delivery from total_amount too
         $todayPosQuery = DB::table('pos')
             ->leftJoin('payments', 'pos.id', '=', 'payments.pos_id')
             ->whereDate('pos.sale_date', $today)
             ->where('pos.status', '!=', 'cancelled')
             ->when($branchId, fn($q) => $q->where('pos.branch_id', $branchId))
-            ->selectRaw('pos.id, pos.total_amount, COALESCE(SUM(payments.amount), 0) as total_paid')
-            ->groupBy('pos.id', 'pos.total_amount')
+            ->selectRaw('pos.id, pos.total_amount, COALESCE(pos.delivery, 0) as delivery, COALESCE(SUM(payments.amount), 0) as total_paid')
+            ->groupBy('pos.id', 'pos.total_amount', 'pos.delivery')
             ->get();
 
         $totalDue = $todayPosQuery->sum(function($item) {
-            return max(0, (float)$item->total_amount - (float)$item->total_paid);
+            // Exclude delivery from net total since payment also excludes delivery
+            $netTotal = (float)$item->total_amount - (float)$item->delivery;
+            return max(0, $netTotal - (float)$item->total_paid);
         });
 
         return [
