@@ -127,7 +127,7 @@
                                         <select name="account_id" id="account_id" class="form-select" required>
                                             <option value="">Select Account</option>
                                             @foreach($bankAccounts as $acc)
-                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                                <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" data-branch-id="{{ $acc->branch_id ?? '' }}">
                                                     {{ $acc->provider_name }} — {{ $acc->account_number }}
                                                 </option>
                                             @endforeach
@@ -186,7 +186,8 @@
                                 options = '<option value="">No pending bills found</option>';
                             } else {
                                 bills.forEach(function(bill) {
-                                    options += `<option value="${bill.id}" data-due="${bill.due_amount}">${bill.bill_number} (Due: ${parseFloat(bill.due_amount).toFixed(2)}৳)</option>`;
+                                    const bId = (bill.purchase && bill.purchase.ship_location_type === 'branch') ? bill.purchase.location_id : '';
+                                    options += `<option value="${bill.id}" data-due="${bill.due_amount}" data-branch-id="${bId}">${bill.bill_number} (Due: ${parseFloat(bill.due_amount).toFixed(2)}৳)</option>`;
                                 });
                             }
                             $('#purchase_bill_id').html(options).trigger('change');
@@ -214,17 +215,20 @@
                 const challanId = $(this).val();
                 const challanNo = selectedOption.text().split(' - ')[0];
                 const dueAmount = parseFloat(selectedOption.data('due')) || 0;
+                const branchId = selectedOption.data('branch-id') || '';
 
                 if (challanId && !selectedChallans.find(c => c.id == challanId)) {
                     selectedChallans.push({
                         id: challanId,
                         number: challanNo,
                         due: dueAmount,
-                        paid: dueAmount
+                        paid: dueAmount,
+                        branchId: branchId
                     });
                     
                     updateChallanTable();
                     updateTotalAmount();
+                    filterPaymentAccounts();
                     
                     // Reset selection
                     $(this).val('');
@@ -288,6 +292,7 @@
                 selectedChallans.splice(index, 1);
                 updateChallanTable();
                 updateTotalAmount();
+                filterPaymentAccounts();
             });
 
             // Sync manual amount input with challan paid amounts
@@ -326,23 +331,58 @@
                 }
                 // If no challan selected but amount entered, it's an advance payment
             });
-            // Filter Account Dropdown based on Type
-            $('#payment_method').on('change', function() {
-                const type = $(this).val();
+            // Filter Account Dropdown based on Type and Branch isolation
+            function filterPaymentAccounts() {
+                const type = $('#payment_method').val();
+                let targetBranchId = '{{ $restrictedBranchId ?? '' }}';
+                let isBranch = !!targetBranchId;
+
+                // If not restricted and bills are selected, check if selected bills belong to a branch
+                if (!targetBranchId && selectedChallans.length > 0) {
+                    const branchIds = [...new Set(selectedChallans.map(c => c.branchId).filter(b => !!b))];
+                    if (branchIds.length === 1) {
+                        targetBranchId = String(branchIds[0]);
+                        isBranch = true;
+                    }
+                }
+
                 const accountSelect = $('#account_id');
-                
-                accountSelect.val('').find('option').each(function() {
-                    const optionType = $(this).data('type');
-                    if (!type || !optionType || optionType === type) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
+                const currentVal = accountSelect.val();
+                let isCurrentValVisible = false;
+
+                accountSelect.find('option').each(function() {
+                    const $opt = $(this);
+                    const val = $opt.val();
+                    if (!val) {
+                        $opt.show();
+                        return;
+                    }
+
+                    const optionType = $opt.data('type');
+                    const branchId = $opt.data('branch-id');
+
+                    const matchesType = !type || (optionType === type);
+
+                    let matchesBranch = true;
+                    if (branchId !== '' && branchId !== undefined && branchId !== null) {
+                        matchesBranch = isBranch && (String(branchId) === String(targetBranchId));
+                    }
+
+                    const shouldShow = matchesType && matchesBranch;
+                    $opt.toggle(shouldShow);
+
+                    if (val === currentVal && shouldShow) {
+                        isCurrentValVisible = true;
                     }
                 });
-            });
 
-            // Trigger once on load
-            $('#payment_method').trigger('change');
+                if (!isCurrentValVisible && currentVal) {
+                    accountSelect.val('');
+                }
+            }
+
+            $('#payment_method').on('change', filterPaymentAccounts);
+            filterPaymentAccounts();
 
             // Handle query parameters for pre-selection
             const urlParams = new URLSearchParams(window.location.search);

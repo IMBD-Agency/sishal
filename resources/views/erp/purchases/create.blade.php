@@ -55,14 +55,17 @@
                                         <option value="warehouse_{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                                     @endforeach
                                 </optgroup>
-                                <optgroup label="Warehouse Branches">
-                                    @foreach($branches->where('is_warehouse', true) as $branch)
-                                        <option value="branch_{{ $branch->id }}">{{ $branch->name }}</option>
+                                <optgroup label="Branches">
+                                    @php
+                                        $displayBranches = !empty($restrictedBranchId) ? $branches : $branches->where('is_warehouse', true);
+                                    @endphp
+                                    @foreach($displayBranches as $branch)
+                                        <option value="branch_{{ $branch->id }}" {{ (!empty($restrictedBranchId) && $restrictedBranchId == $branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
                                     @endforeach
                                 </optgroup>
                             </select>
-                            <input type="hidden" name="location_id" id="location_id" value="">
-                            <input type="hidden" name="ship_location_type" id="ship_location_type" value="warehouse">
+                            <input type="hidden" name="location_id" id="location_id" value="{{ !empty($restrictedBranchId) ? $restrictedBranchId : '' }}">
+                            <input type="hidden" name="ship_location_type" id="ship_location_type" value="{{ !empty($restrictedBranchId) ? 'branch' : 'warehouse' }}">
                             <small class="text-muted extra-small"><i class="fas fa-lock me-1"></i> Purchases can be received at Warehouses or Warehouse Branches.</small>
                         </div>
                         <div class="col-md-3">
@@ -130,7 +133,7 @@
                                             <select name="account_id" id="account_id" class="form-select">
                                                 <option value="">Select Account</option>
                                                 @foreach($bankAccounts as $acc)
-                                                    <option value="{{ $acc->id }}" data-type="{{ $acc->type }}">
+                                                    <option value="{{ $acc->id }}" data-type="{{ $acc->type }}" data-branch-id="{{ $acc->branch_id ?? '' }}">
                                                         {{ $acc->provider_name }} — {{ $acc->account_number }}
                                                     </option>
                                                 @endforeach
@@ -260,16 +263,64 @@
                 }).fail(err => alert('Failed to fetch product data.'));
             });
 
-            // Account Filtering logic
-            $('#payment_method').on('change', function() {
-                const method = $(this).val();
+            // Account Filtering logic (combines Payment Method + Branch isolation)
+            function filterAccounts() {
+                const method = $('#payment_method').val();
+                const locVal = $('#location_selector').val() || '';
+                let targetBranchId = '{{ $restrictedBranchId ?? '' }}';
+                let isBranch = !!targetBranchId;
+
+                if (locVal.startsWith('branch_')) {
+                    targetBranchId = locVal.replace('branch_', '');
+                    isBranch = true;
+                } else if (locVal.startsWith('warehouse_')) {
+                    targetBranchId = '';
+                    isBranch = false;
+                }
+
                 const $acc = $('#account_id');
-                $acc.val('').find('option').each(function() {
-                    const type = $(this).data('type');
-                    if (!type) return; 
-                    $(this).toggle(type === method);
+                const currentVal = $acc.val();
+                let isCurrentValVisible = false;
+
+                $acc.find('option').each(function() {
+                    const $opt = $(this);
+                    const val = $opt.val();
+                    if (!val) {
+                        $opt.show();
+                        return;
+                    }
+
+                    const type = $opt.data('type');
+                    const branchId = $opt.data('branch-id');
+
+                    // 1. Match payment method type
+                    const matchesType = !method || (type === method);
+
+                    // 2. Branch isolation check:
+                    // If account belongs to a specific branch:
+                    //   It MUST only show when that branch is selected / active.
+                    // If account is global (no branch):
+                    //   It is visible for all locations.
+                    let matchesBranch = true;
+                    if (branchId !== '' && branchId !== undefined && branchId !== null) {
+                        matchesBranch = isBranch && (String(branchId) === String(targetBranchId));
+                    }
+
+                    const shouldShow = matchesType && matchesBranch;
+                    $opt.toggle(shouldShow);
+
+                    if (val === currentVal && shouldShow) {
+                        isCurrentValVisible = true;
+                    }
                 });
-            });
+
+                if (!isCurrentValVisible && currentVal) {
+                    $acc.val('');
+                }
+            }
+
+            $('#location_selector, #payment_method').on('change', filterAccounts);
+            filterAccounts();
 
             // Calculation hook
             $('#paid_amount, #discount_value, input[name="discount_type"]').on('input change', updateTotals);

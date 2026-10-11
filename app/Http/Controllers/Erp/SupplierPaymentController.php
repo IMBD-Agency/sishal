@@ -248,8 +248,16 @@ class SupplierPaymentController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $suppliers = Supplier::all();
-        $bankAccounts = FinancialAccount::orderBy('type')->orderBy('provider_name')->get();
-        return view('erp.supplier-payments.create', compact('suppliers', 'bankAccounts'));
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $accountsQuery = FinancialAccount::orderBy('type')->orderBy('provider_name');
+        if ($restrictedBranchId) {
+            $accountsQuery->where(function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+        $bankAccounts = $accountsQuery->get();
+        return view('erp.supplier-payments.create', compact('suppliers', 'bankAccounts', 'restrictedBranchId'));
     }
 
     public function store(Request $request)
@@ -280,6 +288,11 @@ class SupplierPaymentController extends Controller
             $financialAccount = FinancialAccount::find($request->account_id);
             if (!$financialAccount) {
                 throw new \Exception('Selected financial account not found.');
+            }
+
+            $restrictedBranchId = $this->getRestrictedBranchId();
+            if ($restrictedBranchId && $financialAccount->branch_id && $financialAccount->branch_id != $restrictedBranchId) {
+                throw new \Exception('Selected financial account does not belong to your branch.');
             }
 
             // Helper closure to record all related entries for a single payment
@@ -552,7 +565,15 @@ class SupplierPaymentController extends Controller
         $search = $request->get('search');
 
         $suppliers = Supplier::orderBy('name')->get();
-        $accounts = FinancialAccount::withCurrentBalance()->orderBy('type')->orderBy('provider_name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $accountsQuery = FinancialAccount::withCurrentBalance()->orderBy('type')->orderBy('provider_name');
+        if ($restrictedBranchId) {
+            $accountsQuery->where(function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+        $accounts = $accountsQuery->get();
 
         $summary = $service->getSupplierPayOnSaleSummary($supplierId, $startDate, $endDate, $search);
 

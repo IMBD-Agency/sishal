@@ -130,7 +130,14 @@ class PurchaseController extends Controller
             $branches = Branch::where('status', 'active')->get();
             $warehouses = \App\Models\Warehouse::all();
         }
-        $bankAccounts = \DB::table('financial_accounts')->get();
+        $bankAccountsQuery = \DB::table('financial_accounts');
+        if ($restrictedBranchId) {
+            $bankAccountsQuery->where(function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+        $bankAccounts = $bankAccountsQuery->get();
 
         if ($request->ajax()) {
             return view('erp.purchases.partials.table', compact('items', 'reportTotals'));
@@ -544,8 +551,15 @@ class PurchaseController extends Controller
         }
         $products = \App\Models\Product::all();
         $suppliers = \App\Models\Supplier::all();
-        $bankAccounts = FinancialAccount::orderBy('type')->orderBy('provider_name')->get();
-        return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers', 'bankAccounts'));
+        $accountsQuery = FinancialAccount::orderBy('type')->orderBy('provider_name');
+        if ($restrictedBranchId) {
+            $accountsQuery->where(function($q) use ($restrictedBranchId) {
+                $q->where('branch_id', $restrictedBranchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+        $bankAccounts = $accountsQuery->get();
+        return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers', 'bankAccounts', 'restrictedBranchId'));
     }
 
     public function store(Request $request)
@@ -570,6 +584,26 @@ class PurchaseController extends Controller
             'payment_method' => $request->paid_amount > 0 ? 'required|string' : 'nullable|string',
             'account_id' => $request->paid_amount > 0 ? 'required|integer' : 'nullable|integer',
         ]);
+
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $locationType = $restrictedBranchId ? 'branch' : $request->ship_location_type;
+        $locationId = $restrictedBranchId ?: $request->location_id;
+
+        // Ensure account is branch-isolated
+        if ($request->paid_amount > 0 && $request->account_id) {
+            $accountCheck = FinancialAccount::find($request->account_id);
+            if ($accountCheck && $accountCheck->branch_id) {
+                if ($restrictedBranchId && $accountCheck->branch_id != $restrictedBranchId) {
+                    return back()->with('error', 'Selected financial account does not belong to your branch.')->withInput();
+                }
+                if (!$restrictedBranchId && $locationType === 'branch' && $accountCheck->branch_id != $locationId) {
+                    return back()->with('error', 'Selected financial account does not belong to the destination branch.')->withInput();
+                }
+                if (!$restrictedBranchId && $locationType === 'warehouse') {
+                    return back()->with('error', 'A branch-specific financial account cannot be used for a warehouse purchase.')->withInput();
+                }
+            }
+        }
     
         DB::beginTransaction();
     
@@ -592,10 +626,6 @@ class PurchaseController extends Controller
             }
     
             $totalAmount = max(0, $subTotal - $discountAmount);
-    
-            $restrictedBranchId = $this->getRestrictedBranchId();
-            $locationType = $restrictedBranchId ? 'branch' : $request->ship_location_type;
-            $locationId = $restrictedBranchId ?: $request->location_id;
 
             // Create Purchase (supplier is optional)
             $purchase = Purchase::create([
