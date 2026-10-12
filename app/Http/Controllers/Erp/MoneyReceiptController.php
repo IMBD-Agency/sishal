@@ -277,9 +277,25 @@ class MoneyReceiptController extends Controller
                 $financialAccount = FinancialAccount::where('type', strtolower($request->payment_method ?: 'cash'))->first();
             }
 
+            // Calculate effective amount for company books (Cash/Bank & Accounts Receivable)
+            // For POS sales, delivery charge is external (courier) and must not enter company cash/bank books!
+            $bookAmount = floatval($payment->amount);
+            if ($request->invoice_id) {
+                $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
+                if ($pos && floatval($pos->delivery ?? 0) > 0) {
+                    $posDelivery = floatval($pos->delivery);
+                    $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
+                    $alreadyRecorded = Payment::where('pos_id', $pos->id)
+                        ->where('id', '!=', $payment->id)
+                        ->sum('amount');
+                    $remainingCompanyReceivable = max(0, $netSaleLimit - $alreadyRecorded);
+                    $bookAmount = max(0, min($remainingCompanyReceivable, floatval($payment->amount)));
+                }
+            }
+
             if ($financialAccount && $financialAccount->account_id) {
                 // Update the real balance to maintain the Cash/Bank Book
-                $financialAccount->balance += $payment->amount;
+                $financialAccount->balance += $bookAmount;
                 $financialAccount->save();
 
                 $voucherNo = 'REC-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT);
@@ -293,8 +309,8 @@ class MoneyReceiptController extends Controller
                     'type'           => 'Receipt',
                     'description'    => 'Manual Money Receipt #' . $receiptNo . ($payment->note ? ' - ' . $payment->note : ''),
                     'customer_id'    => $payment->customer_id,
-                    'voucher_amount' => $payment->amount,
-                    'paid_amount'    => $payment->amount,
+                    'voucher_amount' => $bookAmount,
+                    'paid_amount'    => $bookAmount,
                     'reference'      => $receiptNo,
                     'created_by'     => auth()->id(),
                     'updated_by'     => auth()->id(),
@@ -305,7 +321,7 @@ class MoneyReceiptController extends Controller
                     'journal_id'           => $journal->id,
                     'chart_of_account_id'  => $financialAccount->account_id,
                     'financial_account_id' => $financialAccount->id,
-                    'debit'                => $payment->amount,
+                    'debit'                => $bookAmount,
                     'credit'               => 0,
                     'memo'                 => 'Collection via ' . $financialAccount->provider_name,
                     'created_by'           => auth()->id(),
@@ -328,7 +344,7 @@ class MoneyReceiptController extends Controller
                     'journal_id'           => $journal->id,
                     'chart_of_account_id'  => $arAccount->id,
                     'debit'                => 0,
-                    'credit'               => $payment->amount,
+                    'credit'               => $bookAmount,
                     'memo'                 => 'Manual Receipt from Customer',
                     'created_by'           => auth()->id(),
                     'updated_by'           => auth()->id(),
@@ -422,7 +438,9 @@ class MoneyReceiptController extends Controller
             if ($oldAccountId) {
                 $oldAccount = FinancialAccount::find($oldAccountId);
                 if ($oldAccount) {
-                    $oldAccount->balance -= $oldAmount;
+                    $oldJournal = Journal::where('reference', $payment->payment_reference)->first();
+                    $revertOldAmount = $oldJournal ? (float)$oldJournal->voucher_amount : (float)$oldAmount;
+                    $oldAccount->balance -= $revertOldAmount;
                     $oldAccount->save();
                 }
             }
@@ -481,7 +499,21 @@ class MoneyReceiptController extends Controller
             }
 
             if ($financialAccount) {
-                $financialAccount->balance += $request->amount;
+                $bookAmount = floatval($request->amount);
+                if ($request->invoice_id) {
+                    $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
+                    if ($pos && floatval($pos->delivery ?? 0) > 0) {
+                        $posDelivery = floatval($pos->delivery);
+                        $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
+                        $alreadyRecorded = Payment::where('pos_id', $pos->id)
+                            ->where('id', '!=', $payment->id)
+                            ->sum('amount');
+                        $remainingCompanyReceivable = max(0, $netSaleLimit - $alreadyRecorded);
+                        $bookAmount = max(0, min($remainingCompanyReceivable, floatval($request->amount)));
+                    }
+                }
+
+                $financialAccount->balance += $bookAmount;
                 $financialAccount->save();
 
                 // Recreate Journal Entry
@@ -492,8 +524,8 @@ class MoneyReceiptController extends Controller
                     'type'           => 'Receipt',
                     'description'    => 'Updated Receipt #' . $payment->payment_reference,
                     'customer_id'    => $payment->customer_id,
-                    'voucher_amount' => $payment->amount,
-                    'paid_amount'    => $payment->amount,
+                    'voucher_amount' => $bookAmount,
+                    'paid_amount'    => $bookAmount,
                     'reference'      => $payment->payment_reference,
                     'created_by'     => auth()->id(),
                     'updated_by'     => auth()->id(),
@@ -503,7 +535,7 @@ class MoneyReceiptController extends Controller
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $financialAccount->account_id,
                     'financial_account_id' => $financialAccount->id,
-                    'debit' => $payment->amount,
+                    'debit' => $bookAmount,
                     'credit' => 0,
                     'memo' => 'Collection (Updated)',
                     'created_by' => auth()->id(),
@@ -515,7 +547,7 @@ class MoneyReceiptController extends Controller
                     'journal_id' => $journal->id,
                     'chart_of_account_id' => $arAccount->id,
                     'debit' => 0,
-                    'credit' => $payment->amount,
+                    'credit' => $bookAmount,
                     'memo' => 'Manual Receipt (Updated)',
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),
@@ -577,7 +609,9 @@ class MoneyReceiptController extends Controller
             if ($payment->account_id) {
                 $account = FinancialAccount::find($payment->account_id);
                 if ($account) {
-                    $account->balance -= $payment->amount;
+                    $journal = Journal::where('reference', $payment->payment_reference)->first();
+                    $revertAmount = $journal ? (float)$journal->voucher_amount : (float)$payment->amount;
+                    $account->balance -= $revertAmount;
                     $account->save();
                 }
             }

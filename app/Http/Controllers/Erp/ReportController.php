@@ -596,6 +596,51 @@ class ReportController extends Controller
             $currentPayments = (clone $paymentsQuery)->whereBetween('payment_date', [$startDate, $endDate])->sum('amount');
 
             if ($type === 'pos') {
+                $posDelivery = floatval($model->delivery ?? 0);
+                if ($posDelivery > 0) {
+                    $allPosPayments = (clone $paymentsQuery)->orderBy('payment_date')->orderBy('id')->get();
+                    $totalPaymentsSum = round((float)$allPosPayments->sum('amount'), 2);
+                    $netSaleLimit = round(max(0, (float)$model->total_amount - $posDelivery), 2);
+                    $unexcludedDelivery = max(0, min($posDelivery, round($totalPaymentsSum - $netSaleLimit, 2)));
+
+                    if ($unexcludedDelivery > 0) {
+                        $remDelivery = $unexcludedDelivery;
+                        $newPrior = 0;
+                        $newCurrent = 0;
+
+                        foreach ($allPosPayments as $p) {
+                            $pAmt = (float)$p->amount;
+                            $deduct = 0;
+                            if ($remDelivery > 0 && in_array($p->payment_for, ['manual_receipt', 'customer_due', 'invoice'])) {
+                                $deduct = min($remDelivery, $pAmt);
+                                $remDelivery -= $deduct;
+                            }
+                            $effectiveAmt = max(0, $pAmt - $deduct);
+
+                            $pDate = $p->payment_date instanceof \Carbon\Carbon ? $p->payment_date : \Carbon\Carbon::parse($p->payment_date);
+                            if ($pDate->lt($startDate)) {
+                                $newPrior += $effectiveAmt;
+                            } elseif ($pDate->lte($endDate)) {
+                                $newCurrent += $effectiveAmt;
+                            }
+                        }
+
+                        if ($remDelivery > 0) {
+                            $deductFromCurrent = min($remDelivery, $newCurrent);
+                            $newCurrent -= $deductFromCurrent;
+                            $remDelivery -= $deductFromCurrent;
+                            if ($remDelivery > 0) {
+                                $newPrior = max(0, $newPrior - $remDelivery);
+                            }
+                        }
+
+                        $priorPayments = $newPrior;
+                        $currentPayments = $newCurrent;
+                    }
+                }
+            }
+
+            if ($type === 'pos') {
                 $model = $model->fresh() ?? $model;
                 $vatRate = ($model->vat_rate > 0) ? ($model->vat_rate / 100) : ((($model->sub_total - $model->discount) > 0) ? ($model->vat_amount / ($model->sub_total - $model->discount)) : 0);
                 $returnsQuery = \App\Models\SaleReturn::where('pos_sale_id', $model->id);
