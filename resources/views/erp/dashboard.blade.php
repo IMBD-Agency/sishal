@@ -153,7 +153,7 @@
 
             <!-- Unified Executive KPI Cards Row -->
             <div class="row g-3 mb-4">
-                <div class="col-xl-3 col-md-6">
+                <div class="col-xl-4 col-md-4">
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-title">Today's Sales</span>
@@ -165,19 +165,7 @@
                         <i class="fas fa-cash-register kpi-watermark"></i>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6">
-                    <div class="kpi-card">
-                        <div class="kpi-header">
-                            <span class="kpi-title">Today's Collection</span>
-                            <div class="kpi-icon-wrapper kpi-green">
-                                <i class="fas fa-hand-holding-usd"></i>
-                            </div>
-                        </div>
-                        <h2 class="kpi-value">{{ $financialKPIs['total_collection'] }}</h2>
-                        <i class="fas fa-hand-holding-usd kpi-watermark"></i>
-                    </div>
-                </div>
-                <div class="col-xl-3 col-md-6">
+                <div class="col-xl-4 col-md-4">
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-title">Today's Due</span>
@@ -189,7 +177,7 @@
                         <i class="fas fa-file-invoice kpi-watermark"></i>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6">
+                <div class="col-xl-4 col-md-4">
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-title">Today's Expense</span>
