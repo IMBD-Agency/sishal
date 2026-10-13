@@ -700,10 +700,24 @@ class PosController extends Controller
             ")
             ->first();
 
-        $filteredPosIdsForExchange = clone $query;
-        $exchangeNewTotals = \DB::table('pos_exchange_items')
+        $filteredItemsForExchange = clone $query;
+        $exchangeNewTotals = (float) \DB::table('pos_exchange_items')
             ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
-            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchange->select('pos_items.pos_sale_id')->distinct())
+            ->joinSub(
+                $filteredItemsForExchange->select('pos_items.pos_sale_id', 'pos_items.product_id', 'pos_items.variation_id')->distinct(),
+                'fi',
+                function ($join) {
+                    $join->on('pos_exchanges.original_pos_id', '=', 'fi.pos_sale_id')
+                        ->on('pos_exchange_items.product_id', '=', 'fi.product_id')
+                        ->where(function ($q) {
+                            $q->on('pos_exchange_items.variation_id', '=', 'fi.variation_id')
+                              ->orWhere(function ($sq) {
+                                  $sq->whereNull('pos_exchange_items.variation_id')
+                                     ->whereNull('fi.variation_id');
+                              });
+                        });
+                }
+            )
             ->where('pos_exchange_items.type', 'new')
             ->where('pos_exchanges.status', 'completed')
             ->sum('pos_exchange_items.quantity');
@@ -2349,10 +2363,24 @@ class PosController extends Controller
             ")
             ->first();
 
-        $filteredPosIdsForExchange = clone $query;
-        $exchangeNewTotals = \DB::table('pos_exchange_items')
+        $filteredItemsForExchange = clone $query;
+        $exchangeNewTotals = (float) \DB::table('pos_exchange_items')
             ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
-            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchange->select('pos_items.pos_sale_id')->distinct())
+            ->joinSub(
+                $filteredItemsForExchange->select('pos_items.pos_sale_id', 'pos_items.product_id', 'pos_items.variation_id')->distinct(),
+                'fi',
+                function ($join) {
+                    $join->on('pos_exchanges.original_pos_id', '=', 'fi.pos_sale_id')
+                        ->on('pos_exchange_items.product_id', '=', 'fi.product_id')
+                        ->where(function ($q) {
+                            $q->on('pos_exchange_items.variation_id', '=', 'fi.variation_id')
+                              ->orWhere(function ($sq) {
+                                  $sq->whereNull('pos_exchange_items.variation_id')
+                                     ->whereNull('fi.variation_id');
+                              });
+                        });
+                }
+            )
             ->where('pos_exchange_items.type', 'new')
             ->where('pos_exchanges.status', 'completed')
             ->sum('pos_exchange_items.quantity');
