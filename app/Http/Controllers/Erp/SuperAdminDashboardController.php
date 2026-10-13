@@ -72,7 +72,7 @@ class SuperAdminDashboardController extends Controller
      */
     private function fetchDashboardData($selectedBranchId, $dateRange, $branches)
     {
-        $cacheKey = "super_admin_dash_v35_{$selectedBranchId}_{$dateRange}";
+        $cacheKey = "super_admin_dash_v36_{$selectedBranchId}_{$dateRange}";
 
         return Cache::remember($cacheKey, 180, function () use ($selectedBranchId, $dateRange, $branches) {
             $monthsWindow = $this->getMonthsArrayForRange($dateRange);
@@ -217,6 +217,16 @@ class SuperAdminDashboardController extends Controller
             ->get()
             ->keyBy('branch_id');
 
+        $todayExchangeDiscounts = DB::table('pos_exchanges')
+            ->whereDate('exchange_date', $today)
+            ->where('status', 'completed')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw('branch_id, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy('branch_id')
+            ->pluck('total_discount', 'branch_id');
+
         // 1d. Today Sale Returns (Qty & Amount)
         $todayReturnAggregates = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -288,6 +298,17 @@ class SuperAdminDashboardController extends Controller
             ->get()
             ->keyBy('branch_id');
 
+        $periodExchangeDiscounts = DB::table('pos_exchanges')
+            ->where('exchange_date', '>=', $startBound)
+            ->where('exchange_date', '<=', $endBound)
+            ->where('status', 'completed')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw('branch_id, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy('branch_id')
+            ->pluck('total_discount', 'branch_id');
+
         // 2d. Period Sale Returns (Qty & Amount)
         $periodReturnAggregates = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -323,7 +344,7 @@ class SuperAdminDashboardController extends Controller
             
             $todayExch = $todayExchangeAggregates->get($b->id);
             $todayExchQty = (float) ($todayExch->exch_qty ?? 0);
-            $todayExchAmt = (float) ($todayExch->exch_amount ?? 0);
+            $todayExchAmt = max(0, (float) ($todayExch->exch_amount ?? 0) - (float) ($todayExchangeDiscounts->get($b->id) ?? 0));
             
             $todayRet = $todayReturnAggregates->get($b->id);
             $todayRetQty = (float) ($todayRet->ret_qty ?? 0);
@@ -337,7 +358,7 @@ class SuperAdminDashboardController extends Controller
             
             $periodExch = $periodExchangeAggregates->get($b->id);
             $periodExchQty = (float) ($periodExch->exch_qty ?? 0);
-            $periodExchAmt = (float) ($periodExch->exch_amount ?? 0);
+            $periodExchAmt = max(0, (float) ($periodExch->exch_amount ?? 0) - (float) ($periodExchangeDiscounts->get($b->id) ?? 0));
 
             $periodRet = $periodReturnAggregates->get($b->id);
             $periodRetQty = (float) ($periodRet->ret_qty ?? 0);
@@ -429,6 +450,17 @@ class SuperAdminDashboardController extends Controller
             ->get()
             ->keyBy('exch_day');
 
+        $dailyExchangeDiscounts = DB::table('pos_exchanges')
+            ->where('exchange_date', '>=', $startDate)
+            ->where('exchange_date', '<=', $endDate)
+            ->where('status', 'completed')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw('DATE(exchange_date) as exch_day, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy(DB::raw('DATE(exchange_date)'))
+            ->pluck('total_discount', 'exch_day');
+
         // Daily sale returns (Qty & Amount)
         $dailyReturns = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -464,7 +496,7 @@ class SuperAdminDashboardController extends Controller
             $grossAmt = (float) ($dailyPosAmount->get($dayKey) ?? 0);
             $exch = $dailyExchanges->get($dayKey);
             $exchQty = (float) ($exch->exch_qty ?? 0);
-            $exchAmt = (float) ($exch->exch_amount ?? 0);
+            $exchAmt = max(0, (float) ($exch->exch_amount ?? 0) - (float) ($dailyExchangeDiscounts->get($dayKey) ?? 0));
 
             $ret = $dailyReturns->get($dayKey);
             $retQty = (float) ($ret->ret_qty ?? 0);
@@ -521,7 +553,7 @@ class SuperAdminDashboardController extends Controller
             ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
                 return $q->where('pos_exchanges.branch_id', (int)$selectedBranchId);
             })
-            ->selectRaw('pos_exchange_items.product_id, products.name as product_name, products.image as product_image, branches.name as branch_name, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_amount')
+            ->selectRaw('pos_exchange_items.product_id, products.name as product_name, products.image as product_image, branches.name as branch_name, COALESCE(SUM(pos_exchange_items.quantity), 0) as exch_qty, COALESCE(SUM(pos_exchange_items.total_price * (1 - CASE WHEN pos_exchanges.total_new_amount > 0 THEN (pos_exchanges.discount_amount / pos_exchanges.total_new_amount) ELSE 0 END)), 0) as exch_amount')
             ->groupBy('pos_exchange_items.product_id', 'products.name', 'products.image', 'branches.name')
             ->get()
             ->keyBy('product_id');
@@ -698,6 +730,17 @@ class SuperAdminDashboardController extends Controller
             ->groupBy('pos_exchanges.branch_id')
             ->pluck('exch_value', 'branch_id');
 
+        $branchExchangeDiscounts = DB::table('pos_exchanges')
+            ->where('exchange_date', '>=', $startDate)
+            ->where('exchange_date', '<=', $endDate)
+            ->where('status', 'completed')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw('branch_id, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy('branch_id')
+            ->pluck('total_discount', 'branch_id');
+
         $branchReturnSalesValues = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
@@ -816,7 +859,7 @@ class SuperAdminDashboardController extends Controller
             }
 
             $grossVal = (float) ($branchGrossSalesValues->get($b->id) ?? 0);
-            $exchVal = (float) ($branchExchangeSalesValues->get($b->id) ?? 0);
+            $exchVal = max(0, (float) ($branchExchangeSalesValues->get($b->id) ?? 0) - (float) ($branchExchangeDiscounts->get($b->id) ?? 0));
             $retVal = (float) ($branchReturnSalesValues->get($b->id) ?? 0);
             $netValue = max(0, ($grossVal + $exchVal) - $retVal);
 
@@ -890,6 +933,17 @@ class SuperAdminDashboardController extends Controller
             ->selectRaw("DATE_FORMAT(pos_exchanges.exchange_date, '%Y-%m') as ym_code, COALESCE(SUM(pos_exchange_items.total_price), 0) as exch_amount")
             ->groupBy(DB::raw("DATE_FORMAT(pos_exchanges.exchange_date, '%Y-%m')"))
             ->pluck('exch_amount', 'ym_code');
+
+        $exchangeDiscountAggregates = DB::table('pos_exchanges')
+            ->where('exchange_date', '>=', $startDate)
+            ->where('exchange_date', '<=', $endDate)
+            ->where('status', 'completed')
+            ->when($selectedBranchId !== 'all' && is_numeric($selectedBranchId), function ($q) use ($selectedBranchId) {
+                return $q->where('branch_id', (int)$selectedBranchId);
+            })
+            ->selectRaw("DATE_FORMAT(exchange_date, '%Y-%m') as ym_code, COALESCE(SUM(discount_amount), 0) as total_discount")
+            ->groupBy(DB::raw("DATE_FORMAT(exchange_date, '%Y-%m')"))
+            ->pluck('total_discount', 'ym_code');
 
         $returnAmountAggregates = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -1068,7 +1122,7 @@ class SuperAdminDashboardController extends Controller
             $exchQty = (float) ($exchangeQtyAggregates->get($ymKey) ?? 0);
             
             $grossAmt = (float) ($salesAmountAggregates->get($ymKey) ?? 0);
-            $exchAmt = (float) ($exchangeAmountAggregates->get($ymKey) ?? 0);
+            $exchAmt = max(0, (float) ($exchangeAmountAggregates->get($ymKey) ?? 0) - (float) ($exchangeDiscountAggregates->get($ymKey) ?? 0));
             $retAmt = (float) ($returnAmountAggregates->get($ymKey) ?? 0);
             $netAmt = max(0, ($grossAmt + $exchAmt) - $retAmt);
 

@@ -21,7 +21,7 @@ class DashboardController extends Controller
         $branches = \App\Models\Branch::pluck('id')->push(0)->toArray();
         foreach ($branches as $bId) {
             foreach ($ranges as $r) {
-                \Illuminate\Support\Facades\Cache::forget("dash_v9_{$bId}_{$r}");
+                \Illuminate\Support\Facades\Cache::forget("dash_v10_{$bId}_{$r}");
             }
         }
     }
@@ -36,7 +36,7 @@ class DashboardController extends Controller
         $branchId = $this->getRestrictedBranchId() ?? 0;
         
         // Cache dashboard for 5 minutes (300 seconds)
-        $cacheKey = "dash_v9_{$branchId}_{$dateRange}";
+        $cacheKey = "dash_v10_{$branchId}_{$dateRange}";
         
         $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function() use ($dateRange) {
             $startDate = $this->getStartDate($dateRange);
@@ -429,8 +429,10 @@ class DashboardController extends Controller
                 $posExchangeQuery->where('pos_exchanges.branch_id', $branchId);
             }
 
-            $posExchanges = $posExchangeQuery->select('pos_exchange_items.product_id', DB::raw('SUM(pos_exchange_items.quantity) as exch_qty, SUM(pos_exchange_items.total_price) as exch_rev'))
-                ->groupBy('pos_exchange_items.product_id');
+            $posExchanges = $posExchangeQuery->select('pos_exchange_items.product_id', DB::raw('
+                SUM(pos_exchange_items.quantity) as exch_qty, 
+                SUM(pos_exchange_items.total_price * (1 - CASE WHEN pos_exchanges.total_new_amount > 0 THEN (pos_exchanges.discount_amount / pos_exchanges.total_new_amount) ELSE 0 END)) as exch_rev
+            '))->groupBy('pos_exchange_items.product_id');
 
             // Get POS sale returns per product
             $posReturnQuery = DB::table('sale_return_items')
@@ -912,6 +914,14 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('branch_id');
 
+        $todayExchangeDiscounts = DB::table('pos_exchanges')
+            ->whereDate('exchange_date', $today)
+            ->where('status', 'completed')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->selectRaw('branch_id, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy('branch_id')
+            ->pluck('total_discount', 'branch_id');
+
         // 1d. Today Sale Returns (Qty & Amount)
         $todayReturns = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -974,6 +984,14 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('branch_id');
 
+        $monthExchangeDiscounts = DB::table('pos_exchanges')
+            ->whereBetween('exchange_date', [$monthStart, $monthEnd])
+            ->where('status', 'completed')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->selectRaw('branch_id, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy('branch_id')
+            ->pluck('total_discount', 'branch_id');
+
         // 2d. Month Sale Returns (Qty & Amount)
         $monthReturns = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -997,15 +1015,15 @@ class DashboardController extends Controller
             ->keyBy('branch_id');
 
         return $branches->map(function($branch) use (
-            $todayPosAmount, $todayPosQty, $todayExchanges, $todayReturns,
-            $monthPosAmount, $monthPosQty, $monthExchanges, $monthReturns
+            $todayPosAmount, $todayPosQty, $todayExchanges, $todayExchangeDiscounts, $todayReturns,
+            $monthPosAmount, $monthPosQty, $monthExchanges, $monthExchangeDiscounts, $monthReturns
         ) {
             $todayGrossAmt = (float) ($todayPosAmount->get($branch->id) ?? 0);
             $grossTodayQty = (float) ($todayPosQty->get($branch->id) ?? 0);
             
             $todayEx = $todayExchanges->get($branch->id);
             $todayExQty = (float) ($todayEx->exch_qty ?? 0);
-            $todayExAmt = (float) ($todayEx->exch_amount ?? 0);
+            $todayExAmt = max(0, (float) ($todayEx->exch_amount ?? 0) - (float) ($todayExchangeDiscounts->get($branch->id) ?? 0));
 
             $todayRet = $todayReturns->get($branch->id);
             $todayRetQty = (float) ($todayRet->ret_qty ?? 0);
@@ -1019,7 +1037,7 @@ class DashboardController extends Controller
 
             $monthEx = $monthExchanges->get($branch->id);
             $monthExQty = (float) ($monthEx->exch_qty ?? 0);
-            $monthExAmt = (float) ($monthEx->exch_amount ?? 0);
+            $monthExAmt = max(0, (float) ($monthEx->exch_amount ?? 0) - (float) ($monthExchangeDiscounts->get($branch->id) ?? 0));
 
             $monthRet = $monthReturns->get($branch->id);
             $monthRetQty = (float) ($monthRet->ret_qty ?? 0);
@@ -1187,6 +1205,15 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('date');
 
+        $exchangeDiscountResults = DB::table('pos_exchanges')
+            ->where('exchange_date', '>=', $startDate)
+            ->where('exchange_date', '<=', $endDate)
+            ->where('status', 'completed')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->selectRaw('DATE(exchange_date) as date, COALESCE(SUM(discount_amount), 0) as total_discount')
+            ->groupBy(DB::raw('DATE(exchange_date)'))
+            ->pluck('total_discount', 'date');
+
         // Daily sale returns (Qty & Amount)
         $returnResults = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
@@ -1225,7 +1252,7 @@ class DashboardController extends Controller
             $ret = $returnResults->get($dateStr);
 
             $gRev = (float)($posAmt->gross_rev ?? 0);
-            $eRev = (float)($exch->exch_rev ?? 0);
+            $eRev = max(0, (float)($exch->exch_rev ?? 0) - (float)($exchangeDiscountResults->get($dateStr) ?? 0));
             $rRev = (float)($ret->ret_rev ?? 0);
 
             $gQty = (float)($gross->total_qty ?? 0);
@@ -1265,6 +1292,14 @@ class DashboardController extends Controller
         if ($branchId) $exchangeItemsQuery->where('pos_exchanges.branch_id', $branchId);
         $exchangeItems = (float) $exchangeItemsQuery->sum('pos_exchange_items.total_price');
 
+        $exchangeDiscountsQuery = DB::table('pos_exchanges')
+            ->whereDate('exchange_date', $today)
+            ->where('status', 'completed');
+        if ($branchId) $exchangeDiscountsQuery->where('branch_id', $branchId);
+        $exchangeDiscounts = (float) $exchangeDiscountsQuery->sum('discount_amount');
+
+        $netExchangeItems = max(0, $exchangeItems - $exchangeDiscounts);
+
         $returnItemsQuery = DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->leftJoin('pos', 'sale_returns.pos_sale_id', '=', 'pos.id')
@@ -1283,7 +1318,7 @@ class DashboardController extends Controller
         }
         $returnItems = (float) $returnItemsQuery->sum('sale_return_items.total_price');
 
-        $posSales = max(0, ($grossItems + $exchangeItems) - $returnItems);
+        $posSales = max(0, ($grossItems + $netExchangeItems) - $returnItems);
 
         $onlineSales = 0;
         if (!$branchId) {

@@ -273,9 +273,9 @@ class BarcodeController extends Controller
         // Get quantity from request (default 1)
         $quantity = request('quantity', 1);
 
-        // Generate PDF with the exact sticker size (38mm x 25mm)
+        // Generate PDF with the exact sticker size (45mm x 35mm)
         $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size'));
-        $pdf->setPaper([0, 0, 107.711, 70.866], 'portrait');
+        $pdf->setPaper([0, 0, 127.559, 99.213], 'portrait');
         
         return $pdf->download('barcode-' . $sku . '.pdf');
     }
@@ -385,7 +385,7 @@ class BarcodeController extends Controller
         $quantity      = request('quantity', 1);
 
         $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size'));
-        $pdf->setPaper([0, 0, 107.711, 70.866], 'portrait');
+        $pdf->setPaper([0, 0, 127.559, 99.213], 'portrait');
 
         return $pdf->download('barcode-combo-' . $sku . '.pdf');
     }

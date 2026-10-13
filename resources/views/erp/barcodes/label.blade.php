@@ -6,7 +6,7 @@
     <style>
         @page {
             margin: 0 !important;
-            size: 38mm 25mm; /* Standard 1.50" x 1.00" barcode thermal sticker */
+            size: 45mm 35mm; /* 45mm x 35mm barcode thermal sticker */
         }
         
         * {
@@ -86,8 +86,8 @@
                 background: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                width: 38mm !important;
-                height: 25mm !important;
+                width: 45mm !important;
+                height: 35mm !important;
             }
             .no-print-area {
                 display: none !important;
@@ -108,12 +108,12 @@
         }
 
         .label-page {
-            width: 38mm;
-            height: 25mm;
-            max-width: 38mm;
-            max-height: 25mm;
+            width: 45mm;
+            height: 35mm;
+            max-width: 45mm;
+            max-height: 35mm;
             overflow: hidden;
-            padding: 0.6mm 1mm 0.4mm 1mm;
+            padding: 1mm 1.5mm 0.8mm 1.5mm;
             background-color: #ffffff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             display: flex;
@@ -125,10 +125,10 @@
 
         .product-title {
             width: 100%;
-            font-size: 6.5pt;
+            font-size: 7.5pt;
             font-weight: 800;
             color: #000000;
-            line-height: 1.1;
+            line-height: 1.15;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -136,11 +136,11 @@
         }
 
         .product-variant {
-            font-size: 5.5pt;
+            font-size: 6.5pt;
             font-weight: 700;
             color: #000000;
             line-height: 1;
-            margin-top: 0.2mm;
+            margin-top: 0.3mm;
         }
 
         .barcode-wrapper {
@@ -154,8 +154,8 @@
 
         .barcode-image-box {
             width: 100%;
-            max-width: 35mm;
-            height: 9mm;
+            max-width: 42mm;
+            height: 14mm;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -165,8 +165,8 @@
 
         .barcode-canvas {
             display: block;
-            max-width: 35mm;
-            max-height: 9mm;
+            max-width: 42mm;
+            max-height: 14mm;
             width: auto;
             height: auto;
             image-rendering: -webkit-optimize-contrast;
@@ -175,23 +175,23 @@
         }
 
         .sku-code {
-            font-size: 6.5pt;
+            font-size: 7.5pt;
             font-weight: 800;
             font-family: 'Courier New', Courier, monospace;
             color: #000000;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.4px;
             line-height: 1;
-            margin-top: 0.2mm;
+            margin-top: 0.4mm;
         }
 
         .price-tag {
             width: 96%;
             border-top: 0.4mm solid #000000;
-            font-size: 8pt;
+            font-size: 9pt;
             font-weight: 900;
             color: #000000;
-            line-height: 1.1;
-            padding-top: 0.2mm;
+            line-height: 1.15;
+            padding-top: 0.4mm;
             letter-spacing: -0.2px;
         }
     </style>
@@ -208,11 +208,11 @@
         <h3>{{ $quantity }} Label(s) ready for {{ $sku }}</h3>
         
         <div class="guide-box">
-            <strong>⚠️ থার্মাল প্রিন্টারে নিখুঁত স্ক্যান ও নো-স্ট্রেচিং সেটিংস:</strong>
+            <strong>⚠️ থার্মাল প্রিন্টারে নিখুঁত স্ক্যান ও নো-স্ট্রেচিং সেটিংস (45mm × 35mm):</strong>
             <ul style="margin: 6px 0 0 0; padding-left: 20px;">
-                <li><strong>Scale:</strong> অবশ্যই <strong>"Custom: 100"</strong> সিলেক্ট করবেন (Default রাখা যাবে না)।</li>
+                <li><strong>Scale:</strong> অবশ্যই <strong>"Custom: 100"</strong> সিলেক্ট করবেন (Default বা Fit to paper রাখা যাবে না)।</li>
                 <li><strong>Margins:</strong> <strong>"None"</strong> সিলেক্ট করবেন।</li>
-                <li><strong>Paper size:</strong> <strong>"38mm x 25mm"</strong> বা <strong>"1.50 x 1.00 inch"</strong> দিন।</li>
+                <li><strong>Paper size:</strong> <strong>"45mm x 35mm"</strong> সিলেক্ট করবেন।</li>
                 <li><strong>Headers and footers:</strong> আনচেক (খালি) রাখবেন।</li>
             </ul>
         </div>
@@ -266,14 +266,14 @@
                 var rawCode = canvasEl.getAttribute('data-barcode');
                 if (!rawCode) return;
 
-                // Code 128 Auto format with exact 2-dot module width and high contrast
+                // Code 128 Auto format optimized for 45mm x 35mm sticker
                 try {
                     JsBarcode(canvasEl, rawCode, {
                         format: "CODE128",
-                        width: 1.4,          // Exact optimal thermal module width
-                        height: 40,          // Canvas vertical height
+                        width: 1.5,          // Optimal module width for 45mm sticker
+                        height: 55,          // Taller canvas height (14mm) for instant laser scan
                         displayValue: false, // Text is rendered via native Courier font below
-                        margin: 6,           // Standard 10-module optical quiet zone on borders
+                        margin: 4,           // Proper optical quiet zone on borders
                         background: "#ffffff",
                         lineColor: "#000000"
                     });

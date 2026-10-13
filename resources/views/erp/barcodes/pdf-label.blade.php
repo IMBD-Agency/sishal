@@ -6,7 +6,7 @@
     <title>Barcode Labels - {{ $sku }}</title>
     <style>
         @page {
-            size: 108pt 71pt; /* Exact 38mm x 25mm */
+            size: 128pt 99pt; /* Exact 45mm x 35mm */
             margin: 0;
         }
         
@@ -19,15 +19,15 @@
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             background: white;
-            width: 38mm;
-            height: 25mm;
+            width: 45mm;
+            height: 35mm;
             color: #000;
         }
 
         .label-page {
-            width: 38mm;
-            height: 25mm;
-            padding: 1.0mm 1.5mm 0.8mm 1.5mm;
+            width: 45mm;
+            height: 35mm;
+            padding: 1.2mm 1.5mm 1.0mm 1.5mm;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -67,8 +67,8 @@
         }
 
         .barcode-img-box {
-            width: 96%;
-            height: 32pt; /* Taller barcode lines for instant scanner reading */
+            width: 95%;
+            height: 42pt; /* Taller barcode lines for instant scanner reading on 35mm label */
             margin: 0 auto;
         }
 
@@ -78,11 +78,11 @@
         }
 
         .sku-text {
-            font-size: 7pt;
+            font-size: 8pt;
             font-weight: bold;
             font-family: 'Courier', monospace;
             letter-spacing: 0.5pt;
-            margin-top: 1pt;
+            margin-top: 1.5pt;
             text-align: center;
             line-height: 1;
         }
