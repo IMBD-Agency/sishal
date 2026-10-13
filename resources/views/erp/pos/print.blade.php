@@ -393,94 +393,183 @@
             @php
                 // Calculate total quantity of items
                 $totalQuantity = $pos->items->filter(fn($i) => is_null($i->parent_item_id))->sum('quantity');
-                // Calculate original gross from items (sum of quantity * unit_price)
-                $originalGross = $pos->items->sum(fn($i) => $i->quantity * $i->unit_price);
-                // Use VAT from pos if available, otherwise from invoice tax (avoid double counting)
-                $vatAmount = $pos->vat_amount ?? $pos->invoice->tax ?? 0;
-                
+
                 // Exchanges calculations
                 $allExchanges = (isset($exchanges) && $exchanges->count() > 0) ? $exchanges : ($pos->exchanges ?? collect());
-                $totalExchangeReturn = $allExchanges->sum(function($ex) {
+                $totalExchangeReturn = (float)$allExchanges->sum(function($ex) {
                     return $ex->total_return_amount > 0 ? (float)$ex->total_return_amount : (float)$ex->returnedItems->sum('total_price');
                 });
-                $totalExchangeNew = $allExchanges->sum(function($ex) {
+                $totalExchangeNew = (float)$allExchanges->sum(function($ex) {
                     return $ex->total_new_amount > 0 ? (float)$ex->total_new_amount : (float)$ex->newItems->sum('total_price');
                 });
+                $totalExchangeDiscount = (float)$allExchanges->sum('discount_amount');
+                $totalExchangeVat = (float)$allExchanges->sum('vat_amount');
+                $totalExchangeDelivery = (float)$allExchanges->sum('delivery_charge');
+                $exchangeExtraPayable = (float)$allExchanges->sum('extra_payable');
+                $exchangeRefund = (float)$allExchanges->sum('refund_amount');
+
                 $hasExchanges = ($totalExchangeReturn > 0 || $totalExchangeNew > 0 || $allExchanges->count() > 0 || ($pos->exchange_amount ?? 0) > 0);
                 if ($hasExchanges && $totalExchangeNew == 0 && ($pos->exchange_amount ?? 0) > 0) {
                     $totalExchangeNew = (float)$pos->exchange_amount;
                 }
-                $exchangeDiff = $totalExchangeNew - $totalExchangeReturn;
 
                 // Sale returns (non-exchange) calculations
                 $allSaleReturns = (isset($saleReturns) && $saleReturns->count() > 0) ? $saleReturns : ($pos->saleReturns ?? collect());
                 $nonExchangeReturns = $allSaleReturns->filter(fn($sr) => ($sr->refund_type ?? '') !== 'exchange');
-                $totalSaleReturnAmount = $nonExchangeReturns->sum(function($sr) {
+                $totalSaleReturnAmount = (float)$nonExchangeReturns->sum(function($sr) {
                     return $sr->items ? (float)$sr->items->sum('total_price') : 0;
                 });
+
+                if ($hasExchanges) {
+                    // Calculate true original figures before exchange adjustment
+                    $originalGross = (float)$pos->items->filter(fn($i) => is_null($i->parent_item_id))->sum(fn($i) => $i->quantity * $i->unit_price);
+                    $originalDiscount = (float)($pos->discount ?? 0);
+                    $originalTaxableBase = max(0, $originalGross - $originalDiscount);
+                    $vatRate = (float)($pos->vat_rate ?? 0);
+                    $originalVat = ($vatRate > 0) ? round($originalTaxableBase * ($vatRate / 100), 2) : 0;
+                    $originalDelivery = (float)($pos->delivery ?? 0);
+                    $originalSaleTotal = $originalTaxableBase + $originalVat + $originalDelivery;
+
+                    // Exact net difference from exchange
+                    $exchangeNetDiff = ($totalExchangeNew - $totalExchangeDiscount + $totalExchangeVat + $totalExchangeDelivery) - $totalExchangeReturn;
+                    $dispExchDiff = $exchangeExtraPayable > 0 ? $exchangeExtraPayable : ($exchangeRefund > 0 ? -$exchangeRefund : $exchangeNetDiff);
+                }
             @endphp
             <tr>
                 <td class="summary-label">Total Quantity</td>
                 <td class="summary-value">{{ (fmod($totalQuantity, 1) == 0) ? number_format($totalQuantity, 0) : number_format($totalQuantity, 2) }}</td>
             </tr>
-            <tr>
-                <td class="summary-label">{{ $hasExchanges ? 'Sub Total (Original Sale)' : 'Sub Total' }}</td>
-                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->sub_total ?? 0, 2) }}</td>
-            </tr>
-
-            @if($totalPosDiscount > 0)
-            @php
-                $effectivePercent = ($pos->sub_total > 0) ? round(($totalPosDiscount / $pos->sub_total) * 100, 1) : 0;
-            @endphp
-            <tr>
-                <td class="summary-label">
-                    Discount 
-                    @if($effectivePercent > 0)
-                        <small>({{ $effectivePercent }}%)</small>
-                    @endif
-                </td>
-                <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalPosDiscount ?? 0, 2) }}</td>
-            </tr>
-            @endif
-
-            @if($pos->delivery > 0)
-            <tr>
-                <td class="summary-label">Delivery</td>
-                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->delivery ?? 0, 2) }}</td>
-            </tr>
-            @endif
-
-            @if($pos->vat_amount > 0)
-            <tr>
-                <td class="summary-label">VAT @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
-                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->vat_amount, 2) }}</td>
-            </tr>
-            @elseif(($pos->invoice->tax ?? 0) > 0)
-            <tr>
-                <td class="summary-label">VAT & Tax</td>
-                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
-            </tr>
-            @endif
 
             @if($hasExchanges)
+                <tr>
+                    <td class="summary-label">Sub Total (Original Sale)</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($originalGross, 2) }}</td>
+                </tr>
+
+                @if($originalDiscount > 0)
+                @php
+                    $origDiscPercent = ($originalGross > 0) ? round(($originalDiscount / $originalGross) * 100, 1) : 0;
+                @endphp
+                <tr>
+                    <td class="summary-label">
+                        Discount 
+                        @if($origDiscPercent > 0)
+                            <small>({{ $origDiscPercent }}%)</small>
+                        @endif
+                    </td>
+                    <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($originalDiscount, 2) }}</td>
+                </tr>
+                @endif
+
+                @if($originalDelivery > 0)
+                <tr>
+                    <td class="summary-label">Delivery</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($originalDelivery, 2) }}</td>
+                </tr>
+                @endif
+
+                @if($originalVat > 0)
+                <tr>
+                    <td class="summary-label">VAT @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($originalVat, 2) }}</td>
+                </tr>
+                @endif
+
+                <tr style="border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc;">
+                    <td class="summary-label" style="font-weight: 600;">Original Sale Total</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($originalSaleTotal, 2) }}</td>
+                </tr>
+
                 @if($totalExchangeReturn > 0)
                 <tr>
                     <td class="summary-label">Less: Exchanged Item Return</td>
                     <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalExchangeReturn, 2) }}</td>
                 </tr>
                 @endif
+
                 @if($totalExchangeNew > 0)
                 <tr>
                     <td class="summary-label">Add: New Exchanged Item</td>
                     <td class="summary-value" style="color: #2e7d32;">+<span class="currency-symbol">৳</span>{{ number_format($totalExchangeNew, 2) }}</td>
                 </tr>
                 @endif
-                @if($exchangeDiff != 0)
-                <tr style="border-top: 1px dotted #bbb;">
-                    <td class="summary-label bold">{{ $exchangeDiff > 0 ? 'Exchange Balance / Due' : 'Exchange Refund' }}</td>
-                    <td class="summary-value bold" style="color: {{ $exchangeDiff > 0 ? '#2e7d32' : '#d32f2f' }};">
-                        {{ $exchangeDiff > 0 ? '+' : '-' }}<span class="currency-symbol">৳</span>{{ number_format(abs($exchangeDiff), 2) }}
+
+                @if($totalExchangeDiscount > 0)
+                @php
+                    $exchDiscPercent = ($totalExchangeNew > 0) ? round(($totalExchangeDiscount / $totalExchangeNew) * 100, 1) : 0;
+                @endphp
+                <tr>
+                    <td class="summary-label">
+                        Less: Exchange Discount
+                        @if($exchDiscPercent > 0)
+                            <small>({{ $exchDiscPercent }}%)</small>
+                        @endif
                     </td>
+                    <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalExchangeDiscount, 2) }}</td>
+                </tr>
+                @endif
+
+                @if($totalExchangeVat > 0)
+                <tr>
+                    <td class="summary-label">Add: Exchange VAT @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
+                    <td class="summary-value" style="color: #2e7d32;">+<span class="currency-symbol">৳</span>{{ number_format($totalExchangeVat, 2) }}</td>
+                </tr>
+                @endif
+
+                @if($totalExchangeDelivery > 0)
+                <tr>
+                    <td class="summary-label">Add: Exchange Delivery</td>
+                    <td class="summary-value" style="color: #2e7d32;">+<span class="currency-symbol">৳</span>{{ number_format($totalExchangeDelivery, 2) }}</td>
+                </tr>
+                @endif
+
+                @if(abs($dispExchDiff) > 0.001)
+                <tr style="border-top: 1px dotted #bbb; border-bottom: 1px dashed #ccc;">
+                    <td class="summary-label bold">{{ $dispExchDiff >= 0 ? 'Exchange Balance / Paid' : 'Exchange Net Refund' }}</td>
+                    <td class="summary-value bold" style="color: {{ $dispExchDiff >= 0 ? '#2e7d32' : '#d32f2f' }};">
+                        {{ $dispExchDiff >= 0 ? '+' : '-' }}<span class="currency-symbol">৳</span>{{ number_format(abs($dispExchDiff), 2) }}
+                    </td>
+                </tr>
+                @endif
+
+            @else
+                {{-- Standard Sale without Exchange --}}
+                <tr>
+                    <td class="summary-label">Sub Total</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->sub_total ?? 0, 2) }}</td>
+                </tr>
+
+                @if($totalPosDiscount > 0)
+                @php
+                    $effectivePercent = ($pos->sub_total > 0) ? round(($totalPosDiscount / $pos->sub_total) * 100, 1) : 0;
+                @endphp
+                <tr>
+                    <td class="summary-label">
+                        Discount 
+                        @if($effectivePercent > 0)
+                            <small>({{ $effectivePercent }}%)</small>
+                        @endif
+                    </td>
+                    <td class="summary-value" style="color: #d32f2f;">-<span class="currency-symbol">৳</span>{{ number_format($totalPosDiscount ?? 0, 2) }}</td>
+                </tr>
+                @endif
+
+                @if($pos->delivery > 0)
+                <tr>
+                    <td class="summary-label">Delivery</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->delivery ?? 0, 2) }}</td>
+                </tr>
+                @endif
+
+                @if($pos->vat_amount > 0)
+                <tr>
+                    <td class="summary-label">VAT @if($pos->vat_rate > 0) <small>({{ $pos->vat_rate }}%)</small> @endif</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->vat_amount, 2) }}</td>
+                </tr>
+                @elseif(($pos->invoice->tax ?? 0) > 0)
+                <tr>
+                    <td class="summary-label">VAT & Tax</td>
+                    <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->tax ?? 0, 2) }}</td>
                 </tr>
                 @endif
             @endif

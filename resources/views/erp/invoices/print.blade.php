@@ -291,13 +291,34 @@
             $pos = $invoice->pos;
             $totalInvoiceQty = $invoice->items ? $invoice->items->whereNull('parent_item_id')->sum('quantity') : 0;
         @endphp
+        @php
+            $posExchanges = $pos ? ($pos->exchanges ?? collect()) : collect();
+            $hasInvExchanges = $posExchanges->count() > 0;
+            $invOriginalGross = $hasInvExchanges ? (float)$invoice->items->whereNull('parent_item_id')->sum(fn($i) => $i->quantity * $i->unit_price) : (float)($invoice->subtotal ?? 0);
+            $invOriginalDiscount = (float)($invoice->discount_apply ?? 0);
+            $invTaxRate = (float)($pos->vat_rate ?? 0);
+            $invOriginalTaxable = max(0, $invOriginalGross - $invOriginalDiscount);
+            $invOriginalVat = $hasInvExchanges ? (($invTaxRate > 0) ? round($invOriginalTaxable * ($invTaxRate / 100), 2) : 0) : (float)($invoice->tax ?? 0);
+            
+            $invExchReturn = (float)$posExchanges->sum(function($ex) {
+                return $ex->total_return_amount > 0 ? (float)$ex->total_return_amount : (float)$ex->returnedItems->sum('total_price');
+            });
+            $invExchNew = (float)$posExchanges->sum(function($ex) {
+                return $ex->total_new_amount > 0 ? (float)$ex->total_new_amount : (float)$ex->newItems->sum('total_price');
+            });
+            if ($invExchNew == 0 && optional($pos)->exchange_amount > 0) {
+                $invExchNew = (float)$pos->exchange_amount;
+            }
+            $invExchDiscount = (float)$posExchanges->sum('discount_amount');
+            $invExchVat = (float)$posExchanges->sum('vat_amount');
+        @endphp
         <table class="summary-table">
             <tr><td>TOTAL QUANTITY :</td><td>{{ (fmod($totalInvoiceQty, 1) == 0) ? number_format($totalInvoiceQty, 0) : number_format($totalInvoiceQty, 2) }}</td></tr>
-            <tr><td>SUB TOTAL :</td><td>{{ number_format($invoice->subtotal ?? 0, 2) }} Tk</td></tr>
-            @if($totalInvoiceDiscount > 0)
-                <tr><td>DIS. AMOUNT :</td><td>{{ number_format($totalInvoiceDiscount, 2) }} Tk</td></tr>
+            <tr><td>{{ $hasInvExchanges ? 'SUB TOTAL (ORIGINAL) :' : 'SUB TOTAL :' }}</td><td>{{ number_format($invOriginalGross, 2) }} Tk</td></tr>
+            @if($invOriginalDiscount > 0)
+                <tr><td>DIS. AMOUNT :</td><td>{{ number_format($invOriginalDiscount, 2) }} Tk</td></tr>
             @endif
-            <tr><td>VAT :</td><td>{{ number_format($invoice->tax ?? 0, 2) }} Tk</td></tr>
+            <tr><td>{{ $hasInvExchanges ? 'ORIGINAL VAT :' : 'VAT :' }}</td><td>{{ number_format($invOriginalVat, 2) }} Tk</td></tr>
             @php $onlineDelivery = isset($invoice->order) ? ($invoice->order->delivery ?? 0) : 0; @endphp
             @if(($onlineDelivery ?? 0) > 0)
                 <tr><td>DELIVERY :</td><td>{{ number_format($onlineDelivery, 2) }} Tk</td></tr>
@@ -305,23 +326,17 @@
                 <tr><td>DELIVERY :</td><td>{{ number_format($pos->delivery, 2) }} Tk</td></tr>
             @endif
             
-            @php
-                $posExchanges = $pos ? ($pos->exchanges ?? collect()) : collect();
-                $invExchReturn = $posExchanges->sum(function($ex) {
-                    return $ex->total_return_amount > 0 ? (float)$ex->total_return_amount : (float)$ex->returnedItems->sum('total_price');
-                });
-                $invExchNew = $posExchanges->sum(function($ex) {
-                    return $ex->total_new_amount > 0 ? (float)$ex->total_new_amount : (float)$ex->newItems->sum('total_price');
-                });
-                if ($invExchNew == 0 && optional($pos)->exchange_amount > 0) {
-                    $invExchNew = (float)$pos->exchange_amount;
-                }
-            @endphp
             @if($invExchReturn > 0)
                 <tr><td>EXCHANGE RETURN :</td><td style="color: #d32f2f;">-{{ number_format($invExchReturn, 2) }} Tk</td></tr>
             @endif
             @if($invExchNew > 0)
                 <tr><td>EXCHANGE NEW ITEM :</td><td style="color: #28a745;">+{{ number_format($invExchNew, 2) }} Tk</td></tr>
+            @endif
+            @if($invExchDiscount > 0)
+                <tr><td>EXCHANGE DISCOUNT :</td><td style="color: #d32f2f;">-{{ number_format($invExchDiscount, 2) }} Tk</td></tr>
+            @endif
+            @if($invExchVat > 0)
+                <tr><td>EXCHANGE VAT :</td><td style="color: #28a745;">+{{ number_format($invExchVat, 2) }} Tk</td></tr>
             @endif
             @if(optional($pos)->refund_amount > 0)
                 <tr><td>REFUNDED :</td><td style="color: #d32f2f;">-{{ number_format($pos->refund_amount, 2) }} Tk</td></tr>

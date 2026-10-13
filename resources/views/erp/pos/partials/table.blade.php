@@ -184,27 +184,43 @@
                         $itemNetBase = $itemActQty * $itemNetUnitPrice;
                         $itemRemainingVat = round($itemNetBase * $saleVatRate, 2);
 
-                        // If this item was exchanged, attribute incoming replacement item(s) net amount & VAT
+                        // If this item was exchanged, attribute incoming replacement item(s) net amount, VAT & discount
                         $itemExchNewAmt = 0;
                         $itemExchNewVat = 0;
+                        $itemExchNewDiscount = 0;
                         if ($exchRetQty > 0 && ($invExchRetQty ?? 0) > 0) {
                             $invExchNewNetTotal = 0;
                             $invExchNewVatTotal = 0;
-                            $exchNewItems = \App\Models\PosExchangeItem::where('type', 'new')
-                                ->whereHas('exchange', function($q) use ($sale) {
-                                    $q->where('original_pos_id', $sale->id)->where('status', 'completed');
-                                })
-                                ->get();
-                            foreach ($exchNewItems as $eni) {
-                                $eniVat = round($eni->total_price * $saleVatRate, 2);
-                                $invExchNewVatTotal += $eniVat;
-                                $invExchNewNetTotal += ($eni->total_price + $eniVat);
+                            $invExchNewDiscTotal = 0;
+
+                            $completedExchanges = $sale->relationLoaded('exchanges')
+                                ? $sale->exchanges->where('status', 'completed')
+                                : \App\Models\PosExchange::with(['items', 'newItems'])->where('original_pos_id', $sale->id)->where('status', 'completed')->get();
+
+                            foreach ($completedExchanges as $ex) {
+                                $newItems = $ex->relationLoaded('newItems') ? $ex->newItems : $ex->items->where('type', 'new');
+                                $itemLevelDisc = $newItems->sum(fn($ni) => max(0, ($ni->quantity * $ni->unit_price) - $ni->total_price));
+                                $exDisc = $itemLevelDisc + (float)($ex->discount_amount ?? 0);
+                                $invExchNewDiscTotal += $exDisc;
+
+                                $exNewGross = (float)($ex->total_new_amount > 0 ? $ex->total_new_amount : $newItems->sum('total_price'));
+                                $exNewBase = max(0, $exNewGross - (float)($ex->discount_amount ?? 0));
+
+                                $exVat = (float)($ex->vat_amount ?? 0);
+                                if ($exVat == 0 && $saleVatRate > 0) {
+                                    $exVat = round($exNewBase * $saleVatRate, 2);
+                                }
+                                $invExchNewVatTotal += $exVat;
+                                $invExchNewNetTotal += ($exNewBase + $exVat);
                             }
+
                             $exchShare = $exchRetQty / $invExchRetQty;
-                            $itemExchNewAmt = round($invExchNewNetTotal * $exchShare, 2);
+                            $itemExchNewDiscount = round($invExchNewDiscTotal * $exchShare, 2);
                             $itemExchNewVat = round($invExchNewVatTotal * $exchShare, 2);
+                            $itemExchNewAmt = round($invExchNewNetTotal * $exchShare, 2);
                         }
 
+                        $itemNetDiscount = max(0, $itemOriginalDiscount - $itemReturnedDiscount) + $itemExchNewDiscount;
                         $itemNetVat = $itemRemainingVat + $itemExchNewVat;
                         $itemNetFinalAmt = $itemNetBase + $itemRemainingVat + $itemExchNewAmt;
 
@@ -353,7 +369,7 @@
                         <td class="text-end">
                             {{ number_format($itemNetVat, 2) }}
                         </td>
-                        <td class="text-end text-danger">
+                        <td class="text-end text-danger" @if(isset($itemExchNewDiscount) && $itemExchNewDiscount > 0) title="Includes {{ number_format($itemExchNewDiscount, 2) }} exchange discount" @endif>
                             {{ number_format($itemNetDiscount, 2) }}
                         </td>
                         <td class="text-end">
@@ -494,7 +510,7 @@
                 <td class="text-end fw-bold">{{ number_format($reportTotals['exchange'], 2) }}</td>
                 <td class="text-end fw-bold text-danger">{{ number_format($reportTotals['refund'], 2) }}</td>
 
-                <td class="text-end fw-bold">{{ number_format(max(0, ($reportTotals['sell_amt'] ?? 0) - ($reportTotals['reg_ret_amt'] ?? 0) - ($reportTotals['exch_ret_amt'] ?? 0) + ($reportTotals['exchange'] ?? 0) + ($reportTotals['vat_amt'] ?? 0)), 2) }}</td>
+                <td class="text-end fw-bold">{{ number_format(max(0, ($reportTotals['sell_amt'] ?? 0) - ($reportTotals['reg_ret_amt'] ?? 0) - ($reportTotals['exch_ret_amt'] ?? 0) + ($reportTotals['exchange'] ?? 0) - ($reportTotals['exchange_discount'] ?? 0) + ($reportTotals['vat_amt'] ?? 0)), 2) }}</td>
 
                 <td class="text-end text-dark py-3">{{ number_format($reportTotals['final_total'], 2) }}</td>
                 <td class="text-end text-success py-3">{{ number_format($reportTotals['paid'], 2) }}</td>

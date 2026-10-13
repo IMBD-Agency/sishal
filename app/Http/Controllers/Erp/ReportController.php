@@ -978,13 +978,16 @@ class ReportController extends Controller
                 ->get();
                 
             foreach ($exchanges as $exchange) {
+                $exchNewTotal = 0;
                 foreach ($exchange->items as $item) {
                     if ($item->type == 'new') {
-                        $exchangeNewRevenue += floatval($item->total_price);
+                        $exchNewTotal += floatval($item->total_price);
                         $cost = $item->product ? $item->product->calculateCost($item->variation_id) : 0;
                         $exchangeNewCost += $item->quantity * $cost;
                     }
                 }
+                $exchDiscount = floatval($exchange->discount_amount ?? 0);
+                $exchangeNewRevenue += max(0, $exchNewTotal - $exchDiscount);
             }
         }
         

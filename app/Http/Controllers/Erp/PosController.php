@@ -643,6 +643,7 @@ class PosController extends Controller
                 'pos.items.product:id,type',
                 'pos.items.returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
                 'pos.items.returnItems.saleReturn:id,refund_type,status',
+                'pos.exchanges.items',
                 'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image,type',
                 'product.category:id,name',
                 'product.brand:id,name',
@@ -707,6 +708,23 @@ class PosController extends Controller
             ->where('pos_exchanges.status', 'completed')
             ->sum('pos_exchange_items.quantity');
 
+        // Query exchange discounts for filtered items
+        $filteredPosIdsForExchangeDisc = clone $query;
+        $exchangeDiscountTotal = (float) \DB::table('pos_exchanges')
+            ->whereIn('original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
+            ->where('status', 'completed')
+            ->sum('discount_amount');
+
+        $exchangeItemDiscountTotal = (float) (\DB::table('pos_exchange_items')
+            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
+            ->where('pos_exchange_items.type', 'new')
+            ->where('pos_exchanges.status', 'completed')
+            ->selectRaw("SUM(GREATEST(0, (pos_exchange_items.quantity * pos_exchange_items.unit_price) - pos_exchange_items.total_price)) as item_disc")
+            ->value('item_disc') ?? 0);
+
+        $totalExchangeDiscount = $exchangeDiscountTotal + $exchangeItemDiscountTotal;
+
         // Query return discount for filtered items using the exact item discount difference
         $filteredItemIdsForDiscount = clone $query;
         $returnDiscountTotal = (float) (\DB::table('sale_return_items')
@@ -726,7 +744,7 @@ class PosController extends Controller
             ->value('returned_discount') ?? 0);
 
         $grossItemDiscountTotal = (float) ($itemTotals->item_discount ?? ($saleTotals->total_discount ?? 0));
-        $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal);
+        $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal) + $totalExchangeDiscount;
 
         // Query return VAT for filtered items (only regular returns, as exchange already updates pos.vat_amount directly)
         $filteredItemIdsForVat = clone $query;
@@ -787,6 +805,7 @@ class PosController extends Controller
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
             'discount' => $netDiscountTotal,
+            'exchange_discount' => $totalExchangeDiscount,
             'vat_amt' => $netVatTotal,
             'exchange' => $saleTotals->total_exchange ?? 0,
             'refund' => $saleTotals->total_refund ?? 0,
@@ -2276,6 +2295,7 @@ class PosController extends Controller
                 'pos.items.product:id,type',
                 'pos.items.returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
                 'pos.items.returnItems.saleReturn:id,refund_type,status',
+                'pos.exchanges.items',
                 'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image,type',
                 'product.category:id,name',
                 'product.brand:id,name',
@@ -2337,6 +2357,22 @@ class PosController extends Controller
             ->where('pos_exchanges.status', 'completed')
             ->sum('pos_exchange_items.quantity');
 
+        $filteredPosIdsForExchangeDisc = clone $query;
+        $exchangeDiscountTotal = (float) \DB::table('pos_exchanges')
+            ->whereIn('original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
+            ->where('status', 'completed')
+            ->sum('discount_amount');
+
+        $exchangeItemDiscountTotal = (float) (\DB::table('pos_exchange_items')
+            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
+            ->where('pos_exchange_items.type', 'new')
+            ->where('pos_exchanges.status', 'completed')
+            ->selectRaw("SUM(GREATEST(0, (pos_exchange_items.quantity * pos_exchange_items.unit_price) - pos_exchange_items.total_price)) as item_disc")
+            ->value('item_disc') ?? 0);
+
+        $totalExchangeDiscount = $exchangeDiscountTotal + $exchangeItemDiscountTotal;
+
         $filteredItemIdsForDiscount = clone $query;
         $returnDiscountTotal = (float) (\DB::table('sale_return_items')
             ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
@@ -2355,7 +2391,7 @@ class PosController extends Controller
             ->value('returned_discount') ?? 0);
 
         $grossItemDiscountTotal = (float) ($itemTotals->item_discount ?? ($saleTotals->total_discount ?? 0));
-        $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal);
+        $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal) + $totalExchangeDiscount;
 
         $filteredItemIdsForVat = clone $query;
         $returnVatTotal = (float) (\DB::table('sale_return_items')
@@ -2413,6 +2449,7 @@ class PosController extends Controller
             'sell_amt' => $totalAmount,
             'delivery' => $saleTotals->total_delivery ?? 0,
             'discount' => $netDiscountTotal,
+            'exchange_discount' => $totalExchangeDiscount,
             'vat_amt' => $netVatTotal,
             'exchange' => $saleTotals->total_exchange ?? 0,
             'refund' => $saleTotals->total_refund ?? 0,
@@ -2599,24 +2636,40 @@ class PosController extends Controller
             // Exchange replacement attribution
             $itemExchNewAmt = 0;
             $itemExchNewVat = 0;
+            $itemExchNewDiscount = 0;
             if ($exchRetQty > 0 && ($invExchRetQty ?? 0) > 0) {
                 $invExchNewNetTotal = 0;
                 $invExchNewVatTotal = 0;
-                $exchNewItems = \App\Models\PosExchangeItem::where('type', 'new')
-                    ->whereHas('exchange', function($q) use ($sale) {
-                        $q->where('original_pos_id', $sale->id)->where('status', 'completed');
-                    })
-                    ->get();
-                foreach ($exchNewItems as $eni) {
-                    $eniVat = round($eni->total_price * $saleVatRate, 2);
-                    $invExchNewVatTotal += $eniVat;
-                    $invExchNewNetTotal += ($eni->total_price + $eniVat);
+                $invExchNewDiscTotal = 0;
+
+                $completedExchanges = $sale->relationLoaded('exchanges')
+                    ? $sale->exchanges->where('status', 'completed')
+                    : \App\Models\PosExchange::with(['items', 'newItems'])->where('original_pos_id', $sale->id)->where('status', 'completed')->get();
+
+                foreach ($completedExchanges as $ex) {
+                    $newItems = $ex->relationLoaded('newItems') ? $ex->newItems : $ex->items->where('type', 'new');
+                    $itemLevelDisc = $newItems->sum(fn($ni) => max(0, ($ni->quantity * $ni->unit_price) - $ni->total_price));
+                    $exDisc = $itemLevelDisc + (float)($ex->discount_amount ?? 0);
+                    $invExchNewDiscTotal += $exDisc;
+
+                    $exNewGross = (float)($ex->total_new_amount > 0 ? $ex->total_new_amount : $newItems->sum('total_price'));
+                    $exNewBase = max(0, $exNewGross - (float)($ex->discount_amount ?? 0));
+
+                    $exVat = (float)($ex->vat_amount ?? 0);
+                    if ($exVat == 0 && $saleVatRate > 0) {
+                        $exVat = round($exNewBase * $saleVatRate, 2);
+                    }
+                    $invExchNewVatTotal += $exVat;
+                    $invExchNewNetTotal += ($exNewBase + $exVat);
                 }
+
                 $exchShare = $exchRetQty / $invExchRetQty;
-                $itemExchNewAmt = round($invExchNewNetTotal * $exchShare, 2);
+                $itemExchNewDiscount = round($invExchNewDiscTotal * $exchShare, 2);
                 $itemExchNewVat = round($invExchNewVatTotal * $exchShare, 2);
+                $itemExchNewAmt = round($invExchNewNetTotal * $exchShare, 2);
             }
 
+            $itemNetDiscount = max(0, $itemOriginalDiscount - $itemReturnedDiscount) + $itemExchNewDiscount;
             $itemNetVat = $itemRemainingVat + $itemExchNewVat;
             $itemNetFinalAmt = $itemNetBase + $itemRemainingVat + $itemExchNewAmt;
 
@@ -2703,7 +2756,7 @@ class PosController extends Controller
         $footerData[32] = number_format($reportTotals['discount'], 2);
         $footerData[33] = number_format($reportTotals['exchange'], 2);
         $footerData[34] = number_format($reportTotals['refund'], 2);
-        $footerData[35] = number_format(max(0, ($reportTotals['sell_amt'] ?? 0) - ($reportTotals['reg_ret_amt'] ?? 0) - ($reportTotals['exch_ret_amt'] ?? 0) + ($reportTotals['exchange'] ?? 0) + ($reportTotals['vat_amt'] ?? 0)), 2);
+        $footerData[35] = number_format(max(0, ($reportTotals['sell_amt'] ?? 0) - ($reportTotals['reg_ret_amt'] ?? 0) - ($reportTotals['exch_ret_amt'] ?? 0) + ($reportTotals['exchange'] ?? 0) - ($reportTotals['exchange_discount'] ?? 0) + ($reportTotals['vat_amt'] ?? 0)), 2);
         $footerData[36] = number_format($reportTotals['final_total'], 2);
         $footerData[37] = number_format($reportTotals['paid'], 2);
         $footerData[38] = number_format($reportTotals['due'], 2);

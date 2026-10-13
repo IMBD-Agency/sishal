@@ -8,7 +8,8 @@
         @include('erp.components.header')
         
         @php
-            $totalSaleDiscount = $pos->discount ?? 0;
+            $posExchDiscount = $pos->relationLoaded('exchanges') ? $pos->exchanges->where('status', 'completed')->sum('discount_amount') : $pos->exchanges()->where('status', 'completed')->sum('discount_amount');
+            $totalSaleDiscount = ($pos->discount ?? 0) + ($posExchDiscount ?? 0);
         @endphp
 
         <!-- Header Section -->

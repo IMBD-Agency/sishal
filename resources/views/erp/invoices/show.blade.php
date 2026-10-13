@@ -336,12 +336,18 @@
 
                                 @php $itemIndex = $invoice->items ? $invoice->items->count() : 0; @endphp
                                 @foreach($processedExchanges as $exch)
+                                    @php
+                                        $exchGlobalDisc = (float)($exch->discount_amount ?? 0);
+                                        $exchNewItemsTotal = $exch->newItems->sum('total_price') ?: 1;
+                                    @endphp
                                     @foreach($exch->newItems as $newItem)
                                         @php
                                             $itemIndex++;
                                             $rowSubtotal = $newItem->quantity * $newItem->unit_price;
-                                            $rowTotal = $newItem->total_price;
-                                            $rowDiscount = max(0, $rowSubtotal - $rowTotal);
+                                            $itemItemDisc = max(0, $rowSubtotal - $newItem->total_price);
+                                            $itemGlobalDiscShare = ($exchGlobalDisc > 0) ? round($exchGlobalDisc * ($newItem->total_price / $exchNewItemsTotal), 2) : 0;
+                                            $rowDiscount = $itemItemDisc + $itemGlobalDiscShare;
+                                            $rowTotal = max(0, $rowSubtotal - $rowDiscount);
 
                                             $netSubtotal += $rowSubtotal;
                                             $netDiscount += $rowDiscount;
