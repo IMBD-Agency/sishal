@@ -1551,20 +1551,47 @@ class ReportController extends Controller
         ->get()
         ->keyBy('customer_id');
 
-        // 3. Returns (SaleReturn)
+        // 3. Returns (SaleReturn with proportional VAT & refund breakdown)
         $returnQuery = SaleReturn::query()
-            ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id');
+            ->with(['items', 'posSale.invoice'])
+            ->whereIn('customer_id', $customerIds);
         
-        if ($branchId) $returnQuery->where('return_to_id', $branchId);
+        if ($branchId) {
+            $returnQuery->where('return_to_id', $branchId)->where('return_to_type', 'branch');
+        }
 
-        $returnStats = $returnQuery->selectRaw('customer_id,
-            SUM(CASE WHEN return_date < ? THEN sale_return_items.total_price ELSE 0 END) as opening_return,
-            SUM(CASE WHEN return_date BETWEEN ? AND ? THEN sale_return_items.total_price ELSE 0 END) as period_return
-        ', [$startDate, $startDate, $endDate])
-        ->whereIn('customer_id', $customerIds)
-        ->groupBy('customer_id')
-        ->get()
-        ->keyBy('customer_id');
+        $allReturns = $returnQuery->get();
+
+        $returnStats = [];
+        foreach ($customerIds as $cid) {
+            $returnStats[$cid] = (object)[
+                'opening_return' => 0,
+                'period_return' => 0,
+                'opening_cash_refund' => 0,
+                'period_cash_refund' => 0,
+            ];
+        }
+
+        foreach ($allReturns as $ret) {
+            $cid = $ret->customer_id;
+            if (!isset($returnStats[$cid])) continue;
+
+            $amount = $ret->calculateTotalAmount();
+            $isCashRefund = in_array($ret->refund_type, ['cash', 'bank']);
+            $rDate = Carbon::parse($ret->return_date);
+
+            if ($rDate < $startDate) {
+                $returnStats[$cid]->opening_return += $amount;
+                if ($isCashRefund) {
+                    $returnStats[$cid]->opening_cash_refund += $amount;
+                }
+            } elseif ($rDate >= $startDate && $rDate <= $endDate) {
+                $returnStats[$cid]->period_return += $amount;
+                if ($isCashRefund) {
+                    $returnStats[$cid]->period_cash_refund += $amount;
+                }
+            }
+        }
 
         // 4. Initial Balances (from Balance table)
         $initialBalances = Balance::where('source_type', 'customer')
@@ -1590,19 +1617,21 @@ class ReportController extends Controller
             $op_sales = $s->opening_sales ?? 0;
             $op_paid = $p->opening_paid ?? 0; 
             $op_return = $r->opening_return ?? 0;
+            $op_cash_refund = $r->opening_cash_refund ?? 0;
             $op_exchange = $s->opening_exchange ?? 0;
             $op_init = $b->opening_bal ?? 0;
 
-            $opening = $op_init + $op_sales - ($op_paid + $op_return + $op_exchange);
+            $opening = $op_init + $op_sales - ($op_paid - $op_cash_refund + $op_return + $op_exchange);
 
             $period_sales = $s->period_sales ?? 0;
             $period_manual = $p->period_manual ?? 0;
             $period_paid = $p->period_paid ?? 0; 
             $period_return = $r->period_return ?? 0;
+            $period_cash_refund = $r->period_cash_refund ?? 0;
             $period_exchange = $s->period_exchange ?? 0;
             $period_discount = $s->period_discount ?? 0;
 
-            $due = $opening + $period_sales - ($period_paid + $period_manual + $period_return + $period_exchange);
+            $due = $opening + $period_sales - ($period_paid + $period_manual - $period_cash_refund + $period_return + $period_exchange);
             
             $customer->outlet = $branchId ? (\App\Models\Branch::find($branchId)->name ?? 'Main') : 'All';
             $customer->opening = $opening;
@@ -1710,10 +1739,18 @@ class ReportController extends Controller
             // 4. Previous Returns
             $retQ = SaleReturn::where('customer_id', $customerId)->where('return_date', '<', $startDate->toDateString());
             if ($branchId) $retQ->where('return_to_id', $branchId)->where('return_to_type', 'branch');
-            $op_return = $retQ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
-                               ->sum('sale_return_items.total_price');
+            $prevReturns = $retQ->with(['items', 'posSale'])->get();
+            $op_return = 0;
+            $op_cash_refund = 0;
+            foreach ($prevReturns as $pret) {
+                $amt = $pret->calculateTotalAmount();
+                $op_return += $amt;
+                if (in_array($pret->refund_type, ['cash', 'bank'])) {
+                    $op_cash_refund += $amt;
+                }
+            }
 
-            $openingBalance = $op_init + $op_sales - ($op_paid + $op_return);
+            $openingBalance = $op_init + $op_sales - ($op_paid - $op_cash_refund + $op_return);
         }
 
         // Transactions Fetching
@@ -1734,9 +1771,10 @@ class ReportController extends Controller
             'challan' => $p->challan_number ?? '-',
             'branch' => $p->branch->name ?? '-',
             'total' => $p->total_amount,
-            'discount' => $p->discount_amount ?? 0,
+            'discount' => $p->discount ?? 0,
             'paid' => 0,
-            'due' => $p->total_amount - $p->discount_amount,
+            'due' => $p->total_amount,
+            'exchange_amount' => $p->exchange_amount ?? 0,
             'particulars' => 'POS Sale - ' . ($p->exchange_amount > 0 ? 'With Exchange' : 'Regular')
         ]);
 
@@ -1769,30 +1807,61 @@ class ReportController extends Controller
             'particulars' => 'Payment - ' . str_replace('_', ' ', $p->payment_for)
         ]);
 
-        // 3. Returns (Credit)
+        // 3. Returns (Credit) & Cash Refund Payouts (Debit)
         $retQuery = SaleReturn::where('customer_id', $customerId);
         if ($branchId) {
             $retQuery->where('return_to_id', $branchId)->where('return_to_type', 'branch');
         }
         if ($startDate) $retQuery->where('return_date', '>=', $startDate->toDateString());
         if ($endDate) $retQuery->where('return_date', '<=', $endDate->toDateString());
-        $returns = $retQuery->with(['items', 'posSale.branch'])->get()->map(fn($r) => [
-            'date' => $r->return_date,
-            'type' => 'Sale Return',
-            'reference' => 'RET-'.$r->id,
-            'debit' => 0,
-            'credit' => $r->items->sum('total_price'),
-            'note' => $r->reason,
-            // Info wise details
-            'invoice' => $r->posSale->invoice_number ?? '-',
-            'challan' => '-',
-            'branch' => $r->posSale->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-'),
-            'total' => 0,
-            'discount' => 0,
-            'paid' => 0,
-            'due' => $r->items->sum('total_price'),
-            'particulars' => 'Return - ' . $r->reason
-        ]);
+        
+        $rawReturns = $retQuery->with(['items', 'posSale.branch', 'invoice'])->get();
+        $returns = collect();
+
+        foreach ($rawReturns as $r) {
+            $totalReturnAmount = $r->calculateTotalAmount();
+            $isCashRefund = in_array($r->refund_type, ['cash', 'bank']);
+
+            // Return entry (Credit)
+            $returns->push([
+                'date' => $r->return_date,
+                'type' => 'Sale Return' . ($isCashRefund ? ' (' . ucfirst($r->refund_type) . ')' : ' (Store Credit)'),
+                'reference' => 'RET-'.$r->id,
+                'debit' => 0,
+                'credit' => $totalReturnAmount,
+                'note' => ($r->reason ? $r->reason . ' - ' : '') . ($isCashRefund ? 'Refunded via ' . ucfirst($r->refund_type) : 'Credited to Customer Balance'),
+                // Info wise details
+                'invoice' => $r->posSale->invoice_number ?? ($r->invoice->invoice_number ?? '-'),
+                'challan' => '-',
+                'branch' => $r->posSale->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-'),
+                'total' => 0,
+                'discount' => 0,
+                'paid' => 0,
+                'due' => $isCashRefund ? 0 : -$totalReturnAmount,
+                'particulars' => 'Return - ' . ($r->reason ?: ($isCashRefund ? 'Cash Refunded' : 'Store Credit'))
+            ]);
+
+            // If cash/bank was paid back to customer, add Refund Paid entry (Debit)
+            if ($isCashRefund) {
+                $returns->push([
+                    'date' => $r->return_date,
+                    'type' => 'Refund Paid (' . ucfirst($r->refund_type) . ')',
+                    'reference' => 'REF-'.$r->id,
+                    'debit' => $totalReturnAmount,
+                    'credit' => 0,
+                    'note' => 'Cash refund paid at counter for Return #' . $r->id,
+                    // Info wise details
+                    'invoice' => $r->posSale->invoice_number ?? ($r->invoice->invoice_number ?? '-'),
+                    'challan' => '-',
+                    'branch' => $r->posSale->branch->name ?? ($branchId ? Branch::find($branchId)->name : '-'),
+                    'total' => 0,
+                    'discount' => 0,
+                    'paid' => -$totalReturnAmount,
+                    'due' => 0,
+                    'particulars' => 'Refund Paid (' . ucfirst($r->refund_type) . ')'
+                ]);
+            }
+        }
 
         $transactions = $posSales->concat($payments)->concat($returns)->sortBy('date');
         $branches = $restrictedBranchId ? \App\Models\Branch::where('id', $restrictedBranchId)->get() : \App\Models\Branch::all();
@@ -1801,9 +1870,10 @@ class ReportController extends Controller
         $totalSales = $posSales->sum('total');
         $totalDiscount = $posSales->sum('discount');
         $totalPaid = $payments->sum('paid');
-        $totalReturn = $returns->sum('due');
+        $totalReturn = $rawReturns->sum(fn($r) => $r->calculateTotalAmount());
+        $totalCashRefund = $rawReturns->whereIn('refund_type', ['cash', 'bank'])->sum(fn($r) => $r->calculateTotalAmount());
         $totalExchange = $posSales->sum('exchange_amount');
-        $totalDueAmount = ($openingBalance ?? 0) + $totalSales - $totalPaid - $totalReturn;
+        $totalDueAmount = ($openingBalance ?? 0) + $totalSales - ($totalPaid - $totalCashRefund) - $totalReturn;
 
         if ($request->get('export') == 'pdf') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.reports.pdf.customer-ledger', compact(

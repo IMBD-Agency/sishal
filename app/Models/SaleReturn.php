@@ -54,4 +54,48 @@ class SaleReturn extends Model
     {
         return $this->belongsTo(\App\Models\Warehouse::class, 'return_to_id');
     }
+
+    /**
+     * Calculate total return value including proportional VAT
+     */
+    public function calculateTotalAmount(): float
+    {
+        $itemTotal = (float) $this->items->sum('total_price');
+        $posSale = $this->posSale ?? ($this->invoice ? $this->invoice->pos : null);
+
+        if ($posSale && $itemTotal > 0) {
+            $vatRate = ($posSale->vat_rate > 0) 
+                ? ($posSale->vat_rate / 100) 
+                : ((($posSale->sub_total - $posSale->discount) > 0) ? ($posSale->vat_amount / ($posSale->sub_total - $posSale->discount)) : 0);
+
+            $vat = round($itemTotal * $vatRate, 2);
+            return round($itemTotal + $vat, 2);
+        }
+
+        return round($itemTotal, 2);
+    }
+
+    /**
+     * Calculate proportional VAT amount on returned items
+     */
+    public function calculateVatAmount(): float
+    {
+        $itemTotal = (float) $this->items->sum('total_price');
+        $posSale = $this->posSale ?? ($this->invoice ? $this->invoice->pos : null);
+
+        if ($posSale && $itemTotal > 0) {
+            $vatRate = ($posSale->vat_rate > 0) 
+                ? ($posSale->vat_rate / 100) 
+                : ((($posSale->sub_total - $posSale->discount) > 0) ? ($posSale->vat_amount / ($posSale->sub_total - $posSale->discount)) : 0);
+
+            return round($itemTotal * $vatRate, 2);
+        }
+
+        return 0.0;
+    }
+
+    public function getTotalAmountAttribute(): float
+    {
+        return $this->calculateTotalAmount();
+    }
 }
