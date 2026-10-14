@@ -57,9 +57,17 @@
                     if ($variation && $variation->attributeValues) {
                         foreach($variation->attributeValues as $val) {
                             $attrName = strtolower($val->attribute->name ?? '');
-                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) $color = $val->value;
-                            elseif (str_contains($attrName, 'size')) $size = $val->value;
+                            if (str_contains($attrName, 'color') || (isset($val->attribute) && $val->attribute->is_color)) {
+                                $color = $val->value;
+                            } elseif (str_contains($attrName, 'size')) {
+                                $size = $val->value;
+                            } else {
+                                if ($size === '-') $size = $val->value;
+                            }
                         }
+                    }
+                    if ($size === '-' && $variation && !empty($variation->name)) {
+                        $size = $variation->name;
                     }
 
                     $retQty = $item->returnItems->sum('returned_qty');

@@ -87,7 +87,11 @@ class PurchaseController extends Controller
             'due'      => $purchaseTotals->total_due ?? 0,
         ];
 
-        $items = $query->latest()->paginate(100)->appends($request->all());
+        $items = $query->orderBy('purchase_id', 'desc')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->paginate(100)
+            ->appends($request->all());
         
         $items->getCollection()->transform(function ($item) {
             $product = $item->product;
@@ -184,7 +188,10 @@ class PurchaseController extends Controller
             'returnItems'
         ]);
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
-        $items = $query->orderBy('created_at', 'desc')->get();
+        $items = $query->orderBy('purchase_id', 'desc')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $branchesMap = \Illuminate\Support\Facades\Cache::remember('branches_map', 300, function() {
             return \App\Models\Branch::pluck('name', 'id');
@@ -235,8 +242,13 @@ class PurchaseController extends Controller
                         $color = $val->value;
                     } elseif (str_contains($attrName, 'size')) {
                         $size = $val->value;
+                    } else {
+                        if ($size === '-') $size = $val->value;
                     }
                 }
+            }
+            if ($size === '-' && $variation && !empty($variation->name)) {
+                $size = $variation->name;
             }
 
             // Calculations
@@ -424,7 +436,10 @@ class PurchaseController extends Controller
             'returnItems'
         ]);
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
-        $items = $query->orderBy('created_at', 'desc')->get();
+        $items = $query->orderBy('purchase_id', 'desc')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         $filename = 'purchase_audit_report_' . date('Y-m-d_His') . '.pdf';
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.purchases.report-pdf', [

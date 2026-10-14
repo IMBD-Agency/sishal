@@ -84,8 +84,13 @@
                                 $color = $val->value;
                             } elseif (str_contains($attrName, 'size')) {
                                 $size = $val->value;
+                            } else {
+                                if ($size === '-') $size = $val->value;
                             }
                         }
+                    }
+                    if ($size === '-' && $variation && !empty($variation->name)) {
+                        $size = $variation->name;
                     }
 
                     $retQty = $item->returnItems->sum('returned_qty');
