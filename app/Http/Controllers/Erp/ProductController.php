@@ -1273,6 +1273,7 @@ class ProductController extends Controller
                 'sku' => $variation->sku,
                 'name' => $variation->name,
                 'price' => ($variation->price && $variation->price > 0) ? $variation->price : null,
+                'cost' => (float)($variation->cost > 0 ? $variation->cost : ($product->cost ?? 0)),
                 'stock' => $variationStock,
             ];
             
@@ -1390,7 +1391,19 @@ class ProductController extends Controller
                     'quantity' => $totalVariationStock,
                     'last_updated_at' => $lastUpdatedAt
                 ],
-                'total_stock' => $totalVariationStock
+                'total_stock' => $totalVariationStock,
+                'variations' => $product->variations->map(function($v) use ($branchId, $product) {
+                    $stock = $v->stocks ? $v->stocks->where('branch_id', $branchId)->whereNull('warehouse_id')->first() : null;
+                    return [
+                        'id' => $v->id,
+                        'name' => $v->name,
+                        'price' => $v->price ?? null,
+                        'cost' => (float)($v->cost > 0 ? $v->cost : ($product->cost ?? 0)),
+                        'wholesale_price' => $product->wholesale_price,
+                        'sku' => $v->sku ?? (($product->style_number ?? $product->sku) . '-' . $v->id),
+                        'stock' => $stock ? $stock->quantity : 0
+                    ];
+                })
             ];
         } else {
             $branchStock = $product->branchStock->first();
@@ -1603,6 +1616,7 @@ class ProductController extends Controller
                              'id' => $v->id,
                              'name' => $v->name, // e.g. "Color: Red, Size: XL"
                              'price' => $v->price ?? null, // Override price if set
+                             'cost' => (float)($v->cost > 0 ? $v->cost : ($product->cost ?? 0)),
                              'wholesale_price' => $product->wholesale_price, // Fallback to product wholesale price
                              'sku' => $v->sku ?? (($product->style_number ?? $product->sku) . '-' . $v->id),
                              'stock' => $stock ? $stock->quantity : 0
@@ -1829,7 +1843,8 @@ class ProductController extends Controller
                     'sku' => $v->sku,
                     'stock' => $vStock,
                     'price' => (float)($v->price ?: 0),
-                    'wholesale_price' => (float)($v->wholesale_price ?: 0)
+                    'wholesale_price' => (float)($v->wholesale_price ?: 0),
+                    'cost' => (float)($v->cost ?? $product->cost ?? 0)
                 ];
             });
 
@@ -1840,6 +1855,15 @@ class ProductController extends Controller
             }
             $variationList = $variationList->values();
 
+            $productCost = (float)($product->cost ?? 0);
+            if ($product->type === 'combo' && $product->comboItems) {
+                $cCost = 0;
+                foreach ($product->comboItems as $ci) {
+                    $cCost += (float)(($ci->variation->cost ?? $ci->product->cost ?? 0) * $ci->quantity);
+                }
+                if ($cCost > 0) $productCost = $cCost;
+            }
+
             return [
                 'id' => $product->id, 
                 'name' => $product->name,
@@ -1848,6 +1872,7 @@ class ProductController extends Controller
                 'price' => (float)$product->price,
                 'wholesale_price' => (float)$product->wholesale_price,
                 'discount' => (float)$product->discount,
+                'cost' => $productCost,
                 'has_variations' => (bool)$product->has_variations,
                 'sku' => $product->sku,
                 'style_number' => $product->style_number,

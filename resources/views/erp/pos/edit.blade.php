@@ -299,6 +299,7 @@ $(document).ready(function() {
                 'name'            => $productName . $variationName,
                 'styleNo'         => $styleNo,
                 'price'           => (float)$item->unit_price,
+                'costPrice'       => (float)($item->unit_cost ?? ($item->variation->cost ?? $item->product->cost ?? 0)),
                 'mrp_price'       => (float)($item->variation_id
                     ? ($item->variation->discount ?? $item->variation->price ?? $item->unit_price)
                     : ($item->product->discount ?? $item->product->price ?? $item->unit_price)),
@@ -386,6 +387,12 @@ $(document).ready(function() {
             let mrp = variation ? (variation.discount || variation.price || product.discount || product.price) : (product.discount || product.price);
             let wholesale = variation ? (variation.wholesale_price || product.wholesale_price) : product.wholesale_price;
             let currentPrice = $('input[name="saleType"]:checked').val() === 'Wholesale' ? wholesale : mrp;
+            let costPrice = 0;
+            if (variation && variation.cost !== undefined && variation.cost !== null && parseFloat(variation.cost) > 0) {
+                costPrice = parseFloat(variation.cost);
+            } else if (product && product.cost !== undefined && product.cost !== null && parseFloat(product.cost) > 0) {
+                costPrice = parseFloat(product.cost);
+            }
 
             cart.push({
                 cartId: String(cartId),
@@ -395,6 +402,7 @@ $(document).ready(function() {
                 name: product.name + (variation ? ` - ${variation.name}` : ''),
                 styleNo: variation ? (variation.sku || product.style_number) : (product.style_number || product.sku),
                 price: parseFloat(currentPrice),
+                costPrice: parseFloat(costPrice),
                 mrp_price: parseFloat(mrp),
                 wholesale_price: parseFloat(wholesale),
                 qty: 1,
@@ -418,12 +426,13 @@ $(document).ready(function() {
                     <td class="ps-2 py-3">
                         <div class="fw-bold text-dark mb-0">${item.name}</div>
                         <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
-                            <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price">
+                            <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price (Min: ৳${(item.costPrice || 0).toFixed(2)})">
                                 <span class="text-success fw-bold extra-small me-1">৳</span>
-                                <input type="number" step="any" min="0" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
+                                <input type="number" step="any" min="${item.costPrice > 0 ? item.costPrice : 0.01}" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
                                        value="${item.price}" style="width: 70px; font-size: 0.78rem; outline: none; box-shadow: none;"
-                                       oninput="manualUpdatePrice('${item.cartId}', this.value)"
-                                       onchange="manualUpdatePrice('${item.cartId}', this.value)"
+                                       oninput="manualUpdatePrice('${item.cartId}', this.value, this)"
+                                       onblur="validatePriceOnBlur('${item.cartId}', this)"
+                                       onkeydown="if(event.key === 'Enter') { this.blur(); }"
                                        onclick="this.select()" onfocus="this.select()">
                             </div>
                             <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.stock ?? item.maxStock}</span>
@@ -455,15 +464,72 @@ $(document).ready(function() {
         calculateTotals();
     }
 
-    window.manualUpdatePrice = function(id, val) {
+    window.manualUpdatePrice = function(id, val, input) {
         let i = cart.find(c => String(c.cartId) === String(id));
-        if(i) {
-            let newPrice = parseFloat(val);
-            if(isNaN(newPrice) || newPrice < 0) newPrice = 0;
+        if(!i) return;
+
+        let $box = input ? $(input).closest('.d-inline-flex') : null;
+
+        if (val === '' || val === null || val === undefined) {
+            if ($box) $box.removeClass('border-success-subtle border-warning').addClass('border-danger');
+            i.price = 0;
+            $(`#item-total-${id}`).text('0.00');
+            calculateTotals();
+            return;
+        }
+
+        let newPrice = parseFloat(val);
+        let costPrice = parseFloat(i.costPrice) || 0;
+
+        if (isNaN(newPrice) || newPrice <= 0) {
+            if ($box) $box.removeClass('border-success-subtle border-warning').addClass('border-danger');
+            i.price = 0;
+            $(`#item-total-${id}`).text('0.00');
+            calculateTotals();
+            return;
+        }
+
+        if (costPrice > 0 && newPrice < costPrice) {
+            // While typing: show danger border, update preview totals, but DO NOT modify input.value or alert!
+            if ($box) $box.removeClass('border-success-subtle').addClass('border-danger');
             i.price = newPrice;
             $(`#item-total-${id}`).text((i.price * i.qty).toFixed(2));
             calculateTotals();
+            return;
         }
+
+        if ($box) $box.removeClass('border-danger border-warning').addClass('border-success-subtle');
+        i.price = newPrice;
+        $(`#item-total-${id}`).text((i.price * i.qty).toFixed(2));
+        calculateTotals();
+    };
+
+    window.validatePriceOnBlur = function(id, input) {
+        let i = cart.find(c => String(c.cartId) === String(id));
+        if(!i) return;
+
+        let val = input ? String(input.value).trim() : '';
+        let newPrice = parseFloat(val);
+        let costPrice = parseFloat(i.costPrice) || 0;
+        let $box = input ? $(input).closest('.d-inline-flex') : null;
+
+        if (!val || isNaN(newPrice) || newPrice <= 0) {
+            let fallbackPrice = costPrice > 0 ? costPrice : (parseFloat(i.price) > 0 ? i.price : 1);
+            alert(`Product price cannot be empty or zero for "${i.name}"! Reset to ৳ ${fallbackPrice.toFixed(2)}.`);
+            i.price = fallbackPrice;
+            if (input) input.value = fallbackPrice;
+        } else if (costPrice > 0 && newPrice < costPrice) {
+            alert(`Price cannot be less than purchase price (৳ ${costPrice.toFixed(2)}) for "${i.name}"!`);
+            i.price = costPrice;
+            if (input) input.value = costPrice;
+        } else {
+            i.price = newPrice;
+            if (input) input.value = newPrice;
+        }
+
+        if ($box) $box.removeClass('border-danger border-warning').addClass('border-success-subtle');
+        $(`#item-total-${id}`).text((i.price * i.qty).toFixed(2));
+        calculateTotals();
     };
 
     window.updateQty = function(id, d) { 
@@ -600,7 +666,26 @@ $(document).ready(function() {
 
     $('#posForm').submit(function(e) {
         e.preventDefault();
+
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+
         if(!cart.length) return alert('Cart empty');
+
+        for (let item of cart) {
+            let p = parseFloat(item.price);
+            let cp = parseFloat(item.costPrice) || 0;
+            if (isNaN(p) || p <= 0) {
+                alert(`Price cannot be empty or zero for "${item.name}"!`);
+                return;
+            }
+            if (cp > 0 && p < cp) {
+                alert(`Price for "${item.name}" cannot be less than purchase price (৳ ${cp.toFixed(2)})!`);
+                return;
+            }
+        }
+
         let $btn = $('#completeOrderBtn').prop('disabled', true).text('UPDATING...');
         
         let data = {

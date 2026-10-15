@@ -355,6 +355,7 @@ $(document).ready(function() {
         const mrp = parseFloat(variation ? (variation.price || prod.price || prod.discount) : (prod.price || prod.discount)) || 0;
         const wholesale = parseFloat(variation ? (variation.wholesale_price || prod.wholesale_price || mrp) : (prod.wholesale_price || mrp)) || 0;
         const currentPrice = (type === 'Wholesale') ? wholesale : mrp;
+        const costPrice = parseFloat(variation ? (variation.cost ?? prod.cost ?? 0) : (prod.cost ?? 0)) || 0;
 
         cartItems.push({
             product_id: prod.id, 
@@ -362,6 +363,7 @@ $(document).ready(function() {
             style_no: variation ? variation.sku : prod.sku, 
             variation_id: vid,
             unit_price: currentPrice, 
+            cost_price: costPrice,
             mrp_price: mrp,
             wholesale_price: wholesale,
             quantity: 1, 
@@ -383,31 +385,107 @@ $(document).ready(function() {
                 it.raw_product.variations.forEach(v => { varHtml += `<option value="${v.id}" ${v.id == it.variation_id ? 'selected' : ''} ${v.stock <= 0 && v.id != it.variation_id ? 'disabled' : ''}>${v.name} (${v.stock})</option>`; });
                 varHtml += `</select>`;
             }
-            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end"><div class="d-inline-flex align-items-center bg-white border border-primary-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price"><span class="text-primary fw-bold extra-small me-1">৳</span><input type="number" step="any" min="0" class="form-control form-control-sm p-0 border-0 text-primary text-end fw-bold bg-transparent" value="${it.unit_price}" style="width: 70px; font-size: 0.85rem; outline: none; box-shadow: none;" oninput="updateItemPrice(${idx}, this.value)" onchange="updateItemPrice(${idx}, this.value)" onclick="this.select()" onfocus="this.select()"></div></td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="number" class="qty-val" value="${it.quantity}" min="1" max="${it.max_stock}" data-idx="${idx}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
+            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end"><div class="d-inline-flex align-items-center bg-white border border-primary-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price (Min: ৳${(it.cost_price || 0).toFixed(2)})"><span class="text-primary fw-bold extra-small me-1">৳</span><input type="number" step="any" min="${it.cost_price > 0 ? it.cost_price : 0.01}" class="form-control form-control-sm p-0 border-0 text-primary text-end fw-bold bg-transparent" value="${it.unit_price}" style="width: 70px; font-size: 0.85rem; outline: none; box-shadow: none;" oninput="updateItemPrice(${idx}, this.value, this)" onblur="validateItemPriceOnBlur(${idx}, this)" onkeydown="if(event.key === 'Enter') { this.blur(); }" onclick="this.select()" onfocus="this.select()"></div></td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="number" class="qty-val" value="${it.quantity}" min="1" max="${it.max_stock}" data-idx="${idx}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
         });
         updateTotals(sub);
     }
 
-    window.updateItemPrice = (idx, val) => {
+    window.updateItemPrice = (idx, val, input) => {
         const it = cartItems[idx];
-        if (it) {
-            let p = parseFloat(val);
-            if (isNaN(p) || p < 0) p = 0;
-            it.unit_price = p;
-            it.total = it.unit_price * it.quantity;
-            $(`#cartTable tbody tr:eq(${idx}) td:eq(5)`).text(it.total.toFixed(2));
-            let sub = cartItems.reduce((acc, c) => acc + c.total, 0);
-            updateTotals(sub);
+        if (!it) return;
+
+        let $box = input ? $(input).closest('.d-inline-flex') : null;
+
+        if (val === '' || val === null || val === undefined) {
+            if ($box) $box.removeClass('border-primary-subtle').addClass('border-danger');
+            it.unit_price = 0;
+            it.total = 0;
+            $(`#cartTable tbody tr:eq(${idx}) td:eq(5)`).text('0.00');
+            updateTotals();
+            return;
         }
+
+        let p = parseFloat(val);
+        let cp = parseFloat(it.cost_price) || 0;
+
+        if (isNaN(p) || p <= 0) {
+            if ($box) $box.removeClass('border-primary-subtle').addClass('border-danger');
+            it.unit_price = 0;
+            it.total = 0;
+            $(`#cartTable tbody tr:eq(${idx}) td:eq(5)`).text('0.00');
+            updateTotals();
+            return;
+        }
+
+        if (cp > 0 && p < cp) {
+            // While actively typing: show danger border, update preview totals, DO NOT modify input.value or alert!
+            if ($box) $box.removeClass('border-primary-subtle').addClass('border-danger');
+            it.unit_price = p;
+            it.total = p * it.quantity;
+            $(`#cartTable tbody tr:eq(${idx}) td:eq(5)`).text(it.total.toFixed(2));
+            updateTotals();
+            return;
+        }
+
+        if ($box) $box.removeClass('border-danger').addClass('border-primary-subtle');
+        it.unit_price = p;
+        it.total = p * it.quantity;
+        $(`#cartTable tbody tr:eq(${idx}) td:eq(5)`).text(it.total.toFixed(2));
+        updateTotals();
+    };
+
+    window.validateItemPriceOnBlur = (idx, input) => {
+        const it = cartItems[idx];
+        if (!it) return;
+
+        let val = input ? String(input.value).trim() : '';
+        let p = parseFloat(val);
+        let cp = parseFloat(it.cost_price) || 0;
+        let $box = input ? $(input).closest('.d-inline-flex') : null;
+
+        if (!val || isNaN(p) || p <= 0) {
+            let fallbackPrice = cp > 0 ? cp : (parseFloat(it.mrp_price) || 1);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Invalid Price',
+                text: `Price cannot be empty or zero for "${it.product_name}"! Reset to ৳ ${fallbackPrice.toFixed(2)}.`,
+                timer: 2500,
+                showConfirmButton: false
+            });
+            it.unit_price = fallbackPrice;
+            if (input) input.value = fallbackPrice;
+        } else if (cp > 0 && p < cp) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Below Cost Price',
+                text: `Price cannot be less than purchase price (৳ ${cp.toFixed(2)}) for "${it.product_name}"!`,
+                timer: 2500,
+                showConfirmButton: false
+            });
+            it.unit_price = cp;
+            if (input) input.value = cp;
+        } else {
+            it.unit_price = p;
+            if (input) input.value = p;
+        }
+
+        if ($box) $box.removeClass('border-danger').addClass('border-primary-subtle');
+        it.total = it.unit_price * it.quantity;
+        $(`#cartTable tbody tr:eq(${idx}) td:eq(5)`).text(it.total.toFixed(2));
+        updateTotals();
     };
 
     window.changeVariation = (idx, newVid) => {
         const item = cartItems[idx];
         const v = item.raw_product.variations.find(v => v.id == newVid);
         if (v) {
-            item.variation_id = v.id; item.style_no = v.sku; item.max_stock = v.stock; if (item.quantity > v.stock) item.quantity = v.stock;
+            item.variation_id = v.id; 
+            item.style_no = v.sku; 
+            item.max_stock = v.stock; 
+            if (item.quantity > v.stock) item.quantity = v.stock;
             const type = $('#saleType').val();
             item.unit_price = (type === 'Wholesale') ? (v.wholesale_price || item.raw_product.wholesale_price) : (v.price || item.raw_product.price);
+            item.cost_price = parseFloat(v.cost ?? item.raw_product.cost ?? 0) || 0;
             item.total = item.unit_price * item.quantity;
             renderCart();
         }
@@ -503,8 +581,35 @@ $(document).ready(function() {
 
     $('#manualSaleForm').on('submit', function(e) {
         e.preventDefault();
+
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+
         if (!$('#customerSelect').val()) return alert('Please select a customer first.');
         if (!cartItems.length) return alert('Add items first.');
+
+        for (let it of cartItems) {
+            let p = parseFloat(it.unit_price);
+            let cp = parseFloat(it.cost_price) || 0;
+            if (isNaN(p) || p <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Price',
+                    text: `Price cannot be empty or zero for "${it.product_name}"!`
+                });
+                return;
+            }
+            if (cp > 0 && p < cp) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Below Cost Price',
+                    text: `Price for "${it.product_name}" cannot be less than purchase price (৳ ${cp.toFixed(2)})!`
+                });
+                return;
+            }
+        }
+
         const fd = new FormData(this);
         
         // Calculate absolute discount for the backend

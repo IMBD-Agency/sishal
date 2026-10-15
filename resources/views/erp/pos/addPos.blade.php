@@ -621,6 +621,13 @@ $(document).ready(function() {
                 return;
             }
             let price = variation ? getPrice(variation, product) : getPrice(product);
+            let costPrice = 0;
+            if (variation && variation.cost !== undefined && variation.cost !== null && parseFloat(variation.cost) > 0) {
+                costPrice = parseFloat(variation.cost);
+            } else if (product && product.cost !== undefined && product.cost !== null && parseFloat(product.cost) > 0) {
+                costPrice = parseFloat(product.cost);
+            }
+
             cart.push({
                 cartId: cartId,
                 productId: product.id,
@@ -628,6 +635,7 @@ $(document).ready(function() {
                 name: product.name + (variation ? ` - ${variation.name}` : ''),
                 styleNo: variation ? (variation.sku || product.style_number) : (product.style_number || product.sku),
                 price: parseFloat(price),
+                costPrice: parseFloat(costPrice),
                 qty: 1,
                 maxStock: maxStock // Store max stock for this item
             });
@@ -658,12 +666,13 @@ $(document).ready(function() {
                     <td class="ps-2 py-3">
                         <div class="fw-bold text-dark mb-0">${item.name}</div>
                         <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
-                            <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price">
+                            <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price (Min: ৳${(item.costPrice || 0).toFixed(2)})">
                                 <span class="text-success fw-bold extra-small me-1">৳</span>
-                                <input type="number" step="any" min="0" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
+                                <input type="number" step="any" min="${item.costPrice > 0 ? item.costPrice : 0.01}" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
                                        value="${item.price}" style="width: 70px; font-size: 0.78rem; outline: none; box-shadow: none;"
-                                       oninput="manualUpdatePrice('${item.cartId}', this.value)"
-                                       onchange="manualUpdatePrice('${item.cartId}', this.value)"
+                                       oninput="manualUpdatePrice('${item.cartId}', this.value, this)"
+                                       onblur="validatePriceOnBlur('${item.cartId}', this)"
+                                       onkeydown="if(event.key === 'Enter') { this.blur(); }"
                                        onclick="this.select()" onfocus="this.select()">
                             </div>
                             <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.maxStock}</span>
@@ -697,15 +706,72 @@ $(document).ready(function() {
         calculateTotals();
     }
 
-    window.manualUpdatePrice = function(cartId, val) {
+    window.manualUpdatePrice = function(cartId, val, input) {
         let item = cart.find(c => c.cartId === cartId);
-        if(item) {
-            let newPrice = parseFloat(val);
-            if(isNaN(newPrice) || newPrice < 0) newPrice = 0;
+        if(!item) return;
+
+        let $box = input ? $(input).closest('.d-inline-flex') : null;
+
+        if (val === '' || val === null || val === undefined) {
+            if ($box) $box.removeClass('border-success-subtle border-warning').addClass('border-danger');
+            item.price = 0;
+            $(`#item-total-${cartId}`).text('0.00');
+            calculateTotals();
+            return;
+        }
+
+        let newPrice = parseFloat(val);
+        let costPrice = parseFloat(item.costPrice) || 0;
+
+        if (isNaN(newPrice) || newPrice <= 0) {
+            if ($box) $box.removeClass('border-success-subtle border-warning').addClass('border-danger');
+            item.price = 0;
+            $(`#item-total-${cartId}`).text('0.00');
+            calculateTotals();
+            return;
+        }
+
+        if (costPrice > 0 && newPrice < costPrice) {
+            // While actively typing: show danger border, update live preview, but DO NOT overwrite input.value and DO NOT popup alert!
+            if ($box) $box.removeClass('border-success-subtle').addClass('border-danger');
             item.price = newPrice;
             $(`#item-total-${cartId}`).text((item.price * item.qty).toFixed(2));
             calculateTotals();
+            return;
         }
+
+        if ($box) $box.removeClass('border-danger border-warning').addClass('border-success-subtle');
+        item.price = newPrice;
+        $(`#item-total-${cartId}`).text((item.price * item.qty).toFixed(2));
+        calculateTotals();
+    };
+
+    window.validatePriceOnBlur = function(cartId, input) {
+        let item = cart.find(c => c.cartId === cartId);
+        if(!item) return;
+
+        let val = input ? String(input.value).trim() : '';
+        let newPrice = parseFloat(val);
+        let costPrice = parseFloat(item.costPrice) || 0;
+        let $box = input ? $(input).closest('.d-inline-flex') : null;
+
+        if (!val || isNaN(newPrice) || newPrice <= 0) {
+            let fallbackPrice = costPrice > 0 ? costPrice : (parseFloat(item.price) > 0 ? item.price : 1);
+            showError(`Product price cannot be empty or zero for ${item.name}! Reset to ৳ ${fallbackPrice.toFixed(2)}.`);
+            item.price = fallbackPrice;
+            if (input) input.value = fallbackPrice;
+        } else if (costPrice > 0 && newPrice < costPrice) {
+            showError(`Price cannot be less than purchase price (৳ ${costPrice.toFixed(2)}) for ${item.name}!`);
+            item.price = costPrice;
+            if (input) input.value = costPrice;
+        } else {
+            item.price = newPrice;
+            if (input) input.value = newPrice;
+        }
+
+        if ($box) $box.removeClass('border-danger border-warning').addClass('border-success-subtle');
+        $(`#item-total-${cartId}`).text((item.price * item.qty).toFixed(2));
+        calculateTotals();
     };
 
     window.updateQty = function(cartId, delta) {
@@ -1002,6 +1068,10 @@ $(document).ready(function() {
      // Handle Form Submit
     $('#posForm').on('submit', function(e) {
         e.preventDefault();
+
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
         
         if(cart.length === 0) {
             alert('Cart is empty!');
@@ -1009,6 +1079,21 @@ $(document).ready(function() {
         }
 
         const $btn = $('#completeOrderBtn');
+
+        // Validate cart prices
+        for (let item of cart) {
+            let p = parseFloat(item.price);
+            let cp = parseFloat(item.costPrice) || 0;
+            if (isNaN(p) || p <= 0) {
+                showError(`Price cannot be empty or zero for "${item.name}"!`);
+                return;
+            }
+            if (cp > 0 && p < cp) {
+                showError(`Price for "${item.name}" cannot be less than purchase price (৳ ${cp.toFixed(2)})!`);
+                return;
+            }
+        }
+
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>PROCESSING...');
 
         // Build items data consistent with PosController@makeSale validation

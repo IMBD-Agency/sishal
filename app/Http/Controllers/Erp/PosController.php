@@ -86,7 +86,7 @@ class PosController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_price' => 'required|numeric|min:0.01',
             'items.*.total_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
             'customer_address' => 'nullable|string',
@@ -99,6 +99,26 @@ class PosController extends Controller
             'vat_rate' => 'nullable|numeric|min:0',
             'vat_amount' => 'nullable|numeric|min:0',
         ]);
+
+        // Validate that unit price cannot be empty, zero, or below purchase/cost price
+        foreach ($request->items as $item) {
+            $product = Product::find($item['product_id']);
+            if (!$product) continue;
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            if ($unitPrice <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Unit price for '{$product->name}' cannot be empty or zero."
+                ], 422);
+            }
+            $costPrice = $this->calculateItemCost($product, $item['variation_id'] ?? null);
+            if ($costPrice > 0 && $unitPrice < $costPrice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Unit price for '{$product->name}' (৳ " . number_format($unitPrice, 2) . ") cannot be less than purchase/cost price (৳ " . number_format($costPrice, 2) . ")."
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
         try {
@@ -1306,8 +1326,28 @@ class PosController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_price' => 'required|numeric|min:0.01',
         ]);
+
+        // Validate that unit price cannot be empty, zero, or below purchase/cost price
+        foreach ($request->items as $item) {
+            $product = Product::find($item['product_id']);
+            if (!$product) continue;
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            if ($unitPrice <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Unit price for '{$product->name}' cannot be empty or zero."
+                ], 422);
+            }
+            $costPrice = $this->calculateItemCost($product, $item['variation_id'] ?? null);
+            if ($costPrice > 0 && $unitPrice < $costPrice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Unit price for '{$product->name}' (৳ " . number_format($unitPrice, 2) . ") cannot be less than purchase/cost price (৳ " . number_format($costPrice, 2) . ")."
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
         try {
@@ -3158,7 +3198,7 @@ class PosController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_price' => 'required|numeric|min:0.01',
             'total_amount' => 'required|numeric',
             'paid_amount' => 'required|numeric',
             'vat_rate' => 'nullable|numeric|min:0',
@@ -3167,15 +3207,32 @@ class PosController extends Controller
 
         DB::beginTransaction();
         try {
-            // 1. STAGE 1: VALDIATE ALL STOCK FIRST
+            // 1. STAGE 1: VALIDATE ALL STOCK & PRICES FIRST
             // We check every item before creating any sale/invoice records
             foreach ($request->items as $item) {
                 $productId = $item['product_id'];
                 $variationId = $item['variation_id'] ?? null;
                 $quantity = $item['quantity'];
+                $unitPrice = floatval($item['unit_price'] ?? 0);
                 $branchId = $request->branch_id;
 
                 $product = Product::with('comboItems')->find($productId);
+                $productName = $product ? $product->name : 'Product';
+
+                // Unit price validation
+                $costPrice = $this->calculateItemCost($product, $variationId);
+                if ($unitPrice <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Unit price cannot be empty or zero for {$productName}."
+                    ], 422);
+                }
+                if ($costPrice > 0 && $unitPrice < $costPrice) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Unit price for {$productName} cannot be less than its purchase price (৳ " . number_format($costPrice, 2) . ")."
+                    ], 422);
+                }
 
                 if ($product && $product->type === 'combo') {
                     foreach ($product->comboItems as $comboItem) {
