@@ -1569,6 +1569,8 @@ class ReportController extends Controller
                 'period_return' => 0,
                 'opening_credit_return' => 0,
                 'period_credit_return' => 0,
+                'opening_cash_refund' => 0,
+                'period_cash_refund' => 0,
             ];
         }
 
@@ -1583,14 +1585,16 @@ class ReportController extends Controller
 
             if ($rDate < $startDate) {
                 $returnStats[$cid]->opening_return += $amount;
-                // Only standalone store credit returns affect customer balance outside POS total_amount
-                if (!$isExchange && !$isCashRefund) {
+                if ($isCashRefund) {
+                    $returnStats[$cid]->opening_cash_refund += $amount;
+                } elseif (!$isExchange) {
                     $returnStats[$cid]->opening_credit_return += $amount;
                 }
             } elseif ($rDate >= $startDate && $rDate <= $endDate) {
                 $returnStats[$cid]->period_return += $amount;
-                // Only standalone store credit returns affect customer balance outside POS total_amount
-                if (!$isExchange && !$isCashRefund) {
+                if ($isCashRefund) {
+                    $returnStats[$cid]->period_cash_refund += $amount;
+                } elseif (!$isExchange) {
                     $returnStats[$cid]->period_credit_return += $amount;
                 }
             }
@@ -1630,6 +1634,7 @@ class ReportController extends Controller
             $period_paid = $p->period_paid ?? 0; 
             $period_return = $r->period_return ?? 0;
             $period_credit_return = $r->period_credit_return ?? 0;
+            $period_cash_refund = $r->period_cash_refund ?? 0;
             $period_exchange = $s->period_exchange ?? 0;
             $period_discount = $s->period_discount ?? 0;
 
@@ -1643,6 +1648,8 @@ class ReportController extends Controller
             $customer->payment = $period_manual;
             $customer->discount = $period_discount;
             $customer->return = $period_return;
+            $customer->credit_return = $period_credit_return;
+            $customer->cash_refund = $period_cash_refund;
             $customer->exchange = $period_exchange;
             $customer->due = $due;
 
@@ -1887,7 +1894,7 @@ class ReportController extends Controller
         if ($request->get('export') == 'pdf') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.reports.pdf.customer-ledger', compact(
                 'customer', 'transactions', 'openingBalance', 'startDate', 'endDate', 'branches', 'branchId', 'viewType',
-                'totalSales', 'totalDiscount', 'totalPaid', 'totalReturn', 'totalExchange', 'totalDueAmount'
+                'totalSales', 'totalDiscount', 'totalPaid', 'totalReturn', 'totalCashRefund', 'totalExchange', 'totalDueAmount'
             ))->setPaper('a4', 'portrait');
             
             return $pdf->download("Customer_Ledger_{$customer->name}.pdf");
@@ -2031,7 +2038,7 @@ class ReportController extends Controller
             return response()->download($filePath, $filename)->deleteFileAfterSend();
         }
 
-        return view('erp.reports.customer-ledger', compact('customer', 'customers', 'transactions', 'openingBalance', 'startDate', 'endDate', 'reportType', 'branches', 'branchId', 'viewType', 'totalSales', 'totalDiscount', 'totalPaid', 'totalReturn', 'totalExchange', 'totalDueAmount'));
+        return view('erp.reports.customer-ledger', compact('customer', 'customers', 'transactions', 'openingBalance', 'startDate', 'endDate', 'reportType', 'branches', 'branchId', 'viewType', 'totalSales', 'totalDiscount', 'totalPaid', 'totalReturn', 'totalCashRefund', 'totalExchange', 'totalDueAmount'));
     }
 
     public function supplierReport(Request $request)

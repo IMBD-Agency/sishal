@@ -94,12 +94,12 @@
         <table class="kpi-grid">
             <tr>
                 <td class="kpi-box">
-                    <span class="kpi-label">Total Debit (Sales)</span>
+                    <span class="kpi-label">Total Debit</span>
                     <span class="kpi-value">Tk. {{ number_format($totalDebit, 2) }}</span>
                 </td>
                 <td style="width: 20px;"></td>
                 <td class="kpi-box">
-                    <span class="kpi-label">Total Credit (Payments)</span>
+                    <span class="kpi-label">Total Credit</span>
                     <span class="kpi-value text-success">Tk. {{ number_format($totalCredit, 2) }}</span>
                 </td>
                 <td style="width: 20px;"></td>

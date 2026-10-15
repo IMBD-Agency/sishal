@@ -33,11 +33,25 @@
                     <td class="text-muted small">{{ $c->mobile ?? 'Walk-in' }}</td>
                     <td><span class="badge bg-light text-dark border">{{ $c->outlet }}</span></td>
                     <td class="text-end">{{ number_format($c->opening, 2) }}</td>
-                    <td class="text-end fw-bold">{{ number_format($c->sales, 2) }}</td>
+                    <td class="text-end fw-bold">
+                        <div>{{ number_format($c->sales, 2) }}</div>
+                        @if(($c->return ?? 0) > 0)
+                            <div class="text-muted fw-normal" style="font-size: 10px;" title="Net sales after returns">
+                                Net: {{ number_format(max(0, $c->sales - $c->return), 2) }}
+                            </div>
+                        @endif
+                    </td>
                     <td class="text-end text-success">{{ number_format($c->paid, 2) }}</td>
                     <td class="text-end text-info">{{ number_format($c->payment, 2) }}</td>
                     <td class="text-end text-secondary small">{{ number_format($c->discount, 2) }}</td>
-                    <td class="text-end text-danger">{{ number_format($c->return, 2) }}</td>
+                    <td class="text-end text-danger">
+                        <div>{{ number_format($c->return, 2) }}</div>
+                        @if(($c->cash_refund ?? 0) > 0)
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 9px;" title="Tk. {{ number_format($c->cash_refund, 2) }} refunded in cash">Cash Refund</span>
+                        @elseif(($c->credit_return ?? 0) > 0)
+                            <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 9px;" title="Tk. {{ number_format($c->credit_return, 2) }} credited to customer balance">Store Credit</span>
+                        @endif
+                    </td>
                     <td class="text-end text-warning">{{ number_format($c->exchange, 2) }}</td>
                     <td class="text-end pe-3 fw-bold {{ $c->due > 0 ? 'text-danger' : ($c->due < 0 ? 'text-primary' : 'text-success') }}">
                         @if($c->due > 0)
@@ -58,7 +72,14 @@
             <tr>
                 <td colspan="4" class="ps-3 py-3">GRAND TOTAL</td>
                 <td class="text-end text-dark">{{ number_format($tOpening, 2) }}</td>
-                <td class="text-end text-dark">{{ number_format($tSales, 2) }}</td>
+                <td class="text-end text-dark">
+                    <div>{{ number_format($tSales, 2) }}</div>
+                    @if($tReturn > 0)
+                        <div class="text-muted fw-normal" style="font-size: 10px;" title="Total net sales after returns">
+                            Net: {{ number_format(max(0, $tSales - $tReturn), 2) }}
+                        </div>
+                    @endif
+                </td>
                 <td class="text-end text-success">{{ number_format($tPaid, 2) }}</td>
                 <td class="text-end text-info">{{ number_format($tPayment, 2) }}</td>
                 <td class="text-end text-secondary">{{ number_format($tDiscount, 2) }}</td>

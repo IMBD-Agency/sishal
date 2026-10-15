@@ -131,24 +131,55 @@
 
                 <!-- Simple KPI Row -->
                 <div class="row g-3 mb-4 text-center">
-                    <div class="col-md-4">
-                        <div class="p-3 border rounded bg-light">
-                            <div class="small text-muted text-uppercase mb-1">Total Sales (Debit)</div>
-                            <h5 class="fw-bold mb-0">Tk. {{ number_format($totalDebit, 2) }}</h5>
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="small text-muted text-uppercase mb-1">Total Sales</div>
+                            <h5 class="fw-bold mb-0">Tk. {{ number_format($totalSales ?? 0, 2) }}</h5>
+                            @if(($totalReturn ?? 0) > 0)
+                                <div class="extra-small text-muted mt-1" style="font-size: 11px;">
+                                    Net: Tk. {{ number_format(max(0, ($totalSales ?? 0) - ($totalReturn ?? 0)), 2) }}
+                                </div>
+                            @endif
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="p-3 border rounded bg-light">
-                            <div class="small text-muted text-uppercase mb-1">Total Collection (Credit)</div>
-                            <h5 class="fw-bold mb-0 text-success">Tk. {{ number_format($totalCredit, 2) }}</h5>
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="small text-muted text-uppercase mb-1">Total Paid</div>
+                            <h5 class="fw-bold mb-0 text-success">Tk. {{ number_format($totalPaid ?? 0, 2) }}</h5>
+                            @if(($totalCashRefund ?? 0) > 0)
+                                <div class="extra-small text-muted mt-1" style="font-size: 11px;">
+                                    Cash Refund: Tk. {{ number_format($totalCashRefund, 2) }}
+                                </div>
+                            @endif
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="p-3 border rounded {{ $finalBalance > 0 ? 'bg-danger-subtle' : 'bg-success-subtle' }}">
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="small text-muted text-uppercase mb-1">Total Return</div>
+                            <h5 class="fw-bold mb-0 text-danger">Tk. {{ number_format($totalReturn ?? 0, 2) }}</h5>
+                            @if(($totalCashRefund ?? 0) > 0)
+                                <div class="extra-small text-success mt-1" style="font-size: 11px;">
+                                    <i class="fas fa-check-circle me-1"></i>Refunded in Cash
+                                </div>
+                            @elseif(($totalReturn ?? 0) > 0)
+                                <div class="extra-small text-info mt-1" style="font-size: 11px;">
+                                    <i class="fas fa-info-circle me-1"></i>Store Credit
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 border rounded {{ $finalBalance > 0 ? 'bg-danger-subtle' : ($finalBalance < 0 ? 'bg-primary-subtle' : 'bg-success-subtle') }} h-100">
                             <div class="small text-muted text-uppercase mb-1">Current Balance</div>
-                            <h5 class="fw-bold mb-0 {{ $finalBalance > 0 ? 'text-danger' : 'text-success' }}">
-                                Tk. {{ number_format(abs($finalBalance), 2) }} {{ $finalBalance > 0 ? '(Due)' : '(Adv)' }}
+                            <h5 class="fw-bold mb-0 {{ $finalBalance > 0 ? 'text-danger' : ($finalBalance < 0 ? 'text-primary' : 'text-success') }}">
+                                Tk. {{ number_format(abs($finalBalance), 2) }} 
+                                <span class="small font-normal">
+                                    {{ $finalBalance > 0 ? '(Due)' : ($finalBalance < 0 ? '(Adv)' : '(Settled)') }}
+                                </span>
                             </h5>
+                            <div class="extra-small text-muted mt-1" style="font-size: 11px;">
+                                Debit: {{ number_format($totalDebit, 2) }} | Credit: {{ number_format($totalCredit, 2) }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -225,8 +256,8 @@
                                         <th class="ps-3 py-3 text-muted small fw-bold">Date</th>
                                         <th class="py-3 text-muted small fw-bold">Transaction Detail</th>
                                         <th class="py-3 text-muted small fw-bold">Ref No</th>
-                                        <th class="text-end py-3 text-muted small fw-bold">Debit (Sales)</th>
-                                        <th class="text-end py-3 text-muted small fw-bold">Credit (Paid)</th>
+                                        <th class="text-end py-3 text-muted small fw-bold" title="Debit increases customer balance (Sales, Cash Refunds)">Debit (+)</th>
+                                        <th class="text-end py-3 text-muted small fw-bold" title="Credit decreases customer balance (Payments, Returns)">Credit (-)</th>
                                         <th class="text-end pe-3 py-3 text-muted small fw-bold">Running Balance</th>
                                     </tr>
                                 </thead>
