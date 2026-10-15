@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 use App\Models\Payment;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Pos;
+use App\Models\Balance;
+use App\Models\Branch;
+use App\Models\GeneralSetting;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\Journal;
@@ -135,11 +139,36 @@ class MoneyReceiptController extends Controller
     {
         $invoices = Invoice::where('customer_id', $customerId)
             ->where('status', '!=', 'paid')
-            ->where('due_amount', '>', 0)
             ->orderBy('id', 'desc')
-            ->get(['id', 'invoice_number', 'due_amount', 'total_amount', 'paid_amount', 'issue_date']);
+            ->get();
 
-        return response()->json($invoices);
+        $dueInvoices = collect();
+        foreach ($invoices as $inv) {
+            $pos = Pos::where('invoice_id', $inv->id)->first();
+            $posDelivery = floatval($pos?->delivery ?? 0);
+            $netTotal = max(0, (float)$inv->total_amount - $posDelivery);
+            $alreadyPaid = Payment::where(function($q) use ($inv, $pos) {
+                $q->where('invoice_id', $inv->id);
+                if ($pos) {
+                    $q->orWhere('pos_id', $pos->id);
+                }
+            })->sum('amount');
+            $netDue = max(0, $netTotal - $alreadyPaid);
+            $finalDue = $netDue > 0 ? $netDue : floatval($inv->due_amount);
+
+            if ($finalDue > 0) {
+                $dueInvoices->push([
+                    'id' => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'due_amount' => $finalDue,
+                    'total_amount' => $netTotal > 0 ? $netTotal : floatval($inv->total_amount),
+                    'paid_amount' => $alreadyPaid,
+                    'issue_date' => $inv->issue_date,
+                ]);
+            }
+        }
+
+        return response()->json($dueInvoices);
     }
 
     /**
@@ -154,12 +183,24 @@ class MoneyReceiptController extends Controller
             return response()->json(['error' => 'Invoice not found'], 404);
         }
 
+        $pos = Pos::where('invoice_id', $invoice->id)->first();
+        $posDelivery = floatval($pos?->delivery ?? 0);
+        $netTotal = max(0, (float)$invoice->total_amount - $posDelivery);
+        $alreadyPaid = Payment::where(function($q) use ($invoice, $pos) {
+            $q->where('invoice_id', $invoice->id);
+            if ($pos) {
+                $q->orWhere('pos_id', $pos->id);
+            }
+        })->sum('amount');
+        $netDue = max(0, $netTotal - $alreadyPaid);
+        $finalDue = $netDue > 0 ? $netDue : floatval($invoice->due_amount);
+
         return response()->json([
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
-            'due_amount' => $invoice->due_amount,
-            'total_amount' => $invoice->total_amount,
-            'paid_amount' => $invoice->paid_amount,
+            'due_amount' => $finalDue,
+            'total_amount' => $netTotal > 0 ? $netTotal : floatval($invoice->total_amount),
+            'paid_amount' => $alreadyPaid,
             'customer_id' => $invoice->customer_id,
             'customer_name' => $invoice->customer ? $invoice->customer->name : 'Walk-in',
             'is_walk_in' => is_null($invoice->customer_id)
@@ -207,18 +248,29 @@ class MoneyReceiptController extends Controller
             // Always generate a fresh number on save to prevent duplicates/race conditions
             $receiptNo = $this->generateReceiptNumber();
 
+            $pos = null;
+            if ($request->invoice_id) {
+                $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
+            }
+
+            $effectiveAmount = floatval($request->amount);
+            $posDelivery = floatval($pos?->delivery ?? 0);
+            if ($pos && $posDelivery > 0) {
+                $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
+                $alreadyPaid = Payment::where('pos_id', $pos->id)->sum('amount');
+                $remainingReceivable = max(0, $netSaleLimit - $alreadyPaid);
+                $effectiveAmount = max(0, min($remainingReceivable, floatval($request->amount)));
+            }
+
             // Create Payment
             $payment = new Payment();
             $payment->customer_id = $request->customer_id;
             $payment->invoice_id = $request->invoice_id; // Can be null (Advance/account payment)
-            if ($request->invoice_id) {
-                $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
-                if ($pos) {
-                    $payment->pos_id = $pos->id;
-                }
+            if ($pos) {
+                $payment->pos_id = $pos->id;
             }
             $payment->payment_date = $request->payment_date;
-            $payment->amount = $request->amount;
+            $payment->amount = $effectiveAmount;
             $payment->payment_method = $request->payment_method ?? 'cash';
             $payment->payment_reference = $receiptNo;
             $payment->note = $request->note;
@@ -234,17 +286,15 @@ class MoneyReceiptController extends Controller
 
             // Handle Customer Balance update (to match PosController pattern)
             if ($request->customer_id) {
-                // We use first() because the existing system seems to track a single 'record' per customer in some places, 
-                // but PosController shows it might be history. However, let's follow the 'update if exists' logic to stay consistent.
                 $balance = \App\Models\Balance::where('source_type', 'customer')->where('source_id', $request->customer_id)->first();
                 if ($balance) {
-                    $balance->balance -= $request->amount;
+                    $balance->balance -= $effectiveAmount;
                     $balance->save();
                 } else {
                     \App\Models\Balance::create([
                         'source_type' => 'customer',
                         'source_id' => $request->customer_id,
-                        'balance' => -$request->amount,
+                        'balance' => -$effectiveAmount,
                         'description' => 'Manual Receipt - ' . $receiptNo,
                     ]);
                 }
@@ -254,13 +304,28 @@ class MoneyReceiptController extends Controller
             if ($request->invoice_id) {
                 $invoice = Invoice::lockForUpdate()->find($request->invoice_id);
                 if ($invoice) {
-                    $invoice->paid_amount += $request->amount;
-                    $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
-                    
-                    if ($invoice->paid_amount >= $invoice->total_amount) {
-                         $invoice->status = 'paid';
-                    } elseif ($invoice->paid_amount > 0) {
-                         $invoice->status = 'partial';
+                    if ($pos && $posDelivery > 0) {
+                        $totalRecorded = Payment::where('invoice_id', $invoice->id)->orWhere('pos_id', $pos->id)->sum('amount');
+                        $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
+                        if ($totalRecorded >= $netSaleLimit) {
+                            $invoice->paid_amount = $invoice->total_amount;
+                            $invoice->due_amount = 0;
+                            $invoice->status = 'paid';
+                            $pos->status = 'delivered';
+                            $pos->save();
+                        } else {
+                            $invoice->paid_amount = min($invoice->total_amount, $totalRecorded + $posDelivery);
+                            $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                            $invoice->status = 'partial';
+                        }
+                    } else {
+                        $invoice->paid_amount += $effectiveAmount;
+                        $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                        if ($invoice->paid_amount >= $invoice->total_amount) {
+                            $invoice->status = 'paid';
+                        } elseif ($invoice->paid_amount > 0) {
+                            $invoice->status = 'partial';
+                        }
                     }
                     $invoice->save();
                 }
@@ -277,22 +342,8 @@ class MoneyReceiptController extends Controller
                 $financialAccount = FinancialAccount::where('type', strtolower($request->payment_method ?: 'cash'))->first();
             }
 
-            // Calculate effective amount for company books (Cash/Bank & Accounts Receivable)
             // For POS sales, delivery charge is external (courier) and must not enter company cash/bank books!
-            $bookAmount = floatval($payment->amount);
-            if ($request->invoice_id) {
-                $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
-                if ($pos && floatval($pos->delivery ?? 0) > 0) {
-                    $posDelivery = floatval($pos->delivery);
-                    $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
-                    $alreadyPaidTotal = Payment::where('pos_id', $pos->id)
-                        ->where('id', '!=', $payment->id)
-                        ->sum('amount');
-                    $alreadyCompanyCollected = max(0, $alreadyPaidTotal - $posDelivery);
-                    $remainingCompanyReceivable = max(0, $netSaleLimit - $alreadyCompanyCollected);
-                    $bookAmount = max(0, min($remainingCompanyReceivable, floatval($payment->amount)));
-                }
-            }
+            $bookAmount = $effectiveAmount;
 
             if ($financialAccount && $financialAccount->account_id) {
                 // Update the real balance to maintain the Cash/Bank Book
@@ -449,17 +500,30 @@ class MoneyReceiptController extends Controller
             // Delete old Journal/JournalEntries
             Journal::where('reference', $payment->payment_reference)->delete();
 
-            // 2. Apply New Changes
-            $payment->customer_id = $request->customer_id;
-            $payment->invoice_id = $request->invoice_id;
+            $pos = null;
             if ($request->invoice_id) {
                 $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
                 if ($pos) {
                     $payment->pos_id = $pos->id;
                 }
             }
+
+            $effectiveAmount = floatval($request->amount);
+            $posDelivery = floatval($pos?->delivery ?? 0);
+            if ($pos && $posDelivery > 0) {
+                $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
+                $alreadyPaid = Payment::where('pos_id', $pos->id)
+                    ->where('id', '!=', $payment->id)
+                    ->sum('amount');
+                $remainingReceivable = max(0, $netSaleLimit - $alreadyPaid);
+                $effectiveAmount = max(0, min($remainingReceivable, floatval($request->amount)));
+            }
+
+            // 2. Apply New Changes
+            $payment->customer_id = $request->customer_id;
+            $payment->invoice_id = $request->invoice_id;
             $payment->payment_date = $request->payment_date;
-            $payment->amount = $request->amount;
+            $payment->amount = $effectiveAmount;
             $payment->payment_method = $request->payment_method;
             $payment->note = $request->note;
             $payment->account_id = $request->account_id;
@@ -469,13 +533,13 @@ class MoneyReceiptController extends Controller
             if ($request->customer_id) {
                 $balance = \App\Models\Balance::where('source_type', 'customer')->where('source_id', $request->customer_id)->first();
                 if ($balance) {
-                    $balance->balance -= $request->amount;
+                    $balance->balance -= $effectiveAmount;
                     $balance->save();
                 } else {
                     \App\Models\Balance::create([
                         'source_type' => 'customer',
                         'source_id' => $request->customer_id,
-                        'balance' => -$request->amount,
+                        'balance' => -$effectiveAmount,
                         'description' => 'Manual Receipt (Updated) - ' . $payment->payment_reference,
                     ]);
                 }
@@ -485,10 +549,26 @@ class MoneyReceiptController extends Controller
             if ($request->invoice_id) {
                 $invoice = Invoice::find($request->invoice_id);
                 if ($invoice) {
-                    $invoice->paid_amount += $request->amount;
-                    $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
-                    if ($invoice->paid_amount >= $invoice->total_amount) $invoice->status = 'paid';
-                    else $invoice->status = 'partial';
+                    if ($pos && $posDelivery > 0) {
+                        $totalRecorded = Payment::where('invoice_id', $invoice->id)->orWhere('pos_id', $pos->id)->sum('amount');
+                        $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
+                        if ($totalRecorded >= $netSaleLimit) {
+                            $invoice->paid_amount = $invoice->total_amount;
+                            $invoice->due_amount = 0;
+                            $invoice->status = 'paid';
+                            $pos->status = 'delivered';
+                            $pos->save();
+                        } else {
+                            $invoice->paid_amount = min($invoice->total_amount, $totalRecorded + $posDelivery);
+                            $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                            $invoice->status = 'partial';
+                        }
+                    } else {
+                        $invoice->paid_amount += $effectiveAmount;
+                        $invoice->due_amount = max(0, $invoice->total_amount - $invoice->paid_amount);
+                        if ($invoice->paid_amount >= $invoice->total_amount) $invoice->status = 'paid';
+                        else $invoice->status = 'partial';
+                    }
                     $invoice->save();
                 }
             }
@@ -500,19 +580,7 @@ class MoneyReceiptController extends Controller
             }
 
             if ($financialAccount) {
-                $bookAmount = floatval($request->amount);
-                if ($request->invoice_id) {
-                    $pos = \App\Models\Pos::where('invoice_id', $request->invoice_id)->first();
-                    if ($pos && floatval($pos->delivery ?? 0) > 0) {
-                        $posDelivery = floatval($pos->delivery);
-                        $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
-                        $alreadyRecorded = Payment::where('pos_id', $pos->id)
-                            ->where('id', '!=', $payment->id)
-                            ->sum('amount');
-                        $remainingCompanyReceivable = max(0, $netSaleLimit - $alreadyRecorded);
-                        $bookAmount = max(0, min($remainingCompanyReceivable, floatval($request->amount)));
-                    }
-                }
+                $bookAmount = $effectiveAmount;
 
                 $financialAccount->balance += $bookAmount;
                 $financialAccount->save();

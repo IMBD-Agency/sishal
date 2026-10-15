@@ -201,7 +201,12 @@
                 }
 
                 fetch(`{{ url('/erp/money-receipt/get-due-invoices') }}/${customerId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         invoiceSelect.html('<option value="">Select Invoice...</option>');
                         data.forEach(inv => {

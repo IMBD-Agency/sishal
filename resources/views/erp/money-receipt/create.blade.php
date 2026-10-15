@@ -333,7 +333,12 @@
                 }
 
                 fetch(`{{ url('/erp/money-receipt/get-due-invoices') }}/${customerId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         invoiceSelect.html('<option value="">Select Invoice...</option>');
                         data.forEach(inv => {
@@ -342,8 +347,19 @@
                         
                         // If a specific invoice was requested via URL, auto-select it
                         if (pendingInvoiceId) {
-                            $('#invoice_id').val(pendingInvoiceId).trigger('change');
+                            const opt = invoiceSelect.find(`option[value="${pendingInvoiceId}"]`);
+                            if (opt.length > 0) {
+                                invoiceSelect.val(pendingInvoiceId).trigger('change');
+                            } else {
+                                const urlParams = new URLSearchParams(window.location.search);
+                                const invNum = urlParams.get('invoice_number') || 'Invoice #' + pendingInvoiceId;
+                                const due = parseFloat(urlParams.get('due_amount')) || 0;
+                                invoiceSelect.append(`<option value="${pendingInvoiceId}" data-number="${invNum}" data-due="${due}" data-paid="0.00" selected>${invNum} (Due: ${due.toFixed(2)})</option>`);
+                                invoiceSelect.val(pendingInvoiceId).trigger('change');
+                            }
                             pendingInvoiceId = null;
+                        } else {
+                            invoiceSelect.trigger('change.select2');
                         }
                     })
                     .catch(error => {
@@ -471,7 +487,12 @@
                     // Only invoice ID available (walk-in customer) — use Invoice-Based mode
                     // Fetch full invoice details from server to properly populate all fields
                     fetch(`{{ url('/erp/money-receipt/get-invoice') }}/${invoiceId}`)
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.error) {
                                 console.error('Invoice not found:', data.error);

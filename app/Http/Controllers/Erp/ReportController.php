@@ -1515,12 +1515,12 @@ class ReportController extends Controller
 
         $customerIds = $customers->pluck('id')->toArray();
 
-        // 1. Sales & Exchange (from Pos table)
+        // 1. Sales & Exchange (from Pos table) - Net of external POS delivery charge
         $salesQuery = Pos::selectRaw('customer_id, 
-            SUM(CASE WHEN sale_date < ? THEN total_amount ELSE 0 END) as opening_sales,
+            SUM(CASE WHEN sale_date < ? THEN (total_amount - COALESCE(delivery, 0)) ELSE 0 END) as opening_sales,
             SUM(CASE WHEN sale_date < ? THEN discount ELSE 0 END) as opening_discount,
             SUM(CASE WHEN sale_date < ? THEN exchange_amount ELSE 0 END) as opening_exchange,
-            SUM(CASE WHEN sale_date BETWEEN ? AND ? THEN total_amount ELSE 0 END) as period_sales,
+            SUM(CASE WHEN sale_date BETWEEN ? AND ? THEN (total_amount - COALESCE(delivery, 0)) ELSE 0 END) as period_sales,
             SUM(CASE WHEN sale_date BETWEEN ? AND ? THEN discount ELSE 0 END) as period_discount,
             SUM(CASE WHEN sale_date BETWEEN ? AND ? THEN exchange_amount ELSE 0 END) as period_exchange
         ', [$startDate, $startDate, $startDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate])
@@ -1723,10 +1723,10 @@ class ReportController extends Controller
                 ->where('created_at', '<', $startDate)
                 ->sum('balance');
 
-            // 2. Previous Sales
+            // 2. Previous Sales (Net of external POS delivery charge)
             $salesQ = Pos::where('customer_id', $customerId)->where('sale_date', '<', $startDate->toDateString());
             if ($branchId) $salesQ->where('branch_id', $branchId);
-            $op_sales = $salesQ->sum('total_amount');
+            $op_sales = $salesQ->sum(\Illuminate\Support\Facades\DB::raw('total_amount - COALESCE(delivery, 0)'));
 
             // 3. Previous Payments
             $payQ = Payment::where('customer_id', $customerId)->where('payment_date', '<', $startDate->toDateString());
@@ -1764,24 +1764,27 @@ class ReportController extends Controller
         if ($branchId) $posQuery->where('branch_id', $branchId);
         if ($startDate) $posQuery->where('sale_date', '>=', $startDate->toDateString());
         if ($endDate) $posQuery->where('sale_date', '<=', $endDate->toDateString());
-        $posSales = $posQuery->with(['branch', 'invoice'])->get()->map(fn($p) => [
-            'date' => $p->sale_date,
-            'type' => 'POS Sale',
-            'reference' => $p->invoice?->invoice_number ?? $p->sale_number,
-            'debit' => $p->total_amount,
-            'credit' => 0,
-            'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Total)" : "POS Transaction",
-            // Info wise details
-            'invoice' => $p->invoice?->invoice_number ?? $p->sale_number,
-            'challan' => $p->challan_number ?? '-',
-            'branch' => $p->branch->name ?? '-',
-            'total' => $p->total_amount,
-            'discount' => $p->discount ?? 0,
-            'paid' => 0,
-            'due' => $p->total_amount,
-            'exchange_amount' => $p->exchange_amount ?? 0,
-            'particulars' => 'POS Sale - ' . ($p->exchange_amount > 0 ? 'With Exchange' : 'Regular')
-        ]);
+        $posSales = $posQuery->with(['branch', 'invoice'])->get()->map(function($p) {
+            $netSaleAmount = max(0, (float)$p->total_amount - (float)($p->delivery ?? 0));
+            return [
+                'date' => $p->sale_date,
+                'type' => 'POS Sale',
+                'reference' => $p->invoice?->invoice_number ?? $p->sale_number,
+                'debit' => $netSaleAmount,
+                'credit' => 0,
+                'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Total)" : "POS Transaction",
+                // Info wise details
+                'invoice' => $p->invoice?->invoice_number ?? $p->sale_number,
+                'challan' => $p->challan_number ?? '-',
+                'branch' => $p->branch->name ?? '-',
+                'total' => $netSaleAmount,
+                'discount' => $p->discount ?? 0,
+                'paid' => 0,
+                'due' => $netSaleAmount,
+                'exchange_amount' => $p->exchange_amount ?? 0,
+                'particulars' => 'POS Sale - ' . ($p->exchange_amount > 0 ? 'With Exchange' : 'Regular')
+            ];
+        });
 
         // 2. Payments (Credit)
         $payQuery = Payment::where('customer_id', $customerId);
