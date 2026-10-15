@@ -285,10 +285,11 @@ class MoneyReceiptController extends Controller
                 if ($pos && floatval($pos->delivery ?? 0) > 0) {
                     $posDelivery = floatval($pos->delivery);
                     $netSaleLimit = max(0, (float)$pos->total_amount - $posDelivery);
-                    $alreadyRecorded = Payment::where('pos_id', $pos->id)
+                    $alreadyPaidTotal = Payment::where('pos_id', $pos->id)
                         ->where('id', '!=', $payment->id)
                         ->sum('amount');
-                    $remainingCompanyReceivable = max(0, $netSaleLimit - $alreadyRecorded);
+                    $alreadyCompanyCollected = max(0, $alreadyPaidTotal - $posDelivery);
+                    $remainingCompanyReceivable = max(0, $netSaleLimit - $alreadyCompanyCollected);
                     $bookAmount = max(0, min($remainingCompanyReceivable, floatval($payment->amount)));
                 }
             }

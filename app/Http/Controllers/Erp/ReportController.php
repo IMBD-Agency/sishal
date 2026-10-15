@@ -1567,8 +1567,8 @@ class ReportController extends Controller
             $returnStats[$cid] = (object)[
                 'opening_return' => 0,
                 'period_return' => 0,
-                'opening_cash_refund' => 0,
-                'period_cash_refund' => 0,
+                'opening_credit_return' => 0,
+                'period_credit_return' => 0,
             ];
         }
 
@@ -1577,18 +1577,21 @@ class ReportController extends Controller
             if (!isset($returnStats[$cid])) continue;
 
             $amount = $ret->calculateTotalAmount();
+            $isExchange = ($ret->refund_type === 'exchange');
             $isCashRefund = in_array($ret->refund_type, ['cash', 'bank']);
             $rDate = Carbon::parse($ret->return_date);
 
             if ($rDate < $startDate) {
                 $returnStats[$cid]->opening_return += $amount;
-                if ($isCashRefund) {
-                    $returnStats[$cid]->opening_cash_refund += $amount;
+                // Only standalone store credit returns affect customer balance outside POS total_amount
+                if (!$isExchange && !$isCashRefund) {
+                    $returnStats[$cid]->opening_credit_return += $amount;
                 }
             } elseif ($rDate >= $startDate && $rDate <= $endDate) {
                 $returnStats[$cid]->period_return += $amount;
-                if ($isCashRefund) {
-                    $returnStats[$cid]->period_cash_refund += $amount;
+                // Only standalone store credit returns affect customer balance outside POS total_amount
+                if (!$isExchange && !$isCashRefund) {
+                    $returnStats[$cid]->period_credit_return += $amount;
                 }
             }
         }
@@ -1616,22 +1619,22 @@ class ReportController extends Controller
 
             $op_sales = $s->opening_sales ?? 0;
             $op_paid = $p->opening_paid ?? 0; 
-            $op_return = $r->opening_return ?? 0;
-            $op_cash_refund = $r->opening_cash_refund ?? 0;
-            $op_exchange = $s->opening_exchange ?? 0;
+            $op_credit_return = $r->opening_credit_return ?? 0;
             $op_init = $b->opening_bal ?? 0;
 
-            $opening = $op_init + $op_sales - ($op_paid - $op_cash_refund + $op_return + $op_exchange);
+            // Opening Due = Initial Balance + Previous Sales - Previous Payments - Previous Store Credit Returns
+            $opening = $op_init + $op_sales - ($op_paid + $op_credit_return);
 
             $period_sales = $s->period_sales ?? 0;
             $period_manual = $p->period_manual ?? 0;
             $period_paid = $p->period_paid ?? 0; 
             $period_return = $r->period_return ?? 0;
-            $period_cash_refund = $r->period_cash_refund ?? 0;
+            $period_credit_return = $r->period_credit_return ?? 0;
             $period_exchange = $s->period_exchange ?? 0;
             $period_discount = $s->period_discount ?? 0;
 
-            $due = $opening + $period_sales - ($period_paid + $period_manual - $period_cash_refund + $period_return + $period_exchange);
+            // Period Due = Opening + Sales in period - Payments in period - Standalone Store Credit Returns
+            $due = $opening + $period_sales - ($period_paid + $period_manual + $period_credit_return);
             
             $customer->outlet = $branchId ? (\App\Models\Branch::find($branchId)->name ?? 'Main') : 'All';
             $customer->opening = $opening;
@@ -1723,7 +1726,7 @@ class ReportController extends Controller
             // 2. Previous Sales
             $salesQ = Pos::where('customer_id', $customerId)->where('sale_date', '<', $startDate->toDateString());
             if ($branchId) $salesQ->where('branch_id', $branchId);
-            $op_sales = $salesQ->sum('total_amount') + $salesQ->sum('exchange_amount');
+            $op_sales = $salesQ->sum('total_amount');
 
             // 3. Previous Payments
             $payQ = Payment::where('customer_id', $customerId)->where('payment_date', '<', $startDate->toDateString());
@@ -1736,8 +1739,10 @@ class ReportController extends Controller
             }
             $op_paid = $payQ->sum('amount');
 
-            // 4. Previous Returns
-            $retQ = SaleReturn::where('customer_id', $customerId)->where('return_date', '<', $startDate->toDateString());
+            // 4. Previous Returns (Exclude exchange returns because exchange returns are already factored into pos.total_amount)
+            $retQ = SaleReturn::where('customer_id', $customerId)
+                ->where('refund_type', '!=', 'exchange')
+                ->where('return_date', '<', $startDate->toDateString());
             if ($branchId) $retQ->where('return_to_id', $branchId)->where('return_to_type', 'branch');
             $prevReturns = $retQ->with(['items', 'posSale'])->get();
             $op_return = 0;
@@ -1763,9 +1768,9 @@ class ReportController extends Controller
             'date' => $p->sale_date,
             'type' => 'POS Sale',
             'reference' => $p->invoice?->invoice_number ?? $p->sale_number,
-            'debit' => $p->total_amount + $p->exchange_amount,
+            'debit' => $p->total_amount,
             'credit' => 0,
-            'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Debit)" : "POS Transaction",
+            'note' => $p->exchange_amount > 0 ? "Sale with Exchange (Net Total)" : "POS Transaction",
             // Info wise details
             'invoice' => $p->invoice?->invoice_number ?? $p->sale_number,
             'challan' => $p->challan_number ?? '-',
@@ -1807,8 +1812,9 @@ class ReportController extends Controller
             'particulars' => 'Payment - ' . str_replace('_', ' ', $p->payment_for)
         ]);
 
-        // 3. Returns (Credit) & Cash Refund Payouts (Debit)
-        $retQuery = SaleReturn::where('customer_id', $customerId);
+        // 3. Returns (Credit) & Cash Refund Payouts (Debit) - Exclude exchange returns
+        $retQuery = SaleReturn::where('customer_id', $customerId)
+            ->where('refund_type', '!=', 'exchange');
         if ($branchId) {
             $retQuery->where('return_to_id', $branchId)->where('return_to_type', 'branch');
         }

@@ -39,12 +39,18 @@
                     <td class="text-end text-secondary small">{{ number_format($c->discount, 2) }}</td>
                     <td class="text-end text-danger">{{ number_format($c->return, 2) }}</td>
                     <td class="text-end text-warning">{{ number_format($c->exchange, 2) }}</td>
-                    <td class="text-end pe-3 fw-bold {{ $c->due > 0 ? 'text-danger' : 'text-success' }}">
-                        {{ number_format(abs($c->due), 2) }} {{ $c->due > 0 ? 'Dr' : 'Cr' }}
+                    <td class="text-end pe-3 fw-bold {{ $c->due > 0 ? 'text-danger' : ($c->due < 0 ? 'text-primary' : 'text-success') }}">
+                        @if($c->due > 0)
+                            {{ number_format($c->due, 2) }} Dr
+                        @elseif($c->due < 0)
+                            {{ number_format(abs($c->due), 2) }} Cr
+                        @else
+                            0.00
+                        @endif
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="11" class="text-center py-5 text-muted">No data found matching your filters</td></tr>
+                <tr><td colspan="12" class="text-center py-5 text-muted">No data found matching your filters</td></tr>
             @endforelse
         </tbody>
         @if($customers->count() > 0)
@@ -58,8 +64,14 @@
                 <td class="text-end text-secondary">{{ number_format($tDiscount, 2) }}</td>
                 <td class="text-end text-danger">{{ number_format($tReturn, 2) }}</td>
                 <td class="text-end text-warning">{{ number_format($tExchange, 2) }}</td>
-                <td class="text-end pe-3 {{ $tDue > 0 ? 'text-danger' : 'text-success' }}">
-                    Tk. {{ number_format(abs($tDue), 2) }} {{ $tDue > 0 ? 'Dr' : 'Cr' }}
+                <td class="text-end pe-3 {{ $tDue > 0 ? 'text-danger' : ($tDue < 0 ? 'text-primary' : 'text-success') }}">
+                    @if($tDue > 0)
+                        Tk. {{ number_format($tDue, 2) }} Dr
+                    @elseif($tDue < 0)
+                        Tk. {{ number_format(abs($tDue), 2) }} Cr
+                    @else
+                        Tk. 0.00
+                    @endif
                 </td>
             </tr>
         </tfoot>

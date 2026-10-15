@@ -528,24 +528,54 @@ class ExchangeController extends Controller
                     $cashBankAccountId = $cashAcc ? $cashAcc->id : 1;
                 }
 
-                if ($refundAmount > 0 && $financialAccount) {
+                $isCashPayment = in_array($posExchange->payment_method, ['cash', 'bank', 'account']);
+                if ($refundAmount > 0 && $isCashPayment && $financialAccount) {
                     $financialAccount->decrement('balance', $refundAmount);
                 }
 
                 if ($extraPayable > 0) {
-                    // Customer pays us (Receipt)
-                    // Debit: Cash/Bank
-                    // Credit: Sales (Difference)
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $cashBankAccountId,
-                        'financial_account_id' => $financialAccount ? $financialAccount->id : null,
-                        'debit'                => $extraPayable,
-                        'credit'               => 0,
-                        'memo'                 => 'Exchange Extra Payable Received',
-                        'created_by'           => Auth::id(),
-                        'updated_by'           => Auth::id(),
-                    ]);
+                    $actualPaid = floatval($request->paid_amount ?? 0);
+                    $duePortion = max(0, $extraPayable - $actualPaid);
+
+                    // 1. If customer paid any cash/bank during exchange:
+                    if ($actualPaid > 0) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $cashBankAccountId,
+                            'financial_account_id' => $financialAccount ? $financialAccount->id : null,
+                            'debit'                => $actualPaid,
+                            'credit'               => 0,
+                            'memo'                 => 'Exchange Extra Payable Received',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
+
+                    // 2. If any portion is due (Accounts Receivable):
+                    if ($duePortion > 0) {
+                        $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                        if (!$arAccount) {
+                            $assetType = \App\Models\ChartOfAccountType::where('name', 'Asset')->first();
+                            $arAccount = ChartOfAccount::create([
+                                'name' => 'Accounts Receivable',
+                                'type_id' => $assetType ? $assetType->id : 8,
+                                'code' => '10002',
+                                'status' => 'active'
+                            ]);
+                        }
+
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $arAccount->id,
+                            'financial_account_id' => null,
+                            'debit'                => $duePortion,
+                            'credit'               => 0,
+                            'memo'                 => 'Exchange Extra Payable Due',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
+
                     $deliveryChargeAmount = min($extraPayable, $deliveryCharge);
                     $vatDiffAmount = max(0, $netVatDiff ?? 0);
                     $salesRevenueAmount = max(0, $extraPayable - $deliveryChargeAmount - $vatDiffAmount);
@@ -653,16 +683,31 @@ class ExchangeController extends Controller
                         }
                     }
 
-                    JournalEntry::create([
-                        'journal_id'           => $journal->id,
-                        'chart_of_account_id'  => $cashBankAccountId,
-                        'financial_account_id' => $financialAccount ? $financialAccount->id : null,
-                        'debit'                => 0,
-                        'credit'               => $refundAmount,
-                        'memo'                 => 'Exchange Refund Paid',
-                        'created_by'           => Auth::id(),
-                        'updated_by'           => Auth::id(),
-                    ]);
+                    $isCashRefund = in_array($posExchange->payment_method, ['cash', 'bank', 'account']);
+                    if ($isCashRefund) {
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $cashBankAccountId,
+                            'financial_account_id' => $financialAccount ? $financialAccount->id : null,
+                            'debit'                => 0,
+                            'credit'               => $refundAmount,
+                            'memo'                 => 'Exchange Refund Paid',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    } else {
+                        $arAccount = ChartOfAccount::where('name', 'like', '%Receivable%')->first();
+                        JournalEntry::create([
+                            'journal_id'           => $journal->id,
+                            'chart_of_account_id'  => $arAccount ? $arAccount->id : $cashBankAccountId,
+                            'financial_account_id' => null,
+                            'debit'                => 0,
+                            'credit'               => $refundAmount,
+                            'memo'                 => 'Exchange Refund Store Credit',
+                            'created_by'           => Auth::id(),
+                            'updated_by'           => Auth::id(),
+                        ]);
+                    }
                 }
             }
 
