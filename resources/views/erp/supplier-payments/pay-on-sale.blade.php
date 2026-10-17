@@ -288,7 +288,7 @@
                                         <label class="form-label small fw-bold">Settlement Payment Amount (৳) <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-light">৳</span>
-                                            <input type="number" step="0.01" class="form-control fw-bold fs-5 text-success" name="amount" id="settleModalAmountInput" value="{{ $summary['totals']['net_due_payable'] ?? 0 }}" max="{{ $summary['totals']['net_due_payable'] ?? 0 }}" required>
+                                            <input type="number" step="0.01" min="0.01" class="form-control fw-bold fs-5 text-success" name="amount" id="settleModalAmountInput" value="{{ $summary['totals']['net_due_payable'] ?? 0 }}" {{ ($summary['totals']['net_due_payable'] ?? 0) > 0 ? 'max=' . ($summary['totals']['net_due_payable'] ?? 0) : '' }} required>
                                         </div>
                                     </div>
 
@@ -299,10 +299,10 @@
 
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Payment Account <span class="text-danger">*</span></label>
-                                        <select class="form-select" name="account_id" required>
+                                        <select class="form-select" name="account_id" id="settleModalAccountId" required>
                                             <option value="">-- Choose Account --</option>
                                             @foreach($accounts as $acc)
-                                                <option value="{{ $acc->id }}">{{ $acc->account_name ?? $acc->provider_name }} (Bal: ৳{{ number_format($acc->current_balance, 2) }})</option>
+                                                <option value="{{ $acc->id }}" data-balance="{{ $acc->current_balance }}">{{ $acc->account_name ?? $acc->provider_name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -375,6 +375,11 @@
 
                     $('#settleBtnLabel').text('৳' + netDueForSelected.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                     $('#settleModalAmountInput').val(netDueForSelected);
+                    if (netDueForSelected > 0) {
+                        $('#settleModalAmountInput').attr('max', netDueForSelected).attr('min', '0.01');
+                    } else {
+                        $('#settleModalAmountInput').removeAttr('max');
+                    }
                     $('#modalSelectedCostText').text('৳' + totalSelectedCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                     $('#modalNetDueText').text('৳' + netDueForSelected.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
 
@@ -683,6 +688,33 @@
                     if (currentPage < totalPages) {
                         currentPage++;
                         renderTablePagination();
+                    }
+                });
+
+                // Validate Account Balance before submitting Settlement Form
+                $('#settlePaymentForm').on('submit', function(e) {
+                    const selectedOption = $('#settleModalAccountId option:selected');
+                    const balance = parseFloat(selectedOption.data('balance'));
+                    const amount = parseFloat($('#settleModalAmountInput').val()) || 0;
+
+                    if (!isNaN(balance) && balance < amount) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const accountName = selectedOption.text().trim();
+                        const formattedBal = '৳' + balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        const formattedAmount = '৳' + amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Insufficient Account Balance',
+                                html: `The selected account <b>${accountName}</b> does not have enough balance.<br><br>Available Balance: <b class="text-danger">${formattedBal}</b><br>Required Payment: <b class="text-success">${formattedAmount}</b>`,
+                                confirmButtonColor: '#198754'
+                            });
+                        } else {
+                            alert(`Insufficient balance in "${accountName}". Available: ${formattedBal}, Required: ${formattedAmount}`);
+                        }
+                        return false;
                     }
                 });
 

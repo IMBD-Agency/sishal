@@ -620,6 +620,13 @@ class SupplierPaymentController extends Controller
             'account_id' => 'required|exists:financial_accounts,id',
         ]);
 
+        $account = \App\Models\FinancialAccount::findOrFail($request->account_id);
+        if ((float)$account->current_balance < (float)$request->amount) {
+            $avail = number_format($account->current_balance, 2);
+            $req = number_format($request->amount, 2);
+            return back()->with('error', "Insufficient balance in selected account ({$account->provider_name}). Available: ৳{$avail}, Required: ৳{$req}")->withInput();
+        }
+
         try {
             $service->processPayOnSaleSettlement(
                 $request->supplier_id,

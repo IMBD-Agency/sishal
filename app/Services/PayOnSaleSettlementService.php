@@ -7,6 +7,7 @@ use App\Models\PurchaseItem;
 use App\Models\PurchaseBill;
 use App\Models\SupplierPayment;
 use App\Models\SupplierLedger;
+use App\Models\Balance;
 use App\Models\PosItem;
 use App\Models\OrderItem;
 use App\Models\SaleReturnItem;
@@ -106,6 +107,51 @@ class PayOnSaleSettlementService
             });
         }
 
+        // Pass 1: Compute FIFO sold allocation for every purchase item, and aggregate sold cost per bill
+        $piAllocations = [];
+        $billSoldCosts = [];
+
+        foreach ($grouped as $key => $data) {
+            $productId   = $data['product_id'];
+            $variationId = $data['variation_id'];
+
+            $returnedQuery = PurchaseReturnItem::where('product_id', $productId);
+            if ($variationId) {
+                $returnedQuery->where('variation_id', $variationId);
+            }
+            $returnedQty = (float) $returnedQuery->sum('returned_qty');
+            $netPurchasedQty = max(0, $data['purchased_qty'] - $returnedQty);
+
+            $rawSoldQty = $this->getProductNetSoldQuantity($productId, $variationId, $startDate, $endDate);
+            $soldQty = min($rawSoldQty, $netPurchasedQty);
+
+            $remSold = $soldQty;
+            foreach ($data['purchase_items'] as $pi) {
+                $piReturned = (float) PurchaseReturnItem::where('purchase_item_id', $pi->id)->sum('returned_qty');
+                $piNetQty   = max(0, $pi->quantity - $piReturned);
+                if ($piNetQty <= 0) continue;
+
+                $allocSold = min($remSold, $piNetQty);
+                $allocCost = round($allocSold * (float)$pi->unit_price, 2);
+                $remSold -= $allocSold;
+
+                $bill = $pi->purchase?->bill;
+                $billId = $bill?->id;
+
+                $piAllocations[$pi->id] = [
+                    'alloc_sold' => $allocSold,
+                    'alloc_cost' => $allocCost,
+                    'bill'       => $bill,
+                    'bill_id'    => $billId,
+                ];
+
+                if ($billId && $allocCost > 0) {
+                    $billSoldCosts[$billId] = ($billSoldCosts[$billId] ?? 0) + $allocCost;
+                }
+            }
+        }
+
+        // Pass 2: Calculate AlreadyPaid and NetDue per product item and total summaries
         $items = [];
         $totalPurchasedQty    = 0;
         $totalSoldQty         = 0;
@@ -118,55 +164,41 @@ class PayOnSaleSettlementService
             $productId   = $data['product_id'];
             $variationId = $data['variation_id'];
 
-            // Deduct purchase returns for this product/variation
             $returnedQuery = PurchaseReturnItem::where('product_id', $productId);
             if ($variationId) {
                 $returnedQuery->where('variation_id', $variationId);
             }
             $returnedQty = (float) $returnedQuery->sum('returned_qty');
-
             $netPurchasedQty = max(0, $data['purchased_qty'] - $returnedQty);
 
-            // Accurately calculate sold quantity across POS, Online, Combos, Exchanges & Returns
             $rawSoldQty = $this->getProductNetSoldQuantity($productId, $variationId, $startDate, $endDate);
-
-            // Cap sold quantity at net purchased quantity for consignment accounting accuracy
             $soldQty = min($rawSoldQty, $netPurchasedQty);
             $inStockQty = max(0, $netPurchasedQty - $soldQty);
 
             $avgUnitCost = $data['purchased_qty'] > 0 ? ($data['total_cost'] / $data['purchased_qty']) : $data['latest_unit_cost'];
 
-            // FIFO Item-Level Allocation across purchase items for this product
-            $remSold              = $soldQty;
             $itemSoldCostPayable  = 0;
             $itemAlreadyPaid      = 0;
             $itemNetDue           = 0;
 
             foreach ($data['purchase_items'] as $pi) {
-                if ($remSold <= 0) break;
+                $alloc = $piAllocations[$pi->id] ?? null;
+                if (!$alloc || $alloc['alloc_cost'] <= 0) continue;
 
-                $piReturned = (float) PurchaseReturnItem::where('purchase_item_id', $pi->id)->sum('returned_qty');
-                $piNetQty   = max(0, $pi->quantity - $piReturned);
-                if ($piNetQty <= 0) continue;
-
-                $allocSold = min($remSold, $piNetQty);
-                $allocCost = round($allocSold * (float)$pi->unit_price, 2);
-
-                $bill      = $pi->purchase?->bill;
-                $billTotal = $bill ? (float)$bill->total_amount : 0;
+                $allocCost = $alloc['alloc_cost'];
+                $bill      = $alloc['bill'];
+                $billId    = $alloc['bill_id'];
                 $billPaid  = $bill ? (float)$bill->paid_amount : 0;
-                $piGross   = (float)($pi->quantity * $pi->unit_price);
+                $billSoldCost = $billSoldCosts[$billId] ?? $allocCost;
 
-                $piPaidShare = $billTotal > 0 ? round($billPaid * ($piGross / $billTotal), 2) : 0;
-
-                $allocPaid   = min($piPaidShare, $allocCost);
-                $allocNetDue = max(0, round($allocCost - $piPaidShare, 2));
+                // Paid ratio for this bill: how much of the sold cost on this bill has been paid
+                $paidRatio = $billSoldCost > 0 ? min(1.0, $billPaid / $billSoldCost) : 0;
+                $allocPaid = round($allocCost * $paidRatio, 2);
+                $allocNetDue = max(0, round($allocCost - $allocPaid, 2));
 
                 $itemSoldCostPayable += $allocCost;
                 $itemAlreadyPaid     += $allocPaid;
                 $itemNetDue          += $allocNetDue;
-
-                $remSold -= $allocSold;
             }
 
             $items[] = [
@@ -213,6 +245,11 @@ class PayOnSaleSettlementService
     {
         return DB::transaction(function () use ($supplierId, $payAmount, $paymentDate, $paymentMethod, $accountId, $reference, $note, $userId) {
             $financialAccount = FinancialAccount::findOrFail($accountId);
+            if ((float)$financialAccount->current_balance < (float)$payAmount) {
+                $avail = number_format($financialAccount->current_balance, 2);
+                $req = number_format($payAmount, 2);
+                throw new \Exception("Insufficient balance in account '{$financialAccount->provider_name}'. Available: ৳{$avail}, Required: ৳{$req}");
+            }
             $remainingPayment = (float) $payAmount;
 
             $createdPayments = [];
@@ -237,6 +274,10 @@ class PayOnSaleSettlementService
                 $productGroups[$key]['items'][] = $pItem;
             }
 
+            $billSoldCosts = [];
+            $billPayableMap = [];
+
+            // 1. Calculate sold cost per bill across products (FIFO)
             foreach ($productGroups as $group) {
                 $productId   = $group['product_id'];
                 $variationId = $group['variation_id'];
@@ -252,47 +293,54 @@ class PayOnSaleSettlementService
 
                     $allocSold = min($remSold, $piNetQty);
                     $allocCost = round($allocSold * (float)$pi->unit_price, 2);
+                    $remSold -= $allocSold;
 
                     $bill = $pi->purchase?->bill;
-                    if ($bill && (float)$bill->due_amount > 0) {
-                        $billTotal = (float)$bill->total_amount;
-                        $billPaid  = (float)$bill->paid_amount;
-                        $piGross   = (float)($pi->quantity * $pi->unit_price);
-
-                        $piPaidShare = $billTotal > 0 ? round($billPaid * ($piGross / $billTotal), 2) : 0;
-                        $allocNetDue = max(0, round($allocCost - $piPaidShare, 2));
-
-                        if ($allocNetDue > 0) {
-                            $billId = $bill->id;
-                            if (!isset($billPayableMap[$billId])) {
-                                $billPayableMap[$billId] = ['bill' => $bill, 'payable' => 0.0];
-                            }
-                            $billPayableMap[$billId]['payable'] += $allocNetDue;
+                    $billId = $bill?->id;
+                    if ($billId && $allocCost > 0) {
+                        if (!isset($billSoldCosts[$billId])) {
+                            $billSoldCosts[$billId] = [
+                                'bill' => $bill,
+                                'sold_cost' => 0.0,
+                            ];
                         }
+                        $billSoldCosts[$billId]['sold_cost'] += $allocCost;
                     }
-
-                    $remSold -= $allocSold;
                 }
             }
 
-            // Sort by bill id DESCENDING: newest purchase bill first.
-            // This ensures payment targets the most recent purchase first,
-            // matching the user's intent of paying for what they just purchased.
-            krsort($billPayableMap);
+            // 2. Build bill payable map: payable for sold items = max(0, sold_cost - bill->paid_amount)
+            foreach ($billSoldCosts as $billId => $entry) {
+                $bill     = $entry['bill'];
+                $billPaid = (float) $bill->paid_amount;
+                $billDue  = (float) $bill->due_amount;
+                $soldDue  = max(0, round($entry['sold_cost'] - $billPaid, 2));
+                $payable  = min($soldDue, $billDue);
 
-            // Distribute payment proportionally to bills with sold-product payable amounts
+                if ($payable > 0.009) {
+                    $billPayableMap[$billId] = [
+                        'bill'    => $bill,
+                        'payable' => $payable,
+                    ];
+                }
+            }
+
+            // 3. FIFO Order: Oldest purchase bill first
+            ksort($billPayableMap);
+
+            // 4. Distribute payment to bills with sold-product payable amounts
             if (!empty($billPayableMap)) {
                 foreach ($billPayableMap as $billId => $entry) {
-                    if ($remainingPayment <= 0) break;
+                    if ($remainingPayment <= 0.009) break;
 
-                    // Refresh bill from DB to get the latest due_amount (avoids stale cached values)
+                    // Refresh bill from DB to get the latest due_amount
                     $bill    = PurchaseBill::find($billId);
-                    if (!$bill || (float) $bill->due_amount <= 0) continue;
+                    if (!$bill || (float) $bill->due_amount <= 0.009) continue;
                     $billDue = (float) $bill->due_amount;
 
-                    // Allocate minimum of: remaining payment, this bill's current due, this bill's sold-product payable
                     $allocAmount = min($remainingPayment, $billDue, $entry['payable']);
-                    if ($allocAmount <= 0) continue;
+                    $allocAmount = round($allocAmount, 2);
+                    if ($allocAmount <= 0.009) continue;
 
                     $paymentData = [
                         'supplier_id'      => $supplierId,
@@ -318,7 +366,7 @@ class PayOnSaleSettlementService
                     $bill->paid_amount += $allocAmount;
                     $bill->due_amount  -= $allocAmount;
                     if ($bill->due_amount <= 0) {
-                        $bill->status    = 'paid';
+                        $bill->status     = 'paid';
                         $bill->due_amount = 0;
                     } elseif ($bill->paid_amount > 0) {
                         $bill->status = 'partial';
@@ -332,18 +380,17 @@ class PayOnSaleSettlementService
                 }
             }
 
-            // Any remainder (no matching sold-product bill found) goes as advance
-            if ($remainingPayment > 0) {
-                // Fallback: apply remaining to oldest due bill
+            // 5. Any remainder goes to any remaining due bills for this supplier
+            if (round($remainingPayment, 2) > 0.009) {
                 $fallbackBills = PurchaseBill::where('supplier_id', $supplierId)
                     ->where('due_amount', '>', 0)
-                    ->orderBy('created_at', 'asc')
+                    ->orderBy('id', 'asc')
                     ->get();
 
                 foreach ($fallbackBills as $bill) {
-                    if ($remainingPayment <= 0) break;
-                    $allocAmount = min($remainingPayment, (float) $bill->due_amount);
-                    if ($allocAmount <= 0) continue;
+                    if ($remainingPayment <= 0.009) break;
+                    $allocAmount = round(min($remainingPayment, (float) $bill->due_amount), 2);
+                    if ($allocAmount <= 0.009) continue;
 
                     $paymentData = [
                         'supplier_id'      => $supplierId,
