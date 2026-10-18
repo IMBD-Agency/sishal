@@ -119,6 +119,7 @@
                                     <th class="text-end">Debit</th>
                                     <th class="text-end">Credit</th>
                                     <th class="text-end">Current Balance</th>
+                                    <th class="text-center no-print" style="width: 110px;">Statement</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -144,10 +145,19 @@
                                     <td class="text-end fw-bold {{ $account->closing >= 0 ? 'text-primary' : 'text-danger' }}">
                                         ৳ {{ number_format($account->closing, 2) }}
                                     </td>
+                                    <td class="text-center no-print">
+                                        @if($account->account_id)
+                                            <a href="{{ route('ledger.account', $account->account_id) }}?branch_id={{ $branchId }}&start_date={{ $startDate->format('Y-m-d') }}&end_date={{ $endDate->format('Y-m-d') }}" class="btn btn-outline-primary btn-sm py-1 px-2" title="View Detailed Statement">
+                                                <i class="fas fa-file-invoice me-1"></i>Statement
+                                            </a>
+                                        @else
+                                            <span class="text-muted small">-</span>
+                                        @endif
+                                    </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="10" class="text-center py-4 text-muted">No accounts available in this category.</td>
+                                    <td colspan="11" class="text-center py-4 text-muted">No accounts available in this category.</td>
                                 </tr>
                                 @endforelse
                             </tbody>
@@ -164,6 +174,7 @@
                                     <td class="text-end text-success">৳ {{ number_format($accounts->sum('debit'), 2) }}</td>
                                     <td class="text-end text-danger">৳ {{ number_format($accounts->sum('credit'), 2) }}</td>
                                     <td class="text-end text-primary">৳ {{ number_format($accounts->sum('closing'), 2) }}</td>
+                                    <td class="no-print"></td>
                                 </tr>
                             </tfoot>
                             @endif

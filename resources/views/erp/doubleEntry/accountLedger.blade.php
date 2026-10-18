@@ -32,9 +32,28 @@
                         </ol>
                     </nav>
                     <h2 class="fw-bold mb-0">{{ $account->name }}</h2>
-                    <p class="text-muted mb-0">Account Code: {{ $account->code }} | Type: {{ $account->type->name ?? 'N/A' }}</p>
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <span class="text-muted">Account Code: {{ $account->code }} | Type: {{ $account->type->name ?? 'N/A' }}</span>
+                        @if($branchId)
+                            <span class="badge bg-primary"><i class="fas fa-store me-1"></i>{{ $branches->find($branchId)->name ?? 'Branch' }}</span>
+                        @else
+                            <span class="badge bg-secondary"><i class="fas fa-globe me-1"></i>All Branches</span>
+                        @endif
+                    </div>
                 </div>
-                <div class="col-md-4 text-end">
+                <div class="col-md-5 text-end d-flex justify-content-end align-items-center gap-2">
+                    @if(!$restrictedBranchId)
+                    <form method="GET" action="{{ route('ledger.account', $account->id) }}" class="d-inline-block" id="quickBranchForm">
+                        <input type="hidden" name="start_date" value="{{ request('start_date', $startDate->format('Y-m-d')) }}">
+                        <input type="hidden" name="end_date" value="{{ request('end_date', $endDate->format('Y-m-d')) }}">
+                        <select name="branch_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 170px;">
+                            <option value="">All Branches</option>
+                            @foreach($branches as $b)
+                                <option value="{{ $b->id }}" {{ ($branchId ?? '') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                    @endif
                     <div class="btn-group me-2">
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
                             <i class="fas fa-filter me-2"></i>Filter
@@ -118,7 +137,13 @@
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <h5 class="mb-0">Account Ledger Entries</h5>
-                            <small class="text-muted">Showing entries from {{ request('start_date', date('Y-m-01')) }} to {{ request('end_date', date('Y-m-d')) }}</small>
+                            <small class="text-muted">Showing entries from {{ $startDate->format('d M, Y') }} to {{ $endDate->format('d M, Y') }}
+                                @if($branchId)
+                                    &bull; Branch: <strong>{{ $branches->find($branchId)->name ?? 'Selected Branch' }}</strong>
+                                @else
+                                    &bull; <em>Consolidated (All Branches)</em>
+                                @endif
+                            </small>
                         </div>
                         <div class="col-md-6 text-end">
                             <div class="btn-group btn-group-sm">
@@ -173,9 +198,21 @@
                                             <span class="badge bg-secondary">{{ $entry->journal->voucher_no }}</span>
                                         </td>
                                         <td>
-                                            <div class="fw-bold">{{ $entry->journal->description }}</div>
+                                            <div class="d-flex align-items-center gap-1 flex-wrap">
+                                                <span class="fw-bold">{{ $entry->journal->description }}</span>
+                                                @if($entry->journal->branch)
+                                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25" style="font-size: 11px;">
+                                                        <i class="fas fa-store me-1"></i>{{ $entry->journal->branch->name }}
+                                                    </span>
+                                                @endif
+                                            </div>
                                             @if($entry->memo)
-                                                <small class="text-muted">Memo: {{ $entry->memo }}</small>
+                                                <small class="text-muted d-block">Memo: {{ $entry->memo }}</small>
+                                            @endif
+                                            @if($entry->financialAccount)
+                                                <small class="text-primary d-block" style="font-size: 11px;">
+                                                    <i class="fas fa-wallet me-1"></i>{{ $entry->financialAccount->provider_name }} ({{ $entry->financialAccount->account_number }})
+                                                </small>
                                             @endif
                                         </td>
                                         <td class="text-end">
@@ -254,15 +291,26 @@
                 </div>
                 <form action="{{ route('ledger.account', $account->id) }}" method="GET">
                     <div class="modal-body">
+                        @if(!$restrictedBranchId)
                         <div class="mb-3">
-                            <label for="start_date" class="form-label">From Date</label>
+                            <label for="branch_id" class="form-label fw-bold small text-muted text-uppercase">Branch</label>
+                            <select class="form-select" id="branch_id" name="branch_id">
+                                <option value="">All Branches (Consolidated)</option>
+                                @foreach($branches as $b)
+                                    <option value="{{ $b->id }}" {{ ($branchId ?? '') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+                        <div class="mb-3">
+                            <label for="start_date" class="form-label fw-bold small text-muted text-uppercase">From Date</label>
                             <input type="date" class="form-control" id="start_date" name="start_date" 
-                                   value="{{ request('start_date', date('Y-m-01')) }}">
+                                   value="{{ request('start_date', $startDate->format('Y-m-d')) }}">
                         </div>
                         <div class="mb-3">
-                            <label for="end_date" class="form-label">To Date</label>
+                            <label for="end_date" class="form-label fw-bold small text-muted text-uppercase">To Date</label>
                             <input type="date" class="form-control" id="end_date" name="end_date" 
-                                   value="{{ request('end_date', date('Y-m-d')) }}">
+                                   value="{{ request('end_date', $endDate->format('Y-m-d')) }}">
                         </div>
                     </div>
                     <div class="modal-footer">

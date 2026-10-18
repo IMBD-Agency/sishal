@@ -7,7 +7,6 @@ use App\Models\PurchaseItem;
 use App\Models\PurchaseBill;
 use App\Models\SupplierPayment;
 use App\Models\SupplierLedger;
-use App\Models\Balance;
 use App\Models\PosItem;
 use App\Models\OrderItem;
 use App\Models\SaleReturnItem;
@@ -79,20 +78,20 @@ class PayOnSaleSettlementService
                 }
 
                 $grouped[$key] = [
-                    'product_id'     => $item->product_id,
-                    'variation_id'   => $item->variation_id,
-                    'product_name'   => $displayName,
-                    'sku'            => $item->variation?->sku ?? $item->product?->sku ?? 'N/A',
-                    'style_number'   => $item->product?->style_number ?? 'N/A',
-                    'purchased_qty'  => 0,
-                    'total_cost'     => 0,
+                    'product_id' => $item->product_id,
+                    'variation_id' => $item->variation_id,
+                    'product_name' => $displayName,
+                    'sku' => $item->variation?->sku ?? $item->product?->sku ?? 'N/A',
+                    'style_number' => $item->product?->style_number ?? 'N/A',
+                    'purchased_qty' => 0,
+                    'total_cost' => 0,
                     'latest_unit_cost' => $item->unit_price,
                     'purchase_items' => [],
                 ];
             }
 
             $grouped[$key]['purchased_qty'] += $item->quantity;
-            $grouped[$key]['total_cost']    += ($item->quantity * $item->unit_price);
+            $grouped[$key]['total_cost'] += ($item->quantity * $item->unit_price);
             $grouped[$key]['latest_unit_cost'] = $item->unit_price;
             $grouped[$key]['purchase_items'][] = $item;
         }
@@ -107,131 +106,102 @@ class PayOnSaleSettlementService
             });
         }
 
-        // Pass 1: Compute FIFO sold allocation for every purchase item, and aggregate sold cost per bill
-        $piAllocations = [];
-        $billSoldCosts = [];
-
-        foreach ($grouped as $key => $data) {
-            $productId   = $data['product_id'];
-            $variationId = $data['variation_id'];
-
-            $returnedQuery = PurchaseReturnItem::where('product_id', $productId);
-            if ($variationId) {
-                $returnedQuery->where('variation_id', $variationId);
-            }
-            $returnedQty = (float) $returnedQuery->sum('returned_qty');
-            $netPurchasedQty = max(0, $data['purchased_qty'] - $returnedQty);
-
-            $rawSoldQty = $this->getProductNetSoldQuantity($productId, $variationId, $startDate, $endDate);
-            $soldQty = min($rawSoldQty, $netPurchasedQty);
-
-            $remSold = $soldQty;
-            foreach ($data['purchase_items'] as $pi) {
-                $piReturned = (float) PurchaseReturnItem::where('purchase_item_id', $pi->id)->sum('returned_qty');
-                $piNetQty   = max(0, $pi->quantity - $piReturned);
-                if ($piNetQty <= 0) continue;
-
-                $allocSold = min($remSold, $piNetQty);
-                $allocCost = round($allocSold * (float)$pi->unit_price, 2);
-                $remSold -= $allocSold;
-
-                $bill = $pi->purchase?->bill;
-                $billId = $bill?->id;
-
-                $piAllocations[$pi->id] = [
-                    'alloc_sold' => $allocSold,
-                    'alloc_cost' => $allocCost,
-                    'bill'       => $bill,
-                    'bill_id'    => $billId,
-                ];
-
-                if ($billId && $allocCost > 0) {
-                    $billSoldCosts[$billId] = ($billSoldCosts[$billId] ?? 0) + $allocCost;
-                }
-            }
-        }
-
-        // Pass 2: Calculate AlreadyPaid and NetDue per product item and total summaries
         $items = [];
-        $totalPurchasedQty    = 0;
-        $totalSoldQty         = 0;
-        $totalInStockQty      = 0;
+        $totalPurchasedQty = 0;
+        $totalSoldQty = 0;
+        $totalInStockQty = 0;
         $totalSoldCostPayable = 0;
-        $totalNetDuePayable   = 0;
-        $totalAlreadyPaid     = 0;
+        $totalNetDuePayable = 0;
+        $totalAlreadyPaid = 0;
 
         foreach ($grouped as $key => $data) {
-            $productId   = $data['product_id'];
+            $productId = $data['product_id'];
             $variationId = $data['variation_id'];
 
+            // Deduct purchase returns for this product/variation
             $returnedQuery = PurchaseReturnItem::where('product_id', $productId);
             if ($variationId) {
                 $returnedQuery->where('variation_id', $variationId);
             }
             $returnedQty = (float) $returnedQuery->sum('returned_qty');
+
             $netPurchasedQty = max(0, $data['purchased_qty'] - $returnedQty);
 
+            // Accurately calculate sold quantity across POS, Online, Combos, Exchanges & Returns
             $rawSoldQty = $this->getProductNetSoldQuantity($productId, $variationId, $startDate, $endDate);
+
+            // Cap sold quantity at net purchased quantity for consignment accounting accuracy
             $soldQty = min($rawSoldQty, $netPurchasedQty);
             $inStockQty = max(0, $netPurchasedQty - $soldQty);
 
             $avgUnitCost = $data['purchased_qty'] > 0 ? ($data['total_cost'] / $data['purchased_qty']) : $data['latest_unit_cost'];
 
-            $itemSoldCostPayable  = 0;
-            $itemAlreadyPaid      = 0;
-            $itemNetDue           = 0;
+            // FIFO Item-Level Allocation across purchase items for this product
+            $remSold = $soldQty;
+            $itemSoldCostPayable = 0;
+            $itemAlreadyPaid = 0;
+            $itemNetDue = 0;
 
             foreach ($data['purchase_items'] as $pi) {
-                $alloc = $piAllocations[$pi->id] ?? null;
-                if (!$alloc || $alloc['alloc_cost'] <= 0) continue;
+                if ($remSold <= 0)
+                    break;
 
-                $allocCost = $alloc['alloc_cost'];
-                $bill      = $alloc['bill'];
-                $billId    = $alloc['bill_id'];
-                $billPaid  = $bill ? (float)$bill->paid_amount : 0;
-                $billSoldCost = $billSoldCosts[$billId] ?? $allocCost;
+                $piReturned = (float) PurchaseReturnItem::where('purchase_item_id', $pi->id)->sum('returned_qty');
+                $piNetQty = max(0, $pi->quantity - $piReturned);
+                if ($piNetQty <= 0)
+                    continue;
 
-                // Paid ratio for this bill: how much of the sold cost on this bill has been paid
-                $paidRatio = $billSoldCost > 0 ? min(1.0, $billPaid / $billSoldCost) : 0;
-                $allocPaid = round($allocCost * $paidRatio, 2);
-                $allocNetDue = max(0, round($allocCost - $allocPaid, 2));
+                $allocSold = min($remSold, $piNetQty);
+                $allocCost = round($allocSold * (float) $pi->unit_price, 2);
+
+                $bill = $pi->purchase?->bill;
+                $billTotal = $bill ? (float) $bill->total_amount : 0;
+                $billPaid = $bill ? (float) $bill->paid_amount : 0;
+                $piGross = (float) ($pi->quantity * $pi->unit_price);
+
+                $piPaidShare = $billTotal > 0 ? round($billPaid * ($piGross / $billTotal), 2) : 0;
+
+                $allocPaid = min($piPaidShare, $allocCost);
+                $allocNetDue = max(0, round($allocCost - $piPaidShare, 2));
 
                 $itemSoldCostPayable += $allocCost;
-                $itemAlreadyPaid     += $allocPaid;
-                $itemNetDue          += $allocNetDue;
+                $itemAlreadyPaid += $allocPaid;
+                $itemNetDue += $allocNetDue;
+
+                $remSold -= $allocSold;
             }
 
             $items[] = [
-                'group_key'         => $key,
-                'product_name'      => $data['product_name'],
-                'sku'               => $data['sku'],
-                'style_number'      => $data['style_number'],
-                'purchased_qty'     => $netPurchasedQty,
-                'sold_qty'          => $soldQty,
-                'in_stock_qty'      => $inStockQty,
-                'unit_cost'         => round($avgUnitCost, 2),
+                'group_key' => $key,
+                'product_name' => $data['product_name'],
+                'sku' => $data['sku'],
+                'style_number' => $data['style_number'],
+                'purchased_qty' => $netPurchasedQty,
+                'sold_qty' => $soldQty,
+                'in_stock_qty' => $inStockQty,
+                'unit_cost' => round($avgUnitCost, 2),
                 'sold_cost_payable' => round($itemSoldCostPayable, 2),
-                'already_paid'      => round($itemAlreadyPaid, 2),
-                'net_due'           => round($itemNetDue, 2),
+                'already_paid' => round($itemAlreadyPaid, 2),
+                'net_due' => round($itemNetDue, 2),
             ];
 
-            $totalPurchasedQty    += $netPurchasedQty;
-            $totalSoldQty         += $soldQty;
-            $totalInStockQty      += $inStockQty;
+            $totalPurchasedQty += $netPurchasedQty;
+            $totalSoldQty += $soldQty;
+            $totalInStockQty += $inStockQty;
             $totalSoldCostPayable += round($itemSoldCostPayable, 2);
-            $totalAlreadyPaid     += round($itemAlreadyPaid, 2);
-            $totalNetDuePayable   += round($itemNetDue, 2);
+            $totalAlreadyPaid += round($itemAlreadyPaid, 2);
+            $totalNetDuePayable += round($itemNetDue, 2);
         }
 
         return [
-            'items'  => $items,
+            'items' => $items,
             'totals' => [
-                'purchased_qty'     => $totalPurchasedQty,
-                'sold_qty'          => $totalSoldQty,
-                'in_stock_qty'      => $totalInStockQty,
+                'purchased_qty' => $totalPurchasedQty,
+                'sold_qty' => $totalSoldQty,
+                'in_stock_qty' => $totalInStockQty,
                 'sold_cost_payable' => round($totalSoldCostPayable, 2),
-                'total_paid'        => round($totalAlreadyPaid, 2),
-                'net_due_payable'   => round($totalNetDuePayable, 2),
+                'total_paid' => round($totalAlreadyPaid, 2),
+                'net_due_payable' => round($totalNetDuePayable, 2),
             ]
         ];
     }
@@ -245,11 +215,6 @@ class PayOnSaleSettlementService
     {
         return DB::transaction(function () use ($supplierId, $payAmount, $paymentDate, $paymentMethod, $accountId, $reference, $note, $userId) {
             $financialAccount = FinancialAccount::findOrFail($accountId);
-            if ((float)$financialAccount->current_balance < (float)$payAmount) {
-                $avail = number_format($financialAccount->current_balance, 2);
-                $req = number_format($payAmount, 2);
-                throw new \Exception("Insufficient balance in account '{$financialAccount->provider_name}'. Available: ৳{$avail}, Required: ৳{$req}");
-            }
             $remainingPayment = (float) $payAmount;
 
             $createdPayments = [];
@@ -266,94 +231,88 @@ class PayOnSaleSettlementService
                 $key = $pItem->product_id . '_' . ($pItem->variation_id ?? '0');
                 if (!isset($productGroups[$key])) {
                     $productGroups[$key] = [
-                        'product_id'   => $pItem->product_id,
+                        'product_id' => $pItem->product_id,
                         'variation_id' => $pItem->variation_id,
-                        'items'        => [],
+                        'items' => [],
                     ];
                 }
                 $productGroups[$key]['items'][] = $pItem;
             }
 
-            $billSoldCosts = [];
-            $billPayableMap = [];
-
-            // 1. Calculate sold cost per bill across products (FIFO)
             foreach ($productGroups as $group) {
-                $productId   = $group['product_id'];
+                $productId = $group['product_id'];
                 $variationId = $group['variation_id'];
 
                 $remSold = $this->getProductNetSoldQuantity($productId, $variationId);
 
                 foreach ($group['items'] as $pi) {
-                    if ($remSold <= 0) break;
+                    if ($remSold <= 0)
+                        break;
 
                     $piReturned = (float) PurchaseReturnItem::where('purchase_item_id', $pi->id)->sum('returned_qty');
-                    $piNetQty   = max(0, $pi->quantity - $piReturned);
-                    if ($piNetQty <= 0) continue;
+                    $piNetQty = max(0, $pi->quantity - $piReturned);
+                    if ($piNetQty <= 0)
+                        continue;
 
                     $allocSold = min($remSold, $piNetQty);
-                    $allocCost = round($allocSold * (float)$pi->unit_price, 2);
-                    $remSold -= $allocSold;
+                    $allocCost = round($allocSold * (float) $pi->unit_price, 2);
 
                     $bill = $pi->purchase?->bill;
-                    $billId = $bill?->id;
-                    if ($billId && $allocCost > 0) {
-                        if (!isset($billSoldCosts[$billId])) {
-                            $billSoldCosts[$billId] = [
-                                'bill' => $bill,
-                                'sold_cost' => 0.0,
-                            ];
+                    if ($bill && (float) $bill->due_amount > 0) {
+                        $billTotal = (float) $bill->total_amount;
+                        $billPaid = (float) $bill->paid_amount;
+                        $piGross = (float) ($pi->quantity * $pi->unit_price);
+
+                        $piPaidShare = $billTotal > 0 ? round($billPaid * ($piGross / $billTotal), 2) : 0;
+                        $allocNetDue = max(0, round($allocCost - $piPaidShare, 2));
+
+                        if ($allocNetDue > 0) {
+                            $billId = $bill->id;
+                            if (!isset($billPayableMap[$billId])) {
+                                $billPayableMap[$billId] = ['bill' => $bill, 'payable' => 0.0];
+                            }
+                            $billPayableMap[$billId]['payable'] += $allocNetDue;
                         }
-                        $billSoldCosts[$billId]['sold_cost'] += $allocCost;
                     }
+
+                    $remSold -= $allocSold;
                 }
             }
 
-            // 2. Build bill payable map: payable for sold items = max(0, sold_cost - bill->paid_amount)
-            foreach ($billSoldCosts as $billId => $entry) {
-                $bill     = $entry['bill'];
-                $billPaid = (float) $bill->paid_amount;
-                $billDue  = (float) $bill->due_amount;
-                $soldDue  = max(0, round($entry['sold_cost'] - $billPaid, 2));
-                $payable  = min($soldDue, $billDue);
+            // Sort by bill id DESCENDING: newest purchase bill first.
+            // This ensures payment targets the most recent purchase first,
+            // matching the user's intent of paying for what they just purchased.
+            krsort($billPayableMap);
 
-                if ($payable > 0.009) {
-                    $billPayableMap[$billId] = [
-                        'bill'    => $bill,
-                        'payable' => $payable,
-                    ];
-                }
-            }
-
-            // 3. FIFO Order: Oldest purchase bill first
-            ksort($billPayableMap);
-
-            // 4. Distribute payment to bills with sold-product payable amounts
+            // Distribute payment proportionally to bills with sold-product payable amounts
             if (!empty($billPayableMap)) {
                 foreach ($billPayableMap as $billId => $entry) {
-                    if ($remainingPayment <= 0.009) break;
+                    if ($remainingPayment <= 0)
+                        break;
 
-                    // Refresh bill from DB to get the latest due_amount
-                    $bill    = PurchaseBill::find($billId);
-                    if (!$bill || (float) $bill->due_amount <= 0.009) continue;
+                    // Refresh bill from DB to get the latest due_amount (avoids stale cached values)
+                    $bill = PurchaseBill::find($billId);
+                    if (!$bill || (float) $bill->due_amount <= 0)
+                        continue;
                     $billDue = (float) $bill->due_amount;
 
+                    // Allocate minimum of: remaining payment, this bill's current due, this bill's sold-product payable
                     $allocAmount = min($remainingPayment, $billDue, $entry['payable']);
-                    $allocAmount = round($allocAmount, 2);
-                    if ($allocAmount <= 0.009) continue;
+                    if ($allocAmount <= 0)
+                        continue;
 
                     $paymentData = [
-                        'supplier_id'      => $supplierId,
+                        'supplier_id' => $supplierId,
                         'purchase_bill_id' => $bill->id,
-                        'amount'           => $allocAmount,
-                        'payment_date'     => $paymentDate,
-                        'payment_method'   => $paymentMethod,
-                        'account_id'       => $accountId,
-                        'reference'        => $reference,
-                        'note'             => $note
+                        'amount' => $allocAmount,
+                        'payment_date' => $paymentDate,
+                        'payment_method' => $paymentMethod,
+                        'account_id' => $accountId,
+                        'reference' => $reference,
+                        'note' => $note
                             ? $note . " (Pay-on-Sale for Bill #{$bill->bill_number})"
                             : "Pay-on-Sale Settlement for Bill #{$bill->bill_number}",
-                        'created_by'       => $userId,
+                        'created_by' => $userId,
                     ];
 
                     if ($hasPaymentTypeColumn) {
@@ -364,9 +323,9 @@ class PayOnSaleSettlementService
 
                     // Update PurchaseBill due/paid/status
                     $bill->paid_amount += $allocAmount;
-                    $bill->due_amount  -= $allocAmount;
+                    $bill->due_amount -= $allocAmount;
                     if ($bill->due_amount <= 0) {
-                        $bill->status     = 'paid';
+                        $bill->status = 'paid';
                         $bill->due_amount = 0;
                     } elseif ($bill->paid_amount > 0) {
                         $bill->status = 'partial';
@@ -380,28 +339,31 @@ class PayOnSaleSettlementService
                 }
             }
 
-            // 5. Any remainder goes to any remaining due bills for this supplier
-            if (round($remainingPayment, 2) > 0.009) {
+            // Any remainder (no matching sold-product bill found) goes as advance 
+            if ($remainingPayment > 0) {
+                // Fallback: apply remaining to oldest due bill
                 $fallbackBills = PurchaseBill::where('supplier_id', $supplierId)
                     ->where('due_amount', '>', 0)
-                    ->orderBy('id', 'asc')
+                    ->orderBy('created_at', 'asc')
                     ->get();
 
                 foreach ($fallbackBills as $bill) {
-                    if ($remainingPayment <= 0.009) break;
-                    $allocAmount = round(min($remainingPayment, (float) $bill->due_amount), 2);
-                    if ($allocAmount <= 0.009) continue;
+                    if ($remainingPayment <= 0)
+                        break;
+                    $allocAmount = min($remainingPayment, (float) $bill->due_amount);
+                    if ($allocAmount <= 0)
+                        continue;
 
                     $paymentData = [
-                        'supplier_id'      => $supplierId,
+                        'supplier_id' => $supplierId,
                         'purchase_bill_id' => $bill->id,
-                        'amount'           => $allocAmount,
-                        'payment_date'     => $paymentDate,
-                        'payment_method'   => $paymentMethod,
-                        'account_id'       => $accountId,
-                        'reference'        => $reference,
-                        'note'             => ($note ? $note . ' ' : '') . "(Pay-on-Sale Remainder for Bill #{$bill->bill_number})",
-                        'created_by'       => $userId,
+                        'amount' => $allocAmount,
+                        'payment_date' => $paymentDate,
+                        'payment_method' => $paymentMethod,
+                        'account_id' => $accountId,
+                        'reference' => $reference,
+                        'note' => ($note ? $note . ' ' : '') . "(Pay-on-Sale Remainder for Bill #{$bill->bill_number})",
+                        'created_by' => $userId,
                     ];
                     if ($hasPaymentTypeColumn) {
                         $paymentData['payment_type'] = 'pay_on_sale';
@@ -409,9 +371,10 @@ class PayOnSaleSettlementService
 
                     $payment = SupplierPayment::create($paymentData);
                     $bill->paid_amount += $allocAmount;
-                    $bill->due_amount  -= $allocAmount;
-                    $bill->status       = $bill->due_amount <= 0 ? 'paid' : 'partial';
-                    if ($bill->due_amount < 0) $bill->due_amount = 0;
+                    $bill->due_amount -= $allocAmount;
+                    $bill->status = $bill->due_amount <= 0 ? 'paid' : 'partial';
+                    if ($bill->due_amount < 0)
+                        $bill->due_amount = 0;
                     $bill->save();
 
                     $this->recordPaymentAccountingDetails($payment, $financialAccount, $supplierId, $allocAmount, $paymentDate, $reference, $userId);
@@ -473,41 +436,41 @@ class PayOnSaleSettlementService
             }
 
             $journal = Journal::create([
-                'voucher_no'     => $voucherNo,
-                'entry_date'     => $paymentDate,
-                'type'           => 'Payment',
-                'description'    => 'Auto: Pay-on-Sale Settlement #' . $payment->id . ' to ' . ($supplier?->name ?? 'Supplier'),
-                'supplier_id'    => $supplierId,
-                'branch_id'      => null,
+                'voucher_no' => $voucherNo,
+                'entry_date' => $paymentDate,
+                'type' => 'Payment',
+                'description' => 'Auto: Pay-on-Sale Settlement #' . $payment->id . ' to ' . ($supplier?->name ?? 'Supplier'),
+                'supplier_id' => $supplierId,
+                'branch_id' => null,
                 'voucher_amount' => $amount,
-                'paid_amount'    => $amount,
-                'reference'      => $reference,
-                'created_by'     => $userId,
-                'updated_by'     => $userId,
+                'paid_amount' => $amount,
+                'reference' => $reference,
+                'created_by' => $userId,
+                'updated_by' => $userId,
             ]);
 
             // DEBIT: Accounts Payable
             JournalEntry::create([
-                'journal_id'           => $journal->id,
-                'chart_of_account_id'  => $payableChartAccount->id,
+                'journal_id' => $journal->id,
+                'chart_of_account_id' => $payableChartAccount->id,
                 'financial_account_id' => null,
-                'debit'                => $amount,
-                'credit'               => 0,
-                'memo'                 => 'Pay-on-Sale Settlement to ' . ($supplier?->name ?? 'Supplier'),
-                'created_by'           => $userId,
-                'updated_by'           => $userId,
+                'debit' => $amount,
+                'credit' => 0,
+                'memo' => 'Pay-on-Sale Settlement to ' . ($supplier?->name ?? 'Supplier'),
+                'created_by' => $userId,
+                'updated_by' => $userId,
             ]);
 
             // CREDIT: Bank/Cash
             JournalEntry::create([
-                'journal_id'           => $journal->id,
-                'chart_of_account_id'  => $paymentChartAccountId,
+                'journal_id' => $journal->id,
+                'chart_of_account_id' => $paymentChartAccountId,
                 'financial_account_id' => $financialAccount->id,
-                'debit'                => 0,
-                'credit'               => $amount,
-                'memo'                 => 'Payment via ' . $financialAccount->provider_name,
-                'created_by'           => $userId,
-                'updated_by'           => $userId,
+                'debit' => 0,
+                'credit' => $amount,
+                'memo' => 'Payment via ' . $financialAccount->provider_name,
+                'created_by' => $userId,
+                'updated_by' => $userId,
             ]);
         }
     }
@@ -524,7 +487,7 @@ class PayOnSaleSettlementService
     public function getProductNetSoldQuantity($productId, $variationId = null, $startDate = null, $endDate = null)
     {
         $startDateStr = $startDate ? (\Carbon\Carbon::parse($startDate)->format('Y-m-d')) : null;
-        $endDateStr   = $endDate ? (\Carbon\Carbon::parse($endDate)->format('Y-m-d')) : null;
+        $endDateStr = $endDate ? (\Carbon\Carbon::parse($endDate)->format('Y-m-d')) : null;
 
         $product = Product::find($productId);
         $isCombo = $product && $product->type === 'combo';
@@ -536,8 +499,10 @@ class PayOnSaleSettlementService
         $posDirectQuery = PosItem::where('product_id', $productId)
             ->whereHas('pos', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', '!=', 'cancelled');
-                if ($startDateStr) $q->whereDate('sale_date', '>=', $startDateStr);
-                if ($endDateStr)   $q->whereDate('sale_date', '<=', $endDateStr);
+                if ($startDateStr)
+                    $q->whereDate('sale_date', '>=', $startDateStr);
+                if ($endDateStr)
+                    $q->whereDate('sale_date', '<=', $endDateStr);
             });
 
         if ($variationId) {
@@ -568,8 +533,10 @@ class PayOnSaleSettlementService
                     ->whereDoesntHave('childItems')
                     ->whereHas('pos', function ($q) use ($startDateStr, $endDateStr) {
                         $q->where('status', '!=', 'cancelled');
-                        if ($startDateStr) $q->whereDate('sale_date', '>=', $startDateStr);
-                        if ($endDateStr)   $q->whereDate('sale_date', '<=', $endDateStr);
+                        if ($startDateStr)
+                            $q->whereDate('sale_date', '>=', $startDateStr);
+                        if ($endDateStr)
+                            $q->whereDate('sale_date', '<=', $endDateStr);
                     })
                     ->sum('quantity');
 
@@ -582,8 +549,10 @@ class PayOnSaleSettlementService
             ->where('type', 'new')
             ->whereHas('exchange', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', 'completed');
-                if ($startDateStr) $q->whereDate('exchange_date', '>=', $startDateStr);
-                if ($endDateStr)   $q->whereDate('exchange_date', '<=', $endDateStr);
+                if ($startDateStr)
+                    $q->whereDate('exchange_date', '>=', $startDateStr);
+                if ($endDateStr)
+                    $q->whereDate('exchange_date', '<=', $endDateStr);
             });
         if ($variationId) {
             $posExchangeNewQuery->where('variation_id', $variationId);
@@ -594,8 +563,10 @@ class PayOnSaleSettlementService
             ->where('type', 'returned')
             ->whereHas('exchange', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', 'completed');
-                if ($startDateStr) $q->whereDate('exchange_date', '>=', $startDateStr);
-                if ($endDateStr)   $q->whereDate('exchange_date', '<=', $endDateStr);
+                if ($startDateStr)
+                    $q->whereDate('exchange_date', '>=', $startDateStr);
+                if ($endDateStr)
+                    $q->whereDate('exchange_date', '<=', $endDateStr);
             });
         if ($variationId) {
             $posExchangeRetQuery->where('variation_id', $variationId);
@@ -606,9 +577,11 @@ class PayOnSaleSettlementService
         $posReturnQuery = SaleReturnItem::where('product_id', $productId)
             ->whereHas('saleReturn', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', '!=', 'rejected')
-                  ->where('refund_type', '!=', 'exchange'); // Exclude exchange returns
-                if ($startDateStr) $q->whereDate('return_date', '>=', $startDateStr);
-                if ($endDateStr)   $q->whereDate('return_date', '<=', $endDateStr);
+                    ->where('refund_type', '!=', 'exchange'); // Exclude exchange returns
+                if ($startDateStr)
+                    $q->whereDate('return_date', '>=', $startDateStr);
+                if ($endDateStr)
+                    $q->whereDate('return_date', '<=', $endDateStr);
             });
         if ($variationId) {
             $posReturnQuery->where('variation_id', $variationId);
@@ -624,8 +597,10 @@ class PayOnSaleSettlementService
         $onlineDirectQuery = OrderItem::where('product_id', $productId)
             ->whereHas('order', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', '!=', 'cancelled');
-                if ($startDateStr) $q->whereDate('created_at', '>=', $startDateStr);
-                if ($endDateStr)   $q->whereDate('created_at', '<=', $endDateStr);
+                if ($startDateStr)
+                    $q->whereDate('created_at', '>=', $startDateStr);
+                if ($endDateStr)
+                    $q->whereDate('created_at', '<=', $endDateStr);
             });
 
         if ($variationId) {
@@ -655,8 +630,10 @@ class PayOnSaleSettlementService
                     ->whereDoesntHave('childItems')
                     ->whereHas('order', function ($q) use ($startDateStr, $endDateStr) {
                         $q->where('status', '!=', 'cancelled');
-                        if ($startDateStr) $q->whereDate('created_at', '>=', $startDateStr);
-                        if ($endDateStr)   $q->whereDate('created_at', '<=', $endDateStr);
+                        if ($startDateStr)
+                            $q->whereDate('created_at', '>=', $startDateStr);
+                        if ($endDateStr)
+                            $q->whereDate('created_at', '<=', $endDateStr);
                     })
                     ->sum('quantity');
 
@@ -668,8 +645,10 @@ class PayOnSaleSettlementService
         $orderReturnQuery = OrderReturnItem::where('product_id', $productId)
             ->whereHas('orderReturn', function ($q) use ($startDateStr, $endDateStr) {
                 $q->where('status', '!=', 'rejected');
-                if ($startDateStr) $q->whereDate('return_date', '>=', $startDateStr);
-                if ($endDateStr)   $q->whereDate('return_date', '<=', $endDateStr);
+                if ($startDateStr)
+                    $q->whereDate('return_date', '>=', $startDateStr);
+                if ($endDateStr)
+                    $q->whereDate('return_date', '<=', $endDateStr);
             });
         if ($variationId) {
             $orderReturnQuery->where('variation_id', $variationId);

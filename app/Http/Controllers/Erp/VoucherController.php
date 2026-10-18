@@ -44,8 +44,9 @@ class VoucherController extends Controller
             ->whereBetween('entry_date', [$startDate, $endDate]);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
+        $branchId = $restrictedBranchId ?: ($request->filled('branch_id') && $request->branch_id != 'all' ? $request->branch_id : null);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
         }
 
         if ($request->filled('customer_id') && $request->customer_id != 'all') {
@@ -139,7 +140,9 @@ class VoucherController extends Controller
           ->orderBy('name')
           ->get();
 
-        return view('erp.vouchers.index', compact('vouchers', 'startDate', 'endDate', 'customers', 'suppliers', 'expenseAccounts', 'reportType', 'totals', 'selectedAccount', 'totalAccountAmount'));
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::orderBy('name')->get();
+
+        return view('erp.vouchers.index', compact('vouchers', 'startDate', 'endDate', 'customers', 'suppliers', 'expenseAccounts', 'reportType', 'totals', 'selectedAccount', 'totalAccountAmount', 'branches', 'branchId', 'restrictedBranchId'));
     }
 
     public function create()
@@ -353,8 +356,9 @@ class VoucherController extends Controller
             ->whereBetween('entry_date', [$startDate, $endDate]);
 
         $restrictedBranchId = $this->getRestrictedBranchId();
-        if ($restrictedBranchId) {
-            $query->where('branch_id', $restrictedBranchId);
+        $branchId = $restrictedBranchId ?: ($request->filled('branch_id') && $request->branch_id != 'all' ? $request->branch_id : null);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
         }
         if ($request->filled('customer_id') && $request->customer_id != 'all') {
             $query->where('customer_id', $request->customer_id);

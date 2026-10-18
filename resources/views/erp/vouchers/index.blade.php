@@ -105,6 +105,18 @@
                                 </select>
                             </div>
 
+                            @if(!$restrictedBranchId)
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch *</label>
+                                <select name="branch_id" class="form-select select2">
+                                    <option value="all">All Branches</option>
+                                    @foreach($branches as $b)
+                                        <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
+
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Customer *</label>
                                 <select name="customer_id" class="form-select select2">

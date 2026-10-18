@@ -3,7 +3,14 @@
         <td class="ps-4 text-dark fw-500">{{ \Carbon\Carbon::parse($entry->journal->entry_date)->format('d M, Y') }}</td>
         <td>
             <div class="d-flex flex-column">
-                <span class="badge bg-light text-dark border mb-1 align-self-start py-1 px-2 fw-normal">{{ $entry->journal->voucher_no }}</span>
+                <div class="d-flex align-items-center gap-1 mb-1 flex-wrap">
+                    <span class="badge bg-light text-dark border py-1 px-2 fw-normal">{{ $entry->journal->voucher_no }}</span>
+                    @if($entry->journal->branch)
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25" style="font-size: 11px;">
+                            <i class="fas fa-store me-1"></i>{{ $entry->journal->branch->name }}
+                        </span>
+                    @endif
+                </div>
                 <span class="text-muted small text-truncate" style="max-width: 250px;" title="{{ $entry->journal->description }}">{{ $entry->journal->description }}</span>
             </div>
         </td>
@@ -37,7 +44,7 @@
                 <a href="{{ route('journal.show', $entry->journal_id) }}" class="action-circle bg-light" title="View Voucher">
                     <i class="fas fa-eye text-primary"></i>
                 </a>
-                <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}" class="action-circle bg-light" title="View Full Account Ledger">
+                <a href="{{ route('ledger.account', $entry->chart_of_account_id) }}{{ request('branch_id') ? '?branch_id=' . request('branch_id') : '' }}" class="action-circle bg-light" title="View Full Account Ledger">
                     <i class="fas fa-book text-info"></i>
                 </a>
             </div>
