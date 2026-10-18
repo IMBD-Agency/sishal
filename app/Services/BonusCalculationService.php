@@ -113,16 +113,35 @@ class BonusCalculationService
     {
         $monthNum = is_numeric($month) ? str_pad($month, 2, '0', STR_PAD_LEFT) : date('m', strtotime($month));
 
-        // 1. Gross POS Sales quantity for the branch in this period
+        // 1. Gross POS Sales quantity for the branch in this period (excluding combo child items to avoid double-counting)
         $grossSalesQty = (float) DB::table('pos_items')
             ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.branch_id', $branchId)
+            ->whereNull('pos_items.parent_item_id')
             ->whereMonth('pos.sale_date', '=', $monthNum)
             ->whereYear('pos.sale_date', '=', $year)
             ->where('pos.status', '!=', 'cancelled')
             ->sum('pos_items.quantity');
 
-        // 2. Total POS Sale Returns quantity for the branch in this period
+        // 2. POS Exchanges - New items handed out for the branch in this period
+        $exchangeNewQty = (float) DB::table('pos_exchange_items')
+            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+            ->where(function ($q) use ($branchId) {
+                $q->where('pos_exchanges.branch_id', $branchId)
+                  ->orWhereExists(function ($sub) use ($branchId) {
+                      $sub->select(DB::raw(1))
+                          ->from('pos')
+                          ->whereColumn('pos.id', 'pos_exchanges.original_pos_id')
+                          ->where('pos.branch_id', $branchId);
+                  });
+            })
+            ->where('pos_exchange_items.type', 'new')
+            ->where('pos_exchanges.status', 'completed')
+            ->whereMonth('pos_exchanges.exchange_date', '=', $monthNum)
+            ->whereYear('pos_exchanges.exchange_date', '=', $year)
+            ->sum('pos_exchange_items.quantity');
+
+        // 3. Total POS Sale Returns quantity for the branch in this period (regular returns and exchange returns)
         $returnQty = (float) DB::table('sale_returns')
             ->join('sale_return_items', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')
             ->where(function ($q) use ($branchId) {
@@ -141,7 +160,7 @@ class BonusCalculationService
             ->where('sale_returns.status', '!=', 'rejected')
             ->sum('sale_return_items.returned_qty');
 
-        return max(0, $grossSalesQty - $returnQty);
+        return max(0, ($grossSalesQty + $exchangeNewQty) - $returnQty);
     }
 
     public function calculateEmployeeSales($employeeId, $month, $year)
