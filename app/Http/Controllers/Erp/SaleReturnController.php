@@ -505,6 +505,8 @@ class SaleReturnController extends Controller
             $this->processReturn($saleReturn);
 
             DB::commit();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             return redirect()->route('saleReturn.list')->with('success', 'Sale return created and processed successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -733,6 +735,8 @@ class SaleReturnController extends Controller
             $saleReturn->delete();
 
             DB::commit();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
 
             $successMsg = 'Sale return deleted successfully and stock rolled back.';
             if ($request->ajax() || $request->wantsJson()) {
@@ -792,6 +796,8 @@ class SaleReturnController extends Controller
             }
 
             DB::commit();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
 
             $statusMessage = match ($newStatus) {
                 'approved' => 'Sale return has been approved successfully.',

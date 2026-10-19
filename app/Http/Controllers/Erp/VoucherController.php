@@ -321,6 +321,52 @@ class VoucherController extends Controller
         try {
             DB::beginTransaction();
             $journal = Journal::findOrFail($id);
+
+            // If this journal is linked to a Supplier Payment, roll back the bill, ledger, and payment cleanly
+            $sp = null;
+            if (preg_match('/(?:POS-PAY|PAY)-0*([0-9]+)/', $journal->voucher_no, $matches)) {
+                $sp = \App\Models\SupplierPayment::find((int)$matches[1]);
+            }
+            if (!$sp && preg_match('/#([0-9]+)/', $journal->description, $matches)) {
+                $sp = \App\Models\SupplierPayment::find((int)$matches[1]);
+            }
+
+            if ($sp) {
+                if ($sp->purchase_bill_id) {
+                    $bill = $sp->bill;
+                    if ($bill) {
+                        $bill->paid_amount = max(0, $bill->paid_amount - $sp->amount);
+                        $bill->due_amount = min((float)$bill->total_amount, $bill->due_amount + $sp->amount);
+                        $bill->status = $bill->paid_amount <= 0 ? 'unpaid' : 'partial';
+                        $bill->save();
+                    }
+                }
+
+                \App\Models\SupplierLedger::where('description', 'like', "%Payment #{$sp->id}%")
+                    ->orWhere(function($q) use ($sp) {
+                        $q->where('transactionable_type', \App\Models\SupplierPayment::class)
+                          ->where('transactionable_id', $sp->id);
+                    })->delete();
+
+                if ($sp->supplier_id) {
+                    $balance = \App\Models\Balance::where('source_type', 'supplier')->where('source_id', $sp->supplier_id)->first();
+                    if ($balance) {
+                        $balance->balance += $sp->amount;
+                        $balance->save();
+                    }
+                }
+
+                if ($sp->account_id) {
+                    $fa = \App\Models\FinancialAccount::find($sp->account_id);
+                    if ($fa) {
+                        $fa->balance += $sp->amount;
+                        $fa->save();
+                    }
+                }
+
+                $sp->delete();
+            }
+
             // Delete associated entries first (though database cascade should handle it)
             $journal->entries()->delete();
             $journal->delete();

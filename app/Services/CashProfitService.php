@@ -296,12 +296,14 @@ class CashProfitService
                 $branchProfits[$txBranchId] = [
                     'collection' => 0,
                     'cash_profit' => 0,
-                    'estimated_cogs' => 0
+                    'estimated_cogs' => 0,
+                    'net_collected' => 0
                 ];
             }
             $branchProfits[$txBranchId]['collection'] += $currentNetProductCollection;
             $branchProfits[$txBranchId]['cash_profit'] += $txCashProfit;
             $branchProfits[$txBranchId]['estimated_cogs'] += $txEstimatedCogs;
+            $branchProfits[$txBranchId]['net_collected'] += $netCollectionForTx;
 
             // Monthly aggregation
             foreach ($tx['events'] as $ev) {
@@ -327,6 +329,7 @@ class CashProfitService
             // Totals for detailed reports
             $totalGrossPayments += $currentPayments;
             $totalReturnRefunds += $currentRefunds;
+            $totalExchangeRefunds += $currentExchangeRefunds;
             $totalDeliveryCollected += min($deliveryAmount, max(0, $netCollectionForTx - $currentNetProductCollection));
             $totalVatCollected += min($vatAmount, max(0, $netCollectionForTx - $currentNetProductCollection - $deliveryAmount));
             $totalProductCollected += $currentNetProductCollection;

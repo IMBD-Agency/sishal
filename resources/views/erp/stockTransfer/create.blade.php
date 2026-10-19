@@ -116,17 +116,11 @@
                                     {{-- Super admin OR return mode: see all locations --}}
                                     <select name="from_outlet" id="from_outlet" class="form-select shadow-none select2-basic {{ isset($originalTransfer) ? 'bg-light' : '' }}" required {{ isset($originalTransfer) ? 'disabled' : '' }}>
                                         <option value="">Select Source Location</option>
-                                        <optgroup label="Warehouses">
-                                            @foreach($warehouses as $warehouse)
-                                                <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
-                                            @endforeach
-                                        </optgroup>
                                         <optgroup label="Warehouse Branches">
                                             @foreach($branches->where('is_warehouse', true) as $branch)
-                                                <option value="branch_{{ $branch->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }} (Warehouse)</option>
+                                                <option value="branch_{{ $branch->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
                                             @endforeach
                                         </optgroup>
-                                        @if(isset($originalTransfer))
                                         <optgroup label="Branches">
                                             @foreach($branches->where('is_warehouse', false) as $branch)
                                                 <option value="branch_{{ $branch->id }}"
@@ -135,7 +129,11 @@
                                                 </option>
                                             @endforeach
                                         </optgroup>
-                                        @endif
+                                        <optgroup label="Warehouses">
+                                            @foreach($warehouses as $warehouse)
+                                                <option value="warehouse_{{ $warehouse->id }}" {{ (isset($fromOutlet) && $fromOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                            @endforeach
+                                        </optgroup>
                                     </select>
                                     {{-- Mirror disabled select as hidden input so it submits --}}
                                     @if(isset($originalTransfer))
@@ -151,18 +149,21 @@
                                 </label>
                                 <select name="to_outlet" id="to_outlet" class="form-select shadow-none select2-basic {{ isset($originalTransfer) ? 'bg-light' : '' }}" required {{ isset($originalTransfer) ? 'disabled' : '' }}>
                                     <option value="">Select Target Destination</option>
-                                    <optgroup label="Branches">
-                                        @foreach($branches as $branch)
+                                    <optgroup label="Warehouse Branches">
+                                        @foreach($branches->where('is_warehouse', true) as $branch)
                                             <option value="branch_{{ $branch->id }}" {{ (isset($toOutlet) && $toOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
                                         @endforeach
                                     </optgroup>
-                                    @if(isset($originalTransfer))
+                                    <optgroup label="Branches">
+                                        @foreach($branches->where('is_warehouse', false) as $branch)
+                                            <option value="branch_{{ $branch->id }}" {{ (isset($toOutlet) && $toOutlet == 'branch_'.$branch->id) ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                     <optgroup label="Warehouses">
                                         @foreach($warehouses as $warehouse)
                                             <option value="warehouse_{{ $warehouse->id }}" {{ (isset($toOutlet) && $toOutlet == 'warehouse_'.$warehouse->id) ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                         @endforeach
                                     </optgroup>
-                                    @endif
                                 </select>
                                 @if(isset($originalTransfer))
                                     <input type="hidden" name="to_outlet" value="{{ $toOutlet ?? '' }}">

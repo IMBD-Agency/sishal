@@ -218,6 +218,7 @@ class SalaryPaymentController extends Controller
             // Don't fail the salary payment creation, just log the error
         }
 
+        \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
         return redirect()->route('salary.index')->with('success', 'Salary payment recorded successfully.');
     }
 
@@ -338,6 +339,8 @@ class SalaryPaymentController extends Controller
 
         // Delete salary payment
         $payment->delete();
+
+        \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
 
         return response()->json([
             'success' => true,

@@ -19,6 +19,8 @@ class SuperAdminDashboardController extends Controller
         }
     }
 
+    const CACHE_VERSION = 'v38';
+
     public static function clearCache()
     {
         $ranges = ['this_month', 'today', 'this_quarter', 'this_year', 'week'];
@@ -26,6 +28,9 @@ class SuperAdminDashboardController extends Controller
         
         foreach ($branches as $bId) {
             foreach ($ranges as $r) {
+                Cache::forget("super_admin_dash_" . self::CACHE_VERSION . "_{$bId}_{$r}");
+                Cache::forget("super_admin_dash_v37_{$bId}_{$r}");
+                Cache::forget("super_admin_dash_v36_{$bId}_{$r}");
                 Cache::forget("super_admin_dash_v35_{$bId}_{$r}");
             }
         }
@@ -72,7 +77,7 @@ class SuperAdminDashboardController extends Controller
      */
     private function fetchDashboardData($selectedBranchId, $dateRange, $branches)
     {
-        $cacheKey = "super_admin_dash_v36_{$selectedBranchId}_{$dateRange}";
+        $cacheKey = "super_admin_dash_" . self::CACHE_VERSION . "_{$selectedBranchId}_{$dateRange}";
 
         return Cache::remember($cacheKey, 180, function () use ($selectedBranchId, $dateRange, $branches) {
             $monthsWindow = $this->getMonthsArrayForRange($dateRange);
@@ -171,7 +176,7 @@ class SuperAdminDashboardController extends Controller
             $activeBranches = $branches->where('id', (int)$selectedBranchId);
         }
 
-        // 1. Today Net POS Sales Amount & Qty (Pure Product Revenue: Gross Items + Exchange Items - Return Items)
+        // 1. Today Net POS Sales Amount (Pure Product Revenue: Gross Items + Exchanges - Returns)
         $todayPosAggregates = DB::table('pos_items')
             ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->whereDate('pos.sale_date', $today)
@@ -249,7 +254,7 @@ class SuperAdminDashboardController extends Controller
             ->get()
             ->keyBy('branch_id');
 
-        // 2. Period Net POS Sales Amount (Pure Product Revenue: Gross Items + Exchange Items - Return Items)
+        // 2. Period Net POS Sales Amount (Pure Product Revenue: Gross Items + Exchanges - Returns)
         $periodPosAggregates = DB::table('pos_items')
             ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.sale_date', '>=', $startBound)
@@ -703,7 +708,7 @@ class SuperAdminDashboardController extends Controller
             ->get()
             ->groupBy('branch_id');
 
-        // 2. Branch Total Sales Value for the range (Pure Product Revenue: Gross + Exchanges - Returns)
+        // 2. Branch Total Sales Value for the range (Pure Product Revenue: Gross Items + Exchanges - Returns)
         $branchGrossSalesValues = DB::table('pos_items')
             ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
             ->where('pos.sale_date', '>=', $startDate)
@@ -820,9 +825,8 @@ class SuperAdminDashboardController extends Controller
             ->groupBy(DB::raw("COALESCE(CASE WHEN sale_returns.return_to_type = 'branch' THEN sale_returns.return_to_id ELSE NULL END, pos.branch_id, sale_returns.return_to_id)"))
             ->pluck('return_cogs', 'branch_id');
 
-        // Cash-Basis Profit Calculations
-        $profitStartDate = $dateRange === 'today' ? Carbon::today()->startOfDay()->format('Y-m-d H:i:s') : $startDate;
-        $profitEndDate = $dateRange === 'today' ? Carbon::today()->endOfDay()->format('Y-m-d H:i:s') : $endDate;
+        // Cash-Basis Profit Calculations for the user's selected timeframe
+        [$profitStartDate, $profitEndDate] = $this->getTimeframeBounds($dateRange);
         $cashProfitData = $this->calculateCashProfitData($profitStartDate, $profitEndDate, $selectedBranchId);
         $branchCashProfits = $cashProfitData['branch_profit'];
 
@@ -880,6 +884,11 @@ class SuperAdminDashboardController extends Controller
                 'total_profit' => $totalProfit,
                 'profit_pct' => $profitPct
             ];
+        }
+
+        if ($selectedBranchId === 'all') {
+            $totalGrandValue = (float)($cashProfitData['total_product_collected'] ?? $totalGrandValue);
+            $totalGrandProfit = (float)($cashProfitData['total_cash_profit'] ?? $totalGrandProfit);
         }
 
         $totalGrandProfitPct = $totalGrandValue > 0 ? round(($totalGrandProfit / $totalGrandValue) * 100, 2) : 0;
@@ -1100,11 +1109,45 @@ class SuperAdminDashboardController extends Controller
             ->groupBy(DB::raw("DATE_FORMAT(journals.entry_date, '%Y-%m')"))
             ->pluck('total_expense', 'ym_code');
 
-        // Cash-Basis Profit Calculations
-        $profitStartDate = $dateRange === 'today' ? Carbon::today()->startOfDay()->format('Y-m-d H:i:s') : $startDate;
-        $profitEndDate = $dateRange === 'today' ? Carbon::today()->endOfDay()->format('Y-m-d H:i:s') : $endDate;
-        $cashProfitData = $this->calculateCashProfitData($profitStartDate, $profitEndDate, $selectedBranchId);
-        $monthlyCashProfits = $cashProfitData['monthly_profit'];
+        // 6b. Monthly Un-journaled Employee Salary Payments (matches ReportController exactly)
+        $salaryQuery = DB::table('salary_payments')
+            ->where('payment_date', '>=', $startDate)
+            ->where('payment_date', '<=', $endDate)
+            ->whereNotExists(function($q) {
+                $q->select(DB::raw(1))
+                  ->from('journals')
+                  ->whereRaw('journals.voucher_no = CONCAT("SAL-", DATE_FORMAT(salary_payments.payment_date, "%Y%m%d"), "-", LPAD(salary_payments.id, 4, "0"))');
+            });
+
+        if ($selectedBranchId !== 'all' && is_numeric($selectedBranchId)) {
+            $salaryQuery->where('branch_id', (int)$selectedBranchId);
+        }
+
+        $salaryAggregates = $salaryQuery
+            ->selectRaw("DATE_FORMAT(payment_date, '%Y-%m') as ym_code, COALESCE(SUM(paid_amount), 0) as total_salary")
+            ->groupBy(DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
+            ->pluck('total_salary', 'ym_code');
+
+        // 6c. Monthly Other Incomes / Credit Vouchers (matches ReportController exactly)
+        $creditVoucherQuery = DB::table('journal_entries')
+            ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+            ->join('chart_of_accounts', 'journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
+            ->join('chart_of_account_types', 'chart_of_accounts.type_id', '=', 'chart_of_account_types.id')
+            ->where('chart_of_account_types.name', 'like', 'Revenue%')
+            ->where('chart_of_accounts.name', 'not like', '%Sales%')
+            ->where('chart_of_accounts.name', 'not like', '%Sale%')
+            ->where('chart_of_accounts.name', 'not like', '%Purchase%')
+            ->where('journals.entry_date', '>=', $startDate)
+            ->where('journals.entry_date', '<=', $endDate);
+
+        if ($selectedBranchId !== 'all' && is_numeric($selectedBranchId)) {
+            $creditVoucherQuery->where('journals.branch_id', (int)$selectedBranchId);
+        }
+
+        $otherIncomeAggregates = $creditVoucherQuery
+            ->selectRaw("DATE_FORMAT(journals.entry_date, '%Y-%m') as ym_code, COALESCE(SUM(journal_entries.credit) - SUM(journal_entries.debit), 0) as total_income")
+            ->groupBy(DB::raw("DATE_FORMAT(journals.entry_date, '%Y-%m')"))
+            ->pluck('total_income', 'ym_code');
 
         $salesQtys = [];
         $salesAmounts = [];
@@ -1112,34 +1155,39 @@ class SuperAdminDashboardController extends Controller
         $grossProfits = [];
         $grossProfitPcts = [];
         $operatingExpenses = [];
+        $otherIncomes = [];
         $netProfits = [];
         $netProfitPcts = [];
 
         foreach ($months as $mMeta) {
             $ymKey = $mMeta['ym_code'];
-            
+            $mStart = $mMeta['start'];
+            $mEnd = $mMeta['end'];
+
+            // Quantities
             $grossQty = (float) ($salesQtyAggregates->get($ymKey) ?? 0);
             $exchQty = (float) ($exchangeQtyAggregates->get($ymKey) ?? 0);
-            
-            $grossAmt = (float) ($salesAmountAggregates->get($ymKey) ?? 0);
-            $exchAmt = max(0, (float) ($exchangeAmountAggregates->get($ymKey) ?? 0) - (float) ($exchangeDiscountAggregates->get($ymKey) ?? 0));
-            $retAmt = (float) ($returnAmountAggregates->get($ymKey) ?? 0);
-            $netAmt = max(0, ($grossAmt + $exchAmt) - $retAmt);
-
             $retAgg = $monthlyReturnAggregates->get($ymKey);
             $retQty = (float) ($retAgg->ret_qty ?? 0);
-
             $netQty = max(0, ($grossQty + $exchQty) - $retQty);
 
-            $mCp = $monthlyCashProfits[$ymKey] ?? null;
-            $cashAmt = (float) ($mCp['collection'] ?? 0);
-            $gp = (float) ($mCp['cash_profit'] ?? 0);
-            $netCogs = (float) ($mCp['cogs'] ?? 0);
-
+            // Month-specific Cash Profit Data (evaluated for this month's window, 100% matches Cash Profit Report)
+            $mCpData = $this->calculateCashProfitData($mStart, $mEnd, $selectedBranchId);
+            $cashAmt = (float) ($mCpData['total_product_collected'] ?? 0);
+            $gp = (float) ($mCpData['total_cash_profit'] ?? 0);
+            $netCogs = (float) ($mCpData['total_estimated_cost'] ?? 0);
             $gpPct = $cashAmt > 0 ? round(($gp / $cashAmt) * 100, 2) : 0;
 
-            $exp = max(0, (float) ($expenseAggregates->get($ymKey) ?? 0));
-            $np = $gp - $exp;
+            // Operating expenses for this month (Journals + Un-journaled Salaries)
+            $jExp = (float) ($expenseAggregates->get($ymKey) ?? 0);
+            $sExp = (float) ($salaryAggregates->get($ymKey) ?? 0);
+            $exp = max(0, $jExp + $sExp);
+
+            // Other income (Credit vouchers for this month)
+            $otherInc = max(0, (float) ($otherIncomeAggregates->get($ymKey) ?? 0));
+
+            // Net Profit
+            $np = ($gp + $otherInc) - $exp;
             $npPct = $cashAmt > 0 ? round(($np / $cashAmt) * 100, 2) : 0;
 
             $salesQtys[] = $netQty;
@@ -1148,6 +1196,7 @@ class SuperAdminDashboardController extends Controller
             $grossProfits[] = $gp;
             $grossProfitPcts[] = $gpPct;
             $operatingExpenses[] = $exp;
+            $otherIncomes[] = $otherInc;
             $netProfits[] = $np;
             $netProfitPcts[] = $npPct;
         }
@@ -1158,49 +1207,68 @@ class SuperAdminDashboardController extends Controller
         $totalGrossProfit = array_sum($grossProfits);
         $totalGrossProfitPct = $totalSalesAmt > 0 ? round(($totalGrossProfit / $totalSalesAmt) * 100, 2) : 0;
         $totalExpense = array_sum($operatingExpenses);
-        $totalNetProfit = $totalGrossProfit - $totalExpense;
+        $totalOtherIncome = array_sum($otherIncomes);
+        $totalNetProfit = ($totalGrossProfit + $totalOtherIncome) - $totalExpense;
         $totalNetProfitPct = $totalSalesAmt > 0 ? round(($totalNetProfit / $totalSalesAmt) * 100, 2) : 0;
+
+        $rows = [
+            'month_sales_qty' => [
+                'label' => 'Month Sales Qty',
+                'values' => $salesQtys,
+                'year_total' => $totalQty,
+                'format' => 'qty'
+            ],
+            'month_sales_amount' => [
+                'label' => 'Month Sales Amount',
+                'values' => $salesAmounts,
+                'year_total' => $totalSalesAmt,
+                'format' => 'currency'
+            ],
+            'cogs' => [
+                'label' => 'Cost of Goods Sold (COGS)',
+                'values' => $cogsAmounts,
+                'year_total' => $totalCogsAmt,
+                'format' => 'currency'
+            ],
+            'gross_profit' => [
+                'label' => 'Gross Cash Profit',
+                'values' => $grossProfits,
+                'year_total' => $totalGrossProfit,
+                'format' => 'currency_highlight'
+            ],
+            'operating_expenses' => [
+                'label' => 'Operating Expenses',
+                'values' => $operatingExpenses,
+                'year_total' => $totalExpense,
+                'format' => 'currency_expense'
+            ],
+        ];
+
+        if ($totalOtherIncome > 0) {
+            $rows['other_income'] = [
+                'label' => 'Other Incomes (Credit Vouchers)',
+                'values' => $otherIncomes,
+                'year_total' => $totalOtherIncome,
+                'format' => 'currency'
+            ];
+        }
+
+        $rows['net_profit'] = [
+            'label' => 'Net Profit',
+            'values' => $netProfits,
+            'year_total' => $totalNetProfit,
+            'format' => 'currency_net'
+        ];
+        $rows['net_profit_pct'] = [
+            'label' => 'Net Profit %',
+            'values' => $netProfitPcts,
+            'year_total' => $totalNetProfitPct,
+            'format' => 'percent'
+        ];
 
         return [
             'months' => $monthHeadings,
-            'rows' => [
-                'month_sales_qty' => [
-                    'label' => 'Month Sales Qty',
-                    'values' => $salesQtys,
-                    'year_total' => $totalQty,
-                    'format' => 'qty'
-                ],
-                'month_sales_amount' => [
-                    'label' => 'Month Sales Amount',
-                    'values' => $salesAmounts,
-                    'year_total' => $totalSalesAmt,
-                    'format' => 'currency'
-                ],
-                'cogs' => [
-                    'label' => 'Cost of Goods Sold (COGS)',
-                    'values' => $cogsAmounts,
-                    'year_total' => $totalCogsAmt,
-                    'format' => 'currency'
-                ],
-                'operating_expenses' => [
-                    'label' => 'Operating Expenses',
-                    'values' => $operatingExpenses,
-                    'year_total' => $totalExpense,
-                    'format' => 'currency_expense'
-                ],
-                'net_profit' => [
-                    'label' => 'Net Profit',
-                    'values' => $netProfits,
-                    'year_total' => $totalNetProfit,
-                    'format' => 'currency_net'
-                ],
-                'net_profit_pct' => [
-                    'label' => 'Net Profit %',
-                    'values' => $netProfitPcts,
-                    'year_total' => $totalNetProfitPct,
-                    'format' => 'percent'
-                ],
-            ]
+            'rows' => $rows
         ];
     }
 
@@ -1239,6 +1307,28 @@ class SuperAdminDashboardController extends Controller
                 return (string)($item->branch_id ?? 'head_office');
             });
 
+        // Un-journaled Employee Salary Payments by branch
+        $salaryJournalQuery = DB::table('salary_payments')
+            ->where('payment_date', '>=', $startDate)
+            ->where('payment_date', '<=', $endDate)
+            ->whereNotExists(function($q) {
+                $q->select(DB::raw(1))
+                  ->from('journals')
+                  ->whereRaw('journals.voucher_no = CONCAT("SAL-", DATE_FORMAT(salary_payments.payment_date, "%Y%m%d"), "-", LPAD(salary_payments.id, 4, "0"))');
+            });
+
+        if ($selectedBranchId !== 'all' && is_numeric($selectedBranchId)) {
+            $salaryJournalQuery->where('branch_id', (int)$selectedBranchId);
+        }
+
+        $salaryData = $salaryJournalQuery
+            ->selectRaw("COALESCE(branch_id, 0) as branch_id, DATE_FORMAT(payment_date, '%Y-%m') as ym_code, COALESCE(SUM(paid_amount), 0) as amount")
+            ->groupBy(DB::raw("COALESCE(branch_id, 0)"), DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
+            ->get()
+            ->groupBy(function($item) {
+                return (string)($item->branch_id ?: 'head_office');
+            });
+
         $branchRows = [];
         $monthlyTotals = array_fill(0, count($months), 0);
         $totalYearExpense = 0;
@@ -1247,12 +1337,17 @@ class SuperAdminDashboardController extends Controller
             $branchMonthlyData = $expenseData->get((string)$b->id) ?? collect();
             $mappedByMonth = $branchMonthlyData->keyBy('ym_code');
 
+            $branchSalaryData = $salaryData->get((string)$b->id) ?? collect();
+            $mappedSalaryByMonth = $branchSalaryData->keyBy('ym_code');
+
             $monthlyVals = [];
             $yearTotal = 0;
 
             foreach ($months as $mIdx => $mMeta) {
                 $ymKey = $mMeta['ym_code'];
-                $val = (float) ($mappedByMonth->has($ymKey) ? max(0, $mappedByMonth->get($ymKey)->amount) : 0);
+                $jVal = (float) ($mappedByMonth->has($ymKey) ? max(0, $mappedByMonth->get($ymKey)->amount) : 0);
+                $sVal = (float) ($mappedSalaryByMonth->has($ymKey) ? max(0, $mappedSalaryByMonth->get($ymKey)->amount) : 0);
+                $val = $jVal + $sVal;
 
                 $monthlyVals[] = $val;
                 $yearTotal += $val;
@@ -1269,16 +1364,21 @@ class SuperAdminDashboardController extends Controller
         }
 
         // Also check if there are expenses with null branch_id (Head Office/General) when viewing all branches
-        if (($selectedBranchId === 'all' || $selectedBranchId === 'null') && $expenseData->has('head_office')) {
+        if (($selectedBranchId === 'all' || $selectedBranchId === 'null') && ($expenseData->has('head_office') || $salaryData->has('head_office'))) {
             $hoMonthlyData = $expenseData->get('head_office') ?? collect();
             $mappedByMonth = $hoMonthlyData->keyBy('ym_code');
+
+            $hoSalaryData = $salaryData->get('head_office') ?? collect();
+            $mappedSalaryByMonth = $hoSalaryData->keyBy('ym_code');
 
             $monthlyVals = [];
             $yearTotal = 0;
 
             foreach ($months as $mIdx => $mMeta) {
                 $ymKey = $mMeta['ym_code'];
-                $val = (float) ($mappedByMonth->has($ymKey) ? max(0, $mappedByMonth->get($ymKey)->amount) : 0);
+                $jVal = (float) ($mappedByMonth->has($ymKey) ? max(0, $mappedByMonth->get($ymKey)->amount) : 0);
+                $sVal = (float) ($mappedSalaryByMonth->has($ymKey) ? max(0, $mappedSalaryByMonth->get($ymKey)->amount) : 0);
+                $val = $jVal + $sVal;
 
                 $monthlyVals[] = $val;
                 $yearTotal += $val;

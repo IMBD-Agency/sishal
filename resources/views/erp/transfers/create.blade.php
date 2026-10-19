@@ -71,13 +71,10 @@
                                             @endphp
                                             <option value="{{ $account->id }}" data-balance="{{ $account->balance }}">
                                                 {{ $account->provider_name }} - {{ $account->account_number }} 
-                                                ({{ $location }}) [Balance: {{ number_format($account->balance, 2) }}৳]
+                                                ({{ $location }})
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div id="from_balance_display" class="form-text text-muted mt-2">
-                                        <i class="fas fa-wallet me-1"></i>Available Balance: <span class="fw-bold text-success">Select an account</span>
-                                    </div>
                                 </div>
 
                                 <!-- Arrow -->

@@ -610,6 +610,7 @@ class PosController extends Controller
             // =====================================================
 
             \App\Http\Controllers\Erp\DashboardController::clearCache();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
             DB::commit();
 
             // Send Sale Confirmation Email
@@ -1199,6 +1200,8 @@ class PosController extends Controller
             $pos->delete();
 
             DB::commit();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
             return redirect()->route('pos.list')->with('success', 'Sale #' . $pos->sale_number . ' deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1290,6 +1293,8 @@ class PosController extends Controller
                 $pos->delete();
             }
             DB::commit();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
             return response()->json(['success' => true, 'message' => 'Selected sales deleted successfully.']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1742,6 +1747,7 @@ class PosController extends Controller
             // =====================================================
 
             \App\Http\Controllers\Erp\DashboardController::clearCache();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Sale updated successfully.', 'sale_id' => $pos->id]);
         } catch (\Exception $e) {

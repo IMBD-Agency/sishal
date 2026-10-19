@@ -314,11 +314,12 @@
             Object.keys(data.grossSalesStatement.rows).forEach(key => {
                 const row = data.grossSalesStatement.rows[key];
                 const trClass = key === 'net_profit' ? 'table-light fw-bold' : (key === 'gross_profit' ? 'bg-light-subtle' : '');
-                const tdClass = key === 'net_profit' ? 'text-success' : (key === 'gross_profit' ? 'text-primary' : (key === 'operating_expenses' ? 'text-danger' : 'text-dark'));
+                const tdClass = key === 'net_profit' ? 'text-success' : (key === 'gross_profit' ? 'text-primary' : (key === 'operating_expenses' ? 'text-danger' : (key === 'other_income' ? 'text-info' : 'text-dark')));
                 let iconPrefix = '';
                 if (key === 'operating_expenses') iconPrefix = '<i class="fas fa-wallet text-danger me-1 opacity-75"></i>';
                 else if (key === 'net_profit') iconPrefix = '<i class="fas fa-trophy text-success me-1"></i>';
                 else if (key === 'gross_profit') iconPrefix = '<i class="fas fa-coins text-primary me-1"></i>';
+                else if (key === 'other_income') iconPrefix = '<i class="fas fa-hand-holding-usd text-info me-1"></i>';
 
                 gBody += `<tr class="${trClass}"><td class="fw-bold ${tdClass}">${iconPrefix}${row.label}</td>`;
 

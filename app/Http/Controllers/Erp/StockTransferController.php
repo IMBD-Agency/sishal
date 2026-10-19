@@ -544,7 +544,7 @@ class StockTransferController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('manage transfers') && !auth()->user()->hasPermissionTo('create transfers')) {
             abort(403, 'Unauthorized action.');
         }
         // Validate basic transfer information
@@ -580,14 +580,9 @@ class StockTransferController extends Controller
         return redirect()->back()->with('error', 'Invalid sender outlet selected.');
     }    
 
-    // Restrict to Warehouse or Warehouse-Branch -> Branch only (for new transfers)
-    if (!$request->return_of_id) {
-        $fromBranch = ($fromType === 'branch') ? \App\Models\Branch::find($fromId) : null;
-        $isFromWarehouse = ($fromType === 'warehouse') || ($fromBranch && $fromBranch->is_warehouse);
-        
-        if (!$isFromWarehouse || $toType !== 'branch') {
-            return redirect()->back()->with('error', 'Transfers are only allowed from Warehouse (or Warehouse Branch) to Branch.');
-        }
+    // Prevent sender and receiver being the exact same location
+    if ($fromOutlet === $toOutlet) {
+        return redirect()->back()->with('error', 'Sender and receiver outlet cannot be the same location.');
     }
 
         // Process each item and validate stock

@@ -22,6 +22,7 @@ use App\Models\PosExchangeItem;
 use App\Models\PosExchange;
 use App\Models\SaleReturn;
 use App\Models\OrderReturn;
+use App\Models\Balance;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -114,6 +115,19 @@ class PayOnSaleSettlementService
         $totalNetDuePayable = 0;
         $totalAlreadyPaid = 0;
 
+        // Track remaining paid amounts on bills for accurate FIFO matching
+        $billPaidRemaining = [];
+        foreach ($grouped as $gData) {
+            foreach ($gData['purchase_items'] as $pi) {
+                if ($pi->purchase?->bill) {
+                    $bId = $pi->purchase->bill->id;
+                    if (!isset($billPaidRemaining[$bId])) {
+                        $billPaidRemaining[$bId] = (float) $pi->purchase->bill->paid_amount;
+                    }
+                }
+            }
+        }
+
         foreach ($grouped as $key => $data) {
             $productId = $data['product_id'];
             $variationId = $data['variation_id'];
@@ -155,14 +169,15 @@ class PayOnSaleSettlementService
                 $allocCost = round($allocSold * (float) $pi->unit_price, 2);
 
                 $bill = $pi->purchase?->bill;
-                $billTotal = $bill ? (float) $bill->total_amount : 0;
-                $billPaid = $bill ? (float) $bill->paid_amount : 0;
-                $piGross = (float) ($pi->quantity * $pi->unit_price);
+                $bId = $bill?->id;
+                $availablePaid = ($bId && isset($billPaidRemaining[$bId])) ? $billPaidRemaining[$bId] : 0;
 
-                $piPaidShare = $billTotal > 0 ? round($billPaid * ($piGross / $billTotal), 2) : 0;
+                $allocPaid = min($availablePaid, $allocCost);
+                $allocNetDue = max(0, round($allocCost - $allocPaid, 2));
 
-                $allocPaid = min($piPaidShare, $allocCost);
-                $allocNetDue = max(0, round($allocCost - $piPaidShare, 2));
+                if ($bId && isset($billPaidRemaining[$bId])) {
+                    $billPaidRemaining[$bId] = max(0, $billPaidRemaining[$bId] - $allocPaid);
+                }
 
                 $itemSoldCostPayable += $allocCost;
                 $itemAlreadyPaid += $allocPaid;
@@ -227,7 +242,15 @@ class PayOnSaleSettlementService
                 ->get();
 
             $productGroups = [];
+            $billPaidRemaining = [];
             foreach ($purchaseItems as $pItem) {
+                if ($pItem->purchase?->bill) {
+                    $bId = $pItem->purchase->bill->id;
+                    if (!isset($billPaidRemaining[$bId])) {
+                        $billPaidRemaining[$bId] = (float) $pItem->purchase->bill->paid_amount;
+                    }
+                }
+
                 $key = $pItem->product_id . '_' . ($pItem->variation_id ?? '0');
                 if (!isset($productGroups[$key])) {
                     $productGroups[$key] = [
@@ -259,12 +282,14 @@ class PayOnSaleSettlementService
 
                     $bill = $pi->purchase?->bill;
                     if ($bill && (float) $bill->due_amount > 0) {
-                        $billTotal = (float) $bill->total_amount;
-                        $billPaid = (float) $bill->paid_amount;
-                        $piGross = (float) ($pi->quantity * $pi->unit_price);
+                        $bId = $bill->id;
+                        $availablePaid = isset($billPaidRemaining[$bId]) ? $billPaidRemaining[$bId] : 0;
+                        $allocPaid = min($availablePaid, $allocCost);
+                        $allocNetDue = max(0, round($allocCost - $allocPaid, 2));
 
-                        $piPaidShare = $billTotal > 0 ? round($billPaid * ($piGross / $billTotal), 2) : 0;
-                        $allocNetDue = max(0, round($allocCost - $piPaidShare, 2));
+                        if (isset($billPaidRemaining[$bId])) {
+                            $billPaidRemaining[$bId] = max(0, $billPaidRemaining[$bId] - $allocPaid);
+                        }
 
                         if ($allocNetDue > 0) {
                             $billId = $bill->id;
@@ -441,7 +466,7 @@ class PayOnSaleSettlementService
                 'type' => 'Payment',
                 'description' => 'Auto: Pay-on-Sale Settlement #' . $payment->id . ' to ' . ($supplier?->name ?? 'Supplier'),
                 'supplier_id' => $supplierId,
-                'branch_id' => null,
+                'branch_id' => $financialAccount->branch_id ?? ($payment->bill?->purchase?->location_id),
                 'voucher_amount' => $amount,
                 'paid_amount' => $amount,
                 'reference' => $reference,

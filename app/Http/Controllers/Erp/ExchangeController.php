@@ -712,6 +712,8 @@ class ExchangeController extends Controller
             }
 
             DB::commit();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
             // Since we don't have a dedicated POS Exchange view page yet, redirect back with success
             return response()->json(['success' => true, 'message' => 'Exchange completed successfully.', 'redirect' => route('exchange.list')]);
         } catch (\Exception $e) {
@@ -1240,6 +1242,8 @@ class ExchangeController extends Controller
             $posExchange->delete();
 
             DB::commit();
+            \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
+            \App\Http\Controllers\Erp\DashboardController::clearCache();
 
             $successMsg = 'Exchange deleted successfully and stock/accounting rolled back.';
             if ($request->ajax() || $request->wantsJson()) {
