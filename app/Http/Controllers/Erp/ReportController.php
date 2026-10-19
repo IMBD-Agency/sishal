@@ -782,7 +782,7 @@ class ReportController extends Controller
               ->whereRaw('journals.voucher_no = CONCAT("SAL-", DATE_FORMAT(salary_payments.payment_date, "%Y%m%d"), "-", LPAD(salary_payments.id, 4, "0"))');
         })->pluck('id');
         
-        $employeePayment = \App\Models\SalaryPayment::whereIn('id', $salaryPaymentIdsWithoutJournal)->sum('paid_amount');
+        $employeePayment = \App\Models\SalaryPayment::whereIn('id', $salaryPaymentIdsWithoutJournal)->selectRaw('COALESCE(SUM(paid_amount + COALESCE(bonus_amount, 0) + COALESCE(festival_bonus_amount, 0)), 0) as total')->value('total') ?? 0;
 
         $totalOperatingExpenses = $debitVoucher + $employeePayment;
 
@@ -1206,7 +1206,7 @@ class ReportController extends Controller
               ->whereRaw('journals.voucher_no = CONCAT("SAL-", DATE_FORMAT(salary_payments.payment_date, "%Y%m%d"), "-", LPAD(salary_payments.id, 4, "0"))');
         })->pluck('id');
         
-        $employeePayment = \App\Models\SalaryPayment::whereIn('id', $salaryPaymentIdsWithoutJournal)->sum('paid_amount');
+        $employeePayment = \App\Models\SalaryPayment::whereIn('id', $salaryPaymentIdsWithoutJournal)->selectRaw('COALESCE(SUM(paid_amount + COALESCE(bonus_amount, 0) + COALESCE(festival_bonus_amount, 0)), 0) as total')->value('total') ?? 0;
 
         // 4. Supplier Pay (Removed from P&L calculations since it's cash flow, not expense)
         $supplierPay = 0; 

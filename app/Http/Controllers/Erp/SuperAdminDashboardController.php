@@ -1124,7 +1124,7 @@ class SuperAdminDashboardController extends Controller
         }
 
         $salaryAggregates = $salaryQuery
-            ->selectRaw("DATE_FORMAT(payment_date, '%Y-%m') as ym_code, COALESCE(SUM(paid_amount), 0) as total_salary")
+            ->selectRaw("DATE_FORMAT(payment_date, '%Y-%m') as ym_code, COALESCE(SUM(paid_amount + COALESCE(bonus_amount, 0) + COALESCE(festival_bonus_amount, 0)), 0) as total_salary")
             ->groupBy(DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
             ->pluck('total_salary', 'ym_code');
 
@@ -1322,7 +1322,7 @@ class SuperAdminDashboardController extends Controller
         }
 
         $salaryData = $salaryJournalQuery
-            ->selectRaw("COALESCE(branch_id, 0) as branch_id, DATE_FORMAT(payment_date, '%Y-%m') as ym_code, COALESCE(SUM(paid_amount), 0) as amount")
+            ->selectRaw("COALESCE(branch_id, 0) as branch_id, DATE_FORMAT(payment_date, '%Y-%m') as ym_code, COALESCE(SUM(paid_amount + COALESCE(bonus_amount, 0) + COALESCE(festival_bonus_amount, 0)), 0) as amount")
             ->groupBy(DB::raw("COALESCE(branch_id, 0)"), DB::raw("DATE_FORMAT(payment_date, '%Y-%m')"))
             ->get()
             ->groupBy(function($item) {

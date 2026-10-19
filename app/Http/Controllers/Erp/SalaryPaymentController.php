@@ -163,6 +163,7 @@ class SalaryPaymentController extends Controller
         // Calculate and apply bonus if target exists
         $bonusService = new BonusCalculationService();
         $bonusService->applyBonusToSalaryPayment($salaryPayment->id, $request->bonus_amount, $request->boolean('is_bonus_editable', true));
+        $salaryPayment->refresh();
 
         // Create Journal Entry for Salary Payment
         try {
@@ -184,6 +185,9 @@ class SalaryPaymentController extends Controller
                     'entry_date' => $request->payment_date,
                     'description' => 'Salary payment for ' . $employee->user->first_name . ' - ' . $request->month . '/' . $request->year,
                     'branch_id' => $employee->branch_id,
+                    'expense_account_id' => $salaryAccount->id,
+                    'voucher_amount' => $totalPaymentAmount,
+                    'paid_amount' => $totalPaymentAmount,
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),
                 ]);
@@ -299,6 +303,22 @@ class SalaryPaymentController extends Controller
         $salaryPayment->update([
             'bonus_amount' => $request->bonus_amount,
         ]);
+        $salaryPayment->refresh();
+
+        // Also sync linked journal entry amounts if exists
+        $voucherNo = 'SAL-' . date('Ymd', strtotime($salaryPayment->payment_date)) . '-' . str_pad($salaryPayment->id, 4, '0', STR_PAD_LEFT);
+        $journal = Journal::where('voucher_no', $voucherNo)->first();
+        if ($journal) {
+            $newTotal = $salaryPayment->total_payment;
+            $journal->update([
+                'voucher_amount' => $newTotal,
+                'paid_amount' => $newTotal,
+            ]);
+            JournalEntry::where('journal_id', $journal->id)->where('debit', '>', 0)->update(['debit' => $newTotal]);
+            JournalEntry::where('journal_id', $journal->id)->where('credit', '>', 0)->update(['credit' => $newTotal]);
+        }
+
+        \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
 
         return response()->json([
             'success' => true,

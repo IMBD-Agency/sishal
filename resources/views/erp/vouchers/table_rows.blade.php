@@ -1,6 +1,9 @@
 @forelse($vouchers as $index => $voucher)
 @php
-    $rowAmount = $voucher->voucher_amount;
+    $fallbackAmount = (float)($voucher->entries->where('debit', '>', 0)->sum('debit') ?: $voucher->entries->where('credit', '>', 0)->sum('credit'));
+    $effectiveVoucherAmount = (floatval($voucher->voucher_amount) > 0) ? (float)$voucher->voucher_amount : $fallbackAmount;
+    $effectivePaidAmount = (floatval($voucher->paid_amount) > 0) ? (float)$voucher->paid_amount : $effectiveVoucherAmount;
+    $rowAmount = $effectiveVoucherAmount;
     $isSpecificAccount = false;
     $accountBadgeName = null;
     $isReturnReversal = false;
@@ -25,7 +28,7 @@
                 $isReturnReversal = true;
             }
         } elseif ($voucher->expense_account_id == $selectedAccount->id) {
-            $rowAmount = $voucher->voucher_amount;
+            $rowAmount = $effectiveVoucherAmount;
             $isSpecificAccount = true;
             $accountBadgeName = $selectedAccount->name;
         }
@@ -38,7 +41,7 @@
     <td>{{ \Carbon\Carbon::parse($voucher->entry_date)->format('d/m/Y') }}</td>
     <td>{{ $voucher->branch->name ?? '-' }}</td>
     <td>{{ $voucher->customer->name ?? '-' }}</td>
-    <td>{{ $voucher->expenseAccount->name ?? '-' }}</td>
+    <td>{{ $voucher->expenseAccount->name ?? ($voucher->entries->where('debit', '>', 0)->first()->chartOfAccount->name ?? '-') }}</td>
     <td>
         <div>{{ Str::limit($voucher->description, 35) }}</div>
         @if($voucher->reference)
@@ -60,11 +63,11 @@
                 @endif
             </div>
             <div class="text-muted" style="font-size: 10.5px; font-weight: normal;">
-                {{ $voucher->type == 'Payment' ? 'Return Total:' : 'Sale:' }} {{ number_format($voucher->voucher_amount, 2) }}৳
+                {{ $voucher->type == 'Payment' ? 'Return Total:' : 'Sale:' }} {{ number_format($effectiveVoucherAmount, 2) }}৳
             </div>
         @endif
     </td>
-    <td class="text-end fw-bold">{{ number_format($voucher->paid_amount, 2) }}৳</td>
+    <td class="text-end fw-bold">{{ number_format($effectivePaidAmount, 2) }}৳</td>
     <td>{{ $voucher->entries->where('credit', '>', 0)->first()->chartOfAccount->name ?? 'N/A' }}</td>
     <td class="pe-3 text-center">
         <div class="d-flex gap-2 justify-content-center">
