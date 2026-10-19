@@ -178,6 +178,8 @@ class SalaryPaymentController extends Controller
                 // Calculate Total for Journal
                 $totalPaymentAmount = $salaryPayment->paid_amount + $salaryPayment->bonus_amount + $salaryPayment->festival_bonus_amount;
 
+                $userId = auth()->id() ?: ($salaryPayment->created_by ?: 1);
+
                 // Create Journal Header
                 $journal = Journal::create([
                     'voucher_no' => 'SAL-' . date('Ymd', strtotime($request->payment_date)) . '-' . str_pad($salaryPayment->id, 4, '0', STR_PAD_LEFT),
@@ -188,8 +190,8 @@ class SalaryPaymentController extends Controller
                     'expense_account_id' => $salaryAccount->id,
                     'voucher_amount' => $totalPaymentAmount,
                     'paid_amount' => $totalPaymentAmount,
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
                 ]);
 
                 // Debit Entry: Salary Expense
@@ -199,8 +201,8 @@ class SalaryPaymentController extends Controller
                     'debit' => $totalPaymentAmount,
                     'credit' => 0,
                     'memo' => 'Salary expense - ' . $employee->user->first_name,
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
                 ]);
 
                 // Credit Entry: Cash/Bank Account
@@ -211,8 +213,8 @@ class SalaryPaymentController extends Controller
                     'debit' => 0,
                     'credit' => $totalPaymentAmount,
                     'memo' => 'Payment from ' . $finAcc->provider_name,
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
                 ]);
 
                 \Log::info('Journal entry created for salary payment ID: ' . $salaryPayment->id . ', Journal ID: ' . $journal->id);
