@@ -192,6 +192,20 @@ Route::get('/debug-october-expense', function() {
     return response($html);
 });
 
+Route::get('/fix-delivery-expense-entries', function() {
+    $deletedCount = \App\Models\JournalEntry::where('memo', 'Delivery charge collected from customer')->delete();
+    
+    // Clear superadmin dashboard cache
+    if (class_exists('\App\Http\Controllers\Erp\SuperAdminDashboardController')) {
+        \App\Http\Controllers\Erp\SuperAdminDashboardController::clearCache();
+    }
+    if (class_exists('\App\Http\Controllers\Erp\DashboardController')) {
+        \App\Http\Controllers\Erp\DashboardController::clearCache();
+    }
+
+    return response("<h3>Success! Deleted {$deletedCount} faulty Delivery Expense entries. SuperAdmin Dashboard cache cleared. <a href='/debug-october-expense'>View Debugger</a></h3>");
+});
+
 Route::get('/categories', [PageController::class, 'categories'])->name('categories');
 Route::get('/best-deal', [PageController::class, 'bestDeals'])->name('best.deal');
 // Removed service archive and details routes
