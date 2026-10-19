@@ -58,6 +58,140 @@ Route::get('/reset-financial-account-balances', function() {
     return response('All Financial Account Balances have been reset to 0 successfully!');
 });
 
+Route::get('/debug-october-expense', function() {
+    $now = \Carbon\Carbon::now();
+    $startDate = request('start_date', $now->copy()->startOfMonth()->format('Y-m-d H:i:s'));
+    $endDate = request('end_date', $now->copy()->endOfMonth()->format('Y-m-d H:i:s'));
+
+    $entries = DB::table('journal_entries')
+        ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+        ->join('chart_of_accounts', 'journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
+        ->join('chart_of_account_types', 'chart_of_accounts.type_id', '=', 'chart_of_account_types.id')
+        ->leftJoin('branches', 'journals.branch_id', '=', 'branches.id')
+        ->where('chart_of_account_types.name', 'like', 'Expense%')
+        ->where('chart_of_accounts.name', 'not like', '%Purchase%')
+        ->where('journals.entry_date', '>=', $startDate)
+        ->where('journals.entry_date', '<=', $endDate)
+        ->select(
+            'journals.id as journal_id',
+            'journals.voucher_no',
+            'journals.type as journal_type',
+            'journals.entry_date',
+            'journals.description',
+            'branches.name as branch_name',
+            'journals.branch_id',
+            'chart_of_accounts.name as account_name',
+            'chart_of_account_types.name as account_type',
+            'journal_entries.id as entry_id',
+            'journal_entries.debit',
+            'journal_entries.credit',
+            'journal_entries.memo',
+            DB::raw('(journal_entries.debit - journal_entries.credit) as net_amount')
+        )
+        ->orderBy('journals.entry_date')
+        ->orderBy('journals.id')
+        ->get();
+
+    $branchTotals = [];
+    $grandTotal = 0;
+    $suspiciousRows = [];
+
+    foreach ($entries as $e) {
+        $bName = $e->branch_name ?? ('Head Office / NULL (ID: ' . ($e->branch_id ?? 'null') . ')');
+        if (!isset($branchTotals[$bName])) {
+            $branchTotals[$bName] = 0;
+        }
+        $branchTotals[$bName] += (float)$e->net_amount;
+        $grandTotal += (float)$e->net_amount;
+
+        if ($e->credit > 0 || $e->net_amount < 0 || abs($e->net_amount - 320) < 0.01 || abs($e->credit - 320) < 0.01) {
+            $suspiciousRows[] = $e;
+        }
+    }
+
+    $salaries = DB::table('salary_payments')
+        ->leftJoin('branches', 'salary_payments.branch_id', '=', 'branches.id')
+        ->leftJoin('employees', 'salary_payments.employee_id', '=', 'employees.id')
+        ->leftJoin('users', 'employees.user_id', '=', 'users.id')
+        ->where('payment_date', '>=', $startDate)
+        ->where('payment_date', '<=', $endDate)
+        ->select(
+            'salary_payments.id',
+            'salary_payments.payment_date',
+            'branches.name as branch_name',
+            'users.first_name',
+            'users.last_name',
+            'salary_payments.paid_amount',
+            'salary_payments.bonus_amount',
+            'salary_payments.festival_bonus_amount'
+        )
+        ->get();
+
+    $html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Operating Expense Debugger</title>';
+    $html .= '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">';
+    $html .= '<style>body{padding:25px;background:#f8f9fa;font-family:sans-serif;} .card{margin-bottom:25px;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);}</style></head><body>';
+    $html .= '<div class="container-fluid">';
+    $html .= '<div class="d-flex justify-content-between align-items-center mb-4">';
+    $html .= '<h2>🔍 Operating Expense & Salary Debugger</h2>';
+    $html .= '<span class="badge bg-primary fs-6">Date Window: ' . substr($startDate, 0, 10) . ' to ' . substr($endDate, 0, 10) . '</span>';
+    $html .= '</div>';
+
+    // Highlight Suspicious entries
+    if (!empty($suspiciousRows)) {
+        $html .= '<div class="card border-danger">';
+        $html .= '<div class="card-header bg-danger text-white fw-bold">⚠️ SUSPICIOUS ENTRIES (Credits on Expense Accounts or 320 Tk adjustments)</div>';
+        $html .= '<div class="card-body p-0"><table class="table table-danger table-striped table-bordered mb-0"><thead><tr><th>Journal ID</th><th>Voucher No</th><th>Date</th><th>Branch</th><th>Account</th><th>Debit</th><th>Credit</th><th>Net Amount</th><th>Memo / Desc</th></tr></thead><tbody>';
+        foreach ($suspiciousRows as $sr) {
+            $html .= sprintf('<tr><td>#%d</td><td><strong>%s</strong></td><td>%s</td><td>%s</td><td>%s</td><td>%.2f</td><td class="text-danger fw-bold">%.2f</td><td class="fw-bold">%.2f</td><td>%s / %s</td></tr>',
+                $sr->journal_id, $sr->voucher_no, $sr->entry_date, $sr->branch_name ?? 'Head Office', $sr->account_name, $sr->debit, $sr->credit, $sr->net_amount, $sr->description, $sr->memo
+            );
+        }
+        $html .= '</tbody></table></div></div>';
+    }
+
+    // Comparison summary
+    $html .= '<div class="row g-3 mb-4">';
+    $html .= '<div class="col-md-6"><div class="card"><div class="card-header bg-dark text-white fw-bold">📊 Table 1 (Net Sales & Profit Statement): Operating Expenses</div>';
+    $html .= '<div class="card-body text-center"><h1 class="display-5 fw-bold text-danger">৳' . number_format($grandTotal, 2) . '</h1>';
+    $html .= '<p class="text-muted mb-0">Calculated as: SUM(Debit - Credit) of all branches</p></div></div></div>';
+
+    $html .= '<div class="col-md-6"><div class="card"><div class="card-header bg-dark text-white fw-bold">🏢 Table 2 (Expense Statement): Branch-wise Breakdown</div>';
+    $html .= '<div class="card-body p-0"><table class="table table-sm table-bordered mb-0"><thead><tr><th>Branch</th><th class="text-end">Expense</th></tr></thead><tbody>';
+    $t2Total = 0;
+    foreach ($branchTotals as $bName => $bTot) {
+        $disp = max(0, $bTot);
+        $t2Total += $disp;
+        $html .= sprintf('<tr><td>%s</td><td class="text-end fw-bold %s">৳%s</td></tr>', $bName, $bTot < 0 ? 'text-danger' : '', number_format($bTot, 2));
+    }
+    $html .= sprintf('<tr class="table-light fw-bold"><td>TOTAL (with max(0)):</td><td class="text-end text-success fs-5">৳%s</td></tr>', number_format($t2Total, 2));
+    $html .= '</tbody></table></div></div></div></div>';
+
+    // All Journal Entries
+    $html .= '<div class="card"><div class="card-header bg-secondary text-white fw-bold">📋 All Journal Entries in Current Month (' . $entries->count() . ' rows)</div>';
+    $html .= '<div class="card-body p-0"><div class="table-responsive"><table class="table table-hover table-bordered table-sm mb-0"><thead><tr class="table-dark"><th>#</th><th>Voucher No</th><th>Type</th><th>Date</th><th>Branch</th><th>Chart of Account</th><th>Debit</th><th>Credit</th><th>Net (Debit-Credit)</th><th>Memo / Description</th></tr></thead><tbody>';
+    foreach ($entries as $e) {
+        $rowClass = ($e->credit > 0 || $e->net_amount < 0) ? 'table-warning' : '';
+        $html .= sprintf('<tr class="%s"><td>%d</td><td><strong>%s</strong></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class="text-end">%.2f</td><td class="text-end %s">%.2f</td><td class="text-end fw-bold">%.2f</td><td><small>%s | %s</small></td></tr>',
+            $rowClass, $e->journal_id, $e->voucher_no, $e->journal_type, $e->entry_date, $e->branch_name ?? 'Head Office', $e->account_name, $e->debit, $e->credit > 0 ? 'text-danger fw-bold' : '', $e->credit, $e->net_amount, $e->description, $e->memo
+        );
+    }
+    $html .= '</tbody></table></div></div></div>';
+
+    // Salary Payments
+    $html .= '<div class="card"><div class="card-header bg-info text-white fw-bold">💵 Salary Payments in Current Month (' . $salaries->count() . ' records)</div>';
+    $html .= '<div class="card-body p-0"><table class="table table-sm table-bordered mb-0"><thead><tr class="table-light"><th>ID</th><th>Date</th><th>Employee</th><th>Branch</th><th>Paid Amount</th><th>Target Bonus</th><th>Festival Bonus</th><th>Total</th></tr></thead><tbody>';
+    foreach ($salaries as $s) {
+        $tot = $s->paid_amount + ($s->bonus_amount ?? 0) + ($s->festival_bonus_amount ?? 0);
+        $html .= sprintf('<tr><td>#%d</td><td>%s</td><td>%s %s</td><td>%s</td><td class="text-end">৳%.2f</td><td class="text-end">৳%.2f</td><td class="text-end">৳%.2f</td><td class="text-end fw-bold">৳%.2f</td></tr>',
+            $s->id, $s->payment_date, $s->first_name, $s->last_name, $s->branch_name ?? 'N/A', $s->paid_amount, $s->bonus_amount ?? 0, $s->festival_bonus_amount ?? 0, $tot
+        );
+    }
+    $html .= '</tbody></table></div></div>';
+
+    $html .= '</div></body></html>';
+    return response($html);
+});
+
 Route::get('/categories', [PageController::class, 'categories'])->name('categories');
 Route::get('/best-deal', [PageController::class, 'bestDeals'])->name('best.deal');
 // Removed service archive and details routes
