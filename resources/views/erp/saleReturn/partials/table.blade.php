@@ -30,6 +30,7 @@
                         <th class="text-center">Qty</th>
                         <th class="text-center">T.Qty</th>
                         <th class="text-end">T.Amount</th>
+                        <th class="text-end">VAT Amt</th>
                         <th class="text-end">Charge</th>
                         <th class="text-end">Paid</th>
                         <th class="text-center">Action</th>
@@ -37,7 +38,7 @@
                 </thead>
                 <tbody>
                     @php 
-                        $gQty = 0; $gAmt = 0;
+                        $gQty = 0; $gAmt = 0; $gVat = 0;
                     @endphp
                     @forelse($items as $index => $item)
                         @php
@@ -57,6 +58,19 @@
 
                             $gQty += $item->returned_qty;
                             $gAmt += $item->total_price;
+
+                            // Per-item proportional VAT
+                            $itemVat = 0;
+                            $posSale = $return->posSale ?? null;
+                            if ($posSale && $item->total_price > 0) {
+                                $vatRate = ($posSale->vat_rate > 0)
+                                    ? ($posSale->vat_rate / 100)
+                                    : ((($posSale->sub_total - $posSale->discount) > 0)
+                                        ? ($posSale->vat_amount / ($posSale->sub_total - $posSale->discount))
+                                        : 0);
+                                $itemVat = round($item->total_price * $vatRate, 2);
+                            }
+                            $gVat += $itemVat;
                         @endphp
                         <tr>
                             <td class="text-center text-muted">{{ $items->firstItem() + $index }}</td>
@@ -81,6 +95,7 @@
                             <td class="text-center">{{ $item->returned_qty }}</td>
                             <td class="text-center fw-bold">{{ $item->returned_qty }}</td>
                             <td class="text-end fw-bold">{{ number_format($item->total_price, 2) }}</td>
+                            <td class="text-end text-info fw-bold">{{ number_format($itemVat, 2) }}</td>
                             <td class="text-end">0.00</td>
                             <td class="text-end">0.00</td>
                              <td class="text-center">
@@ -97,7 +112,7 @@
                              </td>
                         </tr>
                     @empty
-                        <tr><td colspan="21" class="text-center py-5 text-muted">No records found</td></tr>
+                        <tr><td colspan="22" class="text-center py-5 text-muted">No records found</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="bg-light">
@@ -106,6 +121,7 @@
                         <td class="text-center">{{ $gQty }}</td>
                         <td class="text-center">{{ $gQty }}</td>
                         <td class="text-end">{{ number_format($gAmt, 2) }}</td>
+                        <td class="text-end text-info">{{ number_format($gVat, 2) }}</td>
                         <td class="text-end">0.00</td>
                         <td class="text-end">0.00</td>
                         <td></td>

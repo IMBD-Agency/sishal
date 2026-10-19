@@ -156,13 +156,18 @@ class SaleReturnController extends Controller
             'Color',
             'Size',
             'Qty',
-            'Total Amount'
+            'T.Qty',
+            'Total Amount',
+            'VAT Amount',
+            'Charge',
+            'Paid'
         ];
 
         $sheet->fromArray([$headers], NULL, 'A1');
-        $sheet->getStyle('A1:Q1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:V1')->getFont()->setBold(true);
 
         $rowNum = 2;
+        $gQty = 0; $gAmt = 0; $gVat = 0;
         foreach ($items as $index => $item) {
             $return = $item->saleReturn;
             if (!$return)
@@ -183,6 +188,22 @@ class SaleReturnController extends Controller
                 }
             }
 
+            // Per-item proportional VAT (same logic as blade)
+            $itemVat = 0;
+            $posSale = $return->posSale ?? null;
+            if ($posSale && $item->total_price > 0) {
+                $vatRate = ($posSale->vat_rate > 0)
+                    ? ($posSale->vat_rate / 100)
+                    : ((($posSale->sub_total - $posSale->discount) > 0)
+                        ? ($posSale->vat_amount / ($posSale->sub_total - $posSale->discount))
+                        : 0);
+                $itemVat = round($item->total_price * $vatRate, 2);
+            }
+
+            $gQty += $item->returned_qty;
+            $gAmt += $item->total_price;
+            $gVat += $itemVat;
+
             $data = [
                 $index + 1,
                 $return?->return_date ? \Carbon\Carbon::parse($return->return_date)->format('d/m/Y') : '-',
@@ -199,12 +220,30 @@ class SaleReturnController extends Controller
                 $product?->style_number ?? '-',
                 $color,
                 $size,
-                $item->returned_qty,
-                $item->total_price
+                $item->returned_qty,   // Qty
+                $item->returned_qty,   // T.Qty
+                $item->total_price,    // Total Amount
+                $itemVat,              // VAT Amount
+                0,                     // Charge
+                0,                     // Paid
             ];
             $sheet->fromArray([$data], NULL, 'A' . $rowNum);
             $rowNum++;
         }
+
+        // Grand total footer row (14 empties = A-N, label at O=Size, values at P-U)
+        $totalRow = [
+            '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+            'Grand Totals',  // O (Size col)
+            $gQty,           // P (Qty)
+            $gQty,           // Q (T.Qty)
+            round($gAmt, 2), // R (Total Amount)
+            round($gVat, 2), // S (VAT Amount)
+            0,               // T (Charge)
+            0,               // U (Paid)
+        ];
+        $sheet->fromArray([$totalRow], NULL, 'A' . $rowNum);
+        $sheet->getStyle('A' . $rowNum . ':U' . $rowNum)->getFont()->setBold(true);
 
         $writer = new Xlsx($spreadsheet);
         $filename = 'sale_return_report_' . date('Ymd_His') . '.xlsx';
