@@ -67,14 +67,15 @@
         }
 
         .barcode-img-box {
-            width: 95%;
+            width: 88%;
             height: 42pt; /* Taller barcode lines for instant scanner reading on 35mm label */
             margin: 0 auto;
         }
 
         .barcode-img-box img {
-            width: 100%;
+            max-width: 100%;
             height: 100%;
+            object-fit: contain;
         }
 
         .sku-text {

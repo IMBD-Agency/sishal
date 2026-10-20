@@ -126,7 +126,7 @@ class BarcodeGenerator
 
         // Generate Crisp SVG
         $svg = '<svg viewBox="0 0 ' . $svgWidth . ' ' . $height
-             . '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="image-rendering: pixelated; shape-rendering: crispEdges;">';
+             . '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="image-rendering: pixelated; shape-rendering: crispEdges;">';
 
         // Crisp white background
         $svg .= '<rect width="' . $svgWidth . '" height="' . $height . '" fill="#ffffff"/>';

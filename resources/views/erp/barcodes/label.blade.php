@@ -186,17 +186,20 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow: visible;
             background: #ffffff;
         }
 
-        .barcode-canvas {
+        .barcode-svg {
             display: block;
-            width: auto;
-            height: auto;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
+            margin: 0 auto;
+            max-width: 100%;
+            height: 100%;
+            shape-rendering: crispEdges;
+        }
+
+        .barcode-svg rect {
+            shape-rendering: crispEdges;
         }
 
         .sku-code {
@@ -268,10 +271,10 @@
                 @endif
             </div>
 
-            <!-- 2. Pixel-Perfect 1-Bit Monochrome Native Canvas Barcode -->
+            <!-- 2. Pixel-Perfect 1-Bit Monochrome Native SVG Barcode -->
             <div class="barcode-wrapper">
                 <div class="barcode-image-box">
-                    <canvas class="barcode-canvas" data-barcode="{{ trim($sku) }}"></canvas>
+                    <svg class="barcode-svg" data-barcode="{{ trim($sku) }}"></svg>
                 </div>
                 <div class="sku-code">{{ strtoupper($sku) }}</div>
             </div>
@@ -290,12 +293,11 @@
                 name: '45mm × 35mm',
                 widthMm: 45,
                 heightMm: 35,
-                padding: '1mm 1.5mm 0.8mm 1.5mm',
-                boxMaxW: 42,
+                padding: '1.2mm 2.8mm 1mm 2.8mm',
+                boxMaxW: 38,
                 boxH: 14,
-                barcodeWidth: 1.5,
-                barcodeHeight: 55,
-                barcodeMargin: 4,
+                barcodeHeight: 52,
+                barcodeMargin: 8,
                 titleFont: '7.5pt',
                 variantFont: '6.5pt',
                 skuFont: '7.5pt',
@@ -305,18 +307,34 @@
                 name: '38mm × 25mm',
                 widthMm: 38,
                 heightMm: 25,
-                padding: '0.6mm 1mm 0.4mm 1mm',
-                boxMaxW: 35,
+                padding: '0.8mm 2.2mm 0.6mm 2.2mm',
+                boxMaxW: 32,
                 boxH: 9,
-                barcodeWidth: 1.3,
-                barcodeHeight: 38,
-                barcodeMargin: 4,
+                barcodeHeight: 36,
+                barcodeMargin: 6,
                 titleFont: '6.5pt',
                 variantFont: '5.5pt',
                 skuFont: '6.5pt',
                 priceFont: '8pt'
             }
         };
+
+        function getOptimalBarWidth(rawCode, cfg) {
+            var len = rawCode ? rawCode.length : 10;
+            if (cfg.widthMm >= 45) {
+                // 45x35 sticker: safe width ~38mm
+                if (len > 16) return 1.05;
+                if (len >= 13) return 1.18; // For ~14 chars (e.g. W6-GPJ: 03-4-5)
+                if (len >= 9) return 1.35;
+                return 1.5;
+            } else {
+                // 38x25 sticker: safe width ~32mm
+                if (len > 16) return 0.85;
+                if (len >= 13) return 0.96;
+                if (len >= 9) return 1.10;
+                return 1.25;
+            }
+        }
 
         function applyLabelSize(sizeKey) {
             if (!LABEL_CONFIGS[sizeKey]) sizeKey = '45x35';
@@ -363,7 +381,7 @@
                     max-width: ${cfg.boxMaxW}mm !important;
                     height: ${cfg.boxH}mm !important;
                 }
-                .barcode-canvas {
+                .barcode-svg {
                     max-width: ${cfg.boxMaxW}mm !important;
                     max-height: ${cfg.boxH}mm !important;
                 }
@@ -402,14 +420,16 @@
                 cfg = LABEL_CONFIGS[currentKey] || LABEL_CONFIGS['45x35'];
             }
 
-            document.querySelectorAll('.barcode-canvas').forEach(function (canvasEl) {
-                var rawCode = canvasEl.getAttribute('data-barcode');
+            document.querySelectorAll('.barcode-svg').forEach(function (svgEl) {
+                var rawCode = svgEl.getAttribute('data-barcode');
                 if (!rawCode) return;
 
+                var calculatedWidth = getOptimalBarWidth(rawCode, cfg);
+
                 try {
-                    JsBarcode(canvasEl, rawCode, {
+                    JsBarcode(svgEl, rawCode, {
                         format: "CODE128",
-                        width: cfg.barcodeWidth,
+                        width: calculatedWidth,
                         height: cfg.barcodeHeight,
                         displayValue: false,
                         margin: cfg.barcodeMargin,
