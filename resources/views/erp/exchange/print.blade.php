@@ -9,15 +9,21 @@
             size: 80mm auto;
             margin: 0;
         }
+        * {
+            box-sizing: border-box;
+            color: #000 !important;
+        }
         body {
             font-family: 'Courier New', Courier, monospace;
             font-size: 9pt;
-            line-height: 1.2;
-            color: #000;
+            font-weight: 600;
+            line-height: 1.25;
+            color: #000 !important;
             margin: 0;
             padding: 0;
             background: #fff;
             -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .receipt-container {
             width: 80mm;
@@ -38,37 +44,39 @@
             text-transform: uppercase;
         }
         .company-info {
-            font-size: 8pt;
+            font-size: 8.5pt;
+            font-weight: bold;
             display: block;
-            margin-bottom: 1mm;
+            margin-bottom: 0.8mm;
         }
         .invoice-title {
-            margin-top: 3mm;
+            margin-top: 2.5mm;
             font-size: 10pt;
             font-weight: bold;
             display: block;
             border-top: 1px dashed #000;
             border-bottom: 1px dashed #000;
-            padding: 2mm 0;
-            margin-bottom: 3mm;
+            padding: 1.5mm 0;
+            margin-bottom: 2.5mm;
             text-transform: uppercase;
         }
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table td {
             vertical-align: top;
             padding: 0.5mm 0;
-            font-size: 8pt;
+            font-size: 8.5pt;
+            font-weight: 600;
         }
         .info-label { width: 28mm; font-weight: bold; }
 
         .section-title {
-            font-size: 8pt;
+            font-size: 8.5pt;
             font-weight: bold;
             text-transform: uppercase;
             border-top: 1px dashed #000;
             border-bottom: 1px dashed #000;
             padding: 1mm 0;
-            margin: 3mm 0 1mm;
+            margin: 2.5mm 0 1mm;
         }
 
         .items-table {
@@ -77,9 +85,11 @@
             margin-bottom: 2mm;
         }
         .items-table th, .items-table td {
-            padding: 1mm 0.5mm;
-            font-size: 8pt;
+            padding: 1.5mm 0.5mm;
+            font-size: 8.5pt;
+            font-weight: 600;
             text-align: right;
+            border-bottom: 1px dashed #000;
         }
         .items-table th {
             font-weight: bold;
@@ -88,28 +98,39 @@
         .items-table .text-left  { text-align: left; }
         .items-table .text-center { text-align: center; }
 
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 2mm; }
-        .summary-table td { padding: 1mm 0; font-size: 9pt; }
-        .summary-label { text-align: right; padding-right: 3mm; width: 70%; }
-        .summary-value { text-align: right; width: 30%; font-weight: bold; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 1.5mm; }
+        .summary-table td { padding: 1mm 0; font-size: 9pt; font-weight: 600; }
+        .summary-label { text-align: right; padding-right: 3mm; width: 68%; font-weight: 600; }
+        .summary-value { text-align: right; width: 32%; font-weight: bold; }
         .total-row td {
             border-top: 1px dashed #000;
             font-size: 11pt;
+            font-weight: bold;
             padding-top: 2mm;
         }
         .footer {
-            margin-top: 5mm;
-            font-size: 8pt;
+            margin-top: 4mm;
+            font-size: 8.5pt;
+            font-weight: bold;
             border-top: 1px dashed #000;
             padding-top: 3mm;
-            padding-bottom: 10mm;
+            padding-bottom: 8mm;
         }
-        .item-sku { font-size: 7pt; display: block; color: #444; }
-        .badge-return { background: #000; color: #fff; padding: 0mm 1mm; font-size: 7pt; }
-        .badge-new    { border: 1px solid #000; padding: 0mm 1mm; font-size: 7pt; }
+        .item-sku { font-size: 7.5pt; display: block; font-weight: 600; color: #000 !important; }
+        .badge-return { background: #000; color: #fff; padding: 0mm 1mm; font-size: 7.5pt; font-weight: bold; }
+        .badge-new    { border: 1px solid #000; padding: 0mm 1mm; font-size: 7.5pt; font-weight: bold; }
 
         @media print {
-            body { width: 80mm; }
+            * {
+                color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            body { 
+                width: 80mm; 
+                color: #000 !important;
+                font-weight: 600;
+            }
             .receipt-container { width: 80mm; padding: 2mm; }
             .no-print { display: none; }
         }
