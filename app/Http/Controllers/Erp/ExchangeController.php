@@ -66,7 +66,11 @@ class ExchangeController extends Controller
         } else {
             $branches = Branch::all();
         }
-        $customers = Customer::orderBy('name', 'asc')->get();
+        $customersQuery = Customer::orderBy('name', 'asc');
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->get();
         $products = Product::where('type', 'product')->orderBy('name', 'asc')->get();
         $categories = ProductServiceCategory::whereNull('parent_id')->orderBy('name', 'asc')->get();
         $brands = \App\Models\Brand::orderBy('name', 'asc')->get();

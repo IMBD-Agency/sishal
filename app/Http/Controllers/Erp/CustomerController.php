@@ -421,7 +421,17 @@ class CustomerController extends Controller
         // Branch Isolation
         $branchId = $this->getRestrictedBranchId();
         if ($branchId) {
-            $query->where('branch_id', $branchId);
+            // Restricted employee: their branch's customers + unassigned (NULL) customers
+            $query->where(function($sub) use ($branchId) {
+                $sub->where('branch_id', $branchId)
+                    ->orWhereNull('branch_id');
+            });
+        } elseif ($request->filled('branch_id')) {
+            // Admin filtering by branch: show that branch + unassigned (NULL) customers
+            $query->where(function($sub) use ($request) {
+                $sub->where('branch_id', $request->branch_id)
+                    ->orWhereNull('branch_id');
+            });
         }
 
         if ($q) {

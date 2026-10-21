@@ -236,7 +236,8 @@ $(document).ready(function() {
             data: function (params) {
                 return {
                     q: params.term,
-                    page: params.page
+                    page: params.page,
+                    branch_id: $('#branchSelect').val() // pass selected branch for isolation
                 };
             },
             processResults: function (data, params) {

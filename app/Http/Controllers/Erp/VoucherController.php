@@ -129,7 +129,11 @@ class VoucherController extends Controller
             ]);
         }
 
-        $customers = Customer::orderBy('name')->take(200)->get();
+        $customersQuery = Customer::orderBy('name');
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->take(200)->get();
         $suppliers = Supplier::orderBy('name')->take(200)->get();
         $expenseAccounts = ChartOfAccount::whereHas('type', function($q) {
             $q->whereIn('name', ['Expense', 'Revenue', 'Liability', 'Equity']);
@@ -180,7 +184,11 @@ class VoucherController extends Controller
         } else {
             $branches = Branch::all();
         }
-        $customers = Customer::all();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->get();
         $suppliers = Supplier::all();
         
         // Pass account types for the modal

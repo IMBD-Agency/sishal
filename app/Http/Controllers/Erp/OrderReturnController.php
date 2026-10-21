@@ -171,7 +171,12 @@ class OrderReturnController extends Controller
         if (!auth()->user()->hasPermissionTo('manage online returns') && !auth()->user()->hasPermissionTo('manage returns')) {
             abort(403, 'Unauthorized action.');
         }
-        $customers = Customer::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->get();
         $orders = Order::orderBy('created_at', 'desc')->take(100)->get();
         $invoices = Invoice::all();
         $products = \App\Models\Product::all();
@@ -285,7 +290,12 @@ class OrderReturnController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $orderReturn = OrderReturn::with(['items', 'employee.user'])->findOrFail($id);
-        $customers = Customer::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->get();
         $orders = Order::all();
         $invoices = Invoice::all();
         $products = \App\Models\Product::all();

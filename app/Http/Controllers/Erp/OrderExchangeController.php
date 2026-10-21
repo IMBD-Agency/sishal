@@ -52,7 +52,12 @@ class OrderExchangeController extends Controller
             return $exchange;
         });
 
-        $customers = Customer::orderBy('name')->get();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::orderBy('name');
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->get();
         $branches = Branch::all();
         $warehouses = Warehouse::all();
         $brands = Brand::where('status', 'active')->orWhere('status', 1)->orderBy('name')->get();
@@ -223,7 +228,12 @@ class OrderExchangeController extends Controller
         if (!auth()->user()->hasPermissionTo('manage online exchanges') && !auth()->user()->hasPermissionTo('manage exchanges')) {
             abort(403, 'Unauthorized action.');
         }
-        $customers = Customer::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->get();
         $orders = Order::orderBy('created_at', 'desc')->take(100)->get();
         $products = Product::all();
         $branches = Branch::all();

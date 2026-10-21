@@ -1109,7 +1109,12 @@ class PosController extends Controller
 
         $categories = ProductServiceCategory::all();
         $branches = Branch::all();
-        $customers = Customer::all();
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $customersQuery = Customer::query();
+        if ($restrictedBranchId) {
+            $customersQuery->where('branch_id', $restrictedBranchId);
+        }
+        $customers = $customersQuery->orderBy('name')->get();
         $bankAccounts = FinancialAccount::all();
         $shippingMethods = ShippingMethod::orderBy('sort_order')->get();
 
