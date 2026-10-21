@@ -40,10 +40,12 @@ class CustomerController extends Controller
         // Append search parameters to pagination links
         $customers->appends($request->all());
 
-        // Fetch all branches for the filter dropdown
-        $branches = Branch::orderBy('name')->get();
+        // Fetch branches for the filter dropdown
+        $user = Auth::user();
+        $userBranchId = $user?->employee?->branch_id;
+        $branches = $userBranchId ? Branch::where('id', $userBranchId)->get() : Branch::orderBy('name')->get();
         
-        return view('erp.customers.customerlist', compact('customers', 'branches'));
+        return view('erp.customers.customerlist', compact('customers', 'branches', 'userBranchId'));
     }
 
     public function store(Request $request)
@@ -222,7 +224,9 @@ class CustomerController extends Controller
             abort(403, 'Unauthorized action.');
         }
         $customer = Customer::findOrFail($id);
-        return view('erp.customers.edit', compact('customer'));
+        $restrictedBranchId = $this->getRestrictedBranchId();
+        $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::orderBy('name')->get();
+        return view('erp.customers.edit', compact('customer', 'branches'));
     }
 
     public function update(Request $request, $id)
@@ -254,6 +258,13 @@ class CustomerController extends Controller
         // Handle boolean fields
         $data['is_active'] = $request->has('is_active') ? 1 : 0;
         $data['is_premium'] = $request->has('is_premium') ? 1 : 0;
+
+        // Handle branch assignment (Admin can change or assign branch)
+        if (!auth()->user()->isBranchRestricted()) {
+            if ($request->has('branch_id')) {
+                $data['branch_id'] = $request->filled('branch_id') ? $request->branch_id : null;
+            }
+        }
 
         $customer->update($data);
 
@@ -418,21 +429,17 @@ class CustomerController extends Controller
         $q = $request->input('q');
         $query = Customer::query();
 
-        // Branch Isolation
-        $branchId = $this->getRestrictedBranchId();
-        if ($branchId) {
-            // Restricted employee: their branch's customers + unassigned (NULL) customers
-            $query->where(function($sub) use ($branchId) {
-                $sub->where('branch_id', $branchId)
-                    ->orWhereNull('branch_id');
-            });
+        // Branch Isolation: any branch only sees their customer, no NULL customer leaks to branches
+        $user = Auth::user();
+        $userBranchId = $user?->employee?->branch_id;
+        if ($userBranchId) {
+            // Branch user: ONLY see their own branch's customers
+            $query->where('branch_id', $userBranchId);
         } elseif ($request->filled('branch_id')) {
-            // Admin filtering by branch: show that branch + unassigned (NULL) customers
-            $query->where(function($sub) use ($request) {
-                $sub->where('branch_id', $request->branch_id)
-                    ->orWhereNull('branch_id');
-            });
+            // Admin filtering by a specific branch: ONLY see that branch's customers
+            $query->where('branch_id', $request->branch_id);
         }
+        // If neither is set, Admin without a branch filter sees all customers (including NULL)
 
         if ($q) {
             $query->where(function($sub) use ($q) {
@@ -475,11 +482,14 @@ class CustomerController extends Controller
     {
         $query = Customer::with('addedBy');
 
-        // Branch Isolation: Restrict to user's branch if they are restricted
+        // Branch Isolation: If user belongs to a branch, ALWAYS default and restrict to their branch
         $user = Auth::user();
-        if ($user && $user->isBranchRestricted()) {
-            $branchId = $user->employee->branch_id;
-            $query->where('branch_id', $branchId);
+        $userBranchId = $user?->employee?->branch_id;
+        if ($userBranchId) {
+            $query->where('branch_id', $userBranchId);
+        } elseif ($request->filled('branch_id')) {
+            // Admin filtering by branch
+            $query->where('branch_id', $request->branch_id);
         }
 
         // General Search (Enhanced)
@@ -490,17 +500,6 @@ class CustomerController extends Controller
                   ->orWhere('email', 'LIKE', '%' . $search . '%')
                   ->orWhere('phone', 'LIKE', '%' . $search . '%')
                   ->orWhere('city', 'LIKE', '%' . $search . '%');
-            });
-        }
-
-        // Branch Filter
-        if ($request->filled('branch_id')) {
-            $branchId = $request->branch_id;
-            $query->where(function($q) use ($branchId) {
-                $q->where('branch_id', $branchId)
-                  ->orWhereHas('posSales', function($pq) use ($branchId) {
-                      $pq->where('branch_id', $branchId);
-                  });
             });
         }
 

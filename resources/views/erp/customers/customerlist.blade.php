@@ -66,12 +66,21 @@
 
                             <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Branch</label>
-                                <select name="branch_id" class="form-select form-select-sm select2">
-                                    <option value="">All Branches</option>
-                                    @foreach($branches as $branch)
-                                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                                    @endforeach
-                                </select>
+                                @if(!empty($userBranchId))
+                                    <select class="form-select form-select-sm select2" disabled>
+                                        @foreach($branches as $branch)
+                                            <option value="{{ $branch->id }}" selected>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input type="hidden" name="branch_id" value="{{ $userBranchId }}">
+                                @else
+                                    <select name="branch_id" class="form-select form-select-sm select2">
+                                        <option value="">All Branches</option>
+                                        @foreach($branches as $branch)
+                                            <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
                             </div>
 
                             <!-- Daily Fields -->
@@ -298,6 +307,17 @@
                                 <label class="form-label fw-bold text-dark small">City</label>
                                 <input type="text" class="form-control border-2" name="city" placeholder="e.g. Dhaka">
                             </div>
+                            @if(!auth()->user()->isBranchRestricted())
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-dark small">Assign to Branch (Optional)</label>
+                                <select class="form-select border-2" name="branch_id">
+                                    <option value="">No Branch (Unassigned)</option>
+                                    @foreach($branches as $b)
+                                        <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
 
                             <div class="col-12 mt-4">
                                 <button class="btn btn-light w-100 text-start d-flex justify-content-between align-items-center py-2 px-3 border" type="button" data-bs-toggle="collapse" data-bs-target="#moreCustomerOptions">

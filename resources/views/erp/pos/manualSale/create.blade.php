@@ -648,10 +648,16 @@ $(document).ready(function() {
         const $btn = $('#saveCustomerBtn').prop('disabled', true).text('SAVING...');
         const $err = $('#customerModalError').addClass('d-none');
         
+        let customerData = $(this).serialize();
+        const selectedBranch = $('#branchSelect').val();
+        if (selectedBranch) {
+            customerData += '&branch_id=' + encodeURIComponent(selectedBranch);
+        }
+
         $.ajax({
             url: "{{ route('customers.store') }}",
             method: 'POST',
-            data: $(this).serialize(),
+            data: customerData,
             success: res => {
                 if (res.success && res.customer) {
                     const c = res.customer;

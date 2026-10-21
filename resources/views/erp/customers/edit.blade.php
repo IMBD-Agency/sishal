@@ -147,6 +147,20 @@
                                             <i class="fas fa-cog me-2"></i>Additional Settings
                                         </h6>
                                     </div>
+                                    @if(!auth()->user()->isBranchRestricted())
+                                    <div class="col-md-12 mb-3">
+                                        <label for="branch_id" class="form-label fw-semibold text-dark">Assigned Branch</label>
+                                        <select class="form-select border-2 rounded-3" id="branch_id" name="branch_id">
+                                            <option value="">No Branch (Unassigned)</option>
+                                            @foreach($branches as $branch)
+                                                <option value="{{ $branch->id }}" {{ old('branch_id', $customer->branch_id) == $branch->id ? 'selected' : '' }}>
+                                                    {{ $branch->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">Customers assigned to a branch will only be visible to that branch.</small>
+                                    </div>
+                                    @endif
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label fw-semibold text-dark">Customer Status</label>
                                         <div class="form-check form-switch">

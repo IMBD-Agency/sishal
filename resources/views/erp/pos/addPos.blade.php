@@ -428,6 +428,7 @@ $(document).ready(function() {
                 phone: phone,
                 email: $('#quickCustomerEmail').val(),
                 address_1: $('#quickCustomerAddress').val(),
+                branch_id: $('#branchFilter').val(),
                 _token: $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {

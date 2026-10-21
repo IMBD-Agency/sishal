@@ -132,13 +132,22 @@ class User extends Authenticatable
      */
     public function isBranchRestricted()
     {
-        // Admins are not restricted
+        // Only Super Admin without an employee branch is unrestricted
+        if ($this->hasRole('Super Admin') && (!$this->employee || !$this->employee->branch_id)) {
+            return false;
+        }
+
+        // If user is attached to an employee branch, they are restricted to that branch
+        if ($this->employee && $this->employee->branch_id) {
+            return true;
+        }
+
+        // Admins without employee records are not restricted
         if ($this->is_admin || $this->hasRole('Super Admin')) {
             return false;
         }
 
-        // Users with employee records are restricted to their branch
-        return $this->employee && $this->employee->branch_id;
+        return false;
     }
 
 }
