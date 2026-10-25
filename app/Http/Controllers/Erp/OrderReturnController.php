@@ -168,7 +168,7 @@ class OrderReturnController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage online returns') && !auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -199,7 +199,7 @@ class OrderReturnController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage online returns') && !auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -286,7 +286,7 @@ class OrderReturnController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns')) {
             abort(403, 'Unauthorized action.');
         }
         $orderReturn = OrderReturn::with(['items', 'employee.user'])->findOrFail($id);
@@ -307,7 +307,7 @@ class OrderReturnController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -364,7 +364,7 @@ class OrderReturnController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns')) {
             abort(403, 'Unauthorized action.');
         }
         $orderReturn = OrderReturn::findOrFail($id);
@@ -374,7 +374,7 @@ class OrderReturnController extends Controller
 
     public function updateReturnStatus(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('manage online returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([

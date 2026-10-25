@@ -76,6 +76,14 @@ class FinancialAccountController extends Controller
             $data['branch_id'] = $restrictedBranchId;
         }
 
+        if ($data['type'] === 'mobile') {
+            if (empty($data['mobile_number']) && !empty($data['account_number'])) {
+                $data['mobile_number'] = $data['account_number'];
+            } elseif (empty($data['account_number']) && !empty($data['mobile_number'])) {
+                $data['account_number'] = $data['mobile_number'];
+            }
+        }
+
         FinancialAccount::create($data);
 
         return redirect()->route('financial-accounts.index')
@@ -110,6 +118,14 @@ class FinancialAccountController extends Controller
         $restrictedBranchId = $this->getRestrictedBranchId();
         if ($restrictedBranchId) {
             $data['branch_id'] = $restrictedBranchId;
+        }
+
+        if ($data['type'] === 'mobile') {
+            if (empty($data['mobile_number']) && !empty($data['account_number'])) {
+                $data['mobile_number'] = $data['account_number'];
+            } elseif (empty($data['account_number']) && !empty($data['mobile_number'])) {
+                $data['account_number'] = $data['mobile_number'];
+            }
         }
 
         $account->update($data);

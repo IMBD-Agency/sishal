@@ -75,9 +75,11 @@
                     <p class="text-muted small mb-0">Define permissions and manage user assignments</p>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    @can('create roles')
                     <button type="button" class="btn btn-create-premium" data-bs-toggle="modal" data-bs-target="#addUserRoleModal">
                         <i class="fas fa-plus-circle me-2"></i>Create New Role
                     </button>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -148,10 +150,13 @@
                                                 </td>
                                                 <td class="text-end">
                                                     <div class="d-flex justify-content-end gap-2">
+                                                        @can('edit roles')
                                                         <button type="button" class="btn btn-action" onclick="openEditModal({{ $role->id }}, '{{ $role->name }}', [{{ $role->permissions->pluck('id')->implode(',') }}])" title="Edit Role">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
+                                                        @endcan
                                                         @if($role->name !== 'SuperAdmin')
+                                                            @can('delete roles')
                                                             <form action="{{ route('userRole.destroy', $role->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this role? All associated users will lose these permissions.')">
                                                                 @csrf
                                                                 @method('DELETE')
@@ -159,6 +164,7 @@
                                                                     <i class="fas fa-trash-alt text-danger"></i>
                                                                 </button>
                                                             </form>
+                                                            @endcan
                                                         @endif
                                                     </div>
                                                 </td>

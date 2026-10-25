@@ -36,7 +36,7 @@
                             <i class="fas fa-file-pdf me-2"></i>Download PDF
                         </a>
                         @if($pos->status !== 'cancelled')
-                        @can('edit sale')
+                        @can('edit sales')
                         <a href="{{ route('pos.edit', $pos->id) }}" class="btn btn-info px-4 py-2 rounded-pill">
                             <i class="fas fa-edit me-2"></i>Edit Sale
                         </a>
@@ -47,7 +47,7 @@
                                 <i class="fas fa-file-invoice me-2"></i>View Invoice
                             </a>
                         @endif
-                        @can('create sale return')
+                        @can('create sale returns')
                         <a href="{{ route('saleReturn.create') }}?pos_sale_id={{ $pos->id }}" class="btn btn-warning px-4 py-2 rounded-pill">
                             <i class="fas fa-undo me-2"></i>Create Return
                         </a>

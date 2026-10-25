@@ -225,7 +225,7 @@ class OrderExchangeController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage online exchanges') && !auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('manage online exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -254,7 +254,7 @@ class OrderExchangeController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage online exchanges') && !auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('manage online exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([

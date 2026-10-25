@@ -66,7 +66,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'create suppliers', 'category' => 'Suppliers'],
             ['name' => 'edit suppliers', 'category' => 'Suppliers'],
             ['name' => 'delete suppliers', 'category' => 'Suppliers'],
-            ['name' => 'manage suppliers', 'category' => 'Suppliers'],
 
             // Supplier Pay
             ['name' => 'view payments', 'category' => 'Supplier Pay'],
@@ -76,6 +75,7 @@ class PermissionSeeder extends Seeder
 
             // POS
             ['name' => 'use pos', 'category' => 'POS'],
+            ['name' => 'edit item price', 'category' => 'POS'],
 
             // Sales
             ['name' => 'view sales', 'category' => 'Sales'],
@@ -83,30 +83,30 @@ class PermissionSeeder extends Seeder
             ['name' => 'edit sales', 'category' => 'Sales'],
             ['name' => 'delete sales', 'category' => 'Sales'],
             ['name' => 'view invoices', 'category' => 'Sales'],
-            ['name' => 'manage invoices', 'category' => 'Sales'],
             ['name' => 'delete invoices', 'category' => 'Sales'],
 
             // Sale Return
             ['name' => 'view returns', 'category' => 'Sale Return'],
-            ['name' => 'manage returns', 'category' => 'Sale Return'],
             ['name' => 'create sale returns', 'category' => 'Sale Return'],
             ['name' => 'edit sale returns', 'category' => 'Sale Return'],
             ['name' => 'delete sale returns', 'category' => 'Sale Return'],
 
             // Exchange
             ['name' => 'view exchanges', 'category' => 'Exchange'],
-            ['name' => 'manage exchanges', 'category' => 'Exchange'],
+            ['name' => 'create exchanges', 'category' => 'Exchange'],
+            ['name' => 'delete exchanges', 'category' => 'Exchange'],
 
             // Money Receipt
             ['name' => 'view money receipts', 'category' => 'Money Receipt'],
-            ['name' => 'manage money receipts', 'category' => 'Money Receipt'],
+            ['name' => 'create money receipts', 'category' => 'Money Receipt'],
+            ['name' => 'edit money receipts', 'category' => 'Money Receipt'],
+            ['name' => 'delete money receipts', 'category' => 'Money Receipt'],
 
             // Stock Transfer
             ['name' => 'view transfers', 'category' => 'Stock Transfer'],
             ['name' => 'create transfers', 'category' => 'Stock Transfer'],
             ['name' => 'approve transfers', 'category' => 'Stock Transfer'],
             ['name' => 'delete transfers', 'category' => 'Stock Transfer'],
-            ['name' => 'manage transfers', 'category' => 'Stock Transfer'],
             ['name' => 'reconcile transfers', 'category' => 'Stock Transfer'],
 
             //fund transfer
@@ -123,7 +123,8 @@ class PermissionSeeder extends Seeder
 
             // Vouchers
             ['name' => 'view vouchers', 'category' => 'Vouchers'],
-            ['name' => 'manage vouchers', 'category' => 'Vouchers'],
+            ['name' => 'create vouchers', 'category' => 'Vouchers'],
+            ['name' => 'delete vouchers', 'category' => 'Vouchers'],
 
             // General Ledger
             ['name' => 'view ledger', 'category' => 'General Ledger'],
@@ -138,7 +139,9 @@ class PermissionSeeder extends Seeder
 
             // Salary
             ['name' => 'view salary', 'category' => 'Salary'],
-            ['name' => 'manage salary', 'category' => 'Salary'],
+            ['name' => 'create salary', 'category' => 'Salary'],
+            ['name' => 'edit salary', 'category' => 'Salary'],
+            ['name' => 'delete salary', 'category' => 'Salary'],
 
             // Sales Target
             ['name' => 'view sales targets', 'category' => 'Sales Target'],
@@ -241,11 +244,10 @@ class PermissionSeeder extends Seeder
 
             // User Roles
             ['name' => 'view users', 'category' => 'User Roles'],
-            ['name' => 'create users', 'category' => 'User Roles'],
-            ['name' => 'edit users', 'category' => 'User Roles'],
-            ['name' => 'delete users', 'category' => 'User Roles'],
             ['name' => 'view roles', 'category' => 'User Roles'],
-            ['name' => 'manage roles', 'category' => 'User Roles'],
+            ['name' => 'create roles', 'category' => 'User Roles'],
+            ['name' => 'edit roles', 'category' => 'User Roles'],
+            ['name' => 'delete roles', 'category' => 'User Roles'],
         ];
 
         // Create/Update permissions

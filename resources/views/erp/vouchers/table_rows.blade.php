@@ -74,7 +74,7 @@
             <a href="{{ route('journal.show', $voucher->id) }}" class="action-circle" title="View">
                 <i class="fas fa-eye text-primary"></i>
             </a>
-            @can('manage vouchers')
+            @can('delete vouchers')
             <button type="button" class="action-circle bg-light border-0" title="Delete"
                 onclick="deleteVoucher({{ $voucher->id }}, '{{ $voucher->voucher_no }}')">
                 <i class="fas fa-trash text-danger"></i>

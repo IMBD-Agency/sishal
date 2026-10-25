@@ -151,7 +151,7 @@ class VoucherController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage vouchers')) {
+        if (!auth()->user()->hasPermissionTo('create vouchers')) {
             abort(403, 'Unauthorized action.');
         }
         $voucherNo = 'V-' . date('Ymd') . '-' . str_pad(Journal::count() + 1, 4, '0', STR_PAD_LEFT);
@@ -206,7 +206,7 @@ class VoucherController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage vouchers')) {
+        if (!auth()->user()->hasPermissionTo('create vouchers')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -323,7 +323,7 @@ class VoucherController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage vouchers')) {
+        if (!auth()->user()->hasPermissionTo('delete vouchers')) {
             abort(403, 'Unauthorized action.');
         }
         try {

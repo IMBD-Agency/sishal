@@ -12,7 +12,7 @@ class UserRoleController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view roles')) {
+        if (!auth()->user()->hasAnyPermission(['view roles', 'view users'])) {
             abort(403, 'Unauthorized action.');
         }
         $roles = Role::all();
@@ -31,7 +31,7 @@ class UserRoleController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage roles')) {
+        if (!auth()->user()->hasPermissionTo('create roles')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -60,7 +60,7 @@ class UserRoleController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage roles')) {
+        if (!auth()->user()->hasPermissionTo('edit roles')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -86,7 +86,7 @@ class UserRoleController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage roles')) {
+        if (!auth()->user()->hasPermissionTo('delete roles')) {
             abort(403, 'Unauthorized action.');
         }
 

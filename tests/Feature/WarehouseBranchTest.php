@@ -40,11 +40,11 @@ class WarehouseBranchTest extends TestCase
         Permission::firstOrCreate(['name' => 'create branches', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'edit branches', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'view branches', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'manage transfers', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'create transfers', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'create purchases', 'guard_name' => 'web']);
 
         // Assign permission to admin user (check first to avoid duplicates)
-        foreach (['create branches', 'edit branches', 'view branches', 'manage transfers', 'create purchases'] as $perm) {
+        foreach (['create branches', 'edit branches', 'view branches', 'create transfers', 'create purchases'] as $perm) {
             if (!$this->adminUser->hasPermissionTo($perm)) {
                 $this->adminUser->givePermissionTo($perm);
             }

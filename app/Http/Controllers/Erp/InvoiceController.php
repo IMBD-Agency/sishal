@@ -75,7 +75,7 @@ class InvoiceController extends Controller
 
     public function storeTemplate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -93,7 +93,7 @@ class InvoiceController extends Controller
 
     public function updateTemplate(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -112,7 +112,7 @@ class InvoiceController extends Controller
 
     public function deleteTemplate($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasRole('Super Admin') && !auth()->user()->hasPermissionTo('delete invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $template = InvoiceTemplate::findOrFail($id);
@@ -146,7 +146,7 @@ class InvoiceController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -164,7 +164,7 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -293,7 +293,7 @@ class InvoiceController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $invoice = Invoice::findOrFail($id);
@@ -411,7 +411,7 @@ class InvoiceController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $invoice = \App\Models\Invoice::with(['customer', 'invoiceAddress', 'items.product', 'items.variation'])->findOrFail($id);
@@ -450,7 +450,7 @@ class InvoiceController extends Controller
 
     public function addPayment($invId, Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $invoice = Invoice::findOrFail($invId);
@@ -576,7 +576,7 @@ class InvoiceController extends Controller
 
     public function print(Request $request, $invoice_number)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
         $invoice = Invoice::with('items.product', 'items.variation')->where('invoice_number', $invoice_number)->first();
@@ -690,7 +690,7 @@ class InvoiceController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -847,7 +847,7 @@ class InvoiceController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage invoices')) {
+        if (!auth()->user()->hasPermissionTo('view invoices') && !auth()->user()->hasPermissionTo('view internal invoices')) {
             abort(403, 'Unauthorized action.');
         }
 

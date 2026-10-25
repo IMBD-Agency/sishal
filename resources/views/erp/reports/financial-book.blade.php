@@ -124,18 +124,26 @@
                             </thead>
                             <tbody>
                                 @forelse($accounts as $index => $account)
+                                @php
+                                    $dispNumber = !empty($account->account_number) ? $account->account_number : (!empty($account->mobile_number) ? $account->mobile_number : null);
+                                @endphp
                                 <tr>
                                     <td class="text-center small">{{ $index + 1 }}</td>
                                     @if($title == 'Bank Book')
                                         <td>{{ $account->provider_name ?? '-' }}</td>
                                     @endif
                                     @if($title == 'Mobile Book')
-                                        <td>{{ $account->mobile_number ?? '-' }}</td>
+                                        <td>{{ $dispNumber ?? '-' }}</td>
                                     @endif
                                     <td>
-                                        <div class="fw-bold text-dark">{{ $account->account_holder_name ?? $account->chartOfAccount->name }}</div>
-                                        @if($title == 'Bank Book')
-                                            <div class="text-muted small">A/C: {{ $account->account_number }}</div>
+                                        <div class="fw-bold text-dark">
+                                            {{ $account->account_holder_name ?? $account->chartOfAccount->name }}
+                                            @if($title == 'Cash Book' && $account->provider_name && $account->provider_name !== ($account->account_holder_name ?? ''))
+                                                <span class="text-muted small fw-normal">({{ $account->provider_name }})</span>
+                                            @endif
+                                        </div>
+                                        @if($dispNumber)
+                                            <div class="text-muted small">A/C: {{ $dispNumber }}</div>
                                         @endif
                                     </td>
                                     <td>{{ $account->branch_name ?? '-' }}</td>

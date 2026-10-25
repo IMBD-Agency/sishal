@@ -546,7 +546,6 @@ Route::prefix('erp')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/stock-transfer/{id}/return', [\App\Http\Controllers\Erp\StockTransferController::class, 'return'])->name('stocktransfer.return');
     Route::post('/stock-transfer/{id}/reconcile', [\App\Http\Controllers\Erp\StockTransferController::class, 'reconcile'])->name('stocktransfer.reconcile');
     Route::delete('/stock-transfer/{id}', [\App\Http\Controllers\Erp\StockTransferController::class, 'destroy'])->name('stocktransfer.destroy');
-    Route::post('/stock-transfer/bulk-delete', [\App\Http\Controllers\Erp\StockTransferController::class, 'bulkDelete'])->name('stocktransfer.bulk.delete');
 
     // Requisitions
     Route::get('/requisition/export-excel', [\App\Http\Controllers\Erp\RequisitionController::class, 'exportExcel'])->name('requisition.export.excel');

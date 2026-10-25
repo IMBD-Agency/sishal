@@ -2,12 +2,7 @@
     <table class="table premium-table reporting-table compact table-hover align-middle mb-0" id="transferTable">
         <thead>
             <tr>
-                <th class="ps-3" style="width: 40px;">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="masterCheckbox">
-                    </div>
-                </th>
-                <th>SL</th>
+                <th class="ps-3">SL</th>
                 <th>Invoice No</th>
                 <th>Date</th>
                 <th>Source</th>
@@ -61,14 +56,7 @@
                     }
                 @endphp
                 <tr class="{{ $isReturn ? 'table-warning' : '' }}">
-                    <td class="ps-3">
-                        <div class="form-check">
-                            <input class="form-check-input row-checkbox" type="checkbox"
-                                value="{{ $transfer->invoice_number ?? $transfer->id }}"
-                                data-type="{{ $transfer->invoice_number ? 'invoice' : 'single' }}">
-                        </div>
-                    </td>
-                    <td class="text-muted">{{ $transfers->firstItem() + $index }}</td>
+                    <td class="ps-3 text-muted">{{ $transfers->firstItem() + $index }}</td>
                     <td class="fw-bold text-dark">
                         @if($transfer->invoice_number)
                             {{ $transfer->invoice_number }}

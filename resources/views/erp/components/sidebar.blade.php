@@ -425,7 +425,7 @@
             </div>
         @endcan
 
-        @can('view master settings')
+        @canany(['view master settings', 'product category', 'product subcategory', 'product brand', 'product unit', 'product season', 'product gender', 'product variation', 'product attribute'])
             <div class="nav-item">
                 <a href="{{ route('master.settings') }}"
                     class="nav-link {{ request()->is('erp/master-settings*') ? ' active' : '' }}">
@@ -433,7 +433,7 @@
                     <span>Master Settings</span>
                 </a>
             </div>
-        @endcan
+        @endcanany
 
         @can('view settings')
             <div class="nav-item">
@@ -445,7 +445,7 @@
             </div>
         @endcan
 
-        @can('manage roles')
+        @canany(['view roles', 'view users'])
             <div class="nav-item">
                 <a href="{{ route('userRole.index') }}"
                     class="nav-link {{ request()->is('erp/user-role*') ? ' active' : '' }}">
@@ -453,7 +453,7 @@
                     <span>User Roles</span>
                 </a>
             </div>
-        @endcan
+        @endcanany
 
         @can('view shipping')
             <div class="nav-item">

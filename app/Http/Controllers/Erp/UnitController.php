@@ -10,7 +10,7 @@ class UnitController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view products')) {
+        if (!auth()->user()->hasAnyPermission(['product unit', 'view products'])) {
             abort(403, 'Unauthorized action.');
         }
         $units = Unit::latest()->get();
@@ -19,7 +19,7 @@ class UnitController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product unit', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -33,7 +33,7 @@ class UnitController extends Controller
 
     public function update(Request $request, Unit $unit)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product unit', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -47,7 +47,7 @@ class UnitController extends Controller
 
     public function destroy(Unit $unit)
     {
-        if (!auth()->user()->hasPermissionTo('delete products')) {
+        if (!auth()->user()->hasAnyPermission(['product unit', 'delete products'])) {
             abort(403, 'Unauthorized action.');
         }
         $unit->delete();

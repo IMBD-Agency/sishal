@@ -394,6 +394,7 @@ $(document).ready(function() {
         $('#barcodeInput').focus();
     });
     // 2. State Variables
+    const canEditItemPrice = {{ auth()->user()->can('edit item price') ? 'true' : 'false' }};
     let cart = [];
     let products = [];
     let currentPage = 1;
@@ -668,6 +669,7 @@ $(document).ready(function() {
                     <td class="ps-2 py-3">
                         <div class="fw-bold text-dark mb-0">${item.name}</div>
                         <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+                            ${canEditItemPrice ? `
                             <div class="d-inline-flex align-items-center bg-white border border-success-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price (Min: ৳${(item.costPrice || 0).toFixed(2)})">
                                 <span class="text-success fw-bold extra-small me-1">৳</span>
                                 <input type="number" step="any" min="${item.costPrice > 0 ? item.costPrice : 0.01}" class="form-control form-control-sm p-0 border-0 text-success fw-bold bg-transparent"
@@ -676,7 +678,12 @@ $(document).ready(function() {
                                        onblur="validatePriceOnBlur('${item.cartId}', this)"
                                        onkeydown="if(event.key === 'Enter') { this.blur(); }"
                                        onclick="this.select()" onfocus="this.select()">
-                            </div>
+                            </div>` : `
+                            <div class="d-inline-flex align-items-center bg-light border border-secondary-subtle rounded px-2 py-0 shadow-sm" title="Unit Price: ৳${parseFloat(item.price).toFixed(2)} (Locked)">
+                                <span class="text-success fw-bold extra-small me-1">৳</span>
+                                <span class="text-dark fw-bold" style="font-size: 0.78rem;">${parseFloat(item.price).toFixed(2)}</span>
+                                <i class="fas fa-lock ms-1 text-muted opacity-75" style="font-size: 0.65rem;" title="Price Locked"></i>
+                            </div>`}
                             <span class="badge bg-secondary bg-opacity-10 text-secondary border-0 extra-small">Stock: ${item.maxStock}</span>
                             ${item.styleNo ? `<span class="badge bg-info bg-opacity-10 text-info border-0 extra-small">Style: ${item.styleNo}</span>` : ''}
                         </div>
@@ -709,6 +716,7 @@ $(document).ready(function() {
     }
 
     window.manualUpdatePrice = function(cartId, val, input) {
+        if (!canEditItemPrice) return;
         let item = cart.find(c => c.cartId === cartId);
         if(!item) return;
 
@@ -749,6 +757,7 @@ $(document).ready(function() {
     };
 
     window.validatePriceOnBlur = function(cartId, input) {
+        if (!canEditItemPrice) return;
         let item = cart.find(c => c.cartId === cartId);
         if(!item) return;
 

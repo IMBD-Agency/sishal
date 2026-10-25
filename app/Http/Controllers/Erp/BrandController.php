@@ -10,7 +10,7 @@ class BrandController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view products')) {
+        if (!auth()->user()->hasAnyPermission(['product brand', 'view products'])) {
             abort(403, 'Unauthorized action.');
         }
         $brands = Brand::latest()->get();
@@ -19,7 +19,7 @@ class BrandController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product brand', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -33,7 +33,7 @@ class BrandController extends Controller
 
     public function update(Request $request, Brand $brand)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product brand', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -47,7 +47,7 @@ class BrandController extends Controller
 
     public function destroy(Brand $brand)
     {
-        if (!auth()->user()->hasPermissionTo('delete products')) {
+        if (!auth()->user()->hasAnyPermission(['product brand', 'delete products'])) {
             abort(403, 'Unauthorized action.');
         }
         $brand->delete();

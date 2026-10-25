@@ -16,7 +16,19 @@ class MasterSettingController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view master settings')) {
+        $allowed = [
+            'view master settings',
+            'product category',
+            'product subcategory',
+            'product brand',
+            'product unit',
+            'product season',
+            'product gender',
+            'product variation',
+            'product attribute'
+        ];
+
+        if (!auth()->user()->hasAnyPermission($allowed)) {
             abort(403, 'Unauthorized action.');
         }
         $stats = [

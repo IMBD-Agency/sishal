@@ -27,19 +27,23 @@
                     </div>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0">
-                    @can('manage salary')
-                        <div class="d-flex gap-2 justify-content-md-end">
+                    <div class="d-flex gap-2 justify-content-md-end">
+                        @can('view sales targets')
                             <a href="{{ route('sales-targets.index') }}" class="btn btn-info shadow-sm">
                                 <i class="fas fa-bullseye me-2"></i>Sales Targets
                             </a>
+                        @endcan
+                        @can('view salary increments')
                             <a href="{{ route('salary-increments.index') }}" class="btn btn-warning shadow-sm">
                                 <i class="fas fa-arrow-up me-2"></i>Increments
                             </a>
+                        @endcan
+                        @can('create salary')
                             <a href="{{ route('salary.create') }}" class="btn btn-create-premium shadow-sm">
                                 <i class="fas fa-plus me-2"></i>New Payment
                             </a>
-                        </div>
-                    @endcan
+                        @endcan
+                    </div>
                 </div>
             </div>
         </div>
@@ -224,7 +228,7 @@
                                                     class="action-circle bg-light" title="View">
                                                     <i class="fas fa-eye text-info"></i>
                                                 </a>
-                                                @can('manage salary')
+                                                @can('delete salary')
                                                 <button type="button" class="action-circle bg-light border-0" title="Delete"
                                                     onclick="deletePayment({{ $payment->id }})">
                                                     <i class="fas fa-trash text-danger"></i>

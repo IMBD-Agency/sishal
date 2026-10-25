@@ -27,7 +27,7 @@
                             class="btn btn-outline-secondary px-4 py-2 rounded-pill">
                             <i class="fas fa-print me-2"></i>Print Receipt
                         </a>
-                        @can('manage exchange')
+                        @can('delete exchanges')
                             <form action="{{ route('exchange.delete', $exchange->id) }}" method="POST"
                                 onsubmit="return confirm('Are you sure you want to delete this exchange? Stock and accounting will be fully rolled back!')"
                                 style="display:inline;">

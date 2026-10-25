@@ -224,6 +224,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    const canEditItemPrice = {{ auth()->user()->can('edit item price') ? 'true' : 'false' }};
     let cartItems = [];
     
     $('#customerSelect').select2({ 
@@ -386,12 +387,19 @@ $(document).ready(function() {
                 it.raw_product.variations.forEach(v => { varHtml += `<option value="${v.id}" ${v.id == it.variation_id ? 'selected' : ''} ${v.stock <= 0 && v.id != it.variation_id ? 'disabled' : ''}>${v.name} (${v.stock})</option>`; });
                 varHtml += `</select>`;
             }
-            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end"><div class="d-inline-flex align-items-center bg-white border border-primary-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price (Min: ৳${(it.cost_price || 0).toFixed(2)})"><span class="text-primary fw-bold extra-small me-1">৳</span><input type="number" step="any" min="${it.cost_price > 0 ? it.cost_price : 0.01}" class="form-control form-control-sm p-0 border-0 text-primary text-end fw-bold bg-transparent" value="${it.unit_price}" style="width: 70px; font-size: 0.85rem; outline: none; box-shadow: none;" oninput="updateItemPrice(${idx}, this.value, this)" onblur="validateItemPriceOnBlur(${idx}, this)" onkeydown="if(event.key === 'Enter') { this.blur(); }" onclick="this.select()" onfocus="this.select()"></div></td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="number" class="qty-val" value="${it.quantity}" min="1" max="${it.max_stock}" data-idx="${idx}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
+            let priceCol = '';
+            if (canEditItemPrice) {
+                priceCol = `<div class="d-inline-flex align-items-center bg-white border border-primary-subtle rounded px-1 py-0 shadow-sm" title="Edit Unit Price (Min: ৳${(it.cost_price || 0).toFixed(2)})"><span class="text-primary fw-bold extra-small me-1">৳</span><input type="number" step="any" min="${it.cost_price > 0 ? it.cost_price : 0.01}" class="form-control form-control-sm p-0 border-0 text-primary text-end fw-bold bg-transparent" value="${it.unit_price}" style="width: 70px; font-size: 0.85rem; outline: none; box-shadow: none;" oninput="updateItemPrice(${idx}, this.value, this)" onblur="validateItemPriceOnBlur(${idx}, this)" onkeydown="if(event.key === 'Enter') { this.blur(); }" onclick="this.select()" onfocus="this.select()"></div>`;
+            } else {
+                priceCol = `<div class="d-inline-flex align-items-center bg-light border border-secondary-subtle rounded px-2 py-0 shadow-sm" title="Unit Price: ৳${parseFloat(it.unit_price).toFixed(2)} (Locked)"><span class="text-primary fw-bold extra-small me-1">৳</span><span class="text-dark fw-bold" style="font-size: 0.85rem;">${parseFloat(it.unit_price).toFixed(2)}</span><i class="fas fa-lock ms-1 text-muted opacity-75" style="font-size: 0.65rem;" title="Price Locked"></i></div>`;
+            }
+            $tbody.append(`<tr><td class="small text-muted">${idx+1}</td><td><div class="fw-bold">${it.style_no}</div><div class="extra-small text-muted">${it.product_name}</div></td><td>${varHtml}</td><td class="text-end">${priceCol}</td><td><div class="qty-control"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},-1)"><i class="fas fa-minus fa-xs"></i></button><input type="number" class="qty-val" value="${it.quantity}" min="1" max="${it.max_stock}" data-idx="${idx}"><button type="button" class="qty-btn" onclick="updateItemQty(${idx},1)"><i class="fas fa-plus fa-xs"></i></button></div></td><td class="text-end fw-bold">${it.total.toFixed(2)}</td><td class="text-center"><button type="button" class="btn btn-link text-primary p-0 me-2" onclick="duplicateItem(${idx})"><i class="fas fa-copy"></i></button><button type="button" class="btn btn-link text-danger p-0" onclick="removeItem(${idx})"><i class="fas fa-trash-alt"></i></button></td></tr>`);
         });
         updateTotals(sub);
     }
 
     window.updateItemPrice = (idx, val, input) => {
+        if (!canEditItemPrice) return;
         const it = cartItems[idx];
         if (!it) return;
 
@@ -436,6 +444,7 @@ $(document).ready(function() {
     };
 
     window.validateItemPriceOnBlur = (idx, input) => {
+        if (!canEditItemPrice) return;
         const it = cartItems[idx];
         if (!it) return;
 

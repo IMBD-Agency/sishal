@@ -40,7 +40,7 @@ class ProductController extends Controller
      */
     public function categoryList(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view products')) {
+        if (!auth()->user()->hasAnyPermission(['product category', 'view products'])) {
             abort(403, 'Unauthorized action.');
         }
         $query = ProductServiceCategory::with(['parent', 'children'])->whereNull('parent_id');
@@ -60,7 +60,7 @@ class ProductController extends Controller
 
     public function subcategoryList(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view products')) {
+        if (!auth()->user()->hasAnyPermission(['product subcategory', 'view products'])) {
             abort(403, 'Unauthorized action.');
         }
         $query = ProductServiceCategory::with('parent')->whereNotNull('parent_id');
@@ -83,7 +83,7 @@ class ProductController extends Controller
 
     public function storeSubcategory(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product subcategory', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -120,7 +120,7 @@ class ProductController extends Controller
 
     public function updateSubcategory(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product subcategory', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $subcategory = ProductServiceCategory::findOrFail($id);
@@ -172,7 +172,7 @@ class ProductController extends Controller
 
     public function deleteSubcategory($id)
     {
-        if (!auth()->user()->hasPermissionTo('delete products')) {
+        if (!auth()->user()->hasAnyPermission(['product subcategory', 'delete products'])) {
             abort(403, 'Unauthorized action.');
         }
         $subcategory = ProductServiceCategory::findOrFail($id);
@@ -185,7 +185,7 @@ class ProductController extends Controller
 
     public function storeCategory(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product category', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -221,7 +221,7 @@ class ProductController extends Controller
     
     public function updateCategory(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product category', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $category = ProductServiceCategory::findOrFail($id);
@@ -278,7 +278,7 @@ class ProductController extends Controller
 
     public function deleteCategory($id)
     {
-        if (!auth()->user()->hasPermissionTo('delete products')) {
+        if (!auth()->user()->hasAnyPermission(['product category', 'delete products'])) {
             abort(403, 'Unauthorized action.');
         }
         $category = ProductServiceCategory::findOrFail($id);

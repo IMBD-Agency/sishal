@@ -10,7 +10,7 @@ class SeasonController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view products')) {
+        if (!auth()->user()->hasAnyPermission(['product season', 'view products'])) {
             abort(403, 'Unauthorized action.');
         }
         $seasons = Season::latest()->get();
@@ -19,7 +19,7 @@ class SeasonController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product season', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -33,7 +33,7 @@ class SeasonController extends Controller
 
     public function update(Request $request, Season $season)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product season', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -47,7 +47,7 @@ class SeasonController extends Controller
 
     public function destroy(Season $season)
     {
-        if (!auth()->user()->hasPermissionTo('delete products')) {
+        if (!auth()->user()->hasAnyPermission(['product season', 'delete products'])) {
             abort(403, 'Unauthorized action.');
         }
         $season->delete();

@@ -61,11 +61,14 @@
         </thead>
         <tbody>
             @foreach($accounts as $account)
+            @php
+                $dispNumber = !empty($account->account_number) ? $account->account_number : (!empty($account->mobile_number) ? $account->mobile_number : '');
+            @endphp
             <tr>
                 <td>
                     <div style="font-weight: bold;">{{ $account->account_holder_name ?? $account->chartOfAccount->name }}</div>
                     <div style="font-size: 8px; color: #64748b;">
-                        {{ $account->provider_name }} {{ $account->account_number ? '#'.$account->account_number : '' }}
+                        {{ $account->provider_name }} {{ $dispNumber ? '#'.$dispNumber : '' }}
                     </div>
                 </td>
                 <td>{{ $account->branch_name ?? '-' }}</td>

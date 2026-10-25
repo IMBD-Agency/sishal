@@ -91,7 +91,7 @@
                                     <a href="{{ route('exchange.show', $exchange->id) }}" class="btn btn-action btn-sm" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    @can('manage exchanges')
+                                    @can('delete exchanges')
                                     <button type="button" class="btn btn-action btn-sm text-danger delete-exchange-btn" data-url="{{ route('exchange.delete', $exchange->id) }}" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>

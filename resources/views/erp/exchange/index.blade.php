@@ -19,7 +19,7 @@
                     <h4 class="fw-bold mb-0 text-dark">Exchange List</h4>
                 </div>
                 <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                @can('manage exchanges')
+                @can('create exchanges')
                 <a href="{{ route('exchange.create') }}" class="btn btn-create-premium text-nowrap">
                         <i class="fas fa-plus me-2"></i>New Exchange
                     </a>

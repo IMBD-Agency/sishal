@@ -12,8 +12,9 @@
                 <h2 class="h3 fw-bold mb-1 text-dark">Master Settings</h2>
                 <p class="text-muted mb-0">Manage all your product metadata and system configurations in one place.</p>
             </div>
-            @can('product category')
-                <div class="row g-4">
+
+            <div class="row g-4">
+                @can('product category')
                     <!-- Product Categories -->
                     <div class="col-md-4 col-xl-3">
                         <a href="{{ route('category.list') }}" class="text-decoration-none">
@@ -30,7 +31,7 @@
                             </div>
                         </a>
                     </div>
-            @endcan
+                @endcan
 
                 @can('product subcategory')
                     <!-- Product Subcategories -->
@@ -101,8 +102,7 @@
                                     </div>
                                     <h5 class="fw-bold text-dark mb-1">Product Season</h5>
                                     <p class="text-muted small mb-3">Seasonal collections</p>
-                                    <div class="badge bg-warning text-dark rounded-pill px-3">{{ $stats['seasons'] }} Items
-                                    </div>
+                                    <div class="badge bg-warning text-dark rounded-pill px-3">{{ $stats['seasons'] }} Items</div>
                                 </div>
                             </div>
                         </a>
@@ -140,8 +140,7 @@
                                     </div>
                                     <h5 class="fw-bold text-dark mb-1">Style/Variation</h5>
                                     <p class="text-muted small mb-3">Colors, Sizes, and more</p>
-                                    <div class="badge bg-secondary rounded-pill px-3">{{ $stats['variation_attributes'] }} Items
-                                    </div>
+                                    <div class="badge bg-secondary rounded-pill px-3">{{ $stats['variation_attributes'] }} Items</div>
                                 </div>
                             </div>
                         </a>
@@ -166,7 +165,6 @@
                         </a>
                     </div>
                 @endcan
-
             </div>
         </div>
     </div>

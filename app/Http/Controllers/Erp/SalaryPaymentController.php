@@ -89,7 +89,7 @@ class SalaryPaymentController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage salary')) {
+        if (!auth()->user()->hasPermissionTo('create salary')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -117,7 +117,7 @@ class SalaryPaymentController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary')) {
+        if (!auth()->user()->hasPermissionTo('create salary')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -261,7 +261,7 @@ class SalaryPaymentController extends Controller
 
     public function calculateBonus(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary')) {
+        if (!auth()->user()->hasPermissionTo('create salary')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -286,7 +286,7 @@ class SalaryPaymentController extends Controller
 
     public function updateBonus(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary')) {
+        if (!auth()->user()->hasPermissionTo('edit salary')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -343,7 +343,7 @@ class SalaryPaymentController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage salary')) {
+        if (!auth()->user()->hasPermissionTo('delete salary')) {
             abort(403, 'Unauthorized action.');
         }
         $payment = SalaryPayment::findOrFail($id);

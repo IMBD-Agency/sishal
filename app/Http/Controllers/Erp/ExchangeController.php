@@ -89,7 +89,7 @@ class ExchangeController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('create exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $branchId = $this->getRestrictedBranchId();
@@ -184,7 +184,7 @@ class ExchangeController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('create exchanges')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -1125,7 +1125,7 @@ class ExchangeController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage exchanges')) {
+        if (!auth()->user()->hasPermissionTo('delete exchanges')) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
             }

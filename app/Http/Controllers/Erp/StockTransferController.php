@@ -90,7 +90,7 @@ class StockTransferController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('create transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('create transfers')) {
             abort(403, 'Unauthorized action.');
         }
         
@@ -386,7 +386,7 @@ class StockTransferController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('delete transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('delete transfers')) {
             if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
             }
@@ -455,51 +455,6 @@ class StockTransferController extends Controller
         }
     }
 
-    public function bulkDelete(Request $request)
-    {
-        if (!auth()->user()->hasPermissionTo('delete transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized action.']);
-        }
-
-        $selected = $request->selected;
-        if (empty($selected)) {
-            return response()->json(['success' => false, 'message' => 'No items selected.']);
-        }
-
-        $deletedCount = 0;
-        foreach ($selected as $item) {
-            $val = $item['val'];
-            $type = $item['type'];
-
-            if ($type === 'invoice') {
-                $query = StockTransfer::where('invoice_number', $val);
-                
-                // Block deletion if ANY item is delivered AND user is NOT superadmin
-                if (!$this->isSuperAdmin() && StockTransfer::where('invoice_number', $val)->where('status', 'delivered')->exists()) {
-                    continue; 
-                }
-
-                if (!$this->isSuperAdmin()) {
-                    $query->whereIn('status', ['pending', 'rejected']);
-                }
-                $deletedCount += $query->delete();
-            } else {
-                $transfer = StockTransfer::find($val);
-                if ($transfer) {
-                    if ($this->isSuperAdmin() || in_array($transfer->status, ['pending', 'rejected'])) {
-                        $transfer->delete();
-                        $deletedCount++;
-                    }
-                }
-            }
-        }
-
-        return response()->json([
-            'success' => true, 
-            'message' => "Successfully deleted {$deletedCount} record(s)."
-        ]);
-    }
-
     private function isSuperAdmin()
     {
         return auth()->user()->hasRole('Super Admin') || auth()->user()->id == 18;
@@ -544,7 +499,7 @@ class StockTransferController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage transfers') && !auth()->user()->hasPermissionTo('create transfers')) {
+        if (!auth()->user()->hasPermissionTo('create transfers')) {
             abort(403, 'Unauthorized action.');
         }
         // Validate basic transfer information
@@ -697,7 +652,7 @@ class StockTransferController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('approve transfers') && !auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('approve transfers')) {
             abort(403, 'Unauthorized action.');
         }
         $primaryTransfer = StockTransfer::findOrFail($id);
@@ -1310,7 +1265,7 @@ class StockTransferController extends Controller
     }
     public function return($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage transfers')) {
+        if (!auth()->user()->hasPermissionTo('create transfers') && !auth()->user()->hasPermissionTo('approve transfers')) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -351,11 +351,7 @@
                         <i class="fas fa-list me-2 text-primary"></i>All Transfer Data
                     @endif
                 </h6>
-                <div id="bulkActions" class="d-none animate__animated animate__fadeIn">
-                    <button type="button" id="bulkDeleteBtn" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm">
-                        <i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)
-                    </button>
-                </div>
+
             </div>
 
             <!-- Main Listing Table -->
@@ -648,73 +644,7 @@
                     loadTransfers($(this).attr('href'), $('#filterForm').serialize());
                 });
 
-                // Bulk Actions Logic
-                $(document).on('change', '#masterCheckbox', function () {
-                    $('.row-checkbox').prop('checked', this.checked);
-                    toggleBulkActions();
-                });
 
-                $(document).on('change', '.row-checkbox', function () {
-                    if ($('.row-checkbox:checked').length == $('.row-checkbox').length) {
-                        $('#masterCheckbox').prop('checked', true);
-                    } else {
-                        $('#masterCheckbox').prop('checked', false);
-                    }
-                    toggleBulkActions();
-                });
-
-                function toggleBulkActions() {
-                    const checkedCount = $('.row-checkbox:checked').length;
-                    if (checkedCount > 0) {
-                        $('#bulkActions').removeClass('d-none').addClass('d-block');
-                        $('#selectedCount').text(checkedCount);
-                    } else {
-                        $('#bulkActions').removeClass('d-block').addClass('d-none');
-                    }
-                }
-
-                $('#bulkDeleteBtn').on('click', function () {
-                    const selected = [];
-                    $('.row-checkbox:checked').each(function () {
-                        selected.push({
-                            val: $(this).val(),
-                            type: $(this).data('type')
-                        });
-                    });
-
-                    if (selected.length === 0) return;
-
-                    if (confirm(`Are you sure you want to delete ${selected.length} selected record(s)/batch(es)? This action is permanent.`)) {
-                        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
-
-                        $.ajax({
-                            url: "{{ route('stocktransfer.bulk.delete') }}",
-                            method: "POST",
-                            data: {
-                                _token: "{{ csrf_token() }}",
-                                selected: selected
-                            },
-                            success: function (res) {
-                                if (res.success) {
-                                    showTransferToast('success', res.message);
-                                    $('#filterForm').submit();
-                                    $('#masterCheckbox').prop('checked', false);
-                                } else {
-                                    showTransferToast('danger', res.message);
-                                    $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
-                                }
-                            },
-                            error: function (err) {
-                                showTransferToast('danger', 'Internal server error while deleting.');
-                                $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
-                            },
-                            complete: function () {
-                                $('#bulkDeleteBtn').prop('disabled', false).html('<i class="fas fa-trash-alt me-2"></i>Delete Selected (<span id="selectedCount">0</span>)');
-                                toggleBulkActions();
-                            }
-                        });
-                    }
-                });
 
                 // Report type toggles
                 $('.report-type-radio').on('change', function () {

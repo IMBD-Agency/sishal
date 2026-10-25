@@ -28,7 +28,7 @@
                 </div>
                 <div
                     class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
-                    @can('manage vouchers')
+                    @can('create vouchers')
                         <a href="{{ route('vouchers.create') }}" class="btn btn-create-premium">
                             <i class="fas fa-plus-circle me-2"></i>New Voucher
                         </a>

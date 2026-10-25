@@ -18,12 +18,12 @@
             <a href="{{ route('money-receipt.show', $receipt->id) }}" class="btn btn-action btn-sm" title="View & Print"><i class="fas fa-eye"></i></a>
             @endif
             
-            @if(auth()->user()->hasPermissionTo('manage money receipts'))
+            @if(auth()->user()->hasPermissionTo('edit money receipts'))
             <!-- Edit Button -->
             <a href="{{ route('money-receipt.edit', $receipt->id) }}" class="btn btn-action btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
             @endif
             
-            @if(auth()->user()->hasPermissionTo('manage money receipts'))
+            @if(auth()->user()->hasPermissionTo('delete money receipts'))
             <!-- Delete Button -->
             <form action="{{ route('money-receipt.destroy', $receipt->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this receipt? This will reverse the payment from the invoice.')">
                 @csrf

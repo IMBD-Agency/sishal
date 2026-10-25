@@ -10,7 +10,7 @@ class AttributeController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->hasPermissionTo('view products')) {
+        if (!auth()->user()->hasAnyPermission(['product attribute', 'view products'])) {
             abort(403, 'Unauthorized action.');
         }
         $attributes = Attribute::orderByDesc('id')->paginate(12);
@@ -19,7 +19,7 @@ class AttributeController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product attribute', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('erp.attributes.create');
@@ -27,7 +27,7 @@ class AttributeController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('create products')) {
+        if (!auth()->user()->hasAnyPermission(['product attribute', 'create products'])) {
             abort(403, 'Unauthorized action.');
         }
         $validated = $request->validate([
@@ -54,7 +54,7 @@ class AttributeController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product attribute', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = Attribute::findOrFail($id);
@@ -63,7 +63,7 @@ class AttributeController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('edit products')) {
+        if (!auth()->user()->hasAnyPermission(['product attribute', 'edit products'])) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = Attribute::findOrFail($id);
@@ -85,7 +85,7 @@ class AttributeController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('delete products')) {
+        if (!auth()->user()->hasAnyPermission(['product attribute', 'delete products'])) {
             abort(403, 'Unauthorized action.');
         }
         $attribute = Attribute::findOrFail($id);

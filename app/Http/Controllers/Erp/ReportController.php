@@ -1359,7 +1359,8 @@ class ReportController extends Controller
 
         $row = 5;
         foreach ($data['accounts'] as $account) {
-            $sheet->setCellValue('A' . $row, $account->account_holder_name ?? ($account->provider_name . ' - ' . $account->account_number));
+            $dispNumber = !empty($account->account_number) ? $account->account_number : (!empty($account->mobile_number) ? $account->mobile_number : '');
+            $sheet->setCellValue('A' . $row, $account->account_holder_name ?? ($account->provider_name . ($dispNumber ? ' - ' . $dispNumber : '')));
             $sheet->setCellValue('B' . $row, $account->branch_name ?? '-');
             $sheet->setCellValue('C' . $row, $account->opening);
             $sheet->setCellValue('D' . $row, $account->debit);

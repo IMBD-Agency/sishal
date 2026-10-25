@@ -382,7 +382,7 @@ class SaleReturnController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('create sale returns')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -475,7 +475,7 @@ class SaleReturnController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('create sale returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([
@@ -572,7 +572,7 @@ class SaleReturnController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('edit sale returns')) {
             abort(403, 'Unauthorized action.');
         }
         $saleReturn = SaleReturn::with([
@@ -604,7 +604,7 @@ class SaleReturnController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('edit sale returns')) {
             abort(403, 'Unauthorized action.');
         }
         $saleReturn = \App\Models\SaleReturn::findOrFail($id);
@@ -669,7 +669,7 @@ class SaleReturnController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('delete sale returns')) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
             }
@@ -797,7 +797,7 @@ class SaleReturnController extends Controller
      */
     public function updateReturnStatus(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage returns')) {
+        if (!auth()->user()->hasPermissionTo('edit sale returns')) {
             abort(403, 'Unauthorized action.');
         }
         $request->validate([

@@ -77,7 +77,7 @@ class MoneyReceiptController extends Controller
 
     public function create(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+        if (!auth()->user()->hasPermissionTo('create money receipts')) {
             abort(403, 'Unauthorized action.');
         }
         $restrictedBranchId = $this->getRestrictedBranchId();
@@ -209,7 +209,7 @@ class MoneyReceiptController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+        if (!auth()->user()->hasPermissionTo('create money receipts')) {
             abort(403, 'Unauthorized action.');
         }
         
@@ -416,7 +416,7 @@ class MoneyReceiptController extends Controller
 
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+        if (!auth()->user()->hasPermissionTo('edit money receipts')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -446,7 +446,7 @@ class MoneyReceiptController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+        if (!auth()->user()->hasPermissionTo('edit money receipts')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -635,7 +635,7 @@ class MoneyReceiptController extends Controller
 
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('manage money receipts')) {
+        if (!auth()->user()->hasPermissionTo('delete money receipts')) {
             abort(403, 'Unauthorized action.');
         }
         DB::beginTransaction();
