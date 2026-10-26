@@ -52,7 +52,7 @@
     <link rel="icon" href="{{ $appIcon }}?v={{ time() }}">
     <link rel="shortcut icon" href="{{ $appIcon }}?v={{ time() }}">
     <link rel="apple-touch-icon" href="{{ $appIcon }}">
-    <link rel="manifest" href="{{ url('/manifest.json') }}">
+    <link rel="manifest" href="{{ url('/manifest.json?app=erp') }}">
     <meta name="theme-color" content="#10b981">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">

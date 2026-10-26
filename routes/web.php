@@ -38,10 +38,13 @@ Route::put('/api/products/{productId}/reviews/{reviewId}', [\App\Http\Controller
 Route::delete('/api/products/{productId}/reviews/{reviewId}', [\App\Http\Controllers\Ecommerce\ReviewController::class, 'destroy'])->name('api.reviews.destroy');
 
 // Dynamic PWA Web App Manifest (for Chrome/Edge "Install App" feature)
-Route::get('/manifest.json', function () {
+Route::get('/manifest.json', function (\Illuminate\Http\Request $request) {
     $settings = \App\Models\GeneralSetting::first();
     $name = $settings->site_title ?? $settings->site_name ?? config('app.name', 'ERP App');
     $shortName = $settings->site_name ?? $settings->site_title ?? config('app.name', 'ERP App');
+
+    $appType = $request->query('app', $request->query('type', 'erp'));
+    $isShop = ($appType === 'shop' || $appType === 'ecommerce' || $appType === 'store');
 
     $iconUrl = null;
     if ($settings && !empty($settings->site_favicon)) {
@@ -77,14 +80,40 @@ Route::get('/manifest.json', function () {
         ];
     }
 
+    if ($isShop) {
+        return response()->json([
+            'name' => $name,
+            'short_name' => mb_substr($shortName, 0, 16),
+            'start_url' => '/',
+            'scope' => '/',
+            'display' => 'standalone',
+            'background_color' => '#ffffff',
+            'theme_color' => '#10b981',
+            'icons' => $icons
+        ], 200, ['Content-Type' => 'application/manifest+json; charset=utf-8']);
+    }
+
     return response()->json([
-        'name' => $name,
-        'short_name' => mb_substr($shortName, 0, 16),
-        'start_url' => '/',
+        'name' => $name . ' - ERP',
+        'short_name' => 'ERP Dashboard',
+        'start_url' => '/erp/dashboard',
+        'scope' => '/',
         'display' => 'standalone',
         'background_color' => '#ffffff',
         'theme_color' => '#10b981',
-        'icons' => $icons
+        'icons' => $icons,
+        'shortcuts' => [
+            [
+                'name' => 'ERP Dashboard',
+                'url' => '/erp/dashboard',
+                'description' => 'Go to ERP Dashboard'
+            ],
+            [
+                'name' => 'POS Sale',
+                'url' => '/erp/pos/create',
+                'description' => 'Open POS Terminal'
+            ]
+        ]
     ], 200, ['Content-Type' => 'application/manifest+json; charset=utf-8']);
 })->name('manifest.json');
 
