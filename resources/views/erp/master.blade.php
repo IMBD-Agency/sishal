@@ -43,8 +43,21 @@
     @php $logoUrl = $general_settings && $general_settings->site_logo ? asset($general_settings->site_logo) : asset('static/default-logo.webp'); @endphp
     <link rel="preload" as="image" href="{{ $logoUrl }}" fetchpriority="high">
     
-    <link rel="icon" type="image/x-icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
-    <link rel="shortcut icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
+    @php 
+        $siteFavicon = ($general_settings && !empty($general_settings->site_favicon)) ? asset($general_settings->site_favicon) : null;
+        $siteLogo = ($general_settings && !empty($general_settings->site_logo)) ? asset($general_settings->site_logo) : null;
+        $appIcon = $siteFavicon ?: ($siteLogo ?: asset('static/default-product.jpg'));
+    @endphp
+
+    <link rel="icon" href="{{ $appIcon }}?v={{ time() }}">
+    <link rel="shortcut icon" href="{{ $appIcon }}?v={{ time() }}">
+    <link rel="apple-touch-icon" href="{{ $appIcon }}">
+    <link rel="manifest" href="{{ url('/manifest.json') }}">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="{{ $general_settings->site_title ?? config('app.name', 'ERP') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />

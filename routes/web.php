@@ -37,6 +37,57 @@ Route::post('/api/products/{productId}/reviews', [\App\Http\Controllers\Ecommerc
 Route::put('/api/products/{productId}/reviews/{reviewId}', [\App\Http\Controllers\Ecommerce\ReviewController::class, 'update'])->name('api.reviews.update');
 Route::delete('/api/products/{productId}/reviews/{reviewId}', [\App\Http\Controllers\Ecommerce\ReviewController::class, 'destroy'])->name('api.reviews.destroy');
 
+// Dynamic PWA Web App Manifest (for Chrome/Edge "Install App" feature)
+Route::get('/manifest.json', function () {
+    $settings = \App\Models\GeneralSetting::first();
+    $name = $settings->site_title ?? $settings->site_name ?? config('app.name', 'ERP App');
+    $shortName = $settings->site_name ?? $settings->site_title ?? config('app.name', 'ERP App');
+
+    $iconUrl = null;
+    if ($settings && !empty($settings->site_favicon)) {
+        $iconUrl = asset($settings->site_favicon);
+    } elseif ($settings && !empty($settings->site_logo)) {
+        $iconUrl = asset($settings->site_logo);
+    }
+
+    $icons = [];
+    if ($iconUrl) {
+        $ext = strtolower(pathinfo(parse_url($iconUrl, PHP_URL_PATH), PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            default => 'image/png',
+        };
+
+        $icons = [
+            [
+                'src' => $iconUrl,
+                'sizes' => '192x192',
+                'type' => $mime,
+                'purpose' => 'any maskable'
+            ],
+            [
+                'src' => $iconUrl,
+                'sizes' => '512x512',
+                'type' => $mime,
+                'purpose' => 'any maskable'
+            ]
+        ];
+    }
+
+    return response()->json([
+        'name' => $name,
+        'short_name' => mb_substr($shortName, 0, 16),
+        'start_url' => '/',
+        'display' => 'standalone',
+        'background_color' => '#ffffff',
+        'theme_color' => '#10b981',
+        'icons' => $icons
+    ], 200, ['Content-Type' => 'application/manifest+json; charset=utf-8']);
+})->name('manifest.json');
+
 // Test route for review system
 Route::get('/test-review', function() {
     return response()->json([

@@ -907,7 +907,47 @@ class ProductController extends Controller
                     );
                 }
 
+                $oldSku = $product->sku;
+                $oldStyleNumber = $product->style_number;
+
                 $product->update($data);
+
+                // Auto-sync variation SKUs if style_number or sku was changed
+                $newBase = !empty($product->style_number) ? $product->style_number : $product->sku;
+                $oldBase = !empty($oldStyleNumber) ? $oldStyleNumber : $oldSku;
+
+                if ($newBase && $oldBase && $newBase !== $oldBase && $product->variations()->exists()) {
+                    foreach ($product->variations as $variation) {
+                        $oldVarSku = $variation->sku;
+                        $suffix = '';
+                        if ($oldStyleNumber && str_starts_with($oldVarSku, $oldStyleNumber . '-')) {
+                            $suffix = substr($oldVarSku, strlen($oldStyleNumber) + 1);
+                        } elseif ($oldSku && str_starts_with($oldVarSku, $oldSku . '-')) {
+                            $suffix = substr($oldVarSku, strlen($oldSku) + 1);
+                        } elseif ($oldStyleNumber && str_starts_with($oldVarSku, $oldStyleNumber)) {
+                            $suffix = ltrim(substr($oldVarSku, strlen($oldStyleNumber)), '-');
+                        } elseif ($oldSku && str_starts_with($oldVarSku, $oldSku)) {
+                            $suffix = ltrim(substr($oldVarSku, strlen($oldSku)), '-');
+                        } elseif (str_contains($oldVarSku, '-')) {
+                            $parts = explode('-', $oldVarSku);
+                            $suffix = end($parts);
+                        } else {
+                            $suffix = $variation->name ?: $variation->id;
+                        }
+
+                        $newVarSku = $newBase . '-' . $suffix;
+
+                        if ($newVarSku !== $oldVarSku) {
+                            $exists = \App\Models\ProductVariation::where('sku', $newVarSku)
+                                ->where('id', '!=', $variation->id)
+                                ->exists();
+                            if ($exists) {
+                                $newVarSku = $newBase . '-' . $suffix . '-' . $variation->id;
+                            }
+                            $variation->update(['sku' => $newVarSku]);
+                        }
+                    }
+                }
 
                 // Handle gallery images upload
                 if ($request->hasFile('gallery')) {

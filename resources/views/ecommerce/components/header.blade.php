@@ -175,8 +175,21 @@
         <meta property="og:type" content="website">
         <meta property="og:url" content="{{ url()->current() }}">
     @endif
-    <link rel="icon" type="image/x-icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
-    <link rel="shortcut icon" href="{{ $general_settings && $general_settings->site_favicon ? asset($general_settings->site_favicon) . '?v=' . time() : asset('static/default-site-icon.webp') }}">
+    @php 
+        $siteFavicon = ($general_settings && !empty($general_settings->site_favicon)) ? asset($general_settings->site_favicon) : null;
+        $siteLogo = ($general_settings && !empty($general_settings->site_logo)) ? asset($general_settings->site_logo) : null;
+        $appIcon = $siteFavicon ?: ($siteLogo ?: asset('static/default-site-logo.png'));
+    @endphp
+
+    <link rel="icon" href="{{ $appIcon }}?v={{ time() }}">
+    <link rel="shortcut icon" href="{{ $appIcon }}?v={{ time() }}">
+    <link rel="apple-touch-icon" href="{{ $appIcon }}">
+    <link rel="manifest" href="{{ url('/manifest.json') }}">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="{{ $general_settings->site_title ?? config('app.name', 'Store') }}">
     <!-- Critical Styles: Loaded synchronously to prevent Layout Shift (CLS) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
