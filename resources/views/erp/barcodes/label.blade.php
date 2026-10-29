@@ -172,6 +172,13 @@
             margin-top: 0.2mm;
         }
 
+        .product-style {
+            font-weight: 700;
+            color: #000000;
+            line-height: 1;
+            margin-top: 0.2mm;
+        }
+
         .barcode-wrapper {
             width: 100%;
             display: flex;
@@ -269,6 +276,9 @@
                         {{ $color ? $color : '' }} {{ ($color && $size) ? '|' : '' }} {{ $size ? 'Size: '.$size : '' }}
                     </div>
                 @endif
+                @if(!empty($styleNumber))
+                    <div class="product-style">Style: {{ $styleNumber }}</div>
+                @endif
             </div>
 
             <!-- 2. Pixel-Perfect 1-Bit Monochrome Native SVG Barcode -->
@@ -276,7 +286,6 @@
                 <div class="barcode-image-box">
                     <svg class="barcode-svg" data-barcode="{{ trim($sku) }}"></svg>
                 </div>
-                <div class="sku-code">{{ strtoupper($sku) }}</div>
             </div>
 
             <!-- 3. Price Tag -->
@@ -300,6 +309,7 @@
                 barcodeMargin: 8,
                 titleFont: '7.5pt',
                 variantFont: '6.5pt',
+                styleFont: '6.5pt',
                 skuFont: '7.5pt',
                 priceFont: '9pt'
             },
@@ -314,6 +324,7 @@
                 barcodeMargin: 6,
                 titleFont: '6.5pt',
                 variantFont: '5.5pt',
+                styleFont: '5.5pt',
                 skuFont: '6.5pt',
                 priceFont: '8pt'
             }
@@ -390,6 +401,9 @@
                 }
                 .product-variant {
                     font-size: ${cfg.variantFont} !important;
+                }
+                .product-style {
+                    font-size: ${cfg.styleFont} !important;
                 }
                 .sku-code {
                     font-size: ${cfg.skuFont} !important;

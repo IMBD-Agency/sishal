@@ -119,6 +119,17 @@ class BarcodeController extends Controller
         
         // Generate barcode with reduced width and increased height to match print
         $barcode = $this->generateLinearBarcode($sku, 1.5, 75);
+
+        $color = null;
+        $size = null;
+        if ($variation->combinations) {
+            foreach ($variation->combinations as $combo) {
+                $attr = $combo->attributeValue->attribute;
+                $val = $combo->attributeValue->value;
+                if (str_contains(strtolower($attr->name), 'color')) $color = $val;
+                if (str_contains(strtolower($attr->name), 'size')) $size = $val;
+            }
+        }
         
         return response()->json([
             'success' => true,
@@ -127,6 +138,7 @@ class BarcodeController extends Controller
                 'id' => $product->id,
                 'name' => $product->name,
                 'sku' => $baseIdentifier,
+                'style_number' => $baseIdentifier,
                 'price' => $product->price,
             ],
             'variation' => [
@@ -136,6 +148,8 @@ class BarcodeController extends Controller
                 'sku' => $sku,
                 'price' => $variation->price ?? $product->price,
                 'available_stock' => $variation->available_stock,
+                'color' => $color,
+                'size' => $size,
             ]
         ]);
     }
@@ -188,7 +202,8 @@ class BarcodeController extends Controller
         }
         $product = Product::findOrFail($productId);
         $variation = null;
-        $sku = $product->style_number ?? $product->sku;
+        $styleNumber = $product->style_number ?? $product->sku;
+        $sku = $styleNumber;
         $price = $product->price;
         $name = $product->name;
         $color = null;
@@ -224,7 +239,7 @@ class BarcodeController extends Controller
         // Get quantity from request (default 1)
         $quantity = request('quantity', 1);
 
-        return view('erp.barcodes.label', compact('product', 'variation', 'barcodeBase64', 'sku', 'price', 'name', 'quantity', 'color', 'size'));
+        return view('erp.barcodes.label', compact('product', 'variation', 'barcodeBase64', 'sku', 'price', 'name', 'quantity', 'color', 'size', 'styleNumber'));
     }
 
     /**
@@ -237,7 +252,8 @@ class BarcodeController extends Controller
         }
         $product = Product::findOrFail($productId);
         $variation = null;
-        $sku = $product->style_number ?? $product->sku;
+        $styleNumber = $product->style_number ?? $product->sku;
+        $sku = $styleNumber;
         $price = $product->price;
         $name = $product->name;
         $color = null;
@@ -274,7 +290,7 @@ class BarcodeController extends Controller
         $quantity = request('quantity', 1);
 
         // Generate PDF with the exact sticker size (45mm x 35mm)
-        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size'));
+        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size', 'styleNumber'));
         $pdf->setPaper([0, 0, 127.559, 99.213], 'portrait');
         
         return $pdf->download('barcode-' . $sku . '.pdf');
@@ -351,6 +367,7 @@ class BarcodeController extends Controller
         $combo = Product::where('type', 'combo')->findOrFail($comboId);
 
         $sku   = $combo->sku;
+        $styleNumber = $combo->style_number ?? $combo->sku;
         $price = $combo->price;
         $name  = $combo->name;
         $color = null;
@@ -361,7 +378,7 @@ class BarcodeController extends Controller
         $quantity      = request('quantity', 1);
 
         // Reuse the same label view – it is generic enough
-        return view('erp.barcodes.label', compact('barcodeBase64', 'sku', 'price', 'name', 'quantity', 'color', 'size'));
+        return view('erp.barcodes.label', compact('barcodeBase64', 'sku', 'price', 'name', 'quantity', 'color', 'size', 'styleNumber'));
     }
 
     /**
@@ -375,6 +392,7 @@ class BarcodeController extends Controller
         $combo = Product::where('type', 'combo')->findOrFail($comboId);
 
         $sku   = $combo->sku;
+        $styleNumber = $combo->style_number ?? $combo->sku;
         $price = $combo->price;
         $name  = $combo->name;
         $color = null;
@@ -384,7 +402,7 @@ class BarcodeController extends Controller
         $barcodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($barcodeSvg);
         $quantity      = request('quantity', 1);
 
-        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size'));
+        $pdf = Pdf::loadView('erp.barcodes.pdf-label', compact('barcodeBase64', 'sku', 'name', 'quantity', 'price', 'color', 'size', 'styleNumber'));
         $pdf->setPaper([0, 0, 127.559, 99.213], 'portrait');
 
         return $pdf->download('barcode-combo-' . $sku . '.pdf');

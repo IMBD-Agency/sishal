@@ -200,6 +200,20 @@
         position: relative;
         box-sizing: border-box;
     }
+    .sticker-variant {
+        font-size: 8px;
+        font-weight: 700;
+        color: #000;
+        margin: 0;
+        line-height: 1.1;
+    }
+    .sticker-style {
+        font-size: 8px;
+        font-weight: 700;
+        color: #000;
+        margin: 0;
+        line-height: 1.1;
+    }
     .sticker-name {
         font-size: 10px;
         font-weight: 850;
@@ -367,11 +381,19 @@
                 
                 if(res.success) {
                     const sku   = res.variation ? res.variation.sku : (res.product.style_number || res.product.sku);
+                    const styleNo = res.product.style_number || res.product.sku;
                     const price = res.variation ? res.variation.price : res.product.price;
                     const name  = res.product.name;
+                    let variantText = '';
+                    if (res.variation) {
+                        const parts = [];
+                        if (res.variation.color) parts.push(res.variation.color);
+                        if (res.variation.size) parts.push('Size: ' + res.variation.size);
+                        variantText = parts.length > 0 ? parts.join(' | ') : (res.variation.display_name || res.variation.name);
+                    }
                     currentVariation = res.variation;
 
-                    $('#previewContainer').html(buildStickerHtml(name, res.barcode, sku, price, qty));
+                    $('#previewContainer').html(buildStickerHtml(name, res.barcode, sku, price, qty, styleNo, variantText));
                     $('#previewActions').fadeIn();
                 }
             });
@@ -506,15 +528,19 @@
         }
 
         // ══════════ SHARED ══════════
-        window.buildStickerHtml = function(name, barcode, sku, price, qty) {
+        window.buildStickerHtml = function(name, barcode, sku, price, qty, styleNo, variantText) {
+            const displayStyle = styleNo || sku || '';
+            const variantHtml = variantText ? `<div class="sticker-variant">${variantText}</div>` : '';
+            const styleHtml = displayStyle ? `<div class="sticker-style">Style: ${displayStyle}</div>` : '';
             return `
                 <div class="barcode-sticker-preview mx-auto position-relative">
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size:12px; z-index:10; transform: translate(-30%, -30%) !important;">
                         ${qty}x
                     </span>
                     <div class="sticker-name" title="${name}">${name || 'PRODUCT NAME MISSING'}</div>
+                    ${variantHtml}
+                    ${styleHtml}
                     <div class="sticker-barcode">${barcode}</div>
-                    <div class="sticker-sku">${sku || 'NO SKU'}</div>
                     <div class="sticker-price">MRP: ৳${parseFloat(price).toFixed(2)}</div>
                 </div>
                 <div class="mt-4">

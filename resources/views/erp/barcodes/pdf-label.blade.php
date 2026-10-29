@@ -56,6 +56,14 @@
             margin-top: 0.5pt;
         }
 
+        .product-style {
+            font-size: 5.5pt;
+            font-weight: bold;
+            color: #444;
+            line-height: 1;
+            margin-top: 0.5pt;
+        }
+
         .barcode-container {
             width: 100%;
             text-align: center;
@@ -110,13 +118,15 @@
                         {{ $color ? $color : '' }} {{ ($color && $size) ? '|' : '' }} {{ $size ? 'Size: '.$size : '' }}
                     </div>
                 @endif
+                @if(!empty($styleNumber))
+                    <div class="product-style">Style: {{ $styleNumber }}</div>
+                @endif
             </div>
 
             <div class="barcode-container">
                 <div class="barcode-img-box">
                     <img src="{{ $barcodeBase64 }}" alt="Barcode">
                 </div>
-                <div class="sku-text">{{ strtoupper($sku) }}</div>
             </div>
 
             <div class="price-line">
