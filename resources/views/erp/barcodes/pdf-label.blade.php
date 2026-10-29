@@ -87,7 +87,7 @@
         }
 
         .sku-text {
-            font-size: 8pt;
+            font-size: 9pt;
             font-weight: bold;
             font-family: 'Courier', monospace;
             letter-spacing: 0.5pt;
@@ -118,15 +118,13 @@
                         {{ $color ? $color : '' }} {{ ($color && $size) ? '|' : '' }} {{ $size ? 'Size: '.$size : '' }}
                     </div>
                 @endif
-                @if(!empty($styleNumber))
-                    <div class="product-style">Style: {{ $styleNumber }}</div>
-                @endif
             </div>
 
             <div class="barcode-container">
                 <div class="barcode-img-box">
                     <img src="{{ $barcodeBase64 }}" alt="Barcode">
                 </div>
+                <div class="sku-text">{{ strtoupper($styleNumber ?? $sku) }}</div>
             </div>
 
             <div class="price-line">

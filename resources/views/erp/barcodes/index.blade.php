@@ -241,7 +241,7 @@
     }
     .sticker-sku {
         font-family: 'Courier New', monospace;
-        font-size: 9px;
+        font-size: 10.5px;
         font-weight: bold;
         letter-spacing: 0.5px;
         text-transform: uppercase;
@@ -539,8 +539,8 @@
                     </span>
                     <div class="sticker-name" title="${name}">${name || 'PRODUCT NAME MISSING'}</div>
                     ${variantHtml}
-                    ${styleHtml}
                     <div class="sticker-barcode">${barcode}</div>
+                    <div class="sticker-sku" style="font-size: 10.5px; font-weight: bold; letter-spacing: 0.5px; font-family: 'Courier New', monospace;">${displayStyle}</div>
                     <div class="sticker-price">MRP: ৳${parseFloat(price).toFixed(2)}</div>
                 </div>
                 <div class="mt-4">

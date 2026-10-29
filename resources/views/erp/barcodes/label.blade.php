@@ -276,9 +276,6 @@
                         {{ $color ? $color : '' }} {{ ($color && $size) ? '|' : '' }} {{ $size ? 'Size: '.$size : '' }}
                     </div>
                 @endif
-                @if(!empty($styleNumber))
-                    <div class="product-style">Style: {{ $styleNumber }}</div>
-                @endif
             </div>
 
             <!-- 2. Pixel-Perfect 1-Bit Monochrome Native SVG Barcode -->
@@ -286,6 +283,7 @@
                 <div class="barcode-image-box">
                     <svg class="barcode-svg" data-barcode="{{ trim($sku) }}"></svg>
                 </div>
+                <div class="sku-code">{{ strtoupper($styleNumber ?? $sku) }}</div>
             </div>
 
             <!-- 3. Price Tag -->
@@ -310,7 +308,7 @@
                 titleFont: '7.5pt',
                 variantFont: '6.5pt',
                 styleFont: '6.5pt',
-                skuFont: '7.5pt',
+                skuFont: '8.5pt',
                 priceFont: '9pt'
             },
             '38x25': {
@@ -325,7 +323,7 @@
                 titleFont: '6.5pt',
                 variantFont: '5.5pt',
                 styleFont: '5.5pt',
-                skuFont: '6.5pt',
+                skuFont: '7.5pt',
                 priceFont: '8pt'
             }
         };
