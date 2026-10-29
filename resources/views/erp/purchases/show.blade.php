@@ -161,10 +161,21 @@
                                         <td class="ps-4 text-muted small fw-bold">{{ $idx + 1 }}</td>
                                         <td>
                                             <div class="fw-bold text-dark fs-6">{{ $item->product->name ?? 'Unknown Product' }}</div>
-                                            @if($item->variation_id && $item->variation)
-                                                <div class="small text-muted mt-1">
+                                            <div class="small text-muted mt-1 d-flex flex-wrap align-items-center gap-1">
+                                                @php
+                                                    $styleNumber = $item->product->style_number ?? $item->product->sku ?? null;
+                                                @endphp
+                                                @if($styleNumber)
+                                                    <span class="badge bg-light text-primary fw-medium border">
+                                                        <i class="fas fa-barcode me-1"></i>Style: {{ $styleNumber }}
+                                                    </span>
+                                                @endif
+                                                @if($item->variation_id && $item->variation)
                                                     <span class="badge bg-light text-dark fw-medium border">Variation: {{ $item->variation->name }}</span>
-                                                </div>
+                                                @endif
+                                            </div>
+                                            @if(!empty($item->description))
+                                                <div class="text-muted extra-small mt-1 fst-italic">{{ $item->description }}</div>
                                             @endif
                                         </td>
                                         <td class="text-center fw-bold text-dark">{{ $item->quantity }}</td>
@@ -272,7 +283,14 @@
                             <td>{{ $idx + 1 }}</td>
                             <td>
                                 <strong>{{ $item->product->name ?? 'Unknown Product' }}</strong>
-                                @if($item->variation) <br><small>Variation: {{ $item->variation->name }}</small> @endif
+                                @php
+                                    $styleNumber = $item->product->style_number ?? $item->product->sku ?? null;
+                                @endphp
+                                @if($styleNumber)
+                                    <br><small class="text-muted"><strong>Style:</strong> {{ $styleNumber }}</small>
+                                @endif
+                                @if($item->variation) <br><small class="text-muted">Variation: {{ $item->variation->name }}</small> @endif
+                                @if(!empty($item->description)) <br><small class="text-muted fst-italic">{{ $item->description }}</small> @endif
                             </td>
                             <td class="text-center">{{ $item->quantity }}</td>
                             <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>

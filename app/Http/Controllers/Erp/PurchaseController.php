@@ -1151,16 +1151,20 @@ class PurchaseController extends Controller
         if (!auth()->user()->hasPermissionTo('view purchases')) {
             abort(403, 'Unauthorized action.');
         }
-        $purchaseItems = \App\Models\PurchaseItem::with('product')
+        $purchaseItems = \App\Models\PurchaseItem::with(['product', 'variation'])
             ->where('purchase_id', $id)
             ->get();
 
         $results = $purchaseItems->map(function($item) {
+            $style = $item->product->style_number ?? $item->product->sku ?? null;
             return [
                 'id' => $item->id,
-                'text' => "#{$item->id} - {$item->product->name} (Qty: {$item->quantity})",
+                'text' => "#{$item->id} - {$item->product->name}" . ($style ? " (Style: {$style})" : "") . ($item->variation ? " [{$item->variation->name}]" : "") . " (Qty: {$item->quantity})",
                 'product_id' => $item->product_id,
                 'product_name' => $item->product->name,
+                'style_number' => $style,
+                'variation_id' => $item->variation_id,
+                'variation_name' => $item->variation?->name,
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
                 'total_price' => $item->total_price,
