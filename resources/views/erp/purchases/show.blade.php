@@ -190,9 +190,16 @@
                                 @endforeach
                             </tbody>
                             <tfoot class="bg-light border-top-0">
-                                @php $colSpan = ($purchase->items->sum('discount') ?? 0) > 0 ? 5 : 4; @endphp
+                                @php
+                                    $hasDiscount = ($purchase->items->sum('discount') ?? 0) > 0;
+                                    $colSpan = $hasDiscount ? 5 : 4;
+                                    $subTotalColSpan = $hasDiscount ? 2 : 1;
+                                    $totalQty = $purchase->items->sum('quantity');
+                                @endphp
                                 <tr>
-                                    <td colspan="{{ $colSpan }}" class="text-end py-2 fw-bold text-muted text-uppercase small">Subtotal</td>
+                                    <td colspan="2" class="text-end py-2 fw-bold text-muted text-uppercase small">Total Qty</td>
+                                    <td class="text-center py-2 fw-bold text-dark">{{ number_format($totalQty, 2) }}</td>
+                                    <td colspan="{{ $subTotalColSpan }}" class="text-end py-2 fw-bold text-muted text-uppercase small">Subtotal</td>
                                     <td class="text-end pe-4 py-2 fw-bold text-dark">৳{{ number_format(($purchase->bill?->sub_total ?? $purchase->items->sum('total_price')), 2) }}</td>
                                 </tr>
                                 @if(isset($purchase->bill) && ($purchase->bill->discount_amount ?? 0) > 0)
@@ -298,6 +305,13 @@
                         </tr>
                     @endforeach
                 </tbody>
+                <tfoot>
+                    <tr style="border-top: 2px solid #000; font-weight: bold;">
+                        <td colspan="2" class="text-end">Total Qty:</td>
+                        <td class="text-center">{{ number_format($purchase->items->sum('quantity'), 2) }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
             </table>
 
             <div class="totals-section">
