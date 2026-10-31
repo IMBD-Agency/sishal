@@ -82,11 +82,11 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase mb-2"><i
                                         class="fas fa-list-ol me-1"></i> Per Page</label>
                                 <select class="form-select shadow-sm" name="per_page">
-                                    <option value="20" {{ request('per_page', 20) == 20 ? 'selected' : '' }}>20 Products
-                                    </option>
+                                    <option value="20" {{ request('per_page') == 20 ? 'selected' : '' }}>20 Products</option>
                                     <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50 Products</option>
-                                    <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100 Products
-                                    </option>
+                                    <option value="100" {{ request('per_page', 100) == 100 ? 'selected' : '' }}>100 Products</option>
+                                    <option value="200" {{ request('per_page') == 200 ? 'selected' : '' }}>200 Products</option>
+                                    <option value="300" {{ request('per_page') == 300 ? 'selected' : '' }}>300 Products</option>
                                 </select>
                             </div>
                         </div>
@@ -370,6 +370,8 @@
                     const form = $('#filterForm');
                     form[0].reset();
                     $('.select2-simple').val('').trigger('change');
+                    $('.select2-tags').val('').trigger('change');
+                    $('select[name="per_page"]').val('100');
                     $('#currentPage').val(1);
                     fetchStockData();
                 });
