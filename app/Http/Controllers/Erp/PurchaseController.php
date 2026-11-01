@@ -572,6 +572,13 @@ class PurchaseController extends Controller
                 $q->where('branch_id', $restrictedBranchId)
                   ->orWhereNull('branch_id');
             });
+        } else {
+            $accountsQuery->where(function($q) {
+                $q->whereNull('branch_id')
+                  ->orWhereHas('branch', function($bq) {
+                      $bq->where('is_warehouse', true);
+                  });
+            });
         }
         $bankAccounts = $accountsQuery->get();
         return view('erp.purchases.create', compact('branches', 'warehouses', 'products', 'suppliers', 'bankAccounts', 'restrictedBranchId'));
@@ -604,18 +611,21 @@ class PurchaseController extends Controller
         $locationType = $restrictedBranchId ? 'branch' : $request->ship_location_type;
         $locationId = $restrictedBranchId ?: $request->location_id;
 
-        // Ensure account is branch-isolated
+        // Ensure account is branch-isolated (allow Global accounts and Warehouse-enabled branch accounts)
         if ($request->paid_amount > 0 && $request->account_id) {
-            $accountCheck = FinancialAccount::find($request->account_id);
+            $accountCheck = FinancialAccount::with('branch')->find($request->account_id);
             if ($accountCheck && $accountCheck->branch_id) {
+                $isWarehouseBranchAccount = (bool) ($accountCheck->branch?->is_warehouse ?? false);
                 if ($restrictedBranchId && $accountCheck->branch_id != $restrictedBranchId) {
                     return back()->with('error', 'Selected financial account does not belong to your branch.')->withInput();
                 }
-                if (!$restrictedBranchId && $locationType === 'branch' && $accountCheck->branch_id != $locationId) {
-                    return back()->with('error', 'Selected financial account does not belong to the destination branch.')->withInput();
-                }
-                if (!$restrictedBranchId && $locationType === 'warehouse') {
-                    return back()->with('error', 'A branch-specific financial account cannot be used for a warehouse purchase.')->withInput();
+                if (!$restrictedBranchId && !$isWarehouseBranchAccount) {
+                    if ($locationType === 'branch' && $accountCheck->branch_id != $locationId) {
+                        return back()->with('error', 'Selected financial account does not belong to the destination branch.')->withInput();
+                    }
+                    if ($locationType === 'warehouse') {
+                        return back()->with('error', 'A branch-specific financial account cannot be used for a warehouse purchase.')->withInput();
+                    }
                 }
             }
         }
@@ -774,7 +784,7 @@ class PurchaseController extends Controller
                         'type'           => 'Payment',
                         'description'    => 'Auto: Purchase #' . $purchase->id . ($request->notes ? ' - ' . $request->notes : ''),
                         'supplier_id'    => $request->supplier_id ?? null,
-                        'branch_id'      => $locationId ?? null,
+                        'branch_id'      => $financialAccount->branch_id ?: ($locationType === 'branch' ? $locationId : null),
                         'voucher_amount' => $totalAmount,
                         'paid_amount'    => $paid_amount,
                         'reference'      => isset($bill) ? ($bill->bill_number ?? 'BILL-' . $bill->id) : 'PUR-' . $purchase->id,

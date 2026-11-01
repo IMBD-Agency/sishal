@@ -263,21 +263,9 @@
                 }).fail(err => alert('Failed to fetch product data.'));
             });
 
-            // Account Filtering logic (combines Payment Method + Branch isolation)
+            // Account Filtering logic (filters by Payment Method; accounts are already scoped to Global + Warehouse Branches)
             function filterAccounts() {
                 const method = $('#payment_method').val();
-                const locVal = $('#location_selector').val() || '';
-                let targetBranchId = '{{ $restrictedBranchId ?? '' }}';
-                let isBranch = !!targetBranchId;
-
-                if (locVal.startsWith('branch_')) {
-                    targetBranchId = locVal.replace('branch_', '');
-                    isBranch = true;
-                } else if (locVal.startsWith('warehouse_')) {
-                    targetBranchId = '';
-                    isBranch = false;
-                }
-
                 const $acc = $('#account_id');
                 const currentVal = $acc.val();
                 let isCurrentValVisible = false;
@@ -291,22 +279,9 @@
                     }
 
                     const type = $opt.data('type');
-                    const branchId = $opt.data('branch-id');
 
-                    // 1. Match payment method type
-                    const matchesType = !method || (type === method);
-
-                    // 2. Branch isolation check:
-                    // If account belongs to a specific branch:
-                    //   It MUST only show when that branch is selected / active.
-                    // If account is global (no branch):
-                    //   It is visible for all locations.
-                    let matchesBranch = true;
-                    if (branchId !== '' && branchId !== undefined && branchId !== null) {
-                        matchesBranch = isBranch && (String(branchId) === String(targetBranchId));
-                    }
-
-                    const shouldShow = matchesType && matchesBranch;
+                    // Match payment method type
+                    const shouldShow = !method || (type === method);
                     $opt.toggle(shouldShow);
 
                     if (val === currentVal && shouldShow) {
