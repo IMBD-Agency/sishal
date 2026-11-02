@@ -229,9 +229,10 @@ class SupplierPaymentController extends Controller
     {
         $restrictedBranchId = $this->getRestrictedBranchId();
         
-        $billQuery = PurchaseBill::where('supplier_id', $supplierId)
+        $billQuery = PurchaseBill::with('purchase:id,ship_location_type,location_id')
+            ->where('supplier_id', $supplierId)
             ->where('status', '!=', 'paid')
-            ->select('id', 'bill_number', 'due_amount');
+            ->select('id', 'purchase_id', 'bill_number', 'due_amount');
             
         if ($restrictedBranchId) {
             $billQuery->whereHas('purchase', function($q) use ($restrictedBranchId) {
@@ -254,6 +255,13 @@ class SupplierPaymentController extends Controller
             $accountsQuery->where(function($q) use ($restrictedBranchId) {
                 $q->where('branch_id', $restrictedBranchId)
                   ->orWhereNull('branch_id');
+            });
+        } else {
+            $accountsQuery->where(function($q) {
+                $q->whereNull('branch_id')
+                  ->orWhereHas('branch', function($bq) {
+                      $bq->where('is_warehouse', true);
+                  });
             });
         }
         $bankAccounts = $accountsQuery->get();
@@ -571,6 +579,13 @@ class SupplierPaymentController extends Controller
             $accountsQuery->where(function($q) use ($restrictedBranchId) {
                 $q->where('branch_id', $restrictedBranchId)
                   ->orWhereNull('branch_id');
+            });
+        } else {
+            $accountsQuery->where(function($q) {
+                $q->whereNull('branch_id')
+                  ->orWhereHas('branch', function($bq) {
+                      $bq->where('is_warehouse', true);
+                  });
             });
         }
         $accounts = $accountsQuery->get();

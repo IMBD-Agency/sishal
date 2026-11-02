@@ -331,21 +331,9 @@
                 }
                 // If no challan selected but amount entered, it's an advance payment
             });
-            // Filter Account Dropdown based on Type and Branch isolation
+            // Filter Account Dropdown based on Account Type (accounts are already scoped by Controller to Global + Warehouse Branches)
             function filterPaymentAccounts() {
                 const type = $('#payment_method').val();
-                let targetBranchId = '{{ $restrictedBranchId ?? '' }}';
-                let isBranch = !!targetBranchId;
-
-                // If not restricted and bills are selected, check if selected bills belong to a branch
-                if (!targetBranchId && selectedChallans.length > 0) {
-                    const branchIds = [...new Set(selectedChallans.map(c => c.branchId).filter(b => !!b))];
-                    if (branchIds.length === 1) {
-                        targetBranchId = String(branchIds[0]);
-                        isBranch = true;
-                    }
-                }
-
                 const accountSelect = $('#account_id');
                 const currentVal = accountSelect.val();
                 let isCurrentValVisible = false;
@@ -359,16 +347,7 @@
                     }
 
                     const optionType = $opt.data('type');
-                    const branchId = $opt.data('branch-id');
-
-                    const matchesType = !type || (optionType === type);
-
-                    let matchesBranch = true;
-                    if (branchId !== '' && branchId !== undefined && branchId !== null) {
-                        matchesBranch = isBranch && (String(branchId) === String(targetBranchId));
-                    }
-
-                    const shouldShow = matchesType && matchesBranch;
+                    const shouldShow = !type || (optionType === type);
                     $opt.toggle(shouldShow);
 
                     if (val === currentVal && shouldShow) {
