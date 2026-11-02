@@ -247,7 +247,7 @@
             const $section = $tag.closest('.attribute-section');
             const attrId = $section.data('attribute-id');
             const valId = $tag.data('value-id');
-            const valText = $tag.data('value-text');
+            const valText = String($tag.attr('data-value-text') ?? $tag.data('value-text') ?? '');
 
             $tag.toggleClass('selected');
 
@@ -288,8 +288,8 @@
             $tbody.empty();
 
             combinations.forEach((combo, index) => {
-                const name = combo.map(c => c.text).join(' - ');
-                const slugSuffix = combo.map(c => c.text.toUpperCase().substring(0, 3)).join('');
+                const name = combo.map(c => String(c.text)).join(' - ');
+                const slugSuffix = combo.map(c => String(c.text).toUpperCase().substring(0, 3)).join('');
                 const sku = `${productSku}-${slugSuffix}`;
                 
                 const row = `
