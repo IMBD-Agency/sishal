@@ -347,7 +347,8 @@
                 reportRadios.forEach(radio => radio.addEventListener('change', () => {
                     toggleDateGroups();
                     if (radio.value === 'daily') {
-                        const today = new Date().toISOString().split('T')[0];
+                        const _d = new Date();
+                        const today = _d.getFullYear() + '-' + String(_d.getMonth() + 1).padStart(2, '0') + '-' + String(_d.getDate()).padStart(2, '0');
                         if (!$('input[name="start_date"]').val()) {
                             $('input[name="start_date"]').val(today);
                             $('input[name="end_date"]').val(today);
@@ -394,7 +395,8 @@
                     // Set default report type
                     $('#yearlyReport').prop('checked', true).trigger('change');
 
-                    const today = new Date().toISOString().split('T')[0];
+                    const _d = new Date();
+                    const today = _d.getFullYear() + '-' + String(_d.getMonth() + 1).padStart(2, '0') + '-' + String(_d.getDate()).padStart(2, '0');
                     $('input[name="start_date"]').val(today);
                     $('input[name="end_date"]').val(today);
 

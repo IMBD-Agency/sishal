@@ -73,7 +73,7 @@ class PosController extends Controller
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'branch_id' => 'required|exists:branches,id',
-            'sale_date' => 'required|date',
+            'sale_date' => 'nullable|date',
             'estimated_delivery_date' => 'nullable|date',
             'estimated_delivery_time' => 'nullable',
             'sub_total' => 'required|numeric|min:0',
@@ -130,7 +130,11 @@ class PosController extends Controller
             $pos->customer_id = $request->customer_id;
             $pos->branch_id = $request->branch_id;
             $pos->sold_by = auth()->id();
-            $pos->sale_date = $request->sale_date;
+            $serverToday = now(config('app.timezone', 'Asia/Dhaka'))->toDateString();
+            $pos->sale_date = $request->filled('sale_date') ? $request->sale_date : $serverToday;
+            if ($pos->sale_date > $serverToday) {
+                $pos->sale_date = $serverToday;
+            }
             $pos->sub_total = $request->sub_total;
             $pos->discount = $request->discount ?? 0;
             $pos->delivery = $request->delivery ?? 0;
@@ -180,8 +184,8 @@ class PosController extends Controller
             $invoice->template_id = $invTemplate?->id;
             $invoice->customer_id = $pos->customer_id;
             $invoice->operated_by = $pos->sold_by;
-            $invoice->issue_date = now()->toDateString();
-            $invoice->due_date = now()->toDateString();
+            $invoice->issue_date = $pos->sale_date;
+            $invoice->due_date = $pos->sale_date;
             $invoice->subtotal = $pos->sub_total;
             $invoice->tax = $tax;
             $invoice->total_amount = $pos->total_amount;
@@ -360,7 +364,7 @@ class PosController extends Controller
                         'payment_for' => 'pos',
                         'pos_id' => $pos->id,
                         'invoice_id' => $invoice->id,
-                        'payment_date' => now()->toDateString(),
+                        'payment_date' => $pos->sale_date,
                         'amount' => $accountPaidAmount,
                         'account_id' => $finAcc ? $finAcc->id : $request->account_id,
                         'payment_method' => $request->payment_method ?? 'cash',
@@ -1322,7 +1326,7 @@ class PosController extends Controller
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'branch_id' => 'required|exists:branches,id',
-            'sale_date' => 'required|date',
+            'sale_date' => 'nullable|date',
             'estimated_delivery_date' => 'nullable|date',
             'estimated_delivery_time' => 'nullable',
             'sub_total' => 'required|numeric|min:0',
@@ -1377,7 +1381,7 @@ class PosController extends Controller
             // Update POS sale
             $pos->customer_id = $request->customer_id;
             $pos->branch_id = $request->branch_id;
-            $pos->sale_date = $request->sale_date;
+            $pos->sale_date = $request->filled('sale_date') ? $request->sale_date : now(config('app.timezone', 'Asia/Dhaka'))->toDateString();
             $pos->sub_total = $request->sub_total;
             $pos->discount = $request->discount ?? 0;
             $pos->delivery = $request->delivery ?? 0;
@@ -3312,7 +3316,7 @@ class PosController extends Controller
             $pos->customer_id = $request->customer_id;
             $pos->branch_id = $request->branch_id;
             $pos->sold_by = auth()->id();
-            $pos->sale_date = $request->sale_date;
+            $pos->sale_date = $request->filled('sale_date') ? $request->sale_date : now(config('app.timezone', 'Asia/Dhaka'))->toDateString();
             $pos->sale_type = $request->sale_type;
             $pos->sub_total = $request->sub_total;
             $pos->discount = $request->discount ?? 0;

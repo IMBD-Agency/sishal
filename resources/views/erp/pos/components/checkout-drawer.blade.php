@@ -1072,7 +1072,8 @@ $('#posCheckoutForm').on('submit', function(e) {
         return;
     }
     
-    const saleDate = new Date().toISOString().slice(0, 10); // today
+    const _now = new Date();
+    const saleDate = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0'); // today (local)
     const estimatedDeliveryDate = $('#drawerEstimatedDate').val() || null;
     const estimatedDeliveryTime = $('#drawerEstimatedTime').val() || null;
     

@@ -1134,11 +1134,14 @@ $(document).ready(function() {
         let totalAmount = (subtotal + delivery + vatAmount) - discount;
         let customerId = $('#customerSelect').val();
 
+        const _d = new Date();
+        const localSaleDate = _d.getFullYear() + '-' + String(_d.getMonth() + 1).padStart(2, '0') + '-' + String(_d.getDate()).padStart(2, '0');
+
         let formData = {
             _token: $('input[name="_token"]').val(),
             branch_id: $('#branchFilter').val(),
             customer_id: customerId === 'walk-in' ? null : customerId,
-            sale_date: new Date().toISOString().split('T')[0],
+            sale_date: localSaleDate,
             sub_total: subtotal,
             discount: discount,
             delivery: delivery,

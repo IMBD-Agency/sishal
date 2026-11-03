@@ -199,13 +199,11 @@
                     <td>
                         @php
                             $tz = config('app.timezone', 'Asia/Dhaka');
-                            $createdAtLocal = $pos->created_at ? \Carbon\Carbon::parse($pos->created_at)->timezone($tz) : null;
-                            if ($pos->sale_date && $createdAtLocal) {
-                                $displayDate = \Carbon\Carbon::parse($pos->sale_date)->format('d-m-Y') . ' | ' . $createdAtLocal->format('h:i A');
+                            $createdAtLocal = $pos->created_at ? ($pos->created_at instanceof \Carbon\Carbon ? $pos->created_at->copy()->timezone($tz) : \Carbon\Carbon::parse($pos->created_at, $tz)) : null;
+                            if ($pos->sale_date) {
+                                $displayDate = \Carbon\Carbon::parse($pos->sale_date)->format('d-m-Y') . ($createdAtLocal ? ' | ' . $createdAtLocal->format('h:i A') : '');
                             } elseif ($createdAtLocal) {
                                 $displayDate = $createdAtLocal->format('d-m-Y | h:i A');
-                            } elseif ($pos->sale_date) {
-                                $displayDate = \Carbon\Carbon::parse($pos->sale_date)->format('d-m-Y');
                             } else {
                                 $displayDate = \Carbon\Carbon::now($tz)->format('d-m-Y | h:i A');
                             }
