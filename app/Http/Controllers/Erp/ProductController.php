@@ -912,6 +912,13 @@ class ProductController extends Controller
 
                 $product->update($data);
 
+                // Auto-sync variation costs with main product cost
+                if ($product->variations()->exists()) {
+                    $product->variations()->update([
+                        'cost' => $product->cost,
+                    ]);
+                }
+
                 // Auto-sync variation SKUs if style_number or sku was changed
                 $newBase = !empty($product->style_number) ? $product->style_number : $product->sku;
                 $oldBase = !empty($oldStyleNumber) ? $oldStyleNumber : $oldSku;
