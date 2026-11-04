@@ -91,12 +91,21 @@
                         $retAmt = $item->returnItems->sum('total_price');
 
                         $grossAmt = $item->quantity * $item->unit_price;
-                        $itemExchNewQty = \App\Models\PosExchangeItem::where('type', 'new')
+
+                        // Pre-resolved Completed Exchanges & New Items from eager loaded relations (Zero DB queries)
+                        $completedExchanges = $sale->relationLoaded('exchanges')
+                            ? $sale->exchanges->where('status', 'completed')
+                            : collect();
+
+                        $completedNewItems = $completedExchanges->flatMap(function($ex) {
+                            return $ex->relationLoaded('items')
+                                ? $ex->items->where('type', 'new')
+                                : collect();
+                        });
+
+                        $itemExchNewQty = (float) $completedNewItems
                             ->where('product_id', $item->product_id)
                             ->where('variation_id', $item->variation_id)
-                            ->whereHas('exchange', function($q) use ($sale) {
-                                $q->where('original_pos_id', $sale->id)->where('status', 'completed');
-                            })
                             ->sum('quantity');
 
                         // Combo & Physical Piece Calculation
@@ -116,7 +125,9 @@
                         $invPhysicalQty = 0;
                         foreach ($invItems as $invItem) {
                             if ($invItem->product?->type === 'combo') {
-                                $cQty = $invItem->childItems ? $invItem->childItems->sum('quantity') : 0;
+                                $cQty = $invItem->relationLoaded('childItems')
+                                    ? $invItem->childItems->sum('quantity')
+                                    : $sale->items->where('parent_item_id', $invItem->id)->sum('quantity');
                                 $invPhysicalQty += ($cQty > 0 ? $cQty : $invItem->quantity);
                             } else {
                                 $invPhysicalQty += $invItem->quantity;
@@ -129,11 +140,7 @@
                         $invExchRetQty = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('returned_qty'));
                         $invExchRetAmt = $invItems->sum(fn($i) => $i->returnItems->filter(fn($ri) => ($ri->saleReturn?->refund_type ?? '') === 'exchange')->sum('total_price'));
 
-                        $invExchNewQty = \App\Models\PosExchangeItem::where('type', 'new')
-                            ->whereHas('exchange', function($q) use ($sale) {
-                                $q->where('original_pos_id', $sale->id)->where('status', 'completed');
-                            })
-                            ->sum('quantity');
+                        $invExchNewQty = (float) $completedNewItems->sum('quantity');
 
                         $invRetQty = $invRegRetQty + $invExchRetQty;
                         $invRetAmt = $invRegRetAmt + $invExchRetAmt;
@@ -193,12 +200,10 @@
                             $invExchNewVatTotal = 0;
                             $invExchNewDiscTotal = 0;
 
-                            $completedExchanges = $sale->relationLoaded('exchanges')
-                                ? $sale->exchanges->where('status', 'completed')
-                                : \App\Models\PosExchange::with(['items', 'newItems'])->where('original_pos_id', $sale->id)->where('status', 'completed')->get();
-
                             foreach ($completedExchanges as $ex) {
-                                $newItems = $ex->relationLoaded('newItems') ? $ex->newItems : $ex->items->where('type', 'new');
+                                $newItems = $ex->relationLoaded('items')
+                                    ? $ex->items->where('type', 'new')
+                                    : ($ex->relationLoaded('newItems') ? $ex->newItems : collect());
                                 $itemLevelDisc = $newItems->sum(fn($ni) => max(0, ($ni->quantity * $ni->unit_price) - $ni->total_price));
                                 $exDisc = $itemLevelDisc + (float)($ex->discount_amount ?? 0);
                                 $invExchNewDiscTotal += $exDisc;

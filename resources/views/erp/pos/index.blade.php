@@ -119,19 +119,19 @@
                             <div class="d-flex gap-4">
                                 <div class="form-check custom-radio">
                                     <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                        id="dailyReport" value="daily" {{ request('report_type', 'yearly') == 'daily' ? 'checked' : '' }}>
+                                        id="dailyReport" value="daily" {{ request('report_type') == 'daily' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small text-muted" for="dailyReport">Daily
                                         Reports</label>
                                 </div>
                                 <div class="form-check custom-radio">
                                     <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                        id="monthlyReport" value="monthly" {{ request('report_type') == 'monthly' ? 'checked' : '' }}>
+                                        id="monthlyReport" value="monthly" {{ request('report_type', 'monthly') == 'monthly' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small text-muted" for="monthlyReport">Monthly
                                         Reports</label>
                                 </div>
                                 <div class="form-check custom-radio">
                                     <input class="form-check-input report-type-radio" type="radio" name="report_type"
-                                        id="yearlyReport" value="yearly" {{ request('report_type', 'yearly') == 'yearly' ? 'checked' : '' }}>
+                                        id="yearlyReport" value="yearly" {{ request('report_type') == 'yearly' ? 'checked' : '' }}>
                                     <label class="form-check-label fw-bold small text-muted" for="yearlyReport">Yearly
                                         Reports</label>
                                 </div>
@@ -393,7 +393,7 @@
                     $('.select2-simple').val('').trigger('change');
 
                     // Set default report type
-                    $('#yearlyReport').prop('checked', true).trigger('change');
+                    $('#monthlyReport').prop('checked', true).trigger('change');
 
                     const _d = new Date();
                     const today = _d.getFullYear() + '-' + String(_d.getMonth() + 1).padStart(2, '0') + '-' + String(_d.getDate()).padStart(2, '0');

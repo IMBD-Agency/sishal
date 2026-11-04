@@ -638,7 +638,7 @@ class PosController extends Controller
         if (!auth()->user()->can('view sales')) {
             abort(403, 'Unauthorized action.');
         }
-        $reportType = $request->get('report_type', 'yearly');
+        $reportType = $request->get('report_type', 'monthly');
 
         if ($reportType == 'monthly') {
             $month = $request->get('month', date('m'));
@@ -664,10 +664,11 @@ class PosController extends Controller
                 'pos.invoice:id,total_amount,paid_amount,due_amount',
                 'pos.branch:id,name',
                 'pos.soldBy:id,first_name,last_name',
-                'pos.items:id,pos_sale_id,product_id,quantity,unit_price,total_price,parent_item_id,sort_order',
+                'pos.items:id,pos_sale_id,product_id,variation_id,quantity,unit_price,total_price,parent_item_id,sort_order',
                 'pos.items.product:id,type',
                 'pos.items.returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
                 'pos.items.returnItems.saleReturn:id,refund_type,status',
+                'pos.exchanges:id,original_pos_id,status,discount_amount,vat_amount,total_new_amount',
                 'pos.exchanges.items',
                 'product:id,name,sku,style_number,category_id,brand_id,season_id,gender_id,image,type',
                 'product.category:id,name',
@@ -675,6 +676,7 @@ class PosController extends Controller
                 'product.season:id,name',
                 'product.gender:id,name',
                 'variation.attributeValues.attribute',
+                'childItems:id,parent_item_id,product_id,variation_id,quantity,unit_price,total_price',
                 'childItems.product:id,name',
                 'childItems.variation.attributeValues',
                 'returnItems:id,sale_item_id,sale_return_id,returned_qty,total_price',
@@ -683,169 +685,186 @@ class PosController extends Controller
 
         $query = $this->applyFilters($query, $request, $startDate, $endDate);
 
-        // Comprehensive Big Data Optimization for ALL Totals
-        $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
-            ->mergeBindings($query->getQuery())
-            ->selectRaw("
-                SUM(quantity) as total_qty, 
-                SUM(quantity * unit_price) as gross_amount,
-                SUM(total_price) as total_amount,
-                SUM((quantity * unit_price) - total_price) as item_discount
-            ")
-            ->first();
+        // Smart Session Caching for Grand Totals across Pagination
+        $filterParams = $request->except(['page', '_token', 'per_page']);
+        $filterParams['user_restricted_branch'] = $this->getRestrictedBranchId();
+        $filterHash = md5(json_encode($filterParams));
+        $isPaging = $request->filled('page') && (int)$request->page > 1;
 
-        // 2. Sale-level totals (Delivery, Discount, Grand Total, Paid, Due)
-        // We use a subquery to get unique POS IDs from the filtered items
-        $filteredPosIds = clone $query;
-        $saleTotals = \DB::table('pos')
-            ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
-            ->whereIn('pos.id', $filteredPosIds->select('pos_sale_id')->distinct())
-            ->selectRaw("
-                SUM(pos.delivery) as total_delivery,
-                SUM(pos.discount) as total_discount,
-                SUM(pos.vat_amount) as total_vat,
-                SUM(pos.exchange_amount) as total_exchange,
-                SUM(pos.refund_amount) as total_refund,
-                SUM(GREATEST(0, invoices.total_amount - pos.delivery)) as final_total,
-                SUM(LEAST(GREATEST(0, invoices.paid_amount - pos.delivery), GREATEST(0, invoices.total_amount - pos.delivery))) as total_paid,
-                SUM(GREATEST(0, (invoices.total_amount - pos.delivery) - LEAST(GREATEST(0, invoices.paid_amount - pos.delivery), GREATEST(0, invoices.total_amount - pos.delivery)))) as total_due
-            ")
-            ->first();
+        if ($isPaging && session('pos_last_filter_hash') === $filterHash && session()->has('pos_last_report_totals')) {
+            $reportTotals = session('pos_last_report_totals');
+        } else {
+            // Comprehensive Big Data Optimization for ALL Totals
+            $itemTotals = \DB::table(\DB::raw("({$query->toSql()}) as sub"))
+                ->mergeBindings($query->getQuery())
+                ->selectRaw("
+                    SUM(quantity) as total_qty, 
+                    SUM(quantity * unit_price) as gross_amount,
+                    SUM(total_price) as total_amount,
+                    SUM((quantity * unit_price) - total_price) as item_discount
+                ")
+                ->first();
 
-        // Query return totals for the filtered items
-        $filteredItemIds = clone $query;
-        $returnTotals = \DB::table('sale_return_items')
-            ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
-            ->whereIn('sale_return_items.sale_item_id', $filteredItemIds->select('pos_items.id'))
-            ->selectRaw("
-                SUM(CASE WHEN sale_returns.refund_type != 'exchange' THEN sale_return_items.returned_qty ELSE 0 END) as reg_ret_qty,
-                SUM(CASE WHEN sale_returns.refund_type != 'exchange' THEN sale_return_items.total_price ELSE 0 END) as reg_ret_amt,
-                SUM(CASE WHEN sale_returns.refund_type = 'exchange' THEN sale_return_items.returned_qty ELSE 0 END) as exch_ret_qty,
-                SUM(CASE WHEN sale_returns.refund_type = 'exchange' THEN sale_return_items.total_price ELSE 0 END) as exch_ret_amt
-            ")
-            ->first();
+            // 2. Sale-level totals (Delivery, Discount, Grand Total, Paid, Due)
+            // We use a subquery to get unique POS IDs from the filtered items
+            $filteredPosIds = clone $query;
+            $saleTotals = \DB::table('pos')
+                ->join('invoices', 'pos.invoice_id', '=', 'invoices.id')
+                ->whereIn('pos.id', $filteredPosIds->select('pos_sale_id')->distinct())
+                ->selectRaw("
+                    SUM(pos.delivery) as total_delivery,
+                    SUM(pos.discount) as total_discount,
+                    SUM(pos.vat_amount) as total_vat,
+                    SUM(pos.exchange_amount) as total_exchange,
+                    SUM(pos.refund_amount) as total_refund,
+                    SUM(GREATEST(0, invoices.total_amount - pos.delivery)) as final_total,
+                    SUM(LEAST(GREATEST(0, invoices.paid_amount - pos.delivery), GREATEST(0, invoices.total_amount - pos.delivery))) as total_paid,
+                    SUM(GREATEST(0, (invoices.total_amount - pos.delivery) - LEAST(GREATEST(0, invoices.paid_amount - pos.delivery), GREATEST(0, invoices.total_amount - pos.delivery)))) as total_due
+                ")
+                ->first();
 
-        $filteredPosIdsForExchange = clone $query;
-        $exchangeNewTotals = (float) \DB::table('pos_exchange_items')
-            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
-            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchange->select('pos_items.pos_sale_id')->distinct())
-            ->where('pos_exchange_items.type', 'new')
-            ->where('pos_exchanges.status', 'completed')
-            ->sum('pos_exchange_items.quantity');
+            // Query return totals for the filtered items
+            $filteredItemIds = clone $query;
+            $returnTotals = \DB::table('sale_return_items')
+                ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
+                ->whereIn('sale_return_items.sale_item_id', $filteredItemIds->select('pos_items.id'))
+                ->selectRaw("
+                    SUM(CASE WHEN sale_returns.refund_type != 'exchange' THEN sale_return_items.returned_qty ELSE 0 END) as reg_ret_qty,
+                    SUM(CASE WHEN sale_returns.refund_type != 'exchange' THEN sale_return_items.total_price ELSE 0 END) as reg_ret_amt,
+                    SUM(CASE WHEN sale_returns.refund_type = 'exchange' THEN sale_return_items.returned_qty ELSE 0 END) as exch_ret_qty,
+                    SUM(CASE WHEN sale_returns.refund_type = 'exchange' THEN sale_return_items.total_price ELSE 0 END) as exch_ret_amt
+                ")
+                ->first();
 
-        // Query exchange discounts for filtered items
-        $filteredPosIdsForExchangeDisc = clone $query;
-        $exchangeDiscountTotal = (float) \DB::table('pos_exchanges')
-            ->whereIn('original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
-            ->where('status', 'completed')
-            ->sum('discount_amount');
+            $filteredPosIdsForExchange = clone $query;
+            $exchangeNewTotals = (float) \DB::table('pos_exchange_items')
+                ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+                ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchange->select('pos_items.pos_sale_id')->distinct())
+                ->where('pos_exchange_items.type', 'new')
+                ->where('pos_exchanges.status', 'completed')
+                ->sum('pos_exchange_items.quantity');
 
-        $exchangeItemDiscountTotal = (float) (\DB::table('pos_exchange_items')
-            ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
-            ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
-            ->where('pos_exchange_items.type', 'new')
-            ->where('pos_exchanges.status', 'completed')
-            ->selectRaw("SUM(GREATEST(0, (pos_exchange_items.quantity * pos_exchange_items.unit_price) - pos_exchange_items.total_price)) as item_disc")
-            ->value('item_disc') ?? 0);
+            // Query exchange discounts for filtered items
+            $filteredPosIdsForExchangeDisc = clone $query;
+            $exchangeDiscountTotal = (float) \DB::table('pos_exchanges')
+                ->whereIn('original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
+                ->where('status', 'completed')
+                ->sum('discount_amount');
 
-        $totalExchangeDiscount = $exchangeDiscountTotal + $exchangeItemDiscountTotal;
+            $exchangeItemDiscountTotal = (float) (\DB::table('pos_exchange_items')
+                ->join('pos_exchanges', 'pos_exchange_items.pos_exchange_id', '=', 'pos_exchanges.id')
+                ->whereIn('pos_exchanges.original_pos_id', $filteredPosIdsForExchangeDisc->select('pos_items.pos_sale_id')->distinct())
+                ->where('pos_exchange_items.type', 'new')
+                ->where('pos_exchanges.status', 'completed')
+                ->selectRaw("SUM(GREATEST(0, (pos_exchange_items.quantity * pos_exchange_items.unit_price) - pos_exchange_items.total_price)) as item_disc")
+                ->value('item_disc') ?? 0);
 
-        // Query return discount for filtered items using the exact item discount difference
-        $filteredItemIdsForDiscount = clone $query;
-        $returnDiscountTotal = (float) (\DB::table('sale_return_items')
-            ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
-            ->join('pos_items', 'sale_return_items.sale_item_id', '=', 'pos_items.id')
-            ->whereIn('sale_return_items.sale_item_id', $filteredItemIdsForDiscount->select('pos_items.id'))
-            ->whereIn('sale_returns.status', ['processed', 'completed'])
-            ->selectRaw("
-                SUM(
-                    CASE 
-                        WHEN pos_items.quantity > 0 THEN 
-                            ((pos_items.quantity * pos_items.unit_price) - pos_items.total_price) * (sale_return_items.returned_qty / pos_items.quantity)
-                        ELSE 0 
-                    END
-                ) as returned_discount
-            ")
-            ->value('returned_discount') ?? 0);
+            $totalExchangeDiscount = $exchangeDiscountTotal + $exchangeItemDiscountTotal;
 
-        $grossItemDiscountTotal = (float) ($itemTotals->item_discount ?? ($saleTotals->total_discount ?? 0));
-        $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal) + $totalExchangeDiscount;
+            // Query return discount for filtered items using the exact item discount difference
+            $filteredItemIdsForDiscount = clone $query;
+            $returnDiscountTotal = (float) (\DB::table('sale_return_items')
+                ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
+                ->join('pos_items', 'sale_return_items.sale_item_id', '=', 'pos_items.id')
+                ->whereIn('sale_return_items.sale_item_id', $filteredItemIdsForDiscount->select('pos_items.id'))
+                ->whereIn('sale_returns.status', ['processed', 'completed'])
+                ->selectRaw("
+                    SUM(
+                        CASE 
+                            WHEN pos_items.quantity > 0 THEN 
+                                ((pos_items.quantity * pos_items.unit_price) - pos_items.total_price) * (sale_return_items.returned_qty / pos_items.quantity)
+                            ELSE 0 
+                        END
+                    ) as returned_discount
+                ")
+                ->value('returned_discount') ?? 0);
 
-        // Query return VAT for filtered items (only regular returns, as exchange already updates pos.vat_amount directly)
-        $filteredItemIdsForVat = clone $query;
-        $returnVatTotal = (float) (\DB::table('sale_return_items')
-            ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
-            ->join('pos_items', 'sale_return_items.sale_item_id', '=', 'pos_items.id')
-            ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
-            ->whereIn('sale_return_items.sale_item_id', $filteredItemIdsForVat->select('pos_items.id'))
-            ->where('sale_returns.refund_type', '!=', 'exchange')
-            ->whereIn('sale_returns.status', ['processed', 'completed'])
-            ->selectRaw("
-                SUM(
-                    CASE 
-                        WHEN pos_items.quantity > 0 THEN 
-                            (sale_return_items.returned_qty * (pos_items.total_price / pos_items.quantity)) * 
-                            (CASE 
-                                WHEN pos.vat_rate > 0 THEN (pos.vat_rate / 100) 
-                                WHEN (pos.sub_total - pos.discount) > 0 THEN (pos.vat_amount / (pos.sub_total - pos.discount))
-                                ELSE 0 
-                            END)
-                        ELSE 0 
-                    END
-                ) as returned_vat
-            ")
-            ->value('returned_vat') ?? 0);
+            $grossItemDiscountTotal = (float) ($itemTotals->item_discount ?? ($saleTotals->total_discount ?? 0));
+            $netDiscountTotal = max(0, $grossItemDiscountTotal - $returnDiscountTotal) + $totalExchangeDiscount;
 
-        $netVatTotal = max(0, ($saleTotals->total_vat ?? 0) - $returnVatTotal);
+            // Query return VAT for filtered items (only regular returns, as exchange already updates pos.vat_amount directly)
+            $filteredItemIdsForVat = clone $query;
+            $returnVatTotal = (float) (\DB::table('sale_return_items')
+                ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
+                ->join('pos_items', 'sale_return_items.sale_item_id', '=', 'pos_items.id')
+                ->join('pos', 'pos_items.pos_sale_id', '=', 'pos.id')
+                ->whereIn('sale_return_items.sale_item_id', $filteredItemIdsForVat->select('pos_items.id'))
+                ->where('sale_returns.refund_type', '!=', 'exchange')
+                ->whereIn('sale_returns.status', ['processed', 'completed'])
+                ->selectRaw("
+                    SUM(
+                        CASE 
+                            WHEN pos_items.quantity > 0 THEN 
+                                (sale_return_items.returned_qty * (pos_items.total_price / pos_items.quantity)) * 
+                                (CASE 
+                                    WHEN pos.vat_rate > 0 THEN (pos.vat_rate / 100) 
+                                    WHEN (pos.sub_total - pos.discount) > 0 THEN (pos.vat_amount / (pos.sub_total - pos.discount))
+                                    ELSE 0 
+                                END)
+                            ELSE 0 
+                        END
+                    ) as returned_vat
+                ")
+                ->value('returned_vat') ?? 0);
 
-        $totalQty = $itemTotals->total_qty ?? 0;
-        $totalAmount = $itemTotals->total_amount ?? 0;
+            $netVatTotal = max(0, ($saleTotals->total_vat ?? 0) - $returnVatTotal);
 
-        // Accurate Physical Piece Totals for Single and Combo items
-        $filteredItemIdsForChild = clone $query;
-        $childQtySum = (float) \DB::table('pos_items')
-            ->whereIn('parent_item_id', $filteredItemIdsForChild->select('pos_items.id'))
-            ->sum('quantity');
+            $totalQty = $itemTotals->total_qty ?? 0;
+            $totalAmount = $itemTotals->total_amount ?? 0;
 
-        $filteredItemIdsForCombo = clone $query;
-        $comboParentQty = (float) \DB::table('pos_items')
-            ->join('products', 'pos_items.product_id', '=', 'products.id')
-            ->whereIn('pos_items.id', $filteredItemIdsForCombo->select('pos_items.id'))
-            ->where('products.type', 'combo')
-            ->sum('pos_items.quantity');
+            // Accurate Physical Piece Totals for Single and Combo items
+            $filteredItemIdsForChild = clone $query;
+            $childQtySum = (float) \DB::table('pos_items')
+                ->whereIn('parent_item_id', $filteredItemIdsForChild->select('pos_items.id'))
+                ->sum('quantity');
 
-        $singleParentQty = max(0, $totalQty - $comboParentQty);
-        $totalPhysicalQty = $singleParentQty + $childQtySum;
-        $actPhysicalQty = $totalPhysicalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0) + $exchangeNewTotals;
+            $filteredItemIdsForCombo = clone $query;
+            $comboParentQty = (float) \DB::table('pos_items')
+                ->join('products', 'pos_items.product_id', '=', 'products.id')
+                ->whereIn('pos_items.id', $filteredItemIdsForCombo->select('pos_items.id'))
+                ->where('products.type', 'combo')
+                ->sum('pos_items.quantity');
 
-        // Pass all totals to the view
-        $reportTotals = [
-            'sell_qty' => $totalQty,
-            'combo_qty' => $comboParentQty,
-            'single_qty' => $singleParentQty,
-            'combo_child_qty' => $childQtySum,
-            'total_physical_qty' => $totalPhysicalQty,
-            'act_physical_qty' => $actPhysicalQty,
-            'gross_amt' => $itemTotals->gross_amount ?? 0,
-            'sell_amt' => $totalAmount,
-            'delivery' => $saleTotals->total_delivery ?? 0,
-            'discount' => $netDiscountTotal,
-            'exchange_discount' => $totalExchangeDiscount,
-            'vat_amt' => $netVatTotal,
-            'exchange' => $saleTotals->total_exchange ?? 0,
-            'refund' => $saleTotals->total_refund ?? 0,
-            'final_total' => $saleTotals->final_total ?? 0,
-            'paid' => $saleTotals->total_paid ?? 0,
-            'due' => $saleTotals->total_due ?? 0,
-            'reg_ret_qty' => $returnTotals->reg_ret_qty ?? 0,
-            'reg_ret_amt' => $returnTotals->reg_ret_amt ?? 0,
-            'exch_ret_qty' => $returnTotals->exch_ret_qty ?? 0,
-            'exch_ret_amt' => $returnTotals->exch_ret_amt ?? 0,
-            'exch_new_qty' => $exchangeNewTotals,
-            'act_qty' => $totalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0) + $exchangeNewTotals,
-        ];
+            $singleParentQty = max(0, $totalQty - $comboParentQty);
+            $totalPhysicalQty = $singleParentQty + $childQtySum;
+            $actPhysicalQty = $totalPhysicalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0) + $exchangeNewTotals;
 
-        $items = $query->orderBy('pos_items.pos_sale_id', 'desc')->orderBy('pos_items.sort_order')->paginate(500)->appends($request->all());
+            // Pass all totals to the view
+            $reportTotals = [
+                'sell_qty' => $totalQty,
+                'combo_qty' => $comboParentQty,
+                'single_qty' => $singleParentQty,
+                'combo_child_qty' => $childQtySum,
+                'total_physical_qty' => $totalPhysicalQty,
+                'act_physical_qty' => $actPhysicalQty,
+                'gross_amt' => $itemTotals->gross_amount ?? 0,
+                'sell_amt' => $totalAmount,
+                'delivery' => $saleTotals->total_delivery ?? 0,
+                'discount' => $netDiscountTotal,
+                'exchange_discount' => $totalExchangeDiscount,
+                'vat_amt' => $netVatTotal,
+                'exchange' => $saleTotals->total_exchange ?? 0,
+                'refund' => $saleTotals->total_refund ?? 0,
+                'final_total' => $saleTotals->final_total ?? 0,
+                'paid' => $saleTotals->total_paid ?? 0,
+                'due' => $saleTotals->total_due ?? 0,
+                'reg_ret_qty' => $returnTotals->reg_ret_qty ?? 0,
+                'reg_ret_amt' => $returnTotals->reg_ret_amt ?? 0,
+                'exch_ret_qty' => $returnTotals->exch_ret_qty ?? 0,
+                'exch_ret_amt' => $returnTotals->exch_ret_amt ?? 0,
+                'exch_new_qty' => $exchangeNewTotals,
+                'act_qty' => $totalQty - ($returnTotals->reg_ret_qty ?? 0) - ($returnTotals->exch_ret_qty ?? 0) + $exchangeNewTotals,
+            ];
+
+            session([
+                'pos_last_filter_hash' => $filterHash,
+                'pos_last_report_totals' => $reportTotals,
+            ]);
+        }
+
+        $perPage = (int) $request->get('per_page', 100);
+        $perPage = in_array($perPage, [25, 50, 100, 200, 500]) ? $perPage : 100;
+        $items = $query->orderBy('pos_items.pos_sale_id', 'desc')->orderBy('pos_items.sort_order')->paginate($perPage)->appends($request->all());
 
         // Big Data Dropdown Optimization: Only load top 100 for initial view
         $restrictedBranchId = $this->getRestrictedBranchId();
