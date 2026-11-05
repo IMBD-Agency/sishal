@@ -40,16 +40,30 @@
                         </div>
 
                         <div class="row g-3">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted">Start Date *</label>
                                 <input type="date" name="start_date" id="start_date" class="form-control" value="{{ $startDate->toDateString() }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold text-muted">End Date *</label>
                                 <input type="date" name="end_date" id="end_date" class="form-control" value="{{ $endDate->toDateString() }}">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small fw-bold text-muted">Select Expense Type *</label>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Branch / Outlet</label>
+                                <select name="branch_id" class="form-select select2" {{ !empty($restrictedBranchId) ? 'disabled' : '' }}>
+                                    @if(empty($restrictedBranchId))
+                                        <option value="">All Branches</option>
+                                    @endif
+                                    @foreach($branches as $b)
+                                        <option value="{{ $b->id }}" {{ ($branchId == $b->id) ? 'selected' : '' }}>{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                                @if(!empty($restrictedBranchId))
+                                    <input type="hidden" name="branch_id" value="{{ $restrictedBranchId }}">
+                                @endif
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Select Expense Type</label>
                                 <select name="expense_category_id" class="form-select select2">
                                     <option value="">All Expenses</option>
                                     @foreach($expenseCategories as $cat)

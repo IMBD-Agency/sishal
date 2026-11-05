@@ -2805,7 +2805,7 @@ class ReportController extends Controller
             ]);
         }
 
-        return view('erp.reports.expense-report', compact('expenses', 'startDate', 'endDate', 'reportType', 'branches', 'branchId', 'expenseCategories'));
+        return view('erp.reports.expense-report', compact('expenses', 'startDate', 'endDate', 'reportType', 'branches', 'branchId', 'expenseCategories', 'restrictedBranchId'));
     }
 
     private function exportExpenseExcel($data)
