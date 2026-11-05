@@ -19,7 +19,7 @@ class SuperAdminDashboardController extends Controller
         }
     }
 
-    const CACHE_VERSION = 'v38';
+    const CACHE_VERSION = 'v39';
 
     public static function clearCache()
     {
@@ -835,6 +835,7 @@ class SuperAdminDashboardController extends Controller
         $totalYearGrandTotal = 0;
         $totalGrandValue = 0;
         $totalGrandProfit = 0;
+        $totalGrandCogs = 0;
 
         foreach ($activeBranches as $b) {
             $branchMonthlyData = $monthlyBranchAggregates->get($b->id) ?? collect();
@@ -870,11 +871,14 @@ class SuperAdminDashboardController extends Controller
             $branchCp = $branchCashProfits[$b->id] ?? null;
             $cashVal = (float) ($branchCp['collection'] ?? 0);
             $totalProfit = (float) ($branchCp['cash_profit'] ?? 0);
+            $branchCogs = (float) ($branchCp['estimated_cogs'] ?? 0);
             $profitPct = $cashVal > 0 ? round(($totalProfit / $cashVal) * 100, 2) : 0;
+            $markupPct = $branchCogs > 0 ? round(($totalProfit / $branchCogs) * 100, 2) : 0;
 
             $totalYearGrandTotal += $yearTotal;
             $totalGrandValue += $cashVal;
             $totalGrandProfit += $totalProfit;
+            $totalGrandCogs += $branchCogs;
 
             $statementRows[] = [
                 'branch' => $b->name,
@@ -882,16 +886,19 @@ class SuperAdminDashboardController extends Controller
                 'year_total' => $yearTotal,
                 'total_value' => $cashVal,
                 'total_profit' => $totalProfit,
-                'profit_pct' => $profitPct
+                'profit_pct' => $profitPct,
+                'markup_pct' => $markupPct
             ];
         }
 
         if ($selectedBranchId === 'all') {
             $totalGrandValue = (float)($cashProfitData['total_product_collected'] ?? $totalGrandValue);
             $totalGrandProfit = (float)($cashProfitData['total_cash_profit'] ?? $totalGrandProfit);
+            $totalGrandCogs = (float)($cashProfitData['total_estimated_cost'] ?? $totalGrandCogs);
         }
 
         $totalGrandProfitPct = $totalGrandValue > 0 ? round(($totalGrandProfit / $totalGrandValue) * 100, 2) : 0;
+        $totalGrandMarkupPct = $totalGrandCogs > 0 ? round(($totalGrandProfit / $totalGrandCogs) * 100, 2) : 0;
 
         return [
             'months' => $monthHeadings,
@@ -901,7 +908,8 @@ class SuperAdminDashboardController extends Controller
                 'year_total' => $totalYearGrandTotal,
                 'total_value' => $totalGrandValue,
                 'total_profit' => $totalGrandProfit,
-                'profit_pct' => $totalGrandProfitPct
+                'profit_pct' => $totalGrandProfitPct,
+                'markup_pct' => $totalGrandMarkupPct
             ]
         ];
     }

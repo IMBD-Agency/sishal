@@ -274,6 +274,7 @@
             mHead += '<th class="text-end">Total Value</th>';
             mHead += '<th class="text-end">Total Profit</th>';
             mHead += '<th class="text-end">Profit %</th>';
+            mHead += '<th class="text-end">Markup %</th>';
             document.getElementById('branchStatementHead').innerHTML = mHead;
 
             let mBody = '';
@@ -286,7 +287,9 @@
                 mBody += `<td class="text-end fw-bold text-dark">${formatNumber(r.year_total)} pcs</td>`;
                 mBody += `<td class="text-end fw-bold text-primary">৳${formatCurrency(r.total_value)}</td>`;
                 mBody += `<td class="text-end fw-bold text-success">৳${formatCurrency(r.total_profit)}</td>`;
-                mBody += `<td class="text-end fw-bold"><span class="badge ${pctClass} px-2 py-1">${r.profit_pct}%</span></td></tr>`;
+                const markupClass = (r.markup_pct ?? 0) >= 30 ? 'bg-primary-subtle text-primary border border-primary-subtle' : ((r.markup_pct ?? 0) >= 15 ? 'bg-info-subtle text-info-emphasis border border-info-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle');
+                mBody += `<td class="text-end fw-bold"><span class="badge ${pctClass} px-2 py-1">${r.profit_pct}%</span></td>`;
+                mBody += `<td class="text-end fw-bold"><span class="badge ${markupClass} px-2 py-1">${r.markup_pct ?? 0}%</span></td></tr>`;
             });
             document.getElementById('branchStatementBody').innerHTML = mBody;
 
@@ -297,7 +300,8 @@
             mFoot += `<td class="text-end text-dark fw-bold">${formatNumber(data.branchSalesStatement.totals.year_total)} pcs</td>`;
             mFoot += `<td class="text-end text-primary fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_value)}</td>`;
             mFoot += `<td class="text-end text-success fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_profit)}</td>`;
-            mFoot += `<td class="text-end fw-bold fs-6"><span class="badge bg-primary px-2 py-1">${data.branchSalesStatement.totals.profit_pct}%</span></td></tr>`;
+            mFoot += `<td class="text-end fw-bold fs-6"><span class="badge bg-primary px-2 py-1">${data.branchSalesStatement.totals.profit_pct}%</span></td>`;
+            mFoot += `<td class="text-end fw-bold fs-6"><span class="badge bg-dark text-white px-2 py-1">${data.branchSalesStatement.totals.markup_pct ?? 0}%</span></td></tr>`;
             document.getElementById('branchStatementFoot').innerHTML = mFoot;
         }
 

@@ -33,6 +33,7 @@
                     <th class="text-end">Total Value</th>
                     <th class="text-end">Total Profit</th>
                     <th class="text-end">Profit %</th>
+                    <th class="text-end">Markup %</th>
                 </tr>
             </thead>
             <tbody id="branchStatementBody">
@@ -50,6 +51,11 @@
                             {{ number_format($row['profit_pct'], 1) }}%
                         </span>
                     </td>
+                    <td class="text-end fw-bold">
+                        <span class="badge @if(($row['markup_pct'] ?? 0) >= 30) bg-primary-subtle text-primary border border-primary-subtle @elseif(($row['markup_pct'] ?? 0) >= 15) bg-info-subtle text-info-emphasis border border-info-subtle @else bg-secondary-subtle text-secondary border border-secondary-subtle @endif px-2 py-1">
+                            {{ number_format($row['markup_pct'] ?? 0, 1) }}%
+                        </span>
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -65,6 +71,11 @@
                     <td class="text-end fw-bold fs-6">
                         <span class="badge bg-primary px-2 py-1">
                             {{ number_format($branchSalesStatement['totals']['profit_pct'], 1) }}%
+                        </span>
+                    </td>
+                    <td class="text-end fw-bold fs-6">
+                        <span class="badge bg-dark text-white px-2 py-1">
+                            {{ number_format($branchSalesStatement['totals']['markup_pct'] ?? 0, 1) }}%
                         </span>
                     </td>
                 </tr>
