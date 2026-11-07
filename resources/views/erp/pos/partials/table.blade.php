@@ -411,7 +411,7 @@
                                         </a>
                                     @endif
 
-                                    @if(($invoice->due_amount ?? 0) > 0 && auth()->user()->can('manage money receipts'))
+                                    @if(($invoice->due_amount ?? 0) > 0 && auth()->user()->can('create money receipts'))
                                         @php
                                             // Walk-in: no customer_id, route to invoice-based mode
                                             // Named customer: pass customer_id for customer-based mode
