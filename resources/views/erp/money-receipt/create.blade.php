@@ -204,23 +204,51 @@
         </div>
     </div>
     
-    @push('scripts')
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <style>
-        /* Fix Select2 + Button layout in input-group */
-        .input-group .select2-container {
-            flex: 1 1 auto;
-            width: auto !important;
-        }
-        .input-group .select2-container .select2-selection--single {
-            height: 38px;
-            border-radius: 0.25rem 0 0 0.25rem;
-            border-right: 0;
-        }
-    </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script>
+    <!-- New Customer Modal -->
+    <div class="modal fade" id="newCustomerModal" tabindex="-1" aria-labelledby="newCustomerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 premium-card">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Add New Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newCustomerForm">
+                        @csrf
+                        <div class="mb-3">
+                            <label class="form-label-premium">Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="Enter Name (Optional if Phone exists)">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label-premium">Phone</label>
+                            <input type="text" name="phone" class="form-control" placeholder="Enter Phone (Optional if Name exists)">
+                        </div>
+                        <div id="customerModalError" class="text-danger small mb-2 d-none"></div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-2" id="saveCustomerBtn">SAVE CUSTOMER</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('css')
+<style>
+    /* Fix Select2 + Button layout in input-group */
+    .input-group .select2-container {
+        flex: 1 1 auto;
+        width: auto !important;
+    }
+    .input-group .select2-container .select2-selection--single {
+        height: 38px;
+        border-radius: 0.25rem 0 0 0.25rem;
+        border-right: 0;
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script>
         $(document).ready(function() {
             // Customer Search Select2
             $('.select2-customer-ajax').select2({
@@ -587,31 +615,4 @@
             });
         });
     </script>
-@endsection
-
-<!-- New Customer Modal -->
-<div class="modal fade" id="newCustomerModal" tabindex="-1" aria-labelledby="newCustomerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 premium-card">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Add New Customer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="newCustomerForm">
-                    @csrf
-                    <div class="mb-3">
-                        <label class="form-label-premium">Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="Enter Name (Optional if Phone exists)">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label-premium">Phone</label>
-                        <input type="text" name="phone" class="form-control" placeholder="Enter Phone (Optional if Name exists)">
-                    </div>
-                    <div id="customerModalError" class="text-danger small mb-2 d-none"></div>
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mt-2" id="saveCustomerBtn">SAVE CUSTOMER</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+@endpush

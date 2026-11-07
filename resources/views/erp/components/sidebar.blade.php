@@ -493,19 +493,22 @@
             var nav = document.querySelector('.sidebar-nav');
             if (!nav) return;
 
-            // 1. Restore scroll position from session
-            var scrollPos = sessionStorage.getItem('sidebarScroll');
-            if (scrollPos) {
-                nav.scrollTop = scrollPos;
-            }
-
-            // 2. Automatically scroll active item into view (if not visible)
             var activeLink = nav.querySelector('.nav-link.active');
+            var scrollPos = sessionStorage.getItem('sidebarScroll');
+
+            // Set scrollTop safely directly on nav without scrolling window or layout thrashing
             if (activeLink) {
-                activeLink.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                var activeTop = activeLink.offsetTop;
+                var navHeight = nav.clientHeight || 500;
+                if (scrollPos === null || activeTop < nav.scrollTop || activeTop > (nav.scrollTop + navHeight - 60)) {
+                    nav.scrollTop = Math.max(0, activeTop - (navHeight / 2));
+                } else {
+                    nav.scrollTop = parseInt(scrollPos, 10);
+                }
+            } else if (scrollPos !== null) {
+                nav.scrollTop = parseInt(scrollPos, 10);
             }
 
-            // 3. Save scroll position on scroll
             nav.addEventListener('scroll', function () {
                 sessionStorage.setItem('sidebarScroll', nav.scrollTop);
             }, { passive: true });

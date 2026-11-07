@@ -177,12 +177,18 @@
             </form>
         </div>
     </div>
-    
-    @push('scripts')
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script>
+@endsection
+
+@push('css')
+<style>
+    .bg-indigo-50 { background-color: #f8faff; border: 1px dashed #dee2ff !important; }
+    .fw-600 { font-weight: 600; }
+    .premium-table thead th { background-color: #2d5a4c !important; color: white !important; font-size: 0.8rem; height: 45px; vertical-align: middle; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
         $(document).ready(function() {
             $('.select2-simple').select2({ width: '100%' });
 
@@ -273,10 +279,4 @@
             $('#amount').val('');
         }
     </script>
-    <style>
-        .bg-indigo-50 { background-color: #f8faff; border: 1px dashed #dee2ff !important; }
-        .fw-600 { font-weight: 600; }
-        .premium-table thead th { background-color: #2d5a4c !important; color: white !important; font-size: 0.8rem; height: 45px; vertical-align: middle; }
-    </style>
-    @endpush
-@endsection
+@endpush
