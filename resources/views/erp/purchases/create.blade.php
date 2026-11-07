@@ -70,8 +70,8 @@
                         </div>
                         <div class="col-md-3">
                             <label for="supplier_id" class="form-label small fw-bold text-muted text-uppercase mb-2">Select Supplier <span class="text-danger">*</span></label>
-                            <select name="supplier_id" id="supplier_id" class="form-select select2-premium-42" required>
-                                <option value="">Select One</option>
+                            <select name="supplier_id" id="supplier_id" class="form-select select2 select2-simple select2-premium-42" data-placeholder="Select Supplier" required>
+                                <option value="">Select Supplier</option>
                                 @foreach($suppliers as $supplier)
                                     <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
                                 @endforeach
@@ -228,7 +228,13 @@
                 }
             });
 
-            // Supplier dropdown is handled by global .select2 class in master.blade.php
+            // Searchable Supplier Dropdown
+            $('#supplier_id').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select Supplier',
+                allowClear: true,
+                width: '100%'
+            });
 
             // ENHANCED: Auto-add on Style Number Select
             $('#styleNumberSearch').select2({
